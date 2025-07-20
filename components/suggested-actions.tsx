@@ -20,24 +20,34 @@ function PureSuggestedActions({
 }: SuggestedActionsProps) {
   const suggestedActions = [
     {
-      title: 'What are the advantages',
-      label: 'of using Next.js?',
-      action: 'What are the advantages of using Next.js?',
+      title: 'Check BMC infrastructure',
+      label: 'projects in Anushakti Nagar',
+      action: 'What are the current BMC infrastructure projects and their status in Anushakti Nagar constituency?',
     },
     {
-      title: 'Write code to',
-      label: `demonstrate djikstra's algorithm`,
-      action: `Write code to demonstrate djikstra's algorithm`,
+      title: 'Review MMRDA development',
+      label: 'plans for our area',
+      action: 'What are the current MMRDA development plans and metro projects affecting Anushakti Nagar constituency?',
     },
     {
-      title: 'Help me write an essay',
-      label: `about silicon valley`,
-      action: `Help me write an essay about silicon valley`,
+      title: 'Address citizen complaints',
+      label: 'from AGNI reports',
+      action: 'What are the recent citizen complaints and issues reported through AGNI for Anushakti Nagar area?',
     },
     {
-      title: 'What is the weather',
-      label: 'in San Francisco?',
-      action: 'What is the weather in San Francisco?',
+      title: 'Draft letter to BMC',
+      label: 'about water supply issues',
+      action: 'Help me draft a formal letter to BMC Commissioner about water supply and drainage issues in Anushakti Nagar',
+    },
+    {
+      title: 'Prepare for assembly',
+      label: 'session on civic issues',
+      action: 'Help me prepare key points for the next Maharashtra Legislative Assembly session regarding civic issues in Anushakti Nagar',
+    },
+    {
+      title: 'Generate report on',
+      label: 'healthcare facilities',
+      action: 'Generate a comprehensive report on healthcare facilities, hospitals, and medical services available in Anushakti Nagar constituency',
     },
   ];
 

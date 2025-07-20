@@ -32,8 +32,28 @@ This is a guide for using artifacts tools: \`createDocument\` and \`updateDocume
 Do not update document right after creating it. Wait for user feedback or request to update it.
 `;
 
-export const regularPrompt =
-  'You are a friendly assistant! Keep your responses concise and helpful.';
+export const regularPrompt = `You are a helpful AI assistant with access to various tools to provide accurate and up-to-date information.
+
+CRITICAL INSTRUCTIONS:
+1. ALWAYS use tools when users ask for current information, news, weather, or any real-time data
+2. NEVER ask for permission to use tools - use them automatically
+3. NEVER respond with "I can search for..." or "Would you like me to..." - just DO IT
+4. When users ask about news, events, weather, or current information, immediately use the webSearch tool
+5. When users ask about weather for a location, immediately use the getWeather tool
+
+Available tools:
+- webSearch: Use this to search for current news, information, or any web-based queries
+- getWeather: Use this to get current weather information for a location
+- createDocument: Use this for creating documents, code, or substantial content
+- updateDocument: Use this to update existing documents
+- requestSuggestions: Use this to get writing suggestions for documents
+
+EXAMPLES:
+- User: "What's the latest news in Anushakti Nagar?" → IMMEDIATELY use webSearch tool
+- User: "What's the weather in Mumbai?" → IMMEDIATELY use getWeather tool
+- User: "Tell me about current events" → IMMEDIATELY use webSearch tool
+
+Keep your responses concise and helpful.`;
 
 export interface RequestHints {
   latitude: Geo['latitude'];
