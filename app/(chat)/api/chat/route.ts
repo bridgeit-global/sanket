@@ -22,7 +22,8 @@ import { generateTitleFromUserMessage } from '../../actions';
 import { createDocument } from '@/lib/ai/tools/create-document';
 import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
-import { getWeather } from '@/lib/ai/tools/get-weather';
+import { ragSearch } from '@/lib/ai/tools/rag-search';
+import { webSearch } from '@/lib/ai/tools/web-search';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
@@ -37,7 +38,6 @@ import { ChatSDKError } from '@/lib/errors';
 import type { ChatMessage } from '@/lib/types';
 import type { ChatModel } from '@/lib/ai/models';
 import type { VisibilityType } from '@/components/visibility-selector';
-import { webSearch } from '@/lib/ai/tools/web-search';
 
 export const maxDuration = 60;
 
@@ -72,6 +72,8 @@ export async function POST(request: Request) {
   } catch (_) {
     return new ChatSDKError('bad_request:api').toResponse();
   }
+
+  console.log(JSON.stringify(requestBody, null, 2));
 
   try {
     const {
@@ -151,7 +153,36 @@ export async function POST(request: Request) {
     await createStreamId({ streamId, chatId: id });
 
     const stream = createUIMessageStream({
-      execute: ({ writer: dataStream }) => {
+      execute: async ({ writer: dataStream }) => {
+        // Safely extract the user's text query from the message parts
+        const userTextPart = message.parts.find((part) => part.type === 'text');
+        const userQuery = userTextPart && 'text' in userTextPart ? userTextPart.text : '';
+        console.log('userQuery', userQuery);
+
+        // First, try ragSearch
+        const ragResult = typeof ragSearch.execute === 'function'
+          ? await ragSearch.execute({ query: userQuery }, {
+            toolCallId: '',
+            messages: [],
+          },
+          )
+          : { results: [] };
+        console.log('ragResult', ragResult);
+        if (ragResult && Array.isArray(ragResult.results) && ragResult.results.length === 0) {
+          // If no RAG results, fallback to webSearch
+          const webResult = typeof webSearch.execute === 'function'
+            ? await webSearch.execute({ query: userQuery }, {
+              toolCallId: '',
+              messages: [],
+            },
+            )
+            : { results: [] };
+          console.log('webResult', webResult);
+          dataStream.write({ type: 'data-webSearch', data: webResult, transient: false });
+        } else {
+          dataStream.write({ type: 'data-ragSearch', data: ragResult, transient: false });
+        }
+        // Continue with the rest of the streaming logic as before
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
           system: systemPrompt({ selectedChatModel, requestHints }),
@@ -161,15 +192,15 @@ export async function POST(request: Request) {
             selectedChatModel === 'chat-model-reasoning'
               ? []
               : [
-                  'getWeather',
-                  'webSearch',
-                  'createDocument',
-                  'updateDocument',
-                  'requestSuggestions',
-                ],
+                'ragSearch',
+                'webSearch',
+                'createDocument',
+                'updateDocument',
+                'requestSuggestions',
+              ],
           experimental_transform: smoothStream({ chunking: 'word' }),
           tools: {
-            getWeather,
+            ragSearch,
             webSearch,
             createDocument: createDocument({ session, dataStream }),
             updateDocument: updateDocument({ session, dataStream }),
@@ -183,9 +214,7 @@ export async function POST(request: Request) {
             functionId: 'stream-text',
           },
         });
-
         result.consumeStream();
-
         dataStream.merge(
           result.toUIMessageStream({
             sendReasoning: true,

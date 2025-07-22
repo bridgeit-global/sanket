@@ -8,6 +8,8 @@ export const webSearch = tool({
   }),
   execute: async ({ query }) => {
     try {
+      const url = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`
+      console.log('url', url);
       const response = await fetch(
         `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`,
         {
@@ -22,7 +24,7 @@ export const webSearch = tool({
       }
 
       const searchData = await response.json();
-      
+
       // If DuckDuckGo doesn't have results, try a different approach
       if (!searchData.Abstract && !searchData.Answer && searchData.RelatedTopics?.length === 0) {
         // Try searching with a more general query
@@ -53,7 +55,7 @@ export const webSearch = tool({
           };
         }
       }
-      
+
       return {
         query,
         abstract: searchData.Abstract,
