@@ -10,6 +10,7 @@ import {
   gte,
   inArray,
   lt,
+  sql,
   type SQL,
 } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -27,6 +28,8 @@ import {
   type DBMessage,
   type Chat,
   stream,
+  voters,
+  type Voter,
 } from './schema';
 import type { ArtifactKind } from '@/components/artifact';
 import { generateUUID } from '../utils';
@@ -533,6 +536,373 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get stream ids by chat id',
+    );
+  }
+}
+
+// Voter-related functions
+export async function getVoterById({ id }: { id: string }) {
+  try {
+    const [voter] = await db
+      .select()
+      .from(voters)
+      .where(eq(voters.id, id))
+      .execute();
+
+    return voter;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voter by id',
+    );
+  }
+}
+
+export async function getVotersByPartNo({ part_no }: { part_no: number }) {
+  try {
+    return await db
+      .select()
+      .from(voters)
+      .where(eq(voters.part_no, part_no))
+      .orderBy(asc(voters.serial_no))
+      .execute();
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voters by part no',
+    );
+  }
+}
+
+export async function searchVotersByName({ name }: { name: string }) {
+  try {
+    return await db
+      .select()
+      .from(voters)
+      .where(sql`LOWER(${voters.name}) LIKE LOWER(${'%' + name + '%'})`)
+      .orderBy(asc(voters.name))
+      .execute();
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to search voters by name',
+    );
+  }
+}
+
+export async function getAllVoters({
+  limit = 100,
+  offset = 0,
+}: {
+  limit?: number;
+  offset?: number;
+} = {}) {
+  try {
+    return await db
+      .select()
+      .from(voters)
+      .where(eq(voters.isActive, true))
+      .orderBy(asc(voters.part_no), asc(voters.serial_no))
+      .limit(limit)
+      .offset(offset)
+      .execute();
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get all voters',
+    );
+  }
+}
+
+export async function testDatabaseConnection() {
+  try {
+    console.log('Testing database connection...');
+    const result = await db.select({ count: count(voters.id) }).from(voters).execute();
+    console.log('Database connection test result:', result);
+    return result[0];
+  } catch (error) {
+    console.error('Database connection test failed:', error);
+    throw error;
+  }
+}
+
+export async function getVotersCount() {
+  try {
+    const [result] = await db
+      .select({ count: count(voters.id) })
+      .from(voters)
+      .where(eq(voters.isActive, true))
+      .execute();
+
+    return result?.count ?? 0;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voters count',
+    );
+  }
+}
+
+// Insight functions for voter analysis
+export async function getVoterDemographics() {
+  try {
+    console.log('getVoterDemographics called');
+    const demographics = await db
+      .select({
+        totalVoters: count(voters.id),
+        maleCount: count(sql`CASE WHEN ${voters.gender} = 'M' THEN 1 END`),
+        femaleCount: count(sql`CASE WHEN ${voters.gender} = 'F' THEN 1 END`),
+        otherCount: count(sql`CASE WHEN ${voters.gender} = 'O' THEN 1 END`),
+        avgAge: sql`AVG(${voters.age})`,
+        minAge: sql`MIN(${voters.age})`,
+        maxAge: sql`MAX(${voters.age})`,
+      })
+      .from(voters)
+      .where(eq(voters.isActive, true))
+      .execute();
+    console.log('demographics', demographics);
+    return demographics[0];
+  } catch (error) {
+    console.error('Error in getVoterDemographics:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voter demographics',
+    );
+  }
+}
+
+export async function getVotersByAgeGroup() {
+  try {
+    console.log('getVotersByAgeGroup called');
+    const result = await db
+      .select({
+        ageGroup: sql`CASE 
+          WHEN ${voters.age} < 25 THEN '18-24'
+          WHEN ${voters.age} < 35 THEN '25-34'
+          WHEN ${voters.age} < 45 THEN '35-44'
+          WHEN ${voters.age} < 55 THEN '45-54'
+          WHEN ${voters.age} < 65 THEN '55-64'
+          ELSE '65+'
+        END`.as('ageGroup'),
+        count: count(voters.id),
+      })
+      .from(voters)
+      .where(eq(voters.isActive, true))
+      .groupBy(sql`CASE 
+          WHEN ${voters.age} < 25 THEN '18-24'
+          WHEN ${voters.age} < 35 THEN '25-34'
+          WHEN ${voters.age} < 45 THEN '35-44'
+          WHEN ${voters.age} < 55 THEN '45-54'
+          WHEN ${voters.age} < 65 THEN '55-64'
+          ELSE '65+'
+        END`)
+      .execute();
+
+    // Sort the results in JavaScript to ensure correct order
+    const ageGroupOrder = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
+    const sortedResult = result.sort((a, b) => {
+      const aIndex = ageGroupOrder.indexOf(a.ageGroup as string);
+      const bIndex = ageGroupOrder.indexOf(b.ageGroup as string);
+      return aIndex - bIndex;
+    });
+
+    console.log('getVotersByAgeGroup result:', sortedResult);
+    return sortedResult;
+  } catch (error) {
+    console.error('Error in getVotersByAgeGroup:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voters by age group',
+    );
+  }
+}
+
+export async function getVotersByAgeGroupWithGender() {
+  try {
+    console.log('getVotersByAgeGroupWithGender called');
+    const result = await db
+      .select({
+        ageGroup: sql`CASE 
+          WHEN ${voters.age} < 25 THEN '18-24'
+          WHEN ${voters.age} < 35 THEN '25-34'
+          WHEN ${voters.age} < 45 THEN '35-44'
+          WHEN ${voters.age} < 55 THEN '45-54'
+          WHEN ${voters.age} < 65 THEN '55-64'
+          ELSE '65+'
+        END`.as('ageGroup'),
+        maleCount: count(sql`CASE WHEN ${voters.gender} = 'M' THEN 1 END`),
+        femaleCount: count(sql`CASE WHEN ${voters.gender} = 'F' THEN 1 END`),
+        totalCount: count(voters.id),
+      })
+      .from(voters)
+      .where(eq(voters.isActive, true))
+      .groupBy(sql`CASE 
+          WHEN ${voters.age} < 25 THEN '18-24'
+          WHEN ${voters.age} < 35 THEN '25-34'
+          WHEN ${voters.age} < 45 THEN '35-44'
+          WHEN ${voters.age} < 55 THEN '45-54'
+          WHEN ${voters.age} < 65 THEN '55-64'
+          ELSE '65+'
+        END`)
+      .execute();
+
+    // Sort the results in JavaScript to ensure correct order
+    const ageGroupOrder = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
+    const sortedResult = result.sort((a, b) => {
+      const aIndex = ageGroupOrder.indexOf(a.ageGroup as string);
+      const bIndex = ageGroupOrder.indexOf(b.ageGroup as string);
+      return aIndex - bIndex;
+    });
+
+    // Calculate totals
+    const totalMale = sortedResult.reduce((sum, group) => sum + group.maleCount, 0);
+    const totalFemale = sortedResult.reduce((sum, group) => sum + group.femaleCount, 0);
+    const totalVoters = totalMale + totalFemale;
+
+    console.log('getVotersByAgeGroupWithGender result:', sortedResult);
+    return {
+      ageGroups: sortedResult,
+      totalVoters,
+      totalMale,
+      totalFemale,
+    };
+  } catch (error) {
+    console.error('Error in getVotersByAgeGroupWithGender:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voters by age group with gender',
+    );
+  }
+}
+
+export async function getVotersByPart() {
+  try {
+    return await db
+      .select({
+        part_no: voters.part_no,
+        voterCount: count(voters.id),
+        maleCount: count(sql`CASE WHEN ${voters.gender} = 'M' THEN 1 END`),
+        femaleCount: count(sql`CASE WHEN ${voters.gender} = 'F' THEN 1 END`),
+        avgAge: sql`AVG(${voters.age})`,
+      })
+      .from(voters)
+      .where(eq(voters.isActive, true))
+      .groupBy(voters.part_no)
+      .orderBy(asc(voters.part_no))
+      .execute();
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voters by part',
+    );
+  }
+}
+
+export async function getVotersWithContactInfo() {
+  try {
+    return await db
+      .select({
+        id: voters.id,
+        name: voters.name,
+        part_no: voters.part_no,
+        serial_no: voters.serial_no,
+        age: voters.age,
+        gender: voters.gender,
+        family: voters.family,
+        last_name: voters.last_name,
+        mobile: voters.mobile,
+        email: voters.email,
+      })
+      .from(voters)
+      .where(eq(voters.isActive, true))
+      .orderBy(asc(voters.part_no), asc(voters.serial_no))
+      .execute();
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voters with contact info',
+    );
+  }
+}
+
+export async function getVoterSearchInsights({ searchTerm }: { searchTerm: string }) {
+  try {
+    const searchResults = await db
+      .select({
+        id: voters.id,
+        name: voters.name,
+        part_no: voters.part_no,
+        serial_no: voters.serial_no,
+        age: voters.age,
+        gender: voters.gender,
+        family: voters.family,
+        last_name: voters.last_name,
+        mobile: voters.mobile,
+        email: voters.email,
+      })
+      .from(voters)
+      .where(
+        and(
+          eq(voters.isActive, true),
+          sql`LOWER(${voters.last_name}) LIKE LOWER(${'%' + searchTerm + '%'})`
+        )
+      )
+      .orderBy(asc(voters.part_no), asc(voters.serial_no))
+      .execute();
+
+    const totalResults = searchResults.length;
+    const genderBreakdown = searchResults.reduce((acc, voter) => {
+      const gender = voter.gender === 'M' ? 'Male' :
+        voter.gender === 'F' ? 'Female' :
+          voter.gender === 'O' ? 'Other' :
+            voter.gender; // fallback
+      acc[gender] = (acc[gender] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    const ageGroups = searchResults.reduce((acc, voter) => {
+      const ageGroup = voter.age < 25 ? '18-24' :
+        voter.age < 35 ? '25-34' :
+          voter.age < 45 ? '35-44' :
+            voter.age < 55 ? '45-54' :
+              voter.age < 65 ? '55-64' : '65+';
+      acc[ageGroup] = (acc[ageGroup] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    // Calculate age groups with gender bifurcation
+    const ageGroupsWithGender = searchResults.reduce((acc, voter) => {
+      const ageGroup = voter.age < 25 ? '18-24' :
+        voter.age < 35 ? '25-34' :
+          voter.age < 45 ? '35-44' :
+            voter.age < 55 ? '45-54' :
+              voter.age < 65 ? '55-64' : '65+';
+
+      if (!acc[ageGroup]) {
+        acc[ageGroup] = { maleCount: 0, femaleCount: 0, totalCount: 0 };
+      }
+
+      if (voter.gender === 'M') {
+        acc[ageGroup].maleCount++;
+      } else if (voter.gender === 'F') {
+        acc[ageGroup].femaleCount++;
+      }
+      acc[ageGroup].totalCount++;
+
+      return acc;
+    }, {} as Record<string, { maleCount: number; femaleCount: number; totalCount: number }>);
+
+    return {
+      totalResults,
+      searchResults,
+      genderBreakdown,
+      ageGroups,
+      ageGroupsWithGender,
+    };
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voter search insights',
     );
   }
 }

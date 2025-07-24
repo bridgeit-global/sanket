@@ -20,35 +20,55 @@ function PureSuggestedActions({
 }: SuggestedActionsProps) {
   const suggestedActions = [
     {
-      title: 'Check BMC infrastructure',
-      label: 'projects in Anushakti Nagar',
-      action: 'What are the current BMC infrastructure projects and their status in Anushakti Nagar constituency?',
+      title: 'Show voter demographics',
+      label: 'for Anushakti Nagar',
+      action: 'Show me comprehensive voter demographics for Anushakti Nagar constituency including gender distribution and age statistics',
     },
     {
-      title: 'Review MMRDA development',
-      label: 'plans for our area',
-      action: 'What are the current MMRDA development plans and metro projects affecting Anushakti Nagar constituency?',
+      title: 'Search voters by last name',
+      label: 'like "Kumar" or "Sharma"',
+      action: 'Search for voters with last name Kumar in Anushakti Nagar constituency',
     },
     {
-      title: 'Address citizen complaints',
-      label: 'from AGNI reports',
-      action: 'What are the recent citizen complaints and issues reported through AGNI for Anushakti Nagar area?',
+      title: 'Get age group analysis',
+      label: 'of registered voters',
+      action: 'What is the age group distribution of voters in Anushakti Nagar constituency?',
     },
     {
-      title: 'Draft letter to BMC',
-      label: 'about water supply issues',
-      action: 'Help me draft a formal letter to BMC Commissioner about water supply and drainage issues in Anushakti Nagar',
+      title: 'Age groups with gender',
+      label: 'male/female breakdown',
+      action: 'Show me age group distribution with male and female bifurcation for Anushakti Nagar constituency',
     },
     {
-      title: 'Prepare for assembly',
-      label: 'session on civic issues',
-      action: 'Help me prepare key points for the next Maharashtra Legislative Assembly session regarding civic issues in Anushakti Nagar',
+      title: 'Analyze voters by parts',
+      label: 'and polling stations',
+      action: 'Show me voter analysis by parts/areas in Anushakti Nagar constituency',
     },
     {
-      title: 'Generate report on',
-      label: 'healthcare facilities',
-      action: 'Generate a comprehensive report on healthcare facilities, hospitals, and medical services available in Anushakti Nagar constituency',
+      title: 'Latest news in Anushakti Nagar',
+      label: 'current events and updates',
+      action: 'What are the latest news and current events happening in Anushakti Nagar area?',
     },
+    {
+      title: 'Local events and activities',
+      label: 'community happenings',
+      action: 'What local events, festivals, or community activities are happening in Anushakti Nagar area?',
+    },
+    {
+      title: 'Transportation updates',
+      label: 'metro and bus services',
+      action: 'What are the current transportation updates, metro services, and bus routes in Anushakti Nagar area?',
+    },
+    {
+      title: 'Healthcare facilities',
+      label: 'hospitals and clinics',
+      action: 'What healthcare facilities, hospitals, and medical services are available in Anushakti Nagar constituency?',
+    },
+    {
+      title: 'Educational institutions',
+      label: 'schools and colleges',
+      action: 'What educational institutions, schools, and colleges are located in Anushakti Nagar area?',
+    }
   ];
 
   return (

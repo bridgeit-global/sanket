@@ -19,6 +19,8 @@ import { MessageReasoning } from './message-reasoning';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
+import { VoterInsights } from './voter-insights';
+import { SqlQueryResults } from './sql-query-results';
 
 // Type narrowing is handled by TypeScript's control flow analysis
 // The AI SDK provides proper discriminated unions for tool calls
@@ -261,6 +263,53 @@ const PurePreviewMessage = ({
                         result={output}
                         isReadonly={isReadonly}
                       />
+                    </div>
+                  );
+                }
+              }
+
+              // Handle voter tool results
+              if (type === 'tool-getVoterDemographics' || type === 'tool-getVoterAgeGroups' || type === 'tool-getVoterAgeGroupsWithGender' || type === 'tool-getVoterParts' || type === 'tool-searchVoters') {
+                const { toolCallId, state } = part as any;
+
+                if (state === 'input-available') {
+                  return (
+                    <div key={toolCallId} className="skeleton">
+                      <div className="animate-pulse bg-gray-200 h-32 rounded-lg"></div>
+                    </div>
+                  );
+                }
+
+                if (state === 'output-available') {
+                  const { output } = part as any;
+                  const toolName = type.replace('tool-', '');
+                  
+                  return (
+                    <div key={toolCallId} className="my-4">
+                      <VoterInsights toolName={toolName} data={output} />
+                    </div>
+                  );
+                }
+              }
+
+              // Handle SQL query tool results
+              if (type === 'tool-sqlQuery') {
+                const { toolCallId, state } = part as any;
+
+                if (state === 'input-available') {
+                  return (
+                    <div key={toolCallId} className="skeleton">
+                      <div className="animate-pulse bg-gray-200 h-32 rounded-lg"></div>
+                    </div>
+                  );
+                }
+
+                if (state === 'output-available') {
+                  const { output } = part as any;
+                  
+                  return (
+                    <div key={toolCallId} className="my-4">
+                      <SqlQueryResults data={output} />
                     </div>
                   );
                 }

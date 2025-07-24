@@ -22,8 +22,12 @@ import { generateTitleFromUserMessage } from '../../actions';
 import { createDocument } from '@/lib/ai/tools/create-document';
 import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
-import { ragSearch } from '@/lib/ai/tools/rag-search';
-import { webSearch } from '@/lib/ai/tools/web-search';
+import { getVoterDemographicsTool } from '@/lib/ai/tools/get-voter-demographics';
+import { getVoterAgeGroupsTool } from '@/lib/ai/tools/get-voter-age-groups';
+import { getVoterAgeGroupsWithGenderTool } from '@/lib/ai/tools/get-voter-age-groups-with-gender';
+import { getVoterPartsTool } from '@/lib/ai/tools/get-voter-parts';
+import { searchVotersTool } from '@/lib/ai/tools/search-voters';
+import { sqlQueryTool } from '@/lib/ai/tools/sql-query';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
@@ -154,35 +158,6 @@ export async function POST(request: Request) {
 
     const stream = createUIMessageStream({
       execute: async ({ writer: dataStream }) => {
-        // Safely extract the user's text query from the message parts
-        const userTextPart = message.parts.find((part) => part.type === 'text');
-        const userQuery = userTextPart && 'text' in userTextPart ? userTextPart.text : '';
-        console.log('userQuery', userQuery);
-
-        // First, try ragSearch
-        const ragResult = typeof ragSearch.execute === 'function'
-          ? await ragSearch.execute({ query: userQuery }, {
-            toolCallId: '',
-            messages: [],
-          },
-          )
-          : { results: [] };
-        console.log('ragResult', ragResult);
-        if (ragResult && Array.isArray(ragResult.results) && ragResult.results.length === 0) {
-          // If no RAG results, fallback to webSearch
-          const webResult = typeof webSearch.execute === 'function'
-            ? await webSearch.execute({ query: userQuery }, {
-              toolCallId: '',
-              messages: [],
-            },
-            )
-            : { results: [] };
-          console.log('webResult', webResult);
-          dataStream.write({ type: 'data-webSearch', data: webResult, transient: false });
-        } else {
-          dataStream.write({ type: 'data-ragSearch', data: ragResult, transient: false });
-        }
-        // Continue with the rest of the streaming logic as before
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
           system: systemPrompt({ selectedChatModel, requestHints }),
@@ -192,22 +167,30 @@ export async function POST(request: Request) {
             selectedChatModel === 'chat-model-reasoning'
               ? []
               : [
-                'ragSearch',
-                'webSearch',
                 'createDocument',
                 'updateDocument',
                 'requestSuggestions',
+                'getVoterDemographics',
+                'getVoterAgeGroups',
+                'getVoterAgeGroupsWithGender',
+                'getVoterParts',
+                'searchVoters',
+                'sqlQuery',
               ],
           experimental_transform: smoothStream({ chunking: 'word' }),
           tools: {
-            ragSearch,
-            webSearch,
             createDocument: createDocument({ session, dataStream }),
             updateDocument: updateDocument({ session, dataStream }),
             requestSuggestions: requestSuggestions({
               session,
               dataStream,
             }),
+            getVoterDemographics: getVoterDemographicsTool(),
+            getVoterAgeGroups: getVoterAgeGroupsTool(),
+            getVoterAgeGroupsWithGender: getVoterAgeGroupsWithGenderTool(),
+            getVoterParts: getVoterPartsTool(),
+            searchVoters: searchVotersTool(),
+            sqlQuery: sqlQueryTool,
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,

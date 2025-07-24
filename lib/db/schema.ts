@@ -9,6 +9,7 @@ import {
   primaryKey,
   foreignKey,
   boolean,
+  integer,
 } from 'drizzle-orm/pg-core';
 
 export const user = pgTable('User', {
@@ -168,3 +169,24 @@ export const stream = pgTable(
 );
 
 export type Stream = InferSelectModel<typeof stream>;
+
+export const voters = pgTable(
+  'voters',
+  {
+    id: text('id').notNull().primaryKey(),
+    part_no: integer('part_no').notNull(),
+    serial_no: integer('serial_no').notNull(),
+    name: text('name').notNull(),
+    gender: text('gender').notNull(),
+    age: integer('age').notNull(),
+    family: text('family'),
+    last_name: text('last_name'),
+    mobile: text('mobile'),
+    email: text('email'),
+    isActive: boolean('isActive').notNull().default(true),
+    createdAt: timestamp('createdAt').notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+  }
+);
+
+export type Voter = InferSelectModel<typeof voters>;
