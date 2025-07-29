@@ -8,7 +8,6 @@ import { PencilEditIcon, SparklesIcon } from './icons';
 import { Markdown } from './markdown';
 import { MessageActions } from './message-actions';
 import { PreviewAttachment } from './preview-attachment';
-import { Weather } from './weather';
 import equal from 'fast-deep-equal';
 import { cn, sanitizeText } from '@/lib/utils';
 import { Button } from './ui/button';
@@ -21,6 +20,7 @@ import type { ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
 import { VoterInsights } from './voter-insights';
 import { SqlQueryResults } from './sql-query-results';
+import { BeneficiaryInsights } from './beneficiary-insights';
 
 // Type narrowing is handled by TypeScript's control flow analysis
 // The AI SDK provides proper discriminated unions for tool calls
@@ -167,27 +167,6 @@ const PurePreviewMessage = ({
                 }
               }
 
-              if (type === 'tool-getWeather') {
-                const { toolCallId, state } = part;
-
-                if (state === 'input-available') {
-                  return (
-                    <div key={toolCallId} className="skeleton">
-                      <Weather />
-                    </div>
-                  );
-                }
-
-                if (state === 'output-available') {
-                  const { output } = part;
-                  return (
-                    <div key={toolCallId}>
-                      <Weather weatherAtLocation={output} />
-                    </div>
-                  );
-                }
-              }
-
               if (type === 'tool-createDocument') {
                 const { toolCallId, state } = part;
 
@@ -269,7 +248,7 @@ const PurePreviewMessage = ({
               }
 
               // Handle voter tool results
-              if (type === 'tool-getVoterDemographics' || type === 'tool-getVoterAgeGroups' || type === 'tool-getVoterAgeGroupsWithGender' || type === 'tool-getVoterParts' || type === 'tool-searchVoters') {
+              if (type === 'tool-getVoterDemographics' || type === 'tool-getVoterAgeGroupsWithGender' || type === 'tool-getVoterParts' || type === 'tool-searchVoters') {
                 const { toolCallId, state } = part as any;
 
                 if (state === 'input-available') {
@@ -287,6 +266,30 @@ const PurePreviewMessage = ({
                   return (
                     <div key={toolCallId} className="my-4">
                       <VoterInsights toolName={toolName} data={output} />
+                    </div>
+                  );
+                }
+              }
+
+              // Handle beneficiary tool results
+              if (type.startsWith('tool-') && ['getServices', 'addService', 'addBeneficiary', 'getBeneficiaries', 'updateBeneficiary'].some(tool => type.includes(tool))) {
+                const { toolCallId, state } = part as any;
+
+                if (state === 'input-available') {
+                  return (
+                    <div key={toolCallId} className="skeleton">
+                      <div className="animate-pulse bg-gray-200 h-32 rounded-lg"></div>
+                    </div>
+                  );
+                }
+
+                if (state === 'output-available') {
+                  const { output } = part as any;
+                  const toolName = type.replace('tool-', '');
+                  
+                  return (
+                    <div key={toolCallId} className="my-4">
+                      <BeneficiaryInsights toolName={toolName} data={output} />
                     </div>
                   );
                 }

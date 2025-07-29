@@ -190,3 +190,39 @@ export const voters = pgTable(
 );
 
 export type Voter = InferSelectModel<typeof voters>;
+
+// Beneficiary Management Schema
+export const services = pgTable(
+  'services',
+  {
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
+    name: text('name').notNull(),
+    description: text('description'),
+    type: varchar('type', { enum: ['one-to-one', 'one-to-many'] }).notNull(),
+    category: text('category').notNull(), // e.g., 'voter_registration', 'aadhar_card', 'ration_card', 'schemes', 'public_works', 'fund_utilization', 'issue_visibility'
+    isActive: boolean('isActive').notNull().default(true),
+    createdAt: timestamp('createdAt').notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+  }
+);
+
+export type Service = InferSelectModel<typeof services>;
+
+export const beneficiaries = pgTable(
+  'beneficiaries',
+  {
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
+    serviceId: uuid('serviceId').notNull().references(() => services.id),
+    voterId: text('voterId').references(() => voters.id), // For one-to-one services
+    partNo: integer('partNo'), // For one-to-many services
+    status: varchar('status', { enum: ['pending', 'in_progress', 'completed', 'rejected'] }).notNull().default('pending'),
+    notes: text('notes'),
+    applicationDate: timestamp('applicationDate').notNull().defaultNow(),
+    completionDate: timestamp('completionDate'),
+    isActive: boolean('isActive').notNull().default(true),
+    createdAt: timestamp('createdAt').notNull().defaultNow(),
+    updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+  }
+);
+
+export type Beneficiary = InferSelectModel<typeof beneficiaries>;

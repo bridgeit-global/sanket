@@ -21,6 +21,7 @@ import { PreviewAttachment } from './preview-attachment';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { SuggestedActions } from './suggested-actions';
+import { ComprehensiveSuggestions } from './comprehensive-suggestions';
 import equal from 'fast-deep-equal';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -237,7 +238,7 @@ function PureMultimodalInput({
       {messages.length === 0 &&
         attachments.length === 0 &&
         uploadQueue.length === 0 && (
-          <SuggestedActions
+          <ComprehensiveSuggestions
             sendMessage={sendMessage}
             chatId={chatId}
             selectedVisibilityType={selectedVisibilityType}

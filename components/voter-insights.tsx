@@ -3,7 +3,6 @@
 import React from 'react';
 import {
   VoterDemographicsChart,
-  VoterAgeGroupsChart,
   VoterPartsChart,
   VoterSearchResultsChart,
 } from './voter-charts';
@@ -51,9 +50,6 @@ export function VoterInsights({ toolName, data }: VoterInsightsProps) {
     case 'getVoterDemographics':
       console.log('Rendering VoterDemographicsChart with data:', data);
       return <VoterDemographicsChart data={data} />;
-
-    case 'getVoterAgeGroups':
-      return <VoterAgeGroupsChart data={data} />;
 
     case 'getVoterAgeGroupsWithGender':
       return <VoterAgeGroupsWithGenderChart data={data} />;

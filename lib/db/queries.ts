@@ -30,6 +30,8 @@ import {
   stream,
   voters,
   type Voter,
+  services,
+  beneficiaries,
 } from './schema';
 import type { ArtifactKind } from '@/components/artifact';
 import { generateUUID } from '../utils';
@@ -903,6 +905,320 @@ export async function getVoterSearchInsights({ searchTerm }: { searchTerm: strin
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get voter search insights',
+    );
+  }
+}
+
+// Beneficiary Management Queries
+export async function getAllServices() {
+  try {
+    return await db
+      .select()
+      .from(services)
+      .where(eq(services.isActive, true))
+      .orderBy(asc(services.name))
+      .execute();
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get all services',
+    );
+  }
+}
+
+export async function getServiceById({ id }: { id: string }) {
+  try {
+    const [service] = await db
+      .select()
+      .from(services)
+      .where(eq(services.id, id))
+      .execute();
+
+    return service;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get service by id',
+    );
+  }
+}
+
+export async function createService({
+  name,
+  description,
+  type,
+  category,
+}: {
+  name: string;
+  description?: string;
+  type: 'one-to-one' | 'one-to-many';
+  category: string;
+}) {
+  try {
+    const [service] = await db
+      .insert(services)
+      .values({
+        name,
+        description,
+        type,
+        category,
+      })
+      .returning();
+
+    return service;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create service',
+    );
+  }
+}
+
+export async function updateService({
+  id,
+  name,
+  description,
+  type,
+  category,
+  isActive,
+}: {
+  id: string;
+  name?: string;
+  description?: string;
+  type?: 'one-to-one' | 'one-to-many';
+  category?: string;
+  isActive?: boolean;
+}) {
+  try {
+    const updateData: any = { updatedAt: new Date() };
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (type !== undefined) updateData.type = type;
+    if (category !== undefined) updateData.category = category;
+    if (isActive !== undefined) updateData.isActive = isActive;
+
+    const [service] = await db
+      .update(services)
+      .set(updateData)
+      .where(eq(services.id, id))
+      .returning();
+
+    return service;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update service',
+    );
+  }
+}
+
+export async function getBeneficiariesByService({ serviceId }: { serviceId: string }) {
+  try {
+    return await db
+      .select({
+        id: beneficiaries.id,
+        serviceId: beneficiaries.serviceId,
+        voterId: beneficiaries.voterId,
+        partNo: beneficiaries.partNo,
+        status: beneficiaries.status,
+        notes: beneficiaries.notes,
+        applicationDate: beneficiaries.applicationDate,
+        completionDate: beneficiaries.completionDate,
+        service: {
+          id: services.id,
+          name: services.name,
+          type: services.type,
+          category: services.category,
+        },
+        voter: {
+          id: voters.id,
+          name: voters.name,
+          part_no: voters.part_no,
+          serial_no: voters.serial_no,
+        },
+      })
+      .from(beneficiaries)
+      .leftJoin(services, eq(beneficiaries.serviceId, services.id))
+      .leftJoin(voters, eq(beneficiaries.voterId, voters.id))
+      .where(
+        and(
+          eq(beneficiaries.serviceId, serviceId),
+          eq(beneficiaries.isActive, true)
+        )
+      )
+      .orderBy(desc(beneficiaries.applicationDate))
+      .execute();
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get beneficiaries by service',
+    );
+  }
+}
+
+export async function getBeneficiariesByVoter({ voterId }: { voterId: string }) {
+  try {
+    return await db
+      .select({
+        id: beneficiaries.id,
+        serviceId: beneficiaries.serviceId,
+        voterId: beneficiaries.voterId,
+        partNo: beneficiaries.partNo,
+        status: beneficiaries.status,
+        notes: beneficiaries.notes,
+        applicationDate: beneficiaries.applicationDate,
+        completionDate: beneficiaries.completionDate,
+        service: {
+          id: services.id,
+          name: services.name,
+          type: services.type,
+          category: services.category,
+        },
+      })
+      .from(beneficiaries)
+      .leftJoin(services, eq(beneficiaries.serviceId, services.id))
+      .where(
+        and(
+          eq(beneficiaries.voterId, voterId),
+          eq(beneficiaries.isActive, true)
+        )
+      )
+      .orderBy(desc(beneficiaries.applicationDate))
+      .execute();
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get beneficiaries by voter',
+    );
+  }
+}
+
+export async function getBeneficiariesByPart({ partNo }: { partNo: number }) {
+  try {
+    return await db
+      .select({
+        id: beneficiaries.id,
+        serviceId: beneficiaries.serviceId,
+        voterId: beneficiaries.voterId,
+        partNo: beneficiaries.partNo,
+        status: beneficiaries.status,
+        notes: beneficiaries.notes,
+        applicationDate: beneficiaries.applicationDate,
+        completionDate: beneficiaries.completionDate,
+        service: {
+          id: services.id,
+          name: services.name,
+          type: services.type,
+          category: services.category,
+        },
+      })
+      .from(beneficiaries)
+      .leftJoin(services, eq(beneficiaries.serviceId, services.id))
+      .where(
+        and(
+          eq(beneficiaries.partNo, partNo),
+          eq(beneficiaries.isActive, true)
+        )
+      )
+      .orderBy(desc(beneficiaries.applicationDate))
+      .execute();
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get beneficiaries by part',
+    );
+  }
+}
+
+export async function createBeneficiary({
+  serviceId,
+  voterId,
+  partNo,
+  notes,
+}: {
+  serviceId: string;
+  voterId?: string;
+  partNo?: number;
+  notes?: string;
+}) {
+  try {
+    // Validate that either voterId or partNo is provided
+    if (!voterId && !partNo) {
+      throw new Error('Either voterId or partNo must be provided');
+    }
+
+    const [beneficiary] = await db
+      .insert(beneficiaries)
+      .values({
+        serviceId,
+        voterId,
+        partNo,
+        notes,
+      })
+      .returning();
+
+    return beneficiary;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create beneficiary',
+    );
+  }
+}
+
+export async function updateBeneficiary({
+  id,
+  status,
+  notes,
+  completionDate,
+}: {
+  id: string;
+  status?: 'pending' | 'in_progress' | 'completed' | 'rejected';
+  notes?: string;
+  completionDate?: Date;
+}) {
+  try {
+    const updateData: any = { updatedAt: new Date() };
+    if (status !== undefined) updateData.status = status;
+    if (notes !== undefined) updateData.notes = notes;
+    if (completionDate !== undefined) updateData.completionDate = completionDate;
+
+    const [beneficiary] = await db
+      .update(beneficiaries)
+      .set(updateData)
+      .where(eq(beneficiaries.id, id))
+      .returning();
+
+    return beneficiary;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update beneficiary',
+    );
+  }
+}
+
+export async function getBeneficiaryStats() {
+  try {
+    const stats = await db
+      .select({
+        totalBeneficiaries: count(beneficiaries.id),
+        pendingCount: count(sql`CASE WHEN ${beneficiaries.status} = 'pending' THEN 1 END`),
+        inProgressCount: count(sql`CASE WHEN ${beneficiaries.status} = 'in_progress' THEN 1 END`),
+        completedCount: count(sql`CASE WHEN ${beneficiaries.status} = 'completed' THEN 1 END`),
+        rejectedCount: count(sql`CASE WHEN ${beneficiaries.status} = 'rejected' THEN 1 END`),
+        oneToOneCount: count(sql`CASE WHEN ${beneficiaries.voterId} IS NOT NULL THEN 1 END`),
+        oneToManyCount: count(sql`CASE WHEN ${beneficiaries.partNo} IS NOT NULL THEN 1 END`),
+      })
+      .from(beneficiaries)
+      .where(eq(beneficiaries.isActive, true))
+      .execute();
+
+    return stats[0];
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get beneficiary stats',
     );
   }
 }

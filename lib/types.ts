@@ -1,14 +1,17 @@
 import { z } from 'zod';
-import type { getWeather } from './ai/tools/get-weather';
 import type { createDocument } from './ai/tools/create-document';
 import type { updateDocument } from './ai/tools/update-document';
 import type { requestSuggestions } from './ai/tools/request-suggestions';
 import type { getVoterDemographicsTool } from './ai/tools/get-voter-demographics';
-import type { getVoterAgeGroupsTool } from './ai/tools/get-voter-age-groups';
 import type { getVoterAgeGroupsWithGenderTool } from './ai/tools/get-voter-age-groups-with-gender';
 import type { getVoterPartsTool } from './ai/tools/get-voter-parts';
 import type { searchVotersTool } from './ai/tools/search-voters';
 import type { sqlQueryTool } from './ai/tools/sql-query';
+import type { getServicesTool } from './ai/tools/get-services';
+import type { addServiceTool } from './ai/tools/add-service';
+import type { addBeneficiaryTool } from './ai/tools/add-beneficiary';
+import type { getBeneficiariesTool } from './ai/tools/get-beneficiaries';
+import type { updateBeneficiaryTool } from './ai/tools/update-beneficiary';
 import type { InferUITool, UIMessage } from 'ai';
 
 import type { ArtifactKind } from '@/components/artifact';
@@ -22,30 +25,36 @@ export const messageMetadataSchema = z.object({
 
 export type MessageMetadata = z.infer<typeof messageMetadataSchema>;
 
-type weatherTool = InferUITool<typeof getWeather>;
 type createDocumentTool = InferUITool<ReturnType<typeof createDocument>>;
 type updateDocumentTool = InferUITool<ReturnType<typeof updateDocument>>;
 type requestSuggestionsTool = InferUITool<
   ReturnType<typeof requestSuggestions>
 >;
 type getVoterDemographicsToolType = InferUITool<ReturnType<typeof getVoterDemographicsTool>>;
-type getVoterAgeGroupsToolType = InferUITool<ReturnType<typeof getVoterAgeGroupsTool>>;
 type getVoterAgeGroupsWithGenderToolType = InferUITool<ReturnType<typeof getVoterAgeGroupsWithGenderTool>>;
 type getVoterPartsToolType = InferUITool<ReturnType<typeof getVoterPartsTool>>;
 type searchVotersToolType = InferUITool<ReturnType<typeof searchVotersTool>>;
 type sqlQueryToolType = InferUITool<typeof sqlQueryTool>;
+type getServicesToolType = InferUITool<ReturnType<typeof getServicesTool>>;
+type addServiceToolType = InferUITool<ReturnType<typeof addServiceTool>>;
+type addBeneficiaryToolType = InferUITool<ReturnType<typeof addBeneficiaryTool>>;
+type getBeneficiariesToolType = InferUITool<ReturnType<typeof getBeneficiariesTool>>;
+type updateBeneficiaryToolType = InferUITool<ReturnType<typeof updateBeneficiaryTool>>;
 
 export type ChatTools = {
-  getWeather: weatherTool;
   createDocument: createDocumentTool;
   updateDocument: updateDocumentTool;
   requestSuggestions: requestSuggestionsTool;
   getVoterDemographics: getVoterDemographicsToolType;
-  getVoterAgeGroups: getVoterAgeGroupsToolType;
   getVoterAgeGroupsWithGender: getVoterAgeGroupsWithGenderToolType;
   getVoterParts: getVoterPartsToolType;
   searchVoters: searchVotersToolType;
   sqlQuery: sqlQueryToolType;
+  getServices: getServicesToolType;
+  addService: addServiceToolType;
+  addBeneficiary: addBeneficiaryToolType;
+  getBeneficiaries: getBeneficiariesToolType;
+  updateBeneficiary: updateBeneficiaryToolType;
 };
 
 export type CustomUIDataTypes = {

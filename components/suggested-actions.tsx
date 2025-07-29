@@ -30,11 +30,6 @@ function PureSuggestedActions({
       action: 'Search for voters with last name Kumar in Anushakti Nagar constituency',
     },
     {
-      title: 'Get age group analysis',
-      label: 'of registered voters',
-      action: 'What is the age group distribution of voters in Anushakti Nagar constituency?',
-    },
-    {
       title: 'Age groups with gender',
       label: 'male/female breakdown',
       action: 'Show me age group distribution with male and female bifurcation for Anushakti Nagar constituency',
@@ -43,6 +38,31 @@ function PureSuggestedActions({
       title: 'Analyze voters by parts',
       label: 'and polling stations',
       action: 'Show me voter analysis by parts/areas in Anushakti Nagar constituency',
+    },
+    {
+      title: 'Show available services',
+      label: 'beneficiary management',
+      action: 'Show me all available services for beneficiary management in Anushakti Nagar constituency',
+    },
+    {
+      title: 'Add new service',
+      label: 'voter registration or public works',
+      action: 'Add a new service for voter registration assistance in Anushakti Nagar constituency',
+    },
+    {
+      title: 'Add beneficiary',
+      label: 'to existing service',
+      action: 'Add a beneficiary to the voter registration service for voter ID TEST001',
+    },
+    {
+      title: 'Get beneficiary info',
+      label: 'by voter or service',
+      action: 'Show me beneficiary information for voter ID TEST001',
+    },
+    {
+      title: 'Update beneficiary status',
+      label: 'mark as completed',
+      action: 'Update beneficiary status to completed for the voter registration service',
     },
     {
       title: 'Latest news in Anushakti Nagar',

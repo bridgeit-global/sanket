@@ -23,11 +23,15 @@ import { createDocument } from '@/lib/ai/tools/create-document';
 import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { getVoterDemographicsTool } from '@/lib/ai/tools/get-voter-demographics';
-import { getVoterAgeGroupsTool } from '@/lib/ai/tools/get-voter-age-groups';
 import { getVoterAgeGroupsWithGenderTool } from '@/lib/ai/tools/get-voter-age-groups-with-gender';
 import { getVoterPartsTool } from '@/lib/ai/tools/get-voter-parts';
 import { searchVotersTool } from '@/lib/ai/tools/search-voters';
 import { sqlQueryTool } from '@/lib/ai/tools/sql-query';
+import { getServicesTool } from '@/lib/ai/tools/get-services';
+import { addServiceTool } from '@/lib/ai/tools/add-service';
+import { addBeneficiaryTool } from '@/lib/ai/tools/add-beneficiary';
+import { getBeneficiariesTool } from '@/lib/ai/tools/get-beneficiaries';
+import { updateBeneficiaryTool } from '@/lib/ai/tools/update-beneficiary';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
@@ -171,11 +175,15 @@ export async function POST(request: Request) {
                 'updateDocument',
                 'requestSuggestions',
                 'getVoterDemographics',
-                'getVoterAgeGroups',
                 'getVoterAgeGroupsWithGender',
                 'getVoterParts',
                 'searchVoters',
                 'sqlQuery',
+                'getServices',
+                'addService',
+                'addBeneficiary',
+                'getBeneficiaries',
+                'updateBeneficiary',
               ],
           experimental_transform: smoothStream({ chunking: 'word' }),
           tools: {
@@ -186,11 +194,15 @@ export async function POST(request: Request) {
               dataStream,
             }),
             getVoterDemographics: getVoterDemographicsTool(),
-            getVoterAgeGroups: getVoterAgeGroupsTool(),
             getVoterAgeGroupsWithGender: getVoterAgeGroupsWithGenderTool(),
             getVoterParts: getVoterPartsTool(),
             searchVoters: searchVotersTool(),
             sqlQuery: sqlQueryTool,
+            getServices: getServicesTool(),
+            addService: addServiceTool(),
+            addBeneficiary: addBeneficiaryTool(),
+            getBeneficiaries: getBeneficiariesTool(),
+            updateBeneficiary: updateBeneficiaryTool(),
           },
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
