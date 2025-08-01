@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Button } from './ui/button';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useLocalStorage } from 'usehooks-ts';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { VisibilityType } from './visibility-selector';
@@ -19,8 +19,18 @@ export function ComprehensiveSuggestions({
   sendMessage,
   selectedVisibilityType,
 }: ComprehensiveSuggestionsProps) {
-  // Use localStorage to persist tab state
-  const [activeTab, setActiveTab] = useLocalStorage<'general' | 'voter' | 'beneficiary' | 'local'>('comprehensive-suggestions-tab', 'general');
+  // Use localStorage to persist tab state, ignore prop to prevent overriding
+  const [activeTab, setActiveTab] = useLocalStorage<'general' | 'voter' | 'beneficiaries' | 'analytics'>('comprehensive-suggestions-tab', 'general');
+  
+  // Add mounted state to prevent hydration mismatch
+  const [hasMounted, setHasMounted] = useState(false);
+  
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+  
+  // Use 'general' as default during SSR to prevent hydration mismatch
+  const displayTab = hasMounted ? activeTab : 'general';
 
   const generalActions = [
     {
@@ -90,6 +100,11 @@ export function ComprehensiveSuggestions({
 
   const beneficiaryActions = [
     {
+      title: 'View all services',
+      label: 'individual and community',
+      action: 'Show me all available services for beneficiary management',
+    },
+    {
       title: 'Add voter registration service',
       label: 'individual service',
       action: 'Add a new service for voter registration assistance with description "Help voters with registration process"',
@@ -140,95 +155,90 @@ export function ComprehensiveSuggestions({
       action: 'Show me overall beneficiary statistics and status breakdown',
     },
     {
-      title: 'Update status to pending',
-      label: 'service request submitted',
-      action: 'Update beneficiary status to pending for the voter registration service',
-    },
-    {
-      title: 'Update status to in progress',
-      label: 'service being processed',
-      action: 'Update beneficiary status to in_progress for the Aadhar card service',
-    },
-    {
-      title: 'Update status to completed',
-      label: 'service finished',
+      title: 'Update beneficiary status',
+      label: 'pending, in progress, completed',
       action: 'Update beneficiary status to completed for the voter registration service with completion date today',
-    },
-    {
-      title: 'Update status to rejected',
-      label: 'service request denied',
-      action: 'Update beneficiary status to rejected for the ration card service with notes "Incomplete documentation"',
     },
   ];
 
-  const localActions = [
+  const analyticsActions = [
     {
-      title: 'BMC projects in Anushakti Nagar',
-      label: 'municipal development',
-      action: 'What BMC projects and municipal development work is happening in Anushakti Nagar area?',
+      title: 'Voter turnout analysis',
+      label: 'election statistics',
+      action: 'Analyze voter turnout patterns and statistics for Anushakti Nagar constituency',
     },
     {
-      title: 'Water supply updates',
-      label: 'infrastructure maintenance',
-      action: 'What are the current water supply updates and maintenance work in Anushakti Nagar area?',
+      title: 'Demographic trends',
+      label: 'population analysis',
+      action: 'Show me demographic trends and population analysis for Anushakti Nagar area',
     },
     {
-      title: 'Electricity and power',
-      label: 'utility services',
-      action: 'What are the electricity and power supply updates in Anushakti Nagar area?',
+      title: 'Service utilization rates',
+      label: 'beneficiary analytics',
+      action: 'Analyze service utilization rates and beneficiary participation across different services',
     },
     {
-      title: 'Sanitation and waste',
-      label: 'municipal services',
-      action: 'What are the sanitation and waste management services in Anushakti Nagar area?',
+      title: 'Geographic distribution',
+      label: 'area-wise analysis',
+      action: 'Show me geographic distribution of voters and beneficiaries across different parts of Anushakti Nagar',
     },
     {
-      title: 'Road maintenance',
-      label: 'infrastructure updates',
-      action: 'What road maintenance and repair work is happening in Anushakti Nagar area?',
+      title: 'Age group analysis',
+      label: 'generational trends',
+      action: 'Analyze age group distribution and generational trends in voter demographics',
     },
     {
-      title: 'Public safety',
-      label: 'police and security',
-      action: 'What are the public safety updates and police services in Anushakti Nagar area?',
+      title: 'Gender-based analysis',
+      label: 'male/female statistics',
+      action: 'Show me gender-based analysis of voter participation and service utilization',
+    },
+    {
+      title: 'Part-wise comparison',
+      label: 'area comparison',
+      action: 'Compare voter demographics and beneficiary statistics across different parts of Anushakti Nagar',
+    },
+    {
+      title: 'Service effectiveness',
+      label: 'impact analysis',
+      action: 'Analyze the effectiveness and impact of different beneficiary services',
     },
   ];
 
   // Memoize the active actions to prevent unnecessary re-renders
   const activeActions = useMemo(() => {
-    switch (activeTab) {
+    switch (displayTab) {
       case 'voter':
         return voterActions;
-      case 'beneficiary':
+      case 'beneficiaries':
         return beneficiaryActions;
-      case 'local':
-        return localActions;
+      case 'analytics':
+        return analyticsActions;
       default:
         return generalActions;
     }
-  }, [activeTab]);
+  }, [displayTab]);
 
   const getTabTitle = () => {
-    switch (activeTab) {
+    switch (displayTab) {
       case 'voter':
         return 'Voter Analysis';
-      case 'beneficiary':
+      case 'beneficiaries':
         return 'Beneficiary Management';
-      case 'local':
-        return 'Local Services';
+      case 'analytics':
+        return 'Data Analytics';
       default:
         return 'General Information';
     }
   };
 
   const getTabDescription = () => {
-    switch (activeTab) {
+    switch (displayTab) {
       case 'voter':
         return 'Analyze voter data and demographics for Anushakti Nagar constituency';
-      case 'beneficiary':
+      case 'beneficiaries':
         return 'Manage services and beneficiaries for individual voters and public works';
-      case 'local':
-        return 'Get information about local services and municipal updates';
+      case 'analytics':
+        return 'Comprehensive data analysis and insights for decision making';
       default:
         return 'Get general information about Anushakti Nagar area';
     }
@@ -236,9 +246,9 @@ export function ComprehensiveSuggestions({
 
   const tabs = [
     { key: 'general', label: 'General' },
-    { key: 'voter', label: 'Voter Data' },
-    { key: 'beneficiary', label: 'Beneficiary' },
-    { key: 'local', label: 'Local Services' },
+    { key: 'voter', label: 'Voter' },
+    { key: 'beneficiaries', label: 'Beneficiaries' },
+    { key: 'analytics', label: 'Analytics' },
   ];
 
   return (
@@ -246,15 +256,21 @@ export function ComprehensiveSuggestions({
       {/* Tab Navigation */}
       <div className="flex flex-wrap gap-2 justify-center">
         {tabs.map((tab) => (
-          <Button
-            key={tab.key}
-            variant={activeTab === tab.key ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setActiveTab(tab.key as any)}
-            className="text-xs transition-colors duration-150"
-          >
-            {tab.label}
-          </Button>
+                      <Button
+              key={tab.key}
+              variant={displayTab === tab.key ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => {
+                setActiveTab(tab.key as any);
+                // Update URL to reflect the new tab while preserving chat ID
+                const currentUrl = new URL(window.location.href);
+                currentUrl.searchParams.set('tab', tab.key);
+                window.history.replaceState({}, '', currentUrl.toString());
+              }}
+              className="text-xs transition-colors duration-150"
+            >
+              {tab.label}
+            </Button>
         ))}
       </div>
 
@@ -268,10 +284,13 @@ export function ComprehensiveSuggestions({
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 w-full">
         {activeActions.map((action, index) => (
           <Button
-            key={`${activeTab}-${index}`}
+            key={`${displayTab}-${index}`}
             variant="ghost"
             onClick={async () => {
-              window.history.replaceState({}, '', `/chat/${chatId}`);
+              // Update URL to reflect the current tab while preserving chat ID
+              const currentUrl = new URL(window.location.href);
+              currentUrl.searchParams.set('tab', activeTab);
+              window.history.replaceState({}, '', currentUrl.toString());
 
               sendMessage({
                 role: 'user',

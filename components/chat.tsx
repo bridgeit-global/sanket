@@ -96,6 +96,7 @@ export function Chat({
 
   const searchParams = useSearchParams();
   const query = searchParams.get('query');
+  const activeTab = searchParams.get('tab') || 'general';
 
   const [hasAppendedQuery, setHasAppendedQuery] = useState(false);
 

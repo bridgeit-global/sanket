@@ -8,6 +8,7 @@ import {
 } from 'ai';
 import { auth, type UserType } from '@/app/(auth)/auth';
 import { type RequestHints, systemPrompt } from '@/lib/ai/prompts';
+import { getTabPrompt, getTabTools, type TabType } from '@/lib/ai/tab-prompts';
 import {
   createStreamId,
   deleteChatById,
@@ -96,6 +97,10 @@ export async function POST(request: Request) {
       selectedVisibilityType: VisibilityType;
     } = requestBody;
 
+    // Get activeTab from URL query parameters
+    const url = new URL(request.url);
+    const activeTab = (url.searchParams.get('tab') as TabType) || 'general';
+
     const session = await auth();
 
     if (!session?.user) {
@@ -162,29 +167,19 @@ export async function POST(request: Request) {
 
     const stream = createUIMessageStream({
       execute: async ({ writer: dataStream }) => {
+        // Get tab-specific prompt and tools
+        const tabPrompt = getTabPrompt(activeTab);
+        const tabTools = getTabTools(activeTab);
+
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: systemPrompt({ selectedChatModel, requestHints }),
+          system: tabPrompt,
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(10),
           experimental_activeTools:
             selectedChatModel === 'chat-model-reasoning'
               ? []
-              : [
-                'createDocument',
-                'updateDocument',
-                'requestSuggestions',
-                'getVoterDemographics',
-                'getVoterAgeGroupsWithGender',
-                'getVoterParts',
-                'searchVoters',
-                'sqlQuery',
-                'getServices',
-                'addService',
-                'addBeneficiary',
-                'getBeneficiaries',
-                'updateBeneficiary',
-              ],
+              : tabTools,
           experimental_transform: smoothStream({ chunking: 'word' }),
           tools: {
             createDocument: createDocument({ session, dataStream }),
@@ -249,6 +244,9 @@ export async function POST(request: Request) {
     if (error instanceof ChatSDKError) {
       return error.toResponse();
     }
+
+    console.error('Chat API error:', error);
+    return new ChatSDKError('bad_request:chat').toResponse();
   }
 }
 
