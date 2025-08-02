@@ -3,7 +3,7 @@ import {
   extractReasoningMiddleware,
   wrapLanguageModel,
 } from 'ai';
-import { xai } from '@ai-sdk/xai';
+import { anthropic } from '@ai-sdk/anthropic';
 import {
   artifactModel,
   chatModel,
@@ -14,24 +14,21 @@ import { isTestEnvironment } from '../constants';
 
 export const myProvider = isTestEnvironment
   ? customProvider({
-      languageModels: {
-        'chat-model': chatModel,
-        'chat-model-reasoning': reasoningModel,
-        'title-model': titleModel,
-        'artifact-model': artifactModel,
-      },
-    })
+    languageModels: {
+      'chat-model': chatModel,
+      'chat-model-reasoning': reasoningModel,
+      'title-model': titleModel,
+      'artifact-model': artifactModel,
+    },
+  })
   : customProvider({
-      languageModels: {
-        'chat-model': xai('grok-2-vision-1212'),
-        'chat-model-reasoning': wrapLanguageModel({
-          model: xai('grok-3-mini-beta'),
-          middleware: extractReasoningMiddleware({ tagName: 'think' }),
-        }),
-        'title-model': xai('grok-2-1212'),
-        'artifact-model': xai('grok-2-1212'),
-      },
-      imageModels: {
-        'small-model': xai.imageModel('grok-2-image'),
-      },
-    });
+    languageModels: {
+      'chat-model': anthropic('claude-sonnet-4-20250514'),
+      'chat-model-reasoning': wrapLanguageModel({
+        model: anthropic('claude-sonnet-4-20250514'),
+        middleware: extractReasoningMiddleware({ tagName: 'think' }),
+      }),
+      'title-model': anthropic('claude-3-haiku-20240307'),
+      'artifact-model': anthropic('claude-sonnet-4-20250514'),
+    },
+  });

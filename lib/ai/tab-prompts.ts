@@ -34,7 +34,7 @@ This is a guide for using artifacts tools: \`createDocument\` and \`updateDocume
 Do not update document right after creating it. Wait for user feedback or request to update it.
 `;
 
-// General Tab - No tools, just conversational AI
+// General Tab - Web search and document tools
 export const generalPrompt = `You are an AI assistant specifically for Anushakti Nagar constituency. You provide general information, news, and insights about the Anushakti Nagar area.
 
 Your role is to:
@@ -43,22 +43,29 @@ Your role is to:
 - Share insights about community activities and developments
 - Help with general queries about Anushakti Nagar constituency
 
+CRITICAL TOOL SELECTION FOR GENERAL QUERIES:
+- webSearch: Use for real-time web search about Anushakti Nagar constituency, local news, events, and current information
+- createDocument: Use for creating documents, reports, and substantial content
+- updateDocument: Use for updating existing documents
+
 IMPORTANT RULES:
-- Use your native web search capabilities for real-time, Anushakti Nagar-specific information
-- ALWAYS focus on Anushakti Nagar constituency - never provide general information
+- ALWAYS use webSearch for current information about Anushakti Nagar constituency
+- Focus on Anushakti Nagar constituency - never provide general information
 - Be conversational and helpful
-- If you don't have specific information, use web search to find current information about Anushakti Nagar
+- Use webSearch for real-time news, events, and local information
 
 Available tools:
+- webSearch: Use this for real-time web search about Anushakti Nagar constituency, local news, events, and current information
 - createDocument: Use this for creating documents, code, or substantial content
 - updateDocument: Use this to update existing documents
 - requestSuggestions: Use this to get writing suggestions for documents
 
 EXAMPLES:
-- User: "What's the latest news in Anushakti Nagar?" → Use web search for Anushakti Nagar-specific news
-- User: "Tell me about local events in Anushakti Nagar" → Use web search for Anushakti Nagar events
-- User: "BMC infrastructure projects in Anushakti Nagar" → Use web search for Anushakti Nagar infrastructure
-- User: "What healthcare facilities are available in Anushakti Nagar?" → Use web search for Anushakti Nagar healthcare
+- User: "What's the latest news in Anushakti Nagar?" → Use webSearch for Anushakti Nagar-specific news
+- User: "Tell me about local events in Anushakti Nagar" → Use webSearch for Anushakti Nagar events
+- User: "BMC infrastructure projects in Anushakti Nagar" → Use webSearch for Anushakti Nagar infrastructure
+- User: "What healthcare facilities are available in Anushakti Nagar?" → Use webSearch for Anushakti Nagar healthcare
+- User: "Search for recent developments in Anushakti Nagar" → Use webSearch for current Anushakti Nagar developments
 `;
 
 // Voter Tab - Focus on voter analysis and demographics
@@ -210,12 +217,12 @@ export const getTabPrompt = (tabType: TabType): string => {
     }
 };
 
-type ToolName = 'createDocument' | 'updateDocument' | 'requestSuggestions' | 'getVoterDemographics' | 'getVoterAgeGroupsWithGender' | 'getVoterParts' | 'searchVoters' | 'sqlQuery' | 'getServices' | 'addService' | 'addBeneficiary' | 'getBeneficiaries' | 'updateBeneficiary';
+type ToolName = 'createDocument' | 'updateDocument' | 'requestSuggestions' | 'webSearch' | 'getVoterDemographics' | 'getVoterAgeGroupsWithGender' | 'getVoterParts' | 'searchVoters' | 'sqlQuery' | 'getServices' | 'addService' | 'addBeneficiary' | 'getBeneficiaries' | 'updateBeneficiary';
 
 export const getTabTools = (tabType: TabType): ToolName[] => {
     switch (tabType) {
         case 'general':
-            return ['createDocument', 'updateDocument', 'requestSuggestions'];
+            return ['webSearch', 'createDocument', 'updateDocument', 'requestSuggestions'];
         case 'voter':
             return ['getVoterDemographics', 'getVoterAgeGroupsWithGender', 'getVoterParts', 'searchVoters', 'sqlQuery', 'createDocument', 'updateDocument', 'requestSuggestions'];
         case 'beneficiaries':
@@ -223,6 +230,6 @@ export const getTabTools = (tabType: TabType): ToolName[] => {
         case 'analytics':
             return ['getVoterDemographics', 'getVoterAgeGroupsWithGender', 'getVoterParts', 'searchVoters', 'sqlQuery', 'getServices', 'addService', 'addBeneficiary', 'getBeneficiaries', 'updateBeneficiary', 'createDocument', 'updateDocument', 'requestSuggestions'];
         default:
-            return ['createDocument', 'updateDocument', 'requestSuggestions'];
+            return ['webSearch', 'createDocument', 'updateDocument', 'requestSuggestions'];
     }
 }; 

@@ -33,6 +33,7 @@ import { addServiceTool } from '@/lib/ai/tools/add-service';
 import { addBeneficiaryTool } from '@/lib/ai/tools/add-beneficiary';
 import { getBeneficiariesTool } from '@/lib/ai/tools/get-beneficiaries';
 import { updateBeneficiaryTool } from '@/lib/ai/tools/update-beneficiary';
+import { webSearchTool } from '@/lib/ai/tools/web-search';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
@@ -188,6 +189,7 @@ export async function POST(request: Request) {
               session,
               dataStream,
             }),
+            webSearch: webSearchTool(),
             getVoterDemographics: getVoterDemographicsTool(),
             getVoterAgeGroupsWithGender: getVoterAgeGroupsWithGenderTool(),
             getVoterParts: getVoterPartsTool(),

@@ -12,6 +12,7 @@ import type { addServiceTool } from './ai/tools/add-service';
 import type { addBeneficiaryTool } from './ai/tools/add-beneficiary';
 import type { getBeneficiariesTool } from './ai/tools/get-beneficiaries';
 import type { updateBeneficiaryTool } from './ai/tools/update-beneficiary';
+import type { webSearchTool } from './ai/tools/web-search';
 import type { InferUITool, UIMessage } from 'ai';
 
 import type { ArtifactKind } from '@/components/artifact';
@@ -40,11 +41,13 @@ type addServiceToolType = InferUITool<ReturnType<typeof addServiceTool>>;
 type addBeneficiaryToolType = InferUITool<ReturnType<typeof addBeneficiaryTool>>;
 type getBeneficiariesToolType = InferUITool<ReturnType<typeof getBeneficiariesTool>>;
 type updateBeneficiaryToolType = InferUITool<ReturnType<typeof updateBeneficiaryTool>>;
+type webSearchToolType = InferUITool<ReturnType<typeof webSearchTool>>;
 
 export type ChatTools = {
   createDocument: createDocumentTool;
   updateDocument: updateDocumentTool;
   requestSuggestions: requestSuggestionsTool;
+  webSearch: webSearchToolType;
   getVoterDemographics: getVoterDemographicsToolType;
   getVoterAgeGroupsWithGender: getVoterAgeGroupsWithGenderToolType;
   getVoterParts: getVoterPartsToolType;

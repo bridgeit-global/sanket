@@ -34,34 +34,34 @@ export function ComprehensiveSuggestions({
 
   const generalActions = [
     {
-      title: 'Latest news in Anushakti Nagar',
-      label: 'current events and updates',
-      action: 'What are the latest news and current events happening in Anushakti Nagar area?',
+      title: 'Search latest news',
+      label: 'Anushakti Nagar current events',
+      action: 'Search for the latest news and current events happening in Anushakti Nagar area',
     },
     {
-      title: 'Local events and activities',
-      label: 'community happenings',
-      action: 'What local events, festivals, or community activities are happening in Anushakti Nagar area?',
+      title: 'Search local events',
+      label: 'community activities and festivals',
+      action: 'Search for local events, festivals, and community activities in Anushakti Nagar area',
     },
     {
-      title: 'Transportation updates',
-      label: 'metro and bus services',
-      action: 'What are the current transportation updates, metro services, and bus routes in Anushakti Nagar area?',
+      title: 'Search transportation updates',
+      label: 'metro, bus, and connectivity',
+      action: 'Search for current transportation updates, metro services, and bus routes in Anushakti Nagar area',
     },
     {
-      title: 'Healthcare facilities',
-      label: 'hospitals and clinics',
-      action: 'What healthcare facilities, hospitals, and medical services are available in Anushakti Nagar constituency?',
+      title: 'Search healthcare facilities',
+      label: 'hospitals, clinics, and medical services',
+      action: 'Search for healthcare facilities, hospitals, and medical services available in Anushakti Nagar constituency',
     },
     {
-      title: 'Educational institutions',
-      label: 'schools and colleges',
-      action: 'What educational institutions, schools, and colleges are located in Anushakti Nagar area?',
+      title: 'Search educational institutions',
+      label: 'schools, colleges, and universities',
+      action: 'Search for educational institutions, schools, and colleges located in Anushakti Nagar area',
     },
     {
-      title: 'Infrastructure projects',
-      label: 'development updates',
-      action: 'What infrastructure projects and development work is happening in Anushakti Nagar area?',
+      title: 'Search infrastructure projects',
+      label: 'development and construction updates',
+      action: 'Search for infrastructure projects and development work happening in Anushakti Nagar area',
     },
   ];
 
