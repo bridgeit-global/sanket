@@ -141,8 +141,7 @@ function PureMultimodalInput({
     sendMessage,
     setAttachments,
     setLocalStorageInput,
-    width,
-    chatId,
+    width
   ]);
 
   const uploadFile = async (file: File) => {
@@ -238,8 +237,6 @@ function PureMultimodalInput({
         uploadQueue.length === 0 && (
           <ComprehensiveSuggestions
             sendMessage={sendMessage}
-            chatId={chatId}
-            selectedVisibilityType={selectedVisibilityType}
           />
         )}
 

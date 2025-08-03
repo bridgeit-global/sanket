@@ -9,26 +9,24 @@ import type { VisibilityType } from './visibility-selector';
 import type { ChatMessage } from '@/lib/types';
 
 interface ComprehensiveSuggestionsProps {
-  chatId: string;
   sendMessage: UseChatHelpers<ChatMessage>['sendMessage'];
-  selectedVisibilityType: VisibilityType;
 }
 
 export function ComprehensiveSuggestions({
-  chatId,
   sendMessage,
-  selectedVisibilityType,
 }: ComprehensiveSuggestionsProps) {
   // Use localStorage to persist tab state, ignore prop to prevent overriding
   const [activeTab, setActiveTab] = useLocalStorage<'general' | 'voter' | 'beneficiaries' | 'analytics'>('comprehensive-suggestions-tab', 'general');
-  
+
+  // Debug localStorage updates
+  console.log('ComprehensiveSuggestions - localStorage activeTab:', activeTab);
   // Add mounted state to prevent hydration mismatch
   const [hasMounted, setHasMounted] = useState(false);
-  
+
   useEffect(() => {
     setHasMounted(true);
   }, []);
-  
+
   // Use 'general' as default during SSR to prevent hydration mismatch
   const displayTab = hasMounted ? activeTab : 'general';
 
@@ -256,21 +254,23 @@ export function ComprehensiveSuggestions({
       {/* Tab Navigation */}
       <div className="flex flex-wrap gap-2 justify-center">
         {tabs.map((tab) => (
-                      <Button
-              key={tab.key}
-              variant={displayTab === tab.key ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => {
-                setActiveTab(tab.key as any);
-                // Update URL to reflect the new tab while preserving chat ID
-                const currentUrl = new URL(window.location.href);
-                currentUrl.searchParams.set('tab', tab.key);
-                window.history.replaceState({}, '', currentUrl.toString());
-              }}
-              className="text-xs transition-colors duration-150"
-            >
-              {tab.label}
-            </Button>
+          <Button
+            key={tab.key}
+            variant={displayTab === tab.key ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => {
+              console.log('Tab clicked:', tab.key);
+              setActiveTab(tab.key as any);
+              // Update URL to reflect the new tab while preserving chat ID
+              const currentUrl = new URL(window.location.href);
+              currentUrl.searchParams.set('tab', tab.key);
+              window.history.replaceState({}, '', currentUrl.toString());
+              console.log('Updated localStorage and URL for tab:', tab.key);
+            }}
+            className="text-xs transition-colors duration-150"
+          >
+            {tab.label}
+          </Button>
         ))}
       </div>
 
@@ -279,7 +279,7 @@ export function ComprehensiveSuggestions({
         <h3 className="text-lg font-semibold text-blue-600 mb-2">{getTabTitle()}</h3>
         <p className="text-sm text-gray-600 mb-4">{getTabDescription()}</p>
       </div>
-      
+
       {/* Actions Grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 w-full">
         {activeActions.map((action, index) => (

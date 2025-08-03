@@ -83,7 +83,8 @@ export async function POST(request: Request) {
     return new ChatSDKError('bad_request:api').toResponse();
   }
 
-  console.log(JSON.stringify(requestBody, null, 2));
+  console.log('Request body:', JSON.stringify(requestBody, null, 2));
+  console.log('Active tab from request body:', requestBody.activeTab);
 
   try {
     const {
@@ -91,16 +92,21 @@ export async function POST(request: Request) {
       message,
       selectedChatModel,
       selectedVisibilityType,
+      activeTab = 'general',
     }: {
       id: string;
       message: ChatMessage;
       selectedChatModel: ChatModel['id'];
       selectedVisibilityType: VisibilityType;
+      activeTab: TabType;
     } = requestBody;
 
-    // Get activeTab from URL query parameters
+    // Debug: Also check URL parameters as fallback
     const url = new URL(request.url);
-    const activeTab = (url.searchParams.get('tab') as TabType) || 'general';
+    const urlTab = url.searchParams.get('tab') as TabType;
+    console.log('URL tab parameter:', urlTab);
+    console.log('Request body activeTab:', activeTab);
+    console.log('Final activeTab being used:', activeTab || urlTab || 'general');
 
     const session = await auth();
 
@@ -172,35 +178,51 @@ export async function POST(request: Request) {
         const tabPrompt = getTabPrompt(activeTab);
         const tabTools = getTabTools(activeTab);
 
+        // Create tools object based on active tab
+        const baseTools = {
+          createDocument: createDocument({ session, dataStream }),
+          updateDocument: updateDocument({ session, dataStream }),
+          requestSuggestions: requestSuggestions({
+            session,
+            dataStream,
+          }),
+        };
+
+        const allTools = {
+          ...baseTools,
+          webSearch: webSearchTool(),
+          getVoterDemographics: getVoterDemographicsTool(),
+          getVoterAgeGroupsWithGender: getVoterAgeGroupsWithGenderTool(),
+          getVoterParts: getVoterPartsTool(),
+          searchVoters: searchVotersTool(),
+          sqlQuery: sqlQueryTool,
+          getServices: getServicesTool(),
+          addService: addServiceTool(),
+          addBeneficiary: addBeneficiaryTool(),
+          getBeneficiaries: getBeneficiariesTool(),
+          updateBeneficiary: updateBeneficiaryTool(),
+        };
+
+        // Filter tools based on active tab
+        const activeTools: Record<string, any> = { ...baseTools };
+        tabTools.forEach(toolName => {
+          if (allTools[toolName as keyof typeof allTools]) {
+            activeTools[toolName] = allTools[toolName as keyof typeof allTools];
+          }
+        });
+
+        // Debug logging
+        console.log(`Active tab: ${activeTab}`);
+        console.log(`Available tools for ${activeTab}:`, Object.keys(activeTools));
+        console.log(`Tab tools from getTabTools:`, tabTools);
+
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
           system: tabPrompt,
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(10),
-          experimental_activeTools:
-            selectedChatModel === 'chat-model-reasoning'
-              ? []
-              : tabTools,
           experimental_transform: smoothStream({ chunking: 'word' }),
-          tools: {
-            createDocument: createDocument({ session, dataStream }),
-            updateDocument: updateDocument({ session, dataStream }),
-            requestSuggestions: requestSuggestions({
-              session,
-              dataStream,
-            }),
-            webSearch: webSearchTool(),
-            getVoterDemographics: getVoterDemographicsTool(),
-            getVoterAgeGroupsWithGender: getVoterAgeGroupsWithGenderTool(),
-            getVoterParts: getVoterPartsTool(),
-            searchVoters: searchVotersTool(),
-            sqlQuery: sqlQueryTool,
-            getServices: getServicesTool(),
-            addService: addServiceTool(),
-            addBeneficiary: addBeneficiaryTool(),
-            getBeneficiaries: getBeneficiariesTool(),
-            updateBeneficiary: updateBeneficiaryTool(),
-          },
+          tools: activeTools,
           experimental_telemetry: {
             isEnabled: isProductionEnvironment,
             functionId: 'stream-text',
