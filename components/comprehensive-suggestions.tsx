@@ -38,7 +38,7 @@ export function ComprehensiveSuggestions({
     },
     {
       title: 'Search local events',
-      label: 'community activities and festivals',
+      label: 'activities and festivals',
       action: 'Search for local events, festivals, and community activities in Anushakti Nagar area',
     },
     {
@@ -48,17 +48,17 @@ export function ComprehensiveSuggestions({
     },
     {
       title: 'Search healthcare facilities',
-      label: 'hospitals, clinics, and medical services',
+      label: 'hospitals and medical services',
       action: 'Search for healthcare facilities, hospitals, and medical services available in Anushakti Nagar constituency',
     },
     {
       title: 'Search educational institutions',
-      label: 'schools, colleges, and universities',
+      label: 'colleges and universities',
       action: 'Search for educational institutions, schools, and colleges located in Anushakti Nagar area',
     },
     {
       title: 'Search infrastructure projects',
-      label: 'development and construction updates',
+      label: 'development & construction',
       action: 'Search for infrastructure projects and development work happening in Anushakti Nagar area',
     },
   ];
@@ -90,62 +90,27 @@ export function ComprehensiveSuggestions({
       action: 'Show me voters with contact information including mobile numbers and email addresses',
     },
     {
-      title: 'Custom voter query',
-      label: 'SQL analysis',
-      action: 'Run SQL query: SELECT COUNT(*) FROM voters WHERE age > 50 AND gender = "F"',
+      title: 'General voter query',
+      label: 'above age 50 and female',
+      action: 'All voters above age 50 and female',
     },
   ];
 
   const beneficiaryActions = [
     {
-      title: 'View all services',
-      label: 'individual and community',
-      action: 'Show me all available services for beneficiary management',
+      title: 'Add service',
+      label: 'for an individual',
+      action: 'Add a service for an individual voter',
     },
     {
-      title: 'Add voter registration service',
-      label: 'individual service',
-      action: 'Add a new service for voter registration assistance with description "Help voters with registration process"',
+      title: 'Add service',
+      label: 'for a community',
+      action: 'Add a service for a community project',
     },
     {
-      title: 'Add Aadhar card service',
-      label: 'individual service',
-      action: 'Add a new service for Aadhar card applications with description "Assist with Aadhar card applications and updates"',
-    },
-    {
-      title: 'Add ration card service',
-      label: 'individual service',
-      action: 'Add a new service for ration card applications with description "Help with ration card applications and renewals"',
-    },
-    {
-      title: 'Add government schemes service',
-      label: 'individual service',
-      action: 'Add a new service for government scheme applications with description "Assist with various government scheme applications"',
-    },
-    {
-      title: 'Add public works service',
-      label: 'community service',
-      action: 'Add a new service for road construction in Part 5 with description "Public work for road construction affecting all voters in Part 5"',
-    },
-    {
-      title: 'Add fund utilization service',
-      label: 'community service',
-      action: 'Add a new service for fund utilization projects with description "Track fund utilization for development projects"',
-    },
-    {
-      title: 'Get beneficiaries by voter',
-      label: 'individual tracking',
-      action: 'Show me all beneficiaries for voter ID TEST001',
-    },
-    {
-      title: 'Get beneficiaries by service',
-      label: 'service tracking',
-      action: 'Show me all beneficiaries for the voter registration service',
-    },
-    {
-      title: 'Get beneficiaries by part',
-      label: 'area tracking',
-      action: 'Show me all beneficiaries for Part 5',
+      title: 'Update status',
+      label: 'pending, in progress, completed',
+      action: 'Update status to completed for the voter registration service with completion date today',
     },
     {
       title: 'Get overall statistics',
@@ -153,10 +118,11 @@ export function ComprehensiveSuggestions({
       action: 'Show me overall beneficiary statistics and status breakdown',
     },
     {
-      title: 'Update beneficiary status',
-      label: 'pending, in progress, completed',
-      action: 'Update beneficiary status to completed for the voter registration service with completion date today',
+      title: 'View all services',
+      label: 'individual and community',
+      action: 'Show me all available services for beneficiary management',
     },
+
   ];
 
   const analyticsActions = [
@@ -276,8 +242,8 @@ export function ComprehensiveSuggestions({
 
       {/* Section Header */}
       <div className="text-center">
-        <h3 className="text-lg font-semibold text-blue-600 mb-2">{getTabTitle()}</h3>
-        <p className="text-sm text-gray-600 mb-4">{getTabDescription()}</p>
+        <h3 className="text-lg font-semibold text-primary mb-2">{getTabTitle()}</h3>
+        <p className="text-sm text-muted-foreground mb-4">{getTabDescription()}</p>
       </div>
 
       {/* Actions Grid */}
@@ -297,7 +263,7 @@ export function ComprehensiveSuggestions({
                 parts: [{ type: 'text', text: action.action }],
               });
             }}
-            className="text-left border rounded-xl px-4 py-3.5 text-sm flex-1 gap-1 sm:flex-col w-full h-auto justify-start items-start hover:bg-blue-50 hover:border-blue-200 transition-colors duration-150"
+            className="text-left border rounded-xl px-4 py-3.5 text-sm flex-1 gap-1 sm:flex-col w-full h-auto justify-start items-start hover:bg-accent hover:border-accent-foreground/20 transition-colors duration-150"
           >
             <span className="font-medium">{action.title}</span>
             <span className="text-muted-foreground">

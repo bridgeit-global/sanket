@@ -123,11 +123,44 @@ Your role is to:
 
 CRITICAL TOOL SELECTION FOR BENEFICIARY QUERIES:
 - getServices: Use to get all available services for beneficiary management
-- addService: Use to add new services to the system (individual or community)
+- addBeneficiaryService: Use to add new beneficiary services (individual or community) with comprehensive details
 - addBeneficiary: Use to add beneficiaries to services (provide voterId for individual, partNo for community)
+- addBeneficiaryWithDetails: Use to add beneficiaries with comprehensive details (age, gender, contact info, etc.)
+- searchBeneficiaries: Use to search beneficiaries with advanced filtering and analytics
+- updateBeneficiaryStatus: Use to update beneficiary status with progress tracking
+- trackBeneficiaryProgress: Use to track beneficiary progress with detailed analytics
+- linkBeneficiaryToVoter: Use to link beneficiaries to existing voters or search for voters
+- exportBeneficiaryData: Use to export beneficiary data with comprehensive reporting
 - getBeneficiaries: Use to get beneficiary information by service, voter, or part
 - updateBeneficiary: Use to update beneficiary status and information
 - createDocument: Use for creating beneficiary reports and service documentation
+
+CRITICAL REQUIREMENT FOR BENEFICIARY SERVICE TICKETS:
+When adding a beneficiary service ticket, ALWAYS ask for ALL relevant details:
+
+1. **For Individual Services (one-to-one):**
+   - Service details (name, description, category, priority)
+   - Voter details (voter ID, name, age, gender, mobile, email, address)
+   - Beneficiary details (if different from voter)
+   - Contact information and family details
+   - Specific requirements or documents needed
+
+2. **For Community Services (one-to-many):**
+   - Service details (name, description, category, priority)
+   - Part number and area details
+   - Target audience and expected beneficiaries
+   - Community requirements and impact assessment
+   - Expected duration and resource requirements
+
+3. **Always Collect:**
+   - Service type (one-to-one vs one-to-many)
+   - Priority level (low, medium, high, urgent)
+   - Expected duration for completion
+   - Requirements or documents needed
+   - Target audience or beneficiaries
+   - Additional notes or special considerations
+
+NEVER proceed with adding a beneficiary service ticket without collecting comprehensive details about both the service and the beneficiary/voter information.
 
 IMPORTANT RULES:
 - ALWAYS use beneficiary-specific tools for beneficiary-related queries
@@ -138,8 +171,14 @@ IMPORTANT RULES:
 
 Available tools:
 - getServices: Use this to get all available services for beneficiary management
-- addService: Use this to add new services to the system (individual or community)
+- addBeneficiaryService: Use this to add new beneficiary services (individual or community) with comprehensive details
 - addBeneficiary: Use this to add beneficiaries to services (provide voterId for individual, partNo for community)
+- addBeneficiaryWithDetails: Use this to add beneficiaries with comprehensive details (age, gender, contact info, etc.)
+- searchBeneficiaries: Use this to search beneficiaries with advanced filtering and analytics
+- updateBeneficiaryStatus: Use this to update beneficiary status with progress tracking
+- trackBeneficiaryProgress: Use this to track beneficiary progress with detailed analytics
+- linkBeneficiaryToVoter: Use this to link beneficiaries to existing voters or search for voters
+- exportBeneficiaryData: Use this to export beneficiary data with comprehensive reporting
 - getBeneficiaries: Use this to get beneficiary information by service, voter, or part
 - updateBeneficiary: Use this to update beneficiary status and information
 - createDocument: Use this for creating beneficiary reports and service documentation
@@ -148,12 +187,24 @@ Available tools:
 
 EXAMPLES:
 - User: "Show me available services" → Use getServices tool
-- User: "Add a new service for voter registration" → Use addService tool
+- User: "Add a new beneficiary service for voter registration" → Use addBeneficiaryService tool
 - User: "Add voter ID TEST001 to voter registration service" → Use addBeneficiary tool
-- User: "Add Part 5 to road construction service" → Use addBeneficiary tool
+- User: "Add beneficiary with details (name, age, contact)" → Use addBeneficiaryWithDetails tool
+- User: "Search beneficiaries by status or service" → Use searchBeneficiaries tool
+- User: "Update beneficiary status to completed" → Use updateBeneficiaryStatus tool
+- User: "Track progress of beneficiaries" → Use trackBeneficiaryProgress tool
+- User: "Link beneficiary to existing voter" → Use linkBeneficiaryToVoter tool
+- User: "Export beneficiary data for reporting" → Use exportBeneficiaryData tool
 - User: "Show me all beneficiaries for voter ID TEST001" → Use getBeneficiaries tool
 - User: "Update beneficiary status to completed" → Use updateBeneficiary tool
 - User: "Create a report on service utilization" → Use createDocument tool
+
+BENEFICIARY SERVICE TICKET EXAMPLES:
+- User: "I need to add a beneficiary service ticket" → Ask for service type, details, and beneficiary information
+- User: "Add a service ticket for voter registration" → Ask for voter details, contact info, and specific requirements
+- User: "Create a community service ticket" → Ask for part number, target audience, and community requirements
+- User: "Add a beneficiary for Aadhar card service" → Ask for voter ID, personal details, and document requirements
+- User: "Submit a service request for health services" → Ask for service category, beneficiary details, and priority level
 `;
 
 // Analytics Tab - Focus on comprehensive data analysis
@@ -217,7 +268,7 @@ export const getTabPrompt = (tabType: TabType): string => {
     }
 };
 
-type ToolName = 'createDocument' | 'updateDocument' | 'requestSuggestions' | 'webSearch' | 'getVoterDemographics' | 'getVoterAgeGroupsWithGender' | 'getVoterParts' | 'searchVoters' | 'sqlQuery' | 'getServices' | 'addService' | 'addBeneficiary' | 'getBeneficiaries' | 'updateBeneficiary';
+type ToolName = 'createDocument' | 'updateDocument' | 'requestSuggestions' | 'webSearch' | 'getVoterDemographics' | 'getVoterAgeGroupsWithGender' | 'getVoterParts' | 'searchVoters' | 'sqlQuery' | 'getServices' | 'addBeneficiaryService' | 'addBeneficiary' | 'addBeneficiaryWithDetails' | 'searchBeneficiaries' | 'updateBeneficiaryStatus' | 'trackBeneficiaryProgress' | 'linkBeneficiaryToVoter' | 'exportBeneficiaryData' | 'getBeneficiaries' | 'updateBeneficiary';
 
 export const getTabTools = (tabType: TabType): ToolName[] => {
     switch (tabType) {
@@ -226,9 +277,9 @@ export const getTabTools = (tabType: TabType): ToolName[] => {
         case 'voter':
             return ['getVoterDemographics', 'getVoterAgeGroupsWithGender', 'getVoterParts', 'searchVoters', 'sqlQuery', 'createDocument', 'updateDocument', 'requestSuggestions'];
         case 'beneficiaries':
-            return ['getServices', 'addService', 'addBeneficiary', 'getBeneficiaries', 'updateBeneficiary', 'createDocument', 'updateDocument', 'requestSuggestions'];
+            return ['getServices', 'addBeneficiaryService', 'addBeneficiary', 'addBeneficiaryWithDetails', 'searchBeneficiaries', 'updateBeneficiaryStatus', 'trackBeneficiaryProgress', 'linkBeneficiaryToVoter', 'exportBeneficiaryData', 'getBeneficiaries', 'updateBeneficiary', 'createDocument', 'updateDocument', 'requestSuggestions'];
         case 'analytics':
-            return ['getVoterDemographics', 'getVoterAgeGroupsWithGender', 'getVoterParts', 'searchVoters', 'sqlQuery', 'getServices', 'addService', 'addBeneficiary', 'getBeneficiaries', 'updateBeneficiary', 'createDocument', 'updateDocument', 'requestSuggestions'];
+            return ['getVoterDemographics', 'getVoterAgeGroupsWithGender', 'getVoterParts', 'searchVoters', 'sqlQuery', 'getServices', 'addBeneficiaryService', 'addBeneficiary', 'addBeneficiaryWithDetails', 'searchBeneficiaries', 'updateBeneficiaryStatus', 'trackBeneficiaryProgress', 'linkBeneficiaryToVoter', 'exportBeneficiaryData', 'getBeneficiaries', 'updateBeneficiary', 'createDocument', 'updateDocument', 'requestSuggestions'];
         default:
             return ['webSearch', 'createDocument', 'updateDocument', 'requestSuggestions'];
     }

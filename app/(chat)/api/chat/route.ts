@@ -31,6 +31,13 @@ import { sqlQueryTool } from '@/lib/ai/tools/sql-query';
 import { getServicesTool } from '@/lib/ai/tools/get-services';
 import { addServiceTool } from '@/lib/ai/tools/add-service';
 import { addBeneficiaryTool } from '@/lib/ai/tools/add-beneficiary';
+import { addBeneficiaryWithDetailsTool } from '@/lib/ai/tools/add-beneficiary-with-details';
+import { searchBeneficiariesTool } from '@/lib/ai/tools/search-beneficiaries';
+import { updateBeneficiaryStatusTool } from '@/lib/ai/tools/update-beneficiary-status';
+import { trackBeneficiaryProgressTool } from '@/lib/ai/tools/track-beneficiary-progress';
+import { linkBeneficiaryToVoterTool } from '@/lib/ai/tools/link-beneficiary-to-voter';
+import { exportBeneficiaryDataTool } from '@/lib/ai/tools/export-beneficiary-data';
+import { addBeneficiaryServiceTool } from '@/lib/ai/tools/add-beneficiary-service';
 import { getBeneficiariesTool } from '@/lib/ai/tools/get-beneficiaries';
 import { updateBeneficiaryTool } from '@/lib/ai/tools/update-beneficiary';
 import { webSearchTool } from '@/lib/ai/tools/web-search';
@@ -197,8 +204,14 @@ export async function POST(request: Request) {
           searchVoters: searchVotersTool(),
           sqlQuery: sqlQueryTool,
           getServices: getServicesTool(),
-          addService: addServiceTool(),
+          addBeneficiaryService: addBeneficiaryServiceTool(),
           addBeneficiary: addBeneficiaryTool(),
+          addBeneficiaryWithDetails: addBeneficiaryWithDetailsTool(),
+          searchBeneficiaries: searchBeneficiariesTool(),
+          updateBeneficiaryStatus: updateBeneficiaryStatusTool(),
+          trackBeneficiaryProgress: trackBeneficiaryProgressTool(),
+          linkBeneficiaryToVoter: linkBeneficiaryToVoterTool(),
+          exportBeneficiaryData: exportBeneficiaryDataTool(),
           getBeneficiaries: getBeneficiariesTool(),
           updateBeneficiary: updateBeneficiaryTool(),
         };

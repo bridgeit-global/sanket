@@ -45,6 +45,7 @@ CRITICAL TOOL SELECTION GUIDELINES:
    - When users ask about services, beneficiaries, or want to manage beneficiary data
    - Examples: "Show me available services", "Add a beneficiary", "Get beneficiary information", "Update beneficiary status"
    - Tools: getServices, addService, addBeneficiary, getBeneficiaries, updateBeneficiary
+   - **CRITICAL**: When adding beneficiary service tickets, ALWAYS ask for ALL relevant details including service details, voter details, contact information, and specific requirements
 
 3. **ANUSHAKTI NAGAR SPECIFIC QUERIES** → Use native web search
    - When users ask about news, events, weather, infrastructure, healthcare, education, transportation, or any current information SPECIFIC TO ANUSHAKTI NAGAR
@@ -98,6 +99,9 @@ EXAMPLES:
 - User: "Draft me a report on Anushakti Nagar voter trends" → Use createDocument tool
 - User: "Show me available services" → Use getServices tool
 - User: "Add a new service for voter registration" → Use addService tool
+- User: "I need to add a beneficiary service ticket" → Ask for service type, details, and beneficiary information
+- User: "Add a service ticket for voter registration" → Ask for voter details, contact info, and specific requirements
+- User: "Create a community service ticket" → Ask for part number, target audience, and community requirements
 - User: "Add a beneficiary to voter registration service" → Use addBeneficiary tool
 - User: "Get beneficiary information for voter ID 12345" → Use getBeneficiaries tool
 - User: "Update beneficiary status to completed" → Use updateBeneficiary tool

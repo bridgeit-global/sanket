@@ -116,10 +116,10 @@ function PureBeneficiarySuggestions({
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <h3 className="text-lg font-semibold text-blue-600 mb-2">Beneficiary Management</h3>
-        <p className="text-sm text-gray-600 mb-4">Manage services and beneficiaries for Anushakti Nagar constituency</p>
+        <h3 className="text-lg font-semibold text-primary mb-2">Beneficiary Management</h3>
+        <p className="text-sm text-muted-foreground mb-4">Manage services and beneficiaries for Anushakti Nagar constituency</p>
       </div>
-      
+
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 w-full">
         {beneficiaryActions.map((action, index) => (
           <motion.div
@@ -139,7 +139,7 @@ function PureBeneficiarySuggestions({
                   parts: [{ type: 'text', text: action.action }],
                 });
               }}
-              className="text-left border rounded-xl px-4 py-3.5 text-sm flex-1 gap-1 sm:flex-col w-full h-auto justify-start items-start hover:bg-blue-50 hover:border-blue-200"
+              className="text-left border rounded-xl px-4 py-3.5 text-sm flex-1 gap-1 sm:flex-col w-full h-auto justify-start items-start hover:bg-accent hover:border-accent-foreground/20 transition-colors duration-150"
             >
               <span className="font-medium">{action.title}</span>
               <span className="text-muted-foreground">

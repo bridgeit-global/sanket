@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { createBeneficiary, getServiceById, getVoterById } from '@/lib/db/queries';
 
 export const addBeneficiaryTool = () => tool({
-    description: 'Add a beneficiary to a service. For one-to-one services, provide voterId. For one-to-many services, provide partNo.',
+    description: 'Add a beneficiary to a service. For one-to-one services, provide voterId. For one-to-many services, provide partNo. ALWAYS ask for service details and beneficiary information including voter details, contact information, and specific requirements.',
     inputSchema: z.object({
         serviceId: z.string().describe('ID of the service to add beneficiary to'),
         voterId: z.string().optional().describe('Voter ID (required for one-to-one services)'),
