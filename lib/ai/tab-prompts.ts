@@ -123,14 +123,11 @@ Your role is to:
 
 CRITICAL TOOL SELECTION FOR BENEFICIARY QUERIES:
 - getServices: Use to get all available services for beneficiary management
-- addBeneficiaryService: Use to add new beneficiary services (individual or community) with comprehensive details
+- showBeneficiaryServiceForm: Use to show the beneficiary service form UI when user wants to add a new service
 - addBeneficiary: Use to add beneficiaries to services (provide voterId for individual, partNo for community)
 - addBeneficiaryWithDetails: Use to add beneficiaries with comprehensive details (age, gender, contact info, etc.)
 - searchBeneficiaries: Use to search beneficiaries with advanced filtering and analytics
 - updateBeneficiaryStatus: Use to update beneficiary status with progress tracking
-- trackBeneficiaryProgress: Use to track beneficiary progress with detailed analytics
-- linkBeneficiaryToVoter: Use to link beneficiaries to existing voters or search for voters
-- exportBeneficiaryData: Use to export beneficiary data with comprehensive reporting
 - getBeneficiaries: Use to get beneficiary information by service, voter, or part
 - updateBeneficiary: Use to update beneficiary status and information
 - createDocument: Use for creating beneficiary reports and service documentation
@@ -171,14 +168,11 @@ IMPORTANT RULES:
 
 Available tools:
 - getServices: Use this to get all available services for beneficiary management
-- addBeneficiaryService: Use this to add new beneficiary services (individual or community) with comprehensive details
+- showBeneficiaryServiceForm: Use this to show the beneficiary service form UI when user wants to add a new service
 - addBeneficiary: Use this to add beneficiaries to services (provide voterId for individual, partNo for community)
 - addBeneficiaryWithDetails: Use this to add beneficiaries with comprehensive details (age, gender, contact info, etc.)
 - searchBeneficiaries: Use this to search beneficiaries with advanced filtering and analytics
 - updateBeneficiaryStatus: Use this to update beneficiary status with progress tracking
-- trackBeneficiaryProgress: Use this to track beneficiary progress with detailed analytics
-- linkBeneficiaryToVoter: Use this to link beneficiaries to existing voters or search for voters
-- exportBeneficiaryData: Use this to export beneficiary data with comprehensive reporting
 - getBeneficiaries: Use this to get beneficiary information by service, voter, or part
 - updateBeneficiary: Use this to update beneficiary status and information
 - createDocument: Use this for creating beneficiary reports and service documentation
@@ -187,14 +181,12 @@ Available tools:
 
 EXAMPLES:
 - User: "Show me available services" → Use getServices tool
-- User: "Add a new beneficiary service for voter registration" → Use addBeneficiaryService tool
+- User: "I want to add a new beneficiary service" → Use showBeneficiaryServiceForm tool
+- User: "Add a service for voter registration" → Use showBeneficiaryServiceForm tool
 - User: "Add voter ID TEST001 to voter registration service" → Use addBeneficiary tool
 - User: "Add beneficiary with details (name, age, contact)" → Use addBeneficiaryWithDetails tool
 - User: "Search beneficiaries by status or service" → Use searchBeneficiaries tool
 - User: "Update beneficiary status to completed" → Use updateBeneficiaryStatus tool
-- User: "Track progress of beneficiaries" → Use trackBeneficiaryProgress tool
-- User: "Link beneficiary to existing voter" → Use linkBeneficiaryToVoter tool
-- User: "Export beneficiary data for reporting" → Use exportBeneficiaryData tool
 - User: "Show me all beneficiaries for voter ID TEST001" → Use getBeneficiaries tool
 - User: "Update beneficiary status to completed" → Use updateBeneficiary tool
 - User: "Create a report on service utilization" → Use createDocument tool
@@ -268,7 +260,7 @@ export const getTabPrompt = (tabType: TabType): string => {
     }
 };
 
-type ToolName = 'createDocument' | 'updateDocument' | 'requestSuggestions' | 'webSearch' | 'getVoterDemographics' | 'getVoterAgeGroupsWithGender' | 'getVoterParts' | 'searchVoters' | 'sqlQuery' | 'getServices' | 'addBeneficiaryService' | 'addBeneficiary' | 'addBeneficiaryWithDetails' | 'searchBeneficiaries' | 'updateBeneficiaryStatus' | 'trackBeneficiaryProgress' | 'linkBeneficiaryToVoter' | 'exportBeneficiaryData' | 'getBeneficiaries' | 'updateBeneficiary';
+type ToolName = 'createDocument' | 'updateDocument' | 'requestSuggestions' | 'webSearch' | 'getVoterDemographics' | 'getVoterAgeGroupsWithGender' | 'getVoterParts' | 'searchVoters' | 'sqlQuery' | 'getServices' | 'addBeneficiaryService' | 'addBeneficiary' | 'addBeneficiaryWithDetails' | 'searchBeneficiaries' | 'updateBeneficiaryStatus' | 'trackBeneficiaryProgress' | 'linkBeneficiaryToVoter' | 'exportBeneficiaryData' | 'getBeneficiaries' | 'updateBeneficiary' | 'showBeneficiaryServiceForm';
 
 export const getTabTools = (tabType: TabType): ToolName[] => {
     switch (tabType) {
@@ -277,7 +269,7 @@ export const getTabTools = (tabType: TabType): ToolName[] => {
         case 'voter':
             return ['getVoterDemographics', 'getVoterAgeGroupsWithGender', 'getVoterParts', 'searchVoters', 'sqlQuery', 'createDocument', 'updateDocument', 'requestSuggestions'];
         case 'beneficiaries':
-            return ['getServices', 'addBeneficiaryService', 'addBeneficiary', 'addBeneficiaryWithDetails', 'searchBeneficiaries', 'updateBeneficiaryStatus', 'trackBeneficiaryProgress', 'linkBeneficiaryToVoter', 'exportBeneficiaryData', 'getBeneficiaries', 'updateBeneficiary', 'createDocument', 'updateDocument', 'requestSuggestions'];
+            return ['getServices', 'showBeneficiaryServiceForm', 'addBeneficiary', 'addBeneficiaryWithDetails', 'searchBeneficiaries', 'updateBeneficiaryStatus', 'getBeneficiaries', 'updateBeneficiary', 'createDocument', 'updateDocument', 'requestSuggestions'];
         case 'analytics':
             return ['getVoterDemographics', 'getVoterAgeGroupsWithGender', 'getVoterParts', 'searchVoters', 'sqlQuery', 'getServices', 'addBeneficiaryService', 'addBeneficiary', 'addBeneficiaryWithDetails', 'searchBeneficiaries', 'updateBeneficiaryStatus', 'trackBeneficiaryProgress', 'linkBeneficiaryToVoter', 'exportBeneficiaryData', 'getBeneficiaries', 'updateBeneficiary', 'createDocument', 'updateDocument', 'requestSuggestions'];
         default:

@@ -40,6 +40,7 @@ import { exportBeneficiaryDataTool } from '@/lib/ai/tools/export-beneficiary-dat
 import { addBeneficiaryServiceTool } from '@/lib/ai/tools/add-beneficiary-service';
 import { getBeneficiariesTool } from '@/lib/ai/tools/get-beneficiaries';
 import { updateBeneficiaryTool } from '@/lib/ai/tools/update-beneficiary';
+import { showBeneficiaryServiceFormTool } from '@/lib/ai/tools/show-beneficiary-service-form';
 import { webSearchTool } from '@/lib/ai/tools/web-search';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
@@ -214,6 +215,7 @@ export async function POST(request: Request) {
           exportBeneficiaryData: exportBeneficiaryDataTool(),
           getBeneficiaries: getBeneficiariesTool(),
           updateBeneficiary: updateBeneficiaryTool(),
+          showBeneficiaryServiceForm: showBeneficiaryServiceFormTool(),
         };
 
         // Filter tools based on active tab

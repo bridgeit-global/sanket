@@ -1,9 +1,10 @@
 import {
   customProvider,
   extractReasoningMiddleware,
+  generateText,
   wrapLanguageModel,
 } from 'ai';
-import { anthropic } from '@ai-sdk/anthropic';
+import { createGroq } from '@ai-sdk/groq';
 import {
   artifactModel,
   chatModel,
@@ -11,6 +12,12 @@ import {
   titleModel,
 } from './models.test';
 import { isTestEnvironment } from '../constants';
+
+
+const moonshot = createGroq({
+  baseURL: 'https://api.moonshot.ai/v1',
+  apiKey: process.env.MOONSHOT_API_KEY
+});
 
 export const myProvider = isTestEnvironment
   ? customProvider({
@@ -23,12 +30,12 @@ export const myProvider = isTestEnvironment
   })
   : customProvider({
     languageModels: {
-      'chat-model': anthropic('claude-sonnet-4-20250514'),
+      'chat-model': moonshot('kimi-k2-0711-preview'),
       'chat-model-reasoning': wrapLanguageModel({
-        model: anthropic('claude-sonnet-4-20250514'),
+        model: moonshot('kimi-k2-0711-preview'),
         middleware: extractReasoningMiddleware({ tagName: 'think' }),
       }),
-      'title-model': anthropic('claude-3-haiku-20240307'),
-      'artifact-model': anthropic('claude-sonnet-4-20250514'),
+      'title-model': moonshot('kimi-k2-0711-preview'),
+      'artifact-model': moonshot('kimi-k2-0711-preview'),
     },
   });

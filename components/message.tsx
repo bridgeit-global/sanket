@@ -21,6 +21,7 @@ import { useDataStream } from './data-stream-provider';
 import { VoterInsights } from './voter-insights';
 import { SqlQueryResults } from './sql-query-results';
 import { BeneficiaryInsights } from './beneficiary-insights';
+import { BeneficiaryServiceFormWrapper } from './beneficiary-service-form-wrapper';
 
 // Type narrowing is handled by TypeScript's control flow analysis
 // The AI SDK provides proper discriminated unions for tool calls
@@ -34,6 +35,7 @@ const PurePreviewMessage = ({
   regenerate,
   isReadonly,
   requiresScrollPadding,
+  sendMessage,
 }: {
   chatId: string;
   message: ChatMessage;
@@ -43,6 +45,7 @@ const PurePreviewMessage = ({
   regenerate: UseChatHelpers<ChatMessage>['regenerate'];
   isReadonly: boolean;
   requiresScrollPadding: boolean;
+  sendMessage: UseChatHelpers<ChatMessage>['sendMessage'];
 }) => {
   const [mode, setMode] = useState<'view' | 'edit'>('view');
 
@@ -262,7 +265,7 @@ const PurePreviewMessage = ({
                 if (state === 'output-available') {
                   const { output } = part as any;
                   const toolName = type.replace('tool-', '');
-                  
+
                   return (
                     <div key={toolCallId} className="my-4">
                       <VoterInsights toolName={toolName} data={output} />
@@ -272,7 +275,7 @@ const PurePreviewMessage = ({
               }
 
               // Handle beneficiary tool results
-              if (type.startsWith('tool-') && ['getServices', 'addService', 'addBeneficiary', 'getBeneficiaries', 'updateBeneficiary'].some(tool => type.includes(tool))) {
+              if (type.startsWith('tool-') && ['getServices', 'addService', 'addBeneficiary', 'getBeneficiaries', 'updateBeneficiary', 'addBeneficiaryWithDetails', 'searchBeneficiaries', 'updateBeneficiaryStatus'].some(tool => type.includes(tool))) {
                 const { toolCallId, state } = part as any;
 
                 if (state === 'input-available') {
@@ -286,10 +289,36 @@ const PurePreviewMessage = ({
                 if (state === 'output-available') {
                   const { output } = part as any;
                   const toolName = type.replace('tool-', '');
-                  
+
                   return (
                     <div key={toolCallId} className="my-4">
                       <BeneficiaryInsights toolName={toolName} data={output} />
+                    </div>
+                  );
+                }
+              }
+
+              // Handle beneficiary service form tool
+              if (type === 'tool-showBeneficiaryServiceForm') {
+                const { toolCallId, state } = part as any;
+
+                if (state === 'input-available') {
+                  return (
+                    <div key={toolCallId} className="skeleton">
+                      <div className="animate-pulse bg-gray-200 h-32 rounded-lg"></div>
+                    </div>
+                  );
+                }
+
+                if (state === 'output-available') {
+                  const { output } = part as any;
+
+                  return (
+                    <div key={toolCallId} className="my-4">
+                      <BeneficiaryServiceFormWrapper
+                        chatId={chatId}
+                        sendMessage={sendMessage}
+                      />
                     </div>
                   );
                 }
@@ -309,7 +338,7 @@ const PurePreviewMessage = ({
 
                 if (state === 'output-available') {
                   const { output } = part as any;
-                  
+
                   return (
                     <div key={toolCallId} className="my-4">
                       <SqlQueryResults data={output} />

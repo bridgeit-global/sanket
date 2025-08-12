@@ -161,6 +161,7 @@ export function Chat({
           messages={messages}
           setMessages={setMessages}
           regenerate={regenerate}
+          sendMessage={sendMessage}
           isReadonly={isReadonly}
           isArtifactVisible={isArtifactVisible}
         />

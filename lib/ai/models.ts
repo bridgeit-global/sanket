@@ -9,12 +9,12 @@ export interface ChatModel {
 export const chatModels: Array<ChatModel> = [
   {
     id: 'chat-model',
-    name: 'Claude Sonnet 4',
-    description: 'Primary model for all-purpose chat using Claude Sonnet 4',
+    name: 'Chat',
+    description: 'Primary model for all-purpose chat using Chat model',
   },
   {
     id: 'chat-model-reasoning',
-    name: 'Claude Sonnet 4 (Reasoning)',
-    description: 'Uses advanced reasoning with Claude Sonnet 4',
+    name: 'Reasoning',
+    description: 'Uses advanced reasoning with Reasoning model',
   },
 ];

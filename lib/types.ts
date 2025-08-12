@@ -19,6 +19,7 @@ import type { exportBeneficiaryDataTool } from './ai/tools/export-beneficiary-da
 import type { addBeneficiaryServiceTool } from './ai/tools/add-beneficiary-service';
 import type { getBeneficiariesTool } from './ai/tools/get-beneficiaries';
 import type { updateBeneficiaryTool } from './ai/tools/update-beneficiary';
+import type { showBeneficiaryServiceFormTool } from './ai/tools/show-beneficiary-service-form';
 import type { webSearchTool } from './ai/tools/web-search';
 import type { InferUITool, UIMessage } from 'ai';
 
@@ -55,6 +56,7 @@ type exportBeneficiaryDataToolType = InferUITool<ReturnType<typeof exportBenefic
 type addBeneficiaryServiceToolType = InferUITool<ReturnType<typeof addBeneficiaryServiceTool>>;
 type getBeneficiariesToolType = InferUITool<ReturnType<typeof getBeneficiariesTool>>;
 type updateBeneficiaryToolType = InferUITool<ReturnType<typeof updateBeneficiaryTool>>;
+type showBeneficiaryServiceFormToolType = InferUITool<ReturnType<typeof showBeneficiaryServiceFormTool>>;
 type webSearchToolType = InferUITool<ReturnType<typeof webSearchTool>>;
 
 export type ChatTools = {
@@ -78,6 +80,7 @@ export type ChatTools = {
   exportBeneficiaryData: exportBeneficiaryDataToolType;
   getBeneficiaries: getBeneficiariesToolType;
   updateBeneficiary: updateBeneficiaryToolType;
+  showBeneficiaryServiceForm: showBeneficiaryServiceFormToolType;
 };
 
 export type CustomUIDataTypes = {

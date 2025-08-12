@@ -22,39 +22,9 @@ function PureBeneficiarySuggestions({
       action: 'Show me all available services for beneficiary management',
     },
     {
-      title: 'Add voter registration service',
-      label: 'individual service',
-      action: 'Add a new service for voter registration assistance with description "Help voters with registration process"',
-    },
-    {
-      title: 'Add Aadhar card service',
-      label: 'individual service',
-      action: 'Add a new service for Aadhar card applications with description "Assist with Aadhar card applications and updates"',
-    },
-    {
-      title: 'Add ration card service',
-      label: 'individual service',
-      action: 'Add a new service for ration card applications with description "Help with ration card applications and renewals"',
-    },
-    {
-      title: 'Add government schemes service',
-      label: 'individual service',
-      action: 'Add a new service for government scheme applications with description "Assist with various government scheme applications"',
-    },
-    {
-      title: 'Add public works service',
-      label: 'community service',
-      action: 'Add a new service for road construction in Part 5 with description "Public work for road construction affecting all voters in Part 5"',
-    },
-    {
-      title: 'Add fund utilization service',
-      label: 'community service',
-      action: 'Add a new service for fund utilization projects with description "Track fund utilization for development projects"',
-    },
-    {
-      title: 'Add issue visibility service',
-      label: 'community service',
-      action: 'Add a new service for issue visibility campaigns with description "Campaigns to highlight local issues and concerns"',
+      title: 'Add new beneficiary service',
+      label: 'form interface',
+      action: 'I want to add a new beneficiary service',
     },
     {
       title: 'Add beneficiary to voter service',
