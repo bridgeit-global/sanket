@@ -16,7 +16,7 @@ export function ComprehensiveSuggestions({
   sendMessage,
 }: ComprehensiveSuggestionsProps) {
   // Use localStorage to persist tab state, ignore prop to prevent overriding
-  const [activeTab, setActiveTab] = useLocalStorage<'general' | 'voter' | 'beneficiaries' | 'analytics'>('comprehensive-suggestions-tab', 'general');
+  const [activeTab, setActiveTab] = useLocalStorage<'general' | 'voter' | 'beneficiaries' | 'analytics'>('comprehensive-suggestions-tab', 'voter');
 
   // Debug localStorage updates
   console.log('ComprehensiveSuggestions - localStorage activeTab:', activeTab);
@@ -209,10 +209,10 @@ export function ComprehensiveSuggestions({
   };
 
   const tabs = [
-    { key: 'general', label: 'General' },
     { key: 'voter', label: 'Voter' },
     { key: 'beneficiaries', label: 'Beneficiaries' },
     { key: 'analytics', label: 'Analytics' },
+    { key: 'general', label: 'General' },
   ];
 
   return (
