@@ -47,7 +47,7 @@ function PureMessages({
   return (
     <div
       ref={messagesContainerRef}
-      className="flex flex-col min-w-0 gap-6 flex-1 overflow-y-scroll pt-4 relative"
+      className="flex flex-col min-w-0 gap-2 sm:gap-4 lg:gap-6 flex-1 overflow-y-auto pt-2 sm:pt-3 lg:pt-4 relative px-2 sm:px-0 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent"
     >
       {messages.length === 0 && <Greeting />}
 
@@ -74,6 +74,7 @@ function PureMessages({
 
       {status === 'submitted' &&
         messages.length > 0 &&
+        messages.length - 1 >= 0 &&
         messages[messages.length - 1].role === 'user' && <ThinkingMessage />}
 
       <motion.div

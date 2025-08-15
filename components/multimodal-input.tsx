@@ -218,7 +218,7 @@ function PureMultimodalInput({
           >
             <Button
               data-testid="scroll-to-bottom-button"
-              className="rounded-full"
+              className="rounded-full h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10"
               size="icon"
               variant="outline"
               onClick={(event) => {
@@ -226,18 +226,21 @@ function PureMultimodalInput({
                 scrollToBottom();
               }}
             >
-              <ArrowDown />
+              <ArrowDown className="h-3 w-3 sm:h-3 sm:w-3 lg:h-4 lg:w-4" />
             </Button>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* Only show comprehensive suggestions when there are no messages and no attachments */}
       {messages.length === 0 &&
         attachments.length === 0 &&
         uploadQueue.length === 0 && (
-          <ComprehensiveSuggestions
-            sendMessage={sendMessage}
-          />
+          <div className="px-2 sm:px-0 relative z-10 mt-2 sm:mt-4">
+            <ComprehensiveSuggestions
+              sendMessage={sendMessage}
+            />
+          </div>
         )}
 
       <input
@@ -252,7 +255,7 @@ function PureMultimodalInput({
       {(attachments.length > 0 || uploadQueue.length > 0) && (
         <div
           data-testid="attachments-preview"
-          className="flex flex-row gap-2 overflow-x-scroll items-end"
+          className="flex flex-row gap-2 overflow-x-auto items-end px-2 sm:px-0 pb-1 sm:pb-2"
         >
           {attachments.map((attachment) => (
             <PreviewAttachment key={attachment.url} attachment={attachment} />
@@ -272,34 +275,36 @@ function PureMultimodalInput({
         </div>
       )}
 
-      <Textarea
-        data-testid="multimodal-input"
-        ref={textareaRef}
-        placeholder="Send a message..."
-        value={input}
-        onChange={handleInput}
-        className={cx(
-          'min-h-[24px] max-h-[calc(75dvh)] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700',
-          className,
-        )}
-        rows={2}
-        autoFocus
-        onKeyDown={(event) => {
-          if (
-            event.key === 'Enter' &&
-            !event.shiftKey &&
-            !event.nativeEvent.isComposing
-          ) {
-            event.preventDefault();
+      <div className="px-2 sm:px-0">
+        <Textarea
+          data-testid="multimodal-input"
+          ref={textareaRef}
+          placeholder="Send a message..."
+          value={input}
+          onChange={handleInput}
+          className={cx(
+            'min-h-[36px] sm:min-h-[40px] lg:min-h-[44px] max-h-[100px] sm:max-h-[120px] lg:max-h-[140px] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-8 sm:pb-10 dark:border-zinc-700 border-2 focus:border-primary/50 transition-colors duration-200',
+            className,
+          )}
+          rows={2}
+          autoFocus
+          onKeyDown={(event) => {
+            if (
+              event.key === 'Enter' &&
+              !event.shiftKey &&
+              !event.nativeEvent.isComposing
+            ) {
+              event.preventDefault();
 
-            if (status !== 'ready') {
-              toast.error('Please wait for the model to finish its response!');
-            } else {
-              submitForm();
+              if (status !== 'ready') {
+                toast.error('Please wait for the model to finish its response!');
+              } else {
+                submitForm();
+              }
             }
-          }
-        }}
-      />
+          }}
+        />
+      </div>
 
       <div className="absolute bottom-0 p-2 w-fit flex flex-row justify-start">
         <AttachmentsButton fileInputRef={fileInputRef} status={status} />

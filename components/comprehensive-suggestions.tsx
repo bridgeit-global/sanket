@@ -41,26 +41,6 @@ export function ComprehensiveSuggestions({
       label: 'activities and festivals',
       action: 'Search for local events, festivals, and community activities in Anushakti Nagar area',
     },
-    {
-      title: 'Search transportation updates',
-      label: 'metro, bus, and connectivity',
-      action: 'Search for current transportation updates, metro services, and bus routes in Anushakti Nagar area',
-    },
-    {
-      title: 'Search healthcare facilities',
-      label: 'hospitals and medical services',
-      action: 'Search for healthcare facilities, hospitals, and medical services available in Anushakti Nagar constituency',
-    },
-    {
-      title: 'Search educational institutions',
-      label: 'colleges and universities',
-      action: 'Search for educational institutions, schools, and colleges located in Anushakti Nagar area',
-    },
-    {
-      title: 'Search infrastructure projects',
-      label: 'development & construction',
-      action: 'Search for infrastructure projects and development work happening in Anushakti Nagar area',
-    },
   ];
 
   const voterActions = [
@@ -74,97 +54,31 @@ export function ComprehensiveSuggestions({
       label: 'like "Kumar" or "Sharma"',
       action: 'Search for voters with last name Kumar in Anushakti Nagar constituency',
     },
-    {
-      title: 'Age groups with gender',
-      label: 'male/female breakdown',
-      action: 'Show me age group distribution with male and female bifurcation for Anushakti Nagar constituency',
-    },
-    {
-      title: 'Analyze voters by parts',
-      label: 'and polling stations',
-      action: 'Show me voter analysis by parts/areas in Anushakti Nagar constituency',
-    },
-    {
-      title: 'Voter contact information',
-      label: 'with mobile and email',
-      action: 'Show me voters with contact information including mobile numbers and email addresses',
-    },
-    {
-      title: 'General voter query',
-      label: 'above age 50 and female',
-      action: 'All voters above age 50 and female',
-    },
   ];
 
   const beneficiaryActions = [
     {
-      title: 'Add service',
-      label: 'for an individual',
-      action: 'Add a service for an individual voter',
+      title: 'Add beneficiary service',
+      label: 'new service request',
+      action: 'I want to add a new beneficiary service request',
     },
     {
-      title: 'Add service',
-      label: 'for a community',
-      action: 'Add a service for a community project',
+      title: 'Search beneficiaries',
+      label: 'by name or details',
+      action: 'Search for existing beneficiaries by name or other details',
     },
-    {
-      title: 'Update status',
-      label: 'pending, in progress, completed',
-      action: 'Update status to completed for the voter registration service with completion date today',
-    },
-    {
-      title: 'Get overall statistics',
-      label: 'beneficiary dashboard',
-      action: 'Show me overall beneficiary statistics and status breakdown',
-    },
-    {
-      title: 'View all services',
-      label: 'individual and community',
-      action: 'Show me all available services for beneficiary management',
-    },
-
   ];
 
   const analyticsActions = [
     {
       title: 'Voter turnout analysis',
-      label: 'election statistics',
-      action: 'Analyze voter turnout patterns and statistics for Anushakti Nagar constituency',
-    },
-    {
-      title: 'Demographic trends',
-      label: 'population analysis',
-      action: 'Show me demographic trends and population analysis for Anushakti Nagar area',
-    },
-    {
-      title: 'Service utilization rates',
-      label: 'beneficiary analytics',
-      action: 'Analyze service utilization rates and beneficiary participation across different services',
-    },
-    {
-      title: 'Geographic distribution',
-      label: 'area-wise analysis',
-      action: 'Show me geographic distribution of voters and beneficiaries across different parts of Anushakti Nagar',
+      label: 'participation trends',
+      action: 'Analyze voter turnout patterns and participation trends across different parts',
     },
     {
       title: 'Age group analysis',
       label: 'generational trends',
       action: 'Analyze age group distribution and generational trends in voter demographics',
-    },
-    {
-      title: 'Gender-based analysis',
-      label: 'male/female statistics',
-      action: 'Show me gender-based analysis of voter participation and service utilization',
-    },
-    {
-      title: 'Part-wise comparison',
-      label: 'area comparison',
-      action: 'Compare voter demographics and beneficiary statistics across different parts of Anushakti Nagar',
-    },
-    {
-      title: 'Service effectiveness',
-      label: 'impact analysis',
-      action: 'Analyze the effectiveness and impact of different beneficiary services',
     },
   ];
 
@@ -216,9 +130,9 @@ export function ComprehensiveSuggestions({
   ];
 
   return (
-    <div className="space-y-4">
-      {/* Tab Navigation */}
-      <div className="flex flex-wrap gap-2 justify-center">
+    <div className="space-y-2 sm:space-y-3 lg:space-y-4 px-2 sm:px-0 mt-2 sm:mt-4">
+      {/* Tab Navigation - Mobile Optimized */}
+      <div className="flex flex-wrap gap-1 sm:gap-2 justify-center">
         {tabs.map((tab) => (
           <Button
             key={tab.key}
@@ -233,21 +147,21 @@ export function ComprehensiveSuggestions({
               window.history.replaceState({}, '', currentUrl.toString());
               console.log('Updated localStorage and URL for tab:', tab.key);
             }}
-            className="text-xs transition-colors duration-150"
+            className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5 h-auto min-h-[32px] sm:min-h-[28px] transition-colors duration-150"
           >
             {tab.label}
           </Button>
         ))}
       </div>
 
-      {/* Section Header */}
-      <div className="text-center">
-        <h3 className="text-lg font-semibold text-primary mb-2">{getTabTitle()}</h3>
-        <p className="text-sm text-muted-foreground mb-4">{getTabDescription()}</p>
+      {/* Section Header - Mobile Optimized */}
+      <div className="text-center px-2 sm:px-0">
+        <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-primary mb-1 sm:mb-2">{getTabTitle()}</h3>
+        <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3 lg:mb-4 leading-relaxed max-w-2xl mx-auto">{getTabDescription()}</p>
       </div>
 
-      {/* Actions Grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 w-full">
+      {/* Actions Grid - Mobile Optimized */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 w-full max-w-lg mx-auto mb-2 sm:mb-4">
         {activeActions.map((action, index) => (
           <Button
             key={`${displayTab}-${index}`}
@@ -263,12 +177,14 @@ export function ComprehensiveSuggestions({
                 parts: [{ type: 'text', text: action.action }],
               });
             }}
-            className="text-left border rounded-xl px-4 py-3.5 text-sm flex-1 gap-1 sm:flex-col w-full h-auto justify-start items-start hover:bg-accent hover:border-accent-foreground/20 transition-colors duration-150"
+            className="text-left border rounded-xl px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-xs sm:text-sm h-auto min-h-[60px] sm:min-h-[70px] lg:min-h-[80px] justify-start items-start hover:bg-accent hover:border-accent-foreground/20 transition-all duration-150 shadow-sm hover:shadow-md active:scale-[0.98] touch-manipulation"
           >
-            <span className="font-medium">{action.title}</span>
-            <span className="text-muted-foreground">
-              {action.label}
-            </span>
+            <div className="flex flex-col gap-1 w-full">
+              <span className="font-medium text-foreground leading-tight">{action.title}</span>
+              <span className="text-muted-foreground text-xs leading-relaxed">
+                {action.label}
+              </span>
+            </div>
           </Button>
         ))}
       </div>

@@ -56,7 +56,7 @@ export function ModelSelector({
         <Button
           data-testid="model-selector"
           variant="outline"
-          className="md:px-2 md:h-[34px]"
+          className="md:px-2 md:h-[34px] max-w-[100px]"
         >
           {selectedChatModel?.name}
           <ChevronDownIcon />

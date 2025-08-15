@@ -30,24 +30,25 @@ function PureChatHeader({
   const { open } = useSidebar();
 
   const { width: windowWidth } = useWindowSize();
+  const isMobile = windowWidth < 768;
 
   return (
-    <header className="flex sticky top-0 bg-background py-1.5 items-center px-2 md:px-2 gap-2">
-      <SidebarToggle />
+    <header className="flex sticky top-0 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 py-1.5 sm:py-2 items-center px-2 sm:px-3 gap-1.5 sm:gap-2 border-b border-border/40">
+      <SidebarToggle className="h-8 w-8 sm:h-9 sm:w-9 flex-shrink-0" />
 
-      {(!open || windowWidth < 768) && (
+      {(!open || isMobile) && (
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="outline"
-              className="order-2 md:order-1 md:px-2 px-2 md:h-fit ml-auto md:ml-0"
+              className="order-2 md:order-1 h-8 w-8 sm:h-9 sm:w-9 px-0 ml-auto md:ml-0 flex-shrink-0"
               onClick={() => {
                 router.push('/');
                 router.refresh();
               }}
             >
               <PlusIcon />
-              <span className="md:sr-only">New Chat</span>
+              <span className="sr-only">New Chat</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent>New Chat</TooltipContent>
@@ -55,19 +56,23 @@ function PureChatHeader({
       )}
 
       {!isReadonly && (
-        <ModelSelector
-          session={session}
-          selectedModelId={selectedModelId}
-          className="order-1 md:order-2"
-        />
+        <div className="order-1 md:order-2 flex-1 min-w-0">
+          <ModelSelector
+            session={session}
+            selectedModelId={selectedModelId}
+            className="w-full"
+          />
+        </div>
       )}
 
       {!isReadonly && (
-        <VisibilitySelector
-          chatId={chatId}
-          selectedVisibilityType={selectedVisibilityType}
-          className="order-1 md:order-3"
-        />
+        <div className="order-1 md:order-3 flex-shrink-0">
+          <VisibilitySelector
+            chatId={chatId}
+            selectedVisibilityType={selectedVisibilityType}
+            className="h-8 sm:h-9"
+          />
+        </div>
       )}
     </header>
   );
