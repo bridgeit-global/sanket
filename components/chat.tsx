@@ -4,6 +4,8 @@ import { DefaultChatTransport } from 'ai';
 import { useChat } from '@ai-sdk/react';
 import { useEffect, useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
+import { useLocalStorage } from 'usehooks-ts';
+
 import { ChatHeader } from '@/components/chat-header';
 import type { Vote } from '@/lib/db/schema';
 import { fetcher, fetchWithErrorHandlers, generateUUID } from '@/lib/utils';
@@ -44,11 +46,26 @@ export function Chat({
     chatId: id,
     initialVisibilityType,
   });
+  const [activeTab] = useLocalStorage<'general' | 'voter' | 'beneficiaries' | 'analytics'>('comprehensive-suggestions-tab', 'general');
+
+  // Debug localStorage
+  console.log('Chat component - localStorage activeTab:', activeTab);
 
   const { mutate } = useSWRConfig();
   const { setDataStream } = useDataStream();
 
   const [input, setInput] = useState<string>('');
+
+
+  const searchParams = useSearchParams();
+  console.log('searchParams', searchParams);
+  const query = searchParams.get('query');
+
+  // Debug logging
+  console.log('Chat component - URL activeTab:', activeTab);
+  console.log('Chat component - searchParams:', Object.fromEntries(searchParams.entries()));
+
+  const [hasAppendedQuery, setHasAppendedQuery] = useState(false);
 
   const {
     messages,
@@ -67,14 +84,18 @@ export function Chat({
       api: '/api/chat',
       fetch: fetchWithErrorHandlers,
       prepareSendMessagesRequest({ messages, id, body }) {
+        const requestBody = {
+          id,
+          message: messages.at(-1),
+          selectedChatModel: initialChatModel,
+          selectedVisibilityType: visibilityType,
+          activeTab: activeTab as any,
+          ...body,
+        };
+        console.log('Sending request with activeTab:', activeTab);
+        console.log('Full request body:', requestBody);
         return {
-          body: {
-            id,
-            message: messages.at(-1),
-            selectedChatModel: initialChatModel,
-            selectedVisibilityType: visibilityType,
-            ...body,
-          },
+          body: requestBody,
         };
       },
     }),
@@ -94,10 +115,6 @@ export function Chat({
     },
   });
 
-  const searchParams = useSearchParams();
-  const query = searchParams.get('query');
-
-  const [hasAppendedQuery, setHasAppendedQuery] = useState(false);
 
   useEffect(() => {
     if (query && !hasAppendedQuery) {
@@ -144,6 +161,7 @@ export function Chat({
           messages={messages}
           setMessages={setMessages}
           regenerate={regenerate}
+          sendMessage={sendMessage}
           isReadonly={isReadonly}
           isArtifactVisible={isArtifactVisible}
         />
