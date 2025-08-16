@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { AddBeneficiaryServiceForm, BeneficiaryServiceFormData } from './add-beneficiary-service-form';
+import { AddBeneficiaryServiceForm } from './add-beneficiary-service-form';
 import { Button } from './ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
@@ -16,49 +16,6 @@ interface BeneficiaryServiceFormWrapperProps {
 
 export function BeneficiaryServiceFormWrapper({ chatId, sendMessage }: BeneficiaryServiceFormWrapperProps) {
     const [showForm, setShowForm] = useState(false);
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const handleFormSubmit = async (formData: BeneficiaryServiceFormData) => {
-        setIsSubmitting(true);
-
-        try {
-            // Construct the message text based on form data
-            let messageText = `Add a new beneficiary service with the following details:\n\n`;
-            messageText += `Service Name: ${formData.name}\n`;
-            messageText += `Service Type: ${formData.type}\n`;
-            messageText += `Category: ${formData.category}\n`;
-            messageText += `Priority: ${formData.priority}\n`;
-
-            if (formData.description) {
-                messageText += `Description: ${formData.description}\n`;
-            }
-
-            if (formData.targetAudience) {
-                messageText += `Target Audience: ${formData.targetAudience}\n`;
-            }
-
-            if (formData.expectedDuration) {
-                messageText += `Expected Duration: ${formData.expectedDuration}\n`;
-            }
-
-            if (formData.requirements) {
-                messageText += `Requirements: ${formData.requirements}\n`;
-            }
-
-            // Send the message to the chat
-            await sendMessage({
-                role: 'user',
-                parts: [{ type: 'text', text: messageText }],
-            });
-
-            // Close the form
-            setShowForm(false);
-        } catch (error) {
-            console.error('Error submitting form:', error);
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
 
     const handleCancel = () => {
         setShowForm(false);
@@ -118,16 +75,14 @@ export function BeneficiaryServiceFormWrapper({ chatId, sendMessage }: Beneficia
                     variant="ghost"
                     size="sm"
                     onClick={handleCancel}
-                    disabled={isSubmitting}
                 >
                     <X className="w-4 h-4" />
                 </Button>
             </div>
 
             <AddBeneficiaryServiceForm
-                onSubmit={handleFormSubmit}
-                onCancel={handleCancel}
-                isLoading={isSubmitting}
+                onClose={handleCancel}
+                sendMessage={sendMessage}
             />
         </div>
     );
