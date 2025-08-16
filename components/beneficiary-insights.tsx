@@ -80,7 +80,7 @@ function ServicesDisplay({ data }: { data: any }) {
               <div className="grid gap-2">
                 {data.oneToOneServices.map((service: any) => (
                   <div key={service.id} className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="font-medium">{service.name}</div>
+                    <div className="font-medium text-gray-600">{service.name}</div>
                     {service.description && <div className="text-sm text-gray-600">{service.description}</div>}
                     <div className="text-xs text-green-600 mt-1">Category: {service.category}</div>
                   </div>
@@ -93,7 +93,7 @@ function ServicesDisplay({ data }: { data: any }) {
               <div className="grid gap-2">
                 {data.oneToManyServices.map((service: any) => (
                   <div key={service.id} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="font-medium">{service.name}</div>
+                    <div className="font-medium text-gray-600">{service.name}</div>
                     {service.description && <div className="text-sm text-gray-600">{service.description}</div>}
                     <div className="text-xs text-blue-600 mt-1">Category: {service.category}</div>
                   </div>

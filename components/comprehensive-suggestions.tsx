@@ -7,6 +7,7 @@ import { useLocalStorage } from 'usehooks-ts';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { VisibilityType } from './visibility-selector';
 import type { ChatMessage } from '@/lib/types';
+import { AddBeneficiaryServiceForm } from './add-beneficiary-service-form';
 
 interface ComprehensiveSuggestionsProps {
   sendMessage: UseChatHelpers<ChatMessage>['sendMessage'];
@@ -17,6 +18,7 @@ export function ComprehensiveSuggestions({
 }: ComprehensiveSuggestionsProps) {
   // Use localStorage to persist tab state, ignore prop to prevent overriding
   const [activeTab, setActiveTab] = useLocalStorage<'general' | 'voter' | 'beneficiaries' | 'analytics'>('comprehensive-suggestions-tab', 'voter');
+  const [showBeneficiaryForm, setShowBeneficiaryForm] = useState(false);
 
   // Debug localStorage updates
   console.log('ComprehensiveSuggestions - localStorage activeTab:', activeTab);
@@ -60,7 +62,7 @@ export function ComprehensiveSuggestions({
     {
       title: 'Add beneficiary service',
       label: 'new service request',
-      action: 'I want to add a new beneficiary service request',
+      action: 'show_form', // Special action to show the form
     },
     {
       title: 'Search beneficiaries',
@@ -129,6 +131,32 @@ export function ComprehensiveSuggestions({
     { key: 'general', label: 'General' },
   ];
 
+  const handleActionClick = async (action: any) => {
+    if (action.action === 'show_form') {
+      setShowBeneficiaryForm(true);
+      return;
+    }
+
+    // Update URL to reflect the current tab while preserving chat ID
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set('tab', activeTab);
+    window.history.replaceState({}, '', currentUrl.toString());
+
+    sendMessage({
+      role: 'user',
+      parts: [{ type: 'text', text: action.action }],
+    });
+  };
+
+  if (showBeneficiaryForm) {
+    return (
+      <AddBeneficiaryServiceForm
+        onClose={() => setShowBeneficiaryForm(false)}
+        sendMessage={sendMessage}
+      />
+    );
+  }
+
   return (
     <div className="space-y-2 sm:space-y-3 lg:space-y-4 px-2 sm:px-0 mt-2 sm:mt-4">
       {/* Tab Navigation - Mobile Optimized */}
@@ -166,17 +194,7 @@ export function ComprehensiveSuggestions({
           <Button
             key={`${displayTab}-${index}`}
             variant="ghost"
-            onClick={async () => {
-              // Update URL to reflect the current tab while preserving chat ID
-              const currentUrl = new URL(window.location.href);
-              currentUrl.searchParams.set('tab', activeTab);
-              window.history.replaceState({}, '', currentUrl.toString());
-
-              sendMessage({
-                role: 'user',
-                parts: [{ type: 'text', text: action.action }],
-              });
-            }}
+            onClick={() => handleActionClick(action)}
             className="text-left border rounded-xl px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-xs sm:text-sm h-auto min-h-[60px] sm:min-h-[70px] lg:min-h-[80px] justify-start items-start hover:bg-accent hover:border-accent-foreground/20 transition-all duration-150 shadow-sm hover:shadow-md active:scale-[0.98] touch-manipulation"
           >
             <div className="flex flex-col gap-1 w-full">
