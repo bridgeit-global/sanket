@@ -563,7 +563,7 @@ export function AddBeneficiaryServiceForm({
 
                         {isLoadingServices ? (
                             <div className="text-center py-8 text-muted-foreground">
-                                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                                <div className="animate-spin rounded-full size-8 border-b-2 border-primary mx-auto mb-2" />
                                 Loading services...
                             </div>
                         ) : (
@@ -584,8 +584,8 @@ export function AddBeneficiaryServiceForm({
                                             onClick={() => handleServiceSelection(service)}
                                         >
                                             {selectedService?.id === service.id && (
-                                                <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
-                                                    <CheckCircle className="w-4 h-4 text-primary-foreground" />
+                                                <div className="absolute -top-2 -right-2 size-6 bg-primary rounded-full flex items-center justify-center">
+                                                    <CheckCircle className="size-4 text-primary-foreground" />
                                                 </div>
                                             )}
                                             <div className="space-y-3">
@@ -831,54 +831,7 @@ export function AddBeneficiaryServiceForm({
 
 
 
-                {/* Search Results */}
-                {searchResults.length > 0 && (
-                    <div className="space-y-2">
-                        <Label>Search Results</Label>
-                        <div className="space-y-2 max-h-40 overflow-y-auto">
-                            {searchResults.map((voter) => (
-                                <Card
-                                    key={voter.id}
-                                    className="p-3 cursor-pointer hover:bg-accent transition-colors"
-                                    onClick={() => handleVoterSelect(voter)}
-                                >
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <div className="font-medium">{voter.name}</div>
-                                            <div className="text-sm text-muted-foreground">
-                                                Voter ID: {voter.id} • Age: {voter.age} • {voter.gender}
-                                            </div>
-                                            <div className="text-xs text-muted-foreground">
-                                                Part: {voter.part_no} • Serial: {voter.serial_no}
-                                            </div>
-                                        </div>
-                                        <Badge variant="secondary">Select</Badge>
-                                    </div>
-                                </Card>
-                            ))}
-                        </div>
-                    </div>
-                )}
 
-                {/* Create Voter Registration Option */}
-                {searchQuery && searchResults.length === 0 && !isSearching && (
-                    <Card className="p-4 border-dashed">
-                        <div className="text-center space-y-2">
-                            <AlertCircle className="size-8 mx-auto text-muted-foreground" />
-                            <div className="font-medium">No voters found</div>
-                            <div className="text-sm text-muted-foreground">
-                                Would you like to create a voter registration task for this person?
-                            </div>
-                            <Button
-                                variant="outline"
-                                onClick={handleCreateVoterRegistration}
-                                className="mt-2"
-                            >
-                                Create Voter Registration Task
-                            </Button>
-                        </div>
-                    </Card>
-                )}
 
                 <div className="flex justify-end">
                     <Button variant="outline" onClick={goBack}>
@@ -912,6 +865,32 @@ export function AddBeneficiaryServiceForm({
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+                {/* Service Summary from Step 1 */}
+                {selectedService && (
+                    <div className="space-y-3 p-4 border rounded-lg bg-primary/5">
+                        <div className="font-medium text-sm text-primary">Selected Service</div>
+                        <div className="space-y-2">
+                            <div className="text-sm">
+                                <span className="font-medium">Service:</span> {selectedService.name}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                                <span className="font-medium">Category:</span> {selectedService.category}
+                            </div>
+                            {selectedService.description && (
+                                <div className="text-sm text-muted-foreground">
+                                    <span className="font-medium">Description:</span> {selectedService.description}
+                                </div>
+                            )}
+                            <div className="text-sm text-muted-foreground">
+                                <span className="font-medium">Type:</span>
+                                <Badge variant={selectedService.type === 'one-to-one' ? 'default' : 'secondary'} className="ml-2 text-xs">
+                                    {selectedService.type === 'one-to-one' ? 'Individual Service' : 'Public Works'}
+                                </Badge>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Beneficiary Summary */}
                 <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
                     <div className="font-medium text-sm">Selected Beneficiaries</div>

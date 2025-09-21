@@ -55,25 +55,7 @@ function PureChatHeader({
         </Tooltip>
       )}
 
-      {!isReadonly && (
-        <div className="order-1 md:order-2 flex-1 min-w-0">
-          <ModelSelector
-            session={session}
-            selectedModelId={selectedModelId}
-            className="w-full"
-          />
-        </div>
-      )}
 
-      {!isReadonly && (
-        <div className="order-1 md:order-3 flex-shrink-0">
-          <VisibilitySelector
-            chatId={chatId}
-            selectedVisibilityType={selectedVisibilityType}
-            className="h-8 sm:h-9"
-          />
-        </div>
-      )}
     </header>
   );
 }

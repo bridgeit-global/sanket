@@ -264,10 +264,10 @@ type ToolName = 'createDocument' | 'updateDocument' | 'requestSuggestions' | 'we
 
 export const getTabTools = (tabType: TabType): ToolName[] => {
     switch (tabType) {
+        case 'voter':
+            return ['webSearch', 'getVoterDemographics', 'getVoterAgeGroupsWithGender', 'getVoterParts', 'searchVoters', 'sqlQuery', 'createDocument', 'updateDocument', 'requestSuggestions'];
         case 'general':
             return ['webSearch', 'createDocument', 'updateDocument', 'requestSuggestions'];
-        case 'voter':
-            return ['getVoterDemographics', 'getVoterAgeGroupsWithGender', 'getVoterParts', 'searchVoters', 'sqlQuery', 'createDocument', 'updateDocument', 'requestSuggestions'];
         case 'beneficiaries':
             return ['getServices', 'showBeneficiaryServiceForm', 'addBeneficiary', 'addBeneficiaryWithDetails', 'searchBeneficiaries', 'updateBeneficiaryStatus', 'getBeneficiaries', 'updateBeneficiary', 'createDocument', 'updateDocument', 'requestSuggestions'];
         case 'analytics':

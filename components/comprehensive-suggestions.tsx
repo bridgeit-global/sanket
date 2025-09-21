@@ -30,7 +30,7 @@ export function ComprehensiveSuggestions({
   }, []);
 
   // Use 'general' as default during SSR to prevent hydration mismatch
-  const displayTab = hasMounted ? activeTab : 'general';
+  const displayTab = hasMounted ? activeTab : 'voter';
 
   const generalActions = [
     {
@@ -160,7 +160,7 @@ export function ComprehensiveSuggestions({
   return (
     <div className="space-y-2 sm:space-y-3 lg:space-y-4 px-2 sm:px-0 mt-2 sm:mt-4">
       {/* Tab Navigation - Mobile Optimized */}
-      <div className="flex flex-wrap gap-1 sm:gap-2 justify-center">
+      {/* <div className="flex flex-wrap gap-1 sm:gap-2 justify-center">
         {tabs.map((tab) => (
           <Button
             key={tab.key}
@@ -180,7 +180,7 @@ export function ComprehensiveSuggestions({
             {tab.label}
           </Button>
         ))}
-      </div>
+      </div> */}
 
       {/* Section Header - Mobile Optimized */}
       <div className="text-center px-2 sm:px-0">
@@ -192,7 +192,7 @@ export function ComprehensiveSuggestions({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 w-full max-w-lg mx-auto mb-2 sm:mb-4">
         {activeActions.map((action, index) => (
           <Button
-            key={`${displayTab}-${index}`}
+            key={`${action.action}`}
             variant="ghost"
             onClick={() => handleActionClick(action)}
             className="text-left border rounded-xl px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-xs sm:text-sm h-auto min-h-[60px] sm:min-h-[70px] lg:min-h-[80px] justify-start items-start hover:bg-accent hover:border-accent-foreground/20 transition-all duration-150 shadow-sm hover:shadow-md active:scale-[0.98] touch-manipulation"
