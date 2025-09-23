@@ -250,23 +250,44 @@ export async function voteMessage({
   type: 'up' | 'down';
 }) {
   try {
+    // First, validate that the message exists and belongs to the chat
+    const [existingMessage] = await db
+      .select()
+      .from(message)
+      .where(and(eq(message.id, messageId), eq(message.chatId, chatId)))
+      .limit(1);
+
+    if (!existingMessage) {
+      throw new ChatSDKError('not_found:vote', 'Message not found in this chat');
+    }
+
+    // Check for existing vote using both chatId and messageId (composite primary key)
     const [existingVote] = await db
       .select()
       .from(vote)
-      .where(and(eq(vote.messageId, messageId)));
+      .where(and(eq(vote.messageId, messageId), eq(vote.chatId, chatId)))
+      .limit(1);
 
     if (existingVote) {
+      // Update existing vote
       return await db
         .update(vote)
         .set({ isUpvoted: type === 'up' })
         .where(and(eq(vote.messageId, messageId), eq(vote.chatId, chatId)));
     }
+
+    // Insert new vote
     return await db.insert(vote).values({
       chatId,
       messageId,
       isUpvoted: type === 'up',
     });
   } catch (error) {
+    // If it's already a ChatSDKError, re-throw it
+    if (error instanceof ChatSDKError) {
+      throw error;
+    }
+    // Otherwise, wrap in a generic database error
     throw new ChatSDKError('bad_request:database', 'Failed to vote message');
   }
 }
@@ -581,7 +602,7 @@ export async function searchVotersByName({ name }: { name: string }) {
     return await db
       .select()
       .from(voters)
-      .where(sql`LOWER(${voters.name}) LIKE LOWER(${'%' + name + '%'})`)
+      .where(sql`LOWER(${voters.name}) LIKE LOWER(${`%${name}%`})`)
       .orderBy(asc(voters.name))
       .execute();
   } catch (error) {
@@ -846,7 +867,7 @@ export async function getVoterSearchInsights({ searchTerm }: { searchTerm: strin
       .where(
         and(
           eq(voters.isActive, true),
-          sql`LOWER(${voters.last_name}) LIKE LOWER(${'%' + searchTerm + '%'})`
+          sql`LOWER(${voters.last_name}) LIKE LOWER(${`%${searchTerm}%`})`
         )
       )
       .orderBy(asc(voters.part_no), asc(voters.serial_no))
