@@ -7,9 +7,9 @@ import './globals.css';
 import { SessionProvider } from 'next-auth/react';
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://chat.vercel.ai'),
-  title: 'Next.js Chatbot Template',
-  description: 'Next.js chatbot template using the AI SDK.',
+  title: 'Sanket - Specialized ERP for Beneficiary Management',
+  description: 'Streamline your beneficiary management across multiple locations',
+  manifest: '/favicon/site.webmanifest'
 };
 
 export const viewport = {
@@ -77,8 +77,8 @@ export default async function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Miru Chat" />
-        <meta name="application-name" content="Miru Chat" />
+        <meta name="apple-mobile-web-app-title" content="Sanket" />
+        <meta name="application-name" content="Sanket" />
         <meta name="msapplication-TileColor" content="#000000" />
         <meta name="msapplication-tap-highlight" content="no" />
       </head>
