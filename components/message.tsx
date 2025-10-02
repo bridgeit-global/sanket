@@ -300,55 +300,6 @@ const PurePreviewMessage = ({
                 }
               }
 
-              // Handle beneficiary service form tool
-              if (type === 'tool-showBeneficiaryServiceForm') {
-                const { toolCallId, state } = part as any;
-
-                if (state === 'input-available') {
-                  return (
-                    <div key={toolCallId} className="skeleton">
-                      <div className="animate-pulse bg-gray-200 h-32 rounded-lg" />
-                    </div>
-                  );
-                }
-
-                if (state === 'output-available') {
-                  const { output } = part as any;
-
-                  return (
-                    <div key={toolCallId} className="my-4">
-                      <BeneficiaryServiceFormWrapper
-                        chatId={chatId}
-                        sendMessage={sendMessage}
-                      />
-                    </div>
-                  );
-                }
-              }
-
-              // Handle SQL query tool results
-              if (type === 'tool-sqlQuery') {
-                const { toolCallId, state } = part as any;
-
-                if (state === 'input-available') {
-                  return (
-                    <div key={toolCallId} className="skeleton">
-                      <div className="animate-pulse bg-gray-200 h-32 rounded-lg" />
-                    </div>
-                  );
-                }
-
-                if (state === 'output-available') {
-                  const { output } = part as any;
-
-                  return (
-                    <div key={toolCallId} className="my-4">
-                      <SqlQueryResults data={output} />
-                    </div>
-                  );
-                }
-              }
-
               if (type === 'tool-requestSuggestions') {
                 const { toolCallId, state } = part;
 

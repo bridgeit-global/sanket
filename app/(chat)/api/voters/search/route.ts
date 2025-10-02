@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getVoterById, searchVotersByName } from '@/lib/db/queries';
+import { getVoterByEpicNumber, searchVoterByName } from '@/lib/db/queries';
 import { auth } from '@/app/(auth)/auth';
 import type { Voter } from '@/lib/db/schema';
 
@@ -24,14 +24,11 @@ export async function GET(request: NextRequest) {
         let results: Voter[] = [];
 
         if (voterId) {
-            // Search by Voter ID
-            const voter = await getVoterById({ id: voterId });
-            if (voter) {
-                results.push(voter);
-            }
+            // Search by Voter ID (EPIC Number)
+            results = await getVoterByEpicNumber(voterId);
         } else if (name) {
             // Search by name
-            results = await searchVotersByName({ name });
+            results = await searchVoterByName(name);
         }
 
         return NextResponse.json({

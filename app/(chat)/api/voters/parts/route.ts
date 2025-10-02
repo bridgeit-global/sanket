@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { voters } from '@/lib/db/schema';
+import { Voters } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
 import { auth } from '@/app/(auth)/auth';
 import { drizzle } from 'drizzle-orm/postgres-js';
@@ -18,14 +18,16 @@ export async function GET(request: NextRequest) {
 
         // Get distinct part numbers from voters table
         const parts = await db
-            .select({ part_no: voters.part_no })
-            .from(voters)
-            .where(sql`${voters.isActive} = true`)
-            .groupBy(voters.part_no)
-            .orderBy(voters.part_no)
+            .select({ partNo: Voters.partNo })
+            .from(Voters)
+            .where(sql`${Voters.isVoted2024} = false`)
+            .groupBy(Voters.partNo)
+            .orderBy(Voters.partNo)
             .execute();
 
-        const partNumbers = parts.map((part: { part_no: number }) => part.part_no);
+        const partNumbers = parts
+            .map((part: { partNo: string | null }) => part.partNo)
+            .filter((partNo): partNo is string => partNo !== null);
 
         return NextResponse.json({
             success: true,
