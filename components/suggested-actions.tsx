@@ -20,74 +20,34 @@ function PureSuggestedActions({
 }: SuggestedActionsProps) {
   const suggestedActions = [
     {
-      title: 'Show voter demographics',
-      label: 'for Anushakti Nagar',
-      action: 'Show me comprehensive voter demographics for Anushakti Nagar constituency including gender distribution and age statistics',
+      title: 'Voter demographics overview',
+      label: 'complete constituency stats',
+      action: 'Show me comprehensive voter demographics and statistics for Anushakti Nagar constituency',
     },
     {
-      title: 'Search voters by last name',
-      label: 'like "Kumar" or "Sharma"',
-      action: 'Search for voters with last name Kumar in Anushakti Nagar constituency',
+      title: 'Search voter by name',
+      label: 'find individual voters',
+      action: 'Search for voters with the name "Rajesh" in Anushakti Nagar constituency',
     },
     {
-      title: 'Age groups with gender',
-      label: 'male/female breakdown',
-      action: 'Show me age group distribution with male and female bifurcation for Anushakti Nagar constituency',
+      title: '2024 voting analysis',
+      label: 'election participation data',
+      action: 'Show me the voting patterns and statistics for the 2024 elections in Anushakti Nagar',
     },
     {
-      title: 'Analyze voters by parts',
-      label: 'and polling stations',
-      action: 'Show me voter analysis by parts/areas in Anushakti Nagar constituency',
+      title: 'Booth-wise distribution',
+      label: 'polling center analysis',
+      action: 'Show me the distribution of voters across all polling booths in Anushakti Nagar',
     },
     {
-      title: 'Show available services',
-      label: 'beneficiary management',
-      action: 'Show me all available services for beneficiary management in Anushakti Nagar constituency',
+      title: 'Age & gender breakdown',
+      label: 'demographic insights',
+      action: 'Show me all voters aged between 25 and 35 years in the constituency',
     },
     {
-      title: 'Add new service',
-      label: 'voter registration or public works',
-      action: 'Add a new service for voter registration assistance in Anushakti Nagar constituency',
-    },
-    {
-      title: 'Add beneficiary',
-      label: 'to existing service',
-      action: 'Add a beneficiary to the voter registration service for voter ID TEST001',
-    },
-    {
-      title: 'Get beneficiary info',
-      label: 'by voter or service',
-      action: 'Show me beneficiary information for voter ID TEST001',
-    },
-    {
-      title: 'Update beneficiary status',
-      label: 'mark as completed',
-      action: 'Update beneficiary status to completed for the voter registration service',
-    },
-    {
-      title: 'Latest news in Anushakti Nagar',
-      label: 'current events and updates',
-      action: 'What are the latest news and current events happening in Anushakti Nagar area?',
-    },
-    {
-      title: 'Local events and activities',
-      label: 'community happenings',
-      action: 'What local events, festivals, or community activities are happening in Anushakti Nagar area?',
-    },
-    {
-      title: 'Transportation updates',
-      label: 'metro and bus services',
-      action: 'What are the current transportation updates, metro services, and bus routes in Anushakti Nagar area?',
-    },
-    {
-      title: 'Healthcare facilities',
-      label: 'hospitals and clinics',
-      action: 'What healthcare facilities, hospitals, and medical services are available in Anushakti Nagar constituency?',
-    },
-    {
-      title: 'Educational institutions',
-      label: 'schools and colleges',
-      action: 'What educational institutions, schools, and colleges are located in Anushakti Nagar area?',
+      title: 'Non-voters analysis',
+      label: 'engagement opportunities',
+      action: 'Show me all voters who did not vote in the 2024 elections',
     }
   ];
 

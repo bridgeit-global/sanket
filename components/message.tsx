@@ -250,25 +250,27 @@ const PurePreviewMessage = ({
                 }
               }
 
-              // Handle voter tool results
-              if (type === 'tool-getVoterDemographics' || type === 'tool-getVoterAgeGroupsWithGender' || type === 'tool-getVoterParts' || type === 'tool-searchVoters') {
-                const { toolCallId, state } = part as any;
+              // Handle voter analysis tool results
+              if (
+                type.startsWith('tool-') &&
+                type.includes('voterAnalysis')
+              ) {
+                const { toolCallId, state } = part as { toolCallId: string; state: string };
 
                 if (state === 'input-available') {
                   return (
                     <div key={toolCallId} className="skeleton">
-                      <div className="animate-pulse bg-gray-200 h-32 rounded-lg"></div>
+                      <div className="animate-pulse bg-gray-200 h-32 rounded-lg" />
                     </div>
                   );
                 }
 
                 if (state === 'output-available') {
                   const { output } = part as any;
-                  const toolName = type.replace('tool-', '');
 
                   return (
                     <div key={toolCallId} className="my-4">
-                      <VoterInsights toolName={toolName} data={output} />
+                      <VoterInsights data={output} />
                     </div>
                   );
                 }
@@ -281,7 +283,7 @@ const PurePreviewMessage = ({
                 if (state === 'input-available') {
                   return (
                     <div key={toolCallId} className="skeleton">
-                      <div className="animate-pulse bg-gray-200 h-32 rounded-lg"></div>
+                      <div className="animate-pulse bg-gray-200 h-32 rounded-lg" />
                     </div>
                   );
                 }
@@ -305,7 +307,7 @@ const PurePreviewMessage = ({
                 if (state === 'input-available') {
                   return (
                     <div key={toolCallId} className="skeleton">
-                      <div className="animate-pulse bg-gray-200 h-32 rounded-lg"></div>
+                      <div className="animate-pulse bg-gray-200 h-32 rounded-lg" />
                     </div>
                   );
                 }
@@ -331,7 +333,7 @@ const PurePreviewMessage = ({
                 if (state === 'input-available') {
                   return (
                     <div key={toolCallId} className="skeleton">
-                      <div className="animate-pulse bg-gray-200 h-32 rounded-lg"></div>
+                      <div className="animate-pulse bg-gray-200 h-32 rounded-lg" />
                     </div>
                   );
                 }

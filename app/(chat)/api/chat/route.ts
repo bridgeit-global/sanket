@@ -20,11 +20,11 @@ import {
   saveMessages,
 } from '@/lib/db/queries';
 import { convertToUIMessages, generateUUID } from '@/lib/utils';
-import { generateTitleFromUserMessage } from '../../actions';
 import { createDocument } from '@/lib/ai/tools/create-document';
 import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { webSearchTool } from '@/lib/ai/tools/web-search';
+import { voterAnalysisTool } from '@/lib/ai/tools/voter-analysis';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import { entitlementsByUserType } from '@/lib/ai/entitlements';
@@ -110,14 +110,17 @@ export async function POST(request: Request) {
     const chat = await getChatById({ id });
 
     if (!chat) {
-      const title = await generateTitleFromUserMessage({
-        message,
-      });
+      // Use a simple title based on the first message to avoid concurrent AI calls
+      const simpleTitle = message.parts
+        .filter(part => part.type === 'text')
+        .map(part => (part as any).text)
+        .join(' ')
+        .slice(0, 80) || 'New Chat';
 
       await saveChat({
         id,
         userId: session.user.id,
-        title,
+        title: simpleTitle,
         visibility: selectedVisibilityType,
       });
     } else {
@@ -165,10 +168,14 @@ export async function POST(request: Request) {
             dataStream,
           }),
           webSearch: webSearchTool(),
+          voterAnalysis: voterAnalysisTool,
         };
 
         // Debug logging
         console.log(`Available tools:`, Object.keys(activeTools));
+
+        // Add a small delay to prevent concurrency issues
+        await new Promise(resolve => setTimeout(resolve, 100));
 
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),

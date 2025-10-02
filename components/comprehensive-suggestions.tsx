@@ -15,26 +15,26 @@ export function ComprehensiveSuggestions({
 }: ComprehensiveSuggestionsProps) {
   const [showSuggestions, setShowSuggestions] = useState(true);
 
-  const generalActions = [
+  const voterActions = [
     {
-      title: 'Search latest news',
-      label: 'Current events and news',
-      action: 'Search for the latest news and current events',
+      title: 'Voter demographics',
+      label: 'Complete constituency stats',
+      action: 'Show me comprehensive voter demographics and statistics for Anushakti Nagar constituency',
     },
     {
-      title: 'Research topic',
-      label: 'In-depth analysis',
-      action: 'Help me research and analyze a specific topic in detail',
+      title: 'Search voter',
+      label: 'Find by name or EPIC',
+      action: 'Search for voters with the name "Rajesh" in Anushakti Nagar constituency',
     },
     {
-      title: 'Create document',
-      label: 'Report or content',
-      action: 'Help me create a comprehensive document or report',
+      title: 'Voting patterns',
+      label: '2024 election analysis',
+      action: 'Show me the voting patterns and statistics for the 2024 elections in Anushakti Nagar',
     },
     {
-      title: 'Data analysis',
-      label: 'Insights and trends',
-      action: 'Help me analyze data and identify trends and patterns',
+      title: 'Booth distribution',
+      label: 'Polling center insights',
+      action: 'Show me the distribution of voters across all polling booths in Anushakti Nagar',
     },
   ];
 
@@ -65,16 +65,16 @@ export function ComprehensiveSuggestions({
       {/* Section Header */}
       <div className="text-center px-2 sm:px-0">
         <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-primary mb-1 sm:mb-2">
-          General Analysis Assistant
+          🗳️ Voter Data Analyst
         </h3>
         <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3 lg:mb-4 leading-relaxed max-w-2xl mx-auto">
-          I can help you with research, analysis, document creation, and data insights. Choose an action below to get started.
+          Analyze voter data from Anushakti Nagar constituency, Mumbai. Get demographics, voting patterns, and insights.
         </p>
       </div>
 
       {/* Actions Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 w-full max-w-lg mx-auto mb-2 sm:mb-4">
-        {generalActions.map((action, index) => (
+        {voterActions.map((action, index) => (
           <motion.div
             key={action.title}
             initial={{ opacity: 0, y: 20 }}
