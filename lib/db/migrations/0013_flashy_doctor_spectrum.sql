@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS "Voter" (
+	"epic_number" varchar(20) PRIMARY KEY NOT NULL,
+	"full_name" varchar(255) NOT NULL,
+	"relation_type" varchar(50),
+	"relation_name" varchar(255),
+	"family_grouping" varchar(100),
+	"ac_no" varchar(10),
+	"ward_no" varchar(10),
+	"part_no" varchar(10),
+	"sr_no" varchar(10),
+	"house_number" varchar(50),
+	"religion" varchar(50),
+	"is_voted_2024" boolean DEFAULT false,
+	"mobile_no_primary" varchar(15),
+	"mobile_no_secondary" varchar(15),
+	"booth_name" varchar(255),
+	"english_booth_address" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);

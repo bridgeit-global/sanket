@@ -2,12 +2,9 @@
 
 import { motion } from 'framer-motion';
 import { Button } from './ui/button';
-import { useState, useMemo, useEffect } from 'react';
-import { useLocalStorage } from 'usehooks-ts';
+import { useState } from 'react';
 import type { UseChatHelpers } from '@ai-sdk/react';
-import type { VisibilityType } from './visibility-selector';
 import type { ChatMessage } from '@/lib/types';
-import { AddBeneficiaryServiceForm } from './add-beneficiary-service-form';
 
 interface ComprehensiveSuggestionsProps {
   sendMessage: UseChatHelpers<ChatMessage>['sendMessage'];
@@ -16,196 +13,101 @@ interface ComprehensiveSuggestionsProps {
 export function ComprehensiveSuggestions({
   sendMessage,
 }: ComprehensiveSuggestionsProps) {
-  // Use localStorage to persist tab state, ignore prop to prevent overriding
-  const [activeTab, setActiveTab] = useLocalStorage<'general' | 'voter' | 'beneficiaries' | 'analytics'>('comprehensive-suggestions-tab', 'voter');
-  const [showBeneficiaryForm, setShowBeneficiaryForm] = useState(false);
-
-  // Debug localStorage updates
-  console.log('ComprehensiveSuggestions - localStorage activeTab:', activeTab);
-  // Add mounted state to prevent hydration mismatch
-  const [hasMounted, setHasMounted] = useState(false);
-
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
-
-  // Use 'general' as default during SSR to prevent hydration mismatch
-  const displayTab = hasMounted ? activeTab : 'voter';
+  const [showSuggestions, setShowSuggestions] = useState(true);
 
   const generalActions = [
     {
       title: 'Search latest news',
-      label: 'Anushakti Nagar current events',
-      action: 'Search for the latest news and current events happening in Anushakti Nagar area',
+      label: 'Current events and news',
+      action: 'Search for the latest news and current events',
     },
     {
-      title: 'Search local events',
-      label: 'activities and festivals',
-      action: 'Search for local events, festivals, and community activities in Anushakti Nagar area',
+      title: 'Research topic',
+      label: 'In-depth analysis',
+      action: 'Help me research and analyze a specific topic in detail',
+    },
+    {
+      title: 'Create document',
+      label: 'Report or content',
+      action: 'Help me create a comprehensive document or report',
+    },
+    {
+      title: 'Data analysis',
+      label: 'Insights and trends',
+      action: 'Help me analyze data and identify trends and patterns',
     },
   ];
 
-  const voterActions = [
-    {
-      title: 'Show voter demographics',
-      label: 'for Anushakti Nagar',
-      action: 'Show me comprehensive voter demographics for Anushakti Nagar constituency including gender distribution and age statistics',
-    },
-    {
-      title: 'Search voters by last name',
-      label: 'like "Kumar" or "Sharma"',
-      action: 'Search for voters with last name Kumar in Anushakti Nagar constituency',
-    },
-  ];
-
-  const beneficiaryActions = [
-    {
-      title: 'Add beneficiary service',
-      label: 'new service request',
-      action: 'show_form', // Special action to show the form
-    },
-    {
-      title: 'Search beneficiaries',
-      label: 'by name or details',
-      action: 'Search for existing beneficiaries by name or other details',
-    },
-  ];
-
-  const analyticsActions = [
-    {
-      title: 'Voter turnout analysis',
-      label: 'participation trends',
-      action: 'Analyze voter turnout patterns and participation trends across different parts',
-    },
-    {
-      title: 'Age group analysis',
-      label: 'generational trends',
-      action: 'Analyze age group distribution and generational trends in voter demographics',
-    },
-  ];
-
-  // Memoize the active actions to prevent unnecessary re-renders
-  const activeActions = useMemo(() => {
-    switch (displayTab) {
-      case 'voter':
-        return voterActions;
-      case 'beneficiaries':
-        return beneficiaryActions;
-      case 'analytics':
-        return analyticsActions;
-      default:
-        return generalActions;
-    }
-  }, [displayTab]);
-
-  const getTabTitle = () => {
-    switch (displayTab) {
-      case 'voter':
-        return 'Voter Analysis';
-      case 'beneficiaries':
-        return 'Beneficiary Management';
-      case 'analytics':
-        return 'Data Analytics';
-      default:
-        return 'General Information';
-    }
-  };
-
-  const getTabDescription = () => {
-    switch (displayTab) {
-      case 'voter':
-        return 'Analyze voter data and demographics for Anushakti Nagar constituency';
-      case 'beneficiaries':
-        return 'Manage services and beneficiaries for individual voters and public works';
-      case 'analytics':
-        return 'Comprehensive data analysis and insights for decision making';
-      default:
-        return 'Get general information about Anushakti Nagar area';
-    }
-  };
-
-  const tabs = [
-    { key: 'voter', label: 'Voter' },
-    { key: 'beneficiaries', label: 'Beneficiaries' },
-    { key: 'analytics', label: 'Analytics' },
-    { key: 'general', label: 'General' },
-  ];
-
-  const handleActionClick = async (action: any) => {
-    if (action.action === 'show_form') {
-      setShowBeneficiaryForm(true);
-      return;
-    }
-
-    // Update URL to reflect the current tab while preserving chat ID
-    const currentUrl = new URL(window.location.href);
-    currentUrl.searchParams.set('tab', activeTab);
-    window.history.replaceState({}, '', currentUrl.toString());
-
+  const handleAction = (action: string) => {
     sendMessage({
       role: 'user',
-      parts: [{ type: 'text', text: action.action }],
+      parts: [{ type: 'text', text: action }],
     });
   };
 
-  if (showBeneficiaryForm) {
+  if (!showSuggestions) {
     return (
-      <AddBeneficiaryServiceForm
-        onClose={() => setShowBeneficiaryForm(false)}
-        sendMessage={sendMessage}
-      />
+      <div className="flex justify-center mb-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowSuggestions(true)}
+          className="text-xs"
+        >
+          Show Suggestions
+        </Button>
+      </div>
     );
   }
 
   return (
     <div className="space-y-2 sm:space-y-3 lg:space-y-4 px-2 sm:px-0 mt-2 sm:mt-4">
-      {/* Tab Navigation - Mobile Optimized */}
-      {/* <div className="flex flex-wrap gap-1 sm:gap-2 justify-center">
-        {tabs.map((tab) => (
-          <Button
-            key={tab.key}
-            variant={displayTab === tab.key ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => {
-              console.log('Tab clicked:', tab.key);
-              setActiveTab(tab.key as any);
-              // Update URL to reflect the new tab while preserving chat ID
-              const currentUrl = new URL(window.location.href);
-              currentUrl.searchParams.set('tab', tab.key);
-              window.history.replaceState({}, '', currentUrl.toString());
-              console.log('Updated localStorage and URL for tab:', tab.key);
-            }}
-            className="text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5 h-auto min-h-[32px] sm:min-h-[28px] transition-colors duration-150"
-          >
-            {tab.label}
-          </Button>
-        ))}
-      </div> */}
-
-      {/* Section Header - Mobile Optimized */}
+      {/* Section Header */}
       <div className="text-center px-2 sm:px-0">
-        <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-primary mb-1 sm:mb-2">{getTabTitle()}</h3>
-        <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3 lg:mb-4 leading-relaxed max-w-2xl mx-auto">{getTabDescription()}</p>
+        <h3 className="text-sm sm:text-base lg:text-lg font-semibold text-primary mb-1 sm:mb-2">
+          General Analysis Assistant
+        </h3>
+        <p className="text-xs sm:text-sm text-muted-foreground mb-2 sm:mb-3 lg:mb-4 leading-relaxed max-w-2xl mx-auto">
+          I can help you with research, analysis, document creation, and data insights. Choose an action below to get started.
+        </p>
       </div>
 
-      {/* Actions Grid - Mobile Optimized */}
+      {/* Actions Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 w-full max-w-lg mx-auto mb-2 sm:mb-4">
-        {activeActions.map((action, index) => (
-          <Button
-            key={`${action.action}`}
-            variant="ghost"
-            onClick={() => handleActionClick(action)}
-            className="text-left border rounded-xl px-2 sm:px-3 lg:px-4 py-2 sm:py-3 text-xs sm:text-sm h-auto min-h-[60px] sm:min-h-[70px] lg:min-h-[80px] justify-start items-start hover:bg-accent hover:border-accent-foreground/20 transition-all duration-150 shadow-sm hover:shadow-md active:scale-[0.98] touch-manipulation"
+        {generalActions.map((action, index) => (
+          <motion.div
+            key={action.title}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: index * 0.1 }}
           >
-            <div className="flex flex-col gap-1 w-full">
-              <span className="font-medium text-foreground leading-tight">{action.title}</span>
-              <span className="text-muted-foreground text-xs leading-relaxed">
+            <Button
+              variant="outline"
+              className="w-full h-auto p-3 sm:p-4 text-left flex flex-col items-start gap-1 sm:gap-2 hover:bg-muted/50 transition-colors duration-200"
+              onClick={() => handleAction(action.action)}
+            >
+              <span className="font-medium text-sm sm:text-base">
+                {action.title}
+              </span>
+              <span className="text-xs sm:text-sm text-muted-foreground">
                 {action.label}
               </span>
-            </div>
-          </Button>
+            </Button>
+          </motion.div>
         ))}
+      </div>
+
+      {/* Hide Suggestions Button */}
+      <div className="flex justify-center">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowSuggestions(false)}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          Hide Suggestions
+        </Button>
       </div>
     </div>
   );
-} 
+}

@@ -10,6 +10,7 @@ import {
   gte,
   inArray,
   lt,
+  lte,
   sql,
   type SQL,
 } from 'drizzle-orm';
@@ -28,15 +29,12 @@ import {
   type DBMessage,
   type Chat,
   stream,
-  voters,
+  Voters,
   type Voter,
-  services,
-  beneficiaries,
 } from './schema';
-import type { ArtifactKind } from '@/components/artifact';
-import { generateUUID } from '../utils';
 import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
+import type { ArtifactKind } from '@/components/artifact';
 import { ChatSDKError } from '../errors';
 
 // Optionally, if not using email/pass login, you can
@@ -67,7 +65,6 @@ export async function createUser(email: string, password: string) {
     throw new ChatSDKError('bad_request:database', 'Failed to create user');
   }
 }
-
 
 export async function saveChat({
   id,
@@ -547,72 +544,21 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
   }
 }
 
-// Voter-related functions
-export async function getVoterById({ id }: { id: string }) {
+// Voter-related queries
+export async function getVoterByEpicNumber(epicNumber: string): Promise<Array<Voter>> {
   try {
-    const [voter] = await db
-      .select()
-      .from(voters)
-      .where(eq(voters.id, id))
-      .execute();
-
-    return voter;
+    return await db.select().from(Voters).where(eq(Voters.epicNumber, epicNumber));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
-      'Failed to get voter by id',
+      'Failed to get voter by EPIC number',
     );
   }
 }
 
-export async function getVotersByPartNo({ part_no }: { part_no: number }) {
+export async function getAllVoter(): Promise<Array<Voter>> {
   try {
-    return await db
-      .select()
-      .from(voters)
-      .where(eq(voters.part_no, part_no))
-      .orderBy(asc(voters.serial_no))
-      .execute();
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to get voters by part no',
-    );
-  }
-}
-
-export async function searchVotersByName({ name }: { name: string }) {
-  try {
-    return await db
-      .select()
-      .from(voters)
-      .where(sql`LOWER(${voters.name}) LIKE LOWER(${`%${name}%`})`)
-      .orderBy(asc(voters.name))
-      .execute();
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to search voters by name',
-    );
-  }
-}
-
-export async function getAllVoters({
-  limit = 100,
-  offset = 0,
-}: {
-  limit?: number;
-  offset?: number;
-} = {}) {
-  try {
-    return await db
-      .select()
-      .from(voters)
-      .where(eq(voters.isActive, true))
-      .orderBy(asc(voters.part_no), asc(voters.serial_no))
-      .limit(limit)
-      .offset(offset)
-      .execute();
+    return await db.select().from(Voters).orderBy(asc(Voters.fullName));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -621,609 +567,202 @@ export async function getAllVoters({
   }
 }
 
-export async function testDatabaseConnection() {
+export async function getVoterByAC(acNo: string): Promise<Array<Voter>> {
   try {
-    console.log('Testing database connection...');
-    const result = await db.select({ count: count(voters.id) }).from(voters).execute();
-    console.log('Database connection test result:', result);
-    return result[0];
-  } catch (error) {
-    console.error('Database connection test failed:', error);
-    throw error;
-  }
-}
-
-export async function getVotersCount() {
-  try {
-    const [result] = await db
-      .select({ count: count(voters.id) })
-      .from(voters)
-      .where(eq(voters.isActive, true))
-      .execute();
-
-    return result?.count ?? 0;
+    return await db.select().from(Voters).where(eq(Voters.acNo, acNo)).orderBy(asc(Voters.fullName));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
-      'Failed to get voters count',
+      'Failed to get voters by AC number',
     );
   }
 }
 
-// Insight functions for voter analysis
-export async function getVoterDemographics() {
+export async function getVoterByWard(wardNo: string): Promise<Array<Voter>> {
   try {
-    console.log('getVoterDemographics called');
-    const demographics = await db
-      .select({
-        totalVoters: count(voters.id),
-        maleCount: count(sql`CASE WHEN ${voters.gender} = 'M' THEN 1 END`),
-        femaleCount: count(sql`CASE WHEN ${voters.gender} = 'F' THEN 1 END`),
-        otherCount: count(sql`CASE WHEN ${voters.gender} = 'O' THEN 1 END`),
-        avgAge: sql`AVG(${voters.age})`,
-        minAge: sql`MIN(${voters.age})`,
-        maxAge: sql`MAX(${voters.age})`,
-      })
-      .from(voters)
-      .where(eq(voters.isActive, true))
-      .execute();
-    console.log('demographics', demographics);
-    return demographics[0];
+    return await db.select().from(Voters).where(eq(Voters.wardNo, wardNo)).orderBy(asc(Voters.fullName));
   } catch (error) {
-    console.error('Error in getVoterDemographics:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voters by ward number',
+    );
+  }
+}
+
+export async function getVoterByPart(partNo: string): Promise<Array<Voter>> {
+  try {
+    return await db.select().from(Voters).where(eq(Voters.partNo, partNo)).orderBy(asc(Voters.fullName));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voters by part number',
+    );
+  }
+}
+
+export async function getVoterByBooth(boothName: string): Promise<Array<Voter>> {
+  try {
+    return await db.select().from(Voters).where(eq(Voters.boothName, boothName)).orderBy(asc(Voters.fullName));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voters by booth name',
+    );
+  }
+}
+
+export async function searchVoterByName(name: string): Promise<Array<Voter>> {
+  try {
+    return await db
+      .select()
+      .from(Voters)
+      .where(sql`LOWER(${Voters.fullName}) LIKE LOWER(${`%${name}%`})`)
+      .orderBy(asc(Voters.fullName));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to search voters by name',
+    );
+  }
+}
+
+export async function getVoterByVotingStatus(voted: boolean): Promise<Array<Voter>> {
+  try {
+    return await db
+      .select()
+      .from(Voters)
+      .where(eq(Voters.isVoted2024, voted))
+      .orderBy(asc(Voters.fullName));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voters by voting status',
+    );
+  }
+}
+
+export async function getVoterCount(): Promise<number> {
+  try {
+    const result = await db.select({ count: count() }).from(Voters);
+    return result[0]?.count || 0;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voter count',
+    );
+  }
+}
+
+export async function getVoterCountByAC(acNo: string): Promise<number> {
+  try {
+    const result = await db
+      .select({ count: count() })
+      .from(Voters)
+      .where(eq(Voters.acNo, acNo));
+    return result[0]?.count || 0;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voter count by AC',
+    );
+  }
+}
+
+export async function getVotersByGender(gender: string): Promise<Array<Voter>> {
+  try {
+    return await db
+      .select()
+      .from(Voters)
+      .where(eq(Voters.gender, gender))
+      .orderBy(asc(Voters.fullName));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voters by gender',
+    );
+  }
+}
+
+export async function getVotersByAgeRange(minAge: number, maxAge: number): Promise<Array<Voter>> {
+  try {
+    return await db
+      .select()
+      .from(Voters)
+      .where(and(gte(Voters.age, minAge), lte(Voters.age, maxAge)))
+      .orderBy(asc(Voters.fullName));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voters by age range',
+    );
+  }
+}
+
+export async function getVotersByGenderAndAC(gender: string, acNo: string): Promise<Array<Voter>> {
+  try {
+    return await db
+      .select()
+      .from(Voters)
+      .where(and(eq(Voters.gender, gender), eq(Voters.acNo, acNo)))
+      .orderBy(asc(Voters.fullName));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voters by gender and AC',
+    );
+  }
+}
+
+export async function getVoterDemographics(): Promise<{
+  totalVoters: number;
+  maleCount: number;
+  femaleCount: number;
+  otherGenderCount: number;
+  averageAge: number;
+  ageGroups: { range: string; count: number }[];
+}> {
+  try {
+    const totalResult = await db.select({ count: count() }).from(Voters);
+    const genderResults = await db
+      .select({ gender: Voters.gender, count: count() })
+      .from(Voters)
+      .groupBy(Voters.gender);
+
+    const ageResults = await db
+      .select({ age: Voters.age })
+      .from(Voters)
+      .where(sql`${Voters.age} IS NOT NULL`);
+
+    const totalVoters = totalResult[0]?.count || 0;
+    const maleCount = genderResults.find(r => r.gender === 'Male')?.count || 0;
+    const femaleCount = genderResults.find(r => r.gender === 'Female')?.count || 0;
+    const otherGenderCount = genderResults.find(r => r.gender && !['Male', 'Female'].includes(r.gender))?.count || 0;
+
+    const ages = ageResults.map(r => r.age).filter(age => age !== null) as number[];
+    const averageAge = ages.length > 0 ? ages.reduce((sum, age) => sum + age, 0) / ages.length : 0;
+
+    // Age groups
+    const ageGroups = [
+      { range: '18-25', count: ages.filter(age => age >= 18 && age <= 25).length },
+      { range: '26-35', count: ages.filter(age => age >= 26 && age <= 35).length },
+      { range: '36-45', count: ages.filter(age => age >= 36 && age <= 45).length },
+      { range: '46-55', count: ages.filter(age => age >= 46 && age <= 55).length },
+      { range: '56-65', count: ages.filter(age => age >= 56 && age <= 65).length },
+      { range: '65+', count: ages.filter(age => age > 65).length },
+    ];
+
+    return {
+      totalVoters,
+      maleCount,
+      femaleCount,
+      otherGenderCount,
+      averageAge: Math.round(averageAge * 100) / 100,
+      ageGroups,
+    };
+  } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get voter demographics',
-    );
-  }
-}
-
-export async function getVotersByAgeGroup() {
-  try {
-    console.log('getVotersByAgeGroup called');
-    const result = await db
-      .select({
-        ageGroup: sql`CASE 
-          WHEN ${voters.age} < 25 THEN '18-24'
-          WHEN ${voters.age} < 35 THEN '25-34'
-          WHEN ${voters.age} < 45 THEN '35-44'
-          WHEN ${voters.age} < 55 THEN '45-54'
-          WHEN ${voters.age} < 65 THEN '55-64'
-          ELSE '65+'
-        END`.as('ageGroup'),
-        count: count(voters.id),
-      })
-      .from(voters)
-      .where(eq(voters.isActive, true))
-      .groupBy(sql`CASE 
-          WHEN ${voters.age} < 25 THEN '18-24'
-          WHEN ${voters.age} < 35 THEN '25-34'
-          WHEN ${voters.age} < 45 THEN '35-44'
-          WHEN ${voters.age} < 55 THEN '45-54'
-          WHEN ${voters.age} < 65 THEN '55-64'
-          ELSE '65+'
-        END`)
-      .execute();
-
-    // Sort the results in JavaScript to ensure correct order
-    const ageGroupOrder = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
-    const sortedResult = result.sort((a, b) => {
-      const aIndex = ageGroupOrder.indexOf(a.ageGroup as string);
-      const bIndex = ageGroupOrder.indexOf(b.ageGroup as string);
-      return aIndex - bIndex;
-    });
-
-    console.log('getVotersByAgeGroup result:', sortedResult);
-    return sortedResult;
-  } catch (error) {
-    console.error('Error in getVotersByAgeGroup:', error);
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to get voters by age group',
-    );
-  }
-}
-
-export async function getVotersByAgeGroupWithGender() {
-  try {
-    console.log('getVotersByAgeGroupWithGender called');
-    const result = await db
-      .select({
-        ageGroup: sql`CASE 
-          WHEN ${voters.age} < 25 THEN '18-24'
-          WHEN ${voters.age} < 35 THEN '25-34'
-          WHEN ${voters.age} < 45 THEN '35-44'
-          WHEN ${voters.age} < 55 THEN '45-54'
-          WHEN ${voters.age} < 65 THEN '55-64'
-          ELSE '65+'
-        END`.as('ageGroup'),
-        maleCount: count(sql`CASE WHEN ${voters.gender} = 'M' THEN 1 END`),
-        femaleCount: count(sql`CASE WHEN ${voters.gender} = 'F' THEN 1 END`),
-        totalCount: count(voters.id),
-      })
-      .from(voters)
-      .where(eq(voters.isActive, true))
-      .groupBy(sql`CASE 
-          WHEN ${voters.age} < 25 THEN '18-24'
-          WHEN ${voters.age} < 35 THEN '25-34'
-          WHEN ${voters.age} < 45 THEN '35-44'
-          WHEN ${voters.age} < 55 THEN '45-54'
-          WHEN ${voters.age} < 65 THEN '55-64'
-          ELSE '65+'
-        END`)
-      .execute();
-
-    // Sort the results in JavaScript to ensure correct order
-    const ageGroupOrder = ['18-24', '25-34', '35-44', '45-54', '55-64', '65+'];
-    const sortedResult = result.sort((a, b) => {
-      const aIndex = ageGroupOrder.indexOf(a.ageGroup as string);
-      const bIndex = ageGroupOrder.indexOf(b.ageGroup as string);
-      return aIndex - bIndex;
-    });
-
-    // Calculate totals
-    const totalMale = sortedResult.reduce((sum, group) => sum + group.maleCount, 0);
-    const totalFemale = sortedResult.reduce((sum, group) => sum + group.femaleCount, 0);
-    const totalVoters = totalMale + totalFemale;
-
-    console.log('getVotersByAgeGroupWithGender result:', sortedResult);
-    return {
-      ageGroups: sortedResult,
-      totalVoters,
-      totalMale,
-      totalFemale,
-    };
-  } catch (error) {
-    console.error('Error in getVotersByAgeGroupWithGender:', error);
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to get voters by age group with gender',
-    );
-  }
-}
-
-export async function getVotersByPart() {
-  try {
-    return await db
-      .select({
-        part_no: voters.part_no,
-        voterCount: count(voters.id),
-        maleCount: count(sql`CASE WHEN ${voters.gender} = 'M' THEN 1 END`),
-        femaleCount: count(sql`CASE WHEN ${voters.gender} = 'F' THEN 1 END`),
-        avgAge: sql`AVG(${voters.age})`,
-      })
-      .from(voters)
-      .where(eq(voters.isActive, true))
-      .groupBy(voters.part_no)
-      .orderBy(asc(voters.part_no))
-      .execute();
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to get voters by part',
-    );
-  }
-}
-
-export async function getVotersWithContactInfo() {
-  try {
-    return await db
-      .select({
-        id: voters.id,
-        name: voters.name,
-        part_no: voters.part_no,
-        serial_no: voters.serial_no,
-        age: voters.age,
-        gender: voters.gender,
-        family: voters.family,
-        last_name: voters.last_name,
-        mobile: voters.mobile,
-        email: voters.email,
-      })
-      .from(voters)
-      .where(eq(voters.isActive, true))
-      .orderBy(asc(voters.part_no), asc(voters.serial_no))
-      .execute();
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to get voters with contact info',
-    );
-  }
-}
-
-export async function getVoterSearchInsights({ searchTerm }: { searchTerm: string }) {
-  try {
-    const searchResults = await db
-      .select({
-        id: voters.id,
-        name: voters.name,
-        part_no: voters.part_no,
-        serial_no: voters.serial_no,
-        age: voters.age,
-        gender: voters.gender,
-        family: voters.family,
-        last_name: voters.last_name,
-        mobile: voters.mobile,
-        email: voters.email,
-      })
-      .from(voters)
-      .where(
-        and(
-          eq(voters.isActive, true),
-          sql`LOWER(${voters.last_name}) LIKE LOWER(${`%${searchTerm}%`})`
-        )
-      )
-      .orderBy(asc(voters.part_no), asc(voters.serial_no))
-      .execute();
-
-    const totalResults = searchResults.length;
-    const genderBreakdown = searchResults.reduce((acc, voter) => {
-      const gender = voter.gender === 'M' ? 'Male' :
-        voter.gender === 'F' ? 'Female' :
-          voter.gender === 'O' ? 'Other' :
-            voter.gender; // fallback
-      acc[gender] = (acc[gender] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    const ageGroups = searchResults.reduce((acc, voter) => {
-      const ageGroup = voter.age < 25 ? '18-24' :
-        voter.age < 35 ? '25-34' :
-          voter.age < 45 ? '35-44' :
-            voter.age < 55 ? '45-54' :
-              voter.age < 65 ? '55-64' : '65+';
-      acc[ageGroup] = (acc[ageGroup] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
-
-    // Calculate age groups with gender bifurcation
-    const ageGroupsWithGender = searchResults.reduce((acc, voter) => {
-      const ageGroup = voter.age < 25 ? '18-24' :
-        voter.age < 35 ? '25-34' :
-          voter.age < 45 ? '35-44' :
-            voter.age < 55 ? '45-54' :
-              voter.age < 65 ? '55-64' : '65+';
-
-      if (!acc[ageGroup]) {
-        acc[ageGroup] = { maleCount: 0, femaleCount: 0, totalCount: 0 };
-      }
-
-      if (voter.gender === 'M') {
-        acc[ageGroup].maleCount++;
-      } else if (voter.gender === 'F') {
-        acc[ageGroup].femaleCount++;
-      }
-      acc[ageGroup].totalCount++;
-
-      return acc;
-    }, {} as Record<string, { maleCount: number; femaleCount: number; totalCount: number }>);
-
-    return {
-      totalResults,
-      searchResults,
-      genderBreakdown,
-      ageGroups,
-      ageGroupsWithGender,
-    };
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to get voter search insights',
-    );
-  }
-}
-
-// Beneficiary Management Queries
-export async function getAllServices() {
-  try {
-    return await db
-      .select()
-      .from(services)
-      .where(eq(services.isActive, true))
-      .orderBy(asc(services.name))
-      .execute();
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to get all services',
-    );
-  }
-}
-
-export async function getServiceById({ id }: { id: string }) {
-  try {
-    const [service] = await db
-      .select()
-      .from(services)
-      .where(eq(services.id, id))
-      .execute();
-
-    return service;
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to get service by id',
-    );
-  }
-}
-
-export async function createService({
-  name,
-  description,
-  type,
-  category,
-}: {
-  name: string;
-  description?: string;
-  type: 'one-to-one' | 'one-to-many';
-  category: string;
-}) {
-  try {
-    const [service] = await db
-      .insert(services)
-      .values({
-        name,
-        description,
-        type,
-        category,
-      })
-      .returning();
-
-    return service;
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to create service',
-    );
-  }
-}
-
-export async function updateService({
-  id,
-  name,
-  description,
-  type,
-  category,
-  isActive,
-}: {
-  id: string;
-  name?: string;
-  description?: string;
-  type?: 'one-to-one' | 'one-to-many';
-  category?: string;
-  isActive?: boolean;
-}) {
-  try {
-    const updateData: any = { updatedAt: new Date() };
-    if (name !== undefined) updateData.name = name;
-    if (description !== undefined) updateData.description = description;
-    if (type !== undefined) updateData.type = type;
-    if (category !== undefined) updateData.category = category;
-    if (isActive !== undefined) updateData.isActive = isActive;
-
-    const [service] = await db
-      .update(services)
-      .set(updateData)
-      .where(eq(services.id, id))
-      .returning();
-
-    return service;
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to update service',
-    );
-  }
-}
-
-export async function getBeneficiariesByService({ serviceId }: { serviceId: string }) {
-  try {
-    return await db
-      .select({
-        id: beneficiaries.id,
-        serviceId: beneficiaries.serviceId,
-        voterId: beneficiaries.voterId,
-        partNo: beneficiaries.partNo,
-        status: beneficiaries.status,
-        notes: beneficiaries.notes,
-        applicationDate: beneficiaries.applicationDate,
-        completionDate: beneficiaries.completionDate,
-        service: {
-          id: services.id,
-          name: services.name,
-          type: services.type,
-          category: services.category,
-        },
-        voter: {
-          id: voters.id,
-          name: voters.name,
-          part_no: voters.part_no,
-          serial_no: voters.serial_no,
-        },
-      })
-      .from(beneficiaries)
-      .leftJoin(services, eq(beneficiaries.serviceId, services.id))
-      .leftJoin(voters, eq(beneficiaries.voterId, voters.id))
-      .where(
-        and(
-          eq(beneficiaries.serviceId, serviceId),
-          eq(beneficiaries.isActive, true)
-        )
-      )
-      .orderBy(desc(beneficiaries.applicationDate))
-      .execute();
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to get beneficiaries by service',
-    );
-  }
-}
-
-export async function getBeneficiariesByVoter({ voterId }: { voterId: string }) {
-  try {
-    return await db
-      .select({
-        id: beneficiaries.id,
-        serviceId: beneficiaries.serviceId,
-        voterId: beneficiaries.voterId,
-        partNo: beneficiaries.partNo,
-        status: beneficiaries.status,
-        notes: beneficiaries.notes,
-        applicationDate: beneficiaries.applicationDate,
-        completionDate: beneficiaries.completionDate,
-        service: {
-          id: services.id,
-          name: services.name,
-          type: services.type,
-          category: services.category,
-        },
-      })
-      .from(beneficiaries)
-      .leftJoin(services, eq(beneficiaries.serviceId, services.id))
-      .where(
-        and(
-          eq(beneficiaries.voterId, voterId),
-          eq(beneficiaries.isActive, true)
-        )
-      )
-      .orderBy(desc(beneficiaries.applicationDate))
-      .execute();
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to get beneficiaries by voter',
-    );
-  }
-}
-
-export async function getBeneficiariesByPart({ partNo }: { partNo: number }) {
-  try {
-    return await db
-      .select({
-        id: beneficiaries.id,
-        serviceId: beneficiaries.serviceId,
-        voterId: beneficiaries.voterId,
-        partNo: beneficiaries.partNo,
-        status: beneficiaries.status,
-        notes: beneficiaries.notes,
-        applicationDate: beneficiaries.applicationDate,
-        completionDate: beneficiaries.completionDate,
-        service: {
-          id: services.id,
-          name: services.name,
-          type: services.type,
-          category: services.category,
-        },
-      })
-      .from(beneficiaries)
-      .leftJoin(services, eq(beneficiaries.serviceId, services.id))
-      .where(
-        and(
-          eq(beneficiaries.partNo, partNo),
-          eq(beneficiaries.isActive, true)
-        )
-      )
-      .orderBy(desc(beneficiaries.applicationDate))
-      .execute();
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to get beneficiaries by part',
-    );
-  }
-}
-
-export async function createBeneficiary({
-  serviceId,
-  voterId,
-  partNo,
-  notes,
-}: {
-  serviceId: string;
-  voterId?: string;
-  partNo?: number;
-  notes?: string;
-}) {
-  try {
-    // Validate that either voterId or partNo is provided
-    if (!voterId && !partNo) {
-      throw new Error('Either voterId or partNo must be provided');
-    }
-
-    const [beneficiary] = await db
-      .insert(beneficiaries)
-      .values({
-        serviceId,
-        voterId,
-        partNo,
-        notes,
-      })
-      .returning();
-
-    return beneficiary;
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to create beneficiary',
-    );
-  }
-}
-
-export async function updateBeneficiary({
-  id,
-  status,
-  notes,
-  completionDate,
-}: {
-  id: string;
-  status?: 'pending' | 'in_progress' | 'completed' | 'rejected';
-  notes?: string;
-  completionDate?: Date;
-}) {
-  try {
-    const updateData: any = { updatedAt: new Date() };
-    if (status !== undefined) updateData.status = status;
-    if (notes !== undefined) updateData.notes = notes;
-    if (completionDate !== undefined) updateData.completionDate = completionDate;
-
-    const [beneficiary] = await db
-      .update(beneficiaries)
-      .set(updateData)
-      .where(eq(beneficiaries.id, id))
-      .returning();
-
-    return beneficiary;
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to update beneficiary',
-    );
-  }
-}
-
-export async function getBeneficiaryStats() {
-  try {
-    const stats = await db
-      .select({
-        totalBeneficiaries: count(beneficiaries.id),
-        pendingCount: count(sql`CASE WHEN ${beneficiaries.status} = 'pending' THEN 1 END`),
-        inProgressCount: count(sql`CASE WHEN ${beneficiaries.status} = 'in_progress' THEN 1 END`),
-        completedCount: count(sql`CASE WHEN ${beneficiaries.status} = 'completed' THEN 1 END`),
-        rejectedCount: count(sql`CASE WHEN ${beneficiaries.status} = 'rejected' THEN 1 END`),
-        oneToOneCount: count(sql`CASE WHEN ${beneficiaries.voterId} IS NOT NULL THEN 1 END`),
-        oneToManyCount: count(sql`CASE WHEN ${beneficiaries.partNo} IS NOT NULL THEN 1 END`),
-      })
-      .from(beneficiaries)
-      .where(eq(beneficiaries.isActive, true))
-      .execute();
-
-    return stats[0];
-  } catch (error) {
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to get beneficiary stats',
     );
   }
 }

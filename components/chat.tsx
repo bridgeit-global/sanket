@@ -4,7 +4,6 @@ import { DefaultChatTransport } from 'ai';
 import { useChat } from '@ai-sdk/react';
 import { useEffect, useState } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
-import { useLocalStorage } from 'usehooks-ts';
 
 import { ChatHeader } from '@/components/chat-header';
 import type { Vote } from '@/lib/db/schema';
@@ -46,22 +45,6 @@ export function Chat({
     chatId: id,
     initialVisibilityType,
   });
-  // Use localStorage to persist tab state, same as comprehensive-suggestions
-  const [activeTab, setActiveTab] = useLocalStorage<'general' | 'voter' | 'beneficiaries' | 'analytics'>('comprehensive-suggestions-tab', 'voter');
-
-  // Add mounted state to prevent hydration mismatch
-  const [hasMounted, setHasMounted] = useState(false);
-
-  useEffect(() => {
-    setHasMounted(true);
-  }, []);
-
-  // Use 'voter' as default during SSR to prevent hydration mismatch
-  const displayTab = hasMounted ? activeTab : 'voter';
-
-  // Debug localStorage
-  console.log('Chat component - localStorage activeTab:', activeTab);
-  console.log('Chat component - displayTab:', displayTab);
 
   const { mutate } = useSWRConfig();
   const { setDataStream } = useDataStream();
@@ -72,10 +55,6 @@ export function Chat({
   const searchParams = useSearchParams();
   console.log('searchParams', searchParams);
   const query = searchParams.get('query');
-
-  // Debug logging
-  console.log('Chat component - URL activeTab:', displayTab);
-  console.log('Chat component - searchParams:', Object.fromEntries(searchParams.entries()));
 
   const [hasAppendedQuery, setHasAppendedQuery] = useState(false);
 
@@ -101,10 +80,8 @@ export function Chat({
           message: messages.at(-1),
           selectedChatModel: initialChatModel,
           selectedVisibilityType: visibilityType,
-          activeTab: displayTab as any,
           ...body,
         };
-        console.log('Sending request with activeTab:', displayTab);
         console.log('Full request body:', requestBody);
         return {
           body: requestBody,

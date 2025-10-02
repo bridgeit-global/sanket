@@ -170,59 +170,28 @@ export const stream = pgTable(
 
 export type Stream = InferSelectModel<typeof stream>;
 
-export const voters = pgTable(
-  'voters',
-  {
-    id: text('id').notNull().primaryKey(),
-    part_no: integer('part_no').notNull(),
-    serial_no: integer('serial_no').notNull(),
-    name: text('name').notNull(),
-    gender: text('gender').notNull(),
-    age: integer('age').notNull(),
-    family: text('family'),
-    last_name: text('last_name'),
-    mobile: text('mobile'),
-    email: text('email'),
-    isActive: boolean('isActive').notNull().default(true),
-    createdAt: timestamp('createdAt').notNull().defaultNow(),
-    updatedAt: timestamp('updatedAt').notNull().defaultNow(),
-  }
-);
+export const Voters = pgTable('Voter', {
+  epicNumber: varchar('epic_number', { length: 20 }).primaryKey().notNull(),
+  fullName: varchar('full_name', { length: 255 }).notNull(),
+  relationType: varchar('relation_type', { length: 50 }),
+  relationName: varchar('relation_name', { length: 255 }),
+  familyGrouping: varchar('family_grouping', { length: 100 }),
+  acNo: varchar('ac_no', { length: 10 }),
+  wardNo: varchar('ward_no', { length: 10 }),
+  partNo: varchar('part_no', { length: 10 }),
+  srNo: varchar('sr_no', { length: 10 }),
+  houseNumber: varchar('house_number', { length: 127 }),
+  religion: varchar('religion', { length: 50 }),
+  age: integer('age'),
+  gender: varchar('gender', { length: 10 }),
+  isVoted2024: boolean('is_voted_2024').default(false),
+  mobileNoPrimary: varchar('mobile_no_primary', { length: 15 }),
+  mobileNoSecondary: varchar('mobile_no_secondary', { length: 15 }),
+  boothName: varchar('booth_name', { length: 255 }),
+  englishBoothAddress: text('english_booth_address'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
 
-export type Voter = InferSelectModel<typeof voters>;
+export type Voter = InferSelectModel<typeof Voters>;
 
-// Beneficiary Management Schema
-export const services = pgTable(
-  'services',
-  {
-    id: uuid('id').primaryKey().notNull().defaultRandom(),
-    name: text('name').notNull(),
-    description: text('description'),
-    type: varchar('type', { enum: ['one-to-one', 'one-to-many'] }).notNull(),
-    category: text('category').notNull(), // e.g., 'voter_registration', 'aadhar_card', 'ration_card', 'schemes', 'public_works', 'fund_utilization', 'issue_visibility'
-    isActive: boolean('isActive').notNull().default(true),
-    createdAt: timestamp('createdAt').notNull().defaultNow(),
-    updatedAt: timestamp('updatedAt').notNull().defaultNow(),
-  }
-);
-
-export type Service = InferSelectModel<typeof services>;
-
-export const beneficiaries = pgTable(
-  'beneficiaries',
-  {
-    id: uuid('id').primaryKey().notNull().defaultRandom(),
-    serviceId: uuid('serviceId').notNull().references(() => services.id),
-    voterId: text('voterId').references(() => voters.id), // For one-to-one services
-    partNo: integer('partNo'), // For one-to-many services
-    status: varchar('status', { enum: ['pending', 'in_progress', 'completed', 'rejected'] }).notNull().default('pending'),
-    notes: text('notes'),
-    applicationDate: timestamp('applicationDate').notNull().defaultNow(),
-    completionDate: timestamp('completionDate'),
-    isActive: boolean('isActive').notNull().default(true),
-    createdAt: timestamp('createdAt').notNull().defaultNow(),
-    updatedAt: timestamp('updatedAt').notNull().defaultNow(),
-  }
-);
-
-export type Beneficiary = InferSelectModel<typeof beneficiaries>;

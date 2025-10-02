@@ -6,9 +6,10 @@ import {
   stepCountIs,
   streamText,
 } from 'ai';
-import { auth, type UserType } from '@/app/(auth)/auth';
-import { type RequestHints, systemPrompt } from '@/lib/ai/prompts';
-import { getTabPrompt, getTabTools, type TabType } from '@/lib/ai/tab-prompts';
+import { auth } from '@/app/(auth)/auth';
+import type { UserType } from '@/app/(auth)/auth';
+import type { RequestHints } from '@/lib/ai/prompts';
+import { generalPrompt } from '@/lib/ai/tab-prompts';
 import {
   createStreamId,
   deleteChatById,
@@ -23,24 +24,6 @@ import { generateTitleFromUserMessage } from '../../actions';
 import { createDocument } from '@/lib/ai/tools/create-document';
 import { updateDocument } from '@/lib/ai/tools/update-document';
 import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
-import { getVoterDemographicsTool } from '@/lib/ai/tools/get-voter-demographics';
-import { getVoterAgeGroupsWithGenderTool } from '@/lib/ai/tools/get-voter-age-groups-with-gender';
-import { getVoterPartsTool } from '@/lib/ai/tools/get-voter-parts';
-import { searchVotersTool } from '@/lib/ai/tools/search-voters';
-import { sqlQueryTool } from '@/lib/ai/tools/sql-query';
-import { getServicesTool } from '@/lib/ai/tools/get-services';
-import { addServiceTool } from '@/lib/ai/tools/add-service';
-import { addBeneficiaryTool } from '@/lib/ai/tools/add-beneficiary';
-import { addBeneficiaryWithDetailsTool } from '@/lib/ai/tools/add-beneficiary-with-details';
-import { searchBeneficiariesTool } from '@/lib/ai/tools/search-beneficiaries';
-import { updateBeneficiaryStatusTool } from '@/lib/ai/tools/update-beneficiary-status';
-import { trackBeneficiaryProgressTool } from '@/lib/ai/tools/track-beneficiary-progress';
-import { linkBeneficiaryToVoterTool } from '@/lib/ai/tools/link-beneficiary-to-voter';
-import { exportBeneficiaryDataTool } from '@/lib/ai/tools/export-beneficiary-data';
-import { addBeneficiaryServiceTool } from '@/lib/ai/tools/add-beneficiary-service';
-import { getBeneficiariesTool } from '@/lib/ai/tools/get-beneficiaries';
-import { updateBeneficiaryTool } from '@/lib/ai/tools/update-beneficiary';
-import { showBeneficiaryServiceFormTool } from '@/lib/ai/tools/show-beneficiary-service-form';
 import { webSearchTool } from '@/lib/ai/tools/web-search';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
@@ -92,7 +75,6 @@ export async function POST(request: Request) {
   }
 
   console.log('Request body:', JSON.stringify(requestBody, null, 2));
-  console.log('Active tab from request body:', requestBody.activeTab);
 
   try {
     const {
@@ -100,21 +82,13 @@ export async function POST(request: Request) {
       message,
       selectedChatModel,
       selectedVisibilityType,
-      activeTab = 'voter',
     }: {
       id: string;
       message: ChatMessage;
       selectedChatModel: ChatModel['id'];
       selectedVisibilityType: VisibilityType;
-      activeTab: TabType;
     } = requestBody;
 
-    // Debug: Also check URL parameters as fallback
-    const url = new URL(request.url);
-    const urlTab = url.searchParams.get('tab') as TabType;
-    console.log('URL tab parameter:', urlTab);
-    console.log('Request body activeTab:', activeTab);
-    console.log('Final activeTab being used:', activeTab || urlTab || 'general');
 
     const session = await auth();
 
@@ -182,58 +156,23 @@ export async function POST(request: Request) {
 
     const stream = createUIMessageStream({
       execute: async ({ writer: dataStream }) => {
-        // Get tab-specific prompt and tools
-        const tabPrompt = getTabPrompt(activeTab);
-        const tabTools = getTabTools(activeTab);
-
-        // Create tools object based on active tab
-        const baseTools = {
+        // Create tools for general analysis
+        const activeTools = {
           createDocument: createDocument({ session, dataStream }),
           updateDocument: updateDocument({ session, dataStream }),
           requestSuggestions: requestSuggestions({
             session,
             dataStream,
           }),
-        };
-
-        const allTools = {
-          ...baseTools,
           webSearch: webSearchTool(),
-          getVoterDemographics: getVoterDemographicsTool(),
-          getVoterAgeGroupsWithGender: getVoterAgeGroupsWithGenderTool(),
-          getVoterParts: getVoterPartsTool(),
-          searchVoters: searchVotersTool(),
-          sqlQuery: sqlQueryTool,
-          getServices: getServicesTool(),
-          addBeneficiaryService: addBeneficiaryServiceTool(),
-          addBeneficiary: addBeneficiaryTool(),
-          addBeneficiaryWithDetails: addBeneficiaryWithDetailsTool(),
-          searchBeneficiaries: searchBeneficiariesTool(),
-          updateBeneficiaryStatus: updateBeneficiaryStatusTool(),
-          trackBeneficiaryProgress: trackBeneficiaryProgressTool(),
-          linkBeneficiaryToVoter: linkBeneficiaryToVoterTool(),
-          exportBeneficiaryData: exportBeneficiaryDataTool(),
-          getBeneficiaries: getBeneficiariesTool(),
-          updateBeneficiary: updateBeneficiaryTool(),
-          showBeneficiaryServiceForm: showBeneficiaryServiceFormTool(),
         };
-
-        // Filter tools based on active tab
-        const activeTools: Record<string, any> = { ...baseTools };
-        tabTools.forEach(toolName => {
-          if (allTools[toolName as keyof typeof allTools]) {
-            activeTools[toolName] = allTools[toolName as keyof typeof allTools];
-          }
-        });
 
         // Debug logging
-        console.log(`Active tab: ${activeTab}`);
-        console.log(`Available tools for ${activeTab}:`, Object.keys(activeTools));
-        console.log(`Tab tools from getTabTools:`, tabTools);
+        console.log(`Available tools:`, Object.keys(activeTools));
 
         const result = streamText({
           model: myProvider.languageModel(selectedChatModel),
-          system: tabPrompt,
+          system: generalPrompt,
           messages: convertToModelMessages(uiMessages),
           stopWhen: stepCountIs(10),
           experimental_transform: smoothStream({ chunking: 'word' }),
