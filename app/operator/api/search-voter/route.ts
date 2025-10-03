@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { searchVoterByEpicNumber, searchVoterByName } from '@/lib/db/queries';
+import { searchVoterByEpicNumber, searchVoterByName, searchVoterByPhoneNumber } from '@/lib/db/queries';
 
 export async function POST(request: NextRequest) {
     try {
@@ -17,23 +17,36 @@ export async function POST(request: NextRequest) {
         }
 
         let voters: Array<any>;
+        let actualSearchType: string;
 
-        // First try VoterId search if searchType is 'voterId' or if the search term looks like a VoterId
-        if (searchType === 'voterId' || /^[A-Z]{3}[0-9]{7}$/.test(searchTerm.trim())) {
-            voters = await searchVoterByEpicNumber(searchTerm);
+        // Determine search type based on input or explicit type
+        const trimmedTerm = searchTerm.trim();
+        const isVoterId = /^[A-Z]{3}[0-9]{7}$/.test(trimmedTerm);
+        const isPhoneNumber = /^[\d\s\-\(\)]{7,15}$/.test(trimmedTerm);
+
+        if (searchType === 'phone' || (isPhoneNumber && searchType !== 'voterId' && searchType !== 'name')) {
+            // Phone number search
+            voters = await searchVoterByPhoneNumber(trimmedTerm);
+            actualSearchType = 'phone';
+        } else if (searchType === 'voterId' || isVoterId) {
+            // VoterId search
+            voters = await searchVoterByEpicNumber(trimmedTerm);
+            actualSearchType = 'voterId';
 
             // If no results found with VoterId, fall back to name search
             if (voters.length === 0 && searchType !== 'voterId') {
-                voters = await searchVoterByName(searchTerm);
+                voters = await searchVoterByName(trimmedTerm);
+                actualSearchType = 'name';
             }
         } else {
             // Default to name search
-            voters = await searchVoterByName(searchTerm);
+            voters = await searchVoterByName(trimmedTerm);
+            actualSearchType = 'name';
         }
 
         return NextResponse.json({
             voters,
-            searchType: voters.length > 0 && /^[A-Z]{3}[0-9]{7}$/.test(searchTerm.trim()) ? 'voterId' : 'name'
+            searchType: actualSearchType
         });
     } catch (error) {
         console.error('Error searching voters:', error);

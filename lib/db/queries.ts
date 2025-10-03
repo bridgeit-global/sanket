@@ -670,6 +670,26 @@ export async function searchVoterByName(name: string): Promise<Array<Voter>> {
   }
 }
 
+export async function searchVoterByPhoneNumber(phoneNumber: string): Promise<Array<Voter>> {
+  try {
+    // Clean the phone number (remove spaces, dashes, etc.)
+    const cleanPhone = phoneNumber.replace(/[\s\-\(\)]/g, '');
+
+    return await db
+      .select()
+      .from(Voters)
+      .where(
+        sql`(${Voters.mobileNoPrimary} LIKE ${`%${cleanPhone}%`} OR ${Voters.mobileNoSecondary} LIKE ${`%${cleanPhone}%`})`
+      )
+      .orderBy(asc(Voters.fullName));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to search voters by phone number',
+    );
+  }
+}
+
 export async function getVoterByVotingStatus(voted: boolean): Promise<Array<Voter>> {
   try {
     return await db

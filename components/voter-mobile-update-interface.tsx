@@ -17,14 +17,14 @@ export function VoterMobileUpdateInterface() {
     const [mobileNoSecondary, setMobileNoSecondary] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
-    const [searchType, setSearchType] = useState<'voterId' | 'name'>('voterId');
-    const [lastSearchType, setLastSearchType] = useState<'voterId' | 'name' | null>(null);
+    const [searchType, setSearchType] = useState<'voterId' | 'name' | 'phone'>('voterId');
+    const [lastSearchType, setLastSearchType] = useState<'voterId' | 'name' | 'phone' | null>(null);
 
     const handleSearch = async () => {
         if (!searchTerm.trim()) {
             toast({
                 type: 'error',
-                description: 'Please enter a VoterId or name to search',
+                description: 'Please enter a VoterId, name, or phone number to search',
             });
             return;
         }
@@ -51,13 +51,15 @@ export function VoterMobileUpdateInterface() {
             setLastSearchType(data.searchType || searchType);
 
             if (data.voters.length === 0) {
-                const searchTypeText = data.searchType === 'voterId' ? 'VoterId' : 'name';
+                const searchTypeText = data.searchType === 'voterId' ? 'VoterId' :
+                    data.searchType === 'phone' ? 'phone number' : 'name';
                 toast({
                     type: 'error',
                     description: `No voters found with that ${searchTypeText}`,
                 });
             } else {
-                const searchTypeText = data.searchType === 'voterId' ? 'VoterId' : 'name';
+                const searchTypeText = data.searchType === 'voterId' ? 'VoterId' :
+                    data.searchType === 'phone' ? 'phone number' : 'name';
                 toast({
                     type: 'success',
                     description: `Found ${data.voters.length} voter(s) by ${searchTypeText}`,
@@ -141,13 +143,13 @@ export function VoterMobileUpdateInterface() {
                 <CardHeader>
                     <CardTitle>Search Voter</CardTitle>
                     <CardDescription>
-                        Search for voters by VoterId (EPIC Number) or name to update their mobile numbers
+                        Search for voters by VoterId (EPIC Number), name, or phone number to update their mobile numbers
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
                         {/* Search Type Selection */}
-                        <div className="flex gap-4">
+                        <div className="flex gap-4 flex-wrap">
                             <div className="flex items-center space-x-2">
                                 <input
                                     type="radio"
@@ -155,7 +157,7 @@ export function VoterMobileUpdateInterface() {
                                     name="searchType"
                                     value="voterId"
                                     checked={searchType === 'voterId'}
-                                    onChange={(e) => setSearchType(e.target.value as 'voterId' | 'name')}
+                                    onChange={(e) => setSearchType(e.target.value as 'voterId' | 'name' | 'phone')}
                                     className="h-4 w-4"
                                 />
                                 <Label htmlFor="voterId" className="text-sm font-medium">
@@ -169,11 +171,25 @@ export function VoterMobileUpdateInterface() {
                                     name="searchType"
                                     value="name"
                                     checked={searchType === 'name'}
-                                    onChange={(e) => setSearchType(e.target.value as 'voterId' | 'name')}
+                                    onChange={(e) => setSearchType(e.target.value as 'voterId' | 'name' | 'phone')}
                                     className="h-4 w-4"
                                 />
                                 <Label htmlFor="name" className="text-sm font-medium">
                                     Name
+                                </Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="radio"
+                                    id="phone"
+                                    name="searchType"
+                                    value="phone"
+                                    checked={searchType === 'phone'}
+                                    onChange={(e) => setSearchType(e.target.value as 'voterId' | 'name' | 'phone')}
+                                    className="h-4 w-4"
+                                />
+                                <Label htmlFor="phone" className="text-sm font-medium">
+                                    Phone Number
                                 </Label>
                             </div>
                         </div>
@@ -182,7 +198,8 @@ export function VoterMobileUpdateInterface() {
                         <div className="flex gap-4">
                             <div className="flex-1">
                                 <Label htmlFor="search">
-                                    {searchType === 'voterId' ? 'VoterId (EPIC Number)' : 'Voter Name'}
+                                    {searchType === 'voterId' ? 'VoterId (EPIC Number)' :
+                                        searchType === 'phone' ? 'Phone Number' : 'Voter Name'}
                                 </Label>
                                 <Input
                                     id="search"
@@ -191,8 +208,11 @@ export function VoterMobileUpdateInterface() {
                                     placeholder={
                                         searchType === 'voterId'
                                             ? 'Enter VoterId (e.g., ABC1234567)...'
-                                            : 'Enter voter name...'
+                                            : searchType === 'phone'
+                                                ? 'Enter phone number (e.g., 9876543210)...'
+                                                : 'Enter voter name...'
                                     }
+                                    type={searchType === 'phone' ? 'tel' : 'text'}
                                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                                 />
                             </div>
@@ -211,7 +231,8 @@ export function VoterMobileUpdateInterface() {
                                 <h3 className="text-lg font-semibold">Search Results</h3>
                                 {lastSearchType && (
                                     <span className="text-sm text-muted-foreground">
-                                        Found by {lastSearchType === 'voterId' ? 'VoterId' : 'Name'}
+                                        Found by {lastSearchType === 'voterId' ? 'VoterId' :
+                                            lastSearchType === 'phone' ? 'Phone Number' : 'Name'}
                                     </span>
                                 )}
                             </div>
