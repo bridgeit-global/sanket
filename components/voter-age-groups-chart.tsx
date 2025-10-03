@@ -22,7 +22,7 @@ export function VoterAgeGroupsWithGenderChart({ data }: { data: VoterAgeGroupsWi
   return (
     <div className="space-y-6">
       <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Age Group Distribution by Gender</h3>
-      
+
       {/* Summary Stats */}
       <div className="grid grid-cols-3 gap-4">
         <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
@@ -47,7 +47,7 @@ export function VoterAgeGroupsWithGenderChart({ data }: { data: VoterAgeGroupsWi
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{group.ageGroup}</span>
               <span className="text-sm text-gray-600 dark:text-gray-400">{group.totalCount.toLocaleString()}</span>
             </div>
-            
+
             <div className="flex gap-2 h-6">
               {/* Male Bar */}
               <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -56,7 +56,7 @@ export function VoterAgeGroupsWithGenderChart({ data }: { data: VoterAgeGroupsWi
                   style={{ width: `${(group.maleCount / maxCount) * 100}%` }}
                 />
               </div>
-              
+
               {/* Female Bar */}
               <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                 <div
@@ -65,15 +65,15 @@ export function VoterAgeGroupsWithGenderChart({ data }: { data: VoterAgeGroupsWi
                 />
               </div>
             </div>
-            
+
             {/* Gender Breakdown */}
             <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
               <div className="flex items-center gap-1">
-                <div className="size-3 bg-blue-600 rounded-full"></div>
+                <div className="size-3 bg-blue-600 rounded-full" />
                 <span>Male: {group.maleCount.toLocaleString()}</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="size-3 bg-pink-600 rounded-full"></div>
+                <div className="size-3 bg-pink-600 rounded-full" />
                 <span>Female: {group.femaleCount.toLocaleString()}</span>
               </div>
             </div>
@@ -84,11 +84,11 @@ export function VoterAgeGroupsWithGenderChart({ data }: { data: VoterAgeGroupsWi
       {/* Legend */}
       <div className="flex justify-center gap-4 text-sm">
         <div className="flex items-center gap-2">
-          <div className="size-4 bg-blue-600 rounded-full"></div>
+          <div className="size-4 bg-blue-600 rounded-full" />
           <span className="text-gray-700 dark:text-gray-300">Male</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="size-4 bg-pink-600 rounded-full"></div>
+          <div className="size-4 bg-pink-600 rounded-full" />
           <span className="text-gray-700 dark:text-gray-300">Female</span>
         </div>
       </div>

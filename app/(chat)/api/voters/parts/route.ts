@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { Voters } from '@/lib/db/schema';
 import { sql } from 'drizzle-orm';
 import { auth } from '@/app/(auth)/auth';
@@ -13,7 +13,11 @@ export async function GET(request: NextRequest) {
         }
 
         // Create database connection
-        const client = postgres(process.env.POSTGRES_URL!);
+        const postgresUrl = process.env.POSTGRES_URL;
+        if (!postgresUrl) {
+            return NextResponse.json({ error: 'Database URL not configured' }, { status: 500 });
+        }
+        const client = postgres(postgresUrl);
         const db = drizzle(client);
 
         // Get distinct part numbers from voters table

@@ -734,9 +734,9 @@ export async function getVoterDemographics(): Promise<{
       .where(sql`${Voters.age} IS NOT NULL`);
 
     const totalVoters = totalResult[0]?.count || 0;
-    const maleCount = genderResults.find(r => r.gender === 'Male')?.count || 0;
-    const femaleCount = genderResults.find(r => r.gender === 'Female')?.count || 0;
-    const otherGenderCount = genderResults.find(r => r.gender && !['Male', 'Female'].includes(r.gender))?.count || 0;
+    const maleCount = genderResults.find(r => r.gender === 'M')?.count || 0;
+    const femaleCount = genderResults.find(r => r.gender === 'F')?.count || 0;
+    const otherGenderCount = genderResults.find(r => r.gender && !['M', 'F'].includes(r.gender))?.count || 0;
 
     const ages = ageResults.map(r => r.age).filter(age => age !== null) as number[];
     const averageAge = ages.length > 0 ? ages.reduce((sum, age) => sum + age, 0) / ages.length : 0;
