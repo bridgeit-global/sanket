@@ -6,27 +6,27 @@ import { authConfig } from './auth.config';
 import { DUMMY_PASSWORD } from '@/lib/constants';
 import type { DefaultJWT } from 'next-auth/jwt';
 
-export type UserType = 'regular';
+export type UserRole = 'admin' | 'operator' | 'regular';
 
 declare module 'next-auth' {
   interface Session extends DefaultSession {
     user: {
       id: string;
-      type: UserType;
+      role: UserRole;
     } & DefaultSession['user'];
   }
 
   interface User {
     id?: string;
     email?: string | null;
-    type: UserType;
+    role: UserRole;
   }
 }
 
 declare module 'next-auth/jwt' {
   interface JWT extends DefaultJWT {
     id: string;
-    type: UserType;
+    role: UserRole;
   }
 }
 
@@ -59,7 +59,7 @@ export const {
 
         if (!passwordsMatch) return null;
 
-        return { ...user, type: 'regular' };
+        return { ...user, role: (user as any).role || 'regular' };
       },
     }),
   ],
@@ -67,7 +67,7 @@ export const {
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id as string;
-        token.type = user.type;
+        token.role = user.role;
       }
 
       return token;
@@ -75,7 +75,7 @@ export const {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id;
-        session.user.type = token.type;
+        session.user.role = token.role;
       }
 
       return session;

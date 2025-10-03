@@ -1,7 +1,7 @@
 import { smoothStream, streamText } from 'ai';
 import { myProvider } from '@/lib/ai/providers';
 import { createDocumentHandler } from '@/lib/artifacts/server';
-import { updateDocumentPrompt } from '@/lib/ai/prompts';
+// Text prompts removed - system now focuses on voter analysis and web search only
 
 export const textDocumentHandler = createDocumentHandler<'text'>({
   kind: 'text',
@@ -39,7 +39,7 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
 
     const { fullStream } = streamText({
       model: myProvider.languageModel('artifact-model'),
-      system: updateDocumentPrompt(document.content, 'text'),
+      system: `Update the existing text based on the user's description. Current text:\n\n${document.content}\n\nProvide updated text that incorporates the requested changes.`,
       experimental_transform: smoothStream({ chunking: 'word' }),
       prompt: description,
       providerOptions: {

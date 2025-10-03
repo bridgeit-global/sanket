@@ -56,13 +56,42 @@ export async function getUser(email: string): Promise<Array<User>> {
   }
 }
 
-export async function createUser(email: string, password: string) {
+export async function createUser(email: string, password: string, role: 'admin' | 'operator' | 'regular' = 'regular') {
   const hashedPassword = generateHashedPassword(password);
 
   try {
-    return await db.insert(user).values({ email, password: hashedPassword });
+    console.log('Creating user with:', { email, role });
+    const result = await db.insert(user).values({ email, password: hashedPassword, role });
+    console.log('User created successfully:', result);
+    return result;
   } catch (error) {
+    console.error('Create user error:', error);
     throw new ChatSDKError('bad_request:database', 'Failed to create user');
+  }
+}
+
+export async function updateUserRole(userId: string, role: 'admin' | 'operator' | 'regular') {
+  try {
+    return await db.update(user).set({ role, updatedAt: new Date() }).where(eq(user.id, userId));
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to update user role');
+  }
+}
+
+export async function getUserById(userId: string): Promise<User | null> {
+  try {
+    const [userRecord] = await db.select().from(user).where(eq(user.id, userId));
+    return userRecord || null;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to get user by id');
+  }
+}
+
+export async function getAllUsers(): Promise<Array<User>> {
+  try {
+    return await db.select().from(user).orderBy(asc(user.email));
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to get all users');
   }
 }
 
@@ -611,6 +640,21 @@ export async function getVoterByBooth(boothName: string): Promise<Array<Voter>> 
   }
 }
 
+export async function searchVoterByEpicNumber(epicNumber: string): Promise<Array<Voter>> {
+  try {
+    return await db
+      .select()
+      .from(Voters)
+      .where(sql`LOWER(${Voters.epicNumber}) LIKE LOWER(${`%${epicNumber}%`})`)
+      .orderBy(asc(Voters.epicNumber));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to search voters by EPIC number',
+    );
+  }
+}
+
 export async function searchVoterByName(name: string): Promise<Array<Voter>> {
   try {
     return await db
@@ -763,6 +807,67 @@ export async function getVoterDemographics(): Promise<{
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get voter demographics',
+    );
+  }
+}
+
+// Operator functions for updating voter mobile numbers
+export async function updateVoterMobileNumber(
+  epicNumber: string,
+  mobileNoPrimary?: string,
+  mobileNoSecondary?: string
+): Promise<Voter | null> {
+  try {
+    const updateData: Partial<Voter> = { updatedAt: new Date() };
+    if (mobileNoPrimary !== undefined) updateData.mobileNoPrimary = mobileNoPrimary;
+    if (mobileNoSecondary !== undefined) updateData.mobileNoSecondary = mobileNoSecondary;
+
+    const [updatedVoter] = await db
+      .update(Voters)
+      .set(updateData)
+      .where(eq(Voters.epicNumber, epicNumber))
+      .returning();
+
+    return updatedVoter || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update voter mobile number',
+    );
+  }
+}
+
+export async function updateVoterMobileNumbers(
+  updates: Array<{
+    epicNumber: string;
+    mobileNoPrimary?: string;
+    mobileNoSecondary?: string;
+  }>
+): Promise<Array<Voter>> {
+  try {
+    const results: Array<Voter> = [];
+
+    for (const update of updates) {
+      const updateData: Partial<Voter> = { updatedAt: new Date() };
+      if (update.mobileNoPrimary !== undefined) updateData.mobileNoPrimary = update.mobileNoPrimary;
+      if (update.mobileNoSecondary !== undefined) updateData.mobileNoSecondary = update.mobileNoSecondary;
+
+      const [updatedVoter] = await db
+        .update(Voters)
+        .set(updateData)
+        .where(eq(Voters.epicNumber, update.epicNumber))
+        .returning();
+
+      if (updatedVoter) {
+        results.push(updatedVoter);
+      }
+    }
+
+    return results;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update voter mobile numbers',
     );
   }
 }

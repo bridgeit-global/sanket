@@ -16,6 +16,9 @@ export const user = pgTable('User', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   email: varchar('email', { length: 64 }).notNull(),
   password: varchar('password', { length: 64 }),
+  role: varchar('role', { enum: ['admin', 'operator', 'regular'] }).notNull().default('regular'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
 export type User = InferSelectModel<typeof user>;
@@ -155,12 +158,11 @@ export type Suggestion = InferSelectModel<typeof suggestion>;
 export const stream = pgTable(
   'Stream',
   {
-    id: uuid('id').notNull().defaultRandom(),
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
     chatId: uuid('chatId').notNull(),
     createdAt: timestamp('createdAt').notNull(),
   },
   (table) => ({
-    pk: primaryKey({ columns: [table.id] }),
     chatRef: foreignKey({
       columns: [table.chatId],
       foreignColumns: [chat.id],

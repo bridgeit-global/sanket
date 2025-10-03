@@ -43,12 +43,12 @@ export const login = async (
 
 export interface RegisterActionState {
   status:
-    | 'idle'
-    | 'in_progress'
-    | 'success'
-    | 'failed'
-    | 'user_exists'
-    | 'invalid_data';
+  | 'idle'
+  | 'in_progress'
+  | 'success'
+  | 'failed'
+  | 'user_exists'
+  | 'invalid_data';
 }
 
 export const register = async (
@@ -66,15 +66,21 @@ export const register = async (
     if (user) {
       return { status: 'user_exists' } as RegisterActionState;
     }
-    await createUser(validatedData.email, validatedData.password);
-    await signIn('credentials', {
-      email: validatedData.email,
-      password: validatedData.password,
-      redirect: false,
-    });
+    // Check if this is a special admin/operator registration
+    let role: 'admin' | 'operator' | 'regular' = 'regular';
+    if (validatedData.email === 'admin@example.com') {
+      role = 'admin';
+    } else if (validatedData.email === 'operator@example.com') {
+      role = 'operator';
+    }
 
+    await createUser(validatedData.email, validatedData.password, role);
+
+    // For now, just return success and let user login manually
+    // This avoids the CSRF token issue during registration
     return { status: 'success' };
   } catch (error) {
+    console.error('Registration error:', error);
     if (error instanceof z.ZodError) {
       return { status: 'invalid_data' };
     }

@@ -1,5 +1,5 @@
 import { myProvider } from '@/lib/ai/providers';
-import { sheetPrompt, updateDocumentPrompt } from '@/lib/ai/prompts';
+// Sheet prompts removed - system now focuses on voter analysis and web search only
 import { createDocumentHandler } from '@/lib/artifacts/server';
 import { streamObject } from 'ai';
 import { z } from 'zod';
@@ -11,7 +11,7 @@ export const sheetDocumentHandler = createDocumentHandler<'sheet'>({
 
     const { fullStream } = streamObject({
       model: myProvider.languageModel('artifact-model'),
-      system: sheetPrompt,
+      system: 'Generate CSV data based on the user request. Provide clean, well-formatted CSV data.',
       prompt: title,
       schema: z.object({
         csv: z.string().describe('CSV data'),
@@ -50,7 +50,7 @@ export const sheetDocumentHandler = createDocumentHandler<'sheet'>({
 
     const { fullStream } = streamObject({
       model: myProvider.languageModel('artifact-model'),
-      system: updateDocumentPrompt(document.content, 'sheet'),
+      system: `Update the existing CSV data based on the user's description. Current CSV:\n\n${document.content}\n\nProvide updated CSV that incorporates the requested changes.`,
       prompt: description,
       schema: z.object({
         csv: z.string(),

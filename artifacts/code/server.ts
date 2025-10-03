@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { streamObject } from 'ai';
 import { myProvider } from '@/lib/ai/providers';
-import { codePrompt, updateDocumentPrompt } from '@/lib/ai/prompts';
+// Code prompts removed - system now focuses on voter analysis and web search only
 import { createDocumentHandler } from '@/lib/artifacts/server';
 
 export const codeDocumentHandler = createDocumentHandler<'code'>({
@@ -11,7 +11,7 @@ export const codeDocumentHandler = createDocumentHandler<'code'>({
 
     const { fullStream } = streamObject({
       model: myProvider.languageModel('artifact-model'),
-      system: codePrompt,
+      system: 'Generate code based on the user request. Provide clean, well-commented code.',
       prompt: title,
       schema: z.object({
         code: z.string(),
@@ -44,7 +44,7 @@ export const codeDocumentHandler = createDocumentHandler<'code'>({
 
     const { fullStream } = streamObject({
       model: myProvider.languageModel('artifact-model'),
-      system: updateDocumentPrompt(document.content, 'code'),
+      system: `Update the existing code based on the user's description. Current code:\n\n${document.content}\n\nProvide updated code that incorporates the requested changes.`,
       prompt: description,
       schema: z.object({
         code: z.string(),

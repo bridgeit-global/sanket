@@ -14,42 +14,12 @@ export default async function Page() {
     redirect('/login');
   }
 
-  const id = generateUUID();
-
-  const cookieStore = await cookies();
-  const modelIdFromCookie = cookieStore.get('chat-model');
-
-  if (!modelIdFromCookie) {
-    return (
-      <>
-        <Chat
-          key={id}
-          id={id}
-          initialMessages={[]}
-          initialChatModel={DEFAULT_CHAT_MODEL}
-          initialVisibilityType="private"
-          isReadonly={false}
-          session={session}
-          autoResume={false}
-        />
-        <DataStreamHandler />
-      </>
-    );
+  // Redirect based on user role
+  if (session.user.role === 'admin') {
+    redirect('/admin');
+  } else if (session.user.role === 'operator') {
+    redirect('/operator');
+  } else {
+    redirect('/unauthorized');
   }
-
-  return (
-    <>
-      <Chat
-        key={id}
-        id={id}
-        initialMessages={[]}
-        initialChatModel={modelIdFromCookie.value}
-        initialVisibilityType="private"
-        isReadonly={false}
-        session={session}
-        autoResume={false}
-      />
-      <DataStreamHandler />
-    </>
-  );
 }

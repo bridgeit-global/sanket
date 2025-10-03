@@ -37,11 +37,10 @@ export default function Page() {
         description: 'Failed validating your submission!',
       });
     } else if (state.status === 'success') {
-      toast({ type: 'success', description: 'Account created successfully!' });
+      toast({ type: 'success', description: 'Account created successfully! Please sign in.' });
 
       setIsSuccessful(true);
-      updateSession();
-      router.push('/');
+      router.push('/login');
     }
   }, [state]);
 

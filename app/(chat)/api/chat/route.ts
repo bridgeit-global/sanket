@@ -7,7 +7,7 @@ import {
   streamText,
 } from 'ai';
 import { auth } from '@/app/(auth)/auth';
-import type { UserType } from '@/app/(auth)/auth';
+import type { UserRole } from '@/app/(auth)/auth';
 import type { RequestHints } from '@/lib/ai/prompts';
 import { generalPrompt } from '@/lib/ai/tab-prompts';
 import {
@@ -20,14 +20,11 @@ import {
   saveMessages,
 } from '@/lib/db/queries';
 import { convertToUIMessages, generateUUID } from '@/lib/utils';
-import { createDocument } from '@/lib/ai/tools/create-document';
-import { updateDocument } from '@/lib/ai/tools/update-document';
-import { requestSuggestions } from '@/lib/ai/tools/request-suggestions';
 import { webSearchTool } from '@/lib/ai/tools/web-search';
-import { voterAnalysisTool } from '@/lib/ai/tools/voter-analysis';
+import { sqlQueryTool } from '@/lib/ai/tools/sql-query';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
-import { entitlementsByUserType } from '@/lib/ai/entitlements';
+import { entitlementsByUserRole } from '@/lib/ai/entitlements';
 import { postRequestBodySchema, type PostRequestBody } from './schema';
 import { geolocation } from '@vercel/functions';
 import {
@@ -96,14 +93,14 @@ export async function POST(request: Request) {
       return new ChatSDKError('unauthorized:chat').toResponse();
     }
 
-    const userType: UserType = session.user.type;
+    const userRole: UserRole = session.user.role;
 
     const messageCount = await getMessageCountByUserId({
       id: session.user.id,
       differenceInHours: 24,
     });
 
-    if (messageCount > entitlementsByUserType[userType].maxMessagesPerDay) {
+    if (messageCount > entitlementsByUserRole[userRole].maxMessagesPerDay) {
       return new ChatSDKError('rate_limit:chat').toResponse();
     }
 
@@ -159,16 +156,10 @@ export async function POST(request: Request) {
 
     const stream = createUIMessageStream({
       execute: async ({ writer: dataStream }) => {
-        // Create tools for general analysis
+        // Create tools for voter analysis and web search
         const activeTools = {
-          createDocument: createDocument({ session, dataStream }),
-          updateDocument: updateDocument({ session, dataStream }),
-          requestSuggestions: requestSuggestions({
-            session,
-            dataStream,
-          }),
           webSearch: webSearchTool(),
-          voterAnalysis: voterAnalysisTool,
+          sqlQuery: sqlQueryTool,
         };
 
         // Debug logging

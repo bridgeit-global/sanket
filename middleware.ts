@@ -40,6 +40,35 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
+  // Role-based access control
+  const userRole = token.role as 'admin' | 'operator' | 'regular';
+
+  // Admin-only routes
+  if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
+    if (userRole !== 'admin') {
+      return NextResponse.redirect(new URL('/unauthorized', request.url));
+    }
+  }
+
+  // Operator-only routes
+  if (pathname.startsWith('/operator') || pathname.startsWith('/api/operator')) {
+    if (!['admin', 'operator'].includes(userRole)) {
+      return NextResponse.redirect(new URL('/unauthorized', request.url));
+    }
+  }
+
+  // Regular chat interface - only for admins
+  if (pathname === '/' || pathname.startsWith('/chat')) {
+    if (userRole !== 'admin') {
+      // Redirect operators to their interface
+      if (userRole === 'operator') {
+        return NextResponse.redirect(new URL('/operator', request.url));
+      }
+      // Redirect regular users to unauthorized
+      return NextResponse.redirect(new URL('/unauthorized', request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 
