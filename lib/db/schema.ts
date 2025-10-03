@@ -197,3 +197,48 @@ export const Voters = pgTable('Voter', {
 
 export type Voter = InferSelectModel<typeof Voters>;
 
+export const beneficiaryServices = pgTable('BeneficiaryService', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  serviceType: varchar('service_type', { enum: ['individual', 'community'] }).notNull(),
+  serviceName: varchar('service_name', { length: 255 }).notNull(),
+  description: text('description'),
+  status: varchar('status', { enum: ['pending', 'in_progress', 'completed', 'cancelled'] }).notNull().default('pending'),
+  priority: varchar('priority', { enum: ['low', 'medium', 'high', 'urgent'] }).notNull().default('medium'),
+  requestedBy: uuid('requested_by').notNull().references(() => user.id),
+  assignedTo: uuid('assigned_to').references(() => user.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  completedAt: timestamp('completed_at'),
+  notes: text('notes'),
+});
+
+export type BeneficiaryService = InferSelectModel<typeof beneficiaryServices>;
+
+export const voterTasks = pgTable('VoterTask', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  serviceId: uuid('service_id').notNull().references(() => beneficiaryServices.id),
+  voterId: varchar('voter_id', { length: 20 }).notNull().references(() => Voters.epicNumber),
+  taskType: varchar('task_type', { length: 100 }).notNull(),
+  description: text('description'),
+  status: varchar('status', { enum: ['pending', 'in_progress', 'completed', 'cancelled'] }).notNull().default('pending'),
+  priority: varchar('priority', { enum: ['low', 'medium', 'high', 'urgent'] }).notNull().default('medium'),
+  assignedTo: uuid('assigned_to').references(() => user.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  completedAt: timestamp('completed_at'),
+  notes: text('notes'),
+});
+
+export type VoterTask = InferSelectModel<typeof voterTasks>;
+
+export const communityServiceAreas = pgTable('CommunityServiceArea', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  serviceId: uuid('service_id').notNull().references(() => beneficiaryServices.id),
+  partNo: varchar('part_no', { length: 10 }),
+  wardNo: varchar('ward_no', { length: 10 }),
+  acNo: varchar('ac_no', { length: 10 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export type CommunityServiceArea = InferSelectModel<typeof communityServiceAreas>;
+

@@ -31,6 +31,12 @@ import {
   stream,
   Voters,
   type Voter,
+  beneficiaryServices,
+  type BeneficiaryService,
+  voterTasks,
+  type VoterTask,
+  communityServiceAreas,
+  type CommunityServiceArea,
 } from './schema';
 import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
@@ -888,6 +894,315 @@ export async function updateVoterMobileNumbers(
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to update voter mobile numbers',
+    );
+  }
+}
+
+export async function createVoter(voterData: Partial<Voter>): Promise<Voter> {
+  try {
+    if (!voterData.epicNumber || !voterData.fullName) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'EPIC Number and Full Name are required',
+      );
+    }
+
+    const [voter] = await db
+      .insert(Voters)
+      .values({
+        epicNumber: voterData.epicNumber,
+        fullName: voterData.fullName,
+        relationType: voterData.relationType || null,
+        relationName: voterData.relationName || null,
+        familyGrouping: voterData.familyGrouping || null,
+        acNo: voterData.acNo || null,
+        wardNo: voterData.wardNo || null,
+        partNo: voterData.partNo || null,
+        srNo: voterData.srNo || null,
+        houseNumber: voterData.houseNumber || null,
+        religion: voterData.religion || null,
+        age: voterData.age || null,
+        gender: voterData.gender || null,
+        mobileNoPrimary: voterData.mobileNoPrimary || null,
+        mobileNoSecondary: voterData.mobileNoSecondary || null,
+        boothName: voterData.boothName || null,
+        englishBoothAddress: voterData.englishBoothAddress || null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    return voter;
+  } catch (error) {
+    if (error instanceof ChatSDKError) {
+      throw error;
+    }
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create voter',
+    );
+  }
+}
+
+// Beneficiary Service queries
+export async function createBeneficiaryService({
+  serviceType,
+  serviceName,
+  description,
+  priority = 'medium',
+  requestedBy,
+  assignedTo,
+  notes,
+}: {
+  serviceType: 'individual' | 'community';
+  serviceName: string;
+  description?: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  requestedBy: string;
+  assignedTo?: string;
+  notes?: string;
+}): Promise<BeneficiaryService> {
+  try {
+    const [service] = await db
+      .insert(beneficiaryServices)
+      .values({
+        serviceType,
+        serviceName,
+        description,
+        status: 'pending',
+        priority,
+        requestedBy,
+        assignedTo,
+        notes,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    return service;
+  } catch (error) {
+    console.error('Database error in createBeneficiaryService:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create beneficiary service',
+    );
+  }
+}
+
+export async function getBeneficiaryServiceById(id: string): Promise<BeneficiaryService | null> {
+  try {
+    const [service] = await db
+      .select()
+      .from(beneficiaryServices)
+      .where(eq(beneficiaryServices.id, id))
+      .limit(1);
+
+    return service || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get beneficiary service by id',
+    );
+  }
+}
+
+export async function updateBeneficiaryServiceStatus({
+  id,
+  status,
+  notes,
+  assignedTo,
+}: {
+  id: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  notes?: string;
+  assignedTo?: string;
+}): Promise<BeneficiaryService | null> {
+  try {
+    const updateData: Partial<BeneficiaryService> = {
+      status,
+      updatedAt: new Date(),
+    };
+
+    if (notes) updateData.notes = notes;
+    if (assignedTo) updateData.assignedTo = assignedTo;
+    if (status === 'completed') updateData.completedAt = new Date();
+
+    const [updatedService] = await db
+      .update(beneficiaryServices)
+      .set(updateData)
+      .where(eq(beneficiaryServices.id, id))
+      .returning();
+
+    return updatedService || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update beneficiary service status',
+    );
+  }
+}
+
+export async function getBeneficiaryServicesByStatus(status?: string): Promise<Array<BeneficiaryService>> {
+  try {
+    if (status) {
+      return await db
+        .select()
+        .from(beneficiaryServices)
+        .where(eq(beneficiaryServices.status, status as any))
+        .orderBy(desc(beneficiaryServices.createdAt));
+    }
+
+    return await db
+      .select()
+      .from(beneficiaryServices)
+      .orderBy(desc(beneficiaryServices.createdAt));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get beneficiary services by status',
+    );
+  }
+}
+
+// Voter Task queries
+export async function createVoterTask({
+  serviceId,
+  voterId,
+  taskType,
+  description,
+  priority = 'medium',
+  assignedTo,
+  notes,
+}: {
+  serviceId: string;
+  voterId: string;
+  taskType: string;
+  description?: string;
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  assignedTo?: string;
+  notes?: string;
+}): Promise<VoterTask> {
+  try {
+    const [task] = await db
+      .insert(voterTasks)
+      .values({
+        serviceId,
+        voterId,
+        taskType,
+        description,
+        status: 'pending',
+        priority,
+        assignedTo,
+        notes,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    return task;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create voter task',
+    );
+  }
+}
+
+export async function getVoterTasksByServiceId(serviceId: string): Promise<Array<VoterTask>> {
+  try {
+    return await db
+      .select()
+      .from(voterTasks)
+      .where(eq(voterTasks.serviceId, serviceId))
+      .orderBy(asc(voterTasks.createdAt));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voter tasks by service id',
+    );
+  }
+}
+
+export async function updateVoterTaskStatus({
+  id,
+  status,
+  notes,
+  assignedTo,
+}: {
+  id: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  notes?: string;
+  assignedTo?: string;
+}): Promise<VoterTask | null> {
+  try {
+    const updateData: Partial<VoterTask> = {
+      status,
+      updatedAt: new Date(),
+    };
+
+    if (notes) updateData.notes = notes;
+    if (assignedTo) updateData.assignedTo = assignedTo;
+    if (status === 'completed') updateData.completedAt = new Date();
+
+    const [updatedTask] = await db
+      .update(voterTasks)
+      .set(updateData)
+      .where(eq(voterTasks.id, id))
+      .returning();
+
+    return updatedTask || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update voter task status',
+    );
+  }
+}
+
+// Community Service Area queries
+export async function createCommunityServiceAreas({
+  serviceId,
+  areas,
+}: {
+  serviceId: string;
+  areas: Array<{
+    partNo?: string;
+    wardNo?: string;
+    acNo?: string;
+  }>;
+}): Promise<Array<CommunityServiceArea>> {
+  try {
+    const areaData = areas.map(area => ({
+      serviceId,
+      partNo: area.partNo,
+      wardNo: area.wardNo,
+      acNo: area.acNo,
+      createdAt: new Date(),
+    }));
+
+    return await db
+      .insert(communityServiceAreas)
+      .values(areaData)
+      .returning();
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create community service areas',
+    );
+  }
+}
+
+export async function getCommunityServiceAreasByServiceId(serviceId: string): Promise<Array<CommunityServiceArea>> {
+  try {
+    return await db
+      .select()
+      .from(communityServiceAreas)
+      .where(eq(communityServiceAreas.serviceId, serviceId))
+      .orderBy(asc(communityServiceAreas.createdAt));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get community service areas by service id',
     );
   }
 }
