@@ -11,6 +11,7 @@ import {
   inArray,
   lt,
   lte,
+  or,
   sql,
   type SQL,
 } from 'drizzle-orm';
@@ -37,6 +38,8 @@ import {
   type VoterTask,
   communityServiceAreas,
   type CommunityServiceArea,
+  taskHistory,
+  type TaskHistory,
 } from './schema';
 import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
@@ -1019,11 +1022,13 @@ export async function getBeneficiaryServiceById(id: string): Promise<Beneficiary
 export async function updateBeneficiaryServiceStatus({
   id,
   status,
+  priority,
   notes,
   assignedTo,
 }: {
   id: string;
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
   notes?: string;
   assignedTo?: string;
 }): Promise<BeneficiaryService | null> {
@@ -1033,6 +1038,7 @@ export async function updateBeneficiaryServiceStatus({
       updatedAt: new Date(),
     };
 
+    if (priority) updateData.priority = priority;
     if (notes) updateData.notes = notes;
     if (assignedTo) updateData.assignedTo = assignedTo;
     if (status === 'completed') updateData.completedAt = new Date();
@@ -1133,23 +1139,270 @@ export async function getVoterTasksByServiceId(serviceId: string): Promise<Array
   }
 }
 
+export async function getVoterTasksByVoterId(voterId: string): Promise<Array<VoterTask>> {
+  try {
+    return await db
+      .select()
+      .from(voterTasks)
+      .where(eq(voterTasks.voterId, voterId))
+      .orderBy(desc(voterTasks.createdAt));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voter tasks by voter id',
+    );
+  }
+}
+
+export async function getTasksWithFilters({
+  status,
+  priority,
+  token,
+  mobileNo,
+  voterId,
+  page = 1,
+  limit = 10,
+  assignedTo,
+}: {
+  status?: string;
+  priority?: string;
+  token?: string;
+  mobileNo?: string;
+  voterId?: string;
+  page?: number;
+  limit?: number;
+  assignedTo?: string;
+}): Promise<{
+  tasks: Array<VoterTask & {
+    service?: {
+      id: string;
+      serviceType: 'individual' | 'community' | null;
+      serviceName: string | null;
+      description: string | null;
+      status: 'pending' | 'in_progress' | 'completed' | 'cancelled' | null;
+      priority: 'low' | 'medium' | 'high' | 'urgent' | null;
+      token: string | null;
+      createdAt: Date | null;
+      updatedAt: Date | null;
+      completedAt: Date | null;
+      notes: string | null;
+    };
+    voter?: {
+      epicNumber: string;
+      fullName: string | null;
+      mobileNoPrimary: string | null;
+      mobileNoSecondary: string | null;
+      age: number | null;
+      gender: string | null;
+      relationName: string | null;
+      partNo: string | null;
+      wardNo: string | null;
+      acNo: string | null;
+      boothName: string | null;
+    };
+  }>;
+  totalCount: number;
+  totalPages: number;
+  currentPage: number;
+}> {
+  try {
+    const offset = (page - 1) * limit;
+
+    // Build where conditions
+    const whereConditions: SQL[] = [];
+
+    if (status) {
+      whereConditions.push(eq(voterTasks.status, status as any));
+    }
+
+    if (priority) {
+      whereConditions.push(eq(voterTasks.priority, priority as any));
+    }
+
+    if (assignedTo) {
+      whereConditions.push(eq(voterTasks.assignedTo, assignedTo));
+    }
+
+    if (voterId) {
+      whereConditions.push(eq(voterTasks.voterId, voterId));
+    }
+
+    // Get total count for pagination
+    const totalCountResult = await db
+      .select({ count: count() })
+      .from(voterTasks)
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
+
+    const totalCount = totalCountResult[0]?.count || 0;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Build final where conditions including join filters
+    const finalWhereConditions = [...whereConditions];
+
+    if (token) {
+      finalWhereConditions.push(eq(beneficiaryServices.token, token));
+    }
+
+    if (mobileNo) {
+      const mobileCondition = or(
+        eq(Voters.mobileNoPrimary, mobileNo),
+        eq(Voters.mobileNoSecondary, mobileNo)
+      );
+      if (mobileCondition) {
+        finalWhereConditions.push(mobileCondition);
+      }
+    }
+
+    // Get tasks with joins
+    const query = db
+      .select({
+        // VoterTask fields
+        id: voterTasks.id,
+        serviceId: voterTasks.serviceId,
+        voterId: voterTasks.voterId,
+        taskType: voterTasks.taskType,
+        description: voterTasks.description,
+        status: voterTasks.status,
+        priority: voterTasks.priority,
+        assignedTo: voterTasks.assignedTo,
+        createdAt: voterTasks.createdAt,
+        updatedAt: voterTasks.updatedAt,
+        completedAt: voterTasks.completedAt,
+        notes: voterTasks.notes,
+        // Service fields
+        serviceType: beneficiaryServices.serviceType,
+        serviceName: beneficiaryServices.serviceName,
+        serviceDescription: beneficiaryServices.description,
+        serviceStatus: beneficiaryServices.status,
+        servicePriority: beneficiaryServices.priority,
+        serviceToken: beneficiaryServices.token,
+        serviceCreatedAt: beneficiaryServices.createdAt,
+        serviceUpdatedAt: beneficiaryServices.updatedAt,
+        serviceCompletedAt: beneficiaryServices.completedAt,
+        serviceNotes: beneficiaryServices.notes,
+        // Voter fields
+        voterName: Voters.fullName,
+        voterMobilePrimary: Voters.mobileNoPrimary,
+        voterMobileSecondary: Voters.mobileNoSecondary,
+        voterAge: Voters.age,
+        voterGender: Voters.gender,
+        voterRelation: Voters.relationName,
+        voterPartNo: Voters.partNo,
+        voterWardNo: Voters.wardNo,
+        voterAcNo: Voters.acNo,
+        voterBoothName: Voters.boothName,
+      })
+      .from(voterTasks)
+      .leftJoin(beneficiaryServices, eq(voterTasks.serviceId, beneficiaryServices.id))
+      .leftJoin(Voters, eq(voterTasks.voterId, Voters.epicNumber))
+      .where(finalWhereConditions.length > 0 ? and(...finalWhereConditions) : sql`1=1`)
+      .orderBy(desc(voterTasks.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    const results = await query;
+
+    // Transform results to include nested objects
+    const tasks = results.map(row => ({
+      id: row.id,
+      serviceId: row.serviceId,
+      voterId: row.voterId,
+      taskType: row.taskType,
+      description: row.description,
+      status: row.status,
+      priority: row.priority,
+      assignedTo: row.assignedTo,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      completedAt: row.completedAt,
+      notes: row.notes,
+      service: row.serviceId ? {
+        id: row.serviceId,
+        serviceType: row.serviceType,
+        serviceName: row.serviceName,
+        description: row.serviceDescription,
+        status: row.serviceStatus,
+        priority: row.servicePriority,
+        token: row.serviceToken,
+        createdAt: row.serviceCreatedAt,
+        updatedAt: row.serviceUpdatedAt,
+        completedAt: row.serviceCompletedAt,
+        notes: row.serviceNotes,
+      } : undefined,
+      voter: row.voterId ? {
+        epicNumber: row.voterId,
+        fullName: row.voterName,
+        mobileNoPrimary: row.voterMobilePrimary,
+        mobileNoSecondary: row.voterMobileSecondary,
+        age: row.voterAge,
+        gender: row.voterGender,
+        relationName: row.voterRelation,
+        partNo: row.voterPartNo,
+        wardNo: row.voterWardNo,
+        acNo: row.voterAcNo,
+        boothName: row.voterBoothName,
+      } : undefined,
+    }));
+
+    return {
+      tasks,
+      totalCount,
+      totalPages,
+      currentPage: page,
+    };
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get tasks with filters',
+    );
+  }
+}
+
+export async function getVoterTaskById(id: string): Promise<VoterTask | null> {
+  try {
+    const [task] = await db
+      .select()
+      .from(voterTasks)
+      .where(eq(voterTasks.id, id))
+      .limit(1);
+
+    return task || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voter task by id',
+    );
+  }
+}
+
 export async function updateVoterTaskStatus({
   id,
   status,
+  priority,
   notes,
   assignedTo,
+  performedBy,
 }: {
   id: string;
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  priority?: 'low' | 'medium' | 'high' | 'urgent';
   notes?: string;
   assignedTo?: string;
+  performedBy?: string;
 }): Promise<VoterTask | null> {
   try {
+    // Get current task to track changes
+    const currentTask = await getVoterTaskById(id);
+    if (!currentTask) {
+      return null;
+    }
+
     const updateData: Partial<VoterTask> = {
       status,
       updatedAt: new Date(),
     };
 
+    if (priority) updateData.priority = priority;
     if (notes) updateData.notes = notes;
     if (assignedTo) updateData.assignedTo = assignedTo;
     if (status === 'completed') updateData.completedAt = new Date();
@@ -1159,6 +1412,48 @@ export async function updateVoterTaskStatus({
       .set(updateData)
       .where(eq(voterTasks.id, id))
       .returning();
+
+    // Create history entries for changes
+    if (performedBy) {
+      if (currentTask.status !== status) {
+        await createTaskHistoryEntry({
+          taskId: id,
+          action: 'status_changed',
+          oldValue: currentTask.status,
+          newValue: status,
+          performedBy,
+        });
+      }
+
+      if (priority && currentTask.priority !== priority) {
+        await createTaskHistoryEntry({
+          taskId: id,
+          action: 'priority_changed',
+          oldValue: currentTask.priority,
+          newValue: priority,
+          performedBy,
+        });
+      }
+
+      if (notes && notes !== currentTask.notes) {
+        await createTaskHistoryEntry({
+          taskId: id,
+          action: 'note_added',
+          newValue: notes,
+          performedBy,
+        });
+      }
+
+      if (assignedTo && assignedTo !== currentTask.assignedTo) {
+        await createTaskHistoryEntry({
+          taskId: id,
+          action: 'assigned',
+          oldValue: currentTask.assignedTo || '',
+          newValue: assignedTo,
+          performedBy,
+        });
+      }
+    }
 
     return updatedTask || null;
   } catch (error) {
@@ -1213,6 +1508,60 @@ export async function getCommunityServiceAreasByServiceId(serviceId: string): Pr
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get community service areas by service id',
+    );
+  }
+}
+
+// Task History queries
+export async function createTaskHistoryEntry({
+  taskId,
+  action,
+  oldValue,
+  newValue,
+  performedBy,
+  notes,
+}: {
+  taskId: string;
+  action: 'created' | 'status_changed' | 'priority_changed' | 'note_added' | 'escalated' | 'assigned';
+  oldValue?: string;
+  newValue?: string;
+  performedBy: string;
+  notes?: string;
+}): Promise<TaskHistory> {
+  try {
+    const [historyEntry] = await db
+      .insert(taskHistory)
+      .values({
+        taskId,
+        action,
+        oldValue,
+        newValue,
+        performedBy,
+        notes,
+        createdAt: new Date(),
+      })
+      .returning();
+
+    return historyEntry;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create task history entry',
+    );
+  }
+}
+
+export async function getTaskHistory(taskId: string): Promise<Array<TaskHistory>> {
+  try {
+    return await db
+      .select()
+      .from(taskHistory)
+      .where(eq(taskHistory.taskId, taskId))
+      .orderBy(desc(taskHistory.createdAt));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get task history',
     );
   }
 }

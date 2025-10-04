@@ -59,7 +59,11 @@ export const {
 
         if (!passwordsMatch) return null;
 
-        return { ...user, role: (user as any).role || 'regular' };
+        return {
+          id: user.id,
+          email: user.email,
+          role: (user as any).role || 'regular'
+        };
       },
     }),
   ],

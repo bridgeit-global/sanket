@@ -127,6 +127,13 @@
       "when": 1759596059792,
       "tag": "0017_cold_flatman",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1759608301540,
+      "tag": "0018_opposite_wasp",
+      "breakpoints": true
     }
   ]
 }

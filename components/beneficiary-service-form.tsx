@@ -204,8 +204,8 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                     {/* Service Type */}
                     <div className="space-y-4">
                         <Label>Service Type *</Label>
-                        <div className="flex gap-4">
-                            <div className="flex items-center space-x-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                                 <input
                                     type="radio"
                                     id="individual"
@@ -215,11 +215,11 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                                     onChange={(e) => handleServiceTypeChange(e.target.value as 'individual' | 'community')}
                                     className="size-4"
                                 />
-                                <Label htmlFor="individual" className="text-sm font-medium">
+                                <Label htmlFor="individual" className="text-sm font-medium cursor-pointer flex-1">
                                     Individual Service
                                 </Label>
                             </div>
-                            <div className="flex items-center space-x-2">
+                            <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                                 <input
                                     type="radio"
                                     id="community"
@@ -229,7 +229,7 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                                     onChange={(e) => handleServiceTypeChange(e.target.value as 'individual' | 'community')}
                                     className="size-4"
                                 />
-                                <Label htmlFor="community" className="text-sm font-medium">
+                                <Label htmlFor="community" className="text-sm font-medium cursor-pointer flex-1">
                                     Community Service
                                 </Label>
                             </div>
@@ -239,7 +239,7 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                     {/* Service Details */}
                     <div className="space-y-4">
                         <h3 className="text-lg font-semibold">Service Details</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             <div>
                                 <Label htmlFor="serviceName">Service Name *</Label>
                                 <div className="space-y-2">
@@ -321,15 +321,15 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                     {/* Community Service Areas */}
                     {serviceType === 'community' && (
                         <div className="space-y-4">
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                                 <h3 className="text-lg font-semibold">Service Areas</h3>
-                                <Button type="button" variant="outline" size="sm" onClick={addServiceArea}>
+                                <Button type="button" variant="outline" size="sm" onClick={addServiceArea} className="w-full sm:w-auto">
                                     Add Area
                                 </Button>
                             </div>
                             <div className="space-y-3">
                                 {serviceAreas.map((area, index) => (
-                                    <div key={`area-${index}-${area.partNo}-${area.wardNo}-${area.acNo}`} className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 border rounded-lg">
+                                    <div key={`area-${index}-${area.partNo}-${area.wardNo}-${area.acNo}`} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded-lg">
                                         <div>
                                             <Label htmlFor={`partNo-${index}`}>Part No</Label>
                                             <Input
@@ -364,6 +364,7 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                                                 size="sm"
                                                 onClick={() => removeServiceArea(index)}
                                                 disabled={serviceAreas.length === 1}
+                                                className="w-full sm:w-auto"
                                             >
                                                 Remove
                                             </Button>
@@ -375,11 +376,11 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                     )}
 
                     {/* Action Buttons */}
-                    <div className="flex gap-4">
-                        <Button type="submit" disabled={isSubmitting}>
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <Button type="submit" disabled={isSubmitting} className="flex-1">
                             {isSubmitting ? 'Creating Service...' : 'Create Service'}
                         </Button>
-                        <Button type="button" variant="outline" onClick={onCancel}>
+                        <Button type="button" variant="outline" onClick={onCancel} className="flex-1 sm:flex-none">
                             Cancel
                         </Button>
                     </div>

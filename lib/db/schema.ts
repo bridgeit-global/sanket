@@ -243,3 +243,16 @@ export const communityServiceAreas = pgTable('CommunityServiceArea', {
 
 export type CommunityServiceArea = InferSelectModel<typeof communityServiceAreas>;
 
+export const taskHistory = pgTable('TaskHistory', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  taskId: uuid('task_id').notNull().references(() => voterTasks.id),
+  action: varchar('action', { length: 50 }).notNull(), // 'created', 'status_changed', 'priority_changed', 'note_added', 'escalated', 'assigned'
+  oldValue: text('old_value'),
+  newValue: text('new_value'),
+  performedBy: uuid('performed_by').notNull().references(() => user.id),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export type TaskHistory = InferSelectModel<typeof taskHistory>;
+
