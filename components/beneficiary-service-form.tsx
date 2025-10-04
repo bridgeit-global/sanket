@@ -13,6 +13,7 @@ import type { Voter } from '@/lib/db/schema';
 interface BeneficiaryServiceFormProps {
     voter: Voter;
     onServiceCreated: (serviceId: string) => void;
+    onServiceDataReady?: (data: any) => void;
     onCancel: () => void;
 }
 
@@ -82,7 +83,7 @@ const COMMUNITY_SERVICES = [
     'Voter List Management'
 ];
 
-export function BeneficiaryServiceForm({ voter, onServiceCreated, onCancel }: BeneficiaryServiceFormProps) {
+export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataReady, onCancel }: BeneficiaryServiceFormProps) {
     const [serviceType, setServiceType] = useState<'individual' | 'community'>('individual');
     const [serviceName, setServiceName] = useState('');
     const [customServiceName, setCustomServiceName] = useState('');
@@ -141,6 +142,22 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onCancel }: Be
             return;
         }
 
+        const serviceData = {
+            serviceType,
+            serviceName: finalServiceName,
+            description,
+            priority,
+            notes,
+            serviceAreas: serviceType === 'community' ? serviceAreas : undefined,
+        };
+
+        // If onServiceDataReady is provided, use confirmation flow
+        if (onServiceDataReady) {
+            onServiceDataReady(serviceData);
+            return;
+        }
+
+        // Otherwise, use direct creation flow
         setIsSubmitting(true);
         try {
             const response = await fetch('/operator/api/create-beneficiary-service', {
@@ -149,13 +166,8 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onCancel }: Be
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    serviceType,
-                    serviceName: finalServiceName,
-                    description,
-                    priority,
-                    notes,
+                    ...serviceData,
                     voterId: voter.epicNumber,
-                    serviceAreas: serviceType === 'community' ? serviceAreas : undefined,
                 }),
             });
 

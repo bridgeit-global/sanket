@@ -945,6 +945,13 @@ export async function createVoter(voterData: Partial<Voter>): Promise<Voter> {
 }
 
 // Beneficiary Service queries
+// Generate a unique token for beneficiary service
+function generateServiceToken(): string {
+  const timestamp = Date.now().toString(36);
+  const random = Math.random().toString(36).substring(2, 8);
+  return `BS${timestamp}${random}`.toUpperCase();
+}
+
 export async function createBeneficiaryService({
   serviceType,
   serviceName,
@@ -963,6 +970,8 @@ export async function createBeneficiaryService({
   notes?: string;
 }): Promise<BeneficiaryService> {
   try {
+    const token = generateServiceToken();
+
     const [service] = await db
       .insert(beneficiaryServices)
       .values({
@@ -973,6 +982,7 @@ export async function createBeneficiaryService({
         priority,
         requestedBy,
         assignedTo,
+        token,
         notes,
         createdAt: new Date(),
         updatedAt: new Date(),
