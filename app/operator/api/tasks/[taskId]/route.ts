@@ -8,7 +8,7 @@ import {
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { taskId: string } }
+    { params }: { params: Promise<{ taskId: string }> }
 ) {
     try {
         const session = await auth();
@@ -17,7 +17,8 @@ export async function GET(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const task = await getVoterTaskById(params.taskId);
+        const { taskId } = await params;
+        const task = await getVoterTaskById(taskId);
 
         if (!task) {
             return NextResponse.json({ error: 'Task not found' }, { status: 404 });
@@ -35,7 +36,7 @@ export async function GET(
 
 export async function PATCH(
     request: NextRequest,
-    { params }: { params: { taskId: string } }
+    { params }: { params: Promise<{ taskId: string }> }
 ) {
     try {
         const session = await auth();
@@ -62,8 +63,9 @@ export async function PATCH(
             );
         }
 
+        const { taskId } = await params;
         const updatedTask = await updateVoterTaskStatus({
-            id: params.taskId,
+            id: taskId,
             status,
             notes,
             assignedTo: assignedTo || session.user.id,

@@ -5,7 +5,7 @@ import { getTaskHistory } from '@/lib/db/queries';
 
 export async function GET(
     request: NextRequest,
-    { params }: { params: { taskId: string } }
+    { params }: { params: Promise<{ taskId: string }> }
 ) {
     try {
         const session = await auth();
@@ -14,7 +14,8 @@ export async function GET(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const history = await getTaskHistory(params.taskId);
+        const { taskId } = await params;
+        const history = await getTaskHistory(taskId);
         return NextResponse.json({ history });
     } catch (error) {
         console.error('Error fetching task history:', error);
