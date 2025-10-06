@@ -230,16 +230,6 @@ export function TaskManagement({ onSignOut }: TaskManagementProps) {
         }
     };
 
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-background flex items-center justify-center">
-                <div className="text-center">
-                    <div className="animate-spin rounded-full size-8 border-b-2 border-gray-900 mx-auto" />
-                    <p className="mt-2 text-muted-foreground">Loading tasks...</p>
-                </div>
-            </div>
-        );
-    }
 
     return (
         <div className="space-y-6">
@@ -356,8 +346,15 @@ export function TaskManagement({ onSignOut }: TaskManagementProps) {
                 </CardContent>
             </Card>
 
-            {/* Tasks List */}
-            {!isLoading && (
+            {/* is Loading */}
+            {isLoading ? (
+                <div className="min-h-screen bg-background flex items-center justify-center">
+                    <div className="text-center">
+                        <div className="animate-spin rounded-full size-8 border-b-2 border-gray-900 mx-auto" />
+                        <p className="mt-2 text-muted-foreground">Loading tasks...</p>
+                    </div>
+                </div>
+            ) : (
                 <div className="space-y-4">
                     {tasks.length === 0 ? (
                         <Card>
@@ -466,6 +463,7 @@ export function TaskManagement({ onSignOut }: TaskManagementProps) {
                     )}
                 </div>
             )}
+
 
             {/* Task Management Dialog */}
             <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
