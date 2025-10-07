@@ -30,4 +30,12 @@ export const entitlementsByUserRole: Record<UserRole, Entitlements> = {
     maxMessagesPerDay: 50,
     availableChatModelIds: ['chat-model'],
   },
+
+  /*
+   * For back-office users - same as operator
+   */
+  'back-office': {
+    maxMessagesPerDay: 50,
+    availableChatModelIds: ['chat-model'],
+  },
 };

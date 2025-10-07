@@ -66,12 +66,14 @@ export const register = async (
     if (user) {
       return { status: 'user_exists' } as RegisterActionState;
     }
-    // Check if this is a special admin/operator registration
-    let role: 'admin' | 'operator' | 'regular' = 'regular';
+    // Check if this is a special admin/operator/back-office registration
+    let role: 'admin' | 'operator' | 'back-office' | 'regular' = 'regular';
     if (validatedData.email === 'admin@example.com') {
       role = 'admin';
     } else if (validatedData.email === 'operator@example.com') {
       role = 'operator';
+    } else if (validatedData.email === 'backoffice@example.com') {
+      role = 'back-office';
     }
 
     await createUser(validatedData.email, validatedData.password, role);

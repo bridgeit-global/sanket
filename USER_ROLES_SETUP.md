@@ -20,7 +20,15 @@ This document describes the user role system implemented for the Anushakti Nagar
   - Cannot access the chat interface or perform complex analysis
   - Restricted to mobile number management functionality
 
-### 3. Regular (`regular`)
+### 3. Back Office (`back-office`)
+- **Access**: Same as operator; focused on data massaging and voter identification
+- **Features**:
+  - Can search for voters by name
+  - Can update voter mobile numbers (primary and secondary)
+  - Cannot access the chat interface or perform complex analysis
+  - Works primarily on cleaning data and identifying potential voters
+
+### 4. Regular (`regular`)
 - **Access**: No access to the application
 - **Features**: Redirected to unauthorized page
 

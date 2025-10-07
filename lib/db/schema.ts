@@ -16,7 +16,7 @@ export const user = pgTable('User', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   email: varchar('email', { length: 64 }).notNull(),
   password: varchar('password', { length: 64 }),
-  role: varchar('role', { enum: ['admin', 'operator', 'regular'] }).notNull().default('regular'),
+  role: varchar('role', { enum: ['admin', 'operator', 'back-office', 'regular'] }).notNull().default('regular'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

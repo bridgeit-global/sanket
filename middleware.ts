@@ -41,7 +41,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Role-based access control
-  const userRole = token.role as 'admin' | 'operator' | 'regular';
+  const userRole = token.role as 'admin' | 'operator' | 'back-office' | 'regular';
 
   // Admin-only routes
   if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
@@ -52,7 +52,14 @@ export async function middleware(request: NextRequest) {
 
   // Operator-only routes
   if (pathname.startsWith('/operator') || pathname.startsWith('/api/operator')) {
-    if (!['admin', 'operator'].includes(userRole)) {
+    if (!['admin', 'operator', 'back-office'].includes(userRole)) {
+      return NextResponse.redirect(new URL('/unauthorized', request.url));
+    }
+  }
+
+  // Back-office-only routes
+  if (pathname.startsWith('/back-office')) {
+    if (!['admin', 'back-office'].includes(userRole)) {
       return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
   }
@@ -60,11 +67,12 @@ export async function middleware(request: NextRequest) {
   // Regular chat interface - only for admins
   if (pathname === '/' || pathname.startsWith('/chat')) {
     if (userRole !== 'admin') {
-      // Redirect operators to their interface
       if (userRole === 'operator') {
         return NextResponse.redirect(new URL('/operator', request.url));
       }
-      // Redirect regular users to unauthorized
+      if (userRole === 'back-office') {
+        return NextResponse.redirect(new URL('/back-office', request.url));
+      }
       return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
   }

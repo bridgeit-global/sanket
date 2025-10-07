@@ -28,17 +28,13 @@ export function PhoneUpdateForm({ voter, onPhoneUpdate, onSkip, onCancel }: Phon
 
         setIsSubmitting(true);
         try {
-            await onPhoneUpdate({
+            onPhoneUpdate({
                 mobileNoPrimary: mobileNoPrimary.trim(),
                 mobileNoSecondary: mobileNoSecondary.trim() || undefined,
             });
         } finally {
             setIsSubmitting(false);
         }
-    };
-
-    const handleSkip = () => {
-        onSkip();
     };
 
     return (
@@ -123,14 +119,7 @@ export function PhoneUpdateForm({ voter, onPhoneUpdate, onSkip, onCancel }: Phon
                         >
                             {isSubmitting ? 'Updating...' : 'Update Phone Number'}
                         </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleSkip}
-                            disabled={isSubmitting}
-                        >
-                            Skip & Continue
-                        </Button>
+
                         <Button
                             type="button"
                             variant="outline"

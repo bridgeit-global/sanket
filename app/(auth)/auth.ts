@@ -6,7 +6,7 @@ import { authConfig } from './auth.config';
 import { DUMMY_PASSWORD } from '@/lib/constants';
 import type { DefaultJWT } from 'next-auth/jwt';
 
-export type UserRole = 'admin' | 'operator' | 'regular';
+export type UserRole = 'admin' | 'operator' | 'back-office' | 'regular';
 
 declare module 'next-auth' {
   interface Session extends DefaultSession {

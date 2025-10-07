@@ -3,22 +3,22 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { OperatorWorkflow } from '@/components/operator-workflow';
+import { BackOfficeWorkflow } from '@/components/back-office-workflow';
 
-export default function OperatorPage() {
+export default function BackOfficePage() {
     const { data: session, status } = useSession();
     const router = useRouter();
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        if (status === 'loading') return; // Still loading
+        if (status === 'loading') return;
 
         if (!session?.user) {
             router.push('/login');
             return;
         }
 
-        if (!['admin', 'operator', 'back-office'].includes(session.user.role)) {
+        if (!['admin', 'back-office'].includes(session.user.role)) {
             router.push('/unauthorized');
             return;
         }
@@ -27,9 +27,7 @@ export default function OperatorPage() {
     }, [session, status, router]);
 
     const handleSignOut = () => {
-        signOut({
-            redirectTo: '/',
-        });
+        signOut({ redirectTo: '/' });
     };
 
     if (isLoading || status === 'loading') {
@@ -46,8 +44,10 @@ export default function OperatorPage() {
     return (
         <div className="min-h-screen bg-background">
             <div className="container mx-auto p-4 sm:py-8 max-w-7xl">
-                <OperatorWorkflow onSignOut={handleSignOut} />
+                <BackOfficeWorkflow onSignOut={handleSignOut} />
             </div>
         </div>
     );
 }
+
+

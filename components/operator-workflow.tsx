@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { toast } from '@/components/toast';
 import { VoterProfilingForm } from '@/components/voter-profiling-form';
 import { BeneficiaryServiceForm } from '@/components/beneficiary-service-form';
@@ -21,9 +23,15 @@ export function OperatorWorkflow({ onSignOut }: OperatorWorkflowProps) {
     const [searchResults, setSearchResults] = useState<Voter[]>([]);
     const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
     const [isSearching, setIsSearching] = useState(false);
-    const [searchType, setSearchType] = useState<'voterId' | 'name' | 'phone'>('phone');
-    const [lastSearchType, setLastSearchType] = useState<'voterId' | 'name' | 'phone' | null>(null);
+    const [searchType, setSearchType] = useState<'voterId' | 'phone' | 'details'>('details');
+    const [lastSearchType, setLastSearchType] = useState<'voterId' | 'phone' | 'details' | null>(null);
     const [hasSearched, setHasSearched] = useState(false);
+
+    // Detailed search parameters
+    const [name, setName] = useState('');
+    const [gender, setGender] = useState('');
+    const [age, setAge] = useState<number>(25);
+    const [ageRange, setAgeRange] = useState<number>(5);
     const [showVoterProfiling, setShowVoterProfiling] = useState(false);
     const [showBeneficiaryService, setShowBeneficiaryService] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
@@ -45,10 +53,14 @@ export function OperatorWorkflow({ onSignOut }: OperatorWorkflowProps) {
     };
 
     // Handler for search type changes - clears input and voter data
-    const handleSearchTypeChange = (newSearchType: 'voterId' | 'name' | 'phone') => {
+    const handleSearchTypeChange = (newSearchType: 'voterId' | 'phone' | 'details') => {
         setSearchType(newSearchType);
         // Clear search input and any selected voter data
         setSearchTerm('');
+        setName('');
+        setGender('');
+        setAge(25);
+        setAgeRange(5);
         setSearchResults([]);
         setHasSearched(false);
         setIsSearching(false);
@@ -57,12 +69,22 @@ export function OperatorWorkflow({ onSignOut }: OperatorWorkflowProps) {
     };
 
     const handleSearch = async () => {
-        if (!searchTerm.trim()) {
-            toast({
-                type: 'error',
-                description: 'Please enter a VoterId, name, or phone number to search',
-            });
-            return;
+        if (searchType === 'details') {
+            if (!name.trim() && (!gender || gender === 'any') && age === undefined) {
+                toast({
+                    type: 'error',
+                    description: 'Please provide at least one search criteria (name, gender, or age)',
+                });
+                return;
+            }
+        } else {
+            if (!searchTerm.trim()) {
+                toast({
+                    type: 'error',
+                    description: 'Please enter a VoterId, name, or phone number to search',
+                });
+                return;
+            }
         }
 
         setIsSearching(true);
@@ -75,7 +97,11 @@ export function OperatorWorkflow({ onSignOut }: OperatorWorkflowProps) {
                 },
                 body: JSON.stringify({
                     searchTerm: searchTerm.trim(),
-                    searchType: searchType
+                    searchType: searchType,
+                    name: searchType === 'details' ? name.trim() : undefined,
+                    gender: searchType === 'details' ? (gender === 'any' ? undefined : gender) : undefined,
+                    age: searchType === 'details' ? age : undefined,
+                    ageRange: searchType === 'details' ? ageRange : undefined,
                 }),
             });
 
@@ -89,14 +115,14 @@ export function OperatorWorkflow({ onSignOut }: OperatorWorkflowProps) {
 
             if (data.voters.length === 0) {
                 const searchTypeText = data.searchType === 'voterId' ? 'VoterId' :
-                    data.searchType === 'phone' ? 'phone number' : 'name';
+                    data.searchType === 'phone' ? 'phone number' : 'details';
                 toast({
                     type: 'error',
                     description: `No voters found with that ${searchTypeText}`,
                 });
             } else {
                 const searchTypeText = data.searchType === 'voterId' ? 'VoterId' :
-                    data.searchType === 'phone' ? 'phone number' : 'name';
+                    data.searchType === 'phone' ? 'phone number' : 'details';
                 toast({
                     type: 'success',
                     description: `Found ${data.voters.length} voter(s) by ${searchTypeText}`,
@@ -585,11 +611,25 @@ export function OperatorWorkflow({ onSignOut }: OperatorWorkflowProps) {
                                         <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                                             <input
                                                 type="radio"
+                                                id="details"
+                                                name="searchType"
+                                                value="details"
+                                                checked={searchType === 'details'}
+                                                onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'phone' | 'details')}
+                                                className="size-4"
+                                            />
+                                            <Label htmlFor="details" className="text-sm font-medium cursor-pointer flex-1">
+                                                Detailed Search
+                                            </Label>
+                                        </div>
+                                        <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                                            <input
+                                                type="radio"
                                                 id="phone"
                                                 name="searchType"
                                                 value="phone"
                                                 checked={searchType === 'phone'}
-                                                onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'name' | 'phone')}
+                                                onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'phone' | 'details')}
                                                 className="size-4"
                                             />
                                             <Label htmlFor="phone" className="text-sm font-medium cursor-pointer flex-1">
@@ -603,91 +643,85 @@ export function OperatorWorkflow({ onSignOut }: OperatorWorkflowProps) {
                                                 name="searchType"
                                                 value="voterId"
                                                 checked={searchType === 'voterId'}
-                                                onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'name' | 'phone')}
+                                                onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'phone' | 'details')}
                                                 className="size-4"
                                             />
                                             <Label htmlFor="voterId" className="text-sm font-medium cursor-pointer flex-1">
                                                 VoterId (EPIC)
                                             </Label>
                                         </div>
-                                        <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                                            <input
-                                                type="radio"
-                                                id="name"
-                                                name="searchType"
-                                                value="name"
-                                                checked={searchType === 'name'}
-                                                onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'name' | 'phone')}
-                                                className="size-4"
-                                            />
-                                            <Label htmlFor="name" className="text-sm font-medium cursor-pointer flex-1">
-                                                Name
-                                            </Label>
-                                        </div>
                                     </div>
 
                                     {/* Search Input */}
-                                    <div className="space-y-4">
-                                        <div>
-                                            <Label htmlFor="search">
-                                                {searchType === 'voterId' ? 'VoterId (EPIC Number)' :
-                                                    searchType === 'phone' ? 'Phone Number' : 'Voter Name'}
-                                            </Label>
-                                            <div className="relative">
-                                                <Input
-                                                    id="search"
-                                                    value={searchTerm}
-                                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                                    placeholder={
-                                                        searchType === 'voterId'
-                                                            ? 'Enter VoterId (e.g., ABC1234567)...'
-                                                            : searchType === 'phone'
-                                                                ? 'Enter phone number (e.g., 9876543210)...'
-                                                                : 'Enter voter name...'
-                                                    }
-                                                    type={searchType === 'phone' ? 'tel' : 'text'}
-                                                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                                    className="pr-10"
-                                                />
-                                                {searchTerm && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => {
-                                                            setSearchTerm('');
-                                                            setSearchResults([]);
-                                                            setLastSearchType(null);
-                                                            setHasSearched(false);
-                                                            setIsSearching(false);
-                                                        }}
-                                                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                                                        aria-label="Clear search"
-                                                    >
-                                                        <svg
-                                                            width="16"
-                                                            height="16"
-                                                            viewBox="0 0 24 24"
-                                                            fill="none"
-                                                            stroke="currentColor"
-                                                            strokeWidth="2"
-                                                            strokeLinecap="round"
-                                                            strokeLinejoin="round"
-                                                        >
-                                                            <path d="M18 6 6 18" />
-                                                            <path d="m6 6 12 12" />
-                                                        </svg>
-                                                    </button>
-                                                )}
+                                    {searchType === 'details' ? (
+                                        <div className="space-y-6">
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div>
+                                                    <Label htmlFor="name">Name (Optional)</Label>
+                                                    <Input
+                                                        id="name"
+                                                        value={name}
+                                                        onChange={(e) => setName(e.target.value)}
+                                                        placeholder="Enter voter name..."
+                                                        type="text"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="gender">Gender (Optional)</Label>
+                                                    <Select value={gender} onValueChange={setGender}>
+                                                        <SelectTrigger>
+                                                            <SelectValue placeholder="Select gender" />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="any">Any Gender</SelectItem>
+                                                            <SelectItem value="M">Male</SelectItem>
+                                                            <SelectItem value="F">Female</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </div>
                                             </div>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <Button onClick={handleSearch} disabled={isSearching} className="flex-1">
-                                                {isSearching ? 'Searching...' : 'Search'}
-                                            </Button>
-                                            {searchTerm && (
+
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <Label htmlFor="age">Age: {age} years</Label>
+                                                    <Slider
+                                                        id="age"
+                                                        min={18}
+                                                        max={100}
+                                                        step={1}
+                                                        value={[age]}
+                                                        onValueChange={(value: number[]) => setAge(value[0])}
+                                                        className="w-full"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <Label htmlFor="ageRange">Age Range: ±{ageRange} years</Label>
+                                                    <Slider
+                                                        id="ageRange"
+                                                        min={0}
+                                                        max={20}
+                                                        step={1}
+                                                        value={[ageRange]}
+                                                        onValueChange={(value: number[]) => setAgeRange(value[0])}
+                                                        className="w-full"
+                                                    />
+                                                    <p className="text-sm text-muted-foreground mt-1">
+                                                        Search range: {age - ageRange} to {age + ageRange} years
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex gap-2">
+                                                <Button onClick={handleSearch} disabled={isSearching} className="flex-1">
+                                                    {isSearching ? 'Searching...' : 'Search'}
+                                                </Button>
                                                 <Button
                                                     variant="outline"
                                                     onClick={() => {
-                                                        setSearchTerm('');
+                                                        setName('');
+                                                        setGender('');
+                                                        setAge(25);
+                                                        setAgeRange(5);
                                                         setSearchResults([]);
                                                         setLastSearchType(null);
                                                         setHasSearched(false);
@@ -697,9 +731,80 @@ export function OperatorWorkflow({ onSignOut }: OperatorWorkflowProps) {
                                                 >
                                                     Clear
                                                 </Button>
-                                            )}
+                                            </div>
                                         </div>
-                                    </div>
+                                    ) : (
+                                        <div className="space-y-4">
+                                            <div>
+                                                <Label htmlFor="search">
+                                                    {searchType === 'voterId' ? 'VoterId (EPIC Number)' : 'Phone Number'}
+                                                </Label>
+                                                <div className="relative">
+                                                    <Input
+                                                        id="search"
+                                                        value={searchTerm}
+                                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                                        placeholder={
+                                                            searchType === 'voterId'
+                                                                ? 'Enter VoterId (e.g., ABC1234567)...'
+                                                                : 'Enter phone number (e.g., 9876543210)...'
+                                                        }
+                                                        type={searchType === 'phone' ? 'tel' : 'text'}
+                                                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                                        className="pr-10"
+                                                    />
+                                                    {searchTerm && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSearchTerm('');
+                                                                setSearchResults([]);
+                                                                setLastSearchType(null);
+                                                                setHasSearched(false);
+                                                                setIsSearching(false);
+                                                            }}
+                                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                                            aria-label="Clear search"
+                                                        >
+                                                            <svg
+                                                                width="16"
+                                                                height="16"
+                                                                viewBox="0 0 24 24"
+                                                                fill="none"
+                                                                stroke="currentColor"
+                                                                strokeWidth="2"
+                                                                strokeLinecap="round"
+                                                                strokeLinejoin="round"
+                                                            >
+                                                                <path d="M18 6 6 18" />
+                                                                <path d="m6 6 12 12" />
+                                                            </svg>
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <Button onClick={handleSearch} disabled={isSearching} className="flex-1">
+                                                    {isSearching ? 'Searching...' : 'Search'}
+                                                </Button>
+                                                {searchTerm && (
+                                                    <Button
+                                                        variant="outline"
+                                                        onClick={() => {
+                                                            setSearchTerm('');
+                                                            setSearchResults([]);
+                                                            setLastSearchType(null);
+                                                            setHasSearched(false);
+                                                            setIsSearching(false);
+                                                        }}
+                                                        className="px-4"
+                                                    >
+                                                        Clear
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Search Results */}
@@ -710,7 +815,7 @@ export function OperatorWorkflow({ onSignOut }: OperatorWorkflowProps) {
                                             {lastSearchType && (
                                                 <span className="text-sm text-muted-foreground">
                                                     Found by {lastSearchType === 'voterId' ? 'VoterId' :
-                                                        lastSearchType === 'phone' ? 'Phone Number' : 'Name'}
+                                                        lastSearchType === 'phone' ? 'Phone Number' : 'Details'}
                                                 </span>
                                             )}
                                         </div>
@@ -725,7 +830,14 @@ export function OperatorWorkflow({ onSignOut }: OperatorWorkflowProps) {
                                                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
                                                         <div className="flex-1">
                                                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                                                                <p className="font-medium text-lg">{voter.fullName}</p>
+                                                                <div className="flex flex-col">
+                                                                    <p className="font-medium text-lg">{voter.fullName}</p>
+                                                                    {voter.relationName && voter.relationType && (
+                                                                        <p className="text-sm text-muted-foreground">
+                                                                            {voter.relationType}: {voter.relationName}
+                                                                        </p>
+                                                                    )}
+                                                                </div>
                                                                 <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded w-fit">
                                                                     {voter.epicNumber}
                                                                 </span>
@@ -740,10 +852,6 @@ export function OperatorWorkflow({ onSignOut }: OperatorWorkflowProps) {
                                                                 <div className="flex items-center gap-1">
                                                                     <span className="font-medium text-muted-foreground">Gender:</span>
                                                                     <span>{voter.gender || 'N/A'}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="font-medium text-muted-foreground">Relation:</span>
-                                                                    <span>{voter.relationName || 'N/A'}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
                                                                     <span className="font-medium text-muted-foreground">Part:</span>

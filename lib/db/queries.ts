@@ -65,7 +65,7 @@ export async function getUser(email: string): Promise<Array<User>> {
   }
 }
 
-export async function createUser(email: string, password: string, role: 'admin' | 'operator' | 'regular' = 'regular') {
+export async function createUser(email: string, password: string, role: User['role'] = 'regular') {
   const hashedPassword = generateHashedPassword(password);
 
   try {
@@ -79,7 +79,7 @@ export async function createUser(email: string, password: string, role: 'admin' 
   }
 }
 
-export async function updateUserRole(userId: string, role: 'admin' | 'operator' | 'regular') {
+export async function updateUserRole(userId: string, role: User['role']) {
   try {
     return await db.update(user).set({ role, updatedAt: new Date() }).where(eq(user.id, userId));
   } catch (error) {
@@ -752,6 +752,51 @@ export async function getVotersByGender(gender: string): Promise<Array<Voter>> {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get voters by gender',
+    );
+  }
+}
+
+export async function searchVoterByDetails(params: {
+  name?: string;
+  gender?: string;
+  age?: number;
+  ageRange?: number;
+}): Promise<Array<Voter>> {
+  try {
+    const conditions: any[] = [];
+
+    // Name search
+    if (params.name?.trim()) {
+      conditions.push(sql`LOWER(${Voters.fullName}) LIKE LOWER(${`%${params.name.trim()}%`})`);
+    }
+
+    // Gender search
+    if (params.gender && params.gender !== '') {
+      conditions.push(eq(Voters.gender, params.gender));
+    }
+
+    // Age search with range
+    if (params.age !== undefined && params.age !== null) {
+      const ageRange = params.ageRange || 0;
+      const minAge = Math.max(0, params.age - ageRange);
+      const maxAge = params.age + ageRange;
+      conditions.push(sql`${Voters.age} >= ${minAge} AND ${Voters.age} <= ${maxAge}`);
+    }
+
+    // If no conditions, return empty array
+    if (conditions.length === 0) {
+      return [];
+    }
+
+    return await db
+      .select()
+      .from(Voters)
+      .where(sql`${sql.join(conditions, sql` AND `)}`)
+      .orderBy(asc(Voters.fullName));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to search voters by details',
     );
   }
 }
