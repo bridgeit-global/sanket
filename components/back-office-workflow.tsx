@@ -203,14 +203,15 @@ export function BackOfficeWorkflow({ onSignOut }: BackOfficeWorkflowProps) {
 
                                 <div className="space-y-4">
                                     <div>
-                                        <Label htmlFor="age">Age: {age} years</Label>
-                                        <Slider
+                                        <Label htmlFor="age">Age (years)</Label>
+                                        <Input
                                             id="age"
+                                            type="number"
                                             min={18}
                                             max={100}
-                                            step={1}
-                                            value={[age]}
-                                            onValueChange={(value: number[]) => setAge(value[0])}
+                                            value={age}
+                                            onChange={(e) => setAge(Number.parseInt(e.target.value) || 25)}
+                                            placeholder="Enter age..."
                                             className="w-full"
                                         />
                                     </div>
