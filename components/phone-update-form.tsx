@@ -42,7 +42,7 @@ export function PhoneUpdateForm({ voter, onPhoneUpdate, onSkip, onCancel }: Phon
             <CardHeader>
                 <CardTitle>Update Phone Number</CardTitle>
                 <CardDescription>
-                    The selected voter does not have a primary phone number. Please update the contact information before proceeding to service creation.
+                    Please update the contact information. Related family members will be shown after the update.
                 </CardDescription>
             </CardHeader>
             <CardContent>

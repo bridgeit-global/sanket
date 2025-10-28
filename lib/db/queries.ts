@@ -886,6 +886,25 @@ export async function getVoterDemographics(): Promise<{
 }
 
 // Operator functions for updating voter mobile numbers
+export async function getVotersByFamilyGrouping(familyGrouping: string | null): Promise<Array<Voter>> {
+  try {
+    if (!familyGrouping) {
+      return [];
+    }
+
+    return await db
+      .select()
+      .from(Voters)
+      .where(eq(Voters.familyGrouping, familyGrouping))
+      .orderBy(asc(Voters.fullName));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voters by family grouping',
+    );
+  }
+}
+
 export async function updateVoterMobileNumber(
   epicNumber: string,
   mobileNoPrimary?: string,

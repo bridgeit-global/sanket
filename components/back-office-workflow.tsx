@@ -24,6 +24,8 @@ export function BackOfficeWorkflow({ onSignOut }: BackOfficeWorkflowProps) {
     const [lastSearchType, setLastSearchType] = useState<'voterId' | 'details' | null>(null);
     const [hasSearched, setHasSearched] = useState(false);
     const [showPhoneUpdate, setShowPhoneUpdate] = useState(false);
+    const [relatedVoters, setRelatedVoters] = useState<Voter[]>([]);
+    const [showRelatedVoters, setShowRelatedVoters] = useState(false);
 
     // Detailed search parameters
     const [name, setName] = useState('');
@@ -105,11 +107,39 @@ export function BackOfficeWorkflow({ onSignOut }: BackOfficeWorkflowProps) {
         }
     };
 
-    const handleSelectVoter = (voter: Voter) => {
+    const handleSelectVoter = async (voter: Voter) => {
         setSelectedVoter(voter);
         setSearchResults([]);
         setSearchTerm('');
         setShowPhoneUpdate(true);
+
+        // Fetch related family members immediately
+        try {
+            const familyResponse = await fetch('/operator/api/get-family-members', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    epicNumber: voter.epicNumber,
+                }),
+            });
+
+            if (familyResponse.ok) {
+                const familyData = await familyResponse.json();
+                if (familyData.relatedVoters && familyData.relatedVoters.length > 0) {
+                    setRelatedVoters(familyData.relatedVoters);
+                    setShowRelatedVoters(true);
+                } else {
+                    setRelatedVoters([]);
+                    setShowRelatedVoters(false);
+                }
+            }
+        } catch (_error) {
+            // Silently fail - family members are optional
+            setRelatedVoters([]);
+            setShowRelatedVoters(false);
+        }
     };
 
     const handlePhoneUpdate = async (phoneData: { mobileNoPrimary: string; mobileNoSecondary?: string }) => {
@@ -140,8 +170,45 @@ export function BackOfficeWorkflow({ onSignOut }: BackOfficeWorkflowProps) {
         }
     };
 
+    const handleUpdateRelatedVoter = async (epicNumber: string, phoneData: { mobileNoPrimary: string; mobileNoSecondary?: string }) => {
+        try {
+            const response = await fetch('/operator/api/update-voter-phone', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    epicNumber,
+                    ...phoneData,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update phone number');
+            }
+
+            const updatedVoter = await response.json();
+
+            // Update the voter in the relatedVoters array
+            setRelatedVoters(prev => prev.map(v => v.epicNumber === epicNumber ? updatedVoter : v));
+
+            toast({ type: 'success', description: 'Related voter phone number updated successfully' });
+        } catch (_error) {
+            toast({ type: 'error', description: 'Failed to update phone number. Please try again.' });
+        }
+    };
+
+    const handleDoneWithRelatedVoters = () => {
+        setShowRelatedVoters(false);
+        setRelatedVoters([]);
+        setShowPhoneUpdate(false);
+        setSelectedVoter(null);
+    };
+
     const handleCancel = () => {
         setShowPhoneUpdate(false);
+        setShowRelatedVoters(false);
+        setRelatedVoters([]);
         setSelectedVoter(null);
     };
 
@@ -358,18 +425,146 @@ export function BackOfficeWorkflow({ onSignOut }: BackOfficeWorkflowProps) {
 
                         {showPhoneUpdate && selectedVoter && (
                             <div className="mt-6">
-                                <PhoneUpdateForm
-                                    voter={selectedVoter}
-                                    onPhoneUpdate={handlePhoneUpdate}
-                                    onSkip={() => setShowPhoneUpdate(false)}
-                                    onCancel={handleCancel}
-                                />
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                    <div>
+                                        <PhoneUpdateForm
+                                            voter={selectedVoter}
+                                            onPhoneUpdate={handlePhoneUpdate}
+                                            onSkip={() => setShowPhoneUpdate(false)}
+                                            onCancel={handleCancel}
+                                        />
+                                    </div>
+
+                                    {showRelatedVoters && relatedVoters.length > 0 && (
+                                        <div>
+                                            <Card className="border-blue-200 bg-blue-50/50">
+                                                <CardHeader>
+                                                    <CardTitle className="text-lg">Related Family Members</CardTitle>
+                                                    <CardDescription>
+                                                        Found {relatedVoters.length} family member(s) that can be updated
+                                                    </CardDescription>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <div className="space-y-4 max-h-96 overflow-y-auto">
+                                                        {relatedVoters.map((voter) => (
+                                                            <RelatedVoterUpdateItem
+                                                                key={voter.epicNumber}
+                                                                voter={voter}
+                                                                onUpdate={handleUpdateRelatedVoter}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {showRelatedVoters && relatedVoters.length > 0 && (
+                                    <div className="mt-4 flex justify-end">
+                                        <Button
+                                            onClick={handleDoneWithRelatedVoters}
+                                            variant="outline"
+                                        >
+                                            Done
+                                        </Button>
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>
                 </CardContent>
             </Card>
         </div>
+    );
+}
+
+interface RelatedVoterUpdateItemProps {
+    voter: Voter;
+    onUpdate: (epicNumber: string, phoneData: { mobileNoPrimary: string; mobileNoSecondary?: string }) => void;
+}
+
+function RelatedVoterUpdateItem({ voter, onUpdate }: RelatedVoterUpdateItemProps) {
+    const [mobileNoPrimary, setMobileNoPrimary] = useState(voter.mobileNoPrimary || '');
+    const [mobileNoSecondary, setMobileNoSecondary] = useState(voter.mobileNoSecondary || '');
+    const [isUpdating, setIsUpdating] = useState(false);
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!mobileNoPrimary.trim()) {
+            return;
+        }
+
+        setIsUpdating(true);
+        try {
+            await onUpdate(voter.epicNumber, {
+                mobileNoPrimary: mobileNoPrimary.trim(),
+                mobileNoSecondary: mobileNoSecondary.trim() || undefined,
+            });
+            const trimmedPrimary = mobileNoPrimary.trim();
+            const trimmedSecondary = mobileNoSecondary.trim();
+            setMobileNoPrimary(trimmedPrimary);
+            setMobileNoSecondary(trimmedSecondary);
+        } finally {
+            setIsUpdating(false);
+        }
+    };
+
+    return (
+        <Card className="border">
+            <CardContent className="p-4">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    <div className="space-y-2">
+                        <div className="font-medium">{voter.fullName}</div>
+                        <div className="text-sm text-muted-foreground">EPIC: {voter.epicNumber}</div>
+                        {voter.age && voter.gender && (
+                            <div className="text-sm text-muted-foreground">
+                                {voter.age} years, {voter.gender}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <Label htmlFor={`mobileNoPrimary-${voter.epicNumber}`} className="text-sm">
+                                Primary Mobile
+                            </Label>
+                            <Input
+                                id={`mobileNoPrimary-${voter.epicNumber}`}
+                                type="tel"
+                                value={mobileNoPrimary}
+                                onChange={(e) => setMobileNoPrimary(e.target.value)}
+                                placeholder="Enter primary mobile"
+                                className="font-mono text-sm"
+                            />
+                        </div>
+                        <div>
+                            <Label htmlFor={`mobileNoSecondary-${voter.epicNumber}`} className="text-sm">
+                                Secondary Mobile
+                            </Label>
+                            <Input
+                                id={`mobileNoSecondary-${voter.epicNumber}`}
+                                type="tel"
+                                value={mobileNoSecondary}
+                                onChange={(e) => setMobileNoSecondary(e.target.value)}
+                                placeholder="Enter secondary mobile (optional)"
+                                className="font-mono text-sm"
+                            />
+                        </div>
+                    </div>
+
+                    <Button
+                        type="submit"
+                        size="sm"
+                        disabled={isUpdating || !mobileNoPrimary.trim()}
+                        className="w-full"
+                    >
+                        {isUpdating ? 'Updating...' : 'Update Phone'}
+                    </Button>
+                </form>
+            </CardContent>
+        </Card>
     );
 }
 
