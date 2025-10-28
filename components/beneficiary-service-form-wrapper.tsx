@@ -43,7 +43,7 @@ export function BeneficiaryServiceFormWrapper({ chatId, sendMessage }: Beneficia
                             className="w-full"
                             size="lg"
                         >
-                            <Plus className="w-4 h-4 mr-2" />
+                            <Plus className="size-4 mr-2" />
                             Add New Beneficiary Service
                         </Button>
 
@@ -76,7 +76,7 @@ export function BeneficiaryServiceFormWrapper({ chatId, sendMessage }: Beneficia
                     size="sm"
                     onClick={handleCancel}
                 >
-                    <X className="w-4 h-4" />
+                    <X className="size-4" />
                 </Button>
             </div>
 

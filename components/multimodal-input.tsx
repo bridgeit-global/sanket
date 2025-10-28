@@ -218,7 +218,7 @@ function PureMultimodalInput({
           >
             <Button
               data-testid="scroll-to-bottom-button"
-              className="rounded-full h-8 w-8 sm:h-9 sm:w-9 lg:h-10 lg:w-10"
+              className="rounded-full size-8 sm:size-9 lg:size-10"
               size="icon"
               variant="outline"
               onClick={(event) => {
@@ -226,7 +226,7 @@ function PureMultimodalInput({
                 scrollToBottom();
               }}
             >
-              <ArrowDown className="h-3 w-3 sm:h-3 sm:w-3 lg:h-4 lg:w-4" />
+              <ArrowDown className="size-3 sm:size-3 lg:size-4" />
             </Button>
           </motion.div>
         )}

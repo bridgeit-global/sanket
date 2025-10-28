@@ -73,7 +73,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                   onClick={() => setOpenMobile(false)}
                   className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
                 >
-                  <Calendar className="h-4 w-4" />
+                  <Calendar className="size-4" />
                   Calendar
                 </Link>
               </SidebarMenuItem>
@@ -87,7 +87,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     onClick={() => setOpenMobile(false)}
                     className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
                   >
-                    <BarChart3 className="h-4 w-4" />
+                    <BarChart3 className="size-4" />
                     Analytics
                   </Link>
                 </SidebarMenuItem>
@@ -98,7 +98,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                     onClick={() => setOpenMobile(false)}
                     className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
                   >
-                    <Users className="h-4 w-4" />
+                    <Users className="size-4" />
                     Back Office
                   </Link>
                 </SidebarMenuItem>

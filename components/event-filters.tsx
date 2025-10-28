@@ -179,7 +179,7 @@ export function EventFilters({ filters, onFiltersChange, onClose }: EventFilters
                         <div className="flex flex-wrap gap-2">
                             {filters.search && (
                                 <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                                    Search: "{filters.search}"
+                                    Search: &quot;{filters.search}&quot;
                                     <button
                                         onClick={() => handleFilterChange('search', '')}
                                         className="ml-1 hover:bg-blue-200 rounded-full p-0.5"
