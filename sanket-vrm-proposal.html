@@ -1,0 +1,1442 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sanket VRM - Implementation Summary</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 60px 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.8em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header .subtitle {
+            font-size: 1.3em;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+
+        .header .date {
+            margin-top: 20px;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
+
+        .executive-summary {
+            background: #f8f9fa;
+            padding: 40px;
+            border-left: 5px solid #667eea;
+        }
+
+        .executive-summary h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border-top: 4px solid #667eea;
+        }
+
+        .summary-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .summary-card p {
+            color: #666;
+            font-size: 0.95em;
+        }
+
+        .summary-card .value {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #333;
+            margin: 10px 0;
+        }
+
+        .section {
+            padding: 40px;
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 25px;
+            font-size: 2em;
+            border-bottom: 3px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        .section h3 {
+            color: #764ba2;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .section h4 {
+            color: #555;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        .phase-status {
+            background: #e8f5e9;
+            border-left: 5px solid #4caf50;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+
+        .phase-status.completed {
+            background: #e8f5e9;
+            border-left-color: #4caf50;
+        }
+
+        .phase-status.planned {
+            background: #fff3e0;
+            border-left-color: #ff9800;
+        }
+
+        .phase-status h3 {
+            color: #333;
+            margin-top: 0;
+        }
+
+        .milestone {
+            background: #f8f9fa;
+            padding: 30px;
+            margin: 25px 0;
+            border-radius: 10px;
+            border-left: 5px solid #764ba2;
+        }
+
+        .milestone-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .milestone-title {
+            font-size: 1.5em;
+            color: #764ba2;
+            font-weight: 600;
+        }
+
+        .milestone-meta {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .meta-item {
+            background: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+
+        .meta-item.duration {
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .meta-item.hours {
+            color: #764ba2;
+            border: 2px solid #764ba2;
+        }
+
+        .deliverables {
+            margin-top: 15px;
+        }
+
+        .deliverables ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .deliverables li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .deliverables li:before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: #4caf50;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin: 25px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .timeline {
+            position: relative;
+            padding: 20px 0;
+        }
+
+        .timeline-item {
+            padding: 20px;
+            margin-left: 30px;
+            border-left: 3px solid #667eea;
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        .timeline-item:before {
+            content: "";
+            width: 15px;
+            height: 15px;
+            background: #667eea;
+            border: 3px solid white;
+            border-radius: 50%;
+            position: absolute;
+            left: -9px;
+            top: 25px;
+            box-shadow: 0 0 0 3px #f5f5f5;
+        }
+
+        .timeline-week {
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .highlight-box {
+            background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+            padding: 25px;
+            border-radius: 10px;
+            margin: 25px 0;
+            border: 2px solid #667eea;
+        }
+
+        .highlight-box h3 {
+            color: #667eea;
+            margin-top: 0;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border-top: 4px solid #4caf50;
+        }
+
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #4caf50;
+            margin: 10px 0;
+        }
+
+        .metric-label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .cost-breakdown {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 25px 0;
+        }
+
+        .cost-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .cost-item:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            font-size: 1.2em;
+            color: #667eea;
+        }
+
+        .risk-matrix {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 25px 0;
+        }
+
+        .risk-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            border-left: 5px solid #ff9800;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+        }
+
+        .risk-card h4 {
+            color: #ff9800;
+            margin-top: 0;
+        }
+
+        .risk-level {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-top: 10px;
+        }
+
+        .risk-level.high {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .risk-level.medium {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .risk-level.low {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .cta-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 50px 40px;
+            text-align: center;
+        }
+
+        .cta-section h2 {
+            color: white;
+            border: none;
+            margin-bottom: 20px;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: white;
+            color: #667eea;
+            padding: 15px 40px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 20px;
+            transition: transform 0.3s;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .footer {
+            background: #333;
+            color: white;
+            padding: 30px 40px;
+            text-align: center;
+        }
+
+        .checklist {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .checklist-item {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+        }
+
+        .checklist-item:last-child {
+            border-bottom: none;
+        }
+
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #667eea;
+            border-radius: 4px;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+
+        @media print {
+            .container {
+                box-shadow: none;
+            }
+
+            .section {
+                page-break-inside: avoid;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .section {
+                padding: 20px;
+            }
+
+            .summary-grid,
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .milestone-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .milestone-meta {
+                margin-top: 10px;
+            }
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .badge.completed {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .badge.planned {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        .badge.future {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Sanket VRM Platform</h1>
+            <div class="subtitle">3-Month Implementation Plan & Go-Live Strategy</div>
+            <div class="date">Client Review Document | October 31, 2025</div>
+        </div>
+
+        <!-- Executive Summary -->
+        <div class="executive-summary">
+            <h2>Executive Overview</h2>
+            <p style="font-size: 1.1em; margin-bottom: 20px;">
+                Comprehensive implementation roadmap for enhancing the Sanket VRM platform into an intelligent
+                voter relationship management system with measurable engagement capabilities and automated campaign
+                execution.
+            </p>
+
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <h3>Phase 1 (Completed)</h3>
+                    <div class="value">200 hrs</div>
+                    <p>Foundation build-out hours already delivered</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Phase 2 + Go-Live Hours</h3>
+                    <div class="value">560 Hrs</div>
+                    <p>480 hrs development + 80 hrs support</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Total Duration</h3>
+                    <div class="value">16 Weeks</div>
+                    <p>12 weeks development + 4 weeks go-live</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Team Size</h3>
+                    <div class="value">1 Developer</div>
+                    <p>Mid-level full-stack engineer</p>
+                </div>
+                <div class="summary-card">
+                    <h3>Major Milestones</h3>
+                    <div class="value">6 Phases</div>
+                    <p>Incremental value delivery</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Current Status -->
+        <div class="section">
+            <h2>Current Status: Phase 1</h2>
+            <div class="phase-status completed">
+                <h3><span class="badge completed">✓ COMPLETED</span> Foundation Established</h3>
+                <p style="margin-top: 15px;">
+                    <strong>Status:</strong> Platform operational and serving 260,000+ voters with core VRM capabilities
+                </p>
+                <p style="margin-top: 8px; color: #555;">
+                    <strong>Total Development Hours Invested (Phase 1):</strong> 200 hrs
+                </p>
+
+                <div class="deliverables">
+                    <h4 style="margin-top: 20px; margin-bottom: 10px;">Delivered Capabilities:</h4>
+                    <ul>
+                        <li>Voter database management with advanced search and filtering</li>
+                        <li>Service request tracking system with workflow automation</li>
+                        <li>Calendar and event management with scheduling</li>
+                        <li>AI-powered chat interface (Claude Sonnet 4 integration)</li>
+                        <li>Role-based workflows (Admin, Operator, Back Office)</li>
+                        <li>Secure authentication and user management</li>
+                        <li>Responsive UI with 50+ reusable components</li>
+                        <li>Production deployment on Vercel cloud infrastructure</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3-Month Plan Overview -->
+        <div class="section" style="background: #f8f9fa;">
+            <h2>Phase 2: 3-Month Enhancement Plan</h2>
+            <div class="phase-status planned">
+                <h3><span class="badge planned">⏳ PLANNED</span> High-Impact VRM Enhancements</h3>
+                <p style="margin-top: 15px;">
+                    <strong>Objective:</strong> Transform basic voter database into intelligent relationship management
+                    system with communication capabilities and engagement scoring
+                </p>
+            </div>
+
+            <div class="highlight-box">
+                <h3>Strategic Focus Areas</h3>
+                <ul style="margin-left: 20px; margin-top: 15px;">
+                    <li style="margin: 10px 0;"><strong>Month 1:</strong> Enhanced voter intelligence with comprehensive
+                        profiling and activity tracking</li>
+                    <li style="margin: 10px 0;"><strong>Month 2:</strong> Communication infrastructure with SMS
+                        campaigns and delivery tracking</li>
+                    <li style="margin: 10px 0;"><strong>Month 3:</strong> Engagement scoring and automated
+                        event-campaign integration</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Milestone 1 -->
+        <div class="section">
+            <h2>Milestone 1: Enhanced Voter Intelligence</h2>
+            <p style="margin-bottom: 30px; font-size: 1.05em;">
+                <strong>Duration:</strong> Month 1 (Weeks 1-4) | <strong>Total Hours:</strong> 160
+            </p>
+
+            <div class="milestone">
+                <div class="milestone-header">
+                    <div class="milestone-title">1.1 Extended Voter Profiles</div>
+                    <div class="milestone-meta">
+                        <span class="meta-item duration">Weeks 1-2</span>
+                        <span class="meta-item hours">80 Hours</span>
+                    </div>
+                </div>
+
+                <p style="margin: 15px 0; color: #555;">
+                    <strong>Objective:</strong> Transform basic voter records into comprehensive constituent profiles
+                    with demographic, economic, and political intelligence
+                </p>
+
+                <div class="deliverables">
+                    <h4>Key Deliverables:</h4>
+                    <ul>
+                        <li><strong>Demographic Data:</strong> Caste, religion, language, qualification tracking</li>
+                        <li><strong>Economic Profiling:</strong> Occupation, employment status classification</li>
+                        <li><strong>Political Intelligence:</strong> Influencer type, party worker status, booth group
+                            assignment</li>
+                        <li><strong>Workflow Enhancement:</strong> Task type, help categorization, follow-up scheduling
+                        </li>
+                        <li><strong>Reference Data Management:</strong> Master tables for standardized data entry</li>
+                        <li><strong>Bulk Operations:</strong> Mass update interface for efficient data management</li>
+                    </ul>
+                </div>
+
+                <div class="highlight-box" style="margin-top: 20px; background: #e8f5e9; border-color: #4caf50;">
+                    <strong>Business Value:</strong> Enables precision micro-targeting based on demographic, economic,
+                    and political attributes for strategic campaign planning
+                </div>
+            </div>
+
+            <div class="milestone">
+                <div class="milestone-header">
+                    <div class="milestone-title">1.2 Voter Activity Logging & Timeline</div>
+                    <div class="milestone-meta">
+                        <span class="meta-item duration">Weeks 3-4</span>
+                        <span class="meta-item hours">80 Hours</span>
+                    </div>
+                </div>
+
+                <p style="margin: 15px 0; color: #555;">
+                    <strong>Objective:</strong> Create complete historical record of every voter interaction
+                    with visual timeline and change tracking
+                </p>
+
+                <div class="deliverables">
+                    <h4>Key Deliverables:</h4>
+                    <ul>
+                        <li><strong>Comprehensive Activity Tracking:</strong> Automatic logging of all voter
+                            interactions</li>
+                        <li><strong>Timeline Visualization:</strong> Chronological activity display with filtering</li>
+                        <li><strong>Historical Intelligence:</strong> Track service history, profile changes, contact
+                            patterns</li>
+                        <li><strong>Quick Reference Widget:</strong> Last 5 activities summary in sidebar</li>
+                        <li><strong>Change Auditing:</strong> Old vs. new value tracking for profile updates</li>
+                        <li><strong>Manual Annotations:</strong> Staff can add contextual notes to voter records</li>
+                    </ul>
+                </div>
+
+                <div class="highlight-box" style="margin-top: 20px; background: #e8f5e9; border-color: #4caf50;">
+                    <strong>Business Value:</strong> Complete voter relationship history enables informed engagement
+                    strategies and prevents redundant outreach efforts
+                </div>
+            </div>
+        </div>
+
+        <!-- Milestone 2 -->
+        <div class="section" style="background: #f8f9fa;">
+            <h2>Milestone 2: Communication Infrastructure</h2>
+            <p style="margin-bottom: 30px; font-size: 1.05em;">
+                <strong>Duration:</strong> Month 2 (Weeks 5-8) | <strong>Total Hours:</strong> 160
+            </p>
+
+            <div class="milestone">
+                <div class="milestone-header">
+                    <div class="milestone-title">2.1 SMS Integration & Message Queue</div>
+                    <div class="milestone-meta">
+                        <span class="meta-item duration">Weeks 5-6</span>
+                        <span class="meta-item hours">80 Hours</span>
+                    </div>
+                </div>
+
+                <p style="margin: 15px 0; color: #555;">
+                    <strong>Objective:</strong> Enable mass communication with delivery tracking and cost management
+                </p>
+
+                <div class="deliverables">
+                    <h4>Key Deliverables:</h4>
+                    <ul>
+                        <li><strong>SMS Gateway Integration:</strong> MSG91 or Twilio implementation</li>
+                        <li><strong>Intelligent Message Queue:</strong> Batch processing with rate limiting</li>
+                        <li><strong>Delivery Tracking:</strong> Real-time status monitoring (sent, delivered, failed)
+                        </li>
+                        <li><strong>Cost Management:</strong> Per-message cost calculation and budget tracking</li>
+                        <li><strong>DND Compliance:</strong> Do Not Disturb registry checking</li>
+                        <li><strong>Retry Logic:</strong> Automatic failed message reprocessing</li>
+                        <li><strong>Credit Monitoring:</strong> SMS balance tracking and alerts</li>
+                    </ul>
+                </div>
+
+                <div class="highlight-box" style="margin-top: 20px; background: #e8f5e9; border-color: #4caf50;">
+                    <strong>Business Value:</strong> Direct voter communication at scale with complete accountability
+                    and cost control
+                </div>
+            </div>
+
+            <div class="milestone">
+                <div class="milestone-header">
+                    <div class="milestone-title">2.2 Campaign Management System</div>
+                    <div class="milestone-meta">
+                        <span class="meta-item duration">Weeks 7-8</span>
+                        <span class="meta-item hours">80 Hours</span>
+                    </div>
+                </div>
+
+                <p style="margin: 15px 0; color: #555;">
+                    <strong>Objective:</strong> End-to-end campaign creation, execution, and analytics
+                </p>
+
+                <div class="deliverables">
+                    <h4>Key Deliverables:</h4>
+                    <ul>
+                        <li><strong>Campaign Builder:</strong> Intuitive interface for campaign creation</li>
+                        <li><strong>Target Selection:</strong> All voters, by part/ward, by engagement level</li>
+                        <li><strong>Message Templates:</strong> Dynamic variable insertion with preview</li>
+                        <li><strong>Cost Estimation:</strong> Pre-send budget calculation</li>
+                        <li><strong>Scheduling:</strong> Send immediately or schedule for optimal timing</li>
+                        <li><strong>Progress Tracking:</strong> Real-time campaign execution monitoring</li>
+                        <li><strong>Analytics Dashboard:</strong> Delivery rates, costs, success metrics</li>
+                    </ul>
+                </div>
+
+                <div class="highlight-box" style="margin-top: 20px; background: #e8f5e9; border-color: #4caf50;">
+                    <strong>Business Value:</strong> Transform ad-hoc messaging into strategic, measurable campaigns
+                    with ROI tracking
+                </div>
+            </div>
+        </div>
+
+        <!-- Milestone 3 -->
+        <div class="section">
+            <h2>Milestone 3: Engagement Intelligence & Automation</h2>
+            <p style="margin-bottom: 30px; font-size: 1.05em;">
+                <strong>Duration:</strong> Month 3 (Weeks 9-12) | <strong>Total Hours:</strong> 160
+            </p>
+
+            <div class="milestone">
+                <div class="milestone-header">
+                    <div class="milestone-title">3.1 Engagement Scoring System</div>
+                    <div class="milestone-meta">
+                        <span class="meta-item duration">Weeks 9-10</span>
+                        <span class="meta-item hours">80 Hours</span>
+                    </div>
+                </div>
+
+                <p style="margin: 15px 0; color: #555;">
+                    <strong>Objective:</strong> Quantify voter relationships and prioritize outreach efforts
+                </p>
+
+                <div class="deliverables">
+                    <h4>Key Deliverables:</h4>
+                    <ul>
+                        <li><strong>Engagement Score Algorithm:</strong> 0-100 point scoring system</li>
+                        <li><strong>Relationship Stages:</strong> Cold (0-25), Warm (26-50), Hot (51-75), Champion
+                            (76-100)</li>
+                        <li><strong>Scoring Factors:</strong> Services, contact recency, response rate, event attendance
+                        </li>
+                        <li><strong>Automated Recalculation:</strong> Daily background processing</li>
+                        <li><strong>Visual Dashboard:</strong> Score distribution, stage breakdown, geographic insights
+                        </li>
+                        <li><strong>Risk Identification:</strong> "At risk" voters with declining scores</li>
+                        <li><strong>Advanced Filtering:</strong> Search and segment by engagement level</li>
+                    </ul>
+                </div>
+
+                <div class="highlight-box" style="margin-top: 20px; background: #e8f5e9; border-color: #4caf50;">
+                    <strong>Business Value:</strong> Data-driven prioritization of voter outreach, identifying champions
+                    and re-engaging cold contacts
+                </div>
+            </div>
+
+            <div class="milestone">
+                <div class="milestone-header">
+                    <div class="milestone-title">3.2 Event-Campaign Integration</div>
+                    <div class="milestone-meta">
+                        <span class="meta-item duration">Weeks 11-12</span>
+                        <span class="meta-item hours">80 Hours</span>
+                    </div>
+                </div>
+
+                <p style="margin: 15px 0; color: #555;">
+                    <strong>Objective:</strong> Automate campaign creation from events with RSVP tracking
+                </p>
+
+                <div class="deliverables">
+                    <h4>Key Deliverables:</h4>
+                    <ul>
+                        <li><strong>Auto-Campaign Trigger:</strong> One-click campaign creation from events</li>
+                        <li><strong>Smart Audience Suggestions:</strong> Context-based target selection</li>
+                        <li><strong>Event-Specific Templates:</strong> Pre-filled messages with event details</li>
+                        <li><strong>Multi-Stage Campaigns:</strong> Invitation and reminder messages</li>
+                        <li><strong>RSVP Collection:</strong> SMS-based YES/NO response tracking</li>
+                        <li><strong>Attendee Management:</strong> Confirmed attendee lists with contact details</li>
+                        <li><strong>End-to-End Testing:</strong> Complete workflow validation</li>
+                    </ul>
+                </div>
+
+                <div class="highlight-box" style="margin-top: 20px; background: #e8f5e9; border-color: #4caf50;">
+                    <strong>Business Value:</strong> Seamless event promotion with automated follow-up and
+                    attendance prediction
+                </div>
+            </div>
+        </div>
+
+        <!-- Complete Deliverables Matrix -->
+        <div class="section" style="background: #f8f9fa;">
+            <h2>Complete Deliverables Matrix</h2>
+
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Milestone</th>
+                            <th>Duration</th>
+                            <th>Hours</th>
+                            <th>Key Deliverable</th>
+                            <th>Business Impact</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Extended Voter Profiles</strong></td>
+                            <td>Weeks 1-2</td>
+                            <td>80</td>
+                            <td>12+ new demographic & political fields</td>
+                            <td>Precision micro-targeting</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Activity Logging</strong></td>
+                            <td>Weeks 3-4</td>
+                            <td>80</td>
+                            <td>Complete voter history timeline</td>
+                            <td>Informed engagement decisions</td>
+                        </tr>
+                        <tr>
+                            <td><strong>SMS Integration</strong></td>
+                            <td>Weeks 5-6</td>
+                            <td>80</td>
+                            <td>Mass messaging with delivery tracking</td>
+                            <td>Direct voter communication</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Campaign Management</strong></td>
+                            <td>Weeks 7-8</td>
+                            <td>80</td>
+                            <td>End-to-end campaign system</td>
+                            <td>Strategic, measurable outreach</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Engagement Scoring</strong></td>
+                            <td>Weeks 9-10</td>
+                            <td>80</td>
+                            <td>0-100 relationship scoring</td>
+                            <td>Data-driven prioritization</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Event-Campaign Link</strong></td>
+                            <td>Weeks 11-12</td>
+                            <td>80</td>
+                            <td>Automated event promotion</td>
+                            <td>Efficient event management</td>
+                        </tr>
+                        <tr style="background: #f0f0f0; font-weight: bold;">
+                            <td><strong>TOTAL</strong></td>
+                            <td>12 Weeks</td>
+                            <td>480</td>
+                            <td>Complete VRM Enhancement</td>
+                            <td>Measurable voter relationships</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Go-Live Strategy -->
+        <div class="section">
+            <h2>Go-Live Strategy & Ground Execution</h2>
+            <p style="margin-bottom: 30px; font-size: 1.05em;">
+                Phased rollout approach ensuring smooth deployment and user adoption
+            </p>
+
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-week">Week 13: Soft Launch <span class="badge planned">20 Hours</span></div>
+                    <p><strong>Objective:</strong> Controlled deployment with admin-only access for stability validation
+                    </p>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Enable features for 2-3 admin users only</li>
+                        <li>Intensive monitoring of system performance</li>
+                        <li>Collect detailed feedback on usability</li>
+                        <li>Fix critical bugs and make adjustments</li>
+                        <li>Validate data integrity across all features</li>
+                    </ul>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-week">Week 13: Training & Onboarding <span class="badge planned">24
+                            Hours</span></div>
+                    <p><strong>Objective:</strong> Comprehensive training for all user roles</p>
+                    <h4 style="margin-top: 15px;">Training Sessions (8 hours):</h4>
+                    <ul style="margin-left: 20px;">
+                        <li><strong>Admin Training (2 hrs):</strong> Complete feature overview, campaign management,
+                            analytics</li>
+                        <li><strong>Operator Training (2 hrs):</strong> Profile data entry, activity logging, workflows
+                        </li>
+                        <li><strong>Campaign Creator Training (2 hrs):</strong> Campaign best practices, targeting,
+                            analytics</li>
+                        <li><strong>Q&A Session (2 hrs):</strong> Hands-on problem-solving and tips</li>
+                    </ul>
+                    <h4 style="margin-top: 15px;">Training Materials:</h4>
+                    <ul style="margin-left: 20px;">
+                        <li>Video tutorials (5-10 min each)</li>
+                        <li>Quick reference guides (PDF)</li>
+                        <li>FAQ document with scenarios</li>
+                        <li>In-app contextual help text</li>
+                    </ul>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-week">Week 14: Full Rollout <span class="badge planned">20 Hours</span></div>
+                    <p><strong>Objective:</strong> Organization-wide deployment with comprehensive support</p>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Enable features for all users across all roles</li>
+                        <li>Send launch announcement with training links</li>
+                        <li>Monitor adoption metrics and usage patterns</li>
+                        <li>Provide immediate support for onboarding issues</li>
+                        <li>Real-time chat/phone support during business hours</li>
+                    </ul>
+                </div>
+
+                <div class="timeline-item">
+                    <div class="timeline-week">Weeks 15-16: Stabilization & Support <span class="badge planned">40
+                            Hours</span></div>
+                    <p><strong>Objective:</strong> Ensure smooth operations and user proficiency</p>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Bug fixes and minor adjustments based on usage</li>
+                        <li>Performance optimization based on real-world load</li>
+                        <li>Continuous user support via email/phone/chat</li>
+                        <li>Documentation updates based on feedback</li>
+                        <li>Weekly usage reports to leadership</li>
+                        <li>Identify and resolve workflow bottlenecks</li>
+                    </ul>
+                </div>
+
+                <div class="timeline-item" style="border-left-color: #4caf50;">
+                    <div class="timeline-week">Post Week 16: Ongoing Support <span class="badge completed">10
+                            hrs/month</span></div>
+                    <p><strong>Long-term support structure:</strong></p>
+                    <ul style="margin-left: 20px; margin-top: 10px;">
+                        <li>Email support: 48-hour response time</li>
+                        <li>Critical issues: 24-hour response time</li>
+                        <li>Monthly check-in calls</li>
+                        <li>Quarterly feature planning sessions</li>
+                        <li>Security patches and updates</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success Metrics -->
+        <div class="section" style="background: #f8f9fa;">
+            <h2>Success Metrics & KPIs</h2>
+
+            <h3>Technical Performance Metrics</h3>
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-label">API Response Time</div>
+                    <div class="metric-value">&lt;500ms</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">SMS Delivery Rate</div>
+                    <div class="metric-value">&gt;95%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">System Uptime</div>
+                    <div class="metric-value">&gt;99.5%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Critical Bugs</div>
+                    <div class="metric-value">0</div>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 40px;">User Adoption Metrics (90-Day Targets)</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>30-Day Target</th>
+                            <th>90-Day Target</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Voters with Extended Profiles</td>
+                            <td>500+</td>
+                            <td>5,000+</td>
+                        </tr>
+                        <tr>
+                            <td>Activity Logs Captured</td>
+                            <td>1,000+</td>
+                            <td>10,000+</td>
+                        </tr>
+                        <tr>
+                            <td>Campaigns Executed</td>
+                            <td>5+</td>
+                            <td>25+</td>
+                        </tr>
+                        <tr>
+                            <td>SMS Messages Delivered</td>
+                            <td>10,000+</td>
+                            <td>100,000+</td>
+                        </tr>
+                        <tr>
+                            <td>Engagement Scores Calculated</td>
+                            <td>100% of voters</td>
+                            <td>100% of voters</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 style="margin-top: 40px;">Business Impact Metrics</h3>
+            <div class="highlight-box">
+                <ul style="margin-left: 20px;">
+                    <li style="margin: 10px 0;"><strong>Campaign Delivery Rate:</strong> >95% successful delivery</li>
+                    <li style="margin: 10px 0;"><strong>User Satisfaction:</strong> >4.0/5.0 rating (post-training
+                        survey)</li>
+                    <li style="margin: 10px 0;"><strong>Feature Utilization:</strong> >70% of users actively using new
+                        features</li>
+                    <li style="margin: 10px 0;"><strong>Staff Efficiency:</strong> 30% time saved per task</li>
+                    <li style="margin: 10px 0;"><strong>Voter Engagement:</strong> 15% increase in engagement scores
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Investment Summary -->
+        <div class="section">
+            <h2>Investment Summary</h2>
+
+            <h3>Professional Services Breakdown</h3>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Phase</th>
+                            <th>Duration</th>
+                            <th>Hours</th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Phase 1 (Completed)</strong></td>
+                            <td>Pre-Phase 2</td>
+                            <td>200 hrs</td>
+                            <td>Foundation build-out and initial deployment</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Month 1</strong></td>
+                            <td>Weeks 1-4</td>
+                            <td>160</td>
+                            <td>Profiles & Activity Logging</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Month 2</strong></td>
+                            <td>Weeks 5-8</td>
+                            <td>160</td>
+                            <td>SMS & Campaign Management</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Month 3</strong></td>
+                            <td>Weeks 9-12</td>
+                            <td>160</td>
+                            <td>Engagement & Event Integration</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Go-Live Support</strong></td>
+                            <td>Weeks 13-16</td>
+                            <td>80</td>
+                            <td>Training, rollout, stabilization</td>
+                        </tr>
+                        <tr style="background: #f8f9fa; font-weight: bold;">
+                            <td><strong>SUBTOTAL (Phase 2 + Go-Live)</strong></td>
+                            <td>16 Weeks</td>
+                            <td>560</td>
+                            <td>Planned implementation</td>
+                        </tr>
+                        <tr style="background: #f0f0f0; font-weight: bold;">
+                            <td><strong>GRAND TOTAL (Including Phase 1)</strong></td>
+                            <td>—</td>
+                            <td>560 + 200 hrs</td>
+                            <td>Completed + planned work</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 style="margin-top: 40px;">Cost Breakdown</h3>
+            <div class="cost-breakdown">
+                <div class="cost-item">
+                    <span><strong>Professional Services</strong> (560 hours @ ₹[Rate]/hr)</span>
+                    <span>₹ [Calculate based on rate]</span>
+                </div>
+                <div class="cost-item">
+                    <span><strong>Infrastructure</strong> (3 months: Database, Hosting, Storage)</span>
+                    <span>₹ 30,000 - 60,000</span>
+                </div>
+                <div class="cost-item">
+                    <span><strong>SMS Credits</strong> (~150,000 messages @ ₹0.10-0.20)</span>
+                    <span>₹ 15,000 - 30,000</span>
+                </div>
+                <div class="cost-item">
+                    <span><strong>TOTAL PROJECT INVESTMENT</strong></span>
+                    <span>₹ [Professional Services] + ₹45,000-90,000</span>
+                </div>
+            </div>
+
+            <div class="highlight-box" style="margin-top: 30px;">
+                <h3>What's Included:</h3>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>Complete feature development across 6 milestones</li>
+                    <li>Comprehensive testing and quality assurance</li>
+                    <li>Training materials and sessions for all user roles</li>
+                    <li>Phased rollout with hands-on support</li>
+                    <li>4 weeks of post-launch stabilization support</li>
+                    <li>Technical documentation and user manuals</li>
+                    <li>SMS gateway integration and setup</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Risk Management -->
+        <div class="section" style="background: #f8f9fa;">
+            <h2>Risk Management</h2>
+
+            <div class="risk-matrix">
+                <div class="risk-card">
+                    <h4>SMS Gateway Integration Delays</h4>
+                    <span class="risk-level medium">Medium Risk</span>
+                    <p style="margin-top: 15px;"><strong>Mitigation:</strong> Start early (Week 5), choose reliable
+                        provider (MSG91/Twilio)</p>
+                    <p><strong>Contingency:</strong> Use test mode, switch provider if needed</p>
+                </div>
+
+                <div class="risk-card">
+                    <h4>Developer Unavailability</h4>
+                    <span class="risk-level low">Low Risk</span>
+                    <p style="margin-top: 15px;"><strong>Mitigation:</strong> Weekly backups, clear documentation,
+                        modular design</p>
+                    <p><strong>Contingency:</strong> 1-week buffer built into timeline</p>
+                </div>
+
+                <div class="risk-card">
+                    <h4>Feature Complexity Underestimated</h4>
+                    <span class="risk-level medium">Medium Risk</span>
+                    <p style="margin-top: 15px;"><strong>Mitigation:</strong> 20% buffer in estimates, weekly scope
+                        reviews</p>
+                    <p><strong>Contingency:</strong> Descope non-critical features</p>
+                </div>
+
+                <div class="risk-card">
+                    <h4>Third-Party API Downtime</h4>
+                    <span class="risk-level low">Low Risk</span>
+                    <p style="margin-top: 15px;"><strong>Mitigation:</strong> Implement retry logic, queue system</p>
+                    <p><strong>Contingency:</strong> Manual fallback process</p>
+                </div>
+            </div>
+
+            <div class="highlight-box" style="margin-top: 30px;">
+                <h3>Quality Assurance Approach</h3>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>Manual testing after each feature completion</li>
+                    <li>Integration testing at weekly milestones</li>
+                    <li>End-to-end workflow validation in Month 3</li>
+                    <li>Load testing with realistic data volumes</li>
+                    <li>Security review of all new features</li>
+                    <li>Performance benchmarking before go-live</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Client Responsibilities -->
+        <div class="section">
+            <h2>Client Responsibilities for Success</h2>
+
+            <h3>Pre-Implementation Requirements (Week 0)</h3>
+            <div class="checklist">
+                <div class="checklist-item">
+                    <div class="checkbox"></div>
+                    <span>SMS gateway account registration (MSG91 or Twilio)</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checkbox"></div>
+                    <span>Complete DLT (sender ID) registration for SMS compliance</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checkbox"></div>
+                    <span>Pre-load minimum ₹10,000 SMS credits</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checkbox"></div>
+                    <span>Provide API credentials for SMS gateway</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checkbox"></div>
+                    <span>Grant production database and deployment access</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checkbox"></div>
+                    <span>Identify 3 admin users for soft launch testing</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checkbox"></div>
+                    <span>Designate training session participants</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checkbox"></div>
+                    <span>Assign single point of contact for approvals</span>
+                </div>
+                <div class="checklist-item">
+                    <div class="checkbox"></div>
+                    <span>Establish weekly meeting schedule (30 min)</span>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 40px;">During Implementation (Weeks 1-12)</h3>
+            <div class="highlight-box">
+                <h4>Decision Making:</h4>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>Approve SMS message templates within 24 hours</li>
+                    <li>Provide feature sign-off within 48 hours of weekly demo</li>
+                    <li>Clarify priorities and requirements promptly</li>
+                    <li>Approve scope changes formally</li>
+                </ul>
+
+                <h4 style="margin-top: 20px;">Testing Support:</h4>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>Allocate 2-3 users for weekly testing (2 hours/week each)</li>
+                    <li>Provide feedback within 48 hours of demos</li>
+                    <li>Participate in User Acceptance Testing (UAT) at month-end</li>
+                    <li>Report bugs and issues immediately</li>
+                </ul>
+            </div>
+
+            <h3 style="margin-top: 40px;">During Go-Live (Weeks 13-16)</h3>
+            <div class="highlight-box">
+                <ul style="margin-left: 20px;">
+                    <li>Attend all scheduled training sessions</li>
+                    <li>Encourage staff adoption and usage</li>
+                    <li>Provide feedback on training materials</li>
+                    <li>Support users experiencing difficulties</li>
+                    <li>Communicate wins and successes to team</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Future Roadmap -->
+        <div class="section" style="background: #f8f9fa;">
+            <h2>Phase 3: Future Roadmap</h2>
+            <p style="margin-bottom: 30px; font-size: 1.05em;">
+                <span class="badge future">FUTURE SCOPE</span> Advanced capabilities beyond the 3-month plan
+            </p>
+
+            <div class="milestone">
+                <h3 style="margin-top: 0;">Advanced Communication Channels</h3>
+                <p><strong>Estimated:</strong> 240-320 Hours (2-3 months)</p>
+                <ul style="margin-left: 20px; margin-top: 15px;">
+                    <li><strong>WhatsApp Business API:</strong> Rich media messaging with interactive buttons</li>
+                    <li><strong>Voice Call (IVR) Integration:</strong> Automated voice campaigns and surveys</li>
+                    <li><strong>Email Campaign System:</strong> Newsletter and bulk email capabilities</li>
+                    <li><strong>Multi-Channel Campaigns:</strong> Coordinated messaging across SMS, WhatsApp, Email</li>
+                </ul>
+            </div>
+
+            <div class="milestone">
+                <h3>Intelligence & Automation</h3>
+                <p><strong>Estimated:</strong> 320-400 Hours (3-4 months)</p>
+                <ul style="margin-left: 20px; margin-top: 15px;">
+                    <li><strong>Predictive Analytics:</strong> ML models for voter behavior prediction</li>
+                    <li><strong>Advanced Automation:</strong> Multi-step workflow triggers and conditions</li>
+                    <li><strong>A/B Testing Framework:</strong> Message optimization through testing</li>
+                    <li><strong>Sentiment Analysis:</strong> Analyze voter feedback and communication tone</li>
+                </ul>
+            </div>
+
+            <div class="milestone">
+                <h3>Mobility & Visualization</h3>
+                <p><strong>Estimated:</strong> 400-480 Hours (4-5 months)</p>
+                <ul style="margin-left: 20px; margin-top: 15px;">
+                    <li><strong>Mobile Applications:</strong> Native Android/iOS apps for field staff</li>
+                    <li><strong>Geographic Mapping:</strong> Heat maps of engagement by location</li>
+                    <li><strong>Social Media Integration:</strong> Monitor and engage on social platforms</li>
+                    <li><strong>Advanced Reporting:</strong> Custom report builder with data exports</li>
+                </ul>
+            </div>
+
+            <div class="highlight-box" style="background: #e3f2fd; border-color: #1565c0;">
+                <h3>Total Future Scope Investment</h3>
+                <p style="font-size: 1.1em; margin-top: 10px;">
+                    <strong>960-1,200 Hours</strong> (6-8 months with single developer)
+                </p>
+                <p style="margin-top: 10px;">
+                    These features can be prioritized and planned based on user feedback and business priorities
+                    after successful completion of Phase 2.
+                </p>
+            </div>
+        </div>
+
+        <!-- Call to Action -->
+        <div class="cta-section">
+            <h2>Ready to Transform Your Voter Engagement?</h2>
+            <p style="font-size: 1.2em; margin: 20px 0;">
+                This comprehensive implementation plan delivers measurable voter relationships,
+                data-driven campaign strategies, and automated engagement workflows.
+            </p>
+
+            <div style="margin: 40px 0;">
+                <h3 style="color: white; border: none; margin-bottom: 15px;">Key Value Propositions</h3>
+                <div
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; text-align: left; max-width: 900px; margin: 0 auto;">
+                    <div>
+                        <strong>✓ Complete Voter Intelligence</strong>
+                        <p style="margin-top: 5px; opacity: 0.9;">360-degree view of every constituent</p>
+                    </div>
+                    <div>
+                        <strong>✓ Measurable Communication</strong>
+                        <p style="margin-top: 5px; opacity: 0.9;">Campaign tracking with ROI metrics</p>
+                    </div>
+                    <div>
+                        <strong>✓ Data-Driven Decisions</strong>
+                        <p style="margin-top: 5px; opacity: 0.9;">Engagement scoring and prioritization</p>
+                    </div>
+                    <div>
+                        <strong>✓ Automated Efficiency</strong>
+                        <p style="margin-top: 5px; opacity: 0.9;">60% reduction in manual workflows</p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 40px;">
+                <p style="font-size: 1.1em; margin-bottom: 20px;">
+                    <strong>Timeline:</strong> 16 weeks from kickoff to full deployment<br>
+                    <strong>Investment:</strong> Phase 2: 560 professional hours; Completed Phase 1: 200 hrs +
+                    infrastructure + SMS credits
+                </p>
+            </div>
+
+            <a href="#" class="cta-button">Approve Implementation Plan</a>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <h3 style="color: white; margin-bottom: 15px;">Next Steps</h3>
+            <ol style="text-align: left; max-width: 600px; margin: 20px auto; line-height: 2;">
+                <li>Client review and approval of this implementation plan</li>
+                <li>Sign-off on deliverables and timeline</li>
+                <li>SMS gateway account setup and DLT registration</li>
+                <li>Week 0 kickoff meeting to begin implementation</li>
+            </ol>
+
+            <div style="margin-top: 40px; padding-top: 30px; border-top: 1px solid rgba(255,255,255,0.2);">
+                <p><strong>Questions or Clarifications?</strong></p>
+                <p>Contact: Faisal Ansari</p>
+                <p>Email: faisal@bridgeit.in | Phone: +91 9970257506</p>
+            </div>
+
+            <div style="margin-top: 30px; font-size: 0.9em; opacity: 0.7;">
+                <p>Document Version: 1.0 | Date: October 31, 2025</p>
+                <p>Prepared for: Sanket VRM Platform Client</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add print functionality
+        document.addEventListener('keydown', function (e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+                e.preventDefault();
+                window.print();
+            }
+        });
+
+        // Add smooth scrolling for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // Optional: Add checkbox functionality for client review
+        document.querySelectorAll('.checkbox').forEach(checkbox => {
+            checkbox.addEventListener('click', function () {
+                this.style.background = this.style.background === 'rgb(102, 126, 234)' ? 'white' : '#667eea';
+                this.innerHTML = this.innerHTML === '✓' ? '' : '✓';
+                this.style.color = 'white';
+                this.style.display = 'flex';
+                this.style.alignItems = 'center';
+                this.style.justifyContent = 'center';
+                this.style.fontWeight = 'bold';
+            });
+        });
+    </script>
+</body>
+
+</html>
