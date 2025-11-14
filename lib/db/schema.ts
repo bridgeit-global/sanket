@@ -291,3 +291,89 @@ export const calendarEvents = pgTable('calendar_events', {
 
 export type CalendarEvent = InferSelectModel<typeof calendarEvents>;
 
+// Module Permissions Table
+export const userModulePermissions = pgTable('UserModulePermissions', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  userId: uuid('userId')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  moduleKey: varchar('module_key', { length: 50 }).notNull(),
+  hasAccess: boolean('has_access').notNull().default(false),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type UserModulePermission = InferSelectModel<typeof userModulePermissions>;
+
+// Daily Programme Table
+export const dailyProgramme = pgTable('DailyProgramme', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  date: timestamp('date', { mode: 'date' }).notNull(),
+  startTime: varchar('start_time', { length: 10 }).notNull(), // HH:MM format
+  endTime: varchar('end_time', { length: 10 }), // HH:MM format, nullable
+  title: varchar('title', { length: 255 }).notNull(),
+  location: varchar('location', { length: 255 }).notNull(),
+  remarks: text('remarks'),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => user.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type DailyProgramme = InferSelectModel<typeof dailyProgramme>;
+
+// MLA Projects Table
+export const mlaProject = pgTable('MlaProject', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  ward: varchar('ward', { length: 100 }),
+  type: varchar('type', { length: 100 }),
+  status: varchar('status', {
+    enum: ['Concept', 'Proposal', 'In Progress', 'Completed'],
+  })
+    .notNull()
+    .default('Concept'),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => user.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type MlaProject = InferSelectModel<typeof mlaProject>;
+
+// Register Entry Table (for Inward/Outward)
+export const registerEntry = pgTable('RegisterEntry', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  type: varchar('type', { enum: ['inward', 'outward'] }).notNull(),
+  date: timestamp('date', { mode: 'date' }).notNull(),
+  fromTo: varchar('from_to', { length: 255 }).notNull(), // "From" for inward, "To" for outward
+  subject: varchar('subject', { length: 500 }).notNull(),
+  projectId: uuid('project_id').references(() => mlaProject.id),
+  mode: varchar('mode', { length: 100 }), // Hand, Email, Dak, Courier, etc.
+  refNo: varchar('ref_no', { length: 100 }),
+  officer: varchar('officer', { length: 255 }),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => user.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type RegisterEntry = InferSelectModel<typeof registerEntry>;
+
+// Register Attachments Table
+export const registerAttachment = pgTable('RegisterAttachment', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  entryId: uuid('entry_id')
+    .notNull()
+    .references(() => registerEntry.id, { onDelete: 'cascade' }),
+  fileName: varchar('file_name', { length: 255 }).notNull(),
+  fileSizeKb: integer('file_size_kb').notNull(),
+  fileUrl: text('file_url'), // for future cloud storage integration
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export type RegisterAttachment = InferSelectModel<typeof registerAttachment>;
+

@@ -18,7 +18,23 @@ import {
 } from '@/components/ui/sidebar';
 import Link from 'next/link';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-import { Calendar, BarChart3, Users, Settings } from 'lucide-react';
+import { ModuleNavigation } from './module-navigation';
+import { SidebarLink } from './sidebar-link';
+import {
+  Calendar,
+  BarChart3,
+  Users,
+  Settings,
+  LayoutDashboard,
+  CalendarDays,
+  Inbox,
+  Send,
+  FolderKanban,
+  MessageSquare,
+  Briefcase,
+  Building2,
+  User,
+} from 'lucide-react';
 
 export function AppSidebar({ user }: { user: User | undefined }) {
   const router = useRouter();
@@ -66,44 +82,83 @@ export function AppSidebar({ user }: { user: User | undefined }) {
         {/* Navigation Menu */}
         <div className="px-2 py-4">
           <SidebarMenu>
-            {user && ['admin', 'back-office', 'operator'].includes(user.role) && (
+            {/* System Modules */}
+            {user && user.role === 'admin' && (
               <SidebarMenuItem>
-                <Link
-                  href="/calendar"
-                  onClick={() => setOpenMobile(false)}
+                <SidebarLink
+                  href="/modules/user-management"
                   className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
                 >
-                  <Calendar className="size-4" />
-                  Calendar
-                </Link>
+                  <Users className="size-4" />
+                  User Management
+                </SidebarLink>
+              </SidebarMenuItem>
+            )}
+            <SidebarMenuItem>
+              <SidebarLink
+                href="/modules/profile"
+                className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
+              >
+                <User className="size-4" />
+                Profile
+              </SidebarLink>
+            </SidebarMenuItem>
+
+            {/* Analytics */}
+            {user && user.role === 'admin' && (
+              <SidebarMenuItem>
+                <SidebarLink
+                  href="/modules/chat"
+                  className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
+                >
+                  <MessageSquare className="size-4" />
+                  Chat / Analytics
+                </SidebarLink>
               </SidebarMenuItem>
             )}
 
-            {user && user.role === 'admin' && (
-              <>
+            {/* Operations */}
+            {user &&
+              ['admin', 'operator', 'back-office'].includes(user.role) && (
                 <SidebarMenuItem>
-                  <Link
-                    href="/admin"
-                    onClick={() => setOpenMobile(false)}
+                  <SidebarLink
+                    href="/modules/operator"
                     className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
                   >
-                    <BarChart3 className="size-4" />
-                    Analytics
-                  </Link>
+                    <Briefcase className="size-4" />
+                    Operator
+                  </SidebarLink>
                 </SidebarMenuItem>
-
+              )}
+            {user &&
+              ['admin', 'back-office'].includes(user.role) && (
                 <SidebarMenuItem>
-                  <Link
-                    href="/back-office"
-                    onClick={() => setOpenMobile(false)}
+                  <SidebarLink
+                    href="/modules/back-office"
                     className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
                   >
-                    <Users className="size-4" />
+                    <Building2 className="size-4" />
                     Back Office
-                  </Link>
+                  </SidebarLink>
                 </SidebarMenuItem>
-              </>
-            )}
+              )}
+
+            {/* Calendar */}
+            {user &&
+              ['admin', 'back-office', 'operator'].includes(user.role) && (
+                <SidebarMenuItem>
+                  <SidebarLink
+                    href="/modules/calendar"
+                    className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
+                  >
+                    <Calendar className="size-4" />
+                    Calendar
+                  </SidebarLink>
+                </SidebarMenuItem>
+              )}
+
+            {/* MLA e-Office Modules - Dynamically loaded based on permissions */}
+            <ModuleNavigation user={user} />
           </SidebarMenu>
         </div>
       </SidebarContent>

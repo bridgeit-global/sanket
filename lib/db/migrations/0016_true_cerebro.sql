@@ -37,11 +37,11 @@ CREATE TABLE IF NOT EXISTS "VoterTask" (
 	"notes" text
 );
 --> statement-breakpoint
-ALTER TABLE "Stream" DROP CONSTRAINT "Stream_id_pk";--> statement-breakpoint
+ALTER TABLE "Stream" DROP CONSTRAINT IF EXISTS "Stream_id_pk";--> statement-breakpoint
 ALTER TABLE "Stream" ADD PRIMARY KEY ("id");--> statement-breakpoint
-ALTER TABLE "User" ADD COLUMN "role" varchar DEFAULT 'regular' NOT NULL;--> statement-breakpoint
-ALTER TABLE "User" ADD COLUMN "created_at" timestamp DEFAULT now() NOT NULL;--> statement-breakpoint
-ALTER TABLE "User" ADD COLUMN "updated_at" timestamp DEFAULT now() NOT NULL;--> statement-breakpoint
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "role" varchar DEFAULT 'regular' NOT NULL;--> statement-breakpoint
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "created_at" timestamp DEFAULT now() NOT NULL;--> statement-breakpoint
+ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "updated_at" timestamp DEFAULT now() NOT NULL;--> statement-breakpoint
 DO $$ BEGIN
  ALTER TABLE "BeneficiaryService" ADD CONSTRAINT "BeneficiaryService_requested_by_User_id_fk" FOREIGN KEY ("requested_by") REFERENCES "public"."User"("id") ON DELETE no action ON UPDATE no action;
 EXCEPTION
