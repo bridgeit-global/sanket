@@ -33,7 +33,7 @@ import {
   MessageSquare,
   Briefcase,
   Building2,
-  User,
+  User as UserIcon,
 } from 'lucide-react';
 
 export function AppSidebar({ user }: { user: User | undefined }) {
@@ -99,7 +99,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                 href="/modules/profile"
                 className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
               >
-                <User className="size-4" />
+                <UserIcon className="size-4" />
                 Profile
               </SidebarLink>
             </SidebarMenuItem>

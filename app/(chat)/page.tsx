@@ -23,9 +23,9 @@ export default async function Page() {
   ];
 
   for (const moduleKey of priorityModules) {
-    const module = modules.find((m) => m.key === moduleKey);
-    if (module) {
-      redirect(module.route);
+    const accessibleModule = modules.find((m) => m.key === moduleKey);
+    if (accessibleModule) {
+      redirect(accessibleModule.route);
     }
   }
 

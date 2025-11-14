@@ -42,11 +42,11 @@ export async function getModulesByCategoryForUser(
   const accessibleModules = await getUserAccessibleModules(userId);
   const grouped: Record<string, ModuleDefinition[]> = {};
 
-  for (const module of accessibleModules) {
-    if (!grouped[module.category]) {
-      grouped[module.category] = [];
+  for (const mod of accessibleModules) {
+    if (!grouped[mod.category]) {
+      grouped[mod.category] = [];
     }
-    grouped[module.category].push(module);
+    grouped[mod.category].push(mod);
   }
 
   return grouped;

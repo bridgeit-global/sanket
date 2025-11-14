@@ -1851,20 +1851,20 @@ export async function getDailyProgrammeItems({
   limit?: number;
 } = {}): Promise<Array<DailyProgramme>> {
   try {
-    let query = db.select().from(dailyProgramme);
-
-    if (startDate || endDate) {
-      const conditions = [];
-      if (startDate) {
-        conditions.push(gte(dailyProgramme.date, startDate));
-      }
-      if (endDate) {
-        conditions.push(lte(dailyProgramme.date, endDate));
-      }
-      query = query.where(and(...conditions));
+    const conditions: SQL[] = [];
+    if (startDate) {
+      conditions.push(gte(dailyProgramme.date, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(dailyProgramme.date, endDate));
     }
 
-    return await query.orderBy(asc(dailyProgramme.date), asc(dailyProgramme.startTime)).limit(limit);
+    return await db
+      .select()
+      .from(dailyProgramme)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(asc(dailyProgramme.date), asc(dailyProgramme.startTime))
+      .limit(limit);
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1982,9 +1982,7 @@ export async function getRegisterEntries({
   limit?: number;
 } = {}): Promise<Array<RegisterEntry>> {
   try {
-    let query = db.select().from(registerEntry);
-
-    const conditions = [];
+    const conditions: SQL[] = [];
     if (type) {
       conditions.push(eq(registerEntry.type, type));
     }
@@ -1995,11 +1993,12 @@ export async function getRegisterEntries({
       conditions.push(lte(registerEntry.date, endDate));
     }
 
-    if (conditions.length > 0) {
-      query = query.where(and(...conditions));
-    }
-
-    return await query.orderBy(desc(registerEntry.date), desc(registerEntry.createdAt)).limit(limit);
+    return await db
+      .select()
+      .from(registerEntry)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(registerEntry.date), desc(registerEntry.createdAt))
+      .limit(limit);
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -2159,13 +2158,12 @@ export async function getProjects({
   limit?: number;
 } = {}): Promise<Array<MlaProject>> {
   try {
-    let query = db.select().from(mlaProject);
-
-    if (status) {
-      query = query.where(eq(mlaProject.status, status));
-    }
-
-    return await query.orderBy(desc(mlaProject.createdAt)).limit(limit);
+    return await db
+      .select()
+      .from(mlaProject)
+      .where(status ? eq(mlaProject.status, status) : undefined)
+      .orderBy(desc(mlaProject.createdAt))
+      .limit(limit);
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',

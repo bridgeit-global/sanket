@@ -22,7 +22,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   projects: FolderKanban,
 };
 
-export function ModuleNavigation({ user }: { user: { id: string } | undefined }) {
+export function ModuleNavigation({ user }: { user: { id?: string } | undefined }) {
   const pathname = usePathname();
   const [modules, setModules] = useState<ModuleDefinition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,11 +70,10 @@ export function ModuleNavigation({ user }: { user: { id: string } | undefined })
           <SidebarMenuItem key={module.key}>
             <SidebarLink
               href={module.route}
-              className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'hover:bg-muted'
-              }`}
+              className={`flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md transition-colors ${isActive
+                ? 'bg-primary text-primary-foreground'
+                : 'hover:bg-muted'
+                }`}
             >
               {Icon && <Icon className="size-4" />}
               {module.label}
