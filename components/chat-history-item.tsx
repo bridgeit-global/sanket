@@ -65,7 +65,7 @@ const PureChatHistoryItem = ({
               isActive && 'opacity-100'
             )}
           >
-            <MoreHorizontalIcon className="h-4 w-4" />
+            <MoreHorizontalIcon size={16} />
             <span className="sr-only">More</span>
           </Button>
         </DropdownMenuTrigger>
