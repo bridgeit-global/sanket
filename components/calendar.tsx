@@ -9,6 +9,7 @@ import { CalendarHeader } from './calendar-header';
 import { ScrollableEventList } from './scrollable-event-list';
 import { CalendarAnalytics } from './calendar-analytics';
 import { Button } from './ui/button';
+import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import {
@@ -261,9 +262,12 @@ export function Calendar({ userRole }: CalendarProps) {
         <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-white">Calendar</h1>
-                    <p className="text-gray-300">Manage your events and schedule</p>
+                <div className="flex items-center gap-3">
+                    <SidebarToggle />
+                    <div>
+                        <h1 className="text-2xl font-bold text-white">Calendar</h1>
+                        <p className="text-gray-300">Manage your events and schedule</p>
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-2">

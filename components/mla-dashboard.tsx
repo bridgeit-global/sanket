@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Button } from '@/components/ui/button';
 import { CalendarDays, Inbox, Send, FolderKanban } from 'lucide-react';
 import { format } from 'date-fns';
@@ -101,6 +102,15 @@ export function MlaDashboard() {
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <SidebarToggle />
+        <div>
+          <h1 className="text-3xl font-bold">MLA Dashboard</h1>
+          <p className="text-muted-foreground mt-2">Overview of activities and statistics</p>
+        </div>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Today at a glance</CardTitle>

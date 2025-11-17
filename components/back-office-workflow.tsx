@@ -1,21 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import { signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { toast } from '@/components/toast';
 import type { Voter } from '@/lib/db/schema';
 import { PhoneUpdateForm } from '@/components/phone-update-form';
 
-interface BackOfficeWorkflowProps {
-    onSignOut: () => void;
-}
-
-export function BackOfficeWorkflow({ onSignOut }: BackOfficeWorkflowProps) {
+export function BackOfficeWorkflow() {
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<Voter[]>([]);
     const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
@@ -215,11 +213,14 @@ export function BackOfficeWorkflow({ onSignOut }: BackOfficeWorkflowProps) {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold">Profile Update</h1>
-                    <p className="text-muted-foreground mt-2">Search voters and update phone numbers</p>
+                <div className="flex items-center gap-3">
+                    <SidebarToggle />
+                    <div>
+                        <h1 className="text-3xl font-bold">Profile Update</h1>
+                        <p className="text-muted-foreground mt-2">Search voters and update phone numbers</p>
+                    </div>
                 </div>
-                <Button variant="outline" onClick={onSignOut}>Sign Out</Button>
+                <Button variant="outline" onClick={() => signOut({ redirectTo: '/' })}>Sign Out</Button>
             </div>
 
             <Card>

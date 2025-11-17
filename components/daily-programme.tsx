@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -95,6 +96,15 @@ export function DailyProgramme() {
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <SidebarToggle />
+        <div>
+          <h1 className="text-3xl font-bold">Daily Programme</h1>
+          <p className="text-muted-foreground mt-2">Manage daily schedules and programmes</p>
+        </div>
+      </div>
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">

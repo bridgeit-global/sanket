@@ -21,7 +21,7 @@ export function NavigationLoadingProvider({ children }: { children: ReactNode })
   const [isLoading, setIsLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const pathname = usePathname();
-  const [prevPathname, setPrevPathname] = useState(pathname);
+  const prevPathnameRef = useRef(pathname);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const completionTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -72,15 +72,18 @@ export function NavigationLoadingProvider({ children }: { children: ReactNode })
 
   // Reset loading when pathname changes (navigation completed)
   useEffect(() => {
-    if (pathname !== prevPathname) {
-      setPrevPathname(pathname);
-      // Small delay to ensure smooth transition
-      const timer = setTimeout(() => {
-        setIsLoading(false);
-      }, 150);
-      return () => clearTimeout(timer);
+    if (pathname === prevPathnameRef.current) {
+      return;
     }
-  }, [pathname, prevPathname]);
+
+    prevPathnameRef.current = pathname;
+    // Small delay to ensure smooth transition
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 150);
+
+    return () => clearTimeout(timer);
+  }, [pathname]);
 
   return (
     <NavigationLoadingContext.Provider value={{ setLoading: setIsLoading }}>

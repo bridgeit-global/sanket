@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -140,6 +141,17 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <SidebarToggle />
+        <div>
+          <h1 className="text-3xl font-bold">{heading}</h1>
+          <p className="text-muted-foreground mt-2">
+            {type === 'inward' ? 'Manage incoming documents and letters' : 'Manage outgoing documents and letters'}
+          </p>
+        </div>
+      </div>
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -184,16 +196,16 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
             <div className="space-y-2 md:col-span-2">
               <Label htmlFor="project">Project</Label>
               <Select
-                value={form.projectId}
+                value={form.projectId || 'none'}
                 onValueChange={(value) =>
-                  setForm({ ...form, projectId: value })
+                  setForm({ ...form, projectId: value === 'none' ? '' : value })
                 }
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select project (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
