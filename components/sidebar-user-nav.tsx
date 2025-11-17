@@ -3,14 +3,13 @@
 import { ChevronUp } from 'lucide-react';
 import Image from 'next/image';
 import type { User } from 'next-auth';
-import { signOut, useSession } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import { useTheme } from 'next-themes';
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -18,13 +17,10 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { useRouter } from 'next/navigation';
-import { toast } from './toast';
 import { LoaderIcon } from './icons';
 
 export function SidebarUserNav({ user }: { user: User }) {
-  const router = useRouter();
-  const { data, status } = useSession();
+  const { status } = useSession();
   const { setTheme, resolvedTheme } = useTheme();
 
 
@@ -75,30 +71,6 @@ export function SidebarUserNav({ user }: { user: User }) {
               onSelect={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
             >
               {`Toggle ${resolvedTheme === 'light' ? 'dark' : 'light'} mode`}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild data-testid="user-nav-item-auth">
-              <button
-                type="button"
-                className="w-full cursor-pointer"
-                onClick={() => {
-                  if (status === 'loading') {
-                    toast({
-                      type: 'error',
-                      description:
-                        'Checking authentication status, please try again!',
-                    });
-
-                    return;
-                  }
-
-                  signOut({
-                    redirectTo: '/',
-                  });
-                }}
-              >
-                Sign out
-              </button>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

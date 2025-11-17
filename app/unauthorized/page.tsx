@@ -1,6 +1,5 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { signOut } from '@/app/(auth)/auth';
 import { BackButton } from '@/components/back-button';
 
 export default function UnauthorizedPage() {
@@ -21,14 +20,6 @@ export default function UnauthorizedPage() {
                     </div>
                     <div className="flex gap-2">
                         <BackButton />
-                        <form action={async () => {
-                            'use server';
-                            await signOut();
-                        }}>
-                            <Button type="submit" variant="outline" className="flex-1">
-                                Sign Out
-                            </Button>
-                        </form>
                     </div>
                 </CardContent>
             </Card>

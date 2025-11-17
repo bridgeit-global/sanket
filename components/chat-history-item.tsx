@@ -29,10 +29,12 @@ const PureChatHistoryItem = ({
   chat,
   isActive,
   onDelete,
+  onNavigate,
 }: {
   chat: Chat;
   isActive: boolean;
   onDelete: (chatId: string) => void;
+  onNavigate?: () => void;
 }) => {
   const { visibilityType, setVisibilityType } = useChatVisibility({
     chatId: chat.id,
@@ -43,6 +45,7 @@ const PureChatHistoryItem = ({
     <div className="group relative flex items-center">
       <Link
         href={`/chat/${chat.id}`}
+        onClick={onNavigate}
         className={cn(
           'flex-1 px-3 py-2 text-sm rounded-md transition-colors',
           'hover:bg-muted',

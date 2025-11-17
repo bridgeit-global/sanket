@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -220,7 +219,6 @@ export function BackOfficeWorkflow() {
                         <p className="text-muted-foreground mt-2">Search voters and update phone numbers</p>
                     </div>
                 </div>
-                <Button variant="outline" onClick={() => signOut({ redirectTo: '/' })}>Sign Out</Button>
             </div>
 
             <Card>

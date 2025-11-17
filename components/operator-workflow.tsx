@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { signOut } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -304,9 +303,6 @@ export function OperatorWorkflow() {
                         </p>
                     </div>
                 </div>
-                <Button variant="outline" onClick={() => signOut({ redirectTo: '/' })}>
-                    Sign Out
-                </Button>
             </div>
 
             {/* Tab Navigation */}
@@ -576,9 +572,6 @@ export function OperatorWorkflow() {
                                 <div className="flex gap-4">
                                     <Button onClick={handleStartNew} className="flex-1">
                                         Create Another Service
-                                    </Button>
-                                    <Button variant="outline" onClick={() => signOut({ redirectTo: '/' })}>
-                                        Sign Out
                                     </Button>
                                 </div>
                             </CardContent>

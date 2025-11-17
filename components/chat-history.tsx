@@ -64,7 +64,13 @@ const groupChatsByDate = (chats: Chat[]): GroupedChats => {
   );
 };
 
-export function ChatHistory({ user }: { user: User | undefined }) {
+export function ChatHistory({
+  user,
+  onNavigate,
+}: {
+  user: User | undefined;
+  onNavigate?: () => void;
+}) {
   const { id } = useParams();
 
   const {
@@ -188,6 +194,7 @@ export function ChatHistory({ user }: { user: User | undefined }) {
                               setDeleteId(chatId);
                               setShowDeleteDialog(true);
                             }}
+                            onNavigate={onNavigate}
                           />
                         ))}
                       </div>
@@ -209,6 +216,7 @@ export function ChatHistory({ user }: { user: User | undefined }) {
                               setDeleteId(chatId);
                               setShowDeleteDialog(true);
                             }}
+                            onNavigate={onNavigate}
                           />
                         ))}
                       </div>
@@ -230,6 +238,7 @@ export function ChatHistory({ user }: { user: User | undefined }) {
                               setDeleteId(chatId);
                               setShowDeleteDialog(true);
                             }}
+                            onNavigate={onNavigate}
                           />
                         ))}
                       </div>
@@ -251,6 +260,7 @@ export function ChatHistory({ user }: { user: User | undefined }) {
                               setDeleteId(chatId);
                               setShowDeleteDialog(true);
                             }}
+                            onNavigate={onNavigate}
                           />
                         ))}
                       </div>
@@ -272,6 +282,7 @@ export function ChatHistory({ user }: { user: User | undefined }) {
                               setDeleteId(chatId);
                               setShowDeleteDialog(true);
                             }}
+                            onNavigate={onNavigate}
                           />
                         ))}
                       </div>
