@@ -224,7 +224,7 @@ export function ModulePermissionManager() {
                       <SelectContent>
                         <SelectItem value="admin">Admin</SelectItem>
                         <SelectItem value="operator">Operator</SelectItem>
-                        <SelectItem value="back-office">Back Office</SelectItem>
+                        <SelectItem value="back-office">Profile Update</SelectItem>
                         <SelectItem value="regular">Regular</SelectItem>
                       </SelectContent>
                     </Select>

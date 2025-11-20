@@ -137,12 +137,12 @@ export function AppSidebar({ user, modules }: AppSidebarProps) {
               ['admin', 'back-office'].includes(user.role) &&
               canAccessModule('back-office') && (
                 <SidebarMenuItem>
-                  <SidebarLink
+                <SidebarLink
                     href="/modules/back-office"
                     className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
                   >
                     <Building2 className="size-4" />
-                    Back Office
+                  Profile Update
                   </SidebarLink>
                 </SidebarMenuItem>
               )}

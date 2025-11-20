@@ -52,8 +52,8 @@ export const ALL_MODULES: ModuleDefinition[] = [
   },
   {
     key: 'back-office',
-    label: 'Back Office',
-    description: 'Back office workflow and data management',
+    label: 'Profile Update',
+    description: 'Profile update workflow and data management',
     route: '/modules/back-office',
     icon: 'Building2',
     category: 'operations',
