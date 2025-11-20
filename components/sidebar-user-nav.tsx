@@ -18,6 +18,7 @@ import {
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { LoaderIcon } from './icons';
+import { SignOutForm } from './sign-out-form';
 
 export function SidebarUserNav({ user }: { user: User }) {
   const { status } = useSession();
@@ -71,6 +72,13 @@ export function SidebarUserNav({ user }: { user: User }) {
               onSelect={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
             >
               {`Toggle ${resolvedTheme === 'light' ? 'dark' : 'light'} mode`}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              data-testid="user-nav-item-sign-out"
+              className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"
+              asChild
+            >
+              <SignOutForm />
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
