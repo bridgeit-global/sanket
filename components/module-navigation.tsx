@@ -10,7 +10,6 @@ import {
   FolderKanban,
 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar';
-import { getUserAccessibleModules } from '@/lib/module-access';
 import type { ModuleDefinition } from '@/lib/module-constants';
 import { SidebarLink } from './sidebar-link';
 
@@ -21,40 +20,46 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   outward: Send,
   projects: FolderKanban,
 };
+const MLA_MODULE_KEYS = ['mla-dashboard', 'daily-programme', 'inward', 'outward', 'projects'];
 
-export function ModuleNavigation({ user }: { user: { id?: string } | undefined }) {
+const filterMlaModules = (mods: ModuleDefinition[]) =>
+  mods.filter((m) => MLA_MODULE_KEYS.includes(m.key));
+
+export function ModuleNavigation({
+  user,
+  modules: initialModules,
+}: {
+  user: { id?: string } | undefined;
+  modules?: ModuleDefinition[];
+}) {
   const pathname = usePathname();
-  const [modules, setModules] = useState<ModuleDefinition[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [modules, setModules] = useState<ModuleDefinition[]>(
+    initialModules ? filterMlaModules(initialModules) : [],
+  );
+  const [loading, setLoading] = useState(!(initialModules && initialModules.length > 0));
 
   useEffect(() => {
-    if (user?.id) {
-      loadModules();
-    } else {
+    if (modules.length > 0 || !user?.id) {
       setLoading(false);
+      return;
     }
-  }, [user?.id]);
 
-  const loadModules = async () => {
-    try {
-      // Fetch user's accessible modules from API
-      const response = await fetch('/api/user/modules');
-      if (response.ok) {
-        const data = await response.json();
-        // Filter only MLA e-Office modules
-        const mlaModules = data.filter((m: ModuleDefinition) =>
-          ['mla-dashboard', 'daily-programme', 'inward', 'outward', 'projects'].includes(
-            m.key,
-          ),
-        );
-        setModules(mlaModules);
+    const loadModules = async () => {
+      try {
+        const response = await fetch('/api/user/modules');
+        if (response.ok) {
+          const data = await response.json();
+          setModules(filterMlaModules(data));
+        }
+      } catch (error) {
+        console.error('Error loading modules:', error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error loading modules:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+
+    loadModules();
+  }, [modules.length, user?.id]);
 
   if (loading || modules.length === 0) {
     return null;

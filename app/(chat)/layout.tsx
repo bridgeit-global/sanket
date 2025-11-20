@@ -6,6 +6,7 @@ import { auth } from '../(auth)/auth';
 import Script from 'next/script';
 import { DataStreamProvider } from '@/components/data-stream-provider';
 import { NavigationLoadingProvider } from '@/components/navigation-loading-provider';
+import { getUserAccessibleModules } from '@/lib/module-access';
 
 export const experimental_ppr = true;
 
@@ -15,6 +16,9 @@ export default async function Layout({
   children: React.ReactNode;
 }) {
   const [session, cookieStore] = await Promise.all([auth(), cookies()]);
+  const accessibleModules = session?.user?.id
+    ? await getUserAccessibleModules(session.user.id)
+    : [];
   const isCollapsed = cookieStore.get('sidebar:state')?.value !== 'true';
 
   return (
@@ -26,7 +30,7 @@ export default async function Layout({
       <DataStreamProvider>
         <NavigationLoadingProvider>
           <SidebarProvider defaultOpen={!isCollapsed}>
-            <AppSidebar user={session?.user} />
+            <AppSidebar user={session?.user} modules={accessibleModules} />
             <SidebarInset>{children}</SidebarInset>
           </SidebarProvider>
         </NavigationLoadingProvider>

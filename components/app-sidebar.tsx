@@ -16,28 +16,31 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import Link from 'next/link';
+import type { ModuleDefinition } from '@/lib/module-constants';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { ModuleNavigation } from './module-navigation';
 import { SidebarLink } from './sidebar-link';
 import {
   Calendar,
-  BarChart3,
-  Users,
-  Settings,
-  LayoutDashboard,
-  CalendarDays,
-  Inbox,
-  Send,
-  FolderKanban,
   MessageSquare,
   Briefcase,
   Building2,
   User as UserIcon,
+  Users,
 } from 'lucide-react';
 
-export function AppSidebar({ user }: { user: User | undefined }) {
+interface AppSidebarProps {
+  user: User | undefined;
+  modules?: ModuleDefinition[];
+}
+
+export function AppSidebar({ user, modules }: AppSidebarProps) {
   const router = useRouter();
   const { setOpenMobile } = useSidebar();
+  const hasModuleData = Array.isArray(modules);
+  const accessibleModuleKeys = new Set((modules ?? []).map((module) => module.key));
+  const canAccessModule = (key: string) =>
+    !hasModuleData || accessibleModuleKeys.has(key);
 
   return (
     <Sidebar className="group-data-[side=left]:border-r-0">
@@ -80,7 +83,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
         <div className="px-2 py-4">
           <SidebarMenu>
             {/* System Modules */}
-            {user && user.role === 'admin' && (
+            {user && user.role === 'admin' && canAccessModule('user-management') && (
               <SidebarMenuItem>
                 <SidebarLink
                   href="/modules/user-management"
@@ -91,18 +94,20 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                 </SidebarLink>
               </SidebarMenuItem>
             )}
-            <SidebarMenuItem>
-              <SidebarLink
-                href="/modules/profile"
-                className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
-              >
-                <UserIcon className="size-4" />
-                Profile
-              </SidebarLink>
-            </SidebarMenuItem>
+            {canAccessModule('profile') && (
+              <SidebarMenuItem>
+                <SidebarLink
+                  href="/modules/profile"
+                  className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
+                >
+                  <UserIcon className="size-4" />
+                  Profile
+                </SidebarLink>
+              </SidebarMenuItem>
+            )}
 
             {/* Analytics */}
-            {user && user.role === 'admin' && (
+            {user && user.role === 'admin' && canAccessModule('chat') && (
               <SidebarMenuItem>
                 <SidebarLink
                   href="/modules/chat"
@@ -116,7 +121,8 @@ export function AppSidebar({ user }: { user: User | undefined }) {
 
             {/* Operations */}
             {user &&
-              ['admin', 'operator', 'back-office'].includes(user.role) && (
+              ['admin', 'operator', 'back-office'].includes(user.role) &&
+              canAccessModule('operator') && (
                 <SidebarMenuItem>
                   <SidebarLink
                     href="/modules/operator"
@@ -128,7 +134,8 @@ export function AppSidebar({ user }: { user: User | undefined }) {
                 </SidebarMenuItem>
               )}
             {user &&
-              ['admin', 'back-office'].includes(user.role) && (
+              ['admin', 'back-office'].includes(user.role) &&
+              canAccessModule('back-office') && (
                 <SidebarMenuItem>
                   <SidebarLink
                     href="/modules/back-office"
@@ -142,7 +149,8 @@ export function AppSidebar({ user }: { user: User | undefined }) {
 
             {/* Calendar */}
             {user &&
-              ['admin', 'back-office', 'operator'].includes(user.role) && (
+              ['admin', 'back-office', 'operator'].includes(user.role) &&
+              canAccessModule('calendar') && (
                 <SidebarMenuItem>
                   <SidebarLink
                     href="/modules/calendar"
@@ -155,7 +163,7 @@ export function AppSidebar({ user }: { user: User | undefined }) {
               )}
 
             {/* MLA e-Office Modules - Dynamically loaded based on permissions */}
-            <ModuleNavigation user={user} />
+            <ModuleNavigation user={user} modules={modules} />
           </SidebarMenu>
         </div>
       </SidebarContent>
