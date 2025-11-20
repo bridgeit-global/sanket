@@ -26,6 +26,9 @@ export async function getUserAccessibleModules(
       );
 
     const accessibleKeys = new Set(permissions.map((p) => p.moduleKey));
+    if (accessibleKeys.has('calendar')) {
+      accessibleKeys.add('daily-programme');
+    }
     return ALL_MODULES.filter((module) => accessibleKeys.has(module.key));
   } catch (error) {
     console.error('Error getting accessible modules:', error);

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-// Backward compatibility - redirect to new module route
+// Backward compatibility - redirect to merged Daily Programme module
 export default async function CalendarPage() {
-    redirect('/modules/calendar');
+    redirect('/modules/daily-programme');
 }

@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar } from '@/components/calendar';
 import {
   Table,
   TableBody,
@@ -28,7 +30,11 @@ interface ProgrammeItem {
   remarks?: string;
 }
 
-export function DailyProgramme() {
+interface DailyProgrammeProps {
+  userRole: string;
+}
+
+export function DailyProgramme({ userRole }: DailyProgrammeProps) {
   const [items, setItems] = useState<ProgrammeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
@@ -95,151 +101,165 @@ export function DailyProgramme() {
   }
 
   return (
-    <div className="flex flex-col gap-4 md:gap-6">
-      {/* Header */}
+    <div className="flex flex-col gap-6">
       <div className="flex items-center gap-3">
         <SidebarToggle />
         <div>
           <h1 className="text-3xl font-bold">Daily Programme</h1>
-          <p className="text-muted-foreground mt-2">Manage daily schedules and programmes</p>
+          <p className="text-muted-foreground mt-2">
+            Manage daily schedules, detailed calendar views, and analytics
+          </p>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Create / Edit Daily Programme</CardTitle>
-            <Button variant="outline" size="sm" onClick={handlePrint}>
-              <Printer className="mr-2 h-4 w-4" />
-              Print Programme
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-4">
-            <div className="space-y-2">
-              <Label htmlFor="date">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={form.date}
-                onChange={(e) => setForm({ ...form, date: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="startTime">Start Time</Label>
-              <Input
-                id="startTime"
-                type="time"
-                value={form.startTime}
-                onChange={(e) =>
-                  setForm({ ...form, startTime: e.target.value })
-                }
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="endTime">End Time</Label>
-              <Input
-                id="endTime"
-                type="time"
-                value={form.endTime}
-                onChange={(e) =>
-                  setForm({ ...form, endTime: e.target.value })
-                }
-              />
-            </div>
-            <div className="space-y-2 md:col-span-1">
-              <Label htmlFor="title">Programme Title</Label>
-              <Input
-                id="title"
-                placeholder="Field visit, meeting, event..."
-                value={form.title}
-                onChange={(e) => setForm({ ...form, title: e.target.value })}
-                required
-              />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                placeholder="Ward office, society name, landmark..."
-                value={form.location}
-                onChange={(e) =>
-                  setForm({ ...form, location: e.target.value })
-                }
-                required
-              />
-            </div>
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="remarks">Remarks</Label>
-              <Textarea
-                id="remarks"
-                placeholder="Key points, officers to be present, contact person..."
-                value={form.remarks}
-                onChange={(e) =>
-                  setForm({ ...form, remarks: e.target.value })
-                }
-                rows={2}
-              />
-            </div>
-            <div className="md:col-span-4 flex justify-end">
-              <Button type="submit">Add to Programme</Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      <Tabs defaultValue="programme" className="space-y-6">
+        <TabsList className="w-full max-w-xl justify-start">
+          <TabsTrigger value="programme">Programme Register</TabsTrigger>
+          <TabsTrigger value="calendar">Calendar & Analytics</TabsTrigger>
+        </TabsList>
 
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Programme Register</CardTitle>
-            <span className="text-sm text-muted-foreground">
-              Total: {items.length}
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Location</TableHead>
-                  <TableHead>Remarks</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground">
-                      No programme added yet.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{format(new Date(item.date), 'dd MMM yyyy')}</TableCell>
-                      <TableCell>
-                        {item.startTime}
-                        {item.endTime && ` - ${item.endTime}`}
-                      </TableCell>
-                      <TableCell className="font-medium">{item.title}</TableCell>
-                      <TableCell>{item.location}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {item.remarks}
-                      </TableCell>
+        <TabsContent value="programme" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle>Create / Edit Daily Programme</CardTitle>
+                <Button variant="outline" size="sm" onClick={handlePrint}>
+                  <Printer className="mr-2 h-4 w-4" />
+                  Print Programme
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-4">
+                <div className="space-y-2">
+                  <Label htmlFor="date">Date</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={form.date}
+                    onChange={(e) => setForm({ ...form, date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="startTime">Start Time</Label>
+                  <Input
+                    id="startTime"
+                    type="time"
+                    value={form.startTime}
+                    onChange={(e) => setForm({ ...form, startTime: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endTime">End Time</Label>
+                  <Input
+                    id="endTime"
+                    type="time"
+                    value={form.endTime}
+                    onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-1">
+                  <Label htmlFor="title">Programme Title</Label>
+                  <Input
+                    id="title"
+                    placeholder="Field visit, meeting, event..."
+                    value={form.title}
+                    onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="location">Location</Label>
+                  <Input
+                    id="location"
+                    placeholder="Ward office, society name, landmark..."
+                    value={form.location}
+                    onChange={(e) => setForm({ ...form, location: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="remarks">Remarks</Label>
+                  <Textarea
+                    id="remarks"
+                    placeholder="Key points, officers to be present, contact person..."
+                    value={form.remarks}
+                    onChange={(e) => setForm({ ...form, remarks: e.target.value })}
+                    rows={2}
+                  />
+                </div>
+                <div className="md:col-span-4 flex justify-end">
+                  <Button type="submit">Add to Programme</Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Programme Register</CardTitle>
+                <span className="text-sm text-muted-foreground">Total: {items.length}</span>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Remarks</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {items.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center text-muted-foreground">
+                          No programme added yet.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      items.map((item) => (
+                        <TableRow key={item.id}>
+                          <TableCell>{format(new Date(item.date), 'dd MMM yyyy')}</TableCell>
+                          <TableCell>
+                            {item.startTime}
+                            {item.endTime && ` - ${item.endTime}`}
+                          </TableCell>
+                          <TableCell className="font-medium">{item.title}</TableCell>
+                          <TableCell>{item.location}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {item.remarks}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="calendar" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Full Calendar & Analytics</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Advanced calendar scheduling, event management, analytics, and filters
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <Calendar userRole={userRole} embedLayout />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

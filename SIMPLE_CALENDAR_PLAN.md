@@ -1,5 +1,7 @@
 # Simple Calendar Module Plan for Back Office and Admin
 
+> **Update (Nov 2025):** The standalone Calendar module has been merged into the Daily Programme experience. The details below continue to describe the calendar capabilities now exposed via the Daily Programme module.
+
 ## Overview
 
 This document outlines a simplified calendar module implementation for the Anushakti Nagar voter analysis application, designed to support both back office and admin users with basic event management and scheduling capabilities.

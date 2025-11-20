@@ -147,21 +147,6 @@ export function AppSidebar({ user, modules }: AppSidebarProps) {
                 </SidebarMenuItem>
               )}
 
-            {/* Calendar */}
-            {user &&
-              ['admin', 'back-office', 'operator'].includes(user.role) &&
-              canAccessModule('calendar') && (
-                <SidebarMenuItem>
-                  <SidebarLink
-                    href="/modules/calendar"
-                    className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
-                  >
-                    <Calendar className="size-4" />
-                    Calendar
-                  </SidebarLink>
-                </SidebarMenuItem>
-              )}
-
             {/* MLA e-Office Modules - Dynamically loaded based on permissions */}
             <ModuleNavigation user={user} modules={modules} />
           </SidebarMenu>

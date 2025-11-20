@@ -59,16 +59,6 @@ export const ALL_MODULES: ModuleDefinition[] = [
     category: 'operations',
     defaultRoles: ['admin', 'back-office'],
   },
-  // Calendar module
-  {
-    key: 'calendar',
-    label: 'Calendar',
-    description: 'View and manage calendar events',
-    route: '/modules/calendar',
-    icon: 'Calendar',
-    category: 'calendar',
-    defaultRoles: ['admin', 'operator', 'back-office'],
-  },
   // MLA e-Office modules
   {
     key: 'mla-dashboard',
@@ -86,7 +76,7 @@ export const ALL_MODULES: ModuleDefinition[] = [
     route: '/modules/daily-programme',
     icon: 'CalendarDays',
     category: 'mla-office',
-    defaultRoles: [],
+    defaultRoles: ['admin', 'operator', 'back-office'],
   },
   {
     key: 'inward',
@@ -141,7 +131,6 @@ export const MODULE_KEYS = {
   CHAT: 'chat',
   OPERATOR: 'operator',
   BACK_OFFICE: 'back-office',
-  CALENDAR: 'calendar',
   MLA_DASHBOARD: 'mla-dashboard',
   DAILY_PROGRAMME: 'daily-programme',
   INWARD: 'inward',

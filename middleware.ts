@@ -111,7 +111,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/modules/back-office', request.url));
   }
   if (pathname === '/calendar') {
-    return NextResponse.redirect(new URL('/modules/calendar', request.url));
+    return NextResponse.redirect(new URL('/modules/daily-programme', request.url));
   }
 
   return NextResponse.next();

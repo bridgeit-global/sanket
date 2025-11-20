@@ -1719,15 +1719,20 @@ export async function updateUserModulePermissions(
 
 export async function hasModuleAccess(userId: string, moduleKey: string): Promise<boolean> {
   try {
+    const moduleKeysToCheck =
+      moduleKey === 'daily-programme' || moduleKey === 'calendar'
+        ? ['daily-programme', 'calendar']
+        : [moduleKey];
+
+    const moduleKeyCondition =
+      moduleKeysToCheck.length === 1
+        ? eq(userModulePermissions.moduleKey, moduleKeysToCheck[0]!)
+        : inArray(userModulePermissions.moduleKey, moduleKeysToCheck);
+
     const [permission] = await db
       .select()
       .from(userModulePermissions)
-      .where(
-        and(
-          eq(userModulePermissions.userId, userId),
-          eq(userModulePermissions.moduleKey, moduleKey),
-        ),
-      )
+      .where(and(eq(userModulePermissions.userId, userId), moduleKeyCondition))
       .limit(1);
 
     return permission?.hasAccess ?? false;

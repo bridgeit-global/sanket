@@ -24,9 +24,10 @@ export type CalendarView = 'month' | 'week' | 'day' | 'list';
 
 interface CalendarProps {
     userRole: string;
+    embedLayout?: boolean;
 }
 
-export function Calendar({ userRole }: CalendarProps) {
+export function Calendar({ userRole, embedLayout = false }: CalendarProps) {
     const [events, setEvents] = useState<CalendarEvent[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -258,15 +259,26 @@ export function Calendar({ userRole }: CalendarProps) {
         );
     }
 
+    const headerTitleClass = `text-2xl font-bold ${embedLayout ? 'text-foreground' : 'text-white'}`;
+    const headerSubtitleClass = embedLayout ? 'text-muted-foreground' : 'text-gray-300';
+    const viewTabsListClass = `grid w-full grid-cols-4 ${
+        embedLayout ? 'bg-muted border border-border rounded-md' : 'bg-gray-800 border border-gray-700'
+    }`;
+    const viewTabsTriggerClass = `flex items-center gap-2 ${
+        embedLayout
+            ? 'text-muted-foreground data-[state=active]:bg-background data-[state=active]:text-foreground'
+            : 'text-gray-300 data-[state=active]:bg-gray-700 data-[state=active]:text-white'
+    }`;
+
     return (
         <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-center gap-3">
-                    <SidebarToggle />
+                    {!embedLayout && <SidebarToggle />}
                     <div>
-                        <h1 className="text-2xl font-bold text-white">Calendar</h1>
-                        <p className="text-gray-300">Manage your events and schedule</p>
+                        <h1 className={headerTitleClass}>Calendar</h1>
+                        <p className={headerSubtitleClass}>Manage your events and schedule</p>
                     </div>
                 </div>
 
@@ -300,20 +312,20 @@ export function Calendar({ userRole }: CalendarProps) {
 
             {/* Main Content */}
             <Tabs value={view} onValueChange={(value: string) => setView(value as CalendarView)}>
-                <TabsList className="grid w-full grid-cols-4 bg-gray-800 border-gray-700">
-                    <TabsTrigger value="list" className="flex items-center gap-2 data-[state=active]:bg-gray-700 data-[state=active]:text-white text-gray-300">
+                <TabsList className={viewTabsListClass}>
+                    <TabsTrigger value="list" className={viewTabsTriggerClass}>
                         <List className="size-4" />
                         List
                     </TabsTrigger>
-                    <TabsTrigger value="day" className="flex items-center gap-2 data-[state=active]:bg-gray-700 data-[state=active]:text-white text-gray-300">
+                    <TabsTrigger value="day" className={viewTabsTriggerClass}>
                         <CalendarIcon className="size-4" />
                         Day
                     </TabsTrigger>
-                    <TabsTrigger value="week" className="flex items-center gap-2 data-[state=active]:bg-gray-700 data-[state=active]:text-white text-gray-300">
+                    <TabsTrigger value="week" className={viewTabsTriggerClass}>
                         <CalendarIcon className="size-4" />
                         Week
                     </TabsTrigger>
-                    <TabsTrigger value="month" className="flex items-center gap-2 data-[state=active]:bg-gray-700 data-[state=active]:text-white text-gray-300">
+                    <TabsTrigger value="month" className={viewTabsTriggerClass}>
                         <CalendarIcon className="size-4" />
                         Month
                     </TabsTrigger>

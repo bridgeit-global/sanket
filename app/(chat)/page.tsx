@@ -18,7 +18,6 @@ export default async function Page() {
     'mla-dashboard',
     'operator',
     'back-office',
-    'calendar',
     'daily-programme',
   ];
 

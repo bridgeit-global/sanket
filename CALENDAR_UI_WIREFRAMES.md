@@ -1,5 +1,7 @@
 # Calendar Module UI Wireframes
 
+> **Update (Nov 2025):** These wireframes now apply to the Calendar section embedded inside the Daily Programme module rather than a standalone Calendar route.
+
 ## Overview
 These ASCII wireframes define the user interface for the calendar module, covering all views and components for both Admin and Back Office users.
 
