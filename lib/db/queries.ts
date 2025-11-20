@@ -896,16 +896,19 @@ export async function getVoterDemographics(): Promise<{
 }
 
 // Operator functions for updating voter mobile numbers
-export async function getVotersByFamilyGrouping(familyGrouping: string | null): Promise<Array<Voter>> {
+export async function getVotersByFamilyGrouping(
+  familyGrouping: string | null,
+  partNo: string | null,
+): Promise<Array<Voter>> {
   try {
-    if (!familyGrouping) {
+    if (!familyGrouping || !partNo) {
       return [];
     }
 
     return await db
       .select()
       .from(Voters)
-      .where(eq(Voters.familyGrouping, familyGrouping))
+      .where(and(eq(Voters.familyGrouping, familyGrouping), eq(Voters.partNo, partNo)))
       .orderBy(asc(Voters.fullName));
   } catch (error) {
     throw new ChatSDKError(
