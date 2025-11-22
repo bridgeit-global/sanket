@@ -9,14 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,8 +27,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { ALL_MODULES, type ModuleDefinition } from '@/lib/module-constants';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, User } from 'lucide-react';
 import type { User } from '@/lib/db/schema';
 
 interface UserWithPermissions extends User {
@@ -245,54 +243,72 @@ export function ModulePermissionManager() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User</TableHead>
-                  <TableHead>Role</TableHead>
-                  {ALL_MODULES.map((module) => (
-                    <TableHead key={module.key} className="text-center">
-                      {module.label}
-                    </TableHead>
-                  ))}
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredUsers.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell className="font-medium">{user.email}</TableCell>
-                    <TableCell>{user.role}</TableCell>
-                    {ALL_MODULES.map((module) => (
-                      <TableCell key={module.key} className="text-center">
-                        <Checkbox
-                          checked={user.permissions[module.key] || false}
-                          onChange={(e) =>
-                            handlePermissionChange(
-                              user.id,
-                              module.key,
-                              e.target.checked,
-                            )
-                          }
-                          disabled={saving}
-                        />
-                      </TableCell>
-                    ))}
-                    <TableCell className="text-right">
+          <Accordion type="single" className="w-full">
+            {filteredUsers.map((user) => (
+              <AccordionItem key={user.id} value={user.id}>
+                <AccordionTrigger>
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-medium">
+                      <User className="h-4 w-4" />
+                    </div>
+                    <div className="flex flex-col items-start">
+                      <span className="font-medium">{user.email}</span>
+                      <span className="text-sm text-muted-foreground capitalize">
+                        {user.role}
+                      </span>
+                    </div>
+                  </div>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <div className="space-y-4 pt-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {ALL_MODULES.map((module) => (
+                        <div
+                          key={module.key}
+                          className="flex items-center space-x-2 p-3 rounded-md border hover:bg-muted/50 transition-colors"
+                        >
+                          <Checkbox
+                            id={`${user.id}-${module.key}`}
+                            checked={user.permissions[module.key] || false}
+                            onChange={(e) =>
+                              handlePermissionChange(
+                                user.id,
+                                module.key,
+                                e.target.checked,
+                              )
+                            }
+                            disabled={saving}
+                          />
+                          <Label
+                            htmlFor={`${user.id}-${module.key}`}
+                            className="text-sm font-normal cursor-pointer flex-1"
+                          >
+                            {module.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-end pt-2 border-t">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDeleteUser(user.id)}
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete User
                       </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+          {filteredUsers.length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              No users found matching your search.
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
