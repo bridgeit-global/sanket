@@ -23,7 +23,7 @@ interface UpcomingProgramme {
   location: string;
 }
 
-export function MlaDashboard() {
+export function Dashboard() {
   const router = useRouter();
   const [stats, setStats] = useState<DashboardStats>({
     meetings: 0,
@@ -106,7 +106,7 @@ export function MlaDashboard() {
       <div className="flex items-center gap-3">
         <SidebarToggle />
         <div>
-          <h1 className="text-3xl font-bold">MLA Dashboard</h1>
+          <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground mt-2">Overview of activities and statistics</p>
         </div>
       </div>

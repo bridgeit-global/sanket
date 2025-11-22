@@ -2,7 +2,7 @@ import 'server-only';
 
 import { eq, and } from 'drizzle-orm';
 import { db } from './db/queries';
-import { userModulePermissions } from './db/schema';
+import { userModulePermissions, user } from './db/schema';
 import { ALL_MODULES, type ModuleDefinition } from './module-constants';
 
 // Re-export hasModuleAccess from queries for convenience
@@ -15,6 +15,16 @@ export async function getUserAccessibleModules(
   userId: string,
 ): Promise<ModuleDefinition[]> {
   try {
+    // Get user role first
+    const [userRecord] = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    const userRole = userRecord?.role;
+
+    // Get explicit permissions from database
     const permissions = await db
       .select()
       .from(userModulePermissions)
@@ -29,6 +39,16 @@ export async function getUserAccessibleModules(
     if (accessibleKeys.has('calendar')) {
       accessibleKeys.add('daily-programme');
     }
+
+    // Also include modules where the user's role is in defaultRoles
+    if (userRole) {
+      for (const modules of ALL_MODULES) {
+        if (modules.defaultRoles.length > 0 && modules.defaultRoles.includes(userRole as 'admin' | 'operator' | 'back-office' | 'regular')) {
+          accessibleKeys.add(modules.key);
+        }
+      }
+    }
+
     return ALL_MODULES.filter((module) => accessibleKeys.has(module.key));
   } catch (error) {
     console.error('Error getting accessible modules:', error);

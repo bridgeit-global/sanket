@@ -61,13 +61,13 @@ export const ALL_MODULES: ModuleDefinition[] = [
   },
   // MLA e-Office modules
   {
-    key: 'mla-dashboard',
-    label: 'MLA Dashboard',
+    key: 'dashboard',
+    label: 'Dashboard',
     description: 'Overview of MLA office activities and statistics',
-    route: '/modules/mla-dashboard',
+    route: '/modules/dashboard',
     icon: 'LayoutDashboard',
     category: 'mla-office',
-    defaultRoles: [],
+    defaultRoles: ['admin', 'operator', 'back-office'],
   },
   {
     key: 'daily-programme',
@@ -131,7 +131,7 @@ export const MODULE_KEYS = {
   CHAT: 'chat',
   OPERATOR: 'operator',
   BACK_OFFICE: 'back-office',
-  MLA_DASHBOARD: 'mla-dashboard',
+  DASHBOARD: 'dashboard',
   DAILY_PROGRAMME: 'daily-programme',
   INWARD: 'inward',
   OUTWARD: 'outward',

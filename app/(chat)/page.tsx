@@ -11,11 +11,11 @@ export default async function Page() {
 
   // Get user's accessible modules and redirect to first available module
   const modules = await getUserAccessibleModules(session.user.id);
-  
+
   // Priority order for redirects
   const priorityModules = [
     'chat',
-    'mla-dashboard',
+    'dashboard',
     'operator',
     'back-office',
     'daily-programme',
