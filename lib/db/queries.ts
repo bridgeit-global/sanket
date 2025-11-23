@@ -11,6 +11,7 @@ import {
   inArray,
   lt,
   lte,
+  ne,
   or,
   sql,
   type SQL,
@@ -918,6 +919,69 @@ export async function getVotersByFamilyGrouping(
   }
 }
 
+export async function getRelatedVoters(voter: Voter): Promise<Array<Voter>> {
+  try {
+    const conditions: SQL[] = [];
+    
+    // Find voters with same relationName (e.g., if this voter is related to someone, find others related to same person)
+    if (voter.relationName) {
+      conditions.push(eq(Voters.relationName, voter.relationName));
+    }
+    
+    // Find voters in same family grouping
+    if (voter.familyGrouping && voter.partNo) {
+      conditions.push(
+        and(
+          eq(Voters.familyGrouping, voter.familyGrouping),
+          eq(Voters.partNo, voter.partNo)
+        )
+      );
+    }
+    
+    // Find voters in same house
+    if (voter.houseNumber && voter.partNo) {
+      conditions.push(
+        and(
+          eq(Voters.houseNumber, voter.houseNumber),
+          eq(Voters.partNo, voter.partNo)
+        )
+      );
+    }
+    
+    // If no conditions, return empty array
+    if (conditions.length === 0) {
+      return [];
+    }
+    
+    // Get all related voters (excluding the voter itself)
+    const relatedVoters = await db
+      .select()
+      .from(Voters)
+      .where(
+        and(
+          or(...conditions),
+          ne(Voters.epicNumber, voter.epicNumber)
+        )
+      )
+      .orderBy(asc(Voters.fullName));
+    
+    // Remove duplicates based on epicNumber
+    const uniqueVoters = new Map<string, Voter>();
+    relatedVoters.forEach(v => {
+      if (!uniqueVoters.has(v.epicNumber)) {
+        uniqueVoters.set(v.epicNumber, v);
+      }
+    });
+    
+    return Array.from(uniqueVoters.values());
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get related voters',
+    );
+  }
+}
+
 export async function updateVoterMobileNumber(
   epicNumber: string,
   mobileNoPrimary?: string,
@@ -974,6 +1038,44 @@ export async function updateVoterMobileNumbers(
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to update voter mobile numbers',
+    );
+  }
+}
+
+export async function updateVoter(
+  epicNumber: string,
+  updateData: Partial<Pick<Voter, 'mobileNoPrimary' | 'mobileNoSecondary' | 'houseNumber' | 'relationType' | 'relationName'>>
+): Promise<Voter | null> {
+  try {
+    const dataToUpdate: Partial<Voter> = { updatedAt: new Date() };
+    
+    if (updateData.mobileNoPrimary !== undefined) {
+      dataToUpdate.mobileNoPrimary = updateData.mobileNoPrimary;
+    }
+    if (updateData.mobileNoSecondary !== undefined) {
+      dataToUpdate.mobileNoSecondary = updateData.mobileNoSecondary;
+    }
+    if (updateData.houseNumber !== undefined) {
+      dataToUpdate.houseNumber = updateData.houseNumber;
+    }
+    if (updateData.relationType !== undefined) {
+      dataToUpdate.relationType = updateData.relationType;
+    }
+    if (updateData.relationName !== undefined) {
+      dataToUpdate.relationName = updateData.relationName;
+    }
+
+    const [updatedVoter] = await db
+      .update(Voters)
+      .set(dataToUpdate)
+      .where(eq(Voters.epicNumber, epicNumber))
+      .returning();
+
+    return updatedVoter || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update voter',
     );
   }
 }

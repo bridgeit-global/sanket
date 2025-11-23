@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +14,7 @@ import type { Voter } from '@/lib/db/schema';
 import { PhoneUpdateForm } from '@/components/phone-update-form';
 
 export function BackOfficeWorkflow() {
+    const router = useRouter();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<Voter[]>([]);
     const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
@@ -104,39 +106,9 @@ export function BackOfficeWorkflow() {
         }
     };
 
-    const handleSelectVoter = async (voter: Voter) => {
-        setSelectedVoter(voter);
-        setSearchResults([]);
-        setSearchTerm('');
-        setShowPhoneUpdate(true);
-
-        // Fetch related family members immediately
-        try {
-            const familyResponse = await fetch('/operator/api/get-family-members', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    epicNumber: voter.epicNumber,
-                }),
-            });
-
-            if (familyResponse.ok) {
-                const familyData = await familyResponse.json();
-                if (familyData.relatedVoters && familyData.relatedVoters.length > 0) {
-                    setRelatedVoters(familyData.relatedVoters);
-                    setShowRelatedVoters(true);
-                } else {
-                    setRelatedVoters([]);
-                    setShowRelatedVoters(false);
-                }
-            }
-        } catch (_error) {
-            // Silently fail - family members are optional
-            setRelatedVoters([]);
-            setShowRelatedVoters(false);
-        }
+    const handleSelectVoter = (voter: Voter) => {
+        // Navigate to voter profile page
+        router.push(`/modules/voter/${encodeURIComponent(voter.epicNumber)}`);
     };
 
     const handlePhoneUpdate = async (phoneData: { mobileNoPrimary: string; mobileNoSecondary?: string }) => {

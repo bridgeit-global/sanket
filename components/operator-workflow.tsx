@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +17,7 @@ import { TaskManagement } from '@/components/task-management';
 import type { Voter, BeneficiaryService } from '@/lib/db/schema';
 
 export function OperatorWorkflow() {
+    const router = useRouter();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<Voter[]>([]);
     const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
@@ -820,7 +822,7 @@ export function OperatorWorkflow() {
                                                     key={voter.epicNumber}
                                                     type="button"
                                                     className="w-full p-4 border rounded-lg hover:bg-muted cursor-pointer text-left transition-colors"
-                                                    onClick={() => handleSelectVoter(voter)}
+                                                    onClick={() => router.push(`/modules/voter/${encodeURIComponent(voter.epicNumber)}`)}
                                                 >
                                                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
                                                         <div className="flex-1">
