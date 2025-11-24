@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, User, Phone, MapPin, Calendar, FileText, Save, X } from 'lucide-react';
 import type { Voter } from '@/lib/db/schema';
 import { toast } from '@/components/toast';
@@ -28,6 +29,7 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
     houseNumber: '',
     relationType: '',
     relationName: '',
+    isVoted2024: false,
   });
 
   useEffect(() => {
@@ -55,6 +57,7 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
             houseNumber: voterData.houseNumber || '',
             relationType: voterData.relationType || '',
             relationName: voterData.relationName || '',
+            isVoted2024: voterData.isVoted2024 || false,
           });
         } else {
           setError('Failed to load voter profile');
@@ -112,6 +115,7 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
           houseNumber: formData.houseNumber.trim() || undefined,
           relationType: formData.relationType.trim() || undefined,
           relationName: formData.relationName.trim() || undefined,
+          isVoted2024: formData.isVoted2024,
         }),
       });
 
@@ -361,16 +365,27 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
               </div>
             </div>
 
-            {/* Voting Information (Read-only) */}
+            {/* Voting Information */}
             <div>
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <Calendar className="h-4 w-4" />
                 Voting Information
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Voted in 2024</label>
-                  <p className="text-base">{voter.isVoted2024 ? 'Yes' : 'No'}</p>
+                <div className="space-y-2">
+                  <Label htmlFor="isVoted2024">Voted in 2024</Label>
+                  <Select
+                    value={formData.isVoted2024 ? 'yes' : 'no'}
+                    onValueChange={(value) => setFormData({ ...formData, isVoted2024: value === 'yes' })}
+                  >
+                    <SelectTrigger id="isVoted2024">
+                      <SelectValue placeholder="Select voting status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="yes">Yes</SelectItem>
+                      <SelectItem value="no">No</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
             </div>

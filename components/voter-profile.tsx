@@ -19,12 +19,21 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const handleBackToProfileUpdate = () => {
+    // if (typeof window !== 'undefined' && window.history.length > 1) {
+    //   router.back();
+    //   return;
+    // }
+
+    router.push('/modules/back-office');
+  };
+
   useEffect(() => {
     const fetchVoterProfile = async () => {
       try {
         setLoading(true);
         const response = await fetch(`/api/voter/${encodeURIComponent(epicNumber)}`);
-        
+
         if (!response.ok) {
           if (response.status === 404) {
             setError('Voter not found');
@@ -70,7 +79,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
       <div className="container mx-auto p-6">
         <Button
           variant="ghost"
-          onClick={() => router.back()}
+          onClick={handleBackToProfileUpdate}
           className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -89,7 +98,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
     <div className="container mx-auto p-6 space-y-6">
       <Button
         variant="ghost"
-        onClick={() => router.back()}
+        onClick={handleBackToProfileUpdate}
         className="mb-4"
       >
         <ArrowLeft className="mr-2 h-4 w-4" />

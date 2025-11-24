@@ -1044,7 +1044,7 @@ export async function updateVoterMobileNumbers(
 
 export async function updateVoter(
   epicNumber: string,
-  updateData: Partial<Pick<Voter, 'mobileNoPrimary' | 'mobileNoSecondary' | 'houseNumber' | 'relationType' | 'relationName'>>
+  updateData: Partial<Pick<Voter, 'mobileNoPrimary' | 'mobileNoSecondary' | 'houseNumber' | 'relationType' | 'relationName' | 'isVoted2024'>>
 ): Promise<Voter | null> {
   try {
     const dataToUpdate: Partial<Voter> = { updatedAt: new Date() };
@@ -1063,6 +1063,9 @@ export async function updateVoter(
     }
     if (updateData.relationName !== undefined) {
       dataToUpdate.relationName = updateData.relationName;
+    }
+    if (updateData.isVoted2024 !== undefined) {
+      dataToUpdate.isVoted2024 = updateData.isVoted2024;
     }
 
     const [updatedVoter] = await db

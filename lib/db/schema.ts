@@ -256,41 +256,6 @@ export const taskHistory = pgTable('TaskHistory', {
 
 export type TaskHistory = InferSelectModel<typeof taskHistory>;
 
-export const calendarEvents = pgTable('calendar_events', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  title: varchar('title', { length: 255 }).notNull(),
-  description: text('description'),
-  eventType: varchar('event_type', {
-    enum: ['voter_engagement', 'public_meeting', 'training', 'administrative']
-  }).notNull(),
-  startTime: timestamp('start_time').notNull(),
-  endTime: timestamp('end_time').notNull(),
-  locationId: uuid('location_id'),
-  isRecurring: boolean('is_recurring').notNull().default(false),
-  recurrencePattern: varchar('recurrence_pattern'),
-  recurrenceInterval: integer('recurrence_interval').default(1),
-  recurrenceEndDate: timestamp('recurrence_end_date'),
-  createdBy: uuid('created_by').notNull().references(() => user.id),
-  assignedTo: uuid('assigned_to').references(() => user.id),
-  priority: varchar('priority', {
-    enum: ['low', 'medium', 'high', 'urgent']
-  }).notNull().default('medium'),
-  status: varchar('status', {
-    enum: ['scheduled', 'in_progress', 'completed', 'cancelled']
-  }).notNull().default('scheduled'),
-  travelTimeMinutes: integer('travel_time_minutes').default(0),
-  preparationTimeMinutes: integer('preparation_time_minutes').default(0),
-  googlePlaceId: varchar('google_place_id', { length: 255 }),
-  locationName: varchar('location_name', { length: 255 }),
-  locationAddress: text('location_address'),
-  locationLatitude: varchar('location_latitude'),
-  locationLongitude: varchar('location_longitude'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
-
-export type CalendarEvent = InferSelectModel<typeof calendarEvents>;
-
 // Module Permissions Table
 export const userModulePermissions = pgTable('UserModulePermissions', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),

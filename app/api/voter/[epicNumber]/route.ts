@@ -62,7 +62,7 @@ export async function PUT(
     const decodedEpicNumber = decodeURIComponent(epicNumber);
 
     const body = await request.json();
-    const { mobileNoPrimary, mobileNoSecondary, houseNumber, relationType, relationName } = body;
+    const { mobileNoPrimary, mobileNoSecondary, houseNumber, relationType, relationName, isVoted2024 } = body;
 
     // Validate required fields
     if (!mobileNoPrimary || typeof mobileNoPrimary !== 'string') {
@@ -95,6 +95,7 @@ export async function PUT(
       houseNumber: houseNumber?.trim() || undefined,
       relationType: relationType?.trim() || undefined,
       relationName: relationName?.trim() || undefined,
+      isVoted2024: isVoted2024 !== undefined ? Boolean(isVoted2024) : undefined,
     });
 
     if (!updatedVoter) {
