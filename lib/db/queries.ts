@@ -921,43 +921,7 @@ export async function getVotersByFamilyGrouping(
 
 export async function getRelatedVoters(voter: Voter): Promise<Array<Voter>> {
   try {
-    const conditions: SQL[] = [];
-    
-    // Find voters with same relationName (e.g., if this voter is related to someone, find others related to same person)
-    if (voter.relationName) {
-      conditions.push(eq(Voters.relationName, voter.relationName));
-    }
-    
-    // Find voters in same family grouping
-    if (voter.familyGrouping && voter.partNo) {
-      const sameFamilyCondition = and(
-        eq(Voters.familyGrouping, voter.familyGrouping),
-        eq(Voters.partNo, voter.partNo),
-      );
-      if (sameFamilyCondition) {
-        conditions.push(sameFamilyCondition);
-      }
-    }
-    
-    // Find voters in same house
-    if (voter.houseNumber && voter.partNo) {
-      const sameHouseCondition = and(
-        eq(Voters.houseNumber, voter.houseNumber),
-        eq(Voters.partNo, voter.partNo),
-      );
-      if (sameHouseCondition) {
-        conditions.push(sameHouseCondition);
-      }
-    }
-    
-    // If no conditions, return empty array
-    if (conditions.length === 0) {
-      return [];
-    }
-    
-    // Get all related voters (excluding the voter itself)
-    const relatedConditions = or(...conditions);
-    if (!relatedConditions) {
+    if (!voter.familyGrouping || !voter.partNo) {
       return [];
     }
 
@@ -966,21 +930,14 @@ export async function getRelatedVoters(voter: Voter): Promise<Array<Voter>> {
       .from(Voters)
       .where(
         and(
-          relatedConditions,
-          ne(Voters.epicNumber, voter.epicNumber)
-        )
+          eq(Voters.familyGrouping, voter.familyGrouping),
+          eq(Voters.partNo, voter.partNo),
+          ne(Voters.epicNumber, voter.epicNumber),
+        ),
       )
       .orderBy(asc(Voters.fullName));
-    
-    // Remove duplicates based on epicNumber
-    const uniqueVoters = new Map<string, Voter>();
-    relatedVoters.forEach(v => {
-      if (!uniqueVoters.has(v.epicNumber)) {
-        uniqueVoters.set(v.epicNumber, v);
-      }
-    });
-    
-    return Array.from(uniqueVoters.values());
+
+    return relatedVoters;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
