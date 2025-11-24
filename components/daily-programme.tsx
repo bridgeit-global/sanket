@@ -90,7 +90,10 @@ function calculateEndTime(startTime: string, durationMinutes: number): string {
 }
 
 // Calculate duration in minutes from start and end time
-function calculateDuration(startTime: string, endTime?: string): number | null {
+function calculateDuration(
+  startTime?: string | null,
+  endTime?: string | null,
+): number | null {
   if (!startTime || !endTime) return null;
   
   const [startHours, startMins] = startTime.split(':').map(Number);

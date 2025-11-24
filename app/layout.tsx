@@ -1,7 +1,7 @@
 import { Analytics } from "@vercel/analytics/next"
+import localFont from 'next/font/local';
 import { Toaster } from 'sonner';
 import type { Metadata } from 'next';
-import { Geist, Geist_Mono } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 
 import './globals.css';
@@ -21,16 +21,18 @@ export const viewport = {
   viewportFit: 'cover',
 };
 
-const geist = Geist({
-  subsets: ['latin'],
+const geist = localFont({
+  src: '../node_modules/geist/dist/fonts/geist-sans/Geist-Variable.woff2',
   display: 'swap',
   variable: '--font-geist',
+  weight: '100 900',
 });
 
-const geistMono = Geist_Mono({
-  subsets: ['latin'],
+const geistMono = localFont({
+  src: '../node_modules/geist/dist/fonts/geist-mono/GeistMono-Variable.woff2',
   display: 'swap',
   variable: '--font-geist-mono',
+  weight: '100 900',
 });
 
 const LIGHT_THEME_COLOR = 'hsl(0 0% 100%)';

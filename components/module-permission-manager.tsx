@@ -34,7 +34,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { ALL_MODULES, type ModuleDefinition } from '@/lib/module-constants';
-import { Trash2, Plus, User } from 'lucide-react';
+import { Trash2, Plus, User as UserIcon } from 'lucide-react';
 import type { User } from '@/lib/db/schema';
 
 interface UserWithPermissions extends User {
@@ -243,13 +243,14 @@ export function ModulePermissionManager() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <Accordion type="single" className="w-full">
-            {filteredUsers.map((user) => (
-              <AccordionItem key={user.id} value={user.id}>
+          <div className="w-full">
+            <Accordion type="single">
+              {filteredUsers.map((user) => (
+                <AccordionItem key={user.id} value={user.id}>
                 <AccordionTrigger>
                   <div className="flex items-center gap-3 flex-1">
                     <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-medium">
-                      <User className="h-4 w-4" />
+                      <UserIcon className="h-4 w-4" />
                     </div>
                     <div className="flex flex-col items-start">
                       <span className="font-medium">{user.email}</span>
@@ -301,9 +302,10 @@ export function ModulePermissionManager() {
                     </div>
                   </div>
                 </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          </div>
           {filteredUsers.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               No users found matching your search.

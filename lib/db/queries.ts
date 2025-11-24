@@ -930,22 +930,24 @@ export async function getRelatedVoters(voter: Voter): Promise<Array<Voter>> {
     
     // Find voters in same family grouping
     if (voter.familyGrouping && voter.partNo) {
-      conditions.push(
-        and(
-          eq(Voters.familyGrouping, voter.familyGrouping),
-          eq(Voters.partNo, voter.partNo)
-        )
+      const sameFamilyCondition = and(
+        eq(Voters.familyGrouping, voter.familyGrouping),
+        eq(Voters.partNo, voter.partNo),
       );
+      if (sameFamilyCondition) {
+        conditions.push(sameFamilyCondition);
+      }
     }
     
     // Find voters in same house
     if (voter.houseNumber && voter.partNo) {
-      conditions.push(
-        and(
-          eq(Voters.houseNumber, voter.houseNumber),
-          eq(Voters.partNo, voter.partNo)
-        )
+      const sameHouseCondition = and(
+        eq(Voters.houseNumber, voter.houseNumber),
+        eq(Voters.partNo, voter.partNo),
       );
+      if (sameHouseCondition) {
+        conditions.push(sameHouseCondition);
+      }
     }
     
     // If no conditions, return empty array
@@ -954,12 +956,17 @@ export async function getRelatedVoters(voter: Voter): Promise<Array<Voter>> {
     }
     
     // Get all related voters (excluding the voter itself)
+    const relatedConditions = or(...conditions);
+    if (!relatedConditions) {
+      return [];
+    }
+
     const relatedVoters = await db
       .select()
       .from(Voters)
       .where(
         and(
-          or(...conditions),
+          relatedConditions,
           ne(Voters.epicNumber, voter.epicNumber)
         )
       )
