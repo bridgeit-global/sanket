@@ -256,38 +256,89 @@ export const taskHistory = pgTable('TaskHistory', {
 
 export type TaskHistory = InferSelectModel<typeof taskHistory>;
 
-export const calendarEvents = pgTable('calendar_events', {
+// Module Permissions Table
+export const userModulePermissions = pgTable('UserModulePermissions', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
-  title: varchar('title', { length: 255 }).notNull(),
-  description: text('description'),
-  eventType: varchar('event_type', {
-    enum: ['voter_engagement', 'public_meeting', 'training', 'administrative']
-  }).notNull(),
-  startTime: timestamp('start_time').notNull(),
-  endTime: timestamp('end_time').notNull(),
-  locationId: uuid('location_id'),
-  isRecurring: boolean('is_recurring').notNull().default(false),
-  recurrencePattern: varchar('recurrence_pattern'),
-  recurrenceInterval: integer('recurrence_interval').default(1),
-  recurrenceEndDate: timestamp('recurrence_end_date'),
-  createdBy: uuid('created_by').notNull().references(() => user.id),
-  assignedTo: uuid('assigned_to').references(() => user.id),
-  priority: varchar('priority', {
-    enum: ['low', 'medium', 'high', 'urgent']
-  }).notNull().default('medium'),
-  status: varchar('status', {
-    enum: ['scheduled', 'in_progress', 'completed', 'cancelled']
-  }).notNull().default('scheduled'),
-  travelTimeMinutes: integer('travel_time_minutes').default(0),
-  preparationTimeMinutes: integer('preparation_time_minutes').default(0),
-  googlePlaceId: varchar('google_place_id', { length: 255 }),
-  locationName: varchar('location_name', { length: 255 }),
-  locationAddress: text('location_address'),
-  locationLatitude: varchar('location_latitude'),
-  locationLongitude: varchar('location_longitude'),
+  userId: uuid('userId')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  moduleKey: varchar('module_key', { length: 50 }).notNull(),
+  hasAccess: boolean('has_access').notNull().default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
-export type CalendarEvent = InferSelectModel<typeof calendarEvents>;
+export type UserModulePermission = InferSelectModel<typeof userModulePermissions>;
+
+// Daily Programme Table
+export const dailyProgramme = pgTable('DailyProgramme', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  date: timestamp('date', { mode: 'date' }).notNull(),
+  startTime: varchar('start_time', { length: 10 }).notNull(), // HH:MM format
+  endTime: varchar('end_time', { length: 10 }), // HH:MM format, nullable
+  title: varchar('title', { length: 255 }).notNull(),
+  location: varchar('location', { length: 255 }).notNull(),
+  remarks: text('remarks'),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => user.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type DailyProgramme = InferSelectModel<typeof dailyProgramme>;
+
+// MLA Projects Table
+export const mlaProject = pgTable('MlaProject', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull(),
+  ward: varchar('ward', { length: 100 }),
+  type: varchar('type', { length: 100 }),
+  status: varchar('status', {
+    enum: ['Concept', 'Proposal', 'In Progress', 'Completed'],
+  })
+    .notNull()
+    .default('Concept'),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => user.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type MlaProject = InferSelectModel<typeof mlaProject>;
+
+// Register Entry Table (for Inward/Outward)
+export const registerEntry = pgTable('RegisterEntry', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  type: varchar('type', { enum: ['inward', 'outward'] }).notNull(),
+  date: timestamp('date', { mode: 'date' }).notNull(),
+  fromTo: varchar('from_to', { length: 255 }).notNull(), // "From" for inward, "To" for outward
+  subject: varchar('subject', { length: 500 }).notNull(),
+  projectId: uuid('project_id').references(() => mlaProject.id),
+  mode: varchar('mode', { length: 100 }), // Hand, Email, Dak, Courier, etc.
+  refNo: varchar('ref_no', { length: 100 }),
+  officer: varchar('officer', { length: 255 }),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => user.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type RegisterEntry = InferSelectModel<typeof registerEntry>;
+
+// Register Attachments Table
+export const registerAttachment = pgTable('RegisterAttachment', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  entryId: uuid('entry_id')
+    .notNull()
+    .references(() => registerEntry.id, { onDelete: 'cascade' }),
+  fileName: varchar('file_name', { length: 255 }).notNull(),
+  fileSizeKb: integer('file_size_kb').notNull(),
+  fileUrl: text('file_url'), // for future cloud storage integration
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export type RegisterAttachment = InferSelectModel<typeof registerAttachment>;
 

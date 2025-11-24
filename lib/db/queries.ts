@@ -11,6 +11,7 @@ import {
   inArray,
   lt,
   lte,
+  ne,
   or,
   sql,
   type SQL,
@@ -40,6 +41,16 @@ import {
   type CommunityServiceArea,
   taskHistory,
   type TaskHistory,
+  userModulePermissions,
+  type UserModulePermission,
+  dailyProgramme,
+  type DailyProgramme,
+  mlaProject,
+  type MlaProject,
+  registerEntry,
+  type RegisterEntry,
+  registerAttachment,
+  type RegisterAttachment,
 } from './schema';
 import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
@@ -886,21 +897,94 @@ export async function getVoterDemographics(): Promise<{
 }
 
 // Operator functions for updating voter mobile numbers
-export async function getVotersByFamilyGrouping(familyGrouping: string | null): Promise<Array<Voter>> {
+export async function getVotersByFamilyGrouping(
+  familyGrouping: string | null,
+  partNo: string | null,
+): Promise<Array<Voter>> {
   try {
-    if (!familyGrouping) {
+    if (!familyGrouping || !partNo) {
       return [];
     }
 
     return await db
       .select()
       .from(Voters)
-      .where(eq(Voters.familyGrouping, familyGrouping))
+      .where(and(eq(Voters.familyGrouping, familyGrouping), eq(Voters.partNo, partNo)))
       .orderBy(asc(Voters.fullName));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get voters by family grouping',
+    );
+  }
+}
+
+export async function getRelatedVoters(voter: Voter): Promise<Array<Voter>> {
+  try {
+    const conditions: SQL[] = [];
+    
+    // Find voters with same relationName (e.g., if this voter is related to someone, find others related to same person)
+    if (voter.relationName) {
+      conditions.push(eq(Voters.relationName, voter.relationName));
+    }
+    
+    // Find voters in same family grouping
+    if (voter.familyGrouping && voter.partNo) {
+      const sameFamilyCondition = and(
+        eq(Voters.familyGrouping, voter.familyGrouping),
+        eq(Voters.partNo, voter.partNo),
+      );
+      if (sameFamilyCondition) {
+        conditions.push(sameFamilyCondition);
+      }
+    }
+    
+    // Find voters in same house
+    if (voter.houseNumber && voter.partNo) {
+      const sameHouseCondition = and(
+        eq(Voters.houseNumber, voter.houseNumber),
+        eq(Voters.partNo, voter.partNo),
+      );
+      if (sameHouseCondition) {
+        conditions.push(sameHouseCondition);
+      }
+    }
+    
+    // If no conditions, return empty array
+    if (conditions.length === 0) {
+      return [];
+    }
+    
+    // Get all related voters (excluding the voter itself)
+    const relatedConditions = or(...conditions);
+    if (!relatedConditions) {
+      return [];
+    }
+
+    const relatedVoters = await db
+      .select()
+      .from(Voters)
+      .where(
+        and(
+          relatedConditions,
+          ne(Voters.epicNumber, voter.epicNumber)
+        )
+      )
+      .orderBy(asc(Voters.fullName));
+    
+    // Remove duplicates based on epicNumber
+    const uniqueVoters = new Map<string, Voter>();
+    relatedVoters.forEach(v => {
+      if (!uniqueVoters.has(v.epicNumber)) {
+        uniqueVoters.set(v.epicNumber, v);
+      }
+    });
+    
+    return Array.from(uniqueVoters.values());
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get related voters',
     );
   }
 }
@@ -961,6 +1045,47 @@ export async function updateVoterMobileNumbers(
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to update voter mobile numbers',
+    );
+  }
+}
+
+export async function updateVoter(
+  epicNumber: string,
+  updateData: Partial<Pick<Voter, 'mobileNoPrimary' | 'mobileNoSecondary' | 'houseNumber' | 'relationType' | 'relationName' | 'isVoted2024'>>
+): Promise<Voter | null> {
+  try {
+    const dataToUpdate: Partial<Voter> = { updatedAt: new Date() };
+    
+    if (updateData.mobileNoPrimary !== undefined) {
+      dataToUpdate.mobileNoPrimary = updateData.mobileNoPrimary;
+    }
+    if (updateData.mobileNoSecondary !== undefined) {
+      dataToUpdate.mobileNoSecondary = updateData.mobileNoSecondary;
+    }
+    if (updateData.houseNumber !== undefined) {
+      dataToUpdate.houseNumber = updateData.houseNumber;
+    }
+    if (updateData.relationType !== undefined) {
+      dataToUpdate.relationType = updateData.relationType;
+    }
+    if (updateData.relationName !== undefined) {
+      dataToUpdate.relationName = updateData.relationName;
+    }
+    if (updateData.isVoted2024 !== undefined) {
+      dataToUpdate.isVoted2024 = updateData.isVoted2024;
+    }
+
+    const [updatedVoter] = await db
+      .update(Voters)
+      .set(dataToUpdate)
+      .where(eq(Voters.epicNumber, epicNumber))
+      .returning();
+
+    return updatedVoter || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update voter',
     );
   }
 }
@@ -1626,6 +1751,591 @@ export async function getTaskHistory(taskId: string): Promise<Array<TaskHistory>
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get task history',
+    );
+  }
+}
+
+// Module Permissions Queries
+export async function getUserModulePermissions(userId: string): Promise<Record<string, boolean>> {
+  try {
+    const permissions = await db
+      .select()
+      .from(userModulePermissions)
+      .where(eq(userModulePermissions.userId, userId));
+
+    const result: Record<string, boolean> = {};
+    for (const perm of permissions) {
+      result[perm.moduleKey] = perm.hasAccess;
+    }
+    return result;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get user module permissions',
+    );
+  }
+}
+
+export async function getAllUsersWithPermissions(): Promise<Array<User & { permissions: Record<string, boolean> }>> {
+  try {
+    const users = await db.select().from(user).orderBy(asc(user.email));
+    const allPermissions = await db.select().from(userModulePermissions);
+
+    // Group permissions by userId
+    const permissionsByUser: Record<string, Record<string, boolean>> = {};
+    for (const perm of allPermissions) {
+      if (!permissionsByUser[perm.userId]) {
+        permissionsByUser[perm.userId] = {};
+      }
+      permissionsByUser[perm.userId][perm.moduleKey] = perm.hasAccess;
+    }
+
+    return users.map((u) => ({
+      ...u,
+      permissions: permissionsByUser[u.id] || {},
+    }));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get all users with permissions',
+    );
+  }
+}
+
+export async function updateUserModulePermissions(
+  userId: string,
+  permissions: Record<string, boolean>,
+): Promise<void> {
+  try {
+    // Delete existing permissions for this user
+    await db
+      .delete(userModulePermissions)
+      .where(eq(userModulePermissions.userId, userId));
+
+    // Insert new permissions
+    const permissionEntries = Object.entries(permissions).map(([moduleKey, hasAccess]) => ({
+      userId,
+      moduleKey,
+      hasAccess,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
+
+    if (permissionEntries.length > 0) {
+      await db.insert(userModulePermissions).values(permissionEntries);
+    }
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update user module permissions',
+    );
+  }
+}
+
+export async function hasModuleAccess(userId: string, moduleKey: string): Promise<boolean> {
+  try {
+    const moduleKeysToCheck =
+      moduleKey === 'daily-programme' || moduleKey === 'calendar'
+        ? ['daily-programme', 'calendar']
+        : [moduleKey];
+
+    const moduleKeyCondition =
+      moduleKeysToCheck.length === 1
+        ? eq(userModulePermissions.moduleKey, moduleKeysToCheck[0]!)
+        : inArray(userModulePermissions.moduleKey, moduleKeysToCheck);
+
+    const [permission] = await db
+      .select()
+      .from(userModulePermissions)
+      .where(and(eq(userModulePermissions.userId, userId), moduleKeyCondition))
+      .limit(1);
+
+    return permission?.hasAccess ?? false;
+  } catch (error) {
+    console.error('Error checking module access:', error);
+    // If table doesn't exist or there's a schema issue, return false instead of throwing
+    // This allows the system to work even if permissions haven't been set up yet
+    if (error instanceof Error && error.message.includes('does not exist')) {
+      return false;
+    }
+    throw new ChatSDKError(
+      'bad_request:database',
+      `Failed to check module access: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    );
+  }
+}
+
+export async function createUserWithPermissions(
+  email: string,
+  password: string,
+  role: User['role'],
+  permissions: Record<string, boolean>,
+): Promise<User> {
+  try {
+    const hashedPassword = generateHashedPassword(password);
+    const [newUser] = await db
+      .insert(user)
+      .values({
+        email,
+        password: hashedPassword,
+        role,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    // Create permissions
+    if (Object.keys(permissions).length > 0) {
+      const permissionEntries = Object.entries(permissions).map(([moduleKey, hasAccess]) => ({
+        userId: newUser.id,
+        moduleKey,
+        hasAccess,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+
+      await db.insert(userModulePermissions).values(permissionEntries);
+    }
+
+    return newUser;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create user with permissions',
+    );
+  }
+}
+
+export async function deleteUser(userId: string): Promise<void> {
+  try {
+    // Permissions will be deleted via cascade
+    await db.delete(user).where(eq(user.id, userId));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete user',
+    );
+  }
+}
+
+// Daily Programme Queries
+export async function createDailyProgrammeItem({
+  date,
+  startTime,
+  endTime,
+  title,
+  location,
+  remarks,
+  createdBy,
+}: {
+  date: Date;
+  startTime: string;
+  endTime?: string;
+  title: string;
+  location: string;
+  remarks?: string;
+  createdBy: string;
+}): Promise<DailyProgramme> {
+  try {
+    const [item] = await db
+      .insert(dailyProgramme)
+      .values({
+        date,
+        startTime,
+        endTime: endTime || null,
+        title,
+        location,
+        remarks: remarks || null,
+        createdBy,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    return item;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create daily programme item',
+    );
+  }
+}
+
+export async function getDailyProgrammeItems({
+  startDate,
+  endDate,
+  limit = 100,
+}: {
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+} = {}): Promise<Array<DailyProgramme>> {
+  try {
+    const conditions: SQL[] = [];
+    if (startDate) {
+      conditions.push(gte(dailyProgramme.date, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(dailyProgramme.date, endDate));
+    }
+
+    return await db
+      .select()
+      .from(dailyProgramme)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(asc(dailyProgramme.date), asc(dailyProgramme.startTime))
+      .limit(limit);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get daily programme items',
+    );
+  }
+}
+
+export async function getDailyProgrammeItemById(id: string): Promise<DailyProgramme | null> {
+  try {
+    const [item] = await db
+      .select()
+      .from(dailyProgramme)
+      .where(eq(dailyProgramme.id, id))
+      .limit(1);
+
+    return item || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get daily programme item',
+    );
+  }
+}
+
+export async function updateDailyProgrammeItem(
+  id: string,
+  data: Partial<Omit<DailyProgramme, 'id' | 'createdBy' | 'createdAt'>>,
+): Promise<DailyProgramme | null> {
+  try {
+    const [updated] = await db
+      .update(dailyProgramme)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(dailyProgramme.id, id))
+      .returning();
+
+    return updated || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update daily programme item',
+    );
+  }
+}
+
+export async function deleteDailyProgrammeItem(id: string): Promise<void> {
+  try {
+    await db.delete(dailyProgramme).where(eq(dailyProgramme.id, id));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete daily programme item',
+    );
+  }
+}
+
+// Register Entry Queries
+export async function createRegisterEntry({
+  type,
+  date,
+  fromTo,
+  subject,
+  projectId,
+  mode,
+  refNo,
+  officer,
+  createdBy,
+}: {
+  type: 'inward' | 'outward';
+  date: Date;
+  fromTo: string;
+  subject: string;
+  projectId?: string;
+  mode?: string;
+  refNo?: string;
+  officer?: string;
+  createdBy: string;
+}): Promise<RegisterEntry> {
+  try {
+    const [entry] = await db
+      .insert(registerEntry)
+      .values({
+        type,
+        date,
+        fromTo,
+        subject,
+        projectId: projectId || null,
+        mode: mode || null,
+        refNo: refNo || null,
+        officer: officer || null,
+        createdBy,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    return entry;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create register entry',
+    );
+  }
+}
+
+export async function getRegisterEntries({
+  type,
+  startDate,
+  endDate,
+  limit = 100,
+}: {
+  type?: 'inward' | 'outward';
+  startDate?: Date;
+  endDate?: Date;
+  limit?: number;
+} = {}): Promise<Array<RegisterEntry>> {
+  try {
+    const conditions: SQL[] = [];
+    if (type) {
+      conditions.push(eq(registerEntry.type, type));
+    }
+    if (startDate) {
+      conditions.push(gte(registerEntry.date, startDate));
+    }
+    if (endDate) {
+      conditions.push(lte(registerEntry.date, endDate));
+    }
+
+    return await db
+      .select()
+      .from(registerEntry)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(registerEntry.date), desc(registerEntry.createdAt))
+      .limit(limit);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get register entries',
+    );
+  }
+}
+
+export async function getRegisterEntryById(id: string): Promise<RegisterEntry | null> {
+  try {
+    const [entry] = await db
+      .select()
+      .from(registerEntry)
+      .where(eq(registerEntry.id, id))
+      .limit(1);
+
+    return entry || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get register entry',
+    );
+  }
+}
+
+export async function updateRegisterEntry(
+  id: string,
+  data: Partial<Omit<RegisterEntry, 'id' | 'createdBy' | 'createdAt'>>,
+): Promise<RegisterEntry | null> {
+  try {
+    const [updated] = await db
+      .update(registerEntry)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(registerEntry.id, id))
+      .returning();
+
+    return updated || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update register entry',
+    );
+  }
+}
+
+export async function deleteRegisterEntry(id: string): Promise<void> {
+  try {
+    await db.delete(registerEntry).where(eq(registerEntry.id, id));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete register entry',
+    );
+  }
+}
+
+export async function getRegisterAttachments(entryId: string): Promise<Array<RegisterAttachment>> {
+  try {
+    return await db
+      .select()
+      .from(registerAttachment)
+      .where(eq(registerAttachment.entryId, entryId))
+      .orderBy(asc(registerAttachment.createdAt));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get register attachments',
+    );
+  }
+}
+
+export async function createRegisterAttachment({
+  entryId,
+  fileName,
+  fileSizeKb,
+  fileUrl,
+}: {
+  entryId: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl?: string;
+}): Promise<RegisterAttachment> {
+  try {
+    const [attachment] = await db
+      .insert(registerAttachment)
+      .values({
+        entryId,
+        fileName,
+        fileSizeKb,
+        fileUrl: fileUrl || null,
+        createdAt: new Date(),
+      })
+      .returning();
+
+    return attachment;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create register attachment',
+    );
+  }
+}
+
+export async function deleteRegisterAttachment(id: string): Promise<void> {
+  try {
+    await db.delete(registerAttachment).where(eq(registerAttachment.id, id));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete register attachment',
+    );
+  }
+}
+
+// Projects Queries
+export async function createProject({
+  name,
+  ward,
+  type,
+  status,
+  createdBy,
+}: {
+  name: string;
+  ward?: string;
+  type?: string;
+  status?: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
+  createdBy: string;
+}): Promise<MlaProject> {
+  try {
+    const [project] = await db
+      .insert(mlaProject)
+      .values({
+        name,
+        ward: ward || null,
+        type: type || null,
+        status: status || 'Concept',
+        createdBy,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    return project;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create project',
+    );
+  }
+}
+
+export async function getProjects({
+  status,
+  limit = 100,
+}: {
+  status?: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
+  limit?: number;
+} = {}): Promise<Array<MlaProject>> {
+  try {
+    return await db
+      .select()
+      .from(mlaProject)
+      .where(status ? eq(mlaProject.status, status) : undefined)
+      .orderBy(desc(mlaProject.createdAt))
+      .limit(limit);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get projects',
+    );
+  }
+}
+
+export async function getProjectById(id: string): Promise<MlaProject | null> {
+  try {
+    const [project] = await db
+      .select()
+      .from(mlaProject)
+      .where(eq(mlaProject.id, id))
+      .limit(1);
+
+    return project || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get project',
+    );
+  }
+}
+
+export async function updateProject(
+  id: string,
+  data: Partial<Omit<MlaProject, 'id' | 'createdBy' | 'createdAt'>>,
+): Promise<MlaProject | null> {
+  try {
+    const [updated] = await db
+      .update(mlaProject)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(mlaProject.id, id))
+      .returning();
+
+    return updated || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update project',
+    );
+  }
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  try {
+    await db.delete(mlaProject).where(eq(mlaProject.id, id));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete project',
     );
   }
 }

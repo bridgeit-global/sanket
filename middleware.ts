@@ -77,6 +77,43 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Module routes - check module permissions
+  if (pathname.startsWith('/modules/')) {
+    // Extract module key from path
+    const moduleKey = pathname.replace('/modules/', '').split('/')[0];
+    
+    // User management is admin-only (role check)
+    if (moduleKey === 'user-management') {
+      if (userRole !== 'admin') {
+        return NextResponse.redirect(new URL('/unauthorized', request.url));
+      }
+      return NextResponse.next();
+    }
+
+    // Profile is accessible to all authenticated users
+    if (moduleKey === 'profile') {
+      return NextResponse.next();
+    }
+
+    // For other modules, we'll check permissions in the page component
+    // since we need async database access which middleware doesn't support well
+    // The page components will handle the permission checks
+  }
+
+  // Backward compatibility redirects
+  if (pathname === '/admin') {
+    return NextResponse.redirect(new URL('/modules/chat', request.url));
+  }
+  if (pathname === '/operator') {
+    return NextResponse.redirect(new URL('/modules/operator', request.url));
+  }
+  if (pathname === '/back-office') {
+    return NextResponse.redirect(new URL('/modules/back-office', request.url));
+  }
+  if (pathname === '/calendar') {
+    return NextResponse.redirect(new URL('/modules/daily-programme', request.url));
+  }
+
   return NextResponse.next();
 }
 

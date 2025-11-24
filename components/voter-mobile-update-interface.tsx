@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,6 +13,7 @@ import { BeneficiaryServiceForm } from '@/components/beneficiary-service-form';
 import type { Voter } from '@/lib/db/schema';
 
 export function VoterMobileUpdateInterface() {
+    const router = useRouter();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<Voter[]>([]);
     const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
@@ -388,7 +390,7 @@ export function VoterMobileUpdateInterface() {
                                             key={voter.epicNumber}
                                             type="button"
                                             className="w-full p-4 border rounded-lg hover:bg-muted cursor-pointer text-left transition-colors"
-                                            onClick={() => handleSelectVoter(voter)}
+                                            onClick={() => router.push(`/modules/voter/${encodeURIComponent(voter.epicNumber)}`)}
                                         >
                                             <div className="flex justify-between items-start">
                                                 <div className="flex-1">

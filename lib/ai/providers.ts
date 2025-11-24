@@ -30,7 +30,7 @@ export const myProvider = isTestEnvironment
   })
   : customProvider({
     languageModels: {
-      'chat-model': moonshot('kimi-k2-0711-preview'),
+      'chat-model': moonshot('kimi-k2-thinking'),
       'chat-model-reasoning': wrapLanguageModel({
         model: moonshot('kimi-k2-0711-preview'),
         middleware: extractReasoningMiddleware({ tagName: 'think' }),

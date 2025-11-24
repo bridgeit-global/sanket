@@ -113,14 +113,14 @@ export function EventFilters({ filters, onFiltersChange, onClose }: EventFilters
                     <div className="space-y-2">
                         <Label htmlFor="eventType">Event Type</Label>
                         <Select
-                            value={filters.eventType}
-                            onValueChange={(value) => handleFilterChange('eventType', value)}
+                            value={filters.eventType || 'all'}
+                            onValueChange={(value) => handleFilterChange('eventType', value === 'all' ? '' : value)}
                         >
                             <SelectTrigger>
                                 <SelectValue placeholder="All Event Types" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">All Event Types</SelectItem>
+                                <SelectItem value="all">All Event Types</SelectItem>
                                 {eventTypes.map((type) => (
                                     <SelectItem key={type.value} value={type.value}>
                                         <span className="flex items-center gap-2">
@@ -136,14 +136,14 @@ export function EventFilters({ filters, onFiltersChange, onClose }: EventFilters
                     <div className="space-y-2">
                         <Label htmlFor="status">Status</Label>
                         <Select
-                            value={filters.status}
-                            onValueChange={(value) => handleFilterChange('status', value)}
+                            value={filters.status || 'all'}
+                            onValueChange={(value) => handleFilterChange('status', value === 'all' ? '' : value)}
                         >
                             <SelectTrigger>
                                 <SelectValue placeholder="All Statuses" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">All Statuses</SelectItem>
+                                <SelectItem value="all">All Statuses</SelectItem>
                                 {statuses.map((status) => (
                                     <SelectItem key={status.value} value={status.value}>
                                         <span className={status.color}>{status.label}</span>
@@ -156,14 +156,14 @@ export function EventFilters({ filters, onFiltersChange, onClose }: EventFilters
                     <div className="space-y-2">
                         <Label htmlFor="priority">Priority</Label>
                         <Select
-                            value={filters.priority}
-                            onValueChange={(value) => handleFilterChange('priority', value)}
+                            value={filters.priority || 'all'}
+                            onValueChange={(value) => handleFilterChange('priority', value === 'all' ? '' : value)}
                         >
                             <SelectTrigger>
                                 <SelectValue placeholder="All Priorities" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="">All Priorities</SelectItem>
+                                <SelectItem value="all">All Priorities</SelectItem>
                                 {priorities.map((priority) => (
                                     <SelectItem key={priority.value} value={priority.value}>
                                         <span className={priority.color}>{priority.label}</span>

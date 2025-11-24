@@ -1,10 +1,12 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { toast } from '@/components/toast';
@@ -14,11 +16,8 @@ import { PhoneUpdateForm } from '@/components/phone-update-form';
 import { TaskManagement } from '@/components/task-management';
 import type { Voter, BeneficiaryService } from '@/lib/db/schema';
 
-interface OperatorWorkflowProps {
-    onSignOut: () => void;
-}
-
-export function OperatorWorkflow({ onSignOut }: OperatorWorkflowProps) {
+export function OperatorWorkflow() {
+    const router = useRouter();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<Voter[]>([]);
     const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
@@ -297,15 +296,15 @@ export function OperatorWorkflow({ onSignOut }: OperatorWorkflowProps) {
         <div className="space-y-6">
             {/* Header with Sign Out */}
             <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold">Operator Dashboard</h1>
-                    <p className="text-muted-foreground mt-2">
-                        Voter management and beneficiary service creation
-                    </p>
+                <div className="flex items-center gap-3">
+                    <SidebarToggle />
+                    <div>
+                        <h1 className="text-3xl font-bold">Operator Dashboard</h1>
+                        <p className="text-muted-foreground mt-2">
+                            Voter management and beneficiary service creation
+                        </p>
+                    </div>
                 </div>
-                <Button variant="outline" onClick={onSignOut}>
-                    Sign Out
-                </Button>
             </div>
 
             {/* Tab Navigation */}
@@ -336,7 +335,7 @@ export function OperatorWorkflow({ onSignOut }: OperatorWorkflowProps) {
 
             {/* Task Management Section */}
             {activeTab === 'manage' && (
-                <TaskManagement onSignOut={onSignOut} />
+                <TaskManagement />
             )}
 
             {/* Workflow Progress Indicator */}
@@ -575,9 +574,6 @@ export function OperatorWorkflow({ onSignOut }: OperatorWorkflowProps) {
                                 <div className="flex gap-4">
                                     <Button onClick={handleStartNew} className="flex-1">
                                         Create Another Service
-                                    </Button>
-                                    <Button variant="outline" onClick={onSignOut}>
-                                        Sign Out
                                     </Button>
                                 </div>
                             </CardContent>
@@ -826,7 +822,7 @@ export function OperatorWorkflow({ onSignOut }: OperatorWorkflowProps) {
                                                     key={voter.epicNumber}
                                                     type="button"
                                                     className="w-full p-4 border rounded-lg hover:bg-muted cursor-pointer text-left transition-colors"
-                                                    onClick={() => handleSelectVoter(voter)}
+                                                    onClick={() => router.push(`/modules/voter/${encodeURIComponent(voter.epicNumber)}`)}
                                                 >
                                                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
                                                         <div className="flex-1">

@@ -1,7 +1,6 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { signOut } from '@/app/(auth)/auth';
-import Link from 'next/link';
+import { BackButton } from '@/components/back-button';
 
 export default function UnauthorizedPage() {
     return (
@@ -20,17 +19,7 @@ export default function UnauthorizedPage() {
                         </p>
                     </div>
                     <div className="flex gap-2">
-                        <Button asChild className="flex-1">
-                            <Link href="/login">Back to Login</Link>
-                        </Button>
-                        <form action={async () => {
-                            'use server';
-                            await signOut();
-                        }}>
-                            <Button type="submit" variant="outline" className="flex-1">
-                                Sign Out
-                            </Button>
-                        </form>
+                        <BackButton />
                     </div>
                 </CardContent>
             </Card>

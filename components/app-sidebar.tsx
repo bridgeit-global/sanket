@@ -4,7 +4,6 @@ import type { User } from 'next-auth';
 import { useRouter } from 'next/navigation';
 
 import { PlusIcon } from '@/components/icons';
-import { SidebarHistory } from '@/components/sidebar-history';
 import { SidebarUserNav } from '@/components/sidebar-user-nav';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,10 +16,16 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar';
 import Link from 'next/link';
+import type { ModuleDefinition } from '@/lib/module-constants';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
-import { Calendar, BarChart3, Users, Settings } from 'lucide-react';
+import { ModuleNavigation } from './module-navigation';
 
-export function AppSidebar({ user }: { user: User | undefined }) {
+interface AppSidebarProps {
+  user: User | undefined;
+  modules?: ModuleDefinition[];
+}
+
+export function AppSidebar({ user, modules }: AppSidebarProps) {
   const router = useRouter();
   const { setOpenMobile } = useSidebar();
 
@@ -61,49 +66,11 @@ export function AppSidebar({ user }: { user: User | undefined }) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <SidebarHistory user={user} />
-
         {/* Navigation Menu */}
         <div className="px-2 py-4">
           <SidebarMenu>
-            {user && ['admin', 'back-office', 'operator'].includes(user.role) && (
-              <SidebarMenuItem>
-                <Link
-                  href="/calendar"
-                  onClick={() => setOpenMobile(false)}
-                  className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
-                >
-                  <Calendar className="size-4" />
-                  Calendar
-                </Link>
-              </SidebarMenuItem>
-            )}
-
-            {user && user.role === 'admin' && (
-              <>
-                <SidebarMenuItem>
-                  <Link
-                    href="/admin"
-                    onClick={() => setOpenMobile(false)}
-                    className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
-                  >
-                    <BarChart3 className="size-4" />
-                    Analytics
-                  </Link>
-                </SidebarMenuItem>
-
-                <SidebarMenuItem>
-                  <Link
-                    href="/back-office"
-                    onClick={() => setOpenMobile(false)}
-                    className="flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-md hover:bg-muted transition-colors"
-                  >
-                    <Users className="size-4" />
-                    Back Office
-                  </Link>
-                </SidebarMenuItem>
-              </>
-            )}
+            {/* All Modules - Dynamically loaded and ordered based on permissions */}
+            <ModuleNavigation user={user} modules={modules} />
           </SidebarMenu>
         </div>
       </SidebarContent>

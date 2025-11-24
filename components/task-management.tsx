@@ -13,10 +13,6 @@ import { toast } from '@/components/toast';
 import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
 import type { VoterTask, BeneficiaryService, Voter } from '@/lib/db/schema';
 
-interface TaskManagementProps {
-    onSignOut: () => void;
-}
-
 interface TaskWithService extends VoterTask {
     service?: BeneficiaryService;
     voter?: Voter;
@@ -29,7 +25,7 @@ interface TaskResponse {
     currentPage: number;
 }
 
-export function TaskManagement({ onSignOut }: TaskManagementProps) {
+export function TaskManagement() {
     const [tasks, setTasks] = useState<TaskWithService[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedTask, setSelectedTask] = useState<TaskWithService | null>(null);

@@ -1,21 +1,20 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { toast } from '@/components/toast';
 import type { Voter } from '@/lib/db/schema';
 import { PhoneUpdateForm } from '@/components/phone-update-form';
 
-interface BackOfficeWorkflowProps {
-    onSignOut: () => void;
-}
-
-export function BackOfficeWorkflow({ onSignOut }: BackOfficeWorkflowProps) {
+export function BackOfficeWorkflow() {
+    const router = useRouter();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<Voter[]>([]);
     const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
@@ -107,39 +106,9 @@ export function BackOfficeWorkflow({ onSignOut }: BackOfficeWorkflowProps) {
         }
     };
 
-    const handleSelectVoter = async (voter: Voter) => {
-        setSelectedVoter(voter);
-        setSearchResults([]);
-        setSearchTerm('');
-        setShowPhoneUpdate(true);
-
-        // Fetch related family members immediately
-        try {
-            const familyResponse = await fetch('/operator/api/get-family-members', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    epicNumber: voter.epicNumber,
-                }),
-            });
-
-            if (familyResponse.ok) {
-                const familyData = await familyResponse.json();
-                if (familyData.relatedVoters && familyData.relatedVoters.length > 0) {
-                    setRelatedVoters(familyData.relatedVoters);
-                    setShowRelatedVoters(true);
-                } else {
-                    setRelatedVoters([]);
-                    setShowRelatedVoters(false);
-                }
-            }
-        } catch (_error) {
-            // Silently fail - family members are optional
-            setRelatedVoters([]);
-            setShowRelatedVoters(false);
-        }
+    const handleSelectVoter = (voter: Voter) => {
+        // Navigate to voter profile page
+        router.push(`/modules/voter/${encodeURIComponent(voter.epicNumber)}`);
     };
 
     const handlePhoneUpdate = async (phoneData: { mobileNoPrimary: string; mobileNoSecondary?: string }) => {
@@ -215,11 +184,13 @@ export function BackOfficeWorkflow({ onSignOut }: BackOfficeWorkflowProps) {
     return (
         <div className="space-y-6">
             <div className="flex justify-between items-center">
-                <div>
-                    <h1 className="text-3xl font-bold">Profile Update</h1>
-                    <p className="text-muted-foreground mt-2">Search voters and update phone numbers</p>
+                <div className="flex items-center gap-3">
+                    <SidebarToggle />
+                    <div>
+                        <h1 className="text-3xl font-bold">Profile Update</h1>
+                        <p className="text-muted-foreground mt-2">Search voters and update phone numbers</p>
+                    </div>
                 </div>
-                <Button variant="outline" onClick={onSignOut}>Sign Out</Button>
             </div>
 
             <Card>
