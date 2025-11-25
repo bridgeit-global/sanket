@@ -51,6 +51,10 @@ import {
   type RegisterEntry,
   registerAttachment,
   type RegisterAttachment,
+  role,
+  type Role,
+  roleModulePermissions,
+  type RoleModulePermission,
 } from './schema';
 import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
@@ -95,6 +99,14 @@ export async function updateUserRole(userId: string, role: User['role']) {
     return await db.update(user).set({ role, updatedAt: new Date() }).where(eq(user.id, userId));
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to update user role');
+  }
+}
+
+export async function updateUserRoleId(userId: string, roleId: string | null) {
+  try {
+    return await db.update(user).set({ roleId, updatedAt: new Date() }).where(eq(user.id, userId));
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to update user roleId');
   }
 }
 
@@ -1012,7 +1024,7 @@ export async function updateVoter(
 ): Promise<Voter | null> {
   try {
     const dataToUpdate: Partial<Voter> = { updatedAt: new Date() };
-    
+
     if (updateData.mobileNoPrimary !== undefined) {
       dataToUpdate.mobileNoPrimary = updateData.mobileNoPrimary;
     }
@@ -1733,12 +1745,26 @@ export async function getUserModulePermissions(userId: string): Promise<Record<s
   }
 }
 
-export async function getAllUsersWithPermissions(): Promise<Array<User & { permissions: Record<string, boolean> }>> {
+export async function getAllUsersWithPermissions(): Promise<Array<User & { permissions: Record<string, boolean>; roleInfo?: Role | null }>> {
   try {
     const users = await db.select().from(user).orderBy(asc(user.email));
     const allPermissions = await db.select().from(userModulePermissions);
 
-    // Group permissions by userId
+    // Get all roles
+    const allRoles = await db.select().from(role);
+    const rolesById = new Map(allRoles.map((r) => [r.id, r]));
+
+    // Get all role permissions
+    const allRolePermissions = await db.select().from(roleModulePermissions);
+    const rolePermissionsByRoleId: Record<string, Record<string, boolean>> = {};
+    for (const perm of allRolePermissions) {
+      if (!rolePermissionsByRoleId[perm.roleId]) {
+        rolePermissionsByRoleId[perm.roleId] = {};
+      }
+      rolePermissionsByRoleId[perm.roleId][perm.moduleKey] = perm.hasAccess;
+    }
+
+    // Group user-specific permissions by userId (for backward compatibility)
     const permissionsByUser: Record<string, Record<string, boolean>> = {};
     for (const perm of allPermissions) {
       if (!permissionsByUser[perm.userId]) {
@@ -1747,10 +1773,23 @@ export async function getAllUsersWithPermissions(): Promise<Array<User & { permi
       permissionsByUser[perm.userId][perm.moduleKey] = perm.hasAccess;
     }
 
-    return users.map((u) => ({
-      ...u,
-      permissions: permissionsByUser[u.id] || {},
-    }));
+    return users.map((u) => {
+      // Get role permissions if user has a role
+      const userPermissions: Record<string, boolean> = {};
+      if (u.roleId) {
+        const rolePerms = rolePermissionsByRoleId[u.roleId] || {};
+        Object.assign(userPermissions, rolePerms);
+      }
+
+      // Merge user-specific permissions (for backward compatibility/overrides)
+      Object.assign(userPermissions, permissionsByUser[u.id] || {});
+
+      return {
+        ...u,
+        permissions: userPermissions,
+        roleInfo: u.roleId ? rolesById.get(u.roleId) || null : null,
+      };
+    });
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1791,11 +1830,49 @@ export async function updateUserModulePermissions(
 
 export async function hasModuleAccess(userId: string, moduleKey: string): Promise<boolean> {
   try {
+    // Get user record
+    const [userRecord] = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    if (!userRecord) {
+      return false;
+    }
+
     const moduleKeysToCheck =
       moduleKey === 'daily-programme' || moduleKey === 'calendar'
         ? ['daily-programme', 'calendar']
         : [moduleKey];
 
+    console.log(moduleKeysToCheck, userRecord.roleId)
+
+    // First check role-based permissions if user has a roleId
+    if (userRecord.roleId) {
+      const moduleKeyCondition =
+        moduleKeysToCheck.length === 1
+          ? eq(roleModulePermissions.moduleKey, moduleKeysToCheck[0]!)
+          : inArray(roleModulePermissions.moduleKey, moduleKeysToCheck);
+
+      const [rolePermission] = await db
+        .select()
+        .from(roleModulePermissions)
+        .where(
+          and(
+            eq(roleModulePermissions.roleId, userRecord.roleId),
+            eq(roleModulePermissions.hasAccess, true),
+            moduleKeyCondition,
+          ),
+        )
+        .limit(1);
+      console.log('rolePermission', rolePermission.hasAccess)
+      if (rolePermission.hasAccess) {
+        return true;
+      }
+    }
+
+    // Then check user-specific permissions (for overrides)
     const moduleKeyCondition =
       moduleKeysToCheck.length === 1
         ? eq(userModulePermissions.moduleKey, moduleKeysToCheck[0]!)
@@ -1804,10 +1881,16 @@ export async function hasModuleAccess(userId: string, moduleKey: string): Promis
     const [permission] = await db
       .select()
       .from(userModulePermissions)
-      .where(and(eq(userModulePermissions.userId, userId), moduleKeyCondition))
+      .where(
+        and(
+          eq(userModulePermissions.userId, userId),
+          eq(userModulePermissions.hasAccess, true),
+          moduleKeyCondition,
+        ),
+      )
       .limit(1);
 
-    return permission?.hasAccess ?? false;
+    return permission !== undefined;
   } catch (error) {
     console.error('Error checking module access:', error);
     // If table doesn't exist or there's a schema issue, return false instead of throwing
@@ -1825,8 +1908,9 @@ export async function hasModuleAccess(userId: string, moduleKey: string): Promis
 export async function createUserWithPermissions(
   email: string,
   password: string,
-  role: User['role'],
+  roleEnum: User['role'],
   permissions: Record<string, boolean>,
+  roleId?: string | null,
 ): Promise<User> {
   try {
     const hashedPassword = generateHashedPassword(password);
@@ -1835,13 +1919,14 @@ export async function createUserWithPermissions(
       .values({
         email,
         password: hashedPassword,
-        role,
+        role: roleEnum,
+        roleId: roleId || null,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
       .returning();
 
-    // Create permissions
+    // Create user-specific permissions (only if provided, role permissions are handled via roleId)
     if (Object.keys(permissions).length > 0) {
       const permissionEntries = Object.entries(permissions).map(([moduleKey, hasAccess]) => ({
         userId: newUser.id,
@@ -2293,6 +2378,209 @@ export async function deleteProject(id: string): Promise<void> {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to delete project',
+    );
+  }
+}
+
+// Role Management Queries
+export async function getAllRoles(): Promise<Array<Role & { permissions: Record<string, boolean> }>> {
+  try {
+    const roles = await db.select().from(role).orderBy(asc(role.name));
+
+    const rolesWithPermissions = await Promise.all(
+      roles.map(async (r) => {
+        const permissions = await db
+          .select()
+          .from(roleModulePermissions)
+          .where(eq(roleModulePermissions.roleId, r.id));
+
+        const permissionsMap: Record<string, boolean> = {};
+        for (const perm of permissions) {
+          permissionsMap[perm.moduleKey] = perm.hasAccess;
+        }
+
+        return {
+          ...r,
+          permissions: permissionsMap,
+        };
+      }),
+    );
+
+    return rolesWithPermissions;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get all roles',
+    );
+  }
+}
+
+export async function getRoleById(roleId: string): Promise<(Role & { permissions: Record<string, boolean> }) | null> {
+  try {
+    const [roleRecord] = await db
+      .select()
+      .from(role)
+      .where(eq(role.id, roleId))
+      .limit(1);
+
+    if (!roleRecord) {
+      return null;
+    }
+
+    const permissions = await db
+      .select()
+      .from(roleModulePermissions)
+      .where(eq(roleModulePermissions.roleId, roleId));
+
+    const permissionsMap: Record<string, boolean> = {};
+    for (const perm of permissions) {
+      permissionsMap[perm.moduleKey] = perm.hasAccess;
+    }
+
+    return {
+      ...roleRecord,
+      permissions: permissionsMap,
+    };
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get role by id',
+    );
+  }
+}
+
+export async function createRole(
+  name: string,
+  description: string | null,
+  permissions: Record<string, boolean>,
+): Promise<Role> {
+  try {
+    const [newRole] = await db
+      .insert(role)
+      .values({
+        name,
+        description,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    // Create permissions
+    if (Object.keys(permissions).length > 0) {
+      const permissionEntries = Object.entries(permissions).map(([moduleKey, hasAccess]) => ({
+        roleId: newRole.id,
+        moduleKey,
+        hasAccess,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+
+      await db.insert(roleModulePermissions).values(permissionEntries);
+    }
+
+    return newRole;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create role',
+    );
+  }
+}
+
+export async function updateRole(
+  roleId: string,
+  name: string,
+  description: string | null,
+  permissions: Record<string, boolean>,
+): Promise<Role> {
+  try {
+    const [updatedRole] = await db
+      .update(role)
+      .set({
+        name,
+        description,
+        updatedAt: new Date(),
+      })
+      .where(eq(role.id, roleId))
+      .returning();
+
+    if (!updatedRole) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Role not found',
+      );
+    }
+
+    // Delete existing permissions
+    await db
+      .delete(roleModulePermissions)
+      .where(eq(roleModulePermissions.roleId, roleId));
+
+    // Insert new permissions
+    if (Object.keys(permissions).length > 0) {
+      const permissionEntries = Object.entries(permissions).map(([moduleKey, hasAccess]) => ({
+        roleId,
+        moduleKey,
+        hasAccess,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+
+      await db.insert(roleModulePermissions).values(permissionEntries);
+    }
+
+    return updatedRole;
+  } catch (error) {
+    if (error instanceof ChatSDKError) {
+      throw error;
+    }
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update role',
+    );
+  }
+}
+
+export async function deleteRole(roleId: string): Promise<void> {
+  try {
+    // Check if any users are assigned to this role
+    const usersWithRole = await db
+      .select()
+      .from(user)
+      .where(eq(user.roleId, roleId))
+      .limit(1);
+
+    if (usersWithRole.length > 0) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Cannot delete role: users are still assigned to this role',
+      );
+    }
+
+    // Permissions will be deleted via cascade
+    await db.delete(role).where(eq(role.id, roleId));
+  } catch (error) {
+    if (error instanceof ChatSDKError) {
+      throw error;
+    }
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete role',
+    );
+  }
+}
+
+export async function getUsersWithRole(roleId: string): Promise<Array<User>> {
+  try {
+    return await db
+      .select()
+      .from(user)
+      .where(eq(user.roleId, roleId))
+      .orderBy(asc(user.email));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get users with role',
     );
   }
 }

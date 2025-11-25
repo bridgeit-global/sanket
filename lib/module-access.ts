@@ -2,7 +2,7 @@ import 'server-only';
 
 import { eq, and } from 'drizzle-orm';
 import { db } from './db/queries';
-import { userModulePermissions, user } from './db/schema';
+import { userModulePermissions, user, roleModulePermissions, role } from './db/schema';
 import { ALL_MODULES, type ModuleDefinition } from './module-constants';
 
 // Re-export hasModuleAccess from queries for convenience
@@ -15,17 +15,38 @@ export async function getUserAccessibleModules(
   userId: string,
 ): Promise<ModuleDefinition[]> {
   try {
-    // Get user role first
+    // Get user record with roleId
     const [userRecord] = await db
       .select()
       .from(user)
       .where(eq(user.id, userId))
       .limit(1);
 
-    const userRole = userRecord?.role;
+    if (!userRecord) {
+      return [];
+    }
 
-    // Get explicit permissions from database
-    const permissions = await db
+    const accessibleKeys = new Set<string>();
+
+    // First, check role-based permissions if user has a roleId
+    if (userRecord.roleId) {
+      const rolePermissions = await db
+        .select()
+        .from(roleModulePermissions)
+        .where(
+          and(
+            eq(roleModulePermissions.roleId, userRecord.roleId),
+            eq(roleModulePermissions.hasAccess, true),
+          ),
+        );
+
+      for (const perm of rolePermissions) {
+        accessibleKeys.add(perm.moduleKey);
+      }
+    }
+
+    // Then, get explicit user-specific permissions (for backward compatibility/overrides)
+    const userPermissions = await db
       .select()
       .from(userModulePermissions)
       .where(
@@ -35,16 +56,22 @@ export async function getUserAccessibleModules(
         ),
       );
 
-    const accessibleKeys = new Set(permissions.map((p) => p.moduleKey));
+    for (const perm of userPermissions) {
+      accessibleKeys.add(perm.moduleKey);
+    }
+
+    // Special case: if calendar access, also grant daily-programme access
     if (accessibleKeys.has('calendar')) {
       accessibleKeys.add('daily-programme');
     }
 
-    // Also include modules where the user's role is in defaultRoles
+    // Fallback: Also include modules where the user's role enum is in defaultRoles
+    // (for backward compatibility during migration)
+    const userRole = userRecord.role;
     if (userRole) {
-      for (const modules of ALL_MODULES) {
-        if (modules.defaultRoles.length > 0 && modules.defaultRoles.includes(userRole as 'admin' | 'operator' | 'back-office' | 'regular')) {
-          accessibleKeys.add(modules.key);
+      for (const module of ALL_MODULES) {
+        if (module.defaultRoles.length > 0 && module.defaultRoles.includes(userRole as 'admin' | 'operator' | 'back-office' | 'regular')) {
+          accessibleKeys.add(module.key);
         }
       }
     }
@@ -85,7 +112,37 @@ export async function hasAnyModuleAccess(
   if (moduleKeys.length === 0) return false;
 
   try {
-    const permissions = await db
+    const [userRecord] = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    if (!userRecord) {
+      return false;
+    }
+
+    const accessibleKeys = new Set<string>();
+
+    // Check role-based permissions if user has a roleId
+    if (userRecord.roleId) {
+      const rolePermissions = await db
+        .select()
+        .from(roleModulePermissions)
+        .where(
+          and(
+            eq(roleModulePermissions.roleId, userRecord.roleId),
+            eq(roleModulePermissions.hasAccess, true),
+          ),
+        );
+
+      for (const perm of rolePermissions) {
+        accessibleKeys.add(perm.moduleKey);
+      }
+    }
+
+    // Check user-specific permissions
+    const userPermissions = await db
       .select()
       .from(userModulePermissions)
       .where(
@@ -95,7 +152,10 @@ export async function hasAnyModuleAccess(
         ),
       );
 
-    const accessibleKeys = new Set(permissions.map((p) => p.moduleKey));
+    for (const perm of userPermissions) {
+      accessibleKeys.add(perm.moduleKey);
+    }
+
     return moduleKeys.some((key) => accessibleKeys.has(key));
   } catch (error) {
     console.error('Error checking any module access:', error);
@@ -104,21 +164,46 @@ export async function hasAnyModuleAccess(
 }
 
 /**
- * Get all module permissions for a user
+ * Get all module permissions for a user (from role and user-specific overrides)
  */
 export async function getUserModulePermissions(
   userId: string,
 ): Promise<Record<string, boolean>> {
   try {
-    const permissions = await db
+    const [userRecord] = await db
+      .select()
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+
+    if (!userRecord) {
+      return {};
+    }
+
+    const result: Record<string, boolean> = {};
+
+    // Get role-based permissions if user has a roleId
+    if (userRecord.roleId) {
+      const rolePermissions = await db
+        .select()
+        .from(roleModulePermissions)
+        .where(eq(roleModulePermissions.roleId, userRecord.roleId));
+
+      for (const perm of rolePermissions) {
+        result[perm.moduleKey] = perm.hasAccess;
+      }
+    }
+
+    // Get user-specific permissions (these can override role permissions)
+    const userPermissions = await db
       .select()
       .from(userModulePermissions)
       .where(eq(userModulePermissions.userId, userId));
 
-    const result: Record<string, boolean> = {};
-    for (const perm of permissions) {
+    for (const perm of userPermissions) {
       result[perm.moduleKey] = perm.hasAccess;
     }
+
     return result;
   } catch (error) {
     console.error('Error getting user module permissions:', error);

@@ -1,23 +1,18 @@
 'use client';
 
 import type { User } from 'next-auth';
-import { useRouter } from 'next/navigation';
 
-import { PlusIcon } from '@/components/icons';
 import { SidebarUserNav } from '@/components/sidebar-user-nav';
-import { Button } from '@/components/ui/button';
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuItem,
   useSidebar,
 } from '@/components/ui/sidebar';
 import Link from 'next/link';
 import type { ModuleDefinition } from '@/lib/module-constants';
-import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { ModuleNavigation } from './module-navigation';
 
 interface AppSidebarProps {
@@ -26,14 +21,13 @@ interface AppSidebarProps {
 }
 
 export function AppSidebar({ user, modules }: AppSidebarProps) {
-  const router = useRouter();
   const { setOpenMobile } = useSidebar();
 
   return (
     <Sidebar className="group-data-[side=left]:border-r-0">
       <SidebarHeader>
         <SidebarMenu>
-          <div className="flex flex-row justify-between items-center">
+          <div className="flex flex-row items-center">
             <Link
               href="/"
               onClick={() => {
@@ -45,23 +39,6 @@ export function AppSidebar({ user, modules }: AppSidebarProps) {
                 Sanket
               </span>
             </Link>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  type="button"
-                  className="p-2 h-fit"
-                  onClick={() => {
-                    setOpenMobile(false);
-                    router.push('/');
-                    router.refresh();
-                  }}
-                >
-                  <PlusIcon />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent align="end">New Chat</TooltipContent>
-            </Tooltip>
           </div>
         </SidebarMenu>
       </SidebarHeader>

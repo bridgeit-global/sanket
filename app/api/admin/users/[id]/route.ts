@@ -4,9 +4,11 @@ import { auth } from '@/app/(auth)/auth';
 import {
   getUserById,
   updateUserRole,
+  updateUserRoleId,
   deleteUser,
   getUserModulePermissions,
   updateUserModulePermissions,
+  getRoleById,
 } from '@/lib/db/queries';
 import { generateHashedPassword } from '@/lib/db/utils';
 import { db } from '@/lib/db/queries';
@@ -32,9 +34,16 @@ export async function GET(
 
     const permissions = await getUserModulePermissions(id);
 
+    // Get role information if user has a roleId
+    let roleInfo = null;
+    if (userRecord.roleId) {
+      roleInfo = await getRoleById(userRecord.roleId);
+    }
+
     return NextResponse.json({
       ...userRecord,
       permissions,
+      roleInfo,
     });
   } catch (error) {
     console.error('Error fetching user:', error);
@@ -58,7 +67,7 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { email, role, password } = body;
+    const { email, role, roleId, password } = body;
 
     const updateData: Partial<typeof user.$inferInsert> = {
       updatedAt: new Date(),
@@ -66,6 +75,7 @@ export async function PUT(
 
     if (email) updateData.email = email;
     if (role) updateData.role = role as any;
+    if (roleId !== undefined) updateData.roleId = roleId;
     if (password) updateData.password = generateHashedPassword(password);
 
     const [updated] = await db

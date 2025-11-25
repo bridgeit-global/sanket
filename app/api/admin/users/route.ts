@@ -5,6 +5,7 @@ import {
   getAllUsersWithPermissions,
   createUserWithPermissions,
   getUser,
+  getAllRoles,
 } from '@/lib/db/queries';
 import type { User } from '@/lib/db/schema';
 
@@ -27,7 +28,8 @@ export async function GET(request: NextRequest) {
       users = users.filter(
         (u) =>
           u.email.toLowerCase().includes(searchLower) ||
-          u.role.toLowerCase().includes(searchLower),
+          u.role.toLowerCase().includes(searchLower) ||
+          (u.roleInfo?.name || '').toLowerCase().includes(searchLower),
       );
     }
 
@@ -50,11 +52,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, password, role, permissions } = body;
+    const { email, password, role, roleId, permissions } = body;
 
-    if (!email || !password || !role) {
+    if (!email || !password) {
       return NextResponse.json(
-        { error: 'email, password, and role are required' },
+        { error: 'email and password are required' },
         { status: 400 },
       );
     }
@@ -68,11 +70,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // roleId takes precedence over role enum
+    // If roleId is provided, use it; otherwise fall back to role enum
+    const userRole = (role as User['role']) || 'regular';
+
     const newUser = await createUserWithPermissions(
       email,
       password,
-      role as User['role'],
+      userRole,
       permissions || {},
+      roleId || null,
     );
 
     return NextResponse.json(newUser, { status: 201 });

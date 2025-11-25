@@ -9,7 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -33,16 +32,24 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { ALL_MODULES, type ModuleDefinition } from '@/lib/module-constants';
-import { Trash2, Plus, User as UserIcon } from 'lucide-react';
-import type { User } from '@/lib/db/schema';
+import { ALL_MODULES } from '@/lib/module-constants';
+import { Trash2, Plus, User as UserIcon, Shield } from 'lucide-react';
+import type { User, Role } from '@/lib/db/schema';
 
 interface UserWithPermissions extends User {
   permissions: Record<string, boolean>;
+  roleInfo?: Role | null;
+}
+
+interface RoleOption {
+  id: string;
+  name: string;
+  description: string | null;
 }
 
 export function ModulePermissionManager() {
   const [users, setUsers] = useState<UserWithPermissions[]>([]);
+  const [roles, setRoles] = useState<RoleOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -50,17 +57,36 @@ export function ModulePermissionManager() {
   const [newUser, setNewUser] = useState({
     email: '',
     password: '',
-    role: 'regular' as User['role'],
+    roleId: '' as string | null,
   });
+  const [editingUser, setEditingUser] = useState<UserWithPermissions | null>(null);
+  const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
 
   useEffect(() => {
     loadUsers();
+    loadRoles();
   }, []);
+
+  const loadRoles = async () => {
+    try {
+      const response = await fetch('/api/admin/roles');
+      if (response.ok) {
+        const data = await response.json();
+        setRoles(data.map((r: Role & { permissions: Record<string, boolean> }) => ({
+          id: r.id,
+          name: r.name,
+          description: r.description,
+        })));
+      }
+    } catch (error) {
+      console.error('Error loading roles:', error);
+    }
+  };
 
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/admin/module-permissions');
+      const response = await fetch('/api/admin/users');
       if (response.ok) {
         const data = await response.json();
         setUsers(data);
@@ -72,45 +98,46 @@ export function ModulePermissionManager() {
     }
   };
 
-  const handlePermissionChange = async (
-    userId: string,
-    moduleKey: string,
-    hasAccess: boolean,
-  ) => {
-    const user = users.find((u) => u.id === userId);
-    if (!user) return;
-
-    const updatedPermissions = {
-      ...user.permissions,
-      [moduleKey]: hasAccess,
-    };
-
+  const handleRoleChange = async (userId: string, roleId: string | null) => {
     try {
       setSaving(true);
-      const response = await fetch('/api/admin/users/' + userId + '/permissions', {
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ permissions: updatedPermissions }),
+        body: JSON.stringify({ roleId }),
       });
 
       if (response.ok) {
-        setUsers((prev) =>
-          prev.map((u) =>
-            u.id === userId
-              ? { ...u, permissions: updatedPermissions }
-              : u,
-          ),
-        );
+        await loadUsers();
+        setEditingUser(null);
+        setEditingRoleId(null);
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to update user role');
       }
     } catch (error) {
-      console.error('Error updating permissions:', error);
+      console.error('Error updating user role:', error);
+      alert('Failed to update user role');
     } finally {
       setSaving(false);
     }
   };
 
+  const handleEditUser = (user: UserWithPermissions) => {
+    setEditingUser(user);
+    setEditingRoleId(user.roleId || null);
+  };
+
   const handleAddUser = async () => {
-    if (!newUser.email || !newUser.password) return;
+    if (!newUser.email || !newUser.password) {
+      alert('Email and password are required');
+      return;
+    }
+
+    if (!newUser.roleId) {
+      alert('Please select a role for the user');
+      return;
+    }
 
     try {
       const response = await fetch('/api/admin/users', {
@@ -119,18 +146,21 @@ export function ModulePermissionManager() {
         body: JSON.stringify({
           email: newUser.email,
           password: newUser.password,
-          role: newUser.role,
-          permissions: {},
+          roleId: newUser.roleId,
         }),
       });
 
       if (response.ok) {
         await loadUsers();
         setShowAddUser(false);
-        setNewUser({ email: '', password: '', role: 'regular' });
+        setNewUser({ email: '', password: '', roleId: null });
+      } else {
+        const error = await response.json();
+        alert(error.error || 'Failed to create user');
       }
     } catch (error) {
       console.error('Error adding user:', error);
+      alert('Failed to create user');
     }
   };
 
@@ -153,7 +183,8 @@ export function ModulePermissionManager() {
   const filteredUsers = users.filter(
     (u) =>
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.role.toLowerCase().includes(searchTerm.toLowerCase()),
+      u.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.roleInfo?.name || '').toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   if (loading) {
@@ -209,21 +240,23 @@ export function ModulePermissionManager() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="role">Role</Label>
+                    <Label htmlFor="role">Role *</Label>
                     <Select
-                      value={newUser.role}
+                      value={newUser.roleId || ''}
                       onValueChange={(value) =>
-                        setNewUser({ ...newUser, role: value as User['role'] })
+                        setNewUser({ ...newUser, roleId: value || null })
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue />
+                        <SelectValue placeholder="Select a role" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="operator">Operator</SelectItem>
-                        <SelectItem value="back-office">Profile Update</SelectItem>
-                        <SelectItem value="regular">Regular</SelectItem>
+                        {roles.map((role) => (
+                          <SelectItem key={role.id} value={role.id}>
+                            {role.name}
+                            {role.description && ` - ${role.description}`}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -247,61 +280,135 @@ export function ModulePermissionManager() {
             <Accordion type="single">
               {filteredUsers.map((user) => (
                 <AccordionItem key={user.id} value={user.id}>
-                <AccordionTrigger>
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-medium">
-                      <UserIcon className="h-4 w-4" />
-                    </div>
-                    <div className="flex flex-col items-start">
-                      <span className="font-medium">{user.email}</span>
-                      <span className="text-sm text-muted-foreground capitalize">
-                        {user.role}
-                      </span>
-                    </div>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="space-y-4 pt-2">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {ALL_MODULES.map((module) => (
-                        <div
-                          key={module.key}
-                          className="flex items-center space-x-2 p-3 rounded-md border hover:bg-muted/50 transition-colors"
-                        >
-                          <Checkbox
-                            id={`${user.id}-${module.key}`}
-                            checked={user.permissions[module.key] || false}
-                            onChange={(e) =>
-                              handlePermissionChange(
-                                user.id,
-                                module.key,
-                                e.target.checked,
-                              )
-                            }
-                            disabled={saving}
-                          />
-                          <Label
-                            htmlFor={`${user.id}-${module.key}`}
-                            className="text-sm font-normal cursor-pointer flex-1"
-                          >
-                            {module.label}
-                          </Label>
+                  <AccordionTrigger>
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-medium">
+                        <UserIcon className="h-4 w-4" />
+                      </div>
+                      <div className="flex flex-col items-start">
+                        <span className="font-medium">{user.email}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground capitalize">
+                            {user.role}
+                          </span>
+                          {user.roleInfo && (
+                            <>
+                              <span className="text-muted-foreground">•</span>
+                              <div className="flex items-center gap-1">
+                                <Shield className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">
+                                  {user.roleInfo.name}
+                                </span>
+                              </div>
+                            </>
+                          )}
                         </div>
-                      ))}
+                      </div>
                     </div>
-                    <div className="flex justify-end pt-2 border-t">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteUser(user.id)}
-                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete User
-                      </Button>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-4 pt-2">
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-sm font-medium">Assigned Role</Label>
+                          <div className="mt-2">
+                            {editingUser?.id === user.id ? (
+                              <div className="flex items-center gap-2">
+                                <Select
+                                  value={editingRoleId || ''}
+                                  onValueChange={(value) =>
+                                    setEditingRoleId(value || null)
+                                  }
+                                  disabled={saving}
+                                >
+                                  <SelectTrigger className="flex-1">
+                                    <SelectValue placeholder="Select a role" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {roles.map((role) => (
+                                      <SelectItem key={role.id} value={role.id}>
+                                        {role.name}
+                                        {role.description && ` - ${role.description}`}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleRoleChange(user.id, editingRoleId)}
+                                  disabled={saving || editingRoleId === user.roleId}
+                                >
+                                  Save
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditingUser(null);
+                                    setEditingRoleId(null);
+                                  }}
+                                  disabled={saving}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 p-2 rounded-md border bg-muted/50">
+                                  <Shield className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-sm font-medium">
+                                    {user.roleInfo?.name || 'No role assigned'}
+                                  </span>
+                                </div>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleEditUser(user)}
+                                >
+                                  Change Role
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {user.roleInfo && (
+                          <div>
+                            <Label className="text-sm font-medium">Module Permissions (from role)</Label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
+                              {ALL_MODULES.map((module) => {
+                                const hasAccess = user.permissions[module.key] || false;
+                                return (
+                                  <div
+                                    key={module.key}
+                                    className={`flex items-center space-x-2 p-2 rounded-md border ${hasAccess
+                                        ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'
+                                        : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 opacity-50'
+                                      }`}
+                                  >
+                                    <span className="text-sm font-normal">
+                                      {module.label}
+                                    </span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex justify-end pt-2 border-t">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete User
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                </AccordionContent>
+                  </AccordionContent>
                 </AccordionItem>
               ))}
             </Accordion>

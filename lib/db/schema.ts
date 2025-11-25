@@ -10,18 +10,51 @@ import {
   foreignKey,
   boolean,
   integer,
+  unique,
 } from 'drizzle-orm/pg-core';
+
+// Role Table (defined before User to allow forward reference)
+export const role = pgTable('Role', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  description: text('description'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type Role = InferSelectModel<typeof role>;
 
 export const user = pgTable('User', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   email: varchar('email', { length: 64 }).notNull(),
   password: varchar('password', { length: 64 }),
   role: varchar('role', { enum: ['admin', 'operator', 'back-office', 'regular'] }).notNull().default('regular'),
+  roleId: uuid('role_id').references(() => role.id, { onDelete: 'restrict' }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
 
 export type User = InferSelectModel<typeof user>;
+
+// Role Module Permissions Table
+export const roleModulePermissions = pgTable(
+  'RoleModulePermissions',
+  {
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
+    roleId: uuid('role_id')
+      .notNull()
+      .references(() => role.id, { onDelete: 'cascade' }),
+    moduleKey: varchar('module_key', { length: 50 }).notNull(),
+    hasAccess: boolean('has_access').notNull().default(false),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    uniqueRoleModule: unique().on(table.roleId, table.moduleKey),
+  }),
+);
+
+export type RoleModulePermission = InferSelectModel<typeof roleModulePermissions>;
 
 export const chat = pgTable('Chat', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
