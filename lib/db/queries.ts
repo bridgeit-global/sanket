@@ -55,6 +55,8 @@ import {
   type Role,
   roleModulePermissions,
   type RoleModulePermission,
+  visitor,
+  type Visitor,
 } from './schema';
 import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
@@ -2626,6 +2628,217 @@ export async function getUsersWithRole(roleId: string): Promise<Array<User>> {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get users with role',
+    );
+  }
+}
+
+// Visitor Management Queries
+export async function createVisitor({
+  name,
+  contactNumber,
+  purpose,
+  programmeEventId,
+  visitDate,
+  createdBy,
+}: {
+  name: string;
+  contactNumber: string;
+  purpose: string;
+  programmeEventId?: string;
+  visitDate: Date | string;
+  createdBy: string;
+}): Promise<Visitor> {
+  try {
+    const [newVisitor] = await db
+      .insert(visitor)
+      .values({
+        name,
+        contactNumber,
+        purpose,
+        programmeEventId: programmeEventId || null,
+        visitDate: typeof visitDate === 'string' ? new Date(visitDate) : visitDate,
+        createdBy,
+      })
+      .returning();
+
+    if (!newVisitor) {
+      throw new Error('Failed to create visitor');
+    }
+
+    return newVisitor;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create visitor',
+    );
+  }
+}
+
+export async function getVisitors({
+  startDate,
+  endDate,
+  programmeEventId,
+}: {
+  startDate?: string;
+  endDate?: string;
+  programmeEventId?: string;
+} = {}): Promise<Array<Visitor & { programmeEvent?: DailyProgramme | null }>> {
+  try {
+    const conditions = [];
+
+    if (startDate) {
+      conditions.push(gte(visitor.visitDate, new Date(startDate)));
+    }
+    if (endDate) {
+      conditions.push(lte(visitor.visitDate, new Date(endDate)));
+    }
+    if (programmeEventId) {
+      conditions.push(eq(visitor.programmeEventId, programmeEventId));
+    }
+
+    const visitors = await db
+      .select({
+        visitor,
+        programmeEvent: dailyProgramme,
+      })
+      .from(visitor)
+      .leftJoin(dailyProgramme, eq(visitor.programmeEventId, dailyProgramme.id))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(visitor.visitDate));
+
+    return visitors.map(row => ({
+      ...row.visitor,
+      programmeEvent: row.programmeEvent,
+    }));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get visitors',
+    );
+  }
+}
+
+export async function getVisitorById(id: string): Promise<(Visitor & { programmeEvent?: DailyProgramme | null }) | null> {
+  try {
+    const [result] = await db
+      .select({
+        visitor,
+        programmeEvent: dailyProgramme,
+      })
+      .from(visitor)
+      .leftJoin(dailyProgramme, eq(visitor.programmeEventId, dailyProgramme.id))
+      .where(eq(visitor.id, id))
+      .limit(1);
+
+    if (!result) {
+      return null;
+    }
+
+    return {
+      ...result.visitor,
+      programmeEvent: result.programmeEvent,
+    };
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get visitor',
+    );
+  }
+}
+
+export async function getVisitorsByProgrammeEvent(programmeEventId: string): Promise<Visitor[]> {
+  try {
+    return await db
+      .select()
+      .from(visitor)
+      .where(eq(visitor.programmeEventId, programmeEventId))
+      .orderBy(desc(visitor.visitDate));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get visitors for programme event',
+    );
+  }
+}
+
+export async function getVisitorHistory(contactNumber: string): Promise<Array<Visitor & { programmeEvent?: DailyProgramme | null }>> {
+  try {
+    const visitors = await db
+      .select({
+        visitor,
+        programmeEvent: dailyProgramme,
+      })
+      .from(visitor)
+      .leftJoin(dailyProgramme, eq(visitor.programmeEventId, dailyProgramme.id))
+      .where(eq(visitor.contactNumber, contactNumber))
+      .orderBy(desc(visitor.visitDate));
+
+    return visitors.map(row => ({
+      ...row.visitor,
+      programmeEvent: row.programmeEvent,
+    }));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get visitor history',
+    );
+  }
+}
+
+export async function updateVisitor({
+  id,
+  name,
+  contactNumber,
+  purpose,
+  programmeEventId,
+  visitDate,
+}: {
+  id: string;
+  name?: string;
+  contactNumber?: string;
+  purpose?: string;
+  programmeEventId?: string | null;
+  visitDate?: Date | string;
+}): Promise<Visitor> {
+  try {
+    const updateData: any = {
+      updatedAt: new Date(),
+    };
+
+    if (name !== undefined) updateData.name = name;
+    if (contactNumber !== undefined) updateData.contactNumber = contactNumber;
+    if (purpose !== undefined) updateData.purpose = purpose;
+    if (programmeEventId !== undefined) updateData.programmeEventId = programmeEventId;
+    if (visitDate !== undefined) {
+      updateData.visitDate = typeof visitDate === 'string' ? new Date(visitDate) : visitDate;
+    }
+
+    const [updated] = await db
+      .update(visitor)
+      .set(updateData)
+      .where(eq(visitor.id, id))
+      .returning();
+
+    if (!updated) {
+      throw new Error('Visitor not found');
+    }
+
+    return updated;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update visitor',
+    );
+  }
+}
+
+export async function deleteVisitor(id: string): Promise<void> {
+  try {
+    await db.delete(visitor).where(eq(visitor.id, id));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete visitor',
     );
   }
 }

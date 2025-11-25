@@ -105,6 +105,15 @@ export const ALL_MODULES: ModuleDefinition[] = [
     category: 'mla-office',
     defaultRoles: [],
   },
+  {
+    key: 'visitor-management',
+    label: 'Visitor Management',
+    description: 'Track and manage visitors for programme events',
+    route: '/modules/visitor-management',
+    icon: 'UserCheck',
+    category: 'mla-office',
+    defaultRoles: ['admin', 'operator', 'back-office'],
+  },
 ];
 
 // Get module by key
@@ -136,5 +145,6 @@ export const MODULE_KEYS = {
   INWARD: 'inward',
   OUTWARD: 'outward',
   PROJECTS: 'projects',
+  VISITOR_MANAGEMENT: 'visitor-management',
 } as const;
 

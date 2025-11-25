@@ -112,8 +112,10 @@ export function AccordionContent({
   children,
   className,
   isOpen,
+  value,
+  toggleItem,
   ...props
-}: AccordionContentProps) {
+}: AccordionContentProps & { value?: string; toggleItem?: (value: string) => void }) {
   return (
     <div
       className={cn(

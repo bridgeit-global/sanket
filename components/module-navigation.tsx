@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Users,
   User as UserIcon,
+  UserCheck,
 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { ModuleDefinition } from '@/lib/module-constants';
@@ -26,6 +27,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'projects': FolderKanban,
   'inward': Inbox,
   'outward': Send,
+  'visitor-management': UserCheck,
   'chat': MessageSquare,
   'user-management': Users,
   'profile': UserIcon,
@@ -40,6 +42,7 @@ const MODULE_ORDER = [
   'projects',
   'inward',
   'outward',
+  'visitor-management',
   'chat',
   'user-management',
   'profile',
