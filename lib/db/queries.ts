@@ -2178,6 +2178,21 @@ export async function getRegisterEntries({
   }
 }
 
+export async function getRegisterEntriesByProjectId(projectId: string): Promise<Array<RegisterEntry>> {
+  try {
+    return await db
+      .select()
+      .from(registerEntry)
+      .where(eq(registerEntry.projectId, projectId))
+      .orderBy(desc(registerEntry.date), desc(registerEntry.createdAt));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get register entries for project',
+    );
+  }
+}
+
 export async function getRegisterEntryById(id: string): Promise<RegisterEntry | null> {
   try {
     const [entry] = await db

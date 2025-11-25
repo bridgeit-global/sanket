@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Edit, Trash2 } from 'lucide-react';
+import { Printer, Edit, Trash2, Eye } from 'lucide-react';
 
 interface Project {
   id: string;
@@ -31,6 +32,7 @@ interface Project {
 }
 
 export function ProjectsModule() {
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -242,7 +244,14 @@ export function ProjectsModule() {
                   projects.map((project) => (
                     <TableRow key={project.id}>
                       <TableCell className="font-medium">
-                        {project.name}
+                        <button
+                          onClick={() =>
+                            router.push(`/modules/projects/${project.id}`)
+                          }
+                          className="text-left hover:underline text-blue-600"
+                        >
+                          {project.name}
+                        </button>
                       </TableCell>
                       <TableCell>{project.ward || '-'}</TableCell>
                       <TableCell>{project.type || '-'}</TableCell>
@@ -252,7 +261,18 @@ export function ProjectsModule() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() =>
+                              router.push(`/modules/projects/${project.id}`)
+                            }
+                            title="View Details"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleEdit(project)}
+                            title="Edit"
                           >
                             <Edit className="h-4 w-4" />
                           </Button>
@@ -260,6 +280,7 @@ export function ProjectsModule() {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleDelete(project.id)}
+                            title="Delete"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>

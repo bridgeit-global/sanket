@@ -5,6 +5,8 @@ import {
   getProjectById,
   updateProject,
   deleteProject,
+  getRegisterEntriesByProjectId,
+  getRegisterAttachments,
 } from '@/lib/db/queries';
 import { hasModuleAccess } from '@/lib/db/queries';
 
@@ -20,6 +22,7 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check module access
     const hasAccess = await hasModuleAccess(session.user.id, 'projects');
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -30,7 +33,21 @@ export async function GET(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    return NextResponse.json(project);
+    // Fetch all register entries for this project
+    const entries = await getRegisterEntriesByProjectId(id);
+
+    // Fetch attachments for each entry
+    const entriesWithAttachments = await Promise.all(
+      entries.map(async (entry) => {
+        const attachments = await getRegisterAttachments(entry.id);
+        return { ...entry, attachments };
+      }),
+    );
+
+    return NextResponse.json({
+      ...project,
+      registerEntries: entriesWithAttachments,
+    });
   } catch (error) {
     console.error('Error fetching project:', error);
     return NextResponse.json(
@@ -52,20 +69,22 @@ export async function PUT(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check module access
     const hasAccess = await hasModuleAccess(session.user.id, 'projects');
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();
-    const updateData: any = {};
+    const { name, ward, type, status } = body;
 
-    if (body.name !== undefined) updateData.name = body.name;
-    if (body.ward !== undefined) updateData.ward = body.ward;
-    if (body.type !== undefined) updateData.type = body.type;
-    if (body.status !== undefined) updateData.status = body.status;
+    const updated = await updateProject(id, {
+      name,
+      ward,
+      type,
+      status,
+    });
 
-    const updated = await updateProject(id, updateData);
     if (!updated) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
@@ -92,6 +111,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Check module access
     const hasAccess = await hasModuleAccess(session.user.id, 'projects');
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -108,4 +128,3 @@ export async function DELETE(
     );
   }
 }
-

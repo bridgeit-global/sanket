@@ -1,0 +1,674 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { ArrowLeft, Edit, Trash2, Plus, FileText, Inbox, Send } from 'lucide-react';
+import { format } from 'date-fns';
+import { SidebarToggle } from '@/components/sidebar-toggle';
+import { toast } from '@/components/toast';
+
+interface RegisterEntry {
+  id: string;
+  type: 'inward' | 'outward';
+  date: string;
+  fromTo: string;
+  subject: string;
+  projectId?: string;
+  mode?: string;
+  refNo?: string;
+  officer?: string;
+  attachments?: Array<{ id: string; fileName: string; fileSizeKb: number }>;
+}
+
+interface Project {
+  id: string;
+  name: string;
+  ward?: string;
+  type?: string;
+  status: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
+  registerEntries?: RegisterEntry[];
+}
+
+interface ProjectDetailProps {
+  projectId: string;
+}
+
+export function ProjectDetail({ projectId }: ProjectDetailProps) {
+  const router = useRouter();
+  const [project, setProject] = useState<Project | null>(null);
+  const [entries, setEntries] = useState<RegisterEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<RegisterEntry | null>(null);
+  const [editingProject, setEditingProject] = useState(false);
+
+  // Project form
+  const [projectForm, setProjectForm] = useState({
+    name: '',
+    ward: '',
+    type: '',
+    status: 'Concept' as Project['status'],
+  });
+
+  // Entry form
+  const [entryForm, setEntryForm] = useState({
+    type: 'inward' as 'inward' | 'outward',
+    date: format(new Date(), 'yyyy-MM-dd'),
+    fromTo: '',
+    subject: '',
+    mode: '',
+    refNo: '',
+    officer: '',
+  });
+
+  useEffect(() => {
+    loadProject();
+  }, [projectId]);
+
+  const loadProject = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`/api/projects/${projectId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProject(data);
+        setEntries(data.registerEntries || []);
+        setProjectForm({
+          name: data.name,
+          ward: data.ward || '',
+          type: data.type || '',
+          status: data.status,
+        });
+      } else if (response.status === 404) {
+        toast({ type: 'error', description: 'Project not found' });
+        router.push('/modules/projects');
+      }
+    } catch (error) {
+      console.error('Error loading project:', error);
+      toast({ type: 'error', description: 'Failed to load project' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!projectForm.name.trim()) return;
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(projectForm),
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        setProject({ ...project!, ...updated });
+        setEditingProject(false);
+        toast({ type: 'success', description: 'Project updated successfully' });
+      }
+    } catch (error) {
+      console.error('Error updating project:', error);
+      toast({ type: 'error', description: 'Failed to update project' });
+    }
+  };
+
+  const handleAddEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!entryForm.date || !entryForm.fromTo || !entryForm.subject) {
+      toast({ type: 'error', description: 'Please fill all required fields' });
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/projects/${projectId}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(entryForm),
+      });
+
+      if (response.ok) {
+        await loadProject();
+        setShowAddForm(false);
+        setEntryForm({
+          type: 'inward',
+          date: format(new Date(), 'yyyy-MM-dd'),
+          fromTo: '',
+          subject: '',
+          mode: '',
+          refNo: '',
+          officer: '',
+        });
+        toast({ type: 'success', description: 'Entry added successfully' });
+      } else {
+        const error = await response.json();
+        toast({ type: 'error', description: error.error || 'Failed to add entry' });
+      }
+    } catch (error) {
+      console.error('Error adding entry:', error);
+      toast({ type: 'error', description: 'Failed to add entry' });
+    }
+  };
+
+  const handleUpdateEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEntry) return;
+
+    try {
+      const response = await fetch(`/api/register/${editingEntry.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: entryForm.date,
+          fromTo: entryForm.fromTo,
+          subject: entryForm.subject,
+          mode: entryForm.mode,
+          refNo: entryForm.refNo,
+          officer: entryForm.officer,
+        }),
+      });
+
+      if (response.ok) {
+        await loadProject();
+        setEditingEntry(null);
+        toast({ type: 'success', description: 'Entry updated successfully' });
+      }
+    } catch (error) {
+      console.error('Error updating entry:', error);
+      toast({ type: 'error', description: 'Failed to update entry' });
+    }
+  };
+
+  const handleDeleteEntry = async (entryId: string) => {
+    if (!confirm('Are you sure you want to delete this entry?')) return;
+
+    try {
+      const response = await fetch(`/api/register/${entryId}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        await loadProject();
+        toast({ type: 'success', description: 'Entry deleted successfully' });
+      }
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+      toast({ type: 'error', description: 'Failed to delete entry' });
+    }
+  };
+
+  const startEditEntry = (entry: RegisterEntry) => {
+    setEditingEntry(entry);
+    setEntryForm({
+      type: entry.type,
+      date: entry.date,
+      fromTo: entry.fromTo,
+      subject: entry.subject,
+      mode: entry.mode || '',
+      refNo: entry.refNo || '',
+      officer: entry.officer || '',
+    });
+  };
+
+  const inwardCount = entries.filter((e) => e.type === 'inward').length;
+  const outwardCount = entries.filter((e) => e.type === 'outward').length;
+
+  if (loading) {
+    return <div className="p-4">Loading...</div>;
+  }
+
+  if (!project) {
+    return <div className="p-4">Project not found</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <SidebarToggle />
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => router.push('/modules/projects')}
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Projects
+        </Button>
+      </div>
+
+      {/* Project Info Card */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-2xl">{project.name}</CardTitle>
+              <CardDescription className="mt-1">
+                {project.ward && `Ward: ${project.ward}`}
+                {project.type && ` | Type: ${project.type}`}
+                {` | Status: ${project.status}`}
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setEditingProject(!editingProject)}
+            >
+              <Edit className="mr-2 h-4 w-4" />
+              Edit Project
+            </Button>
+          </div>
+        </CardHeader>
+        {editingProject && (
+          <CardContent>
+            <form onSubmit={handleUpdateProject} className="grid gap-4 md:grid-cols-4">
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="name">Project Name *</Label>
+                <Input
+                  id="name"
+                  value={projectForm.name}
+                  onChange={(e) =>
+                    setProjectForm({ ...projectForm, name: e.target.value })
+                  }
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ward">Ward / Beat</Label>
+                <Input
+                  id="ward"
+                  value={projectForm.ward}
+                  onChange={(e) =>
+                    setProjectForm({ ...projectForm, ward: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="type">Type</Label>
+                <Input
+                  id="type"
+                  value={projectForm.type}
+                  onChange={(e) =>
+                    setProjectForm({ ...projectForm, type: e.target.value })
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={projectForm.status}
+                  onValueChange={(value) =>
+                    setProjectForm({
+                      ...projectForm,
+                      status: value as Project['status'],
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Concept">Concept</SelectItem>
+                    <SelectItem value="Proposal">Proposal</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="md:col-span-4 flex gap-2 justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditingProject(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">Save Changes</Button>
+              </div>
+            </form>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* Statistics */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Entries</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{entries.length}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Inward Entries</CardTitle>
+            <Inbox className="h-4 w-4 text-blue-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{inwardCount}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Outward Entries</CardTitle>
+            <Send className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{outwardCount}</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Register Entries */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Register Entries</CardTitle>
+            <Button onClick={() => setShowAddForm(!showAddForm)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Entry
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {showAddForm && (
+            <form onSubmit={handleAddEntry} className="mb-6 p-4 border rounded-lg space-y-4">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="entry-type">Type *</Label>
+                  <Select
+                    value={entryForm.type}
+                    onValueChange={(value) =>
+                      setEntryForm({ ...entryForm, type: value as 'inward' | 'outward' })
+                    }
+                  >
+                    <SelectTrigger id="entry-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="inward">Inward</SelectItem>
+                      <SelectItem value="outward">Outward</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="entry-date">Date *</Label>
+                  <Input
+                    id="entry-date"
+                    type="date"
+                    value={entryForm.date}
+                    onChange={(e) => setEntryForm({ ...entryForm, date: e.target.value })}
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="entry-fromTo">
+                  {entryForm.type === 'inward' ? 'From' : 'To'} *
+                </Label>
+                <Input
+                  id="entry-fromTo"
+                  placeholder="Name, designation, department..."
+                  value={entryForm.fromTo}
+                  onChange={(e) => setEntryForm({ ...entryForm, fromTo: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="entry-subject">Subject *</Label>
+                <Input
+                  id="entry-subject"
+                  placeholder="Short description..."
+                  value={entryForm.subject}
+                  onChange={(e) => setEntryForm({ ...entryForm, subject: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="entry-mode">Mode</Label>
+                  <Input
+                    id="entry-mode"
+                    placeholder="Hand, Email, Dak..."
+                    value={entryForm.mode}
+                    onChange={(e) => setEntryForm({ ...entryForm, mode: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="entry-refNo">Reference No</Label>
+                  <Input
+                    id="entry-refNo"
+                    value={entryForm.refNo}
+                    onChange={(e) => setEntryForm({ ...entryForm, refNo: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="entry-officer">Officer</Label>
+                  <Input
+                    id="entry-officer"
+                    value={entryForm.officer}
+                    onChange={(e) => setEntryForm({ ...entryForm, officer: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowAddForm(false)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit">Add Entry</Button>
+              </div>
+            </form>
+          )}
+
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>From/To</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Mode</TableHead>
+                  <TableHead>Ref No</TableHead>
+                  <TableHead>Officer</TableHead>
+                  <TableHead>Attachments</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {entries.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={9}
+                      className="text-center text-muted-foreground"
+                    >
+                      No register entries yet.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  entries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                            entry.type === 'inward'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-green-100 text-green-800'
+                          }`}
+                        >
+                          {entry.type === 'inward' ? (
+                            <Inbox className="mr-1 h-3 w-3" />
+                          ) : (
+                            <Send className="mr-1 h-3 w-3" />
+                          )}
+                          {entry.type}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(entry.date), 'dd MMM yyyy')}
+                      </TableCell>
+                      <TableCell>{entry.fromTo}</TableCell>
+                      <TableCell className="font-medium">{entry.subject}</TableCell>
+                      <TableCell>{entry.mode || '-'}</TableCell>
+                      <TableCell>{entry.refNo || '-'}</TableCell>
+                      <TableCell>{entry.officer || '-'}</TableCell>
+                      <TableCell>
+                        {entry.attachments && entry.attachments.length > 0 ? (
+                          <span className="text-sm text-muted-foreground">
+                            {entry.attachments.length} file(s)
+                          </span>
+                        ) : (
+                          '-'
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => startEditEntry(entry)}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteEntry(entry.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Edit Entry Dialog */}
+      <Dialog open={!!editingEntry} onOpenChange={() => setEditingEntry(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Register Entry</DialogTitle>
+            <DialogDescription>
+              Update the details of this {editingEntry?.type} entry
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateEntry} className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Input value={editingEntry?.type} disabled />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-date">Date *</Label>
+                <Input
+                  id="edit-date"
+                  type="date"
+                  value={entryForm.date}
+                  onChange={(e) => setEntryForm({ ...entryForm, date: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-fromTo">
+                {editingEntry?.type === 'inward' ? 'From' : 'To'} *
+              </Label>
+              <Input
+                id="edit-fromTo"
+                value={entryForm.fromTo}
+                onChange={(e) => setEntryForm({ ...entryForm, fromTo: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-subject">Subject *</Label>
+              <Input
+                id="edit-subject"
+                value={entryForm.subject}
+                onChange={(e) => setEntryForm({ ...entryForm, subject: e.target.value })}
+                required
+              />
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="edit-mode">Mode</Label>
+                <Input
+                  id="edit-mode"
+                  value={entryForm.mode}
+                  onChange={(e) => setEntryForm({ ...entryForm, mode: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-refNo">Reference No</Label>
+                <Input
+                  id="edit-refNo"
+                  value={entryForm.refNo}
+                  onChange={(e) => setEntryForm({ ...entryForm, refNo: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-officer">Officer</Label>
+                <Input
+                  id="edit-officer"
+                  value={entryForm.officer}
+                  onChange={(e) =>
+                    setEntryForm({ ...entryForm, officer: e.target.value })
+                  }
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingEntry(null)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
