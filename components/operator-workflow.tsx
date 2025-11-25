@@ -10,7 +10,6 @@ import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { toast } from '@/components/toast';
-import { VoterProfilingForm } from '@/components/voter-profiling-form';
 import { BeneficiaryServiceForm } from '@/components/beneficiary-service-form';
 import { PhoneUpdateForm } from '@/components/phone-update-form';
 import { TaskManagement } from '@/components/task-management';
@@ -31,13 +30,12 @@ export function OperatorWorkflow() {
     const [gender, setGender] = useState('');
     const [age, setAge] = useState<number>(25);
     const [ageRange, setAgeRange] = useState<number>(5);
-    const [showVoterProfiling, setShowVoterProfiling] = useState(false);
     const [showBeneficiaryService, setShowBeneficiaryService] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [showPhoneUpdate, setShowPhoneUpdate] = useState(false);
     const [serviceData, setServiceData] = useState<any>(null);
     const [createdService, setCreatedService] = useState<BeneficiaryService | null>(null);
-    const [workflowStep, setWorkflowStep] = useState<'search' | 'profile' | 'phoneUpdate' | 'service' | 'confirmation' | 'completed' | 'tasks'>('search');
+    const [workflowStep, setWorkflowStep] = useState<'search' | 'phoneUpdate' | 'service' | 'confirmation' | 'completed' | 'tasks'>('search');
     const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create');
 
     // Helper function to clear search state when switching tabs
@@ -155,18 +153,6 @@ export function OperatorWorkflow() {
         }
     };
 
-    const handleVoterCreated = (voter: Voter) => {
-        setSelectedVoter(voter);
-        setShowVoterProfiling(false);
-        setShowBeneficiaryService(true);
-        clearSearchStateIfNeeded();
-        setWorkflowStep('service');
-        toast({
-            type: 'success',
-            description: 'Voter profile created successfully',
-        });
-    };
-
     const handlePhoneUpdate = async (phoneData: { mobileNoPrimary: string; mobileNoSecondary?: string }) => {
         if (!selectedVoter) return;
 
@@ -268,7 +254,6 @@ export function OperatorWorkflow() {
         setSearchTerm('');
         setHasSearched(false);
         setIsSearching(false);
-        setShowVoterProfiling(false);
         setShowBeneficiaryService(false);
         setShowConfirmation(false);
         setShowPhoneUpdate(false);
@@ -278,18 +263,11 @@ export function OperatorWorkflow() {
     };
 
     const handleCancel = () => {
-        setShowVoterProfiling(false);
         setShowBeneficiaryService(false);
         setShowConfirmation(false);
         setShowPhoneUpdate(false);
         setServiceData(null);
         setWorkflowStep('search');
-    };
-
-    const handleCreateVoterProfile = () => {
-        setShowVoterProfiling(true);
-        clearSearchStateIfNeeded();
-        setWorkflowStep('profile');
     };
 
     return (
@@ -343,37 +321,30 @@ export function OperatorWorkflow() {
                 <Card>
                     <CardContent className="pt-6">
                         <div className="hidden sm:flex items-center space-x-4">
-                            <div className={`flex items-center space-x-2 ${workflowStep === 'profile' ? 'text-blue-600' : workflowStep === 'phoneUpdate' || workflowStep === 'service' || workflowStep === 'confirmation' || workflowStep === 'completed' ? 'text-green-600' : 'text-gray-500'}`}>
-                                <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'profile' ? 'bg-blue-100 text-blue-600' : workflowStep === 'phoneUpdate' || workflowStep === 'service' || workflowStep === 'confirmation' || workflowStep === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                                    1
-                                </div>
-                                <span className="text-sm font-medium">Voter Profile</span>
-                            </div>
-                            <div className="flex-1 h-px bg-gray-200" />
                             <div className={`flex items-center space-x-2 ${workflowStep === 'phoneUpdate' ? 'text-blue-600' : workflowStep === 'service' || workflowStep === 'confirmation' || workflowStep === 'completed' ? 'text-green-600' : 'text-gray-500'}`}>
                                 <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'phoneUpdate' ? 'bg-blue-100 text-blue-600' : workflowStep === 'service' || workflowStep === 'confirmation' || workflowStep === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                                    2
+                                    1
                                 </div>
                                 <span className="text-sm font-medium">Phone Update</span>
                             </div>
                             <div className="flex-1 h-px bg-gray-200" />
                             <div className={`flex items-center space-x-2 ${workflowStep === 'service' ? 'text-blue-600' : workflowStep === 'confirmation' || workflowStep === 'completed' ? 'text-green-600' : 'text-gray-500'}`}>
                                 <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'service' ? 'bg-blue-100 text-blue-600' : workflowStep === 'confirmation' || workflowStep === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                                    3
+                                    2
                                 </div>
                                 <span className="text-sm font-medium">Service Details</span>
                             </div>
                             <div className="flex-1 h-px bg-gray-200" />
                             <div className={`flex items-center space-x-2 ${workflowStep === 'confirmation' ? 'text-blue-600' : workflowStep === 'completed' ? 'text-green-600' : 'text-gray-500'}`}>
                                 <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'confirmation' ? 'bg-blue-100 text-blue-600' : workflowStep === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                                    4
+                                    3
                                 </div>
                                 <span className="text-sm font-medium">Confirmation</span>
                             </div>
                             <div className="flex-1 h-px bg-gray-200" />
                             <div className={`flex items-center space-x-2 ${workflowStep === 'completed' ? 'text-green-600' : 'text-gray-500'}`}>
                                 <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                                    5
+                                    4
                                 </div>
                                 <span className="text-sm font-medium">Token Generated</span>
                             </div>
@@ -382,22 +353,20 @@ export function OperatorWorkflow() {
                         {/* Mobile Progress Indicator */}
                         <div className="sm:hidden space-y-2">
                             <div className="flex items-center justify-between text-xs">
-                                <span>Step {workflowStep === 'profile' ? '1' : workflowStep === 'phoneUpdate' ? '2' : workflowStep === 'service' ? '3' : workflowStep === 'confirmation' ? '4' : '5'} of 5</span>
+                                <span>Step {workflowStep === 'phoneUpdate' ? '1' : workflowStep === 'service' ? '2' : workflowStep === 'confirmation' ? '3' : '4'} of 4</span>
                                 <span className="text-muted-foreground">
-                                    {workflowStep === 'profile' ? 'Voter Profile' :
-                                        workflowStep === 'phoneUpdate' ? 'Phone Update' :
-                                            workflowStep === 'service' ? 'Service Details' :
-                                                workflowStep === 'confirmation' ? 'Confirmation' : 'Token Generated'}
+                                    {workflowStep === 'phoneUpdate' ? 'Phone Update' :
+                                        workflowStep === 'service' ? 'Service Details' :
+                                            workflowStep === 'confirmation' ? 'Confirmation' : 'Token Generated'}
                                 </span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-2">
                                 <div
                                     className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                                     style={{
-                                        width: `${workflowStep === 'profile' ? 20 :
-                                            workflowStep === 'phoneUpdate' ? 40 :
-                                                workflowStep === 'service' ? 60 :
-                                                    workflowStep === 'confirmation' ? 80 : 100}%`
+                                        width: `${workflowStep === 'phoneUpdate' ? 25 :
+                                            workflowStep === 'service' ? 50 :
+                                                workflowStep === 'confirmation' ? 75 : 100}%`
                                     }}
                                 />
                             </div>
@@ -409,14 +378,6 @@ export function OperatorWorkflow() {
             {/* Create Service Workflow */}
             {activeTab === 'create' && (
                 <>
-                    {/* Voter Profiling Form */}
-                    {showVoterProfiling && (
-                        <VoterProfilingForm
-                            onVoterCreated={handleVoterCreated}
-                            onCancel={handleCancel}
-                        />
-                    )}
-
                     {/* Phone Update Form */}
                     {showPhoneUpdate && selectedVoter && (
                         <PhoneUpdateForm
@@ -584,21 +545,10 @@ export function OperatorWorkflow() {
                     {workflowStep === 'search' && (
                         <Card>
                             <CardHeader>
-                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                    <div>
-                                        <CardTitle>Search Voter</CardTitle>
-                                        <CardDescription className="text-sm">
-                                            Search for voters by VoterId (EPIC Number), name, or phone number to create beneficiary services
-                                        </CardDescription>
-                                    </div>
-                                    <Button
-                                        variant="outline"
-                                        onClick={handleCreateVoterProfile}
-                                        className="shrink-0 w-full sm:w-auto"
-                                    >
-                                        Create Voter Profile
-                                    </Button>
-                                </div>
+                                <CardTitle>Search Voter</CardTitle>
+                                <CardDescription className="text-sm">
+                                    Search for voters by VoterId (EPIC Number), name, or phone number to create beneficiary services
+                                </CardDescription>
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-4">
@@ -924,7 +874,7 @@ export function OperatorWorkflow() {
                                                     No voter found with the provided search criteria.
                                                 </p>
                                                 <p className="text-xs text-muted-foreground mt-1">
-                                                    Use the &quot;Create Voter Profile&quot; button above to add a new voter to the system.
+                                                    Try adjusting your search criteria or contact an administrator.
                                                 </p>
                                             </div>
                                         </div>

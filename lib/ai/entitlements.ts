@@ -1,12 +1,14 @@
-import type { UserRole } from '@/app/(auth)/auth';
 import type { ChatModel } from './models';
+
+// Role names that map to entitlements
+export type RoleName = 'admin' | 'operator' | 'back-office' | 'regular';
 
 interface Entitlements {
   maxMessagesPerDay: number;
   availableChatModelIds: Array<ChatModel['id']>;
 }
 
-export const entitlementsByUserRole: Record<UserRole, Entitlements> = {
+export const entitlementsByUserRole: Record<RoleName, Entitlements> = {
   /*
    * For regular users with an account
    */
