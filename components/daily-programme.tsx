@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
-import { format, addDays, subDays, startOfDay, parseISO, isSameDay } from 'date-fns';
+import { Printer, Calendar, Pencil } from 'lucide-react';
+import { format, addDays, parseISO, startOfToday } from 'date-fns';
 import {
   Select,
   SelectContent,
@@ -57,7 +57,7 @@ function generateDurationOptions(): Array<{ value: string; label: string }> {
   const options: Array<{ value: string; label: string }> = [];
   // Common durations: 15, 30, 45, 60, 90, 120, 180, 240 minutes
   const durations = [15, 30, 45, 60, 90, 120, 180, 240];
-  
+
   durations.forEach((minutes) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -71,21 +71,21 @@ function generateDurationOptions(): Array<{ value: string; label: string }> {
     }
     options.push({ value: minutes.toString(), label });
   });
-  
+
   return options;
 }
 
 // Calculate end time from start time and duration (in minutes)
 function calculateEndTime(startTime: string, durationMinutes: number): string {
   if (!startTime) return '';
-  
+
   const [hours, minutes] = startTime.split(':').map(Number);
   const startTotalMinutes = hours * 60 + minutes;
   const endTotalMinutes = startTotalMinutes + durationMinutes;
-  
+
   const endHours = Math.floor(endTotalMinutes / 60) % 24;
   const endMins = endTotalMinutes % 60;
-  
+
   return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
 }
 
@@ -95,14 +95,22 @@ function calculateDuration(
   endTime?: string | null,
 ): number | null {
   if (!startTime || !endTime) return null;
-  
+
   const [startHours, startMins] = startTime.split(':').map(Number);
   const [endHours, endMins] = endTime.split(':').map(Number);
-  
+
   const startTotalMinutes = startHours * 60 + startMins;
   const endTotalMinutes = endHours * 60 + endMins;
-  
+
   return endTotalMinutes - startTotalMinutes;
+}
+
+function getDefaultDateRange() {
+  const today = startOfToday();
+  return {
+    start: format(today, 'yyyy-MM-dd'),
+    end: format(addDays(today, 1), 'yyyy-MM-dd'),
+  };
 }
 
 // Helper function to normalize date strings from various formats
@@ -111,16 +119,16 @@ function normalizeDate(dateValue: string | Date | null | undefined): string | nu
     console.warn('normalizeDate received null/undefined value');
     return null;
   }
-  
+
   // If it's already a Date object, convert to yyyy-MM-dd
   if (dateValue instanceof Date) {
-    if (isNaN(dateValue.getTime())) {
+    if (Number.isNaN(dateValue.getTime())) {
       console.warn('normalizeDate received invalid Date object');
       return null;
     }
     return format(dateValue, 'yyyy-MM-dd');
   }
-  
+
   // If it's a string, try to parse it
   if (typeof dateValue === 'string') {
     // First, check if it's already in YYYY-MM-DD format
@@ -128,22 +136,22 @@ function normalizeDate(dateValue: string | Date | null | undefined): string | nu
     if (yyyyMMddPattern.test(dateValue)) {
       // Validate it's a valid date
       const testDate = new Date(dateValue);
-      if (!isNaN(testDate.getTime())) {
+      if (!Number.isNaN(testDate.getTime())) {
         return dateValue;
       }
     }
-    
+
     try {
       // Try parsing as ISO string (handles timezone info)
       const parsed = parseISO(dateValue);
-      if (!isNaN(parsed.getTime())) {
+      if (!Number.isNaN(parsed.getTime())) {
         return format(parsed, 'yyyy-MM-dd');
       }
     } catch (error) {
       // If parseISO fails, try new Date
       try {
         const date = new Date(dateValue);
-        if (!isNaN(date.getTime())) {
+        if (!Number.isNaN(date.getTime())) {
           return format(date, 'yyyy-MM-dd');
         }
       } catch (e) {
@@ -151,7 +159,7 @@ function normalizeDate(dateValue: string | Date | null | undefined): string | nu
       }
     }
   }
-  
+
   console.warn('Could not normalize date:', dateValue, typeof dateValue);
   return null;
 }
@@ -162,7 +170,9 @@ const DURATION_OPTIONS = generateDurationOptions();
 export function DailyProgramme({ userRole }: DailyProgrammeProps) {
   const [allItems, setAllItems] = useState<ProgrammeItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentDate, setCurrentDate] = useState<Date>(startOfDay(new Date()));
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() =>
+    getDefaultDateRange(),
+  );
   const [form, setForm] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
     startTime: '',
@@ -192,39 +202,101 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
     return grouped;
   }, [allItems]);
 
-  // Get available dates sorted
-  const availableDates = useMemo(() => {
-    return Object.keys(itemsByDate)
-      .map((d) => {
-        try {
-          return parseISO(d);
-        } catch (error) {
-          console.error('Error parsing date key:', d, error);
-          return null;
+  const filteredDateEntries = useMemo(() => {
+    return Object.entries(itemsByDate)
+      .filter(([dateKey]) => {
+        if (dateRange.start && dateKey < dateRange.start) {
+          return false;
         }
+        if (dateRange.end && dateKey > dateRange.end) {
+          return false;
+        }
+        return true;
       })
-      .filter((date): date is Date => date !== null)
-      .sort((a, b) => a.getTime() - b.getTime());
-  }, [itemsByDate]);
+      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB));
+  }, [itemsByDate, dateRange.start, dateRange.end]);
 
-  // Get items for current date
-  const currentDateItems = useMemo(() => {
-    const dateKey = format(currentDate, 'yyyy-MM-dd');
-    const items = itemsByDate[dateKey] || [];
-    console.log('Current date key:', dateKey);
-    console.log('Items for current date:', items);
-    console.log('All date keys:', Object.keys(itemsByDate));
-    return items;
-  }, [itemsByDate, currentDate]);
+  const loadItems = useCallback(
+    async (startDate?: string, endDate?: string) => {
+      try {
+        setLoading(true);
+        const params = new URLSearchParams();
+        const resolvedStart = startDate ?? dateRange.start;
+        const resolvedEnd = endDate ?? dateRange.end;
 
-  // Find current date index in available dates
-  const currentDateIndex = useMemo(() => {
-    return availableDates.findIndex((date) => isSameDay(date, currentDate));
-  }, [availableDates, currentDate]);
+        if (resolvedStart) {
+          params.append('startDate', resolvedStart);
+        }
+        if (resolvedEnd) {
+          params.append('endDate', resolvedEnd);
+        }
+
+        const queryString = params.toString();
+        const response = await fetch(
+          `/api/daily-programme${queryString ? `?${queryString}` : ''}`,
+        );
+        if (!response.ok) {
+          console.error('Failed to load items:', response.status, response.statusText);
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Error data:', errorData);
+          return;
+        }
+        const data = await response.json();
+        console.log('Loaded items from API:', data);
+        console.log('Number of items:', data?.length || 0);
+
+        // Filter out items with null or undefined dates
+        const validItems = data.filter((item: ProgrammeItem) => {
+          const hasDate = item.date != null;
+          if (!hasDate) {
+            console.warn('Item missing date:', item);
+          }
+          return hasDate;
+        });
+        console.log('Valid items after filtering:', validItems);
+        console.log('Number of valid items:', validItems.length);
+        setAllItems(validItems);
+      } catch (error) {
+        console.error('Error loading programme items:', error);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [dateRange.start, dateRange.end],
+  );
+
+  const dateRangeLabel = useMemo(() => {
+    const formatDate = (value?: string) => {
+      if (!value) return null;
+      try {
+        return format(parseISO(value), 'dd MMM yyyy');
+      } catch (error) {
+        console.error('Error formatting date range value:', value, error);
+        return value;
+      }
+    };
+
+    const startLabel = formatDate(dateRange.start);
+    const endLabel = formatDate(dateRange.end);
+
+    if (startLabel && endLabel && dateRange.start === dateRange.end) {
+      return startLabel;
+    }
+    if (startLabel && endLabel) {
+      return `${startLabel} – ${endLabel}`;
+    }
+    if (startLabel) {
+      return `From ${startLabel}`;
+    }
+    if (endLabel) {
+      return `Until ${endLabel}`;
+    }
+    return 'All scheduled dates';
+  }, [dateRange.start, dateRange.end]);
 
   useEffect(() => {
     loadItems();
-  }, []);
+  }, [loadItems]);
 
   // Debug: Log when allItems changes
   useEffect(() => {
@@ -236,76 +308,14 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
     }
   }, [allItems]);
 
-  const loadItems = async (targetDate?: string) => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/daily-programme');
-      if (!response.ok) {
-        console.error('Failed to load items:', response.status, response.statusText);
-        const errorData = await response.json().catch(() => ({}));
-        console.error('Error data:', errorData);
-        return;
-      }
-      const data = await response.json();
-      console.log('Loaded items from API:', data);
-      console.log('Number of items:', data?.length || 0);
-      
-      // Filter out items with null or undefined dates
-      const validItems = data.filter((item: ProgrammeItem) => {
-        const hasDate = item.date != null;
-        if (!hasDate) {
-          console.warn('Item missing date:', item);
-        }
-        return hasDate;
-      });
-      console.log('Valid items after filtering:', validItems);
-      console.log('Number of valid items:', validItems.length);
-      setAllItems(validItems);
-      
-      // If a target date is provided, navigate to it
-      if (targetDate) {
-        try {
-          const targetDateObj = parseISO(targetDate);
-          setCurrentDate(startOfDay(targetDateObj));
-        } catch (error) {
-          console.error('Error parsing target date:', targetDate, error);
-        }
-      } else if (validItems.length > 0) {
-        // Otherwise, check if current date has items, if not navigate to first available date
-        const currentDateKey = format(currentDate, 'yyyy-MM-dd');
-        const hasCurrentDateItems = validItems.some((item: ProgrammeItem) => {
-          if (!item.date) return false;
-          const itemDateKey = normalizeDate(item.date);
-          return itemDateKey === currentDateKey;
-        });
-        
-        if (!hasCurrentDateItems && validItems[0]?.date) {
-          const firstDateKey = normalizeDate(validItems[0].date);
-          if (firstDateKey) {
-            try {
-              const firstDate = parseISO(firstDateKey);
-              setCurrentDate(startOfDay(firstDate));
-            } catch (error) {
-              console.error('Error parsing first date:', firstDateKey, error);
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error loading programme items:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.date || !form.startTime || !form.title || !form.location) return;
 
     try {
       // Calculate endTime from startTime and duration
-      const durationMinutes = form.duration ? parseInt(form.duration, 10) : 0;
-      const endTime = durationMinutes > 0 
+      const durationMinutes = form.duration ? Number.parseInt(form.duration, 10) : 0;
+      const endTime = durationMinutes > 0
         ? calculateEndTime(form.startTime, durationMinutes)
         : undefined;
 
@@ -323,9 +333,8 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
       });
 
       if (response.ok) {
-        // Load items and navigate to the date of the newly created item
-        await loadItems(form.date);
-        
+        await loadItems();
+
         setForm({
           date: format(new Date(), 'yyyy-MM-dd'),
           startTime: '',
@@ -344,34 +353,39 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
     window.print();
   };
 
-  const goToPreviousDate = () => {
-    if (currentDateIndex > 0) {
-      setCurrentDate(startOfDay(availableDates[currentDateIndex - 1]));
-    } else if (availableDates.length > 0) {
-      // If at first date, go to previous day
-      setCurrentDate(startOfDay(subDays(availableDates[0], 1)));
-    } else {
-      setCurrentDate(startOfDay(subDays(currentDate, 1)));
+  const updateDateRange = (key: 'start' | 'end', value: string) => {
+    setDateRange((prev) => {
+      if (key === 'start') {
+        if (!value) {
+          return { ...prev, start: '' };
+        }
+        if (prev.end && value > prev.end) {
+          return { start: value, end: value };
+        }
+        return { ...prev, start: value };
+      }
+
+      // key === 'end'
+      if (!value) {
+        return { ...prev, end: '' };
+      }
+      if (prev.start && value < prev.start) {
+        return { start: value, end: value };
+      }
+      return { ...prev, end: value };
+    });
+  };
+
+  const handleResetRange = () => {
+    setDateRange(getDefaultDateRange());
+  };
+
+  const handleEditProgrammes = () => {
+    const formElement = document.getElementById('programme-form');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
-
-  const goToNextDate = () => {
-    if (currentDateIndex >= 0 && currentDateIndex < availableDates.length - 1) {
-      setCurrentDate(startOfDay(availableDates[currentDateIndex + 1]));
-    } else if (availableDates.length > 0) {
-      // If at last date, go to next day
-      setCurrentDate(startOfDay(addDays(availableDates[availableDates.length - 1], 1)));
-    } else {
-      setCurrentDate(startOfDay(addDays(currentDate, 1)));
-    }
-  };
-
-  const goToToday = () => {
-    setCurrentDate(startOfDay(new Date()));
-  };
-
-  const hasPreviousDate = currentDateIndex > 0 || availableDates.length === 0;
-  const hasNextDate = currentDateIndex < availableDates.length - 1 || availableDates.length === 0;
 
   if (loading) {
     return <div className="p-4">Loading...</div>;
@@ -379,7 +393,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 no-print">
         <SidebarToggle />
         <div>
           <h1 className="text-3xl font-bold">Daily Programme</h1>
@@ -390,7 +404,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
       </div>
 
       <div className="space-y-6">
-        <Card>
+        <Card className="no-print" id="programme-form">
           <CardHeader>
             <CardTitle>Create / Edit Daily Programme</CardTitle>
           </CardHeader>
@@ -481,172 +495,150 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="no-print">
             <div className="flex items-center justify-between">
               <CardTitle>Programme Register</CardTitle>
               <div className="flex items-center gap-4">
                 <span className="text-sm text-muted-foreground">
-                  Total: {allItems.length} | Dates: {availableDates.length}
+                  Total: {allItems.length} | Dates: {filteredDateEntries.length}
                 </span>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            {/* Date Navigation */}
-            <div className="flex items-center justify-between mb-4 pb-4 border-b">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={goToPreviousDate}
-                disabled={!hasPreviousDate && currentDateIndex === -1}
-              >
-                <ChevronLeft className="h-4 w-4 mr-1" />
-                Previous Date
-              </Button>
-              
-              <div className="flex items-center gap-3">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <div className="text-center">
-                  <div className="font-semibold text-lg">
-                    {format(currentDate, 'dd MMM yyyy')}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {currentDateItems.length} event{currentDateItems.length !== 1 ? 's' : ''}
-                    {currentDateIndex >= 0 && availableDates.length > 0 && (
-                      <span> • Date {currentDateIndex + 1} of {availableDates.length}</span>
-                    )}
+            {/* Date Range Filter - Hidden when printing */}
+            <div className="space-y-4 mb-4 pb-4 border-b no-print">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <div className="font-semibold text-lg">{dateRangeLabel}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Showing {allItems.length} event{allItems.length !== 1 ? 's' : ''} across{' '}
+                      {filteredDateEntries.length} date{filteredDateEntries.length !== 1 ? 's' : ''}
+                    </div>
                   </div>
                 </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={handleEditProgrammes}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Edit Programmes
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleResetRange}>
+                    Reset Range
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handlePrint}>
+                    <Printer className="mr-2 h-4 w-4" />
+                    Print Programme
+                  </Button>
+                </div>
               </div>
-
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={goToToday}
-                >
-                  Today
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={goToNextDate}
-                  disabled={!hasNextDate && currentDateIndex === -1}
-                >
-                  Next Date
-                  <ChevronRight className="h-4 w-4 ml-1" />
-                </Button>
-                <Button variant="outline" size="sm" onClick={handlePrint}>
-                  <Printer className="mr-2 h-4 w-4" />
-                  Print Programme
-                </Button>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="rangeStart">Start date</Label>
+                  <Input
+                    id="rangeStart"
+                    type="date"
+                    value={dateRange.start}
+                    onChange={(e) => updateDateRange('start', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="rangeEnd">End date</Label>
+                  <Input
+                    id="rangeEnd"
+                    type="date"
+                    value={dateRange.end}
+                    onChange={(e) => updateDateRange('end', e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Events Table */}
-            <div className="overflow-x-auto">
-              {currentDateItems.length === 0 ? (
+            {/* Events Table - Printable Section */}
+            <div className="print-schedule">
+              {/* Print Header - Only visible when printing */}
+              <div className="print-header hidden">
+                <h1>Daily Programme</h1>
+                <p>{dateRangeLabel}</p>
+              </div>
+
+              {filteredDateEntries.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>No programme events for {format(currentDate, 'dd MMM yyyy')}</p>
+                  <p>No programme events for the selected date range.</p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Remarks</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {currentDateItems
-                      .sort((a, b) => {
-                        // Sort by start time
-                        const timeA = a.startTime || '00:00';
-                        const timeB = b.startTime || '00:00';
-                        return timeA.localeCompare(timeB);
-                      })
-                      .map((item) => {
-                        const duration = calculateDuration(item.startTime, item.endTime);
-                        const durationLabel = duration !== null && duration > 0
-                          ? DURATION_OPTIONS.find(opt => parseInt(opt.value, 10) === duration)?.label ||
-                            (duration < 60 ? `${duration} min` : `${Math.floor(duration / 60)}h ${duration % 60}m`)
-                          : null;
-                        
-                        return (
-                          <TableRow key={item.id}>
-                            <TableCell className="font-mono">
-                              <div>{item.startTime}</div>
-                              {durationLabel && (
-                                <div className="text-xs text-muted-foreground mt-1">
-                                  ({durationLabel})
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell className="font-medium">{item.title}</TableCell>
-                            <TableCell>{item.location}</TableCell>
-                            <TableCell className="text-sm text-muted-foreground">
-                              {item.remarks || '-'}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                  </TableBody>
-                </Table>
+                <div className="space-y-6">
+                  {filteredDateEntries.map(([dateKey, items]) => {
+                    const date = parseISO(dateKey);
+                    return (
+                      <div key={dateKey} className="space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 font-semibold">
+                            <Calendar className="h-4 w-4" />
+                            {format(date, 'EEEE, dd MMM yyyy')}
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {items.length} event{items.length !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead className="w-[120px]">Time</TableHead>
+                                <TableHead className="w-[200px]">Title</TableHead>
+                                <TableHead className="w-[250px]">Location</TableHead>
+                                <TableHead>Remarks</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {items
+                                .sort((a, b) => {
+                                  // Sort by start time
+                                  const timeA = a.startTime || '00:00';
+                                  const timeB = b.startTime || '00:00';
+                                  return timeA.localeCompare(timeB);
+                                })
+                                .map((item) => {
+                                  const duration = calculateDuration(item.startTime, item.endTime);
+                                  const durationLabel = duration !== null && duration > 0
+                                    ? DURATION_OPTIONS.find(
+                                      (opt) => Number.parseInt(opt.value, 10) === duration,
+                                    )?.label ||
+                                    (duration < 60
+                                      ? `${duration} min`
+                                      : `${Math.floor(duration / 60)}h ${duration % 60}m`)
+                                    : null;
+
+                                  return (
+                                    <TableRow key={item.id}>
+                                      <TableCell className="font-mono w-[120px]">
+                                        <div>{item.startTime}</div>
+                                        {durationLabel && (
+                                          <div className="text-xs text-muted-foreground mt-1">
+                                            ({durationLabel})
+                                          </div>
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="font-medium w-[200px]">{item.title}</TableCell>
+                                      <TableCell className="w-[250px]">{item.location}</TableCell>
+                                      <TableCell className="text-sm text-muted-foreground">
+                                        {item.remarks || '-'}
+                                      </TableCell>
+                                    </TableRow>
+                                  );
+                                })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </div>
-
-            {/* All Dates Summary (Optional - can be collapsed) */}
-            {availableDates.length > 1 && (
-              <div className="mt-6 pt-4 border-t">
-                <details className="group">
-                  <summary className="cursor-pointer text-sm font-medium text-muted-foreground hover:text-foreground">
-                    View all dates ({availableDates.length} dates with events)
-                  </summary>
-                  <div className="mt-4 space-y-4">
-                    {Object.entries(itemsByDate)
-                      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
-                      .map(([dateKey, items]) => {
-                        const date = parseISO(dateKey);
-                        const isCurrentDate = isSameDay(date, currentDate);
-                        return (
-                          <div
-                            key={dateKey}
-                            className={`border rounded-lg p-4 ${
-                              isCurrentDate ? 'border-primary bg-primary/5' : ''
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <h4 className="font-semibold flex items-center gap-2">
-                                <Calendar className="h-4 w-4" />
-                                {format(date, 'dd MMM yyyy')}
-                                {isCurrentDate && (
-                                  <span className="text-xs text-primary">(Current)</span>
-                                )}
-                              </h4>
-                              <span className="text-sm text-muted-foreground">
-                                {items.length} event{items.length !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-                            {!isCurrentDate && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setCurrentDate(startOfDay(date))}
-                                className="mt-2"
-                              >
-                                View Events
-                              </Button>
-                            )}
-                          </div>
-                        );
-                      })}
-                  </div>
-                </details>
-              </div>
-            )}
           </CardContent>
         </Card>
 

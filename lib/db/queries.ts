@@ -1960,6 +1960,15 @@ export async function deleteUser(userId: string): Promise<void> {
   }
 }
 
+// Helper to format Date to YYYY-MM-DD string
+function formatDateToString(date: Date | string): string {
+  if (typeof date === 'string') return date;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // Daily Programme Queries
 export async function createDailyProgrammeItem({
   date,
@@ -1970,7 +1979,7 @@ export async function createDailyProgrammeItem({
   remarks,
   createdBy,
 }: {
-  date: Date;
+  date: Date | string;
   startTime: string;
   endTime?: string;
   title: string;
@@ -1982,7 +1991,7 @@ export async function createDailyProgrammeItem({
     const [item] = await db
       .insert(dailyProgramme)
       .values({
-        date,
+        date: formatDateToString(date),
         startTime,
         endTime: endTime || null,
         title,
@@ -2008,17 +2017,17 @@ export async function getDailyProgrammeItems({
   endDate,
   limit = 100,
 }: {
-  startDate?: Date;
-  endDate?: Date;
+  startDate?: Date | string;
+  endDate?: Date | string;
   limit?: number;
 } = {}): Promise<Array<DailyProgramme>> {
   try {
     const conditions: SQL[] = [];
     if (startDate) {
-      conditions.push(gte(dailyProgramme.date, startDate));
+      conditions.push(gte(dailyProgramme.date, formatDateToString(startDate)));
     }
     if (endDate) {
-      conditions.push(lte(dailyProgramme.date, endDate));
+      conditions.push(lte(dailyProgramme.date, formatDateToString(endDate)));
     }
 
     return await db
@@ -2096,7 +2105,7 @@ export async function createRegisterEntry({
   createdBy,
 }: {
   type: 'inward' | 'outward';
-  date: Date;
+  date: Date | string;
   fromTo: string;
   subject: string;
   projectId?: string;
@@ -2110,7 +2119,7 @@ export async function createRegisterEntry({
       .insert(registerEntry)
       .values({
         type,
-        date,
+        date: formatDateToString(date),
         fromTo,
         subject,
         projectId: projectId || null,
@@ -2139,8 +2148,8 @@ export async function getRegisterEntries({
   limit = 100,
 }: {
   type?: 'inward' | 'outward';
-  startDate?: Date;
-  endDate?: Date;
+  startDate?: Date | string;
+  endDate?: Date | string;
   limit?: number;
 } = {}): Promise<Array<RegisterEntry>> {
   try {
@@ -2149,10 +2158,10 @@ export async function getRegisterEntries({
       conditions.push(eq(registerEntry.type, type));
     }
     if (startDate) {
-      conditions.push(gte(registerEntry.date, startDate));
+      conditions.push(gte(registerEntry.date, formatDateToString(startDate)));
     }
     if (endDate) {
-      conditions.push(lte(registerEntry.date, endDate));
+      conditions.push(lte(registerEntry.date, formatDateToString(endDate)));
     }
 
     return await db

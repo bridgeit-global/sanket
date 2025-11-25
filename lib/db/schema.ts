@@ -3,6 +3,7 @@ import {
   pgTable,
   varchar,
   timestamp,
+  date,
   json,
   uuid,
   text,
@@ -305,7 +306,7 @@ export type UserModulePermission = InferSelectModel<typeof userModulePermissions
 // Daily Programme Table
 export const dailyProgramme = pgTable('DailyProgramme', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
-  date: timestamp('date', { mode: 'date' }).notNull(),
+  date: date('date', { mode: 'string' }).notNull(),
   startTime: varchar('start_time', { length: 10 }).notNull(), // HH:MM format
   endTime: varchar('end_time', { length: 10 }), // HH:MM format, nullable
   title: varchar('title', { length: 255 }).notNull(),
@@ -344,7 +345,7 @@ export type MlaProject = InferSelectModel<typeof mlaProject>;
 export const registerEntry = pgTable('RegisterEntry', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   type: varchar('type', { enum: ['inward', 'outward'] }).notNull(),
-  date: timestamp('date', { mode: 'date' }).notNull(),
+  date: date('date', { mode: 'string' }).notNull(),
   fromTo: varchar('from_to', { length: 255 }).notNull(), // "From" for inward, "To" for outward
   subject: varchar('subject', { length: 500 }).notNull(),
   projectId: uuid('project_id').references(() => mlaProject.id),

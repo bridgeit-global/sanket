@@ -225,3 +225,72 @@
 .suggestion-highlight {
     @apply bg-blue-200 hover:bg-blue-300 dark:hover:bg-blue-400/50 dark:text-blue-50 dark:bg-blue-500/40;
 }
+
+/* Print styles for Daily Programme */
+@media print {
+    /* Hide everything by default when printing */
+    body * {
+        visibility: hidden;
+    }
+
+    /* Show only the printable schedule section */
+    .print-schedule,
+    .print-schedule * {
+        visibility: visible;
+    }
+
+    /* Position the printable content at the top */
+    .print-schedule {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        padding: 20px;
+    }
+
+    /* Print header styles */
+    .print-header {
+        display: block !important;
+        text-align: center;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #000;
+    }
+
+    .print-header h1 {
+        font-size: 24px;
+        font-weight: bold;
+        margin: 0 0 8px 0;
+    }
+
+    .print-header p {
+        font-size: 16px;
+        color: #333;
+        margin: 0;
+    }
+
+    /* Table styles for print */
+    .print-schedule table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .print-schedule th,
+    .print-schedule td {
+        border: 1px solid #333;
+        padding: 8px 12px;
+        text-align: left;
+    }
+
+    .print-schedule th {
+        background-color: #f3f4f6 !important;
+        font-weight: 600;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    /* Hide elements that shouldn't be printed */
+    .no-print {
+        display: none !important;
+    }
+}
