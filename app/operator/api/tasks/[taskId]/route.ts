@@ -13,7 +13,8 @@ export async function GET(
     try {
         const session = await auth();
 
-        if (!session?.user || !['admin', 'operator', 'back-office'].includes(session.user.role)) {
+        const modules = (session?.user?.modules as string[]) || [];
+        if (!session?.user || !modules.includes('operator')) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -41,7 +42,8 @@ export async function PATCH(
     try {
         const session = await auth();
 
-        if (!session?.user || !['admin', 'operator', 'back-office'].includes(session.user.role)) {
+        const modules = (session?.user?.modules as string[]) || [];
+        if (!session?.user || !modules.includes('operator')) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 

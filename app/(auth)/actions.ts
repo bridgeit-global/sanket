@@ -66,17 +66,8 @@ export const register = async (
     if (user) {
       return { status: 'user_exists' } as RegisterActionState;
     }
-    // Check if this is a special admin/operator/back-office registration
-    let role: 'admin' | 'operator' | 'back-office' | 'regular' = 'regular';
-    if (validatedData.userId === 'admin@example.com') {
-      role = 'admin';
-    } else if (validatedData.userId === 'operator@example.com') {
-      role = 'operator';
-    } else if (validatedData.userId === 'backoffice@example.com') {
-      role = 'back-office';
-    }
-
-    await createUser(validatedData.userId, validatedData.password, role);
+    // Create user without roleId - role assignment should be done through admin interface
+    await createUser(validatedData.userId, validatedData.password, null);
 
     // For now, just return success and let user login manually
     // This avoids the CSRF token issue during registration

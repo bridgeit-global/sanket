@@ -28,7 +28,6 @@ export const user = pgTable('User', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   userId: varchar('user_id', { length: 64 }).notNull().unique(),
   password: varchar('password', { length: 64 }),
-  role: varchar('role', { enum: ['admin', 'operator', 'back-office', 'regular'] }).notNull().default('regular'),
   roleId: uuid('role_id').references(() => role.id, { onDelete: 'restrict' }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

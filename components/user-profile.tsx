@@ -64,7 +64,7 @@ export function UserProfile({ userId }: { userId: string }) {
         <div className="mb-4">
           <p className="font-medium">{session?.user?.userId ?? 'Guest'}</p>
           <p className="text-sm text-muted-foreground">
-            Role: {session?.user?.role}
+            Role: {session?.user?.roleName || 'No role assigned'}
           </p>
         </div>
 

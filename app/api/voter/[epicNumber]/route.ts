@@ -54,7 +54,8 @@ export async function PUT(
     }
 
     // Check if user has permission to update voters
-    if (!['admin', 'operator', 'back-office'].includes(session.user.role)) {
+    const modules = (session?.user?.modules as string[]) || [];
+    if (!modules.includes('operator')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

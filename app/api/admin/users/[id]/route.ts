@@ -20,7 +20,8 @@ export async function GET(
     const session = await auth();
     const { id } = await params;
 
-    if (!session?.user || session.user.role !== 'admin') {
+    const modules = (session?.user?.modules as string[]) || [];
+    if (!session?.user || (!modules.includes('user-management') && !modules.includes('admin'))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -59,19 +60,19 @@ export async function PUT(
     const session = await auth();
     const { id } = await params;
 
-    if (!session?.user || session.user.role !== 'admin') {
+    const modules = (session?.user?.modules as string[]) || [];
+    if (!session?.user || (!modules.includes('user-management') && !modules.includes('admin'))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
-    const { userId, role, roleId, password } = body;
+    const { userId, roleId, password } = body;
 
     const updateData: Partial<typeof user.$inferInsert> = {
       updatedAt: new Date(),
     };
 
     if (userId) updateData.userId = userId;
-    if (role) updateData.role = role as any;
     if (roleId !== undefined) updateData.roleId = roleId;
     if (password) updateData.password = generateHashedPassword(password);
 
@@ -103,7 +104,8 @@ export async function DELETE(
     const session = await auth();
     const { id } = await params;
 
-    if (!session?.user || session.user.role !== 'admin') {
+    const modules = (session?.user?.modules as string[]) || [];
+    if (!session?.user || (!modules.includes('user-management') && !modules.includes('admin'))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

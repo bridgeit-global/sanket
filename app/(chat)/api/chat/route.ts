@@ -7,7 +7,6 @@ import {
   streamText,
 } from 'ai';
 import { auth } from '@/app/(auth)/auth';
-import type { UserRole } from '@/app/(auth)/auth';
 import type { RequestHints } from '@/lib/ai/prompts';
 import { generalPrompt } from '@/lib/ai/tab-prompts';
 import {
@@ -93,14 +92,15 @@ export async function POST(request: Request) {
       return new ChatSDKError('unauthorized:chat').toResponse();
     }
 
-    const userRole: UserRole = session.user.role;
+    const roleName = (session.user.roleName as keyof typeof entitlementsByUserRole) || 'regular';
 
     const messageCount = await getMessageCountByUserId({
       id: session.user.id,
       differenceInHours: 24,
     });
 
-    if (messageCount > entitlementsByUserRole[userRole].maxMessagesPerDay) {
+    const entitlements = entitlementsByUserRole[roleName] || entitlementsByUserRole.regular;
+    if (messageCount > entitlements.maxMessagesPerDay) {
       return new ChatSDKError('rate_limit:chat').toResponse();
     }
 

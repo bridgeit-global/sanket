@@ -183,7 +183,6 @@ export function ModulePermissionManager() {
   const filteredUsers = users.filter(
     (u) =>
       u.userId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.roleInfo?.name || '').toLowerCase().includes(searchTerm.toLowerCase()),
   );
 

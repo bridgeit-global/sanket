@@ -80,12 +80,12 @@ export async function getUser(userIdValue: string): Promise<Array<User>> {
   }
 }
 
-export async function createUser(userIdValue: string, password: string, role: User['role'] = 'regular') {
+export async function createUser(userIdValue: string, password: string, roleId?: string | null) {
   const hashedPassword = generateHashedPassword(password);
 
   try {
-    console.log('Creating user with:', { userId: userIdValue, role });
-    const result = await db.insert(user).values({ userId: userIdValue, password: hashedPassword, role });
+    console.log('Creating user with:', { userId: userIdValue, roleId });
+    const result = await db.insert(user).values({ userId: userIdValue, password: hashedPassword, roleId: roleId || null });
     console.log('User created successfully:', result);
     return result;
   } catch (error) {
@@ -94,12 +94,11 @@ export async function createUser(userIdValue: string, password: string, role: Us
   }
 }
 
-export async function updateUserRole(userId: string, role: User['role']) {
-  try {
-    return await db.update(user).set({ role, updatedAt: new Date() }).where(eq(user.id, userId));
-  } catch (error) {
-    throw new ChatSDKError('bad_request:database', 'Failed to update user role');
-  }
+// Deprecated: Use updateUserRoleId instead
+// This function is kept for backward compatibility but does nothing
+export async function updateUserRole(userId: string, _role: never) {
+  console.warn('updateUserRole is deprecated. Use updateUserRoleId instead.');
+  throw new ChatSDKError('bad_request:database', 'updateUserRole is deprecated. Use updateUserRoleId instead.');
 }
 
 export async function updateUserRoleId(userId: string, roleId: string | null) {
@@ -1908,7 +1907,7 @@ export async function hasModuleAccess(userId: string, moduleKey: string): Promis
 export async function createUserWithPermissions(
   userIdValue: string,
   password: string,
-  roleEnum: User['role'],
+  _roleEnum: never, // Deprecated parameter, kept for backward compatibility
   permissions: Record<string, boolean>,
   roleId?: string | null,
 ): Promise<User> {
@@ -1919,7 +1918,6 @@ export async function createUserWithPermissions(
       .values({
         userId: userIdValue,
         password: hashedPassword,
-        role: roleEnum,
         roleId: roleId || null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -2447,6 +2445,27 @@ export async function getRoleById(roleId: string): Promise<(Role & { permissions
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get role by id',
+    );
+  }
+}
+
+export async function getRoleAccessibleModules(roleId: string): Promise<string[]> {
+  try {
+    const permissions = await db
+      .select()
+      .from(roleModulePermissions)
+      .where(
+        and(
+          eq(roleModulePermissions.roleId, roleId),
+          eq(roleModulePermissions.hasAccess, true),
+        ),
+      );
+
+    return permissions.map((perm) => perm.moduleKey);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get role accessible modules',
     );
   }
 }

@@ -20,7 +20,7 @@ export default async function DailyProgrammePage() {
 
   return (
     <div className="container mx-auto p-4 sm:py-8 max-w-7xl">
-      <DailyProgramme userRole={session.user.role} />
+      <DailyProgramme userRole={session.user.roleName || 'regular'} />
     </div>
   );
 }

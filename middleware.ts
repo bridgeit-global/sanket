@@ -40,37 +40,38 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // Role-based access control
-  const userRole = token.role as 'admin' | 'operator' | 'back-office' | 'regular';
+  // Module-based access control
+  const modules = (token.modules as string[]) || [];
 
-  // Admin-only routes
+  // Admin-only routes - require user-management or admin module
   if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
-    if (userRole !== 'admin') {
+    if (!modules.includes('user-management') && !modules.includes('admin')) {
       return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
   }
 
-  // Operator-only routes
+  // Operator-only routes - require operator module
   if (pathname.startsWith('/operator') || pathname.startsWith('/api/operator')) {
-    if (!['admin', 'operator', 'back-office'].includes(userRole)) {
+    if (!modules.includes('operator')) {
       return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
   }
 
-  // Back-office-only routes
+  // Back-office-only routes - require back-office module
   if (pathname.startsWith('/back-office')) {
-    if (!['admin', 'back-office'].includes(userRole)) {
+    if (!modules.includes('back-office')) {
       return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
   }
 
-  // Regular chat interface - only for admins
+  // Regular chat interface - require chat module
   if (pathname === '/' || pathname.startsWith('/chat')) {
-    if (userRole !== 'admin') {
-      if (userRole === 'operator') {
+    if (!modules.includes('chat')) {
+      // Redirect to appropriate module based on available modules
+      if (modules.includes('operator')) {
         return NextResponse.redirect(new URL('/operator', request.url));
       }
-      if (userRole === 'back-office') {
+      if (modules.includes('back-office')) {
         return NextResponse.redirect(new URL('/back-office', request.url));
       }
       return NextResponse.redirect(new URL('/unauthorized', request.url));
@@ -82,9 +83,9 @@ export async function middleware(request: NextRequest) {
     // Extract module key from path
     const moduleKey = pathname.replace('/modules/', '').split('/')[0];
     
-    // User management is admin-only (role check)
+    // User management requires user-management module
     if (moduleKey === 'user-management') {
-      if (userRole !== 'admin') {
+      if (!modules.includes('user-management') && !modules.includes('admin')) {
         return NextResponse.redirect(new URL('/unauthorized', request.url));
       }
       return NextResponse.next();
@@ -95,9 +96,10 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // For other modules, we'll check permissions in the page component
-    // since we need async database access which middleware doesn't support well
-    // The page components will handle the permission checks
+    // Check if user has access to this module
+    if (!modules.includes(moduleKey)) {
+      return NextResponse.redirect(new URL('/unauthorized', request.url));
+    }
   }
 
   // Backward compatibility redirects

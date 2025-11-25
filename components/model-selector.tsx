@@ -29,7 +29,9 @@ export function ModelSelector({
   const [optimisticModelId, setOptimisticModelId] =
     useOptimistic(selectedModelId);
 
-  const { availableChatModelIds } = entitlementsByUserRole[session.user.role];
+  // Get entitlements based on roleName, fallback to 'regular' if no roleName
+  const roleName = (session.user.roleName as keyof typeof entitlementsByUserRole) || 'regular';
+  const { availableChatModelIds } = entitlementsByUserRole[roleName] || entitlementsByUserRole.regular;
 
   const availableChatModels = chatModels.filter((chatModel) =>
     availableChatModelIds.includes(chatModel.id),

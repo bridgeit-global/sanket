@@ -13,7 +13,8 @@ export async function GET(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session?.user || session.user.role !== 'admin') {
+    const modules = (session?.user?.modules as string[]) || [];
+    if (!session?.user || (!modules.includes('user-management') && !modules.includes('admin'))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -28,7 +29,6 @@ export async function GET(request: NextRequest) {
       users = users.filter(
         (u) =>
           u.userId.toLowerCase().includes(searchLower) ||
-          u.role.toLowerCase().includes(searchLower) ||
           (u.roleInfo?.name || '').toLowerCase().includes(searchLower),
       );
     }
@@ -47,12 +47,13 @@ export async function POST(request: NextRequest) {
   try {
     const session = await auth();
 
-    if (!session?.user || session.user.role !== 'admin') {
+    const modules = (session?.user?.modules as string[]) || [];
+    if (!session?.user || (!modules.includes('user-management') && !modules.includes('admin'))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const body = await request.json();
-    const { userId, password, role, roleId, permissions } = body;
+    const { userId, password, roleId, permissions } = body;
 
     if (!userId || !password) {
       return NextResponse.json(
@@ -70,14 +71,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // roleId takes precedence over role enum
-    // If roleId is provided, use it; otherwise fall back to role enum
-    const userRole = (role as User['role']) || 'regular';
-
     const newUser = await createUserWithPermissions(
       userId,
       password,
-      userRole,
+      'regular' as never, // Deprecated parameter, kept for backward compatibility
       permissions || {},
       roleId || null,
     );

@@ -65,16 +65,7 @@ export async function getUserAccessibleModules(
       accessibleKeys.add('daily-programme');
     }
 
-    // Fallback: Also include modules where the user's role enum is in defaultRoles
-    // (for backward compatibility during migration)
-    const userRole = userRecord.role;
-    if (userRole) {
-      for (const module of ALL_MODULES) {
-        if (module.defaultRoles.length > 0 && module.defaultRoles.includes(userRole as 'admin' | 'operator' | 'back-office' | 'regular')) {
-          accessibleKeys.add(module.key);
-        }
-      }
-    }
+    // Note: Removed fallback to role enum as we're migrating to roleId-based system
 
     return ALL_MODULES.filter((module) => accessibleKeys.has(module.key));
   } catch (error) {
