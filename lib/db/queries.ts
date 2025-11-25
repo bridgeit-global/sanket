@@ -69,23 +69,23 @@ import { ChatSDKError } from '../errors';
 const client = postgres(process.env.POSTGRES_URL!);
 export const db = drizzle(client);
 
-export async function getUser(email: string): Promise<Array<User>> {
+export async function getUser(userIdValue: string): Promise<Array<User>> {
   try {
-    return await db.select().from(user).where(eq(user.email, email));
+    return await db.select().from(user).where(eq(user.userId, userIdValue));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
-      'Failed to get user by email',
+      'Failed to get user by userId',
     );
   }
 }
 
-export async function createUser(email: string, password: string, role: User['role'] = 'regular') {
+export async function createUser(userIdValue: string, password: string, role: User['role'] = 'regular') {
   const hashedPassword = generateHashedPassword(password);
 
   try {
-    console.log('Creating user with:', { email, role });
-    const result = await db.insert(user).values({ email, password: hashedPassword, role });
+    console.log('Creating user with:', { userId: userIdValue, role });
+    const result = await db.insert(user).values({ userId: userIdValue, password: hashedPassword, role });
     console.log('User created successfully:', result);
     return result;
   } catch (error) {
@@ -121,7 +121,7 @@ export async function getUserById(userId: string): Promise<User | null> {
 
 export async function getAllUsers(): Promise<Array<User>> {
   try {
-    return await db.select().from(user).orderBy(asc(user.email));
+    return await db.select().from(user).orderBy(asc(user.userId));
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to get all users');
   }
@@ -1747,7 +1747,7 @@ export async function getUserModulePermissions(userId: string): Promise<Record<s
 
 export async function getAllUsersWithPermissions(): Promise<Array<User & { permissions: Record<string, boolean>; roleInfo?: Role | null }>> {
   try {
-    const users = await db.select().from(user).orderBy(asc(user.email));
+    const users = await db.select().from(user).orderBy(asc(user.userId));
     const allPermissions = await db.select().from(userModulePermissions);
 
     // Get all roles
@@ -1906,7 +1906,7 @@ export async function hasModuleAccess(userId: string, moduleKey: string): Promis
 }
 
 export async function createUserWithPermissions(
-  email: string,
+  userIdValue: string,
   password: string,
   roleEnum: User['role'],
   permissions: Record<string, boolean>,
@@ -1917,7 +1917,7 @@ export async function createUserWithPermissions(
     const [newUser] = await db
       .insert(user)
       .values({
-        email,
+        userId: userIdValue,
         password: hashedPassword,
         role: roleEnum,
         roleId: roleId || null,
@@ -1941,9 +1941,11 @@ export async function createUserWithPermissions(
 
     return newUser;
   } catch (error) {
+    console.error('Error creating user with permissions:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     throw new ChatSDKError(
       'bad_request:database',
-      'Failed to create user with permissions',
+      `Failed to create user with permissions: ${errorMessage}`,
     );
   }
 }
@@ -2576,7 +2578,7 @@ export async function getUsersWithRole(roleId: string): Promise<Array<User>> {
       .select()
       .from(user)
       .where(eq(user.roleId, roleId))
-      .orderBy(asc(user.email));
+      .orderBy(asc(user.userId));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',

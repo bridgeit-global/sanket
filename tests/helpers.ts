@@ -37,12 +37,12 @@ export async function createAuthenticatedContext({
   const context = await browser.newContext();
   const page = await context.newPage();
 
-  const email = `test-${name}@playwright.com`;
+  const userId = `test-${name}@playwright.com`;
   const password = generateId();
 
   await page.goto('http://localhost:3000/register');
-  await page.getByPlaceholder('user@acme.com').click();
-  await page.getByPlaceholder('user@acme.com').fill(email);
+  await page.getByLabel('User ID').click();
+  await page.getByLabel('User ID').fill(userId);
   await page.getByLabel('Password').click();
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Sign Up' }).click();
@@ -71,11 +71,11 @@ export async function createAuthenticatedContext({
 }
 
 export function generateRandomTestUser() {
-  const email = `test-${getUnixTime(new Date())}@playwright.com`;
+  const userId = `test-${getUnixTime(new Date())}@playwright.com`;
   const password = generateId();
 
   return {
-    email,
+    userId,
     password,
   };
 }

@@ -23,6 +23,7 @@ import { SignOutForm } from './sign-out-form';
 export function SidebarUserNav({ user }: { user: User }) {
   const { status } = useSession();
   const { setTheme, resolvedTheme } = useTheme();
+  const identifier = user?.userId ?? 'Guest';
 
 
   return (
@@ -48,14 +49,14 @@ export function SidebarUserNav({ user }: { user: User }) {
                 className="data-[state=open]:bg-sidebar-accent bg-background data-[state=open]:text-sidebar-accent-foreground h-10"
               >
                 <Image
-                  src={`https://avatar.vercel.sh/${user.email}`}
-                  alt={user.email ?? 'User Avatar'}
+                  src={`https://avatar.vercel.sh/${identifier}`}
+                  alt={identifier}
                   width={24}
                   height={24}
                   className="rounded-full"
                 />
-                <span data-testid="user-email" className="truncate">
-                  {user?.email}
+                <span data-testid="user-identifier" className="truncate">
+                  {identifier}
                 </span>
                 <ChevronUp className="ml-auto" />
               </SidebarMenuButton>

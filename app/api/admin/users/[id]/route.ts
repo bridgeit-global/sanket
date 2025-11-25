@@ -2,16 +2,13 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import {
+  db,
   getUserById,
-  updateUserRole,
-  updateUserRoleId,
   deleteUser,
   getUserModulePermissions,
-  updateUserModulePermissions,
   getRoleById,
 } from '@/lib/db/queries';
 import { generateHashedPassword } from '@/lib/db/utils';
-import { db } from '@/lib/db/queries';
 import { user } from '@/lib/db/schema';
 import { eq } from 'drizzle-orm';
 
@@ -67,13 +64,13 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { email, role, roleId, password } = body;
+    const { userId, role, roleId, password } = body;
 
     const updateData: Partial<typeof user.$inferInsert> = {
       updatedAt: new Date(),
     };
 
-    if (email) updateData.email = email;
+    if (userId) updateData.userId = userId;
     if (role) updateData.role = role as any;
     if (roleId !== undefined) updateData.roleId = roleId;
     if (password) updateData.password = generateHashedPassword(password);

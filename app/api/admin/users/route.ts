@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       const searchLower = search.toLowerCase();
       users = users.filter(
         (u) =>
-          u.email.toLowerCase().includes(searchLower) ||
+          u.userId.toLowerCase().includes(searchLower) ||
           u.role.toLowerCase().includes(searchLower) ||
           (u.roleInfo?.name || '').toLowerCase().includes(searchLower),
       );
@@ -52,20 +52,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { email, password, role, roleId, permissions } = body;
+    const { userId, password, role, roleId, permissions } = body;
 
-    if (!email || !password) {
+    if (!userId || !password) {
       return NextResponse.json(
-        { error: 'email and password are required' },
+        { error: 'userId and password are required' },
         { status: 400 },
       );
     }
 
     // Check if user already exists
-    const existingUsers = await getUser(email);
+    const existingUsers = await getUser(userId);
     if (existingUsers.length > 0) {
       return NextResponse.json(
-        { error: 'User with this email already exists' },
+        { error: 'User with this userId already exists' },
         { status: 400 },
       );
     }
@@ -75,7 +75,7 @@ export async function POST(request: NextRequest) {
     const userRole = (role as User['role']) || 'regular';
 
     const newUser = await createUserWithPermissions(
-      email,
+      userId,
       password,
       userRole,
       permissions || {},

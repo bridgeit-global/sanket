@@ -62,7 +62,7 @@ export function UserProfile({ userId }: { userId: string }) {
       </CardHeader>
       <CardContent>
         <div className="mb-4">
-          <p className="font-medium">{session?.user?.email}</p>
+          <p className="font-medium">{session?.user?.userId ?? 'Guest'}</p>
           <p className="text-sm text-muted-foreground">
             Role: {session?.user?.role}
           </p>

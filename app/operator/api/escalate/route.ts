@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const escalationNote = `ESCALATION REQUEST: ${reason}\nRequested by: ${session.user.email}\nPriority: ${priority}\nTimestamp: ${new Date().toISOString()}`;
+        const escalationNote = `ESCALATION REQUEST: ${reason}\nRequested by: ${session.user.userId ?? session.user.id}\nPriority: ${priority}\nTimestamp: ${new Date().toISOString()}`;
 
         const result: { task?: any; service?: any } = {};
 

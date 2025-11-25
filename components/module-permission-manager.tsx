@@ -55,7 +55,7 @@ export function ModulePermissionManager() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddUser, setShowAddUser] = useState(false);
   const [newUser, setNewUser] = useState({
-    email: '',
+    userId: '',
     password: '',
     roleId: '' as string | null,
   });
@@ -129,8 +129,8 @@ export function ModulePermissionManager() {
   };
 
   const handleAddUser = async () => {
-    if (!newUser.email || !newUser.password) {
-      alert('Email and password are required');
+    if (!newUser.userId || !newUser.password) {
+      alert('User ID and password are required');
       return;
     }
 
@@ -144,7 +144,7 @@ export function ModulePermissionManager() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: newUser.email,
+          userId: newUser.userId,
           password: newUser.password,
           roleId: newUser.roleId,
         }),
@@ -153,7 +153,7 @@ export function ModulePermissionManager() {
       if (response.ok) {
         await loadUsers();
         setShowAddUser(false);
-        setNewUser({ email: '', password: '', roleId: null });
+        setNewUser({ userId: '', password: '', roleId: null });
       } else {
         const error = await response.json();
         alert(error.error || 'Failed to create user');
@@ -182,7 +182,7 @@ export function ModulePermissionManager() {
 
   const filteredUsers = users.filter(
     (u) =>
-      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.userId.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.roleInfo?.name || '').toLowerCase().includes(searchTerm.toLowerCase()),
   );
@@ -218,13 +218,13 @@ export function ModulePermissionManager() {
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="userId">User ID</Label>
                     <Input
-                      id="email"
-                      type="email"
-                      value={newUser.email}
+                      id="userId"
+                      type="text"
+                      value={newUser.userId}
                       onChange={(e) =>
-                        setNewUser({ ...newUser, email: e.target.value })
+                        setNewUser({ ...newUser, userId: e.target.value })
                       }
                     />
                   </div>
@@ -286,23 +286,15 @@ export function ModulePermissionManager() {
                         <UserIcon className="h-4 w-4" />
                       </div>
                       <div className="flex flex-col items-start">
-                        <span className="font-medium">{user.email}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground capitalize">
-                            {user.role}
-                          </span>
-                          {user.roleInfo && (
-                            <>
-                              <span className="text-muted-foreground">•</span>
-                              <div className="flex items-center gap-1">
-                                <Shield className="h-3 w-3 text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground">
-                                  {user.roleInfo.name}
-                                </span>
-                              </div>
-                            </>
-                          )}
-                        </div>
+                        <span className="font-medium">{user.userId}</span>
+                        {user.roleInfo && (
+                          <div className="flex items-center gap-1">
+                            <Shield className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">
+                              {user.roleInfo.name}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </AccordionTrigger>

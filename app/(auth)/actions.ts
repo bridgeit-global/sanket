@@ -7,7 +7,7 @@ import { createUser, getUser } from '@/lib/db/queries';
 import { signIn, signOut } from './auth';
 
 const authFormSchema = z.object({
-  email: z.string().email(),
+  userId: z.string().min(3).max(64),
   password: z.string().min(6),
 });
 
@@ -21,12 +21,12 @@ export const login = async (
 ): Promise<LoginActionState> => {
   try {
     const validatedData = authFormSchema.parse({
-      email: formData.get('email'),
+      userId: formData.get('userId'),
       password: formData.get('password'),
     });
 
     await signIn('credentials', {
-      email: validatedData.email,
+      userId: validatedData.userId,
       password: validatedData.password,
       redirect: false,
     });
@@ -57,26 +57,26 @@ export const register = async (
 ): Promise<RegisterActionState> => {
   try {
     const validatedData = authFormSchema.parse({
-      email: formData.get('email'),
+      userId: formData.get('userId'),
       password: formData.get('password'),
     });
 
-    const [user] = await getUser(validatedData.email);
+    const [user] = await getUser(validatedData.userId);
 
     if (user) {
       return { status: 'user_exists' } as RegisterActionState;
     }
     // Check if this is a special admin/operator/back-office registration
     let role: 'admin' | 'operator' | 'back-office' | 'regular' = 'regular';
-    if (validatedData.email === 'admin@example.com') {
+    if (validatedData.userId === 'admin@example.com') {
       role = 'admin';
-    } else if (validatedData.email === 'operator@example.com') {
+    } else if (validatedData.userId === 'operator@example.com') {
       role = 'operator';
-    } else if (validatedData.email === 'backoffice@example.com') {
+    } else if (validatedData.userId === 'backoffice@example.com') {
       role = 'back-office';
     }
 
-    await createUser(validatedData.email, validatedData.password, role);
+    await createUser(validatedData.userId, validatedData.password, role);
 
     // For now, just return success and let user login manually
     // This avoids the CSRF token issue during registration

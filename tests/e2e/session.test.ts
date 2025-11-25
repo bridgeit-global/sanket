@@ -1,3 +1,4 @@
+import type { Request } from '@playwright/test';
 import { expect, test } from '../fixtures';
 import { AuthPage } from '../pages/auth';
 import { generateRandomTestUser } from '../helpers';
@@ -15,7 +16,7 @@ test.describe
         throw new Error('Failed to load page');
       }
 
-      let request = response.request();
+      let request: Request | null = response.request();
 
       const chain = [];
 
@@ -44,8 +45,8 @@ test.describe
       const userNavMenu = page.getByTestId('user-nav-menu');
       await expect(userNavMenu).toBeVisible();
 
-      const authMenuItem = page.getByTestId('user-nav-item-auth');
-      await expect(authMenuItem).toContainText('Login to your account');
+      const authMenuItem = page.getByTestId('user-nav-item-sign-out');
+      await expect(authMenuItem).toContainText('Sign out');
     });
 
     test('Do not authenticate as guest user when an existing non-guest session is active', async ({
@@ -57,7 +58,7 @@ test.describe
         throw new Error('Failed to load page');
       }
 
-      let request = response.request();
+      let request: Request | null = response.request();
 
       const chain = [];
 
@@ -81,14 +82,14 @@ test.describe
       await expect(page).toHaveURL('/register');
     });
 
-    test('Do not show email in user menu for guest user', async ({ page }) => {
+    test('Do not show user ID in user menu for guest user', async ({ page }) => {
       await page.goto('/');
 
       const sidebarToggleButton = page.getByTestId('sidebar-toggle-button');
       await sidebarToggleButton.click();
 
-      const userEmail = page.getByTestId('user-email');
-      await expect(userEmail).toContainText('Guest');
+      const userIdentifier = page.getByTestId('user-identifier');
+      await expect(userIdentifier).toContainText('Guest');
     });
   });
 
@@ -103,54 +104,54 @@ test.describe
     });
 
     test('Register new account', async () => {
-      await authPage.register(testUser.email, testUser.password);
+      await authPage.register(testUser.userId, testUser.password);
       await authPage.expectToastToContain('Account created successfully!');
     });
 
-    test('Register new account with existing email', async () => {
-      await authPage.register(testUser.email, testUser.password);
+    test('Register new account with existing user ID', async () => {
+      await authPage.register(testUser.userId, testUser.password);
       await authPage.expectToastToContain('Account already exists!');
     });
 
     test('Log into account that exists', async ({ page }) => {
-      await authPage.login(testUser.email, testUser.password);
+      await authPage.login(testUser.userId, testUser.password);
 
       await page.waitForURL('/');
       await expect(page.getByPlaceholder('Send a message...')).toBeVisible();
     });
 
-    test('Display user email in user menu', async ({ page }) => {
-      await authPage.login(testUser.email, testUser.password);
+    test('Display user ID in user menu', async ({ page }) => {
+      await authPage.login(testUser.userId, testUser.password);
 
       await page.waitForURL('/');
       await expect(page.getByPlaceholder('Send a message...')).toBeVisible();
 
-      const userEmail = await page.getByTestId('user-email');
-      await expect(userEmail).toHaveText(testUser.email);
+      const userIdentifier = await page.getByTestId('user-identifier');
+      await expect(userIdentifier).toHaveText(testUser.userId);
     });
 
     test('Log out as non-guest user', async () => {
-      await authPage.logout(testUser.email, testUser.password);
+      await authPage.logout(testUser.userId, testUser.password);
     });
 
     test('Do not force create a guest session if non-guest session already exists', async ({
       page,
     }) => {
-      await authPage.login(testUser.email, testUser.password);
+      await authPage.login(testUser.userId, testUser.password);
       await page.waitForURL('/');
 
-      const userEmail = await page.getByTestId('user-email');
-      await expect(userEmail).toHaveText(testUser.email);
+      const userIdentifier = await page.getByTestId('user-identifier');
+      await expect(userIdentifier).toHaveText(testUser.userId);
 
       await page.goto('/api/auth/guest');
       await page.waitForURL('/');
 
-      const updatedUserEmail = await page.getByTestId('user-email');
-      await expect(updatedUserEmail).toHaveText(testUser.email);
+      const updatedUserIdentifier = await page.getByTestId('user-identifier');
+      await expect(updatedUserIdentifier).toHaveText(testUser.userId);
     });
 
     test('Log out is available for non-guest users', async ({ page }) => {
-      await authPage.login(testUser.email, testUser.password);
+      await authPage.login(testUser.userId, testUser.password);
       await page.waitForURL('/');
 
       authPage.openSidebar();
@@ -162,14 +163,14 @@ test.describe
       const userNavMenu = page.getByTestId('user-nav-menu');
       await expect(userNavMenu).toBeVisible();
 
-      const authMenuItem = page.getByTestId('user-nav-item-auth');
+      const authMenuItem = page.getByTestId('user-nav-item-sign-out');
       await expect(authMenuItem).toContainText('Sign out');
     });
 
     test('Do not navigate to /register for non-guest users', async ({
       page,
     }) => {
-      await authPage.login(testUser.email, testUser.password);
+      await authPage.login(testUser.userId, testUser.password);
       await page.waitForURL('/');
 
       await page.goto('/register');
@@ -177,7 +178,7 @@ test.describe
     });
 
     test('Do not navigate to /login for non-guest users', async ({ page }) => {
-      await authPage.login(testUser.email, testUser.password);
+      await authPage.login(testUser.userId, testUser.password);
       await page.waitForURL('/');
 
       await page.goto('/login');

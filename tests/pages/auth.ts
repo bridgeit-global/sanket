@@ -14,26 +14,26 @@ export class AuthPage {
     await expect(this.page.getByRole('heading')).toContainText('Sign Up');
   }
 
-  async register(email: string, password: string) {
+  async register(userId: string, password: string) {
     await this.gotoRegister();
-    await this.page.getByPlaceholder('user@acme.com').click();
-    await this.page.getByPlaceholder('user@acme.com').fill(email);
+    await this.page.getByLabel('User ID').click();
+    await this.page.getByLabel('User ID').fill(userId);
     await this.page.getByLabel('Password').click();
     await this.page.getByLabel('Password').fill(password);
     await this.page.getByRole('button', { name: 'Sign Up' }).click();
   }
 
-  async login(email: string, password: string) {
+  async login(userId: string, password: string) {
     await this.gotoLogin();
-    await this.page.getByPlaceholder('user@acme.com').click();
-    await this.page.getByPlaceholder('user@acme.com').fill(email);
+    await this.page.getByLabel('User ID').click();
+    await this.page.getByLabel('User ID').fill(userId);
     await this.page.getByLabel('Password').click();
     await this.page.getByLabel('Password').fill(password);
     await this.page.getByRole('button', { name: 'Sign In' }).click();
   }
 
-  async logout(email: string, password: string) {
-    await this.login(email, password);
+  async logout(userId: string, password: string) {
+    await this.login(userId, password);
     await this.page.waitForURL('/');
 
     await this.openSidebar();
@@ -45,13 +45,13 @@ export class AuthPage {
     const userNavMenu = this.page.getByTestId('user-nav-menu');
     await expect(userNavMenu).toBeVisible();
 
-    const authMenuItem = this.page.getByTestId('user-nav-item-auth');
+    const authMenuItem = this.page.getByTestId('user-nav-item-sign-out');
     await expect(authMenuItem).toContainText('Sign out');
 
     await authMenuItem.click();
 
-    const userEmail = this.page.getByTestId('user-email');
-    await expect(userEmail).toContainText('Guest');
+    const userIdentifier = this.page.getByTestId('user-identifier');
+    await expect(userIdentifier).toContainText('Guest');
   }
 
   async expectToastToContain(text: string) {
