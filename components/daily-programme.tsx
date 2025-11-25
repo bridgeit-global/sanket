@@ -105,6 +105,17 @@ function calculateDuration(
   return endTotalMinutes - startTotalMinutes;
 }
 
+// Convert 24-hour time to 12-hour format with AM/PM
+function formatTimeTo12Hour(time24: string): string {
+  if (!time24) return '';
+
+  const [hours, minutes] = time24.split(':').map(Number);
+  const period = hours >= 12 ? 'PM' : 'AM';
+  const hours12 = hours % 12 || 12; // Convert 0 to 12 for midnight
+
+  return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+}
+
 function getDefaultDateRange() {
   const today = startOfToday();
   return {
@@ -693,7 +704,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                   return (
                                     <TableRow key={item.id}>
                                       <TableCell className="font-mono w-[120px]">
-                                        <div>{item.startTime}</div>
+                                        <div>{formatTimeTo12Hour(item.startTime)}</div>
                                         {durationLabel && (
                                           <div className="text-xs text-muted-foreground mt-1">
                                             ({durationLabel})
