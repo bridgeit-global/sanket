@@ -173,6 +173,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() =>
     getDefaultDateRange(),
   );
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
     startTime: '',
@@ -319,33 +320,115 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
         ? calculateEndTime(form.startTime, durationMinutes)
         : undefined;
 
-      const response = await fetch('/api/daily-programme', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          date: form.date,
-          startTime: form.startTime,
-          endTime,
-          title: form.title,
-          location: form.location,
-          remarks: form.remarks,
-        }),
+      if (editingId) {
+        // Update existing item
+        const response = await fetch(`/api/daily-programme/${editingId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date: form.date,
+            startTime: form.startTime,
+            endTime,
+            title: form.title,
+            location: form.location,
+            remarks: form.remarks,
+          }),
+        });
+
+        if (response.ok) {
+          await loadItems();
+          setEditingId(null);
+          setForm({
+            date: format(new Date(), 'yyyy-MM-dd'),
+            startTime: '',
+            duration: '',
+            title: '',
+            location: '',
+            remarks: '',
+          });
+        }
+      } else {
+        // Create new item
+        const response = await fetch('/api/daily-programme', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date: form.date,
+            startTime: form.startTime,
+            endTime,
+            title: form.title,
+            location: form.location,
+            remarks: form.remarks,
+          }),
+        });
+
+        if (response.ok) {
+          await loadItems();
+
+          setForm({
+            date: format(new Date(), 'yyyy-MM-dd'),
+            startTime: '',
+            duration: '',
+            title: '',
+            location: '',
+            remarks: '',
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error saving programme item:', error);
+    }
+  };
+
+  const handleEdit = (item: ProgrammeItem) => {
+    const duration = calculateDuration(item.startTime, item.endTime);
+    setEditingId(item.id);
+    setForm({
+      date: normalizeDate(item.date) || format(new Date(), 'yyyy-MM-dd'),
+      startTime: item.startTime,
+      duration: duration ? duration.toString() : '',
+      title: item.title,
+      location: item.location,
+      remarks: item.remarks || '',
+    });
+
+    // Scroll to form
+    const formElement = document.getElementById('programme-form');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setForm({
+      date: format(new Date(), 'yyyy-MM-dd'),
+      startTime: '',
+      duration: '',
+      title: '',
+      location: '',
+      remarks: '',
+    });
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this programme item?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/daily-programme/${id}`, {
+        method: 'DELETE',
       });
 
       if (response.ok) {
         await loadItems();
-
-        setForm({
-          date: format(new Date(), 'yyyy-MM-dd'),
-          startTime: '',
-          duration: '',
-          title: '',
-          location: '',
-          remarks: '',
-        });
+        if (editingId === id) {
+          handleCancelEdit();
+        }
       }
     } catch (error) {
-      console.error('Error creating programme item:', error);
+      console.error('Error deleting programme item:', error);
     }
   };
 
@@ -380,13 +463,6 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
     setDateRange(getDefaultDateRange());
   };
 
-  const handleEditProgrammes = () => {
-    const formElement = document.getElementById('programme-form');
-    if (formElement) {
-      formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  };
-
   if (loading) {
     return <div className="p-4">Loading...</div>;
   }
@@ -406,7 +482,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
       <div className="space-y-6">
         <Card className="no-print" id="programme-form">
           <CardHeader>
-            <CardTitle>Create / Edit Daily Programme</CardTitle>
+            <CardTitle>{editingId ? 'Edit Programme' : 'Create Daily Programme'}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-4">
@@ -487,8 +563,13 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                   rows={2}
                 />
               </div>
-              <div className="md:col-span-4 flex justify-end">
-                <Button type="submit">Add to Programme</Button>
+              <div className="md:col-span-4 flex justify-end gap-2">
+                {editingId && (
+                  <Button type="button" variant="outline" onClick={handleCancelEdit}>
+                    Cancel
+                  </Button>
+                )}
+                <Button type="submit">{editingId ? 'Update Programme' : 'Add to Programme'}</Button>
               </div>
             </form>
           </CardContent>
@@ -520,10 +601,6 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button size="sm" onClick={handleEditProgrammes}>
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Edit Programmes
-                  </Button>
                   <Button variant="outline" size="sm" onClick={handleResetRange}>
                     Reset Range
                   </Button>
@@ -591,6 +668,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                 <TableHead className="w-[200px]">Title</TableHead>
                                 <TableHead className="w-[250px]">Location</TableHead>
                                 <TableHead>Remarks</TableHead>
+                                <TableHead className="w-[100px] no-print">Actions</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -626,6 +704,26 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                       <TableCell className="w-[250px]">{item.location}</TableCell>
                                       <TableCell className="text-sm text-muted-foreground">
                                         {item.remarks || '-'}
+                                      </TableCell>
+                                      <TableCell className="w-[100px] no-print">
+                                        <div className="flex gap-1">
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleEdit(item)}
+                                            className="h-8 px-2"
+                                          >
+                                            <Pencil className="h-3 w-3" />
+                                          </Button>
+                                          <Button
+                                            size="sm"
+                                            variant="ghost"
+                                            onClick={() => handleDelete(item.id)}
+                                            className="h-8 px-2 text-destructive hover:text-destructive"
+                                          >
+                                            ×
+                                          </Button>
+                                        </div>
                                       </TableCell>
                                     </TableRow>
                                   );
