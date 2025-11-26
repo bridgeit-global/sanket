@@ -21,8 +21,17 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Download } from 'lucide-react';
+import { Printer, Download, Paperclip, Eye, FileText } from 'lucide-react';
 import { format } from 'date-fns';
+import { RegisterAttachmentDialog } from '@/components/register-attachment-dialog';
+
+interface Attachment {
+  id: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl: string | null;
+  createdAt: string;
+}
 
 interface RegisterEntry {
   id: string;
@@ -34,7 +43,7 @@ interface RegisterEntry {
   mode?: string;
   refNo?: string;
   officer?: string;
-  attachments?: Array<{ id: string; fileName: string; fileSizeKb: number }>;
+  attachments?: Attachment[];
 }
 
 interface Project {
@@ -55,6 +64,8 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
     refNo: '',
     officer: '',
   });
+  const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState<RegisterEntry | null>(null);
 
   useEffect(() => {
     loadData();
@@ -129,6 +140,35 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleOpenAttachments = (entry: RegisterEntry) => {
+    setSelectedEntry(entry);
+    setAttachmentDialogOpen(true);
+  };
+
+  const handleAttachmentsChange = async () => {
+    // Reload attachments for the selected entry
+    if (selectedEntry) {
+      try {
+        const response = await fetch(`/api/register/${selectedEntry.id}`);
+        if (response.ok) {
+          const entryData = await response.json();
+          // Update the entries list with new attachment data
+          setEntries((prev) =>
+            prev.map((e) =>
+              e.id === selectedEntry.id
+                ? { ...e, attachments: entryData.attachments || [] }
+                : e,
+            ),
+          );
+          // Update selected entry
+          setSelectedEntry({ ...selectedEntry, attachments: entryData.attachments || [] });
+        }
+      } catch (error) {
+        console.error('Error refreshing attachments:', error);
+      }
+    }
   };
 
   const heading = type === 'inward' ? 'Inward Register' : 'Outward Register';
@@ -299,22 +339,23 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                         <TableCell>{entry.refNo || '-'}</TableCell>
                         <TableCell>{entry.officer || '-'}</TableCell>
                         <TableCell>
-                          {entry.attachments && entry.attachments.length > 0 ? (
-                            <div className="flex flex-col gap-1 text-xs">
-                              <span>
-                                {entry.attachments.length} file(s)
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1.5"
+                            onClick={() => handleOpenAttachments(entry)}
+                          >
+                            <Paperclip className="h-3.5 w-3.5" />
+                            {entry.attachments && entry.attachments.length > 0 ? (
+                              <span className="text-xs">
+                                {entry.attachments.length}
                               </span>
-                              <div className="flex gap-2">
-                                <Button variant="ghost" size="sm">
-                                  <Download className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">
-                              No files
-                            </span>
-                          )}
+                            ) : (
+                              <span className="text-xs text-muted-foreground">
+                                Add
+                              </span>
+                            )}
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -325,6 +366,18 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
           </div>
         </CardContent>
       </Card>
+
+      {/* Attachment Dialog */}
+      {selectedEntry && (
+        <RegisterAttachmentDialog
+          open={attachmentDialogOpen}
+          onOpenChange={setAttachmentDialogOpen}
+          entryId={selectedEntry.id}
+          entrySubject={selectedEntry.subject}
+          attachments={selectedEntry.attachments || []}
+          onAttachmentsChange={handleAttachmentsChange}
+        />
+      )}
     </div>
   );
 }
