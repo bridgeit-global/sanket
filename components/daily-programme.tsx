@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -24,6 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { DailyProgrammeSkeleton } from '@/components/module-skeleton';
+import { ModulePageHeader } from '@/components/module-page-header';
 
 interface ProgrammeItem {
   id: string;
@@ -194,6 +197,10 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
     remarks: '',
   });
 
+  // Delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+
   // Group items by date
   const itemsByDate = useMemo(() => {
     const grouped: Record<string, ProgrammeItem[]> = {};
@@ -347,6 +354,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
         });
 
         if (response.ok) {
+          toast.success('Programme item updated successfully');
           await loadItems();
           setEditingId(null);
           setForm({
@@ -357,6 +365,8 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
             location: '',
             remarks: '',
           });
+        } else {
+          toast.error('Failed to update programme item');
         }
       } else {
         // Create new item
@@ -374,6 +384,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
         });
 
         if (response.ok) {
+          toast.success('Programme item added successfully');
           await loadItems();
 
           setForm({
@@ -384,10 +395,13 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
             location: '',
             remarks: '',
           });
+        } else {
+          toast.error('Failed to add programme item');
         }
       }
     } catch (error) {
       console.error('Error saving programme item:', error);
+      toast.error('Failed to save programme item');
     }
   };
 
@@ -422,24 +436,34 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
     });
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this programme item?')) {
-      return;
-    }
+  const handleDelete = (id: string) => {
+    setItemToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!itemToDelete) return;
 
     try {
-      const response = await fetch(`/api/daily-programme/${id}`, {
+      const response = await fetch(`/api/daily-programme/${itemToDelete}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
+        toast.success('Programme item deleted successfully');
         await loadItems();
-        if (editingId === id) {
+        if (editingId === itemToDelete) {
           handleCancelEdit();
         }
+      } else {
+        toast.error('Failed to delete programme item');
       }
     } catch (error) {
       console.error('Error deleting programme item:', error);
+      toast.error('Failed to delete programme item');
+    } finally {
+      setItemToDelete(null);
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -475,20 +499,15 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
   };
 
   if (loading) {
-    return <div className="p-4">Loading...</div>;
+    return <DailyProgrammeSkeleton />;
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center gap-3 no-print">
-        <SidebarToggle />
-        <div>
-          <h1 className="text-3xl font-bold">Daily Programme</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage daily schedules, detailed calendar views, and analytics
-          </p>
-        </div>
-      </div>
+      <ModulePageHeader
+        title="Daily Programme"
+        description="Manage daily schedules, detailed calendar views, and analytics"
+      />
 
       <div className="space-y-6">
         <Card className="no-print" id="programme-form">
@@ -752,6 +771,18 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
         </Card>
 
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Programme Item"
+        description="Are you sure you want to delete this programme item? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={confirmDelete}
+      />
     </div>
   );
 }

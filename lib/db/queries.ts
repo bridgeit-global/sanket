@@ -2180,6 +2180,64 @@ export async function getRegisterEntries({
   }
 }
 
+// Get register entries with attachments in a single query (fixes N+1)
+export async function getRegisterEntriesWithAttachments({
+  type,
+  startDate,
+  endDate,
+  limit = 100,
+}: {
+  type?: 'inward' | 'outward';
+  startDate?: Date | string;
+  endDate?: Date | string;
+  limit?: number;
+} = {}): Promise<Array<RegisterEntry & { attachments: RegisterAttachment[] }>> {
+  try {
+    const conditions: SQL[] = [];
+    if (type) {
+      conditions.push(eq(registerEntry.type, type));
+    }
+    if (startDate) {
+      conditions.push(gte(registerEntry.date, formatDateToString(startDate)));
+    }
+    if (endDate) {
+      conditions.push(lte(registerEntry.date, formatDateToString(endDate)));
+    }
+
+    // Get entries with their attachments using a left join
+    const results = await db
+      .select({
+        entry: registerEntry,
+        attachment: registerAttachment,
+      })
+      .from(registerEntry)
+      .leftJoin(registerAttachment, eq(registerEntry.id, registerAttachment.entryId))
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(registerEntry.date), desc(registerEntry.createdAt))
+      .limit(limit * 10); // Account for multiple attachments per entry
+
+    // Group attachments by entry
+    const entriesMap = new Map<string, RegisterEntry & { attachments: RegisterAttachment[] }>();
+
+    for (const row of results) {
+      if (!entriesMap.has(row.entry.id)) {
+        entriesMap.set(row.entry.id, { ...row.entry, attachments: [] });
+      }
+      if (row.attachment) {
+        entriesMap.get(row.entry.id)!.attachments.push(row.attachment);
+      }
+    }
+
+    // Convert to array and apply limit
+    return Array.from(entriesMap.values()).slice(0, limit);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get register entries with attachments',
+    );
+  }
+}
+
 export async function getRegisterEntriesByProjectId(projectId: string): Promise<Array<RegisterEntry>> {
   try {
     return await db

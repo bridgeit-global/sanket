@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import {
-  getRegisterEntries,
+  getRegisterEntriesWithAttachments,
   createRegisterEntry,
 } from '@/lib/db/queries';
 import { hasModuleAccess } from '@/lib/db/queries';
@@ -43,7 +43,8 @@ export async function GET(request: NextRequest) {
     const startDate = startDateParam ? new Date(startDateParam) : undefined;
     const endDate = endDateParam ? new Date(endDateParam) : undefined;
 
-    const entries = await getRegisterEntries({
+    // Use the optimized query that includes attachments
+    const entries = await getRegisterEntriesWithAttachments({
       type: type || undefined,
       startDate,
       endDate,

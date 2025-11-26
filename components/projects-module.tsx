@@ -21,7 +21,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Edit, Trash2, Eye } from 'lucide-react';
+import { Printer, Edit, Trash2, Eye, Search } from 'lucide-react';
+import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { ProjectsSkeleton } from '@/components/module-skeleton';
+import { TablePagination, usePagination } from '@/components/table-pagination';
+import { projectFormSchema, type ProjectFormData, validateForm } from '@/lib/validations';
 
 interface Project {
   id: string;
@@ -42,6 +47,15 @@ export function ProjectsModule() {
     type: '',
     status: 'Concept' as Project['status'],
   });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
+  
+  // Search and filter state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  
+  // Form validation errors
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     loadProjects();
@@ -64,32 +78,49 @@ export function ProjectsModule() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) return;
+    
+    // Validate form
+    const validation = validateForm(projectFormSchema, form);
+    if (!validation.success) {
+      setFormErrors(validation.errors);
+      const firstError = Object.values(validation.errors)[0];
+      toast.error(firstError);
+      return;
+    }
+    
+    setFormErrors({});
 
     try {
       if (editingId) {
         const response = await fetch(`/api/projects/${editingId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
+          body: JSON.stringify(validation.data),
         });
         if (response.ok) {
+          toast.success('Project updated successfully');
           await loadProjects();
           resetForm();
+        } else {
+          toast.error('Failed to update project');
         }
       } else {
         const response = await fetch('/api/projects', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
+          body: JSON.stringify(validation.data),
         });
         if (response.ok) {
+          toast.success('Project added successfully');
           await loadProjects();
           resetForm();
+        } else {
+          toast.error('Failed to add project');
         }
       }
     } catch (error) {
       console.error('Error saving project:', error);
+      toast.error('Failed to save project');
     }
   };
 
@@ -103,35 +134,71 @@ export function ProjectsModule() {
     });
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Delete this project?')) return;
+  const handleDelete = (id: string) => {
+    setProjectToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteProject = async () => {
+    if (!projectToDelete) return;
 
     try {
-      const response = await fetch(`/api/projects/${id}`, {
+      const response = await fetch(`/api/projects/${projectToDelete}`, {
         method: 'DELETE',
       });
       if (response.ok) {
+        toast.success('Project deleted successfully');
         await loadProjects();
-        if (editingId === id) {
+        if (editingId === projectToDelete) {
           resetForm();
         }
+      } else {
+        toast.error('Failed to delete project');
       }
     } catch (error) {
       console.error('Error deleting project:', error);
+      toast.error('Failed to delete project');
+    } finally {
+      setProjectToDelete(null);
+      setDeleteDialogOpen(false);
     }
   };
 
   const resetForm = () => {
     setForm({ name: '', ward: '', type: '', status: 'Concept' });
     setEditingId(null);
+    setFormErrors({});
   };
 
   const handlePrint = () => {
     window.print();
   };
 
+  // Filter projects based on search term and status
+  const filteredProjects = projects.filter((project) => {
+    const matchesSearch = searchTerm === '' || 
+      project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (project.ward || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (project.type || '').toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  // Pagination
+  const {
+    paginatedItems: paginatedProjects,
+    currentPage,
+    totalPages,
+    pageSize,
+    totalItems,
+    handlePageChange,
+    handlePageSizeChange,
+  } = usePagination(filteredProjects, 10);
+
   if (loading) {
-    return <div className="p-4">Loading...</div>;
+    return <ProjectsSkeleton />;
   }
 
   return (
@@ -214,11 +281,35 @@ export function ProjectsModule() {
           <div className="flex items-center justify-between">
             <CardTitle>Project List</CardTitle>
             <span className="text-sm text-muted-foreground">
-              Total: {projects.length}
+              {filteredProjects.length} of {projects.length} projects
             </span>
           </div>
         </CardHeader>
         <CardContent>
+          {/* Search and Filter */}
+          <div className="flex flex-col gap-3 md:flex-row md:items-center mb-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Search by name, ward, or type..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-full md:w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="Concept">Concept</SelectItem>
+                <SelectItem value="Proposal">Proposal</SelectItem>
+                <SelectItem value="In Progress">In Progress</SelectItem>
+                <SelectItem value="Completed">Completed</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -231,17 +322,17 @@ export function ProjectsModule() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {projects.length === 0 ? (
+                {paginatedProjects.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={5}
                       className="text-center text-muted-foreground"
                     >
-                      No entries yet.
+                      {projects.length === 0 ? 'No projects yet.' : 'No projects match your search.'}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  projects.map((project) => (
+                  paginatedProjects.map((project) => (
                     <TableRow key={project.id}>
                       <TableCell className="font-medium">
                         <button
@@ -292,8 +383,30 @@ export function ProjectsModule() {
               </TableBody>
             </Table>
           </div>
+          {filteredProjects.length > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              totalItems={totalItems}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Project"
+        description="Are you sure you want to delete this project? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={confirmDeleteProject}
+      />
     </div>
   );
 }

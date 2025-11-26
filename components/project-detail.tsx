@@ -32,7 +32,9 @@ import {
 import { ArrowLeft, Edit, Trash2, Plus, FileText, Inbox, Send } from 'lucide-react';
 import { format } from 'date-fns';
 import { SidebarToggle } from '@/components/sidebar-toggle';
-import { toast } from '@/components/toast';
+import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { ProjectsSkeleton } from '@/components/module-skeleton';
 
 interface RegisterEntry {
   id: string;
@@ -88,6 +90,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     officer: '',
   });
 
+  // Delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
+
   useEffect(() => {
     loadProject();
   }, [projectId]);
@@ -107,12 +113,12 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           status: data.status,
         });
       } else if (response.status === 404) {
-        toast({ type: 'error', description: 'Project not found' });
+        toast.error('Project not found');
         router.push('/modules/projects');
       }
     } catch (error) {
       console.error('Error loading project:', error);
-      toast({ type: 'error', description: 'Failed to load project' });
+      toast.error('Failed to load project');
     } finally {
       setLoading(false);
     }
@@ -133,18 +139,20 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         const updated = await response.json();
         setProject({ ...project!, ...updated });
         setEditingProject(false);
-        toast({ type: 'success', description: 'Project updated successfully' });
+        toast.success('Project updated successfully');
+      } else {
+        toast.error('Failed to update project');
       }
     } catch (error) {
       console.error('Error updating project:', error);
-      toast({ type: 'error', description: 'Failed to update project' });
+      toast.error('Failed to update project');
     }
   };
 
   const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!entryForm.date || !entryForm.fromTo || !entryForm.subject) {
-      toast({ type: 'error', description: 'Please fill all required fields' });
+      toast.error('Please fill all required fields');
       return;
     }
 
@@ -167,14 +175,14 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           refNo: '',
           officer: '',
         });
-        toast({ type: 'success', description: 'Entry added successfully' });
+        toast.success('Entry added successfully');
       } else {
         const error = await response.json();
-        toast({ type: 'error', description: error.error || 'Failed to add entry' });
+        toast.error(error.error || 'Failed to add entry');
       }
     } catch (error) {
       console.error('Error adding entry:', error);
-      toast({ type: 'error', description: 'Failed to add entry' });
+      toast.error('Failed to add entry');
     }
   };
 
@@ -199,29 +207,41 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       if (response.ok) {
         await loadProject();
         setEditingEntry(null);
-        toast({ type: 'success', description: 'Entry updated successfully' });
+        toast.success('Entry updated successfully');
+      } else {
+        toast.error('Failed to update entry');
       }
     } catch (error) {
       console.error('Error updating entry:', error);
-      toast({ type: 'error', description: 'Failed to update entry' });
+      toast.error('Failed to update entry');
     }
   };
 
-  const handleDeleteEntry = async (entryId: string) => {
-    if (!confirm('Are you sure you want to delete this entry?')) return;
+  const handleDeleteEntry = (entryId: string) => {
+    setEntryToDelete(entryId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteEntry = async () => {
+    if (!entryToDelete) return;
 
     try {
-      const response = await fetch(`/api/register/${entryId}`, {
+      const response = await fetch(`/api/register/${entryToDelete}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
         await loadProject();
-        toast({ type: 'success', description: 'Entry deleted successfully' });
+        toast.success('Entry deleted successfully');
+      } else {
+        toast.error('Failed to delete entry');
       }
     } catch (error) {
       console.error('Error deleting entry:', error);
-      toast({ type: 'error', description: 'Failed to delete entry' });
+      toast.error('Failed to delete entry');
+    } finally {
+      setEntryToDelete(null);
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -242,7 +262,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const outwardCount = entries.filter((e) => e.type === 'outward').length;
 
   if (loading) {
-    return <div className="p-4">Loading...</div>;
+    return <ProjectsSkeleton />;
   }
 
   if (!project) {
@@ -668,6 +688,18 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Entry"
+        description="Are you sure you want to delete this register entry? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={confirmDeleteEntry}
+      />
     </div>
   );
 }

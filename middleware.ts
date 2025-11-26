@@ -96,6 +96,14 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
+    // Voter profiles are accessible to users with voter, operator, or back-office modules
+    if (moduleKey === 'voter') {
+      if (!modules.includes('voter') && !modules.includes('operator') && !modules.includes('back-office')) {
+        return NextResponse.redirect(new URL('/unauthorized', request.url));
+      }
+      return NextResponse.next();
+    }
+
     // Check if user has access to this module
     if (!modules.includes(moduleKey)) {
       return NextResponse.redirect(new URL('/unauthorized', request.url));

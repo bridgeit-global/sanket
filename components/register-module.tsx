@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,9 +20,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Download, Paperclip, Eye, FileText } from 'lucide-react';
+import { Printer, Download, Paperclip, Eye, FileText, Search } from 'lucide-react';
 import { format } from 'date-fns';
 import { RegisterAttachmentDialog } from '@/components/register-attachment-dialog';
+import { RegisterSkeleton } from '@/components/module-skeleton';
+import { TablePagination, usePagination } from '@/components/table-pagination';
+import { ModulePageHeader } from '@/components/module-page-header';
 
 interface Attachment {
   id: string;
@@ -66,6 +68,9 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
   });
   const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<RegisterEntry | null>(null);
+  
+  // Search state
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     loadData();
@@ -81,18 +86,8 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
 
       if (entriesRes.ok) {
         const entriesData = await entriesRes.json();
-        // Load attachments for each entry
-        const entriesWithAttachments = await Promise.all(
-          entriesData.map(async (entry: RegisterEntry) => {
-            const entryRes = await fetch(`/api/register/${entry.id}`);
-            if (entryRes.ok) {
-              const entryData = await entryRes.json();
-              return { ...entry, attachments: entryData.attachments || [] };
-            }
-            return entry;
-          }),
-        );
-        setEntries(entriesWithAttachments);
+        // Attachments are now included in the API response
+        setEntries(entriesData);
       }
 
       if (projectsRes.ok) {
@@ -175,22 +170,42 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
   const labelFromTo =
     type === 'inward' ? 'From (Name / Office)' : 'To (Name / Office)';
 
+  // Filter entries based on search term
+  const filteredEntries = entries.filter((entry) => {
+    if (!searchTerm) return true;
+    const search = searchTerm.toLowerCase();
+    const project = projects.find((p) => p.id === entry.projectId);
+    return (
+      entry.fromTo.toLowerCase().includes(search) ||
+      entry.subject.toLowerCase().includes(search) ||
+      (entry.mode || '').toLowerCase().includes(search) ||
+      (entry.refNo || '').toLowerCase().includes(search) ||
+      (entry.officer || '').toLowerCase().includes(search) ||
+      (project?.name || '').toLowerCase().includes(search)
+    );
+  });
+
+  // Pagination
+  const {
+    paginatedItems: paginatedEntries,
+    currentPage,
+    totalPages,
+    pageSize,
+    totalItems,
+    handlePageChange,
+    handlePageSizeChange,
+  } = usePagination(filteredEntries, 10);
+
   if (loading) {
-    return <div className="p-4">Loading...</div>;
+    return <RegisterSkeleton />;
   }
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <SidebarToggle />
-        <div>
-          <h1 className="text-3xl font-bold">{heading}</h1>
-          <p className="text-muted-foreground mt-2">
-            {type === 'inward' ? 'Manage incoming documents and letters' : 'Manage outgoing documents and letters'}
-          </p>
-        </div>
-      </div>
+      <ModulePageHeader
+        title={heading}
+        description={type === 'inward' ? 'Manage incoming documents and letters' : 'Manage outgoing documents and letters'}
+      />
 
       <Card>
         <CardHeader>
@@ -293,11 +308,21 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
           <div className="flex items-center justify-between">
             <CardTitle>Entries</CardTitle>
             <span className="text-sm text-muted-foreground">
-              Total: {entries.length}
+              {filteredEntries.length} of {entries.length} entries
             </span>
           </div>
         </CardHeader>
         <CardContent>
+          {/* Search */}
+          <div className="relative mb-4">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Search by sender, subject, project, mode..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -313,17 +338,17 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {entries.length === 0 ? (
+                {paginatedEntries.length === 0 ? (
                   <TableRow>
                     <TableCell
                       colSpan={8}
                       className="text-center text-muted-foreground"
                     >
-                      No entries yet.
+                      {entries.length === 0 ? 'No entries yet.' : 'No entries match your search.'}
                     </TableCell>
                   </TableRow>
                 ) : (
-                  entries.map((entry) => {
+                  paginatedEntries.map((entry) => {
                     const project = projects.find((p) => p.id === entry.projectId);
                     return (
                       <TableRow key={entry.id}>
@@ -364,6 +389,16 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
               </TableBody>
             </Table>
           </div>
+          {filteredEntries.length > 0 && (
+            <TablePagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              pageSize={pageSize}
+              totalItems={totalItems}
+              onPageChange={handlePageChange}
+              onPageSizeChange={handlePageSizeChange}
+            />
+          )}
         </CardContent>
       </Card>
 

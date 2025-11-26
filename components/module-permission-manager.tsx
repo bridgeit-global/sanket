@@ -35,6 +35,9 @@ import {
 import { ALL_MODULES } from '@/lib/module-constants';
 import { Trash2, Plus, User as UserIcon, Shield } from 'lucide-react';
 import type { User, Role } from '@/lib/db/schema';
+import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { TableSkeleton } from '@/components/module-skeleton';
 
 interface UserWithPermissions extends User {
   permissions: Record<string, boolean>;
@@ -61,6 +64,8 @@ export function ModulePermissionManager() {
   });
   const [editingUser, setEditingUser] = useState<UserWithPermissions | null>(null);
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
 
   useEffect(() => {
     loadUsers();
@@ -108,16 +113,17 @@ export function ModulePermissionManager() {
       });
 
       if (response.ok) {
+        toast.success('User role updated successfully');
         await loadUsers();
         setEditingUser(null);
         setEditingRoleId(null);
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to update user role');
+        toast.error(error.error || 'Failed to update user role');
       }
     } catch (error) {
       console.error('Error updating user role:', error);
-      alert('Failed to update user role');
+      toast.error('Failed to update user role');
     } finally {
       setSaving(false);
     }
@@ -130,12 +136,12 @@ export function ModulePermissionManager() {
 
   const handleAddUser = async () => {
     if (!newUser.userId || !newUser.password) {
-      alert('User ID and password are required');
+      toast.error('User ID and password are required');
       return;
     }
 
     if (!newUser.roleId) {
-      alert('Please select a role for the user');
+      toast.error('Please select a role for the user');
       return;
     }
 
@@ -151,32 +157,45 @@ export function ModulePermissionManager() {
       });
 
       if (response.ok) {
+        toast.success('User created successfully');
         await loadUsers();
         setShowAddUser(false);
         setNewUser({ userId: '', password: '', roleId: null });
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to create user');
+        toast.error(error.error || 'Failed to create user');
       }
     } catch (error) {
       console.error('Error adding user:', error);
-      alert('Failed to create user');
+      toast.error('Failed to create user');
     }
   };
 
-  const handleDeleteUser = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+  const handleDeleteUser = (userId: string) => {
+    setUserToDelete(userId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
 
     try {
-      const response = await fetch('/api/admin/users/' + userId, {
+      const response = await fetch('/api/admin/users/' + userToDelete, {
         method: 'DELETE',
       });
 
       if (response.ok) {
+        toast.success('User deleted successfully');
         await loadUsers();
+      } else {
+        toast.error('Failed to delete user');
       }
     } catch (error) {
       console.error('Error deleting user:', error);
+      toast.error('Failed to delete user');
+    } finally {
+      setUserToDelete(null);
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -187,7 +206,11 @@ export function ModulePermissionManager() {
   );
 
   if (loading) {
-    return <div className="p-4">Loading...</div>;
+    return (
+      <div className="space-y-4">
+        <TableSkeleton rows={5} />
+      </div>
+    );
   }
 
   return (
@@ -411,6 +434,18 @@ export function ModulePermissionManager() {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete User"
+        description="Are you sure you want to delete this user? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={confirmDeleteUser}
+      />
     </div>
   );
 }

@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Button } from '@/components/ui/button';
 import { CalendarDays, Inbox, Send, FolderKanban } from 'lucide-react';
 import { format } from 'date-fns';
+import { DashboardSkeleton } from '@/components/module-skeleton';
+import { ModulePageHeader } from '@/components/module-page-header';
 
 interface DashboardStats {
   meetings: number;
@@ -41,53 +42,12 @@ export function Dashboard() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-
-      // Load today's programme items
-      const programmeRes = await fetch(
-        `/api/daily-programme?startDate=${today.toISOString()}&endDate=${tomorrow.toISOString()}`,
-      );
-      if (programmeRes.ok) {
-        const programmeData = await programmeRes.json();
-        setStats((s) => ({ ...s, meetings: programmeData.length }));
-        setUpcoming(
-          programmeData
-            .slice(0, 3)
-            .map((item: any) => ({
-              id: item.id,
-              date: item.date,
-              startTime: item.startTime,
-              title: item.title,
-              location: item.location,
-            })),
-        );
-      }
-
-      // Load register counts
-      const inwardRes = await fetch(
-        `/api/register?type=inward&startDate=${today.toISOString()}`,
-      );
-      if (inwardRes.ok) {
-        const inwardData = await inwardRes.json();
-        setStats((s) => ({ ...s, inward: inwardData.length }));
-      }
-
-      const outwardRes = await fetch(
-        `/api/register?type=outward&startDate=${today.toISOString()}`,
-      );
-      if (outwardRes.ok) {
-        const outwardData = await outwardRes.json();
-        setStats((s) => ({ ...s, outward: outwardData.length }));
-      }
-
-      // Load projects count
-      const projectsRes = await fetch('/api/projects');
-      if (projectsRes.ok) {
-        const projectsData = await projectsRes.json();
-        setStats((s) => ({ ...s, projects: projectsData.length }));
+      // Single consolidated API call for all dashboard data
+      const response = await fetch('/api/dashboard');
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data.stats);
+        setUpcoming(data.upcoming);
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -97,19 +57,15 @@ export function Dashboard() {
   };
 
   if (loading) {
-    return <div className="p-4">Loading...</div>;
+    return <DashboardSkeleton />;
   }
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <SidebarToggle />
-        <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
-          <p className="text-muted-foreground mt-2">Overview of activities and statistics</p>
-        </div>
-      </div>
+      <ModulePageHeader
+        title="Dashboard"
+        description="Overview of activities and statistics"
+      />
 
       <Card>
         <CardHeader>

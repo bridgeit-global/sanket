@@ -7,6 +7,7 @@ import Script from 'next/script';
 import { DataStreamProvider } from '@/components/data-stream-provider';
 import { NavigationLoadingProvider } from '@/components/navigation-loading-provider';
 import { getUserAccessibleModules } from '@/lib/module-access';
+import { ErrorBoundaryWrapper } from '@/components/error-boundary-wrapper';
 
 export const experimental_ppr = true;
 
@@ -29,7 +30,9 @@ export default async function ModulesLayout({
         <NavigationLoadingProvider>
           <SidebarProvider defaultOpen={!isCollapsed}>
             <AppSidebar user={session?.user} modules={modules} />
-            <SidebarInset>{children}</SidebarInset>
+            <SidebarInset>
+              <ErrorBoundaryWrapper>{children}</ErrorBoundaryWrapper>
+            </SidebarInset>
           </SidebarProvider>
         </NavigationLoadingProvider>
       </DataStreamProvider>

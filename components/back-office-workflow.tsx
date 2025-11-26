@@ -325,7 +325,7 @@ export function BackOfficeWorkflow() {
                                         <span className="text-sm text-muted-foreground">Found by {lastSearchType === 'voterId' ? 'VoterId' : 'Name'}</span>
                                     )}
                                 </div>
-                                <div className="space-y-2 max-h-60 overflow-y-auto">
+                                <div className="space-y-2">
                                     {searchResults.map((voter) => (
                                         <button key={voter.epicNumber} type="button" className="w-full p-4 border rounded-lg hover:bg-muted cursor-pointer text-left transition-colors" onClick={() => handleSelectVoter(voter)}>
                                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">

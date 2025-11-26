@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +24,11 @@ import {
 import { Printer, Search, Calendar, UserCheck, Pencil, Trash2 } from 'lucide-react';
 import { format, parseISO, startOfToday, addDays } from 'date-fns';
 import type { DailyProgramme } from '@/lib/db/schema';
+import { toast } from 'sonner';
+import { ConfirmDialog } from '@/components/confirm-dialog';
+import { VisitorManagementSkeleton } from '@/components/module-skeleton';
+import { ModulePageHeader } from '@/components/module-page-header';
+import { visitorFormSchema, validateForm } from '@/lib/validations';
 
 interface Visitor {
   id: string;
@@ -92,6 +96,10 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
   // Edit state
   const [editingVisitor, setEditingVisitor] = useState<Visitor | null>(null);
 
+  // Confirm dialog state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [visitorToDelete, setVisitorToDelete] = useState<string | null>(null);
+
   // Load programme events on mount
   useEffect(() => {
     loadProgrammeEvents();
@@ -142,8 +150,19 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
 
   const handleAddVisitor = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!addForm.name || !addForm.contactNumber || !addForm.purpose || !addForm.visitDate) {
-      alert('Please fill in all required fields');
+    
+    // Validate form
+    const validation = validateForm(visitorFormSchema, {
+      name: addForm.name,
+      contactNumber: addForm.contactNumber,
+      purpose: addForm.purpose,
+      programmeEventId: addForm.programmeEventId || null,
+      visitDate: addForm.visitDate,
+    });
+    
+    if (!validation.success) {
+      const firstError = Object.values(validation.errors)[0];
+      toast.error(firstError);
       return;
     }
 
@@ -162,7 +181,7 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
       });
 
       if (response.ok) {
-        alert('Visitor added successfully!');
+        toast.success('Visitor added successfully!');
         setAddForm({
           name: '',
           contactNumber: '',
@@ -176,11 +195,11 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
         }
       } else {
         const error = await response.json();
-        alert(`Error: ${error.error || 'Failed to add visitor'}`);
+        toast.error(error.error || 'Failed to add visitor');
       }
     } catch (error) {
       console.error('Error adding visitor:', error);
-      alert('Failed to add visitor. Please try again.');
+      toast.error('Failed to add visitor. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -205,47 +224,53 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
       });
 
       if (response.ok) {
-        alert('Visitor updated successfully!');
+        toast.success('Visitor updated successfully!');
         setEditingVisitor(null);
         loadVisitors();
       } else {
         const error = await response.json();
-        alert(`Error: ${error.error || 'Failed to update visitor'}`);
+        toast.error(error.error || 'Failed to update visitor');
       }
     } catch (error) {
       console.error('Error updating visitor:', error);
-      alert('Failed to update visitor. Please try again.');
+      toast.error('Failed to update visitor. Please try again.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDeleteVisitor = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this visitor record?')) {
-      return;
-    }
+  const handleDeleteVisitor = (id: string) => {
+    setVisitorToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteVisitor = async () => {
+    if (!visitorToDelete) return;
 
     try {
-      const response = await fetch(`/api/visitors/${id}`, {
+      const response = await fetch(`/api/visitors/${visitorToDelete}`, {
         method: 'DELETE',
       });
 
       if (response.ok) {
-        alert('Visitor deleted successfully!');
+        toast.success('Visitor deleted successfully!');
         loadVisitors();
       } else {
         const error = await response.json();
-        alert(`Error: ${error.error || 'Failed to delete visitor'}`);
+        toast.error(error.error || 'Failed to delete visitor');
       }
     } catch (error) {
       console.error('Error deleting visitor:', error);
-      alert('Failed to delete visitor. Please try again.');
+      toast.error('Failed to delete visitor. Please try again.');
+    } finally {
+      setVisitorToDelete(null);
+      setDeleteDialogOpen(false);
     }
   };
 
   const handleSearchHistory = async () => {
     if (!historyContactNumber.trim()) {
-      alert('Please enter a contact number');
+      toast.error('Please enter a contact number');
       return;
     }
 
@@ -258,11 +283,11 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
         const data = await response.json();
         setVisitorHistory(data);
       } else {
-        alert('Failed to fetch visitor history');
+        toast.error('Failed to fetch visitor history');
       }
     } catch (error) {
       console.error('Error fetching visitor history:', error);
-      alert('Failed to fetch visitor history. Please try again.');
+      toast.error('Failed to fetch visitor history. Please try again.');
     } finally {
       setLoadingHistory(false);
     }
@@ -284,16 +309,10 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-3 no-print">
-        <SidebarToggle />
-        <div>
-          <h1 className="text-3xl font-bold">Visitor Management</h1>
-          <p className="text-muted-foreground mt-2">
-            Track and manage visitors for programme register events
-          </p>
-        </div>
-      </div>
+      <ModulePageHeader
+        title="Visitor Management"
+        description="Track and manage visitors for programme register events"
+      />
 
       {/* Tab Navigation */}
       <div className="flex space-x-1 bg-muted p-1 rounded-lg no-print">
@@ -683,6 +702,18 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
           </CardContent>
         </Card>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Visitor"
+        description="Are you sure you want to delete this visitor record? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={confirmDeleteVisitor}
+      />
     </div>
   );
 }

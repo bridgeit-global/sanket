@@ -41,6 +41,8 @@ import { ALL_MODULES, type ModuleDefinition } from '@/lib/module-constants';
 import { Trash2, Plus, Shield, Check } from 'lucide-react';
 import type { Role } from '@/lib/db/schema';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { TableSkeleton } from '@/components/module-skeleton';
 
 interface RoleWithPermissions extends Role {
   permissions: Record<string, boolean>;
@@ -121,7 +123,7 @@ export function RoleManager() {
 
   const handleSaveRole = async () => {
     if (!roleForm.name.trim()) {
-      alert('Role name is required');
+      toast.error('Role name is required');
       return;
     }
 
@@ -143,15 +145,16 @@ export function RoleManager() {
       });
 
       if (response.ok) {
+        toast.success(editingRole ? 'Role updated successfully' : 'Role created successfully');
         await loadRoles();
         handleCloseDialog();
       } else {
         const error = await response.json();
-        alert(error.error || 'Failed to save role');
+        toast.error(error.error || 'Failed to save role');
       }
     } catch (error) {
       console.error('Error saving role:', error);
-      alert('Failed to save role');
+      toast.error('Failed to save role');
     } finally {
       setSaving(false);
     }
@@ -171,6 +174,7 @@ export function RoleManager() {
       });
 
       if (response.ok) {
+        toast.success('Role deleted successfully');
         await loadRoles();
         setDeleteRoleId(null);
       } else {
@@ -189,7 +193,11 @@ export function RoleManager() {
   );
 
   if (loading) {
-    return <div className="p-4">Loading...</div>;
+    return (
+      <div className="space-y-4">
+        <TableSkeleton rows={5} />
+      </div>
+    );
   }
 
   return (

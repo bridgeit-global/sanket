@@ -705,7 +705,7 @@ export function AddBeneficiaryServiceForm({
                         {searchResults.length > 0 && (
                             <div className="space-y-2">
                                 <Label>Search Results</Label>
-                                <div className="space-y-2 max-h-40 overflow-y-auto">
+                                <div className="space-y-2">
                                     {searchResults.map((voter) => (
                                         <Card
                                             key={voter.id}
