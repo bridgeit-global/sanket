@@ -21,12 +21,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Edit, Trash2, Eye, Search } from 'lucide-react';
+import { Edit, Trash2, Eye, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ProjectsSkeleton } from '@/components/module-skeleton';
 import { TablePagination, usePagination } from '@/components/table-pagination';
 import { projectFormSchema, type ProjectFormData, validateForm } from '@/lib/validations';
+import { ModulePageHeader } from '@/components/module-page-header';
 
 interface Project {
   id: string;
@@ -170,10 +171,6 @@ export function ProjectsModule() {
     setFormErrors({});
   };
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   // Filter projects based on search term and status
   const filteredProjects = projects.filter((project) => {
     const matchesSearch = searchTerm === '' || 
@@ -203,16 +200,11 @@ export function ProjectsModule() {
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
+      <ModulePageHeader 
+        title="Constituency Projects" 
+        description="Manage and track constituency development projects"
+      />
       <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Constituency Projects</CardTitle>
-            <Button variant="outline" size="sm" onClick={handlePrint}>
-              <Printer className="mr-2 h-4 w-4" />
-              Print Projects
-            </Button>
-          </div>
-        </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-5">
             <div className="space-y-2 md:col-span-2">

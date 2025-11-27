@@ -772,7 +772,7 @@ export function OperatorWorkflow() {
                                                     key={voter.epicNumber}
                                                     type="button"
                                                     className="w-full p-4 border rounded-lg hover:bg-muted cursor-pointer text-left transition-colors"
-                                                    onClick={() => router.push(`/modules/voter/${encodeURIComponent(voter.epicNumber)}`)}
+                                                    onClick={() => handleSelectVoter(voter)}
                                                 >
                                                     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
                                                         <div className="flex-1">

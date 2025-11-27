@@ -29,12 +29,21 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { ArrowLeft, Edit, Trash2, Plus, FileText, Inbox, Send } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Plus, FileText, Inbox, Send, Paperclip, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { SidebarToggle } from '@/components/sidebar-toggle';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ProjectsSkeleton } from '@/components/module-skeleton';
+import { RegisterAttachmentDialog } from '@/components/register-attachment-dialog';
+
+interface Attachment {
+  id: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl: string | null;
+  createdAt: string;
+}
 
 interface RegisterEntry {
   id: string;
@@ -46,7 +55,7 @@ interface RegisterEntry {
   mode?: string;
   refNo?: string;
   officer?: string;
-  attachments?: Array<{ id: string; fileName: string; fileSizeKb: number }>;
+  attachments?: Attachment[];
 }
 
 interface Project {
@@ -93,6 +102,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   // Delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
+
+  // Attachment dialog
+  const [attachmentDialogEntry, setAttachmentDialogEntry] = useState<RegisterEntry | null>(null);
 
   useEffect(() => {
     loadProject();
@@ -296,14 +308,24 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 {` | Status: ${project.status}`}
               </CardDescription>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setEditingProject(!editingProject)}
-            >
-              <Edit className="mr-2 h-4 w-4" />
-              Edit Project
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.print()}
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Print
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setEditingProject(!editingProject)}
+              >
+                <Edit className="mr-2 h-4 w-4" />
+                Edit Project
+              </Button>
+            </div>
           </div>
         </CardHeader>
         {editingProject && (
@@ -567,9 +589,15 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                       <TableCell>{entry.officer || '-'}</TableCell>
                       <TableCell>
                         {entry.attachments && entry.attachments.length > 0 ? (
-                          <span className="text-sm text-muted-foreground">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-auto py-1 px-2 text-sm text-muted-foreground hover:text-foreground"
+                            onClick={() => setAttachmentDialogEntry(entry)}
+                          >
+                            <Paperclip className="h-3 w-3 mr-1" />
                             {entry.attachments.length} file(s)
-                          </span>
+                          </Button>
                         ) : (
                           '-'
                         )}
@@ -700,6 +728,18 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         variant="destructive"
         onConfirm={confirmDeleteEntry}
       />
+
+      {/* Attachment Dialog */}
+      {attachmentDialogEntry && (
+        <RegisterAttachmentDialog
+          open={!!attachmentDialogEntry}
+          onOpenChange={(open) => !open && setAttachmentDialogEntry(null)}
+          entryId={attachmentDialogEntry.id}
+          entrySubject={attachmentDialogEntry.subject}
+          attachments={attachmentDialogEntry.attachments || []}
+          onAttachmentsChange={loadProject}
+        />
+      )}
     </div>
   );
 }
