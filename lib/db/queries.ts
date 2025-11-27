@@ -2725,6 +2725,7 @@ export async function createVisitor({
 
     return newVisitor;
   } catch (error) {
+    console.error('Database error creating visitor:', error);
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to create visitor',

@@ -70,7 +70,7 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
   const [programmeEvents, setProgrammeEvents] = useState<DailyProgramme[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  
+
   // Add visitor form state
   const [addForm, setAddForm] = useState({
     name: '',
@@ -80,9 +80,9 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
     visitDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
   });
 
-  // View visitors filter state
+  // View visitors filter state - default to past 7 days to today + 7 days
   const [filterForm, setFilterForm] = useState({
-    startDate: format(startOfToday(), 'yyyy-MM-dd'),
+    startDate: format(addDays(startOfToday(), -7), 'yyyy-MM-dd'),
     endDate: format(addDays(startOfToday(), 7), 'yyyy-MM-dd'),
     programmeEventId: '',
     searchTerm: '',
@@ -150,7 +150,7 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
 
   const handleAddVisitor = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate form
     const validation = validateForm(visitorFormSchema, {
       name: addForm.name,
@@ -159,7 +159,7 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
       programmeEventId: addForm.programmeEventId || null,
       visitDate: addForm.visitDate,
     });
-    
+
     if (!validation.success) {
       const firstError = Object.values(validation.errors)[0];
       toast.error(firstError);
