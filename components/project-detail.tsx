@@ -272,6 +272,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
   const inwardCount = entries.filter((e) => e.type === 'inward').length;
   const outwardCount = entries.filter((e) => e.type === 'outward').length;
+  const inwardEntries = entries.filter((e) => e.type === 'inward');
+  const outwardEntries = entries.filter((e) => e.type === 'outward');
 
   if (loading) {
     return <ProjectsSkeleton />;
@@ -283,8 +285,119 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
   return (
     <div className="space-y-6">
+      {/* Print-only content */}
+      <div className="project-print-content hidden">
+        <div className="project-print-header">
+          <h2>Hon&apos; MLA, Smt. Sana Malik Shaikh</h2>
+          <h1>Project Details</h1>
+          <p className="print-date">Printed on: {format(new Date(), 'dd MMM yyyy')}</p>
+        </div>
+
+        <div className="project-info-section">
+          <h3>Project Information</h3>
+          <table className="project-info-table">
+            <tbody>
+              <tr>
+                <td><strong>Project Name:</strong></td>
+                <td>{project.name}</td>
+              </tr>
+              {project.ward && (
+                <tr>
+                  <td><strong>Ward / Beat:</strong></td>
+                  <td>{project.ward}</td>
+                </tr>
+              )}
+              {project.type && (
+                <tr>
+                  <td><strong>Type:</strong></td>
+                  <td>{project.type}</td>
+                </tr>
+              )}
+              <tr>
+                <td><strong>Status:</strong></td>
+                <td>{project.status}</td>
+              </tr>
+              <tr>
+                <td><strong>Total Entries:</strong></td>
+                <td>{entries.length} (Inward: {inwardCount}, Outward: {outwardCount})</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {inwardEntries.length > 0 && (
+          <div className="register-section">
+            <h3>Inward Register Entries</h3>
+            <table className="register-table">
+              <thead>
+                <tr>
+                  <th>Sr.</th>
+                  <th>Date</th>
+                  <th>From</th>
+                  <th>Subject</th>
+                  <th>Mode</th>
+                  <th>Ref No</th>
+                  <th>Officer</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inwardEntries.map((entry, index) => (
+                  <tr key={entry.id}>
+                    <td>{index + 1}</td>
+                    <td>{format(new Date(entry.date), 'dd MMM yyyy')}</td>
+                    <td>{entry.fromTo}</td>
+                    <td>{entry.subject}</td>
+                    <td>{entry.mode || '-'}</td>
+                    <td>{entry.refNo || '-'}</td>
+                    <td>{entry.officer || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {outwardEntries.length > 0 && (
+          <div className="register-section">
+            <h3>Outward Register Entries</h3>
+            <table className="register-table">
+              <thead>
+                <tr>
+                  <th>Sr.</th>
+                  <th>Date</th>
+                  <th>To</th>
+                  <th>Subject</th>
+                  <th>Mode</th>
+                  <th>Ref No</th>
+                  <th>Officer</th>
+                </tr>
+              </thead>
+              <tbody>
+                {outwardEntries.map((entry, index) => (
+                  <tr key={entry.id}>
+                    <td>{index + 1}</td>
+                    <td>{format(new Date(entry.date), 'dd MMM yyyy')}</td>
+                    <td>{entry.fromTo}</td>
+                    <td>{entry.subject}</td>
+                    <td>{entry.mode || '-'}</td>
+                    <td>{entry.refNo || '-'}</td>
+                    <td>{entry.officer || '-'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {entries.length === 0 && (
+          <div className="no-entries">
+            <p>No register entries for this project.</p>
+          </div>
+        )}
+      </div>
+
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 no-print">
         <SidebarToggle />
         <Button
           variant="ghost"
@@ -297,7 +410,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       </div>
 
       {/* Project Info Card */}
-      <Card>
+      <Card className="no-print">
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
@@ -400,7 +513,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       </Card>
 
       {/* Statistics */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-3 no-print">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Entries</CardTitle>
@@ -431,7 +544,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       </div>
 
       {/* Register Entries */}
-      <Card>
+      <Card className="no-print">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Register Entries</CardTitle>
@@ -565,11 +678,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                     <TableRow key={entry.id}>
                       <TableCell>
                         <span
-                          className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
-                            entry.type === 'inward'
+                          className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${entry.type === 'inward'
                               ? 'bg-blue-100 text-blue-800'
                               : 'bg-green-100 text-green-800'
-                          }`}
+                            }`}
                         >
                           {entry.type === 'inward' ? (
                             <Inbox className="mr-1 h-3 w-3" />
