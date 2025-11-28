@@ -20,6 +20,8 @@ interface AppSidebarProps {
   modules?: ModuleDefinition[];
 }
 
+const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || '0.0.0';
+
 export function AppSidebar({ user, modules }: AppSidebarProps) {
   const { setOpenMobile } = useSidebar();
 
@@ -27,7 +29,7 @@ export function AppSidebar({ user, modules }: AppSidebarProps) {
     <Sidebar className="group-data-[side=left]:border-r-0">
       <SidebarHeader>
         <SidebarMenu>
-          <div className="flex flex-row items-center">
+          <div className="flex flex-row items-center justify-between">
             <Link
               href="/"
               onClick={() => {
@@ -39,6 +41,9 @@ export function AppSidebar({ user, modules }: AppSidebarProps) {
                 Sanket
               </span>
             </Link>
+            <span className="text-xs text-muted-foreground px-2">
+              v{appVersion}
+            </span>
           </div>
         </SidebarMenu>
       </SidebarHeader>
