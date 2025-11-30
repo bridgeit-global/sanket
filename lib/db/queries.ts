@@ -57,6 +57,8 @@ import {
   type RoleModulePermission,
   visitor,
   type Visitor,
+  exportJob,
+  type ExportJob,
 } from './schema';
 import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
@@ -2914,5 +2916,255 @@ export async function deleteVisitor(id: string): Promise<void> {
       'bad_request:database',
       'Failed to delete visitor',
     );
+  }
+}
+
+// Export Job Queries
+export async function createExportJob({
+  type,
+  format,
+  filters,
+  createdBy,
+}: {
+  type: string;
+  format: 'pdf' | 'excel' | 'csv';
+  filters?: Record<string, unknown>;
+  createdBy: string;
+}): Promise<ExportJob> {
+  try {
+    const [job] = await db
+      .insert(exportJob)
+      .values({
+        type,
+        format,
+        filters: filters || {},
+        status: 'pending',
+        progress: 0,
+        createdBy,
+      })
+      .returning();
+    return job;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to create export job');
+  }
+}
+
+export async function getExportJobById(id: string): Promise<ExportJob | null> {
+  try {
+    const [job] = await db
+      .select()
+      .from(exportJob)
+      .where(eq(exportJob.id, id));
+    return job || null;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to get export job');
+  }
+}
+
+export async function getExportJobsByUser(userId: string, limit = 10): Promise<ExportJob[]> {
+  try {
+    return await db
+      .select()
+      .from(exportJob)
+      .where(eq(exportJob.createdBy, userId))
+      .orderBy(desc(exportJob.createdAt))
+      .limit(limit);
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to get export jobs');
+  }
+}
+
+export async function updateExportJobProgress({
+  id,
+  status,
+  progress,
+  processedRecords,
+  totalRecords,
+  fileUrl,
+  fileName,
+  fileSizeKb,
+  errorMessage,
+}: {
+  id: string;
+  status?: 'pending' | 'processing' | 'completed' | 'failed';
+  progress?: number;
+  processedRecords?: number;
+  totalRecords?: number;
+  fileUrl?: string;
+  fileName?: string;
+  fileSizeKb?: number;
+  errorMessage?: string;
+}): Promise<ExportJob | null> {
+  try {
+    const updateData: Partial<ExportJob> = {
+      updatedAt: new Date(),
+    };
+
+    if (status !== undefined) updateData.status = status;
+    if (progress !== undefined) updateData.progress = progress;
+    if (processedRecords !== undefined) updateData.processedRecords = processedRecords;
+    if (totalRecords !== undefined) updateData.totalRecords = totalRecords;
+    if (fileUrl !== undefined) updateData.fileUrl = fileUrl;
+    if (fileName !== undefined) updateData.fileName = fileName;
+    if (fileSizeKb !== undefined) updateData.fileSizeKb = fileSizeKb;
+    if (errorMessage !== undefined) updateData.errorMessage = errorMessage;
+    if (status === 'completed' || status === 'failed') {
+      updateData.completedAt = new Date();
+    }
+
+    const [updated] = await db
+      .update(exportJob)
+      .set(updateData)
+      .where(eq(exportJob.id, id))
+      .returning();
+
+    return updated || null;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to update export job');
+  }
+}
+
+export async function deleteExportJob(id: string): Promise<void> {
+  try {
+    await db.delete(exportJob).where(eq(exportJob.id, id));
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to delete export job');
+  }
+}
+
+// Get voters with optional filters for export
+export async function getVotersForExport(filters?: {
+  partNo?: string;
+  wardNo?: string;
+  acNo?: string;
+  gender?: string;
+  minAge?: number;
+  maxAge?: number;
+  hasPhone?: boolean;
+}): Promise<Voter[]> {
+  try {
+    const conditions: SQL<unknown>[] = [];
+
+    if (filters?.partNo) {
+      conditions.push(eq(Voters.partNo, filters.partNo));
+    }
+    if (filters?.wardNo) {
+      conditions.push(eq(Voters.wardNo, filters.wardNo));
+    }
+    if (filters?.acNo) {
+      conditions.push(eq(Voters.acNo, filters.acNo));
+    }
+    if (filters?.gender) {
+      conditions.push(eq(Voters.gender, filters.gender));
+    }
+    if (filters?.minAge !== undefined) {
+      conditions.push(gte(Voters.age, filters.minAge));
+    }
+    if (filters?.maxAge !== undefined) {
+      conditions.push(lte(Voters.age, filters.maxAge));
+    }
+    if (filters?.hasPhone === true) {
+      conditions.push(
+        or(
+          sql`${Voters.mobileNoPrimary} IS NOT NULL AND ${Voters.mobileNoPrimary} != ''`,
+          sql`${Voters.mobileNoSecondary} IS NOT NULL AND ${Voters.mobileNoSecondary} != ''`
+        )!
+      );
+    }
+    if (filters?.hasPhone === false) {
+      conditions.push(
+        and(
+          or(
+            sql`${Voters.mobileNoPrimary} IS NULL`,
+            eq(Voters.mobileNoPrimary, '')
+          ),
+          or(
+            sql`${Voters.mobileNoSecondary} IS NULL`,
+            eq(Voters.mobileNoSecondary, '')
+          )
+        )!
+      );
+    }
+
+    if (conditions.length > 0) {
+      return await db
+        .select()
+        .from(Voters)
+        .where(and(...conditions))
+        .orderBy(asc(Voters.fullName));
+    }
+
+    return await db.select().from(Voters).orderBy(asc(Voters.fullName));
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to get voters for export');
+  }
+}
+
+export async function getVotersCountForExport(filters?: {
+  partNo?: string;
+  wardNo?: string;
+  acNo?: string;
+  gender?: string;
+  minAge?: number;
+  maxAge?: number;
+  hasPhone?: boolean;
+}): Promise<number> {
+  try {
+    const conditions: SQL<unknown>[] = [];
+
+    if (filters?.partNo) {
+      conditions.push(eq(Voters.partNo, filters.partNo));
+    }
+    if (filters?.wardNo) {
+      conditions.push(eq(Voters.wardNo, filters.wardNo));
+    }
+    if (filters?.acNo) {
+      conditions.push(eq(Voters.acNo, filters.acNo));
+    }
+    if (filters?.gender) {
+      conditions.push(eq(Voters.gender, filters.gender));
+    }
+    if (filters?.minAge !== undefined) {
+      conditions.push(gte(Voters.age, filters.minAge));
+    }
+    if (filters?.maxAge !== undefined) {
+      conditions.push(lte(Voters.age, filters.maxAge));
+    }
+    if (filters?.hasPhone === true) {
+      conditions.push(
+        or(
+          sql`${Voters.mobileNoPrimary} IS NOT NULL AND ${Voters.mobileNoPrimary} != ''`,
+          sql`${Voters.mobileNoSecondary} IS NOT NULL AND ${Voters.mobileNoSecondary} != ''`
+        )!
+      );
+    }
+    if (filters?.hasPhone === false) {
+      conditions.push(
+        and(
+          or(
+            sql`${Voters.mobileNoPrimary} IS NULL`,
+            eq(Voters.mobileNoPrimary, '')
+          ),
+          or(
+            sql`${Voters.mobileNoSecondary} IS NULL`,
+            eq(Voters.mobileNoSecondary, '')
+          )
+        )!
+      );
+    }
+
+    let result;
+    if (conditions.length > 0) {
+      result = await db
+        .select({ count: count() })
+        .from(Voters)
+        .where(and(...conditions));
+    } else {
+      result = await db.select({ count: count() }).from(Voters);
+    }
+
+    return result[0]?.count || 0;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to count voters for export');
   }
 }

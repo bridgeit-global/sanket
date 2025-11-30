@@ -408,3 +408,29 @@ export const visitor = pgTable('Visitor', {
 
 export type Visitor = InferSelectModel<typeof visitor>;
 
+// Export Jobs Table (for tracking long-running export tasks)
+export const exportJob = pgTable('ExportJob', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  type: varchar('type', { length: 50 }).notNull(), // 'voters', 'visitors', 'register', etc.
+  format: varchar('format', { length: 10 }).notNull(), // 'pdf', 'excel', 'csv'
+  status: varchar('status', {
+    enum: ['pending', 'processing', 'completed', 'failed']
+  }).notNull().default('pending'),
+  progress: integer('progress').notNull().default(0), // 0-100
+  totalRecords: integer('total_records').default(0),
+  processedRecords: integer('processed_records').default(0),
+  fileUrl: text('file_url'),
+  fileName: varchar('file_name', { length: 255 }),
+  fileSizeKb: integer('file_size_kb'),
+  filters: json('filters'), // Store filter parameters used for the export
+  errorMessage: text('error_message'),
+  createdBy: uuid('created_by')
+    .notNull()
+    .references(() => user.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  completedAt: timestamp('completed_at'),
+});
+
+export type ExportJob = InferSelectModel<typeof exportJob>;
+
