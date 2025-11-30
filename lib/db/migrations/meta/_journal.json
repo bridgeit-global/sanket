@@ -218,6 +218,13 @@
       "when": 1760800000000,
       "tag": "0044_add_project_attachments",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1760900000000,
+      "tag": "0045_add_voter_address_pincode",
+      "breakpoints": true
     }
   ]
 }
