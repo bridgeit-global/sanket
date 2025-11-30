@@ -38,7 +38,7 @@ export function AppSidebar({ user, modules }: AppSidebarProps) {
               className="flex flex-row gap-3 items-center"
             >
               <span className="text-lg font-semibold px-2 hover:bg-muted rounded-md cursor-pointer">
-                Sanket
+                eOffice
               </span>
             </Link>
             <span className="text-xs text-muted-foreground px-2">

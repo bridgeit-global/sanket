@@ -8,7 +8,7 @@ import './globals.css';
 import { SessionProvider } from 'next-auth/react';
 
 export const metadata: Metadata = {
-  title: 'Sanket - Specialized ERP for Beneficiary Management',
+  title: 'eOffice - Specialized ERP for Beneficiary Management',
   description: 'Streamline your beneficiary management across multiple locations',
   manifest: '/favicon/site.webmanifest'
 };
@@ -77,8 +77,8 @@ export default async function RootLayout({
           }}
         />
         {/* Mobile-optimized meta tags */}
-        <title>Sanket</title>
-        <meta property="og:title" content="Sanket" />
+        <title>eOffice</title>
+        <meta property="og:title" content="eOffice" />
         <meta property="og:description"
           content="CRM for beneficiary management" />
         <meta property="og:type" content="website" />
@@ -87,8 +87,8 @@ export default async function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="Sanket" />
-        <meta name="application-name" content="Sanket" />
+        <meta name="apple-mobile-web-app-title" content="eOffice" />
+        <meta name="application-name" content="eOffice" />
         <meta name="msapplication-TileColor" content="#000000" />
         <meta name="msapplication-tap-highlight" content="no" />
       </head>
