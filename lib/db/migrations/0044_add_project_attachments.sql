@@ -5,6 +5,16 @@ CREATE TABLE IF NOT EXISTS "ProjectAttachment" (
 	"file_name" varchar(255) NOT NULL,
 	"file_size_kb" integer NOT NULL,
 	"file_url" text,
-	"created_at" timestamp DEFAULT now() NOT NULL,
-	CONSTRAINT "ProjectAttachment_project_id_MlaProject_id_fk" FOREIGN KEY ("project_id") REFERENCES "MlaProject"("id") ON DELETE cascade ON UPDATE no action
+	"created_at" timestamp DEFAULT now() NOT NULL
 );
+
+-- Add foreign key constraint (idempotent)
+DO $$ BEGIN
+  ALTER TABLE "ProjectAttachment" ADD CONSTRAINT "ProjectAttachment_project_id_MlaProject_id_fk" 
+    FOREIGN KEY ("project_id") REFERENCES "MlaProject"("id") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+
+-- Create index for better query performance
+CREATE INDEX IF NOT EXISTS "idx_project_attachment_project_id" ON "ProjectAttachment" ("project_id");

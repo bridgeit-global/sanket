@@ -32,34 +32,5 @@ CREATE INDEX IF NOT EXISTS idx_calendar_events_created_by ON calendar_events(cre
 CREATE INDEX IF NOT EXISTS idx_calendar_events_event_type ON calendar_events(event_type);
 CREATE INDEX IF NOT EXISTS idx_calendar_events_status ON calendar_events(status);
 
--- Enable RLS
-ALTER TABLE calendar_events ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies for calendar events
-CREATE POLICY "Admin can manage all calendar events" ON calendar_events
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM "User" u 
-      WHERE u.id::text = auth.uid()::text 
-        AND u.role = 'admin'
-    )
-  );
-
-CREATE POLICY "Back-office can manage all calendar events" ON calendar_events
-  FOR ALL USING (
-    EXISTS (
-      SELECT 1 FROM "User" u 
-      WHERE u.id::text = auth.uid()::text 
-        AND u.role = 'back-office'
-    )
-  );
-
--- Operators can only view events (read-only access)
-CREATE POLICY "Operator can view calendar events" ON calendar_events
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM "User" u 
-      WHERE u.id::text = auth.uid()::text 
-        AND u.role = 'operator'
-    )
-  );
+-- Note: RLS policies removed - using Vercel Postgres, not Supabase
+-- Authorization is handled at the application level
