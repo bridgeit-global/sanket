@@ -341,6 +341,20 @@ export const mlaProject = pgTable('MlaProject', {
 
 export type MlaProject = InferSelectModel<typeof mlaProject>;
 
+// Project Attachments Table
+export const projectAttachment = pgTable('ProjectAttachment', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  projectId: uuid('project_id')
+    .notNull()
+    .references(() => mlaProject.id, { onDelete: 'cascade' }),
+  fileName: varchar('file_name', { length: 255 }).notNull(),
+  fileSizeKb: integer('file_size_kb').notNull(),
+  fileUrl: text('file_url'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export type ProjectAttachment = InferSelectModel<typeof projectAttachment>;
+
 // Register Entry Table (for Inward/Outward)
 export const registerEntry = pgTable('RegisterEntry', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
