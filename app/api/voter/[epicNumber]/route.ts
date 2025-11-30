@@ -18,7 +18,7 @@ export async function GET(
 
     // Get voter details
     const voters = await getVoterByEpicNumber(decodedEpicNumber);
-    
+
     if (voters.length === 0) {
       return NextResponse.json({ error: 'Voter not found' }, { status: 404 });
     }
@@ -63,19 +63,31 @@ export async function PUT(
     const decodedEpicNumber = decodeURIComponent(epicNumber);
 
     const body = await request.json();
-    const { mobileNoPrimary, mobileNoSecondary, houseNumber, relationType, relationName, isVoted2024 } = body;
+    const {
+      fullName,
+      age,
+      gender,
+      familyGrouping,
+      religion,
+      mobileNoPrimary,
+      mobileNoSecondary,
+      houseNumber,
+      relationType,
+      relationName,
+      isVoted2024
+    } = body;
 
     // Validate required fields
-    if (!mobileNoPrimary || typeof mobileNoPrimary !== 'string') {
+    if (!fullName || typeof fullName !== 'string') {
       return NextResponse.json(
-        { error: 'Primary mobile number is required' },
+        { error: 'Full name is required' },
         { status: 400 }
       );
     }
 
-    // Validate phone number format
+    // Validate phone number format if provided
     const phoneRegex = /^[\d\s\-\(\)]{7,15}$/;
-    if (!phoneRegex.test(mobileNoPrimary.trim())) {
+    if (mobileNoPrimary && !phoneRegex.test(mobileNoPrimary.trim())) {
       return NextResponse.json(
         { error: 'Invalid primary mobile number format' },
         { status: 400 }
@@ -91,7 +103,12 @@ export async function PUT(
 
     // Update voter
     const updatedVoter = await updateVoter(decodedEpicNumber, {
-      mobileNoPrimary: mobileNoPrimary.trim(),
+      fullName: fullName.trim(),
+      age: age !== undefined ? Number(age) : undefined,
+      gender: gender?.trim() || undefined,
+      familyGrouping: familyGrouping?.trim() || undefined,
+      religion: religion?.trim() || undefined,
+      mobileNoPrimary: mobileNoPrimary?.trim() || undefined,
       mobileNoSecondary: mobileNoSecondary?.trim() || undefined,
       houseNumber: houseNumber?.trim() || undefined,
       relationType: relationType?.trim() || undefined,

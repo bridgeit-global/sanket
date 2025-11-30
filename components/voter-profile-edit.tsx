@@ -24,6 +24,11 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
 
   // Form state
   const [formData, setFormData] = useState({
+    fullName: '',
+    age: '',
+    gender: '',
+    familyGrouping: '',
+    religion: '',
     mobileNoPrimary: '',
     mobileNoSecondary: '',
     houseNumber: '',
@@ -37,7 +42,7 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
       try {
         setLoading(true);
         const response = await fetch(`/api/voter/${encodeURIComponent(epicNumber)}`);
-        
+
         if (!response.ok) {
           if (response.status === 404) {
             setError('Voter not found');
@@ -52,6 +57,11 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
           const voterData = data.voter;
           setVoter(voterData);
           setFormData({
+            fullName: voterData.fullName || '',
+            age: voterData.age?.toString() || '',
+            gender: voterData.gender || '',
+            familyGrouping: voterData.familyGrouping || '',
+            religion: voterData.religion || '',
             mobileNoPrimary: voterData.mobileNoPrimary || '',
             mobileNoSecondary: voterData.mobileNoSecondary || '',
             houseNumber: voterData.houseNumber || '',
@@ -75,18 +85,18 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.mobileNoPrimary.trim()) {
+
+    if (!formData.fullName.trim()) {
       toast({
         type: 'error',
-        description: 'Primary mobile number is required',
+        description: 'Full name is required',
       });
       return;
     }
 
-    // Validate phone number format
+    // Validate phone number format if provided
     const phoneRegex = /^[\d\s\-\(\)]{7,15}$/;
-    if (!phoneRegex.test(formData.mobileNoPrimary.trim())) {
+    if (formData.mobileNoPrimary && !phoneRegex.test(formData.mobileNoPrimary.trim())) {
       toast({
         type: 'error',
         description: 'Invalid primary mobile number format',
@@ -110,7 +120,12 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          mobileNoPrimary: formData.mobileNoPrimary.trim(),
+          fullName: formData.fullName.trim(),
+          age: formData.age ? Number.parseInt(formData.age, 10) : undefined,
+          gender: formData.gender || undefined,
+          familyGrouping: formData.familyGrouping.trim() || undefined,
+          religion: formData.religion.trim() || undefined,
+          mobileNoPrimary: formData.mobileNoPrimary.trim() || undefined,
           mobileNoSecondary: formData.mobileNoSecondary.trim() || undefined,
           houseNumber: formData.houseNumber.trim() || undefined,
           relationType: formData.relationType.trim() || undefined,
@@ -204,45 +219,76 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Read-only Basic Information */}
+            {/* Editable Basic Information */}
             <div>
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 Basic Information
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Full Name</label>
-                  <p className="text-base font-medium">{voter.fullName}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">
+                    Full Name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    value={formData.fullName}
+                    onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                    placeholder="Enter full name"
+                    required
+                  />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">EPIC Number</label>
                   <p className="text-base font-medium">{voter.epicNumber}</p>
                 </div>
-                {voter.age && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Age</label>
-                    <p className="text-base">{voter.age}</p>
-                  </div>
-                )}
-                {voter.gender && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Gender</label>
-                    <p className="text-base">{voter.gender}</p>
-                  </div>
-                )}
-                {voter.familyGrouping && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Family Grouping</label>
-                    <p className="text-base">{voter.familyGrouping}</p>
-                  </div>
-                )}
-                {voter.religion && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Religion</label>
-                    <p className="text-base">{voter.religion}</p>
-                  </div>
-                )}
+                <div className="space-y-2">
+                  <Label htmlFor="age">Age</Label>
+                  <Input
+                    id="age"
+                    type="text"
+                    value={formData.age}
+                    onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                    placeholder="Enter age"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="gender">Gender</Label>
+                  <Select
+                    value={formData.gender}
+                    onValueChange={(value) => setFormData({ ...formData, gender: value })}
+                  >
+                    <SelectTrigger id="gender">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="M">Male</SelectItem>
+                      <SelectItem value="F">Female</SelectItem>
+                      <SelectItem value="O">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="familyGrouping">Family Grouping</Label>
+                  <Input
+                    id="familyGrouping"
+                    type="text"
+                    value={formData.familyGrouping}
+                    onChange={(e) => setFormData({ ...formData, familyGrouping: e.target.value })}
+                    placeholder="Enter family grouping"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="religion">Religion</Label>
+                  <Input
+                    id="religion"
+                    type="text"
+                    value={formData.religion}
+                    onChange={(e) => setFormData({ ...formData, religion: e.target.value })}
+                    placeholder="Enter religion"
+                  />
+                </div>
               </div>
             </div>
 

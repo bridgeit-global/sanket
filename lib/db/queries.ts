@@ -1021,11 +1021,26 @@ export async function updateVoterMobileNumbers(
 
 export async function updateVoter(
   epicNumber: string,
-  updateData: Partial<Pick<Voter, 'mobileNoPrimary' | 'mobileNoSecondary' | 'houseNumber' | 'relationType' | 'relationName' | 'isVoted2024'>>
+  updateData: Partial<Pick<Voter, 'fullName' | 'age' | 'gender' | 'familyGrouping' | 'religion' | 'mobileNoPrimary' | 'mobileNoSecondary' | 'houseNumber' | 'relationType' | 'relationName' | 'isVoted2024'>>
 ): Promise<Voter | null> {
   try {
     const dataToUpdate: Partial<Voter> = { updatedAt: new Date() };
 
+    if (updateData.fullName !== undefined) {
+      dataToUpdate.fullName = updateData.fullName;
+    }
+    if (updateData.age !== undefined) {
+      dataToUpdate.age = updateData.age;
+    }
+    if (updateData.gender !== undefined) {
+      dataToUpdate.gender = updateData.gender;
+    }
+    if (updateData.familyGrouping !== undefined) {
+      dataToUpdate.familyGrouping = updateData.familyGrouping;
+    }
+    if (updateData.religion !== undefined) {
+      dataToUpdate.religion = updateData.religion;
+    }
     if (updateData.mobileNoPrimary !== undefined) {
       dataToUpdate.mobileNoPrimary = updateData.mobileNoPrimary;
     }
