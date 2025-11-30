@@ -72,6 +72,8 @@ export async function PUT(
       mobileNoPrimary,
       mobileNoSecondary,
       houseNumber,
+      address,
+      pincode,
       relationType,
       relationName,
       isVoted2024
@@ -111,6 +113,8 @@ export async function PUT(
       mobileNoPrimary: mobileNoPrimary?.trim() || undefined,
       mobileNoSecondary: mobileNoSecondary?.trim() || undefined,
       houseNumber: houseNumber?.trim() || undefined,
+      address: address?.trim() || undefined,
+      pincode: pincode?.trim() || undefined,
       relationType: relationType?.trim() || undefined,
       relationName: relationName?.trim() || undefined,
       isVoted2024: isVoted2024 !== undefined ? Boolean(isVoted2024) : undefined,

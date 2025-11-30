@@ -32,6 +32,8 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
     mobileNoPrimary: '',
     mobileNoSecondary: '',
     houseNumber: '',
+    address: '',
+    pincode: '',
     relationType: '',
     relationName: '',
     isVoted2024: false,
@@ -65,6 +67,8 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
             mobileNoPrimary: voterData.mobileNoPrimary || '',
             mobileNoSecondary: voterData.mobileNoSecondary || '',
             houseNumber: voterData.houseNumber || '',
+            address: voterData.address || '',
+            pincode: voterData.pincode || '',
             relationType: voterData.relationType || '',
             relationName: voterData.relationName || '',
             isVoted2024: voterData.isVoted2024 || false,
@@ -128,6 +132,8 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
           mobileNoPrimary: formData.mobileNoPrimary.trim() || undefined,
           mobileNoSecondary: formData.mobileNoSecondary.trim() || undefined,
           houseNumber: formData.houseNumber.trim() || undefined,
+          address: formData.address.trim() || undefined,
+          pincode: formData.pincode.trim() || undefined,
           relationType: formData.relationType.trim() || undefined,
           relationName: formData.relationName.trim() || undefined,
           isVoted2024: formData.isVoted2024,
@@ -370,6 +376,27 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
                     value={formData.houseNumber}
                     onChange={(e) => setFormData({ ...formData, houseNumber: e.target.value })}
                     placeholder="Enter house number"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pincode">Pincode</Label>
+                  <Input
+                    id="pincode"
+                    type="text"
+                    value={formData.pincode}
+                    onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
+                    placeholder="Enter pincode"
+                    maxLength={10}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Input
+                    id="address"
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    placeholder="Enter address"
                   />
                 </div>
                 {voter.acNo && (

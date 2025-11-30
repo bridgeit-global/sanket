@@ -220,6 +220,7 @@ export function BackOfficeWorkflow() {
                                             id="name"
                                             value={name}
                                             onChange={(e) => setName(e.target.value)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                                             placeholder="Enter voter name..."
                                             type="text"
                                         />
@@ -249,6 +250,7 @@ export function BackOfficeWorkflow() {
                                             max={100}
                                             value={age}
                                             onChange={(e) => setAge(Number.parseInt(e.target.value) || 25)}
+                                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                                             placeholder="Enter age..."
                                             className="w-full"
                                         />

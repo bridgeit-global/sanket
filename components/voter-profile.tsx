@@ -237,6 +237,18 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                   <p className="text-base">{voter.houseNumber}</p>
                 </div>
               )}
+              {voter.pincode && (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Pincode</label>
+                  <p className="text-base">{voter.pincode}</p>
+                </div>
+              )}
+              {voter.address && (
+                <div className="md:col-span-2">
+                  <label className="text-sm font-medium text-muted-foreground">Address</label>
+                  <p className="text-base">{voter.address}</p>
+                </div>
+              )}
               {voter.boothName && (
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">Booth Name</label>
