@@ -134,6 +134,90 @@
       "when": 1759608301540,
       "tag": "0018_opposite_wasp",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1759700000000,
+      "tag": "0020_add_calendar_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1759800000000,
+      "tag": "0034_add_user_roles",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1759900000000,
+      "tag": "0035_add_back_office_policies",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1760000000000,
+      "tag": "0036_add_mla_eoffice_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1760100000000,
+      "tag": "0037_fix_user_module_permissions_column",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1760200000000,
+      "tag": "0038_remove_calendar_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1760300000000,
+      "tag": "0039_add_role_management",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1760400000000,
+      "tag": "0040_replace_email_with_user_id",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1760500000000,
+      "tag": "0041_make_email_nullable",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1760600000000,
+      "tag": "0042_remove_role_column",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1760700000000,
+      "tag": "0043_add_visitor_management",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1760800000000,
+      "tag": "0044_add_project_attachments",
+      "breakpoints": true
     }
   ]
 }
