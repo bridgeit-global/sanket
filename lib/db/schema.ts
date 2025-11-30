@@ -224,6 +224,8 @@ export const Voters = pgTable('Voter', {
   mobileNoSecondary: varchar('mobile_no_secondary', { length: 15 }),
   boothName: varchar('booth_name', { length: 255 }),
   englishBoothAddress: text('english_booth_address'),
+  address: text('address'),
+  pincode: varchar('pincode', { length: 10 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
