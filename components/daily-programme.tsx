@@ -468,6 +468,55 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
   };
 
   const handlePrint = () => {
+    // Format date range for filename
+    const formatDateForFilename = (dateStr?: string) => {
+      if (!dateStr) return '';
+      try {
+        const date = parseISO(dateStr);
+        return format(date, 'dd-MMM-yyyy');
+      } catch {
+        return dateStr;
+      }
+    };
+
+    const startFormatted = formatDateForFilename(dateRange.start);
+    const endFormatted = formatDateForFilename(dateRange.end);
+
+    let dateRangeString = '';
+    if (startFormatted && endFormatted) {
+      if (dateRange.start === dateRange.end) {
+        dateRangeString = startFormatted;
+      } else {
+        dateRangeString = `${startFormatted} to ${endFormatted}`;
+      }
+    } else if (startFormatted) {
+      dateRangeString = `from ${startFormatted}`;
+    } else if (endFormatted) {
+      dateRangeString = `until ${endFormatted}`;
+    }
+
+    // Store original title
+    const originalTitle = document.title;
+
+    // Set new title with date range
+    if (dateRangeString) {
+      document.title = `Daily Programme - ${dateRangeString}`;
+    } else {
+      document.title = 'Daily Programme';
+    }
+
+    // Restore original title after print dialog closes
+    const handleAfterPrint = () => {
+      document.title = originalTitle;
+      window.removeEventListener('afterprint', handleAfterPrint);
+    };
+    window.addEventListener('afterprint', handleAfterPrint);
+
+    // Fallback: restore title after 5 seconds if afterprint doesn't fire
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 5000);
+
     window.print();
   };
 
