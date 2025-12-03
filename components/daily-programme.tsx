@@ -25,8 +25,9 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { DailyProgrammeSkeleton } from '@/components/module-skeleton';
 import { ModulePageHeader } from '@/components/module-page-header';
+import { DateRangePicker } from '@/components/date-range-picker';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ProgrammeItem {
   id: string;
@@ -520,36 +521,13 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
     window.print();
   };
 
-  const updateDateRange = (key: 'start' | 'end', value: string) => {
-    setDateRange((prev) => {
-      if (key === 'start') {
-        if (!value) {
-          return { ...prev, start: '' };
-        }
-        if (prev.end && value > prev.end) {
-          return { start: value, end: value };
-        }
-        return { ...prev, start: value };
-      }
-
-      // key === 'end'
-      if (!value) {
-        return { ...prev, end: '' };
-      }
-      if (prev.start && value < prev.start) {
-        return { start: value, end: value };
-      }
-      return { ...prev, end: value };
-    });
-  };
-
   const handleResetRange = () => {
     setDateRange(getDefaultDateRange());
   };
 
-  if (loading) {
-    return <DailyProgrammeSkeleton />;
-  }
+  const handleDateRangeChange = (start: string, end: string) => {
+    setDateRange({ start, end });
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -659,164 +637,186 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
             <div className="flex items-center justify-between">
               <CardTitle>Programme Register</CardTitle>
               <div className="flex items-center gap-4">
-                <span className="text-sm text-muted-foreground">
-                  Total: {allItems.length} | Dates: {filteredDateEntries.length}
-                </span>
+                {loading ? (
+                  <Skeleton className="h-5 w-32" />
+                ) : (
+                  <span className="text-sm text-muted-foreground">
+                    Total: {allItems.length} | Dates: {filteredDateEntries.length}
+                  </span>
+                )}
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            {/* Date Range Filter - Hidden when printing */}
-            <div className="space-y-4 mb-4 pb-4 border-b no-print">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <Calendar className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <div className="font-semibold text-lg">{dateRangeLabel}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Showing {allItems.length} event{allItems.length !== 1 ? 's' : ''} across{' '}
-                      {filteredDateEntries.length} date{filteredDateEntries.length !== 1 ? 's' : ''}
-                    </div>
-                  </div>
+            {loading ? (
+              <div className="space-y-4">
+                <div className="space-y-4 mb-4 pb-4 border-b">
+                  <Skeleton className="h-10 w-full max-w-md" />
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="outline" size="sm" onClick={handleResetRange}>
-                    Reset Range
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handlePrint}>
-                    <Printer className="mr-2 h-4 w-4" />
-                    Print Programme
-                  </Button>
-                </div>
-              </div>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="rangeStart">Start date</Label>
-                  <Input
-                    id="rangeStart"
-                    type="date"
-                    value={dateRange.start}
-                    onChange={(e) => updateDateRange('start', e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="rangeEnd">End date</Label>
-                  <Input
-                    id="rangeEnd"
-                    type="date"
-                    value={dateRange.end}
-                    onChange={(e) => updateDateRange('end', e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Events Table - Printable Section */}
-            <div className="print-schedule">
-              {/* Print Header - Only visible when printing */}
-              <div className="print-header hidden">
-                <h1 className="text-2xl font-semibold">Hon&apos; MLA, Smt. Sana Malik Shaikh</h1>
-                <h2 className="text-lg font-bold mt-2">Daily / Weekly Programme</h2>
-                <p className="mt-1">{dateRangeLabel}</p>
-              </div>
-
-              {filteredDateEntries.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>No programme events for the selected date range.</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {filteredDateEntries.map(([dateKey, items]) => {
-                    const date = parseISO(dateKey);
-                    return (
-                      <div key={dateKey} className="space-y-3">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2 font-semibold">
-                            <Calendar className="h-4 w-4" />
-                            {format(date, 'EEEE, dd MMM yyyy')}
-                          </div>
-                          <span className="text-xs text-muted-foreground">
-                            {items.length} event{items.length !== 1 ? 's' : ''}
-                          </span>
+                <div className="space-y-4">
+                  {[1, 2].map((i) => (
+                    <div key={i} className="space-y-2">
+                      <Skeleton className="h-5 w-40" />
+                      <div className="border rounded-lg overflow-hidden">
+                        <div className="flex gap-4 p-3 border-b bg-muted/50">
+                          {[1, 2, 3, 4, 5].map((j) => (
+                            <Skeleton key={j} className="h-4 w-20" />
+                          ))}
                         </div>
-                        <div className="overflow-x-auto">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                <TableHead className="w-[120px]">Time</TableHead>
-                                <TableHead className="w-[200px]">Title</TableHead>
-                                <TableHead className="w-[250px]">Location</TableHead>
-                                <TableHead>Remarks</TableHead>
-                                <TableHead className="w-[100px] no-print">Actions</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {items
-                                .sort((a, b) => {
-                                  // Sort by start time
-                                  const timeA = a.startTime || '00:00';
-                                  const timeB = b.startTime || '00:00';
-                                  return timeA.localeCompare(timeB);
-                                })
-                                .map((item) => {
-                                  const duration = calculateDuration(item.startTime, item.endTime);
-                                  const durationLabel = duration !== null && duration > 0
-                                    ? DURATION_OPTIONS.find(
-                                      (opt) => Number.parseInt(opt.value, 10) === duration,
-                                    )?.label ||
-                                    (duration < 60
-                                      ? `${duration} min`
-                                      : `${Math.floor(duration / 60)}h ${duration % 60}m`)
-                                    : null;
-
-                                  return (
-                                    <TableRow key={item.id}>
-                                      <TableCell className="font-mono w-[120px]">
-                                        <div>{formatTimeTo12Hour(item.startTime)}</div>
-                                        {durationLabel && (
-                                          <div className="text-xs text-muted-foreground mt-1">
-                                            ({durationLabel})
-                                          </div>
-                                        )}
-                                      </TableCell>
-                                      <TableCell className="font-medium w-[200px]">{item.title}</TableCell>
-                                      <TableCell className="w-[250px]">{item.location}</TableCell>
-                                      <TableCell className="text-sm text-muted-foreground">
-                                        {item.remarks || '-'}
-                                      </TableCell>
-                                      <TableCell className="w-[100px] no-print">
-                                        <div className="flex gap-1">
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => handleEdit(item)}
-                                            className="h-8 px-2"
-                                          >
-                                            <Pencil className="h-3 w-3" />
-                                          </Button>
-                                          <Button
-                                            size="sm"
-                                            variant="ghost"
-                                            onClick={() => handleDelete(item.id)}
-                                            className="h-8 px-2 text-destructive hover:text-destructive"
-                                          >
-                                            ×
-                                          </Button>
-                                        </div>
-                                      </TableCell>
-                                    </TableRow>
-                                  );
-                                })}
-                            </TableBody>
-                          </Table>
+                        {[1, 2].map((j) => (
+                          <div key={j} className="flex gap-4 p-3 border-b">
+                            {[1, 2, 3, 4, 5].map((k) => (
+                              <Skeleton key={k} className="h-4 w-20" />
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Date Range Filter - Hidden when printing */}
+                <div className="space-y-4 mb-4 pb-4 border-b no-print">
+                  <div className="flex flex-wrap items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <div>
+                        <div className="font-semibold text-lg">{dateRangeLabel}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Showing {allItems.length} event{allItems.length !== 1 ? 's' : ''} across{' '}
+                          {filteredDateEntries.length} date{filteredDateEntries.length !== 1 ? 's' : ''}
                         </div>
                       </div>
-                    );
-                  })}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Button variant="outline" size="sm" onClick={handleResetRange}>
+                        Reset Range
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handlePrint}>
+                        <Printer className="mr-2 h-4 w-4" />
+                        Print Programme
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="max-w-md">
+                    <DateRangePicker
+                      startDate={dateRange.start}
+                      endDate={dateRange.end}
+                      onDateRangeChange={handleDateRangeChange}
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
+
+                {/* Events Table - Printable Section */}
+                <div className="print-schedule">
+                  {/* Print Header - Only visible when printing */}
+                  <div className="print-header hidden">
+                    <h1 className="text-2xl font-semibold">Hon&apos; MLA, Smt. Sana Malik Shaikh</h1>
+                    <h2 className="text-lg font-bold mt-2">Daily / Weekly Programme</h2>
+                    <p className="mt-1">{dateRangeLabel}</p>
+                  </div>
+
+                  {filteredDateEntries.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p>No programme events for the selected date range.</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-6">
+                      {filteredDateEntries.map(([dateKey, items]) => {
+                        const date = parseISO(dateKey);
+                        return (
+                          <div key={dateKey} className="space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 font-semibold">
+                                <Calendar className="h-4 w-4" />
+                                {format(date, 'EEEE, dd MMM yyyy')}
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {items.length} event{items.length !== 1 ? 's' : ''}
+                              </span>
+                            </div>
+                            <div className="overflow-x-auto">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    <TableHead className="w-[120px]">Time</TableHead>
+                                    <TableHead className="w-[200px]">Title</TableHead>
+                                    <TableHead className="w-[250px]">Location</TableHead>
+                                    <TableHead>Remarks</TableHead>
+                                    <TableHead className="w-[100px] no-print">Actions</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {items
+                                    .sort((a, b) => {
+                                      // Sort by start time
+                                      const timeA = a.startTime || '00:00';
+                                      const timeB = b.startTime || '00:00';
+                                      return timeA.localeCompare(timeB);
+                                    })
+                                    .map((item) => {
+                                      const duration = calculateDuration(item.startTime, item.endTime);
+                                      const durationLabel = duration !== null && duration > 0
+                                        ? DURATION_OPTIONS.find(
+                                          (opt) => Number.parseInt(opt.value, 10) === duration,
+                                        )?.label ||
+                                        (duration < 60
+                                          ? `${duration} min`
+                                          : `${Math.floor(duration / 60)}h ${duration % 60}m`)
+                                        : null;
+
+                                      return (
+                                        <TableRow key={item.id}>
+                                          <TableCell className="font-mono w-[120px]">
+                                            <div>{formatTimeTo12Hour(item.startTime)}</div>
+                                            {durationLabel && (
+                                              <div className="text-xs text-muted-foreground mt-1">
+                                                ({durationLabel})
+                                              </div>
+                                            )}
+                                          </TableCell>
+                                          <TableCell className="font-medium w-[200px]">{item.title}</TableCell>
+                                          <TableCell className="w-[250px]">{item.location}</TableCell>
+                                          <TableCell className="text-sm text-muted-foreground">
+                                            {item.remarks || '-'}
+                                          </TableCell>
+                                          <TableCell className="w-[100px] no-print">
+                                            <div className="flex gap-1">
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => handleEdit(item)}
+                                                className="h-8 px-2"
+                                              >
+                                                <Pencil className="h-3 w-3" />
+                                              </Button>
+                                              <Button
+                                                size="sm"
+                                                variant="ghost"
+                                                onClick={() => handleDelete(item.id)}
+                                                className="h-8 px-2 text-destructive hover:text-destructive"
+                                              >
+                                                ×
+                                              </Button>
+                                            </div>
+                                          </TableCell>
+                                        </TableRow>
+                                      );
+                                    })}
+                                </TableBody>
+                              </Table>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </CardContent>
         </Card>
 
