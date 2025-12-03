@@ -59,6 +59,15 @@ export const ALL_MODULES: ModuleDefinition[] = [
     category: 'operations',
     defaultRoles: ['admin', 'back-office'],
   },
+  {
+    key: 'data-export',
+    label: 'Data Export',
+    description: 'Export voter data in various formats',
+    route: '/modules/data-export',
+    icon: 'FileDown',
+    category: 'operations',
+    defaultRoles: [],
+  },
   // MLA e-Office modules
   {
     key: 'dashboard',
@@ -140,6 +149,7 @@ export const MODULE_KEYS = {
   CHAT: 'chat',
   OPERATOR: 'operator',
   BACK_OFFICE: 'back-office',
+  DATA_EXPORT: 'data-export',
   DASHBOARD: 'dashboard',
   DAILY_PROGRAMME: 'daily-programme',
   INWARD: 'inward',

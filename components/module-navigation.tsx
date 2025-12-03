@@ -14,6 +14,7 @@ import {
   Users,
   User as UserIcon,
   UserCheck,
+  FileDown,
 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { ModuleDefinition } from '@/lib/module-constants';
@@ -24,6 +25,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'daily-programme': CalendarDays,
   'back-office': Building2,
   'operator': Briefcase,
+  'data-export': FileDown,
   'projects': FolderKanban,
   'inward': Inbox,
   'outward': Send,
@@ -39,6 +41,7 @@ const MODULE_ORDER = [
   'daily-programme',
   'back-office',
   'operator',
+  'data-export',
   'projects',
   'inward',
   'outward',
@@ -53,7 +56,7 @@ const sortModules = (mods: ModuleDefinition[]): ModuleDefinition[] => {
   return [...mods].sort((a, b) => {
     const indexA = MODULE_ORDER.indexOf(a.key);
     const indexB = MODULE_ORDER.indexOf(b.key);
-    
+
     // If both are in the order list, sort by their position
     if (indexA !== -1 && indexB !== -1) {
       return indexA - indexB;
