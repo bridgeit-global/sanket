@@ -43,85 +43,27 @@ export async function middleware(request: NextRequest) {
   // Module-based access control
   const modules = (token.modules as string[]) || [];
 
-  // Admin-only routes - require user-management or admin module
-  if (pathname.startsWith('/admin') || pathname.startsWith('/api/admin')) {
-    if (!modules.includes('user-management') && !modules.includes('admin')) {
-      return NextResponse.redirect(new URL('/unauthorized', request.url));
-    }
-  }
-
-  // Operator-only routes - require operator module
-  if (pathname.startsWith('/operator') || pathname.startsWith('/api/operator')) {
-    if (!modules.includes('operator')) {
-      return NextResponse.redirect(new URL('/unauthorized', request.url));
-    }
-  }
-
-  // Back-office-only routes - require back-office module
-  if (pathname.startsWith('/back-office')) {
-    if (!modules.includes('back-office')) {
-      return NextResponse.redirect(new URL('/unauthorized', request.url));
-    }
-  }
-
-  // Regular chat interface - require chat module
+  // Root path - redirect to first available module
   if (pathname === '/' || pathname.startsWith('/chat')) {
-    if (!modules.includes('chat')) {
-      // Redirect to appropriate module based on available modules
-      if (modules.includes('operator')) {
-        return NextResponse.redirect(new URL('/operator', request.url));
-      }
-      if (modules.includes('back-office')) {
-        return NextResponse.redirect(new URL('/back-office', request.url));
-      }
-      return NextResponse.redirect(new URL('/unauthorized', request.url));
+    if (modules.length > 0) {
+      const firstModule = modules[0];
+      return NextResponse.redirect(new URL(`/modules/${firstModule}`, request.url));
     }
+    return NextResponse.redirect(new URL('/unauthorized', request.url));
   }
 
-  // Module routes - check module permissions
+  // Module routes - simple token-based check
   if (pathname.startsWith('/modules/')) {
-    // Extract module key from path
     const moduleKey = pathname.replace('/modules/', '').split('/')[0];
-    
-    // User management requires user-management module
-    if (moduleKey === 'user-management') {
-      if (!modules.includes('user-management') && !modules.includes('admin')) {
-        return NextResponse.redirect(new URL('/unauthorized', request.url));
-      }
-      return NextResponse.next();
-    }
 
     // Profile is accessible to all authenticated users
     if (moduleKey === 'profile') {
       return NextResponse.next();
     }
 
-    // Voter profiles are accessible to users with voter, operator, or back-office modules
-    if (moduleKey === 'voter') {
-      if (!modules.includes('voter') && !modules.includes('operator') && !modules.includes('back-office')) {
-        return NextResponse.redirect(new URL('/unauthorized', request.url));
-      }
-      return NextResponse.next();
-    }
-
-    // Check if user has access to this module
     if (!modules.includes(moduleKey)) {
       return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
-  }
-
-  // Backward compatibility redirects
-  if (pathname === '/admin') {
-    return NextResponse.redirect(new URL('/modules/chat', request.url));
-  }
-  if (pathname === '/operator') {
-    return NextResponse.redirect(new URL('/modules/operator', request.url));
-  }
-  if (pathname === '/back-office') {
-    return NextResponse.redirect(new URL('/modules/back-office', request.url));
-  }
-  if (pathname === '/calendar') {
-    return NextResponse.redirect(new URL('/modules/daily-programme', request.url));
   }
 
   return NextResponse.next();
