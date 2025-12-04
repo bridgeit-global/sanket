@@ -61,6 +61,11 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
+    // Allow back-office users to access voter routes (for viewing voter profiles from search)
+    if (moduleKey === 'voter' && modules.includes('back-office')) {
+      return NextResponse.next();
+    }
+
     if (!modules.includes(moduleKey)) {
       return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
