@@ -14,6 +14,7 @@ import type { Voter } from '@/lib/db/schema';
 import { PhoneUpdateForm } from '@/components/phone-update-form';
 import { useTranslations } from '@/hooks/use-translations';
 
+
 export function BackOfficeWorkflow() {
     const { t } = useTranslations();
     const router = useRouter();
@@ -462,6 +463,8 @@ function RelatedVoterUpdateItem({ voter, onUpdate }: RelatedVoterUpdateItemProps
     const [mobileNoPrimary, setMobileNoPrimary] = useState(voter.mobileNoPrimary || '');
     const [mobileNoSecondary, setMobileNoSecondary] = useState(voter.mobileNoSecondary || '');
     const [isUpdating, setIsUpdating] = useState(false);
+    const { t } = useTranslations();
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
