@@ -1,9 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { Voters } from '@/lib/db/schema';
-import { sql } from 'drizzle-orm';
+import { PartNo } from '@/lib/db/schema';
 import { auth } from '@/app/(auth)/auth';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import { db } from '@/lib/db/queries';
+import { asc } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
     try {
@@ -12,22 +11,11 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Create database connection
-        const postgresUrl = process.env.POSTGRES_URL;
-        if (!postgresUrl) {
-            return NextResponse.json({ error: 'Database URL not configured' }, { status: 500 });
-        }
-        const client = postgres(postgresUrl);
-        const db = drizzle(client);
-
-        // Get distinct part numbers from voters table
+        // Get distinct part numbers from PartNo table
         const parts = await db
-            .select({ partNo: Voters.partNo })
-            .from(Voters)
-            .where(sql`${Voters.isVoted2024} = false`)
-            .groupBy(Voters.partNo)
-            .orderBy(Voters.partNo)
-            .execute();
+            .select({ partNo: PartNo.partNo })
+            .from(PartNo)
+            .orderBy(asc(PartNo.partNo));
 
         const partNumbers = parts
             .map((part: { partNo: string | null }) => part.partNo)

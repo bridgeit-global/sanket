@@ -3255,13 +3255,14 @@ export async function deleteExportJob(id: string): Promise<void> {
 
 // Get voters with optional filters for export
 export async function getVotersForExport(filters?: {
-  partNo?: string;
-  wardNo?: string;
+  partNo?: string | string[];
+  wardNo?: string | string[];
   acNo?: string;
   gender?: string;
   minAge?: number;
   maxAge?: number;
   hasPhone?: boolean;
+  religion?: string;
 }): Promise<Voter[]> {
   try {
     const conditions: SQL<unknown>[] = [];
@@ -3269,10 +3270,18 @@ export async function getVotersForExport(filters?: {
     const needsPartNoJoin = filters?.wardNo !== undefined;
     
     if (filters?.partNo) {
-      conditions.push(eq(Voters.partNo, filters.partNo));
+      if (Array.isArray(filters.partNo) && filters.partNo.length > 0) {
+        conditions.push(inArray(Voters.partNo, filters.partNo));
+      } else if (typeof filters.partNo === 'string') {
+        conditions.push(eq(Voters.partNo, filters.partNo));
+      }
     }
     if (filters?.wardNo) {
-      conditions.push(eq(PartNo.wardNo, filters.wardNo));
+      if (Array.isArray(filters.wardNo) && filters.wardNo.length > 0) {
+        conditions.push(inArray(PartNo.wardNo, filters.wardNo));
+      } else if (typeof filters.wardNo === 'string') {
+        conditions.push(eq(PartNo.wardNo, filters.wardNo));
+      }
     }
     if (filters?.acNo) {
       conditions.push(eq(Voters.acNo, filters.acNo));
@@ -3307,6 +3316,9 @@ export async function getVotersForExport(filters?: {
           )
         )!
       );
+    }
+    if (filters?.religion) {
+      conditions.push(eq(Voters.religion, filters.religion));
     }
 
     if (needsPartNoJoin) {
@@ -3346,24 +3358,33 @@ export async function getVotersForExport(filters?: {
 }
 
 export async function getVotersCountForExport(filters?: {
-  partNo?: string;
-  wardNo?: string;
+  partNo?: string | string[];
+  wardNo?: string | string[];
   acNo?: string;
   gender?: string;
   minAge?: number;
   maxAge?: number;
   hasPhone?: boolean;
+  religion?: string;
 }): Promise<number> {
   try {
     const conditions: SQL<unknown>[] = [];
 
     if (filters?.partNo) {
-      conditions.push(eq(Voters.partNo, filters.partNo));
+      if (Array.isArray(filters.partNo) && filters.partNo.length > 0) {
+        conditions.push(inArray(Voters.partNo, filters.partNo));
+      } else if (typeof filters.partNo === 'string') {
+        conditions.push(eq(Voters.partNo, filters.partNo));
+      }
     }
     const needsPartNoJoin = filters?.wardNo !== undefined;
     
     if (filters?.wardNo) {
-      conditions.push(eq(PartNo.wardNo, filters.wardNo));
+      if (Array.isArray(filters.wardNo) && filters.wardNo.length > 0) {
+        conditions.push(inArray(PartNo.wardNo, filters.wardNo));
+      } else if (typeof filters.wardNo === 'string') {
+        conditions.push(eq(PartNo.wardNo, filters.wardNo));
+      }
     }
     if (filters?.acNo) {
       conditions.push(eq(Voters.acNo, filters.acNo));
@@ -3398,6 +3419,9 @@ export async function getVotersCountForExport(filters?: {
           )
         )!
       );
+    }
+    if (filters?.religion) {
+      conditions.push(eq(Voters.religion, filters.religion));
     }
 
     let result;

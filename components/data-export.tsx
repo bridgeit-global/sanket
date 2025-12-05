@@ -14,6 +14,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/toast';
 import {
   FileSpreadsheet,
@@ -25,7 +32,8 @@ import {
   Clock,
   RefreshCw,
   Trash2,
-  FileDown
+  FileDown,
+  ChevronDown
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -47,13 +55,13 @@ interface ExportJob {
 }
 
 interface ExportFilters {
-  partNo?: string;
-  wardNo?: string;
-  acNo?: string;
+  partNo?: string[];
+  wardNo?: string[];
   gender?: string;
   minAge?: string;
   maxAge?: string;
   hasPhone?: string;
+  religion?: string;
 }
 
 export function DataExport() {
@@ -63,6 +71,12 @@ export function DataExport() {
   const [isExporting, setIsExporting] = useState(false);
   const [jobs, setJobs] = useState<ExportJob[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
+  const [partNumbers, setPartNumbers] = useState<string[]>([]);
+  const [wardNumbers, setWardNumbers] = useState<string[]>([]);
+  const [religions, setReligions] = useState<string[]>([]);
+  const [loadingParts, setLoadingParts] = useState(true);
+  const [loadingWards, setLoadingWards] = useState(false);
+  const [loadingReligions, setLoadingReligions] = useState(true);
 
   // Fetch export jobs
   const fetchJobs = useCallback(async () => {
@@ -91,27 +105,101 @@ export function DataExport() {
       const interval = setInterval(fetchJobs, 2000);
       return () => clearInterval(interval);
     }
-  }, [fetchJobs, jobs.length]);
+  }, [fetchJobs, jobs]);
 
   // Initial fetch
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
 
+  // Fetch part numbers
+  useEffect(() => {
+    const fetchPartNumbers = async () => {
+      try {
+        setLoadingParts(true);
+        const response = await fetch('/api/voters/parts');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data?.partNumbers) {
+            setPartNumbers(data.data.partNumbers);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching part numbers:', error);
+      } finally {
+        setLoadingParts(false);
+      }
+    };
+    fetchPartNumbers();
+  }, []);
+
+  // Fetch ward numbers when partNo is selected
+  useEffect(() => {
+    const fetchWardNumbers = async () => {
+      if (!filters.partNo || filters.partNo.length === 0) {
+        setWardNumbers([]);
+        return;
+      }
+      try {
+        setLoadingWards(true);
+        // Fetch wards for all selected parts and combine unique values
+        const wardPromises = filters.partNo.map(partNo =>
+          fetch(`/api/voters/wards?partNo=${encodeURIComponent(partNo)}`)
+            .then(res => res.json())
+            .then(data => data.success && data.data?.wardNumbers ? data.data.wardNumbers : [])
+        );
+        const wardArrays = await Promise.all(wardPromises);
+        const allWards = wardArrays.flat();
+        const uniqueWards = Array.from(new Set(allWards)).sort();
+        setWardNumbers(uniqueWards);
+      } catch (error) {
+        console.error('Error fetching ward numbers:', error);
+      } finally {
+        setLoadingWards(false);
+      }
+    };
+    fetchWardNumbers();
+    // Clear wardNo when partNo changes
+    if (filters.partNo && filters.partNo.length > 0) {
+      setFilters(prev => ({ ...prev, wardNo: undefined }));
+    }
+  }, [filters.partNo]);
+
+  // Fetch religions
+  useEffect(() => {
+    const fetchReligions = async () => {
+      try {
+        setLoadingReligions(true);
+        const response = await fetch('/api/voters/religions');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data?.religions) {
+            setReligions(data.data.religions);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching religions:', error);
+      } finally {
+        setLoadingReligions(false);
+      }
+    };
+    fetchReligions();
+  }, []);
+
   const handleStartExport = async () => {
     setIsExporting(true);
     try {
       // Prepare filters
       const exportFilters: Record<string, unknown> = {};
-      if (filters.partNo) exportFilters.partNo = filters.partNo;
-      if (filters.wardNo) exportFilters.wardNo = filters.wardNo;
-      if (filters.acNo) exportFilters.acNo = filters.acNo;
+      if (filters.partNo && filters.partNo.length > 0) exportFilters.partNo = filters.partNo;
+      if (filters.wardNo && filters.wardNo.length > 0) exportFilters.wardNo = filters.wardNo;
       if (filters.gender && filters.gender !== 'all') exportFilters.gender = filters.gender;
       if (filters.minAge) exportFilters.minAge = Number.parseInt(filters.minAge);
       if (filters.maxAge) exportFilters.maxAge = Number.parseInt(filters.maxAge);
       if (filters.hasPhone && filters.hasPhone !== 'all') {
         exportFilters.hasPhone = filters.hasPhone === 'yes';
       }
+      if (filters.religion && filters.religion !== 'all') exportFilters.religion = filters.religion;
 
       const response = await fetch('/api/export', {
         method: 'POST',
@@ -280,30 +368,123 @@ export function DataExport() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 <div>
                   <Label htmlFor="partNo" className="text-xs text-muted-foreground">Part No</Label>
-                  <Input
-                    id="partNo"
-                    placeholder="e.g., 1"
-                    value={filters.partNo || ''}
-                    onChange={(e) => setFilters(prev => ({ ...prev, partNo: e.target.value }))}
-                  />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between h-10"
+                        disabled={loadingParts}
+                      >
+                        <span className="truncate">
+                          {loadingParts
+                            ? "Loading..."
+                            : filters.partNo && filters.partNo.length > 0
+                              ? `${filters.partNo.length} selected`
+                              : "Select Part No"}
+                        </span>
+                        <ChevronDown className="size-4 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56 max-h-60 overflow-y-auto">
+                      <div className="p-2 space-y-2">
+                        {partNumbers.map((partNo) => (
+                          <div
+                            key={partNo}
+                            className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-accent"
+                          >
+                            <Checkbox
+                              checked={filters.partNo?.includes(partNo) || false}
+                              onChange={(e) => {
+                                const currentParts = filters.partNo || [];
+                                if (e.target.checked) {
+                                  setFilters(prev => ({
+                                    ...prev,
+                                    partNo: [...currentParts, partNo]
+                                  }));
+                                } else {
+                                  setFilters(prev => ({
+                                    ...prev,
+                                    partNo: currentParts.filter(p => p !== partNo)
+                                  }));
+                                }
+                              }}
+                            />
+                            <span className="text-sm">Part {partNo}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  {filters.partNo && filters.partNo.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {filters.partNo.map((partNo) => (
+                        <Badge key={partNo} variant="secondary" className="text-xs">
+                          Part {partNo}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="wardNo" className="text-xs text-muted-foreground">Ward No</Label>
-                  <Input
-                    id="wardNo"
-                    placeholder="e.g., 5"
-                    value={filters.wardNo || ''}
-                    onChange={(e) => setFilters(prev => ({ ...prev, wardNo: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="acNo" className="text-xs text-muted-foreground">AC No</Label>
-                  <Input
-                    id="acNo"
-                    placeholder="e.g., 123"
-                    value={filters.acNo || ''}
-                    onChange={(e) => setFilters(prev => ({ ...prev, acNo: e.target.value }))}
-                  />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-between h-10"
+                        disabled={loadingWards || !filters.partNo || filters.partNo.length === 0}
+                      >
+                        <span className="truncate">
+                          {!filters.partNo || filters.partNo.length === 0
+                            ? "Select Part No first"
+                            : loadingWards
+                              ? "Loading..."
+                              : filters.wardNo && filters.wardNo.length > 0
+                                ? `${filters.wardNo.length} selected`
+                                : "Select Ward No"}
+                        </span>
+                        <ChevronDown className="size-4 opacity-50" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56 max-h-60 overflow-y-auto">
+                      <div className="p-2 space-y-2">
+                        {wardNumbers.map((wardNo) => (
+                          <div
+                            key={wardNo}
+                            className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-accent"
+                          >
+                            <Checkbox
+                              checked={filters.wardNo?.includes(wardNo) || false}
+                              onChange={(e) => {
+                                const currentWards = filters.wardNo || [];
+                                if (e.target.checked) {
+                                  setFilters(prev => ({
+                                    ...prev,
+                                    wardNo: [...currentWards, wardNo]
+                                  }));
+                                } else {
+                                  setFilters(prev => ({
+                                    ...prev,
+                                    wardNo: currentWards.filter(w => w !== wardNo)
+                                  }));
+                                }
+                              }}
+                            />
+                            <span className="text-sm">Ward {wardNo}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  {filters.wardNo && filters.wardNo.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {filters.wardNo.map((wardNo) => (
+                        <Badge key={wardNo} variant="secondary" className="text-xs">
+                          Ward {wardNo}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <Label htmlFor="gender" className="text-xs text-muted-foreground">Gender</Label>
@@ -318,6 +499,26 @@ export function DataExport() {
                       <SelectItem value="all">All</SelectItem>
                       <SelectItem value="M">Male</SelectItem>
                       <SelectItem value="F">Female</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="religion" className="text-xs text-muted-foreground">Religion</Label>
+                  <Select
+                    value={filters.religion || 'all'}
+                    onValueChange={(value) => setFilters(prev => ({ ...prev, religion: value }))}
+                    disabled={loadingReligions}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={loadingReligions ? "Loading..." : "All"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All</SelectItem>
+                      {religions.map((religion) => (
+                        <SelectItem key={religion} value={religion}>
+                          {religion}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
