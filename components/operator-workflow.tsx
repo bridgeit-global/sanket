@@ -13,13 +13,13 @@ import { toast } from '@/components/toast';
 import { BeneficiaryServiceForm } from '@/components/beneficiary-service-form';
 import { PhoneUpdateForm } from '@/components/phone-update-form';
 import { TaskManagement } from '@/components/task-management';
-import type { Voter, BeneficiaryService } from '@/lib/db/schema';
+import type { VoterWithPartNo, BeneficiaryService } from '@/lib/db/schema';
 
 export function OperatorWorkflow() {
     const router = useRouter();
     const [searchTerm, setSearchTerm] = useState('');
-    const [searchResults, setSearchResults] = useState<Voter[]>([]);
-    const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
+    const [searchResults, setSearchResults] = useState<VoterWithPartNo[]>([]);
+    const [selectedVoter, setSelectedVoter] = useState<VoterWithPartNo | null>(null);
     const [isSearching, setIsSearching] = useState(false);
     const [searchType, setSearchType] = useState<'voterId' | 'phone' | 'details'>('details');
     const [lastSearchType, setLastSearchType] = useState<'voterId' | 'phone' | 'details' | null>(null);
@@ -135,7 +135,7 @@ export function OperatorWorkflow() {
         }
     };
 
-    const handleSelectVoter = (voter: Voter) => {
+    const handleSelectVoter = (voter: VoterWithPartNo) => {
         setSelectedVoter(voter);
         setSearchResults([]);
         setSearchTerm('');

@@ -33,6 +33,7 @@ import {
   stream,
   Voters,
   type Voter,
+  type VoterWithPartNo,
   PartNo,
   type PartNoType,
   beneficiaryServices,
@@ -611,9 +612,38 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
 }
 
 // Voter-related queries
-export async function getVoterByEpicNumber(epicNumber: string): Promise<Array<Voter>> {
+export async function getVoterByEpicNumber(epicNumber: string): Promise<Array<VoterWithPartNo>> {
   try {
-    return await db.select().from(Voters).where(eq(Voters.epicNumber, epicNumber));
+    const results = await db
+      .select({
+        epicNumber: Voters.epicNumber,
+        fullName: Voters.fullName,
+        relationType: Voters.relationType,
+        relationName: Voters.relationName,
+        familyGrouping: Voters.familyGrouping,
+        acNo: Voters.acNo,
+        partNo: Voters.partNo,
+        srNo: Voters.srNo,
+        houseNumber: Voters.houseNumber,
+        religion: Voters.religion,
+        age: Voters.age,
+        gender: Voters.gender,
+        isVoted2024: Voters.isVoted2024,
+        mobileNoPrimary: Voters.mobileNoPrimary,
+        mobileNoSecondary: Voters.mobileNoSecondary,
+        address: Voters.address,
+        pincode: Voters.pincode,
+        createdAt: Voters.createdAt,
+        updatedAt: Voters.updatedAt,
+        wardNo: PartNo.wardNo,
+        boothName: PartNo.boothName,
+        englishBoothAddress: PartNo.englishBoothAddress,
+      })
+      .from(Voters)
+      .leftJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
+      .where(eq(Voters.epicNumber, epicNumber));
+    
+    return results as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -644,7 +674,7 @@ export async function getVoterByAC(acNo: string): Promise<Array<Voter>> {
   }
 }
 
-export async function getVoterByWard(wardNo: string): Promise<Array<Voter>> {
+export async function getVoterByWard(wardNo: string): Promise<Array<VoterWithPartNo>> {
   try {
     return await db
       .select({
@@ -667,11 +697,14 @@ export async function getVoterByWard(wardNo: string): Promise<Array<Voter>> {
         pincode: Voters.pincode,
         createdAt: Voters.createdAt,
         updatedAt: Voters.updatedAt,
+        wardNo: PartNo.wardNo,
+        boothName: PartNo.boothName,
+        englishBoothAddress: PartNo.englishBoothAddress,
       })
       .from(Voters)
       .innerJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
       .where(eq(PartNo.wardNo, wardNo))
-      .orderBy(asc(Voters.fullName));
+      .orderBy(asc(Voters.fullName)) as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -691,7 +724,7 @@ export async function getVoterByPart(partNo: string): Promise<Array<Voter>> {
   }
 }
 
-export async function getVoterByBooth(boothName: string): Promise<Array<Voter>> {
+export async function getVoterByBooth(boothName: string): Promise<Array<VoterWithPartNo>> {
   try {
     return await db
       .select({
@@ -714,11 +747,14 @@ export async function getVoterByBooth(boothName: string): Promise<Array<Voter>> 
         pincode: Voters.pincode,
         createdAt: Voters.createdAt,
         updatedAt: Voters.updatedAt,
+        wardNo: PartNo.wardNo,
+        boothName: PartNo.boothName,
+        englishBoothAddress: PartNo.englishBoothAddress,
       })
       .from(Voters)
       .innerJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
       .where(eq(PartNo.boothName, boothName))
-      .orderBy(asc(Voters.fullName));
+      .orderBy(asc(Voters.fullName)) as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -727,13 +763,39 @@ export async function getVoterByBooth(boothName: string): Promise<Array<Voter>> 
   }
 }
 
-export async function searchVoterByEpicNumber(epicNumber: string): Promise<Array<Voter>> {
+export async function searchVoterByEpicNumber(epicNumber: string): Promise<Array<VoterWithPartNo>> {
   try {
-    return await db
-      .select()
+    const results = await db
+      .select({
+        epicNumber: Voters.epicNumber,
+        fullName: Voters.fullName,
+        relationType: Voters.relationType,
+        relationName: Voters.relationName,
+        familyGrouping: Voters.familyGrouping,
+        acNo: Voters.acNo,
+        partNo: Voters.partNo,
+        srNo: Voters.srNo,
+        houseNumber: Voters.houseNumber,
+        religion: Voters.religion,
+        age: Voters.age,
+        gender: Voters.gender,
+        isVoted2024: Voters.isVoted2024,
+        mobileNoPrimary: Voters.mobileNoPrimary,
+        mobileNoSecondary: Voters.mobileNoSecondary,
+        address: Voters.address,
+        pincode: Voters.pincode,
+        createdAt: Voters.createdAt,
+        updatedAt: Voters.updatedAt,
+        wardNo: PartNo.wardNo,
+        boothName: PartNo.boothName,
+        englishBoothAddress: PartNo.englishBoothAddress,
+      })
       .from(Voters)
+      .leftJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
       .where(sql`LOWER(${Voters.epicNumber}) LIKE LOWER(${`%${epicNumber}%`})`)
       .orderBy(asc(Voters.epicNumber));
+    
+    return results;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -742,13 +804,39 @@ export async function searchVoterByEpicNumber(epicNumber: string): Promise<Array
   }
 }
 
-export async function searchVoterByName(name: string): Promise<Array<Voter>> {
+export async function searchVoterByName(name: string): Promise<Array<VoterWithPartNo>> {
   try {
-    return await db
-      .select()
+    const results = await db
+      .select({
+        epicNumber: Voters.epicNumber,
+        fullName: Voters.fullName,
+        relationType: Voters.relationType,
+        relationName: Voters.relationName,
+        familyGrouping: Voters.familyGrouping,
+        acNo: Voters.acNo,
+        partNo: Voters.partNo,
+        srNo: Voters.srNo,
+        houseNumber: Voters.houseNumber,
+        religion: Voters.religion,
+        age: Voters.age,
+        gender: Voters.gender,
+        isVoted2024: Voters.isVoted2024,
+        mobileNoPrimary: Voters.mobileNoPrimary,
+        mobileNoSecondary: Voters.mobileNoSecondary,
+        address: Voters.address,
+        pincode: Voters.pincode,
+        createdAt: Voters.createdAt,
+        updatedAt: Voters.updatedAt,
+        wardNo: PartNo.wardNo,
+        boothName: PartNo.boothName,
+        englishBoothAddress: PartNo.englishBoothAddress,
+      })
       .from(Voters)
+      .leftJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
       .where(sql`LOWER(${Voters.fullName}) LIKE LOWER(${`%${name}%`})`)
       .orderBy(asc(Voters.fullName));
+    
+    return results as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -757,18 +845,44 @@ export async function searchVoterByName(name: string): Promise<Array<Voter>> {
   }
 }
 
-export async function searchVoterByPhoneNumber(phoneNumber: string): Promise<Array<Voter>> {
+export async function searchVoterByPhoneNumber(phoneNumber: string): Promise<Array<VoterWithPartNo>> {
   try {
     // Clean the phone number (remove spaces, dashes, etc.)
     const cleanPhone = phoneNumber.replace(/[\s\-\(\)]/g, '');
 
-    return await db
-      .select()
+    const results = await db
+      .select({
+        epicNumber: Voters.epicNumber,
+        fullName: Voters.fullName,
+        relationType: Voters.relationType,
+        relationName: Voters.relationName,
+        familyGrouping: Voters.familyGrouping,
+        acNo: Voters.acNo,
+        partNo: Voters.partNo,
+        srNo: Voters.srNo,
+        houseNumber: Voters.houseNumber,
+        religion: Voters.religion,
+        age: Voters.age,
+        gender: Voters.gender,
+        isVoted2024: Voters.isVoted2024,
+        mobileNoPrimary: Voters.mobileNoPrimary,
+        mobileNoSecondary: Voters.mobileNoSecondary,
+        address: Voters.address,
+        pincode: Voters.pincode,
+        createdAt: Voters.createdAt,
+        updatedAt: Voters.updatedAt,
+        wardNo: PartNo.wardNo,
+        boothName: PartNo.boothName,
+        englishBoothAddress: PartNo.englishBoothAddress,
+      })
       .from(Voters)
+      .leftJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
       .where(
         sql`(${Voters.mobileNoPrimary} LIKE ${`%${cleanPhone}%`} OR ${Voters.mobileNoSecondary} LIKE ${`%${cleanPhone}%`})`
       )
       .orderBy(asc(Voters.fullName));
+    
+    return results as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -839,7 +953,7 @@ export async function searchVoterByDetails(params: {
   gender?: string;
   age?: number;
   ageRange?: number;
-}): Promise<Array<Voter>> {
+}): Promise<Array<VoterWithPartNo>> {
   try {
     const conditions: any[] = [];
 
@@ -866,11 +980,37 @@ export async function searchVoterByDetails(params: {
       return [];
     }
 
-    return await db
-      .select()
+    const results = await db
+      .select({
+        epicNumber: Voters.epicNumber,
+        fullName: Voters.fullName,
+        relationType: Voters.relationType,
+        relationName: Voters.relationName,
+        familyGrouping: Voters.familyGrouping,
+        acNo: Voters.acNo,
+        partNo: Voters.partNo,
+        srNo: Voters.srNo,
+        houseNumber: Voters.houseNumber,
+        religion: Voters.religion,
+        age: Voters.age,
+        gender: Voters.gender,
+        isVoted2024: Voters.isVoted2024,
+        mobileNoPrimary: Voters.mobileNoPrimary,
+        mobileNoSecondary: Voters.mobileNoSecondary,
+        address: Voters.address,
+        pincode: Voters.pincode,
+        createdAt: Voters.createdAt,
+        updatedAt: Voters.updatedAt,
+        wardNo: PartNo.wardNo,
+        boothName: PartNo.boothName,
+        englishBoothAddress: PartNo.englishBoothAddress,
+      })
       .from(Voters)
+      .leftJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
       .where(sql`${sql.join(conditions, sql` AND `)}`)
       .orderBy(asc(Voters.fullName));
+    
+    return results as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -986,15 +1126,39 @@ export async function getVotersByFamilyGrouping(
   }
 }
 
-export async function getRelatedVoters(voter: Voter): Promise<Array<Voter>> {
+export async function getRelatedVoters(voter: Voter | VoterWithPartNo): Promise<Array<VoterWithPartNo>> {
   try {
     if (!voter.familyGrouping || !voter.partNo) {
       return [];
     }
 
     const relatedVoters = await db
-      .select()
+      .select({
+        epicNumber: Voters.epicNumber,
+        fullName: Voters.fullName,
+        relationType: Voters.relationType,
+        relationName: Voters.relationName,
+        familyGrouping: Voters.familyGrouping,
+        acNo: Voters.acNo,
+        partNo: Voters.partNo,
+        srNo: Voters.srNo,
+        houseNumber: Voters.houseNumber,
+        religion: Voters.religion,
+        age: Voters.age,
+        gender: Voters.gender,
+        isVoted2024: Voters.isVoted2024,
+        mobileNoPrimary: Voters.mobileNoPrimary,
+        mobileNoSecondary: Voters.mobileNoSecondary,
+        address: Voters.address,
+        pincode: Voters.pincode,
+        createdAt: Voters.createdAt,
+        updatedAt: Voters.updatedAt,
+        wardNo: PartNo.wardNo,
+        boothName: PartNo.boothName,
+        englishBoothAddress: PartNo.englishBoothAddress,
+      })
       .from(Voters)
+      .leftJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
       .where(
         and(
           eq(Voters.familyGrouping, voter.familyGrouping),
@@ -1004,7 +1168,7 @@ export async function getRelatedVoters(voter: Voter): Promise<Array<Voter>> {
       )
       .orderBy(asc(Voters.fullName));
 
-    return relatedVoters;
+    return relatedVoters as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -3147,18 +3311,24 @@ export async function getVotersForExport(filters?: {
 
     if (needsPartNoJoin) {
       if (conditions.length > 0) {
-        return await db
-          .select()
+        const results = await db
+          .select({
+            Voter: Voters,
+          })
           .from(Voters)
           .innerJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
           .where(and(...conditions))
           .orderBy(asc(Voters.fullName));
+        return results.map((r) => r.Voter);
       }
-      return await db
-        .select()
+      const results = await db
+        .select({
+          Voter: Voters,
+        })
         .from(Voters)
         .innerJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
         .orderBy(asc(Voters.fullName));
+      return results.map((r) => r.Voter);
     }
 
     if (conditions.length > 0) {

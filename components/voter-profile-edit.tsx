@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, User, Phone, MapPin, Calendar, FileText, Save, X } from 'lucide-react';
-import type { Voter } from '@/lib/db/schema';
+import type { VoterWithPartNo } from '@/lib/db/schema';
 import { toast } from '@/components/toast';
 
 interface VoterProfileEditProps {
@@ -17,7 +17,7 @@ interface VoterProfileEditProps {
 
 export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
   const router = useRouter();
-  const [voter, setVoter] = useState<Voter | null>(null);
+  const [voter, setVoter] = useState<VoterWithPartNo | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

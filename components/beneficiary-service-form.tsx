@@ -8,10 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/toast';
-import type { Voter } from '@/lib/db/schema';
+import type { VoterWithPartNo } from '@/lib/db/schema';
 
 interface BeneficiaryServiceFormProps {
-    voter: Voter;
+    voter: VoterWithPartNo;
     onServiceCreated: (serviceId: string) => void;
     onServiceDataReady?: (data: any) => void;
     onCancel: () => void;

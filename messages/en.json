@@ -333,7 +333,9 @@
     "failedToUpdateProgrammeItem": "Failed to update programme item",
     "failedToAddProgrammeItem": "Failed to add programme item",
     "failedToDeleteProgrammeItem": "Failed to delete programme item",
-    "failedToSaveProgrammeItem": "Failed to save programme item"
+    "failedToSaveProgrammeItem": "Failed to save programme item",
+    "mlaName": "Hon' MLA, Smt. Sana Malik Shaikh",
+    "printHeaderTitle": "Daily / Weekly Programme"
   },
   "projects": {
     "title": "Constituency Projects",

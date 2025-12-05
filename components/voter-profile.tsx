@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, User, Phone, MapPin, Calendar, FileText, Users, Edit } from 'lucide-react';
-import type { Voter } from '@/lib/db/schema';
+import type { VoterWithPartNo } from '@/lib/db/schema';
 import Link from 'next/link';
 
 interface VoterProfileProps {
@@ -14,8 +14,8 @@ interface VoterProfileProps {
 
 export function VoterProfile({ epicNumber }: VoterProfileProps) {
   const router = useRouter();
-  const [voter, setVoter] = useState<Voter | null>(null);
-  const [relatedVoters, setRelatedVoters] = useState<Voter[]>([]);
+  const [voter, setVoter] = useState<VoterWithPartNo | null>(null);
+  const [relatedVoters, setRelatedVoters] = useState<VoterWithPartNo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

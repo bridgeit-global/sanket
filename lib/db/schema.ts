@@ -241,6 +241,13 @@ export const Voters = pgTable('Voter', {
 
 export type Voter = InferSelectModel<typeof Voters>;
 
+// Extended Voter type that includes PartNo information
+export type VoterWithPartNo = Voter & {
+  wardNo?: string | null;
+  boothName?: string | null;
+  englishBoothAddress?: string | null;
+};
+
 export const beneficiaryServices = pgTable('BeneficiaryService', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   serviceType: varchar('service_type', { enum: ['individual', 'community'] }).notNull(),

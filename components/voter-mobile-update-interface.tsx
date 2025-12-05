@@ -10,13 +10,13 @@ import { toast } from '@/components/toast';
 import { VoterProfilingForm } from '@/components/voter-profiling-form';
 import { BeneficiaryServiceForm } from '@/components/beneficiary-service-form';
 // API calls will be made directly in the component
-import type { Voter } from '@/lib/db/schema';
+import type { VoterWithPartNo } from '@/lib/db/schema';
 
 export function VoterMobileUpdateInterface() {
     const router = useRouter();
     const [searchTerm, setSearchTerm] = useState('');
-    const [searchResults, setSearchResults] = useState<Voter[]>([]);
-    const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
+    const [searchResults, setSearchResults] = useState<VoterWithPartNo[]>([]);
+    const [selectedVoter, setSelectedVoter] = useState<VoterWithPartNo | null>(null);
     const [mobileNoPrimary, setMobileNoPrimary] = useState('');
     const [mobileNoSecondary, setMobileNoSecondary] = useState('');
     const [isSearching, setIsSearching] = useState(false);
@@ -85,7 +85,7 @@ export function VoterMobileUpdateInterface() {
         }
     };
 
-    const handleSelectVoter = (voter: Voter) => {
+    const handleSelectVoter = (voter: VoterWithPartNo) => {
         setSelectedVoter(voter);
         setMobileNoPrimary(voter.mobileNoPrimary || '');
         setMobileNoSecondary(voter.mobileNoSecondary || '');
@@ -157,7 +157,7 @@ export function VoterMobileUpdateInterface() {
         setWorkflowStep('search');
     };
 
-    const handleVoterCreated = (voter: Voter) => {
+    const handleVoterCreated = (voter: VoterWithPartNo) => {
         setSelectedVoter(voter);
         setShowVoterProfiling(false);
 
@@ -178,7 +178,7 @@ export function VoterMobileUpdateInterface() {
         }
     };
 
-    const handleMobileUpdateRequired = (voter: Voter) => {
+    const handleMobileUpdateRequired = (voter: VoterWithPartNo) => {
         setSelectedVoter(voter);
         setShowVoterProfiling(false);
         setMobileNoPrimary('');

@@ -333,7 +333,9 @@
     "failedToUpdateProgrammeItem": "कार्यक्रम आयटम अपडेट करण्यात अयशस्वी",
     "failedToAddProgrammeItem": "कार्यक्रम आयटम जोडण्यात अयशस्वी",
     "failedToDeleteProgrammeItem": "कार्यक्रम आयटम हटवण्यात अयशस्वी",
-    "failedToSaveProgrammeItem": "कार्यक्रम आयटम साठवण्यात अयशस्वी"
+    "failedToSaveProgrammeItem": "कार्यक्रम आयटम साठवण्यात अयशस्वी",
+    "mlaName": "मा. आमदार, सुश्री सना मलिक शेख",
+    "printHeaderTitle": "दैनंदिन / साप्ताहिक कार्यक्रम"
   },
   "projects": {
     "title": "मतदारसंघ प्रकल्प",

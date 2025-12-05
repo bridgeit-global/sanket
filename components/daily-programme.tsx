@@ -697,8 +697,8 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                 <div className="print-schedule">
                   {/* Print Header - Only visible when printing */}
                   <div className="print-header hidden">
-                    <h1 className="text-2xl font-semibold">Hon&apos; MLA, Smt. Sana Malik Shaikh</h1>
-                    <h2 className="text-lg font-bold mt-2">Daily / Weekly Programme</h2>
+                    <h1 className="text-2xl font-semibold">{t('dailyProgramme.mlaName')}</h1>
+                    <h2 className="text-lg font-bold mt-2">{t('dailyProgramme.printHeaderTitle')}</h2>
                     <p className="mt-1">{dateRangeLabel}</p>
                   </div>
 

@@ -10,7 +10,7 @@ import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { toast } from '@/components/toast';
-import type { Voter } from '@/lib/db/schema';
+import type { VoterWithPartNo } from '@/lib/db/schema';
 import { PhoneUpdateForm } from '@/components/phone-update-form';
 import { useTranslations } from '@/hooks/use-translations';
 
@@ -19,14 +19,14 @@ export function BackOfficeWorkflow() {
     const { t } = useTranslations();
     const router = useRouter();
     const [searchTerm, setSearchTerm] = useState('');
-    const [searchResults, setSearchResults] = useState<Voter[]>([]);
-    const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
+    const [searchResults, setSearchResults] = useState<VoterWithPartNo[]>([]);
+    const [selectedVoter, setSelectedVoter] = useState<VoterWithPartNo | null>(null);
     const [isSearching, setIsSearching] = useState(false);
     const [searchType, setSearchType] = useState<'voterId' | 'details'>('details');
     const [lastSearchType, setLastSearchType] = useState<'voterId' | 'details' | null>(null);
     const [hasSearched, setHasSearched] = useState(false);
     const [showPhoneUpdate, setShowPhoneUpdate] = useState(false);
-    const [relatedVoters, setRelatedVoters] = useState<Voter[]>([]);
+    const [relatedVoters, setRelatedVoters] = useState<VoterWithPartNo[]>([]);
     const [showRelatedVoters, setShowRelatedVoters] = useState(false);
 
     // Detailed search parameters
@@ -108,7 +108,7 @@ export function BackOfficeWorkflow() {
         }
     };
 
-    const handleSelectVoter = (voter: Voter) => {
+    const handleSelectVoter = (voter: VoterWithPartNo) => {
         // Navigate to voter profile page
         router.push(`/modules/voter/${encodeURIComponent(voter.epicNumber)}`);
     };
@@ -455,7 +455,7 @@ export function BackOfficeWorkflow() {
 }
 
 interface RelatedVoterUpdateItemProps {
-    voter: Voter;
+    voter: VoterWithPartNo;
     onUpdate: (epicNumber: string, phoneData: { mobileNoPrimary: string; mobileNoSecondary?: string }) => void;
 }
 
