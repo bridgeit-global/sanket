@@ -71,12 +71,14 @@ export function DataExport() {
   const [isExporting, setIsExporting] = useState(false);
   const [jobs, setJobs] = useState<ExportJob[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
-  const [partNumbers, setPartNumbers] = useState<string[]>([]);
   const [wardNumbers, setWardNumbers] = useState<string[]>([]);
+  const [partsByWard, setPartsByWard] = useState<Record<string, string[]>>({});
+  const [allPartNumbers, setAllPartNumbers] = useState<string[]>([]);
   const [religions, setReligions] = useState<string[]>([]);
-  const [loadingParts, setLoadingParts] = useState(true);
-  const [loadingWards, setLoadingWards] = useState(false);
+  const [loadingWards, setLoadingWards] = useState(true);
+  const [loadingParts, setLoadingParts] = useState(false);
   const [loadingReligions, setLoadingReligions] = useState(true);
+  const [processedWards, setProcessedWards] = useState<Set<string>>(new Set());
 
   // Fetch export jobs
   const fetchJobs = useCallback(async () => {
@@ -112,46 +114,18 @@ export function DataExport() {
     fetchJobs();
   }, [fetchJobs]);
 
-  // Fetch part numbers
-  useEffect(() => {
-    const fetchPartNumbers = async () => {
-      try {
-        setLoadingParts(true);
-        const response = await fetch('/api/voters/parts');
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data?.partNumbers) {
-            setPartNumbers(data.data.partNumbers);
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching part numbers:', error);
-      } finally {
-        setLoadingParts(false);
-      }
-    };
-    fetchPartNumbers();
-  }, []);
-
-  // Fetch ward numbers when partNo is selected
+  // Fetch all ward numbers
   useEffect(() => {
     const fetchWardNumbers = async () => {
-      if (!filters.partNo || filters.partNo.length === 0) {
-        setWardNumbers([]);
-        return;
-      }
       try {
         setLoadingWards(true);
-        // Fetch wards for all selected parts and combine unique values
-        const wardPromises = filters.partNo.map(partNo =>
-          fetch(`/api/voters/wards?partNo=${encodeURIComponent(partNo)}`)
-            .then(res => res.json())
-            .then(data => data.success && data.data?.wardNumbers ? data.data.wardNumbers : [])
-        );
-        const wardArrays = await Promise.all(wardPromises);
-        const allWards = wardArrays.flat();
-        const uniqueWards = Array.from(new Set(allWards)).sort();
-        setWardNumbers(uniqueWards);
+        const response = await fetch('/api/voters/wards');
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data?.wardNumbers) {
+            setWardNumbers(data.data.wardNumbers);
+          }
+        }
       } catch (error) {
         console.error('Error fetching ward numbers:', error);
       } finally {
@@ -159,11 +133,69 @@ export function DataExport() {
       }
     };
     fetchWardNumbers();
-    // Clear wardNo when partNo changes
-    if (filters.partNo && filters.partNo.length > 0) {
-      setFilters(prev => ({ ...prev, wardNo: undefined }));
-    }
-  }, [filters.partNo]);
+  }, []);
+
+  // Fetch part numbers when ward numbers are selected
+  useEffect(() => {
+    const fetchPartsByWards = async () => {
+      if (!filters.wardNo || filters.wardNo.length === 0) {
+        setPartsByWard({});
+        setAllPartNumbers([]);
+        setProcessedWards(new Set());
+        return;
+      }
+      try {
+        setLoadingParts(true);
+        const wardParams = filters.wardNo.map(w => `wardNo=${encodeURIComponent(w)}`).join('&');
+        const response = await fetch(`/api/voters/parts-by-wards?${wardParams}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            const newPartsByWard = data.data.partsByWard || {};
+            setPartsByWard(newPartsByWard);
+            setAllPartNumbers(data.data.allParts || []);
+
+            // Only auto-select parts for newly selected wards (not already processed)
+            const currentParts = filters.partNo || [];
+            const newParts: string[] = [];
+            const newlySelectedWards = filters.wardNo.filter(ward => !processedWards.has(ward));
+
+            newlySelectedWards.forEach(ward => {
+              const wardParts = newPartsByWard[ward] || [];
+              wardParts.forEach((part: string) => {
+                if (!currentParts.includes(part)) {
+                  newParts.push(part);
+                }
+              });
+            });
+
+            // Update processed wards
+            if (newlySelectedWards.length > 0) {
+              setProcessedWards(prev => {
+                const newSet = new Set(prev);
+                newlySelectedWards.forEach(ward => newSet.add(ward));
+                return newSet;
+              });
+            }
+
+            // Only add new parts if there are newly selected wards
+            if (newParts.length > 0) {
+              setFilters(prev => ({
+                ...prev,
+                partNo: [...currentParts, ...newParts]
+              }));
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching part numbers by wards:', error);
+      } finally {
+        setLoadingParts(false);
+      }
+    };
+    fetchPartsByWards();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.wardNo]);
 
   // Fetch religions
   useEffect(() => {
@@ -366,125 +398,138 @@ export function DataExport() {
             <div className="space-y-3">
               <Label className="text-sm font-medium">Filters (Optional)</Label>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                <div>
-                  <Label htmlFor="partNo" className="text-xs text-muted-foreground">Part No</Label>
+                <div className="sm:col-span-2">
+                  <Label htmlFor="wardPartNo" className="text-xs text-muted-foreground">Ward No / Part No</Label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="outline"
                         className="w-full justify-between h-10"
-                        disabled={loadingParts}
+                        disabled={loadingWards}
                       >
                         <span className="truncate">
-                          {loadingParts
+                          {loadingWards
                             ? "Loading..."
-                            : filters.partNo && filters.partNo.length > 0
-                              ? `${filters.partNo.length} selected`
-                              : "Select Part No"}
+                            : (filters.wardNo && filters.wardNo.length > 0) || (filters.partNo && filters.partNo.length > 0)
+                              ? `${filters.wardNo?.length || 0} ward(s), ${filters.partNo?.length || 0} part(s)`
+                              : "Select Ward No / Part No"}
                         </span>
                         <ChevronDown className="size-4 opacity-50" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56 max-h-60 overflow-y-auto">
-                      <div className="p-2 space-y-2">
-                        {partNumbers.map((partNo) => (
-                          <div
-                            key={partNo}
-                            className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-accent"
-                          >
-                            <Checkbox
-                              checked={filters.partNo?.includes(partNo) || false}
-                              onChange={(e) => {
-                                const currentParts = filters.partNo || [];
-                                if (e.target.checked) {
-                                  setFilters(prev => ({
-                                    ...prev,
-                                    partNo: [...currentParts, partNo]
-                                  }));
-                                } else {
-                                  setFilters(prev => ({
-                                    ...prev,
-                                    partNo: currentParts.filter(p => p !== partNo)
-                                  }));
-                                }
-                              }}
-                            />
-                            <span className="text-sm">Part {partNo}</span>
+                    <DropdownMenuContent className="w-80 max-h-96 overflow-y-auto">
+                      <div className="p-2 space-y-4">
+                        {/* Ward No Section */}
+                        <div>
+                          <div className="text-xs font-semibold text-muted-foreground mb-2 px-2">Ward No</div>
+                          <div className="space-y-1">
+                            {wardNumbers.map((wardNo) => {
+                              const wardParts = partsByWard[wardNo] || [];
+                              const allWardPartsSelected = wardParts.length > 0 && wardParts.every(part => filters.partNo?.includes(part));
+                              const someWardPartsSelected = wardParts.some(part => filters.partNo?.includes(part));
+
+                              return (
+                                <div key={wardNo} className="space-y-1">
+                                  <div className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-accent">
+                                    <Checkbox
+                                      checked={filters.wardNo?.includes(wardNo) || false}
+                                      onChange={(e) => {
+                                        const currentWards = filters.wardNo || [];
+                                        const currentParts = filters.partNo || [];
+
+                                        if (e.target.checked) {
+                                          // Add ward - parts will be auto-selected by useEffect
+                                          setFilters(prev => ({
+                                            ...prev,
+                                            wardNo: [...currentWards, wardNo]
+                                          }));
+                                        } else {
+                                          // Remove ward and all its parts
+                                          const newWards = currentWards.filter(w => w !== wardNo);
+                                          const newParts = currentParts.filter(p => !wardParts.includes(p));
+
+                                          // Remove from processed wards so it can be re-processed if selected again
+                                          setProcessedWards(prev => {
+                                            const newSet = new Set(prev);
+                                            newSet.delete(wardNo);
+                                            return newSet;
+                                          });
+
+                                          setFilters(prev => ({
+                                            ...prev,
+                                            wardNo: newWards,
+                                            partNo: newParts
+                                          }));
+                                        }
+                                      }}
+                                    />
+                                    <span className="text-sm font-medium">Ward {wardNo}</span>
+                                    {wardParts.length > 0 && (
+                                      <span className="text-xs text-muted-foreground ml-auto">
+                                        ({wardParts.length} parts)
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Part No sub-items for this ward */}
+                                  {filters.wardNo?.includes(wardNo) && wardParts.length > 0 && (
+                                    <div className="ml-6 space-y-1 border-l-2 border-muted pl-3">
+                                      {wardParts.map((partNo) => (
+                                        <div
+                                          key={partNo}
+                                          className="flex items-center space-x-2 cursor-pointer p-1.5 rounded hover:bg-accent/50"
+                                        >
+                                          <Checkbox
+                                            checked={filters.partNo?.includes(partNo) || false}
+                                            onChange={(e) => {
+                                              const currentParts = filters.partNo || [];
+                                              if (e.target.checked) {
+                                                setFilters(prev => ({
+                                                  ...prev,
+                                                  partNo: [...currentParts, partNo]
+                                                }));
+                                              } else {
+                                                // If unchecking a part, also uncheck the ward if all parts are now unchecked
+                                                const newParts = currentParts.filter(p => p !== partNo);
+                                                const remainingWardParts = wardParts.filter(p => newParts.includes(p));
+
+                                                setFilters(prev => ({
+                                                  ...prev,
+                                                  partNo: newParts,
+                                                  wardNo: remainingWardParts.length === 0
+                                                    ? (prev.wardNo || []).filter(w => w !== wardNo)
+                                                    : prev.wardNo
+                                                }));
+                                              }
+                                            }}
+                                          />
+                                          <span className="text-xs">Part {partNo}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
                           </div>
-                        ))}
+                        </div>
                       </div>
                     </DropdownMenuContent>
                   </DropdownMenu>
-                  {filters.partNo && filters.partNo.length > 0 && (
+                  {(filters.wardNo && filters.wardNo.length > 0) || (filters.partNo && filters.partNo.length > 0) ? (
                     <div className="flex flex-wrap gap-1 mt-2">
-                      {filters.partNo.map((partNo) => (
+                      {filters.wardNo?.map((wardNo) => (
+                        <Badge key={wardNo} variant="default" className="text-xs">
+                          Ward {wardNo}
+                        </Badge>
+                      ))}
+                      {filters.partNo?.map((partNo) => (
                         <Badge key={partNo} variant="secondary" className="text-xs">
                           Part {partNo}
                         </Badge>
                       ))}
                     </div>
-                  )}
-                </div>
-                <div>
-                  <Label htmlFor="wardNo" className="text-xs text-muted-foreground">Ward No</Label>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-between h-10"
-                        disabled={loadingWards || !filters.partNo || filters.partNo.length === 0}
-                      >
-                        <span className="truncate">
-                          {!filters.partNo || filters.partNo.length === 0
-                            ? "Select Part No first"
-                            : loadingWards
-                              ? "Loading..."
-                              : filters.wardNo && filters.wardNo.length > 0
-                                ? `${filters.wardNo.length} selected`
-                                : "Select Ward No"}
-                        </span>
-                        <ChevronDown className="size-4 opacity-50" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56 max-h-60 overflow-y-auto">
-                      <div className="p-2 space-y-2">
-                        {wardNumbers.map((wardNo) => (
-                          <div
-                            key={wardNo}
-                            className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-accent"
-                          >
-                            <Checkbox
-                              checked={filters.wardNo?.includes(wardNo) || false}
-                              onChange={(e) => {
-                                const currentWards = filters.wardNo || [];
-                                if (e.target.checked) {
-                                  setFilters(prev => ({
-                                    ...prev,
-                                    wardNo: [...currentWards, wardNo]
-                                  }));
-                                } else {
-                                  setFilters(prev => ({
-                                    ...prev,
-                                    wardNo: currentWards.filter(w => w !== wardNo)
-                                  }));
-                                }
-                              }}
-                            />
-                            <span className="text-sm">Ward {wardNo}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  {filters.wardNo && filters.wardNo.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {filters.wardNo.map((wardNo) => (
-                        <Badge key={wardNo} variant="secondary" className="text-xs">
-                          Ward {wardNo}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
+                  ) : null}
                 </div>
                 <div>
                   <Label htmlFor="gender" className="text-xs text-muted-foreground">Gender</Label>
