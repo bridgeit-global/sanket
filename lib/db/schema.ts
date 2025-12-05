@@ -206,6 +206,17 @@ export const stream = pgTable(
 
 export type Stream = InferSelectModel<typeof stream>;
 
+export const PartNo = pgTable('PartNo', {
+  partNo: varchar('part_no', { length: 10 }).primaryKey().notNull(),
+  wardNo: varchar('ward_no', { length: 10 }),
+  boothName: varchar('booth_name', { length: 255 }),
+  englishBoothAddress: text('english_booth_address'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type PartNoType = InferSelectModel<typeof PartNo>;
+
 export const Voters = pgTable('Voter', {
   epicNumber: varchar('epic_number', { length: 20 }).primaryKey().notNull(),
   fullName: varchar('full_name', { length: 255 }).notNull(),
@@ -213,8 +224,7 @@ export const Voters = pgTable('Voter', {
   relationName: varchar('relation_name', { length: 255 }),
   familyGrouping: varchar('family_grouping', { length: 100 }),
   acNo: varchar('ac_no', { length: 10 }),
-  wardNo: varchar('ward_no', { length: 10 }),
-  partNo: varchar('part_no', { length: 10 }),
+  partNo: varchar('part_no', { length: 10 }).references(() => PartNo.partNo),
   srNo: varchar('sr_no', { length: 10 }),
   houseNumber: varchar('house_number', { length: 127 }),
   religion: varchar('religion', { length: 50 }),
@@ -223,8 +233,6 @@ export const Voters = pgTable('Voter', {
   isVoted2024: boolean('is_voted_2024').default(false),
   mobileNoPrimary: varchar('mobile_no_primary', { length: 15 }),
   mobileNoSecondary: varchar('mobile_no_secondary', { length: 15 }),
-  boothName: varchar('booth_name', { length: 255 }),
-  englishBoothAddress: text('english_booth_address'),
   address: text('address'),
   pincode: varchar('pincode', { length: 10 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),

@@ -400,32 +400,50 @@
         top: 0;
         width: 100%;
         padding: 20px;
+        background: white;
+        color: #000;
+    }
+
+    /* Ensure all text is black in print */
+    .print-schedule * {
+        color: #000 !important;
+    }
+
+    /* Page setup for better printing */
+    @page {
+        size: A4;
+        margin: 1.5cm;
     }
 
     /* Print header styles */
     .print-header {
         display: block !important;
+        visibility: visible !important;
         text-align: center;
         margin-bottom: 24px;
         padding-bottom: 16px;
         border-bottom: 2px solid #000;
+        page-break-after: avoid;
+        break-after: avoid;
     }
 
     .print-header h2 {
         font-size: 18px;
         font-weight: 600;
         margin: 0 0 8px 0;
+        color: #000 !important;
     }
 
     .print-header h1 {
         font-size: 24px;
         font-weight: bold;
         margin: 0 0 8px 0;
+        color: #000 !important;
     }
 
     .print-header p {
         font-size: 16px;
-        color: #333;
+        color: #333 !important;
         margin: 0;
     }
 
@@ -433,13 +451,46 @@
     .print-schedule table {
         width: 100%;
         border-collapse: collapse;
+        page-break-inside: auto;
     }
 
+    /* Prevent table rows from breaking across pages */
+    .print-schedule tr {
+        page-break-inside: avoid;
+        page-break-after: auto;
+        break-inside: avoid;
+        break-after: auto;
+    }
+
+    /* Prevent table cells from breaking */
     .print-schedule th,
     .print-schedule td {
         border: 1px solid #333;
         padding: 8px 12px;
         text-align: left;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    /* Serial number column styling for print */
+    .print-schedule th:first-child,
+    .print-schedule td:first-child {
+        text-align: center;
+        width: 60px;
+        padding: 8px 6px;
+    }
+
+    /* Time & Location column width for print */
+    .print-schedule th:nth-child(2),
+    .print-schedule td:nth-child(2) {
+        width: 280px;
+    }
+
+    /* Title & Remarks column - wider for print */
+    .print-schedule th:nth-child(3),
+    .print-schedule td:nth-child(3) {
+        width: 450px;
+        min-width: 450px;
     }
 
     .print-schedule th {
@@ -447,6 +498,68 @@
         font-weight: 600;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
+    }
+
+    /* Ensure date groups don't break awkwardly */
+    .print-date-section {
+        page-break-inside: avoid;
+        break-inside: avoid;
+        margin-bottom: 20px;
+        padding-bottom: 12px;
+    }
+
+    /* Allow page breaks between date groups, but not within them */
+    .print-date-section:not(:last-child) {
+        page-break-after: auto;
+        break-after: auto;
+    }
+
+    /* Table wrapper to prevent breaking */
+    .print-table-wrapper {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    /* Ensure table headers are visible and styled properly */
+    .print-schedule thead {
+        display: table-header-group;
+    }
+
+    .print-schedule tbody {
+        display: table-row-group;
+    }
+
+    /* Better spacing for date headers in print */
+    .print-date-section>div:first-child {
+        margin-bottom: 8px;
+        padding-bottom: 4px;
+        border-bottom: 1px solid #ddd;
+    }
+
+    /* Ensure proper font sizes for print */
+    .print-schedule {
+        font-size: 12px;
+    }
+
+    .print-schedule th {
+        font-size: 13px;
+    }
+
+    .print-schedule td {
+        font-size: 12px;
+    }
+
+    /* Better cell padding for print */
+    .print-schedule th,
+    .print-schedule td {
+        padding: 10px 12px;
+        vertical-align: top;
+    }
+
+    /* Ensure table doesn't overflow page width */
+    .print-schedule table {
+        max-width: 100%;
+        table-layout: auto;
     }
 
     /* Hide elements that shouldn't be printed */

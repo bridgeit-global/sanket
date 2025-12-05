@@ -712,7 +712,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                       {filteredDateEntries.map(([dateKey, items]) => {
                         const date = parseISO(dateKey);
                         return (
-                          <div key={dateKey} className="space-y-3">
+                          <div key={dateKey} className="space-y-3 print-date-section">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div className="flex items-center gap-2 font-semibold">
                                 <Calendar className="h-4 w-4" />
@@ -722,14 +722,13 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                 {items.length} {items.length !== 1 ? t('dailyProgramme.events') : t('dailyProgramme.event')}
                               </span>
                             </div>
-                            <div className="overflow-x-auto">
+                            <div className="overflow-x-auto print-table-wrapper">
                               <Table>
                                 <TableHeader>
                                   <TableRow>
-                                    <TableHead className="w-[120px]">{t('dailyProgramme.time')}</TableHead>
-                                    <TableHead className="w-[200px]">{t('dailyProgramme.tableTitle')}</TableHead>
-                                    <TableHead className="w-[250px]">{t('dailyProgramme.location')}</TableHead>
-                                    <TableHead>{t('dailyProgramme.remarks')}</TableHead>
+                                    <TableHead className="w-[60px] text-center">{t('dailyProgramme.serialNo')}</TableHead>
+                                    <TableHead className="w-[280px]">{t('dailyProgramme.timeAndLocation')}</TableHead>
+                                    <TableHead className="w-[450px]">{t('dailyProgramme.titleAndRemarks')}</TableHead>
                                     <TableHead className="w-[100px] no-print">{t('dailyProgramme.actions')}</TableHead>
                                   </TableRow>
                                 </TableHeader>
@@ -741,7 +740,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                       const timeB = b.startTime || '00:00';
                                       return timeA.localeCompare(timeB);
                                     })
-                                    .map((item) => {
+                                    .map((item, index) => {
                                       const duration = calculateDuration(item.startTime, item.endTime);
                                       const durationLabel = duration !== null && duration > 0
                                         ? DURATION_OPTIONS.find(
@@ -754,18 +753,35 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
 
                                       return (
                                         <TableRow key={item.id}>
-                                          <TableCell className="font-mono w-[120px]">
-                                            <div>{formatTimeTo12Hour(item.startTime)}</div>
-                                            {durationLabel && (
-                                              <div className="text-xs text-muted-foreground mt-1">
-                                                ({durationLabel})
-                                              </div>
-                                            )}
+                                          <TableCell className="w-[60px] text-center font-medium">
+                                            {index + 1}
                                           </TableCell>
-                                          <TableCell className="font-medium w-[200px]">{item.title}</TableCell>
-                                          <TableCell className="w-[250px]">{item.location}</TableCell>
-                                          <TableCell className="text-sm text-muted-foreground">
-                                            {item.remarks || '-'}
+                                          <TableCell className="w-[280px]">
+                                            <div className="space-y-1">
+                                              <div className="font-mono font-semibold">
+                                                {formatTimeTo12Hour(item.startTime)}
+                                                {durationLabel && (
+                                                  <span className="text-xs font-normal text-muted-foreground ml-1">
+                                                    ({durationLabel})
+                                                  </span>
+                                                )}
+                                              </div>
+                                              <div className="text-sm text-muted-foreground">
+                                                {item.location}
+                                              </div>
+                                            </div>
+                                          </TableCell>
+                                          <TableCell className="w-[450px]">
+                                            <div className="space-y-1">
+                                              <div className="font-medium">
+                                                {item.title}
+                                              </div>
+                                              {item.remarks && (
+                                                <div className="text-sm text-muted-foreground">
+                                                  {item.remarks}
+                                                </div>
+                                              )}
+                                            </div>
                                           </TableCell>
                                           <TableCell className="w-[100px] no-print">
                                             <div className="flex gap-1">

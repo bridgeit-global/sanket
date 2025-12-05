@@ -33,6 +33,8 @@ import {
   stream,
   Voters,
   type Voter,
+  PartNo,
+  type PartNoType,
   beneficiaryServices,
   type BeneficiaryService,
   voterTasks,
@@ -644,7 +646,32 @@ export async function getVoterByAC(acNo: string): Promise<Array<Voter>> {
 
 export async function getVoterByWard(wardNo: string): Promise<Array<Voter>> {
   try {
-    return await db.select().from(Voters).where(eq(Voters.wardNo, wardNo)).orderBy(asc(Voters.fullName));
+    return await db
+      .select({
+        epicNumber: Voters.epicNumber,
+        fullName: Voters.fullName,
+        relationType: Voters.relationType,
+        relationName: Voters.relationName,
+        familyGrouping: Voters.familyGrouping,
+        acNo: Voters.acNo,
+        partNo: Voters.partNo,
+        srNo: Voters.srNo,
+        houseNumber: Voters.houseNumber,
+        religion: Voters.religion,
+        age: Voters.age,
+        gender: Voters.gender,
+        isVoted2024: Voters.isVoted2024,
+        mobileNoPrimary: Voters.mobileNoPrimary,
+        mobileNoSecondary: Voters.mobileNoSecondary,
+        address: Voters.address,
+        pincode: Voters.pincode,
+        createdAt: Voters.createdAt,
+        updatedAt: Voters.updatedAt,
+      })
+      .from(Voters)
+      .innerJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
+      .where(eq(PartNo.wardNo, wardNo))
+      .orderBy(asc(Voters.fullName));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -666,7 +693,32 @@ export async function getVoterByPart(partNo: string): Promise<Array<Voter>> {
 
 export async function getVoterByBooth(boothName: string): Promise<Array<Voter>> {
   try {
-    return await db.select().from(Voters).where(eq(Voters.boothName, boothName)).orderBy(asc(Voters.fullName));
+    return await db
+      .select({
+        epicNumber: Voters.epicNumber,
+        fullName: Voters.fullName,
+        relationType: Voters.relationType,
+        relationName: Voters.relationName,
+        familyGrouping: Voters.familyGrouping,
+        acNo: Voters.acNo,
+        partNo: Voters.partNo,
+        srNo: Voters.srNo,
+        houseNumber: Voters.houseNumber,
+        religion: Voters.religion,
+        age: Voters.age,
+        gender: Voters.gender,
+        isVoted2024: Voters.isVoted2024,
+        mobileNoPrimary: Voters.mobileNoPrimary,
+        mobileNoSecondary: Voters.mobileNoSecondary,
+        address: Voters.address,
+        pincode: Voters.pincode,
+        createdAt: Voters.createdAt,
+        updatedAt: Voters.updatedAt,
+      })
+      .from(Voters)
+      .innerJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
+      .where(eq(PartNo.boothName, boothName))
+      .orderBy(asc(Voters.fullName));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1101,7 +1153,6 @@ export async function createVoter(voterData: Partial<Voter>): Promise<Voter> {
         relationName: voterData.relationName || null,
         familyGrouping: voterData.familyGrouping || null,
         acNo: voterData.acNo || null,
-        wardNo: voterData.wardNo || null,
         partNo: voterData.partNo || null,
         srNo: voterData.srNo || null,
         houseNumber: voterData.houseNumber || null,
@@ -1110,8 +1161,6 @@ export async function createVoter(voterData: Partial<Voter>): Promise<Voter> {
         gender: voterData.gender || null,
         mobileNoPrimary: voterData.mobileNoPrimary || null,
         mobileNoSecondary: voterData.mobileNoSecondary || null,
-        boothName: voterData.boothName || null,
-        englishBoothAddress: voterData.englishBoothAddress || null,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -1470,13 +1519,15 @@ export async function getTasksWithFilters({
         voterGender: Voters.gender,
         voterRelation: Voters.relationName,
         voterPartNo: Voters.partNo,
-        voterWardNo: Voters.wardNo,
         voterAcNo: Voters.acNo,
-        voterBoothName: Voters.boothName,
+        // PartNo fields
+        voterWardNo: PartNo.wardNo,
+        voterBoothName: PartNo.boothName,
       })
       .from(voterTasks)
       .leftJoin(beneficiaryServices, eq(voterTasks.serviceId, beneficiaryServices.id))
       .leftJoin(Voters, eq(voterTasks.voterId, Voters.epicNumber))
+      .leftJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
       .where(finalWhereConditions.length > 0 ? and(...finalWhereConditions) : sql`1=1`)
       .orderBy(desc(voterTasks.createdAt))
       .limit(limit)
@@ -3051,11 +3102,13 @@ export async function getVotersForExport(filters?: {
   try {
     const conditions: SQL<unknown>[] = [];
 
+    const needsPartNoJoin = filters?.wardNo !== undefined;
+    
     if (filters?.partNo) {
       conditions.push(eq(Voters.partNo, filters.partNo));
     }
     if (filters?.wardNo) {
-      conditions.push(eq(Voters.wardNo, filters.wardNo));
+      conditions.push(eq(PartNo.wardNo, filters.wardNo));
     }
     if (filters?.acNo) {
       conditions.push(eq(Voters.acNo, filters.acNo));
@@ -3092,6 +3145,22 @@ export async function getVotersForExport(filters?: {
       );
     }
 
+    if (needsPartNoJoin) {
+      if (conditions.length > 0) {
+        return await db
+          .select()
+          .from(Voters)
+          .innerJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
+          .where(and(...conditions))
+          .orderBy(asc(Voters.fullName));
+      }
+      return await db
+        .select()
+        .from(Voters)
+        .innerJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
+        .orderBy(asc(Voters.fullName));
+    }
+
     if (conditions.length > 0) {
       return await db
         .select()
@@ -3121,8 +3190,10 @@ export async function getVotersCountForExport(filters?: {
     if (filters?.partNo) {
       conditions.push(eq(Voters.partNo, filters.partNo));
     }
+    const needsPartNoJoin = filters?.wardNo !== undefined;
+    
     if (filters?.wardNo) {
-      conditions.push(eq(Voters.wardNo, filters.wardNo));
+      conditions.push(eq(PartNo.wardNo, filters.wardNo));
     }
     if (filters?.acNo) {
       conditions.push(eq(Voters.acNo, filters.acNo));
@@ -3160,13 +3231,28 @@ export async function getVotersCountForExport(filters?: {
     }
 
     let result;
-    if (conditions.length > 0) {
-      result = await db
-        .select({ count: count() })
-        .from(Voters)
-        .where(and(...conditions));
+    if (needsPartNoJoin) {
+      if (conditions.length > 0) {
+        result = await db
+          .select({ count: count() })
+          .from(Voters)
+          .innerJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
+          .where(and(...conditions));
+      } else {
+        result = await db
+          .select({ count: count() })
+          .from(Voters)
+          .innerJoin(PartNo, eq(Voters.partNo, PartNo.partNo));
+      }
     } else {
-      result = await db.select({ count: count() }).from(Voters);
+      if (conditions.length > 0) {
+        result = await db
+          .select({ count: count() })
+          .from(Voters)
+          .where(and(...conditions));
+      } else {
+        result = await db.select({ count: count() }).from(Voters);
+      }
     }
 
     return result[0]?.count || 0;

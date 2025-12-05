@@ -239,6 +239,13 @@
       "when": 1764960846327,
       "tag": "0033_blue_loners",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1764962372685,
+      "tag": "0034_superb_sentinels",
+      "breakpoints": true
     }
   ]
 }
