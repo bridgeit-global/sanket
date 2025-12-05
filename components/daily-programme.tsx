@@ -23,6 +23,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { TimePicker } from '@/components/ui/time-picker';
+
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ModulePageHeader } from '@/components/module-page-header';
@@ -42,19 +44,6 @@ interface ProgrammeItem {
 
 interface DailyProgrammeProps {
   userRole: string;
-}
-
-// Generate time options in 15-minute intervals (00:00 to 23:45)
-function generateTimeOptions(): string[] {
-  const options: string[] = [];
-  for (let hour = 0; hour < 24; hour++) {
-    for (let minute = 0; minute < 60; minute += 15) {
-      const hourStr = hour.toString().padStart(2, '0');
-      const minuteStr = minute.toString().padStart(2, '0');
-      options.push(`${hourStr}:${minuteStr}`);
-    }
-  }
-  return options;
 }
 
 // Generate duration options in minutes
@@ -180,7 +169,6 @@ function normalizeDate(dateValue: string | Date | null | undefined): string | nu
   return null;
 }
 
-const TIME_OPTIONS = generateTimeOptions();
 const DURATION_OPTIONS = generateDurationOptions();
 
 export function DailyProgramme({ userRole }: DailyProgrammeProps) {
@@ -557,22 +545,13 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="startTime">{t('dailyProgramme.startTime')}</Label>
-                <Select
+                <TimePicker
+                  id="startTime"
                   value={form.startTime || undefined}
-                  onValueChange={(value) => setForm({ ...form, startTime: value })}
+                  onChange={(value) => setForm({ ...form, startTime: value })}
+                  placeholder={t('dailyProgramme.selectTime')}
                   required
-                >
-                  <SelectTrigger id="startTime">
-                    <SelectValue placeholder={t('dailyProgramme.selectTime')} />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[200px]">
-                    {TIME_OPTIONS.map((time) => (
-                      <SelectItem key={time} value={time}>
-                        {time}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="duration">{t('dailyProgramme.duration')}</Label>
