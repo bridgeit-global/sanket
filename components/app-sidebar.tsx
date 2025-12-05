@@ -14,6 +14,7 @@ import {
 import Link from 'next/link';
 import type { ModuleDefinition } from '@/lib/module-constants';
 import { ModuleNavigation } from './module-navigation';
+import { useTranslations } from '@/hooks/use-translations';
 
 interface AppSidebarProps {
   user: User | undefined;
@@ -24,6 +25,7 @@ const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || '0.0.0';
 
 export function AppSidebar({ user, modules }: AppSidebarProps) {
   const { setOpenMobile } = useSidebar();
+  const { t } = useTranslations();
 
   return (
     <Sidebar className="group-data-[side=left]:border-r-0">
@@ -38,11 +40,11 @@ export function AppSidebar({ user, modules }: AppSidebarProps) {
               className="flex flex-row gap-3 items-center"
             >
               <span className="text-lg font-semibold px-2 hover:bg-muted rounded-md cursor-pointer">
-                eOffice
+                {t('sidebar.title')}
               </span>
             </Link>
             <span className="text-xs text-muted-foreground px-2">
-              v{appVersion}
+              {t('sidebar.version')} {appVersion}
             </span>
           </div>
         </SidebarMenu>

@@ -5,11 +5,13 @@ import Image from 'next/image';
 import type { User } from 'next-auth';
 import { useSession } from 'next-auth/react';
 import { useTheme } from 'next-themes';
+import { useTranslations } from '@/hooks/use-translations';
 
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -23,6 +25,7 @@ import { SignOutForm } from './sign-out-form';
 export function SidebarUserNav({ user }: { user: User }) {
   const { status } = useSession();
   const { setTheme, resolvedTheme } = useTheme();
+  const { t, locale, setLocale } = useTranslations();
   const identifier = user?.userId ?? 'Guest';
 
 
@@ -36,7 +39,7 @@ export function SidebarUserNav({ user }: { user: User }) {
                 <div className="flex flex-row gap-2">
                   <div className="size-6 bg-zinc-500/30 rounded-full animate-pulse" />
                   <span className="bg-zinc-500/30 text-transparent rounded-md animate-pulse">
-                    Loading auth status
+                    {t('userNav.loadingAuth')}
                   </span>
                 </div>
                 <div className="animate-spin text-zinc-500">
@@ -72,8 +75,21 @@ export function SidebarUserNav({ user }: { user: User }) {
               className="cursor-pointer"
               onSelect={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
             >
-              {`Toggle ${resolvedTheme === 'light' ? 'dark' : 'light'} mode`}
+              {t('userNav.toggleTheme', {
+                theme: resolvedTheme === 'light' ? t('userNav.dark') : t('userNav.light'),
+              })}
             </DropdownMenuItem>
+            <DropdownMenuItem
+              data-testid="user-nav-item-language"
+              className="cursor-pointer"
+              onSelect={(e) => {
+                e.preventDefault();
+                setLocale(locale === 'en' ? 'mr' : 'en');
+              }}
+            >
+              {t('userNav.language')}: {locale === 'en' ? t('userNav.english') : t('userNav.marathi')}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem
               data-testid="user-nav-item-sign-out"
               className="cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive"

@@ -29,6 +29,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog';
 import { VisitorManagementSkeleton } from '@/components/module-skeleton';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { visitorFormSchema, validateForm } from '@/lib/validations';
+import { useTranslations } from '@/hooks/use-translations';
 
 interface Visitor {
   id: string;
@@ -307,11 +308,13 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
     );
   });
 
+  const { t } = useTranslations();
+
   return (
     <div className="space-y-6">
       <ModulePageHeader
-        title="Visitor Management"
-        description="Track and manage visitors for programme register events"
+        title={t('visitorManagement.title')}
+        description={t('visitorManagement.description')}
       />
 
       {/* Tab Navigation */}
@@ -322,7 +325,7 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
           className="flex-1"
         >
           <UserCheck className="mr-2 h-4 w-4" />
-          Add Visitor
+          {t('visitorManagement.addVisitor')}
         </Button>
         <Button
           variant={activeTab === 'view' ? 'default' : 'ghost'}
@@ -330,7 +333,7 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
           className="flex-1"
         >
           <Search className="mr-2 h-4 w-4" />
-          View Visitors
+          {t('visitorManagement.viewVisitors')}
         </Button>
         <Button
           variant={activeTab === 'history' ? 'default' : 'ghost'}
@@ -338,7 +341,7 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
           className="flex-1"
         >
           <Calendar className="mr-2 h-4 w-4" />
-          Visitor History
+          {t('visitorManagement.visitorHistory')}
         </Button>
       </div>
 
@@ -347,7 +350,7 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
         <Card>
           <CardHeader>
             <CardTitle>
-              {editingVisitor ? 'Edit Visitor' : 'Add New Visitor'}
+              {editingVisitor ? t('visitorManagement.editVisitor') : t('visitorManagement.addNewVisitor')}
             </CardTitle>
           </CardHeader>
           <CardContent>

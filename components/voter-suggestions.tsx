@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { memo } from 'react';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ChatMessage } from '@/lib/types';
+import { useTranslations } from '@/hooks/use-translations';
 
 interface VoterSuggestionsProps {
     chatId: string;
@@ -15,6 +16,7 @@ function PureVoterSuggestions({
     chatId,
     sendMessage,
 }: VoterSuggestionsProps) {
+    const { t } = useTranslations();
     const voterActions = [
         {
             title: 'Get constituency overview',
@@ -121,9 +123,9 @@ function PureVoterSuggestions({
     return (
         <div className="space-y-4">
             <div className="text-center">
-                <h3 className="text-lg font-semibold text-primary mb-2">🗳️ Voter Data Analyst</h3>
+                <h3 className="text-lg font-semibold text-primary mb-2">🗳️ {t('voter.title')}</h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                    Analyze voter data from Anushakti Nagar constituency, Mumbai
+                    {t('voter.subtitle')}
                 </p>
                 <div className="text-xs text-muted-foreground bg-muted p-2 rounded mb-4">
                     💡 <strong>Try these sample queries:</strong> Search voters by name, analyze demographics,

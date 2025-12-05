@@ -43,12 +43,14 @@ import type { Role } from '@/lib/db/schema';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { TableSkeleton } from '@/components/module-skeleton';
+import { useTranslations } from '@/hooks/use-translations';
 
 interface RoleWithPermissions extends Role {
   permissions: Record<string, boolean>;
 }
 
 export function RoleManager() {
+  const { t } = useTranslations();
   const [roles, setRoles] = useState<RoleWithPermissions[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -123,7 +125,7 @@ export function RoleManager() {
 
   const handleSaveRole = async () => {
     if (!roleForm.name.trim()) {
-      toast.error('Role name is required');
+      toast.error(t('roleManagement.roleNameRequired'));
       return;
     }
 
@@ -145,16 +147,16 @@ export function RoleManager() {
       });
 
       if (response.ok) {
-        toast.success(editingRole ? 'Role updated successfully' : 'Role created successfully');
+        toast.success(editingRole ? t('roleManagement.roleUpdatedSuccess') : t('roleManagement.roleCreatedSuccess'));
         await loadRoles();
         handleCloseDialog();
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Failed to save role');
+        toast.error(error.error || t('roleManagement.failedToSaveRole'));
       }
     } catch (error) {
       console.error('Error saving role:', error);
-      toast.error('Failed to save role');
+      toast.error(t('roleManagement.failedToSaveRole'));
     } finally {
       setSaving(false);
     }
@@ -174,16 +176,16 @@ export function RoleManager() {
       });
 
       if (response.ok) {
-        toast.success('Role deleted successfully');
+        toast.success(t('roleManagement.roleDeletedSuccess'));
         await loadRoles();
         setDeleteRoleId(null);
       } else {
         const error = await response.json();
-        setDeleteError(error.error || 'Failed to delete role');
+        setDeleteError(error.error || t('roleManagement.failedToDeleteRole'));
       }
     } catch (error) {
       console.error('Error deleting role:', error);
-      setDeleteError('Failed to delete role');
+      setDeleteError(t('roleManagement.failedToDeleteRole'));
     }
   };
 
@@ -206,55 +208,55 @@ export function RoleManager() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>Role Management</CardTitle>
+              <CardTitle>{t('roleManagement.title')}</CardTitle>
               <CardDescription>
-                Create and manage roles with module-level access permissions
+                {t('roleManagement.description')}
               </CardDescription>
             </div>
             <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
               <DialogTrigger asChild>
                 <Button onClick={() => handleOpenDialog()}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Add Role
+                  {t('roleManagement.addRole')}
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
-                    {editingRole ? 'Edit Role' : 'Create New Role'}
+                    {editingRole ? t('roleManagement.editRole') : t('roleManagement.createNewRole')}
                   </DialogTitle>
                   <DialogDescription>
                     {editingRole
-                      ? 'Update role details and module permissions'
-                      : 'Define a new role with module access permissions'}
+                      ? t('roleManagement.updateRoleDetails')
+                      : t('roleManagement.defineNewRole')}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="role-name">Role Name *</Label>
+                    <Label htmlFor="role-name">{t('roleManagement.roleName')} *</Label>
                     <Input
                       id="role-name"
                       value={roleForm.name}
                       onChange={(e) =>
                         setRoleForm({ ...roleForm, name: e.target.value })
                       }
-                      placeholder="e.g., Manager, Viewer"
+                      placeholder={t('roleManagement.roleNamePlaceholder')}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="role-description">Description</Label>
+                    <Label htmlFor="role-description">{t('roleManagement.roleDescription')}</Label>
                     <Textarea
                       id="role-description"
                       value={roleForm.description}
                       onChange={(e) =>
                         setRoleForm({ ...roleForm, description: e.target.value })
                       }
-                      placeholder="Describe the role and its purpose"
+                      placeholder={t('roleManagement.descriptionPlaceholder')}
                       rows={3}
                     />
                   </div>
                   <div className="space-y-3">
-                    <Label>Module Permissions</Label>
+                    <Label>{t('roleManagement.modulePermissions')}</Label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto p-2 border rounded-md">
                       {ALL_MODULES.map((module) => {
                         const isChecked = roleForm.permissions[module.key] || false;
@@ -307,10 +309,10 @@ export function RoleManager() {
                       onClick={handleCloseDialog}
                       disabled={saving}
                     >
-                      Cancel
+                      {t('roleManagement.cancel')}
                     </Button>
                     <Button onClick={handleSaveRole} disabled={saving}>
-                      {saving ? 'Saving...' : editingRole ? 'Update' : 'Create'}
+                      {saving ? t('roleManagement.saving') : editingRole ? t('roleManagement.update') : t('roleManagement.create')}
                     </Button>
                   </div>
                 </div>
@@ -321,7 +323,7 @@ export function RoleManager() {
         <CardContent>
           <div className="mb-4">
             <Input
-              placeholder="Search roles..."
+              placeholder={t('roleManagement.searchRoles')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -349,7 +351,7 @@ export function RoleManager() {
                     <div className="space-y-4 pt-2">
                       <div>
                         <Label className="text-sm font-medium">
-                          Module Permissions
+                          {t('roleManagement.modulePermissions')}
                         </Label>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
                           {ALL_MODULES.map((module) => {
@@ -382,7 +384,7 @@ export function RoleManager() {
                           size="sm"
                           onClick={() => handleOpenDialog(roleItem)}
                         >
-                          Edit
+                          {t('roleManagement.edit')}
                         </Button>
                         <Button
                           variant="ghost"
@@ -391,7 +393,7 @@ export function RoleManager() {
                           className="text-destructive hover:text-destructive hover:bg-destructive/10"
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
-                          Delete
+                          {t('roleManagement.delete')}
                         </Button>
                       </div>
                     </div>
@@ -403,8 +405,8 @@ export function RoleManager() {
           {filteredRoles.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               {searchTerm
-                ? 'No roles found matching your search.'
-                : 'No roles created yet. Create your first role to get started.'}
+                ? t('roleManagement.noRolesFound')
+                : t('roleManagement.noRolesYet')}
             </div>
           )}
         </CardContent>
@@ -421,22 +423,22 @@ export function RoleManager() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Role</AlertDialogTitle>
+            <AlertDialogTitle>{t('roleManagement.deleteRole')}</AlertDialogTitle>
             <AlertDialogDescription>
               {deleteError ? (
                 <span className="text-destructive">{deleteError}</span>
               ) : (
-                'Are you sure you want to delete this role? This action cannot be undone. If users are assigned to this role, you must reassign them first.'
+                t('roleManagement.deleteRoleDescription')
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('roleManagement.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteRole}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Delete
+              {t('roleManagement.delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

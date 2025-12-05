@@ -38,6 +38,7 @@ import type { User, Role } from '@/lib/db/schema';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { TableSkeleton } from '@/components/module-skeleton';
+import { useTranslations } from '@/hooks/use-translations';
 
 interface UserWithPermissions extends User {
   permissions: Record<string, boolean>;
@@ -51,6 +52,7 @@ interface RoleOption {
 }
 
 export function ModulePermissionManager() {
+  const { t } = useTranslations();
   const [users, setUsers] = useState<UserWithPermissions[]>([]);
   const [roles, setRoles] = useState<RoleOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,17 +115,17 @@ export function ModulePermissionManager() {
       });
 
       if (response.ok) {
-        toast.success('User role updated successfully');
+        toast.success(t('userManagement.userRoleUpdated'));
         await loadUsers();
         setEditingUser(null);
         setEditingRoleId(null);
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Failed to update user role');
+        toast.error(error.error || t('userManagement.failedToUpdateRole'));
       }
     } catch (error) {
       console.error('Error updating user role:', error);
-      toast.error('Failed to update user role');
+      toast.error(t('userManagement.failedToUpdateRole'));
     } finally {
       setSaving(false);
     }
@@ -136,12 +138,12 @@ export function ModulePermissionManager() {
 
   const handleAddUser = async () => {
     if (!newUser.userId || !newUser.password) {
-      toast.error('User ID and password are required');
+      toast.error(t('userManagement.userIdPasswordRequired'));
       return;
     }
 
     if (!newUser.roleId) {
-      toast.error('Please select a role for the user');
+      toast.error(t('userManagement.pleaseSelectRole'));
       return;
     }
 
@@ -157,17 +159,17 @@ export function ModulePermissionManager() {
       });
 
       if (response.ok) {
-        toast.success('User created successfully');
+        toast.success(t('userManagement.userCreatedSuccess'));
         await loadUsers();
         setShowAddUser(false);
         setNewUser({ userId: '', password: '', roleId: null });
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Failed to create user');
+        toast.error(error.error || t('userManagement.failedToCreateUser'));
       }
     } catch (error) {
       console.error('Error adding user:', error);
-      toast.error('Failed to create user');
+      toast.error(t('userManagement.failedToCreateUser'));
     }
   };
 
@@ -185,14 +187,14 @@ export function ModulePermissionManager() {
       });
 
       if (response.ok) {
-        toast.success('User deleted successfully');
+        toast.success(t('userManagement.userDeletedSuccess'));
         await loadUsers();
       } else {
-        toast.error('Failed to delete user');
+        toast.error(t('userManagement.failedToDeleteUser'));
       }
     } catch (error) {
       console.error('Error deleting user:', error);
-      toast.error('Failed to delete user');
+      toast.error(t('userManagement.failedToDeleteUser'));
     } finally {
       setUserToDelete(null);
       setDeleteDialogOpen(false);
@@ -219,28 +221,28 @@ export function ModulePermissionManager() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle>User Management</CardTitle>
+              <CardTitle>{t('userManagement.title')}</CardTitle>
               <CardDescription>
-                Manage users and their module access permissions
+                {t('userManagement.description')}
               </CardDescription>
             </div>
             <Dialog open={showAddUser} onOpenChange={setShowAddUser}>
               <DialogTrigger asChild>
                 <Button>
                   <Plus className="mr-2 h-4 w-4" />
-                  Add User
+                  {t('userManagement.addUser')}
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Add New User</DialogTitle>
+                  <DialogTitle>{t('userManagement.addNewUser')}</DialogTitle>
                   <DialogDescription>
-                    Create a new user account with initial permissions
+                    {t('userManagement.createNewUser')}
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="userId">User ID</Label>
+                    <Label htmlFor="userId">{t('userManagement.userId')}</Label>
                     <Input
                       id="userId"
                       type="text"
@@ -251,7 +253,7 @@ export function ModulePermissionManager() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="password">{t('userManagement.password')}</Label>
                     <Input
                       id="password"
                       type="password"
@@ -262,7 +264,7 @@ export function ModulePermissionManager() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="role">Role *</Label>
+                    <Label htmlFor="role">{t('userManagement.role')} *</Label>
                     <Select
                       value={newUser.roleId || ''}
                       onValueChange={(value) =>
@@ -270,7 +272,7 @@ export function ModulePermissionManager() {
                       }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select a role" />
+                        <SelectValue placeholder={t('userManagement.selectRole')} />
                       </SelectTrigger>
                       <SelectContent>
                         {roles.map((role) => (
@@ -283,7 +285,7 @@ export function ModulePermissionManager() {
                     </Select>
                   </div>
                   <Button onClick={handleAddUser} className="w-full">
-                    Create User
+                    {t('userManagement.createUser')}
                   </Button>
                 </div>
               </DialogContent>
@@ -293,7 +295,7 @@ export function ModulePermissionManager() {
         <CardContent>
           <div className="mb-4">
             <Input
-              placeholder="Search users..."
+              placeholder={t('userManagement.searchUsers')}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -324,7 +326,7 @@ export function ModulePermissionManager() {
                     <div className="space-y-4 pt-2">
                       <div className="space-y-3">
                         <div>
-                          <Label className="text-sm font-medium">Assigned Role</Label>
+                          <Label className="text-sm font-medium">{t('userManagement.assignedRole')}</Label>
                           <div className="mt-2">
                             {editingUser?.id === user.id ? (
                               <div className="flex items-center gap-2">
@@ -336,7 +338,7 @@ export function ModulePermissionManager() {
                                   disabled={saving}
                                 >
                                   <SelectTrigger className="flex-1">
-                                    <SelectValue placeholder="Select a role" />
+                                    <SelectValue placeholder={t('userManagement.selectRole')} />
                                   </SelectTrigger>
                                   <SelectContent>
                                     {roles.map((role) => (
@@ -352,7 +354,7 @@ export function ModulePermissionManager() {
                                   onClick={() => handleRoleChange(user.id, editingRoleId)}
                                   disabled={saving || editingRoleId === user.roleId}
                                 >
-                                  Save
+                                  {t('common.save')}
                                 </Button>
                                 <Button
                                   size="sm"
@@ -363,7 +365,7 @@ export function ModulePermissionManager() {
                                   }}
                                   disabled={saving}
                                 >
-                                  Cancel
+                                  {t('common.cancel')}
                                 </Button>
                               </div>
                             ) : (
@@ -371,7 +373,7 @@ export function ModulePermissionManager() {
                                 <div className="flex items-center gap-1 p-2 rounded-md border bg-muted/50">
                                   <Shield className="h-4 w-4 text-muted-foreground" />
                                   <span className="text-sm font-medium">
-                                    {user.roleInfo?.name || 'No role assigned'}
+                                    {user.roleInfo?.name || t('userManagement.noRoleAssigned')}
                                   </span>
                                 </div>
                                 <Button
@@ -379,7 +381,7 @@ export function ModulePermissionManager() {
                                   variant="outline"
                                   onClick={() => handleEditUser(user)}
                                 >
-                                  Change Role
+                                  {t('userManagement.changeRole')}
                                 </Button>
                               </div>
                             )}
@@ -388,7 +390,7 @@ export function ModulePermissionManager() {
 
                         {user.roleInfo && (
                           <div>
-                            <Label className="text-sm font-medium">Module Permissions (from role)</Label>
+                            <Label className="text-sm font-medium">{t('userManagement.modulePermissions')}</Label>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-2">
                               {ALL_MODULES.map((module) => {
                                 const hasAccess = user.permissions[module.key] || false;
@@ -418,7 +420,7 @@ export function ModulePermissionManager() {
                           className="text-destructive hover:text-destructive hover:bg-destructive/10"
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
-                          Delete User
+                          {t('userManagement.deleteUser')}
                         </Button>
                       </div>
                     </div>
@@ -429,7 +431,7 @@ export function ModulePermissionManager() {
           </div>
           {filteredUsers.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
-              No users found matching your search.
+              {t('userManagement.noUsersFound')}
             </div>
           )}
         </CardContent>
@@ -439,10 +441,10 @@ export function ModulePermissionManager() {
       <ConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        title="Delete User"
-        description="Are you sure you want to delete this user? This action cannot be undone."
-        confirmText="Delete"
-        cancelText="Cancel"
+        title={t('userManagement.deleteUserConfirm')}
+        description={t('userManagement.deleteUserDescription')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
         variant="destructive"
         onConfirm={confirmDeleteUser}
       />

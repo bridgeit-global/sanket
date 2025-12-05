@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { memo } from 'react';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ChatMessage } from '@/lib/types';
+import { useTranslations } from '@/hooks/use-translations';
 
 interface BeneficiarySuggestionsProps {
   chatId: string;
@@ -15,69 +16,71 @@ function PureBeneficiarySuggestions({
   chatId,
   sendMessage,
 }: BeneficiarySuggestionsProps) {
+  const { t } = useTranslations();
+
   const beneficiaryActions = [
     {
-      title: 'View all services',
-      label: 'individual and community',
+      title: t('beneficiary.viewAllServices'),
+      label: `${t('beneficiary.individual')} and ${t('beneficiary.community')}`,
       action: 'Show me all available services for beneficiary management',
     },
     {
-      title: 'Add new beneficiary service',
+      title: t('beneficiary.addNewService'),
       label: 'form interface',
       action: 'I want to add a new beneficiary service',
     },
     {
-      title: 'Add beneficiary to voter service',
-      label: 'individual voter',
+      title: t('beneficiary.addBeneficiaryToService', { service: 'voter service' }),
+      label: t('beneficiary.individual') + ' voter',
       action: 'Add voter ID TEST001 to the voter registration service with notes "New voter registration assistance"',
     },
     {
-      title: 'Add beneficiary to Aadhar service',
-      label: 'individual voter',
+      title: t('beneficiary.addBeneficiaryToService', { service: 'Aadhar service' }),
+      label: t('beneficiary.individual') + ' voter',
       action: 'Add voter ID TEST002 to the Aadhar card service with notes "Aadhar card application assistance"',
     },
     {
-      title: 'Add beneficiary to public works',
-      label: 'community voters',
+      title: t('beneficiary.addBeneficiaryToService', { service: 'public works' }),
+      label: t('beneficiary.community') + ' voters',
       action: 'Add Part 5 to the road construction service with notes "Public work affecting all voters in Part 5"',
     },
     {
-      title: 'Get beneficiaries by voter',
+      title: t('beneficiary.getBeneficiariesByVoter'),
       label: 'individual tracking',
       action: 'Show me all beneficiaries for voter ID TEST001',
     },
     {
-      title: 'Get beneficiaries by service',
+      title: t('beneficiary.getBeneficiariesByService'),
       label: 'service tracking',
       action: 'Show me all beneficiaries for the voter registration service',
     },
     {
-      title: 'Get beneficiaries by part',
+      title: t('beneficiary.getBeneficiariesByPart'),
       label: 'area tracking',
       action: 'Show me all beneficiaries for Part 5',
     },
     {
-      title: 'Get overall statistics',
+      title: t('beneficiary.getOverallStatistics'),
       label: 'beneficiary dashboard',
       action: 'Show me overall beneficiary statistics and status breakdown',
     },
     {
-      title: 'Update status to pending',
+      title: t('beneficiary.updateStatus', { status: t('beneficiary.status.pending') }),
       label: 'service request submitted',
       action: 'Update beneficiary status to pending for the voter registration service',
     },
     {
-      title: 'Update status to in progress',
+      title: t('beneficiary.updateStatus', { status: t('beneficiary.status.inProgress') }),
       label: 'service being processed',
       action: 'Update beneficiary status to in_progress for the Aadhar card service',
     },
     {
-      title: 'Update status to completed',
+      title: t('beneficiary.updateStatus', { status: t('beneficiary.status.completed') }),
       label: 'service finished',
       action: 'Update beneficiary status to completed for the voter registration service with completion date today',
     },
     {
-      title: 'Update status to rejected',
+      title: t('beneficiary.updateStatus', { status: t('beneficiary.status.rejected') }),
       label: 'service request denied',
       action: 'Update beneficiary status to rejected for the ration card service with notes "Incomplete documentation"',
     },
@@ -86,8 +89,8 @@ function PureBeneficiarySuggestions({
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <h3 className="text-lg font-semibold text-primary mb-2">Beneficiary Management</h3>
-        <p className="text-sm text-muted-foreground mb-4">Manage services and beneficiaries for Anushakti Nagar constituency</p>
+        <h3 className="text-lg font-semibold text-primary mb-2">{t('beneficiary.title')}</h3>
+        <p className="text-sm text-muted-foreground mb-4">{t('beneficiary.subtitle')}</p>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2 w-full">

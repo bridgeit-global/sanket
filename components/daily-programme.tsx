@@ -28,6 +28,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useTranslations } from '@/hooks/use-translations';
 
 interface ProgrammeItem {
   id: string;
@@ -183,6 +184,7 @@ const TIME_OPTIONS = generateTimeOptions();
 const DURATION_OPTIONS = generateDurationOptions();
 
 export function DailyProgramme({ userRole }: DailyProgrammeProps) {
+  const { t } = useTranslations();
   const [allItems, setAllItems] = useState<ProgrammeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() =>
@@ -355,7 +357,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
         });
 
         if (response.ok) {
-          toast.success('Programme item updated successfully');
+          toast.success(t('dailyProgramme.programmeItemUpdatedSuccess'));
           await loadItems();
           setEditingId(null);
           setForm({
@@ -367,7 +369,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
             remarks: '',
           });
         } else {
-          toast.error('Failed to update programme item');
+          toast.error(t('dailyProgramme.failedToUpdateProgrammeItem'));
         }
       } else {
         // Create new item
@@ -385,7 +387,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
         });
 
         if (response.ok) {
-          toast.success('Programme item added successfully');
+          toast.success(t('dailyProgramme.programmeItemAddedSuccess'));
           await loadItems();
 
           setForm({
@@ -397,12 +399,12 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
             remarks: '',
           });
         } else {
-          toast.error('Failed to add programme item');
+          toast.error(t('dailyProgramme.failedToAddProgrammeItem'));
         }
       }
     } catch (error) {
       console.error('Error saving programme item:', error);
-      toast.error('Failed to save programme item');
+      toast.error(t('dailyProgramme.failedToSaveProgrammeItem'));
     }
   };
 
@@ -451,17 +453,17 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
       });
 
       if (response.ok) {
-        toast.success('Programme item deleted successfully');
+        toast.success(t('dailyProgramme.programmeItemDeletedSuccess'));
         await loadItems();
         if (editingId === itemToDelete) {
           handleCancelEdit();
         }
       } else {
-        toast.error('Failed to delete programme item');
+        toast.error(t('dailyProgramme.failedToDeleteProgrammeItem'));
       }
     } catch (error) {
       console.error('Error deleting programme item:', error);
-      toast.error('Failed to delete programme item');
+      toast.error(t('dailyProgramme.failedToDeleteProgrammeItem'));
     } finally {
       setItemToDelete(null);
       setDeleteDialogOpen(false);
@@ -532,19 +534,19 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
   return (
     <div className="flex flex-col gap-6">
       <ModulePageHeader
-        title="Daily Programme"
-        description="Manage daily schedules, detailed calendar views, and analytics"
+        title={t('dailyProgramme.title')}
+        description={t('dailyProgramme.description')}
       />
 
       <div className="space-y-6">
         <Card className="no-print" id="programme-form">
           <CardHeader>
-            <CardTitle>{editingId ? 'Edit Programme' : 'Create Daily Programme'}</CardTitle>
+            <CardTitle>{editingId ? t('dailyProgramme.editProgramme') : t('dailyProgramme.createDailyProgramme')}</CardTitle>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-4">
               <div className="space-y-2">
-                <Label htmlFor="date">Date</Label>
+                <Label htmlFor="date">{t('dailyProgramme.date')}</Label>
                 <Input
                   id="date"
                   type="date"
@@ -554,14 +556,14 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="startTime">Start Time</Label>
+                <Label htmlFor="startTime">{t('dailyProgramme.startTime')}</Label>
                 <Select
                   value={form.startTime || undefined}
                   onValueChange={(value) => setForm({ ...form, startTime: value })}
                   required
                 >
                   <SelectTrigger id="startTime">
-                    <SelectValue placeholder="Select time" />
+                    <SelectValue placeholder={t('dailyProgramme.selectTime')} />
                   </SelectTrigger>
                   <SelectContent className="max-h-[200px]">
                     {TIME_OPTIONS.map((time) => (
@@ -573,13 +575,13 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="duration">Duration</Label>
+                <Label htmlFor="duration">{t('dailyProgramme.duration')}</Label>
                 <Select
                   value={form.duration || undefined}
                   onValueChange={(value) => setForm({ ...form, duration: value })}
                 >
                   <SelectTrigger id="duration">
-                    <SelectValue placeholder="Select duration" />
+                    <SelectValue placeholder={t('dailyProgramme.selectDuration')} />
                   </SelectTrigger>
                   <SelectContent className="max-h-[200px]">
                     {DURATION_OPTIONS.map((option) => (
@@ -591,30 +593,30 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                 </Select>
               </div>
               <div className="space-y-2 md:col-span-1">
-                <Label htmlFor="title">Programme Title</Label>
+                <Label htmlFor="title">{t('dailyProgramme.programmeTitle')}</Label>
                 <Input
                   id="title"
-                  placeholder="Field visit, meeting, event..."
+                  placeholder={t('dailyProgramme.titlePlaceholder')}
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   required
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="location">Location</Label>
+                <Label htmlFor="location">{t('dailyProgramme.location')}</Label>
                 <Input
                   id="location"
-                  placeholder="Ward office, society name, landmark..."
+                  placeholder={t('dailyProgramme.locationPlaceholder')}
                   value={form.location}
                   onChange={(e) => setForm({ ...form, location: e.target.value })}
                   required
                 />
               </div>
               <div className="space-y-2 md:col-span-2">
-                <Label htmlFor="remarks">Remarks</Label>
+                <Label htmlFor="remarks">{t('dailyProgramme.remarks')}</Label>
                 <Textarea
                   id="remarks"
-                  placeholder="Key points, officers to be present, contact person..."
+                  placeholder={t('dailyProgramme.remarksPlaceholder')}
                   value={form.remarks}
                   onChange={(e) => setForm({ ...form, remarks: e.target.value })}
                   rows={2}
@@ -623,10 +625,10 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
               <div className="md:col-span-4 flex justify-end gap-2">
                 {editingId && (
                   <Button type="button" variant="outline" onClick={handleCancelEdit}>
-                    Cancel
+                    {t('dailyProgramme.cancel')}
                   </Button>
                 )}
-                <Button type="submit">{editingId ? 'Update Programme' : 'Add to Programme'}</Button>
+                <Button type="submit">{editingId ? t('dailyProgramme.updateProgramme') : t('dailyProgramme.addToProgramme')}</Button>
               </div>
             </form>
           </CardContent>
@@ -635,13 +637,13 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
         <Card>
           <CardHeader className="no-print">
             <div className="flex items-center justify-between">
-              <CardTitle>Programme Register</CardTitle>
+              <CardTitle>{t('dailyProgramme.programmeRegister')}</CardTitle>
               <div className="flex items-center gap-4">
                 {loading ? (
                   <Skeleton className="h-5 w-32" />
                 ) : (
                   <span className="text-sm text-muted-foreground">
-                    Total: {allItems.length} | Dates: {filteredDateEntries.length}
+                    {t('dailyProgramme.total')}: {allItems.length} | {t('dailyProgramme.dates')}: {filteredDateEntries.length}
                   </span>
                 )}
               </div>
@@ -685,18 +687,21 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                       <div>
                         <div className="font-semibold text-lg">{dateRangeLabel}</div>
                         <div className="text-xs text-muted-foreground">
-                          Showing {allItems.length} event{allItems.length !== 1 ? 's' : ''} across{' '}
-                          {filteredDateEntries.length} date{filteredDateEntries.length !== 1 ? 's' : ''}
+                          {t('dailyProgramme.showingEvents')
+                            .replace('{count}', allItems.length.toString())
+                            .replace('{plural}', allItems.length !== 1 ? 's' : '')
+                            .replace('{dateCount}', filteredDateEntries.length.toString())
+                            .replace('{datePlural}', filteredDateEntries.length !== 1 ? 's' : '')}
                         </div>
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       <Button variant="outline" size="sm" onClick={handleResetRange}>
-                        Reset Range
+                        {t('dailyProgramme.resetRange')}
                       </Button>
                       <Button variant="outline" size="sm" onClick={handlePrint}>
                         <Printer className="mr-2 h-4 w-4" />
-                        Print Programme
+                        {t('dailyProgramme.printProgramme')}
                       </Button>
                     </div>
                   </div>
@@ -721,7 +726,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                   {filteredDateEntries.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>No programme events for the selected date range.</p>
+                      <p>{t('dailyProgramme.noProgrammes')}</p>
                     </div>
                   ) : (
                     <div className="space-y-6">
@@ -735,18 +740,18 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                 {format(date, 'EEEE, dd MMM yyyy')}
                               </div>
                               <span className="text-xs text-muted-foreground">
-                                {items.length} event{items.length !== 1 ? 's' : ''}
+                                {items.length} {items.length !== 1 ? t('dailyProgramme.events') : t('dailyProgramme.event')}
                               </span>
                             </div>
                             <div className="overflow-x-auto">
                               <Table>
                                 <TableHeader>
                                   <TableRow>
-                                    <TableHead className="w-[120px]">Time</TableHead>
-                                    <TableHead className="w-[200px]">Title</TableHead>
-                                    <TableHead className="w-[250px]">Location</TableHead>
-                                    <TableHead>Remarks</TableHead>
-                                    <TableHead className="w-[100px] no-print">Actions</TableHead>
+                                    <TableHead className="w-[120px]">{t('dailyProgramme.time')}</TableHead>
+                                    <TableHead className="w-[200px]">{t('dailyProgramme.tableTitle')}</TableHead>
+                                    <TableHead className="w-[250px]">{t('dailyProgramme.location')}</TableHead>
+                                    <TableHead>{t('dailyProgramme.remarks')}</TableHead>
+                                    <TableHead className="w-[100px] no-print">{t('dailyProgramme.actions')}</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
@@ -826,10 +831,10 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
       <ConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        title="Delete Programme Item"
-        description="Are you sure you want to delete this programme item? This action cannot be undone."
-        confirmText="Delete"
-        cancelText="Cancel"
+        title={t('dailyProgramme.deleteProgrammeItem')}
+        description={t('dailyProgramme.deleteProgrammeDescription')}
+        confirmText={t('dailyProgramme.delete')}
+        cancelText={t('dailyProgramme.cancel')}
         variant="destructive"
         onConfirm={confirmDelete}
       />

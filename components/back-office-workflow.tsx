@@ -12,8 +12,10 @@ import { Slider } from '@/components/ui/slider';
 import { toast } from '@/components/toast';
 import type { Voter } from '@/lib/db/schema';
 import { PhoneUpdateForm } from '@/components/phone-update-form';
+import { useTranslations } from '@/hooks/use-translations';
 
 export function BackOfficeWorkflow() {
+    const { t } = useTranslations();
     const router = useRouter();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<Voter[]>([]);
@@ -52,7 +54,7 @@ export function BackOfficeWorkflow() {
             if (!name.trim() && (!gender || gender === 'any') && age === undefined) {
                 toast({
                     type: 'error',
-                    description: 'Please provide at least one search criteria (name, gender, or age)',
+                    description: t('backOffice.pleaseProvideCriteria'),
                 });
                 return;
             }
@@ -60,7 +62,7 @@ export function BackOfficeWorkflow() {
             if (!searchTerm.trim()) {
                 toast({
                     type: 'error',
-                    description: 'Please enter a VoterId or name to search',
+                    description: t('backOffice.pleaseEnterVoterId'),
                 });
                 return;
             }
@@ -93,14 +95,13 @@ export function BackOfficeWorkflow() {
             setLastSearchType(data.searchType || searchType);
 
             if ((data.voters || []).length === 0) {
-                const searchTypeText = (data.searchType || searchType) === 'voterId' ? 'VoterId' : 'details';
-                toast({ type: 'error', description: `No voters found with that ${searchTypeText}` });
+                toast({ type: 'error', description: t('backOffice.noVotersFound') });
             } else {
-                const searchTypeText = (data.searchType || searchType) === 'voterId' ? 'VoterId' : 'details';
-                toast({ type: 'success', description: `Found ${data.voters.length} voter(s) by ${searchTypeText}` });
+                const searchTypeText = (data.searchType || searchType) === 'voterId' ? t('backOffice.voterIdType') : t('backOffice.detailsType');
+                toast({ type: 'success', description: `${data.voters.length} ${t('backOffice.foundBy', { type: searchTypeText })}` });
             }
         } catch (_error) {
-            toast({ type: 'error', description: 'Failed to search voters. Please try again.' });
+            toast({ type: 'error', description: t('backOffice.failedToSearch') });
         } finally {
             setIsSearching(false);
         }
@@ -133,9 +134,9 @@ export function BackOfficeWorkflow() {
             const updatedVoter = await response.json();
             setSelectedVoter(updatedVoter);
             setShowPhoneUpdate(false);
-            toast({ type: 'success', description: 'Phone number updated successfully' });
+            toast({ type: 'success', description: t('backOffice.phoneUpdatedSuccess') });
         } catch (_error) {
-            toast({ type: 'error', description: 'Failed to update phone number. Please try again.' });
+            toast({ type: 'error', description: t('backOffice.phoneUpdateFailed') });
         }
     };
 
@@ -161,9 +162,9 @@ export function BackOfficeWorkflow() {
             // Update the voter in the relatedVoters array
             setRelatedVoters(prev => prev.map(v => v.epicNumber === epicNumber ? updatedVoter : v));
 
-            toast({ type: 'success', description: 'Related voter phone number updated successfully' });
+            toast({ type: 'success', description: t('backOffice.relatedVoterPhoneUpdated') });
         } catch (_error) {
-            toast({ type: 'error', description: 'Failed to update phone number. Please try again.' });
+            toast({ type: 'error', description: t('backOffice.phoneUpdateFailed') });
         }
     };
 
@@ -187,27 +188,27 @@ export function BackOfficeWorkflow() {
                 <div className="flex items-center gap-3">
                     <SidebarToggle />
                     <div>
-                        <h1 className="text-3xl font-bold">Back Office</h1>
-                        <p className="text-muted-foreground mt-2">Manage voter profiles and export data</p>
+                        <h1 className="text-3xl font-bold">{t('backOffice.title')}</h1>
+                        <p className="text-muted-foreground mt-2">{t('backOffice.subtitle')}</p>
                     </div>
                 </div>
             </div>
 
             <Card>
                 <CardHeader>
-                    <CardTitle>Search a benificiary</CardTitle>
-                    <CardDescription className="text-sm">by</CardDescription>
+                    <CardTitle>{t('backOffice.searchBeneficiary')}</CardTitle>
+                    <CardDescription className="text-sm">{t('backOffice.searchBy')}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                                 <input type="radio" id="details" name="searchType" value="details" checked={searchType === 'details'} onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'details')} className="size-4" />
-                                <Label htmlFor="details" className="text-sm font-medium cursor-pointer flex-1">Detailed Search</Label>
+                                <Label htmlFor="details" className="text-sm font-medium cursor-pointer flex-1">{t('backOffice.detailedSearch')}</Label>
                             </div>
                             <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                                 <input type="radio" id="voterId" name="searchType" value="voterId" checked={searchType === 'voterId'} onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'details')} className="size-4" />
-                                <Label htmlFor="voterId" className="text-sm font-medium cursor-pointer flex-1">Voter Id</Label>
+                                <Label htmlFor="voterId" className="text-sm font-medium cursor-pointer flex-1">{t('backOffice.voterId')}</Label>
                             </div>
                         </div>
 
@@ -215,26 +216,26 @@ export function BackOfficeWorkflow() {
                             <div className="space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <Label htmlFor="name">Name (Optional)</Label>
+                                        <Label htmlFor="name">{t('backOffice.nameOptional')}</Label>
                                         <Input
                                             id="name"
                                             value={name}
                                             onChange={(e) => setName(e.target.value)}
                                             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                            placeholder="Enter voter name..."
+                                            placeholder={t('backOffice.enterVoterName')}
                                             type="text"
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="gender">Gender (Optional)</Label>
+                                        <Label htmlFor="gender">{t('backOffice.genderOptional')}</Label>
                                         <Select value={gender} onValueChange={setGender}>
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select gender" />
+                                                <SelectValue placeholder={t('backOffice.selectGender')} />
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="any">Any Gender</SelectItem>
-                                                <SelectItem value="M">Male</SelectItem>
-                                                <SelectItem value="F">Female</SelectItem>
+                                                <SelectItem value="any">{t('backOffice.anyGender')}</SelectItem>
+                                                <SelectItem value="M">{t('backOffice.male')}</SelectItem>
+                                                <SelectItem value="F">{t('backOffice.female')}</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -242,7 +243,7 @@ export function BackOfficeWorkflow() {
 
                                 <div className="space-y-4">
                                     <div>
-                                        <Label htmlFor="age">Age (years)</Label>
+                                        <Label htmlFor="age">{t('backOffice.ageYears')}</Label>
                                         <Input
                                             id="age"
                                             type="number"
@@ -251,12 +252,12 @@ export function BackOfficeWorkflow() {
                                             value={age}
                                             onChange={(e) => setAge(Number.parseInt(e.target.value) || 25)}
                                             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                                            placeholder="Enter age..."
+                                            placeholder={t('backOffice.enterAge')}
                                             className="w-full"
                                         />
                                     </div>
                                     <div>
-                                        <Label htmlFor="ageRange">Age Range: ±{ageRange} years</Label>
+                                        <Label htmlFor="ageRange">{t('backOffice.ageRange', { range: ageRange })}</Label>
                                         <Slider
                                             id="ageRange"
                                             min={0}
@@ -267,14 +268,14 @@ export function BackOfficeWorkflow() {
                                             className="w-full"
                                         />
                                         <p className="text-sm text-muted-foreground mt-1">
-                                            Search range: {age - ageRange} to {age + ageRange} years
+                                            {t('backOffice.searchRange', { min: age - ageRange, max: age + ageRange })}
                                         </p>
                                     </div>
                                 </div>
 
                                 <div className="flex gap-2">
                                     <Button onClick={handleSearch} disabled={isSearching} className="flex-1">
-                                        {isSearching ? 'Searching...' : 'Search'}
+                                        {isSearching ? t('backOffice.searching') : t('common.search')}
                                     </Button>
                                     <Button
                                         variant="outline"
@@ -290,16 +291,16 @@ export function BackOfficeWorkflow() {
                                         }}
                                         className="px-4"
                                     >
-                                        Clear
+                                        {t('backOffice.clear')}
                                     </Button>
                                 </div>
                             </div>
                         ) : (
                             <div className="space-y-4">
                                 <div>
-                                    <Label htmlFor="search">VoterId (EPIC Number)</Label>
+                                    <Label htmlFor="search">{t('backOffice.voterIdEpicNumber')}</Label>
                                     <div className="relative">
-                                        <Input id="search" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Enter VoterId (e.g., ABC1234567)..." type={'text'} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} className="pr-10" />
+                                        <Input id="search" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t('backOffice.enterVoterId')} type={'text'} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} className="pr-10" />
                                         {searchTerm && (
                                             <button type="button" onClick={() => { setSearchTerm(''); setSearchResults([]); setLastSearchType(null); setHasSearched(false); setIsSearching(false); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" aria-label="Clear search">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -311,9 +312,9 @@ export function BackOfficeWorkflow() {
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
-                                    <Button onClick={handleSearch} disabled={isSearching} className="flex-1">{isSearching ? 'Searching...' : 'Search'}</Button>
+                                    <Button onClick={handleSearch} disabled={isSearching} className="flex-1">{isSearching ? t('backOffice.searching') : t('common.search')}</Button>
                                     {searchTerm && (
-                                        <Button variant="outline" onClick={() => { setSearchTerm(''); setSearchResults([]); setLastSearchType(null); setHasSearched(false); setIsSearching(false); }} className="px-4">Clear</Button>
+                                        <Button variant="outline" onClick={() => { setSearchTerm(''); setSearchResults([]); setLastSearchType(null); setHasSearched(false); setIsSearching(false); }} className="px-4">{t('backOffice.clear')}</Button>
                                     )}
                                 </div>
                             </div>
@@ -322,9 +323,9 @@ export function BackOfficeWorkflow() {
                         {searchResults.length > 0 && (
                             <div className="mt-4">
                                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-                                    <h3 className="text-lg font-semibold">Search Results</h3>
+                                    <h3 className="text-lg font-semibold">{t('backOffice.searchResults')}</h3>
                                     {lastSearchType && (
-                                        <span className="text-sm text-muted-foreground">Found by {lastSearchType === 'voterId' ? 'VoterId' : 'Name'}</span>
+                                        <span className="text-sm text-muted-foreground">{t('backOffice.foundBy', { type: lastSearchType === 'voterId' ? t('backOffice.voterIdType') : t('backOffice.nameType') })}</span>
                                     )}
                                 </div>
                                 <div className="space-y-2">
@@ -344,8 +345,8 @@ export function BackOfficeWorkflow() {
                                                         <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded w-fit">{voter.epicNumber}</span>
                                                     </div>
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm mb-2">
-                                                        <div className="flex items-center gap-1"><span className="font-medium text-muted-foreground">Age:</span><span>{voter.age || 'N/A'}</span></div>
-                                                        <div className="flex items-center gap-1"><span className="font-medium text-muted-foreground">Gender:</span><span>{voter.gender || 'N/A'}</span></div>
+                                                        <div className="flex items-center gap-1"><span className="font-medium text-muted-foreground">{t('backOffice.age')}:</span><span>{voter.age || 'N/A'}</span></div>
+                                                        <div className="flex items-center gap-1"><span className="font-medium text-muted-foreground">{t('backOffice.gender')}:</span><span>{voter.gender || 'N/A'}</span></div>
                                                     </div>
                                                     <div className="text-xs text-muted-foreground">
                                                         {voter.acNo && `AC: ${voter.acNo}`}
@@ -355,12 +356,12 @@ export function BackOfficeWorkflow() {
                                                 </div>
                                                 <div className="text-right ml-4">
                                                     <div className="text-sm">
-                                                        <span className="font-medium text-muted-foreground">Primary:</span>
-                                                        <p className="text-sm">{voter.mobileNoPrimary || 'Not set'}</p>
+                                                        <span className="font-medium text-muted-foreground">{t('backOffice.primary')}:</span>
+                                                        <p className="text-sm">{voter.mobileNoPrimary || t('backOffice.notSet')}</p>
                                                     </div>
                                                     {voter.mobileNoSecondary && (
                                                         <div className="text-sm mt-1">
-                                                            <span className="font-medium text-muted-foreground">Secondary:</span>
+                                                            <span className="font-medium text-muted-foreground">{t('backOffice.secondary')}:</span>
                                                             <p className="text-sm text-muted-foreground">{voter.mobileNoSecondary}</p>
                                                         </div>
                                                     )}
@@ -376,7 +377,7 @@ export function BackOfficeWorkflow() {
                             <div className="mt-4 p-6 border border-muted-foreground/25 rounded-lg bg-muted/10">
                                 <div className="flex items-center justify-center gap-3">
                                     <div className="animate-spin rounded-full size-5 border-b-2 border-primary" />
-                                    <p className="text-sm text-muted-foreground">Searching voters...</p>
+                                    <p className="text-sm text-muted-foreground">{t('backOffice.searchingVoters')}</p>
                                 </div>
                             </div>
                         )}
@@ -390,7 +391,7 @@ export function BackOfficeWorkflow() {
                                         </svg>
                                     </div>
                                     <div>
-                                        <p className="text-sm font-medium text-muted-foreground">No voter found with the provided search criteria.</p>
+                                        <p className="text-sm font-medium text-muted-foreground">{t('backOffice.noVotersFoundCriteria')}</p>
                                     </div>
                                 </div>
                             </div>
@@ -412,9 +413,9 @@ export function BackOfficeWorkflow() {
                                         <div>
                                             <Card className="border-blue-200 bg-blue-50/50">
                                                 <CardHeader>
-                                                    <CardTitle className="text-lg">Related Family Members</CardTitle>
+                                                    <CardTitle className="text-lg">{t('backOffice.relatedFamilyMembers')}</CardTitle>
                                                     <CardDescription>
-                                                        Found {relatedVoters.length} family member(s) that can be updated
+                                                        {t('backOffice.foundFamilyMembers', { count: relatedVoters.length })}
                                                     </CardDescription>
                                                 </CardHeader>
                                                 <CardContent>
@@ -439,7 +440,7 @@ export function BackOfficeWorkflow() {
                                             onClick={handleDoneWithRelatedVoters}
                                             variant="outline"
                                         >
-                                            Done
+                                            {t('backOffice.done')}
                                         </Button>
                                     </div>
                                 )}
@@ -501,27 +502,27 @@ function RelatedVoterUpdateItem({ voter, onUpdate }: RelatedVoterUpdateItemProps
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                             <Label htmlFor={`mobileNoPrimary-${voter.epicNumber}`} className="text-sm">
-                                Primary Mobile
+                                {t('backOffice.primaryMobile')}
                             </Label>
                             <Input
                                 id={`mobileNoPrimary-${voter.epicNumber}`}
                                 type="tel"
                                 value={mobileNoPrimary}
                                 onChange={(e) => setMobileNoPrimary(e.target.value)}
-                                placeholder="Enter primary mobile"
+                                placeholder={t('backOffice.enterPrimaryMobile')}
                                 className="font-mono text-sm"
                             />
                         </div>
                         <div>
                             <Label htmlFor={`mobileNoSecondary-${voter.epicNumber}`} className="text-sm">
-                                Secondary Mobile
+                                {t('backOffice.secondaryMobile')}
                             </Label>
                             <Input
                                 id={`mobileNoSecondary-${voter.epicNumber}`}
                                 type="tel"
                                 value={mobileNoSecondary}
                                 onChange={(e) => setMobileNoSecondary(e.target.value)}
-                                placeholder="Enter secondary mobile (optional)"
+                                placeholder={t('backOffice.enterSecondaryMobile')}
                                 className="font-mono text-sm"
                             />
                         </div>
@@ -533,7 +534,7 @@ function RelatedVoterUpdateItem({ voter, onUpdate }: RelatedVoterUpdateItemProps
                         disabled={isUpdating || !mobileNoPrimary.trim()}
                         className="w-full"
                     >
-                        {isUpdating ? 'Updating...' : 'Update Phone'}
+                        {isUpdating ? t('backOffice.updating') : t('backOffice.updatePhone')}
                     </Button>
                 </form>
             </CardContent>

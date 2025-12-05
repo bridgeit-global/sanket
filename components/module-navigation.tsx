@@ -19,6 +19,7 @@ import {
 import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { ModuleDefinition } from '@/lib/module-constants';
 import { SidebarLink } from './sidebar-link';
+import { useTranslations } from '@/hooks/use-translations';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'dashboard': LayoutDashboard,
@@ -69,6 +70,25 @@ const sortModules = (mods: ModuleDefinition[]): ModuleDefinition[] => {
   });
 };
 
+// Map module keys to translation keys
+const getModuleTranslationKey = (moduleKey: string): string => {
+  const keyMap: Record<string, string> = {
+    'dashboard': 'modules.dashboard.label',
+    'daily-programme': 'modules.dailyProgramme.label',
+    'back-office': 'modules.backOffice.label',
+    'operator': 'modules.operator.label',
+    'data-export': 'modules.dataExport.label',
+    'projects': 'modules.projects.label',
+    'inward': 'modules.inward.label',
+    'outward': 'modules.outward.label',
+    'visitor-management': 'modules.visitorManagement.label',
+    'chat': 'modules.chat.label',
+    'user-management': 'modules.userManagement.label',
+    'profile': 'modules.profile.label',
+  };
+  return keyMap[moduleKey] || moduleKey;
+};
+
 export function ModuleNavigation({
   user,
   modules: initialModules,
@@ -77,6 +97,7 @@ export function ModuleNavigation({
   modules?: ModuleDefinition[];
 }) {
   const pathname = usePathname();
+  const { t } = useTranslations();
   const [modules, setModules] = useState<ModuleDefinition[]>(
     initialModules ? sortModules(initialModules) : [],
   );
@@ -114,6 +135,8 @@ export function ModuleNavigation({
       {modules.map((module) => {
         const Icon = iconMap[module.key];
         const isActive = pathname === module.route;
+        const translationKey = getModuleTranslationKey(module.key);
+        const translatedLabel = t(translationKey);
 
         return (
           <SidebarMenuItem key={module.key}>
@@ -125,7 +148,7 @@ export function ModuleNavigation({
                 }`}
             >
               {Icon && <Icon className="size-4" />}
-              {module.label}
+              {translatedLabel}
             </SidebarLink>
           </SidebarMenuItem>
         );

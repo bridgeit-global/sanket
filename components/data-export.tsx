@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import { ModulePageHeader } from '@/components/module-page-header';
+import { useTranslations } from '@/hooks/use-translations';
 import {
   Select,
   SelectContent,
@@ -55,6 +57,7 @@ interface ExportFilters {
 }
 
 export function DataExport() {
+  const { t } = useTranslations();
   const [exportFormat, setExportFormat] = useState<'excel' | 'csv' | 'pdf'>('excel');
   const [filters, setFilters] = useState<ExportFilters>({});
   const [isExporting, setIsExporting] = useState(false);
@@ -202,22 +205,27 @@ export function DataExport() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Export Configuration Card */}
-      <Card className="border-dashed border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <FileDown className="size-5 text-primary" />
-            Export Data
-          </CardTitle>
-          <CardDescription>
-            Export voter data in PDF or Excel format. Large exports run in the background.
-          </CardDescription>
-        </CardHeader>
+    <div className="flex flex-col gap-4 md:gap-6">
+      <ModulePageHeader
+        title={t('dataExport.title')}
+        description={t('dataExport.description')}
+      />
+      <div className="space-y-6">
+        {/* Export Configuration Card */}
+        <Card className="border-dashed border-2 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileDown className="size-5 text-primary" />
+              {t('dataExport.title')}
+            </CardTitle>
+            <CardDescription>
+              {t('dataExport.description')}
+            </CardDescription>
+          </CardHeader>
         <CardContent className="space-y-6">
           {/* Export Format Selection */}
           <div className="space-y-3">
-            <Label className="text-sm font-medium">Export Format</Label>
+            <Label className="text-sm font-medium">{t('dataExport.exportFormat')}</Label>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <button
                 type="button"
@@ -229,7 +237,7 @@ export function DataExport() {
               >
                 <FileSpreadsheet className={`size-6 ${exportFormat === 'excel' ? 'text-emerald-600' : 'text-muted-foreground'}`} />
                 <div className="text-left">
-                  <div className="font-medium">Excel</div>
+                  <div className="font-medium">{t('dataExport.excel')}</div>
                   <div className="text-xs text-muted-foreground">CSV format, Excel compatible</div>
                 </div>
               </button>
@@ -244,7 +252,7 @@ export function DataExport() {
               >
                 <FileText className={`size-6 ${exportFormat === 'csv' ? 'text-blue-600' : 'text-muted-foreground'}`} />
                 <div className="text-left">
-                  <div className="font-medium">CSV</div>
+                  <div className="font-medium">{t('dataExport.csv')}</div>
                   <div className="text-xs text-muted-foreground">Plain CSV format</div>
                 </div>
               </button>

@@ -18,11 +18,8 @@ export default async function DataExportPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <ModulePageHeader title="Data Export" />
-      <div className="container mx-auto p-4 sm:py-8 max-w-7xl flex-1">
-        <DataExport />
-      </div>
+    <div className="container mx-auto p-4 sm:py-8 max-w-7xl">
+      <DataExport />
     </div>
   );
 }

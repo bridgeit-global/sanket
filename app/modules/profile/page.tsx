@@ -11,11 +11,8 @@ export default async function ProfilePage() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <ModulePageHeader title="My Profile" />
-      <div className="container mx-auto p-4 sm:py-8 max-w-7xl flex-1">
-        <UserProfile userId={session.user.id} />
-      </div>
+    <div className="container mx-auto p-4 sm:py-8 max-w-7xl">
+      <UserProfile userId={session.user.id} />
     </div>
   );
 }

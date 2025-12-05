@@ -8,6 +8,7 @@ import { CalendarDays, Inbox, Send, FolderKanban } from 'lucide-react';
 import { format } from 'date-fns';
 import { DashboardSkeleton } from '@/components/module-skeleton';
 import { ModulePageHeader } from '@/components/module-page-header';
+import { useTranslations } from '@/hooks/use-translations';
 
 interface DashboardStats {
   meetings: number;
@@ -26,6 +27,7 @@ interface UpcomingProgramme {
 
 export function Dashboard() {
   const router = useRouter();
+  const { t } = useTranslations();
   const [stats, setStats] = useState<DashboardStats>({
     meetings: 0,
     inward: 0,
@@ -63,43 +65,43 @@ export function Dashboard() {
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <ModulePageHeader
-        title="Dashboard"
-        description="Overview of activities and statistics"
+        title={t('dashboard.title')}
+        description={t('dashboard.description')}
       />
 
       <Card>
         <CardHeader>
-          <CardTitle>Today at a glance</CardTitle>
+          <CardTitle>{t('dashboard.todayAtGlance')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-3">
             <div className="flex flex-col gap-1 rounded-lg border p-4">
               <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                Meetings
+                {t('dashboard.meetings')}
               </span>
               <span className="text-2xl font-semibold">{stats.meetings}</span>
               <span className="text-xs text-muted-foreground">
-                As per Daily Programme
+                {t('dashboard.asPerDailyProgramme')}
               </span>
             </div>
             <div className="flex flex-col gap-1 rounded-lg border p-4">
               <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                Inward / Outward
+                {t('dashboard.inwardOutward')}
               </span>
               <span className="text-2xl font-semibold">
                 {stats.inward} / {stats.outward}
               </span>
               <span className="text-xs text-muted-foreground">
-                Registered today
+                {t('dashboard.registeredToday')}
               </span>
             </div>
             <div className="flex flex-col gap-1 rounded-lg border p-4">
               <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                Projects
+                {t('dashboard.projects')}
               </span>
               <span className="text-2xl font-semibold">{stats.projects}</span>
               <span className="text-xs text-muted-foreground">
-                In progress for the Constituency
+                {t('dashboard.inProgressForConstituency')}
               </span>
             </div>
           </div>
@@ -109,12 +111,12 @@ export function Dashboard() {
       <div className="grid gap-4 md:grid-cols-2 md:gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Upcoming programmes</CardTitle>
+            <CardTitle>{t('dashboard.upcomingProgrammes')}</CardTitle>
           </CardHeader>
           <CardContent>
             {upcoming.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No upcoming programmes
+                {t('dashboard.noUpcomingProgrammes')}
               </p>
             ) : (
               <ul className="flex flex-col gap-3 text-sm">
@@ -141,7 +143,7 @@ export function Dashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Quick actions</CardTitle>
+            <CardTitle>{t('dashboard.quickActions')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3 text-sm">
@@ -151,7 +153,7 @@ export function Dashboard() {
                 onClick={() => router.push('/modules/daily-programme')}
               >
                 <CalendarDays className="mb-1 h-4 w-4" />
-                Daily Programme
+                {t('dashboard.dailyProgramme')}
               </Button>
               <Button
                 variant="outline"
@@ -159,7 +161,7 @@ export function Dashboard() {
                 onClick={() => router.push('/modules/inward')}
               >
                 <Inbox className="mb-1 h-4 w-4" />
-                Inward
+                {t('dashboard.inward')}
               </Button>
               <Button
                 variant="outline"
@@ -167,7 +169,7 @@ export function Dashboard() {
                 onClick={() => router.push('/modules/projects')}
               >
                 <FolderKanban className="mb-1 h-4 w-4" />
-                Add Project
+                {t('dashboard.addProject')}
               </Button>
               <Button
                 variant="outline"
@@ -175,7 +177,7 @@ export function Dashboard() {
                 onClick={() => router.push('/modules/outward')}
               >
                 <Send className="mb-1 h-4 w-4" />
-                Outward
+                {t('dashboard.outward')}
               </Button>
             </div>
           </CardContent>

@@ -26,6 +26,7 @@ import { RegisterAttachmentDialog } from '@/components/register-attachment-dialo
 import { RegisterSkeleton } from '@/components/module-skeleton';
 import { TablePagination, usePagination } from '@/components/table-pagination';
 import { ModulePageHeader } from '@/components/module-page-header';
+import { useTranslations } from '@/hooks/use-translations';
 
 interface Attachment {
   id: string;
@@ -54,6 +55,7 @@ interface Project {
 }
 
 export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
+  const { t } = useTranslations();
   const [entries, setEntries] = useState<RegisterEntry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +70,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
   });
   const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<RegisterEntry | null>(null);
-  
+
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -166,9 +168,8 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
     }
   };
 
-  const heading = type === 'inward' ? 'Inward Register' : 'Outward Register';
-  const labelFromTo =
-    type === 'inward' ? 'From (Name / Office)' : 'To (Name / Office)';
+  const heading = type === 'inward' ? t('register.inward') : t('register.outward');
+  const labelFromTo = t('forms.fromTo');
 
   // Filter entries based on search term
   const filteredEntries = entries.filter((entry) => {
@@ -204,7 +205,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
     <div className="flex flex-col gap-4 md:gap-6">
       <ModulePageHeader
         title={heading}
-        description={type === 'inward' ? 'Manage incoming documents and letters' : 'Manage outgoing documents and letters'}
+        description={type === 'inward' ? t('register.manageIncoming') : t('register.manageOutgoing')}
       />
 
       <Card>
@@ -213,14 +214,14 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
             <CardTitle>{heading}</CardTitle>
             <Button variant="outline" size="sm" onClick={handlePrint}>
               <Printer className="mr-2 h-4 w-4" />
-              Print Register
+              {t('register.printRegister')}
             </Button>
           </div>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-6">
             <div className="space-y-2 md:col-span-1">
-              <Label htmlFor="date">Date</Label>
+              <Label htmlFor="date">{t('common.date')}</Label>
               <Input
                 id="date"
                 type="date"
@@ -233,16 +234,16 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
               <Label htmlFor="fromTo">{labelFromTo}</Label>
               <Input
                 id="fromTo"
-                placeholder="Name, designation, department..."
+                placeholder={t('forms.placeholder.fromTo')}
                 value={form.fromTo}
                 onChange={(e) => setForm({ ...form, fromTo: e.target.value })}
               />
             </div>
             <div className="space-y-2 md:col-span-3">
-              <Label htmlFor="subject">Subject</Label>
+              <Label htmlFor="subject">{t('forms.subject')}</Label>
               <Input
                 id="subject"
-                placeholder="Short description of letter / document"
+                placeholder={t('forms.placeholder.subject')}
                 value={form.subject}
                 onChange={(e) => setForm({ ...form, subject: e.target.value })}
                 required
