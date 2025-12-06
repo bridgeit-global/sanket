@@ -8,6 +8,7 @@ import { Badge } from './ui/badge';
 import { Plus, X } from 'lucide-react';
 import type { UseChatHelpers } from '@ai-sdk/react';
 import type { ChatMessage } from '@/lib/types';
+import { useTranslations } from '@/hooks/use-translations';
 
 interface BeneficiaryServiceFormWrapperProps {
     chatId: string;
