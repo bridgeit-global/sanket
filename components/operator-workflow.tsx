@@ -13,9 +13,11 @@ import { toast } from '@/components/toast';
 import { BeneficiaryServiceForm } from '@/components/beneficiary-service-form';
 import { PhoneUpdateForm } from '@/components/phone-update-form';
 import { TaskManagement } from '@/components/task-management';
+import { useTranslations } from '@/hooks/use-translations';
 import type { VoterWithPartNo, BeneficiaryService } from '@/lib/db/schema';
 
 export function OperatorWorkflow() {
+    const { t } = useTranslations();
     const router = useRouter();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<VoterWithPartNo[]>([]);
@@ -70,7 +72,7 @@ export function OperatorWorkflow() {
             if (!name.trim() && (!gender || gender === 'any') && age === undefined) {
                 toast({
                     type: 'error',
-                    description: 'Please provide at least one search criteria (name, gender, or age)',
+                    description: t('operator.messages.pleaseProvideCriteria'),
                 });
                 return;
             }
@@ -78,7 +80,7 @@ export function OperatorWorkflow() {
             if (!searchTerm.trim()) {
                 toast({
                     type: 'error',
-                    description: 'Please enter a VoterId, name, or phone number to search',
+                    description: t('operator.messages.pleaseEnterVoterId'),
                 });
                 return;
             }
@@ -111,24 +113,24 @@ export function OperatorWorkflow() {
             setLastSearchType(data.searchType || searchType);
 
             if (data.voters.length === 0) {
-                const searchTypeText = data.searchType === 'voterId' ? 'VoterId' :
-                    data.searchType === 'phone' ? 'phone number' : 'details';
+                const searchTypeText = data.searchType === 'voterId' ? t('operator.search.types.voterId') :
+                    data.searchType === 'phone' ? t('operator.search.types.phone') : t('backOffice.detailsType');
                 toast({
                     type: 'error',
-                    description: `No voters found with that ${searchTypeText}`,
+                    description: t('operator.messages.noVotersFound', { type: searchTypeText }),
                 });
             } else {
-                const searchTypeText = data.searchType === 'voterId' ? 'VoterId' :
-                    data.searchType === 'phone' ? 'phone number' : 'details';
+                const searchTypeText = data.searchType === 'voterId' ? t('operator.search.types.voterId') :
+                    data.searchType === 'phone' ? t('operator.search.types.phone') : t('backOffice.detailsType');
                 toast({
                     type: 'success',
-                    description: `Found ${data.voters.length} voter(s) by ${searchTypeText}`,
+                    description: t('operator.messages.votersFound', { count: data.voters.length, type: searchTypeText }),
                 });
             }
         } catch (error) {
             toast({
                 type: 'error',
-                description: 'Failed to search voters. Please try again.',
+                description: t('operator.messages.failedToSearch'),
             });
         } finally {
             setIsSearching(false);
@@ -179,13 +181,13 @@ export function OperatorWorkflow() {
             setWorkflowStep('service');
             toast({
                 type: 'success',
-                description: 'Phone number updated successfully',
+                description: t('operator.messages.phoneUpdatedSuccess'),
             });
         } catch (error) {
             console.error('Error updating phone number:', error);
             toast({
                 type: 'error',
-                description: 'Failed to update phone number. Please try again.',
+                description: t('operator.messages.phoneUpdateFailed'),
             });
         }
     };
@@ -208,7 +210,7 @@ export function OperatorWorkflow() {
         if (!serviceData || !selectedVoter) {
             toast({
                 type: 'error',
-                description: 'Service data is missing',
+                description: t('operator.messages.serviceDataMissing'),
             });
             return;
         }
@@ -237,13 +239,13 @@ export function OperatorWorkflow() {
             setWorkflowStep('completed');
             toast({
                 type: 'success',
-                description: 'Beneficiary service created successfully!',
+                description: t('operator.messages.serviceCreatedSuccess'),
             });
         } catch (error) {
             console.error('Error creating service:', error);
             toast({
                 type: 'error',
-                description: 'Failed to create beneficiary service. Please try again.',
+                description: t('operator.messages.serviceCreateFailed'),
             });
         }
     };
@@ -277,9 +279,9 @@ export function OperatorWorkflow() {
                 <div className="flex items-center gap-3">
                     <SidebarToggle />
                     <div>
-                        <h1 className="text-3xl font-bold">Operator Dashboard</h1>
+                        <h1 className="text-3xl font-bold">{t('operator.dashboard.title')}</h1>
                         <p className="text-muted-foreground mt-2">
-                            Voter management and beneficiary service creation
+                            {t('operator.dashboard.subtitle')}
                         </p>
                     </div>
                 </div>
@@ -295,8 +297,8 @@ export function OperatorWorkflow() {
                     }}
                     className="flex-1 text-sm sm:text-base"
                 >
-                    <span className="hidden sm:inline">Create Service</span>
-                    <span className="sm:hidden">Create</span>
+                    <span className="hidden sm:inline">{t('operator.tabs.createService')}</span>
+                    <span className="sm:hidden">{t('operator.tabs.create')}</span>
                 </Button>
                 <Button
                     variant={activeTab === 'manage' ? 'default' : 'ghost'}
@@ -306,8 +308,8 @@ export function OperatorWorkflow() {
                     }}
                     className="flex-1 text-sm sm:text-base"
                 >
-                    <span className="hidden sm:inline">Manage Tasks</span>
-                    <span className="sm:hidden">Manage</span>
+                    <span className="hidden sm:inline">{t('operator.tabs.manageTasks')}</span>
+                    <span className="sm:hidden">{t('operator.tabs.manage')}</span>
                 </Button>
             </div>
 
@@ -325,39 +327,39 @@ export function OperatorWorkflow() {
                                 <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'phoneUpdate' ? 'bg-blue-100 text-blue-600' : workflowStep === 'service' || workflowStep === 'confirmation' || workflowStep === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
                                     1
                                 </div>
-                                <span className="text-sm font-medium">Phone Update</span>
+                                <span className="text-sm font-medium">{t('operator.workflow.phoneUpdate')}</span>
                             </div>
                             <div className="flex-1 h-px bg-gray-200" />
                             <div className={`flex items-center space-x-2 ${workflowStep === 'service' ? 'text-blue-600' : workflowStep === 'confirmation' || workflowStep === 'completed' ? 'text-green-600' : 'text-gray-500'}`}>
                                 <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'service' ? 'bg-blue-100 text-blue-600' : workflowStep === 'confirmation' || workflowStep === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
                                     2
                                 </div>
-                                <span className="text-sm font-medium">Service Details</span>
+                                <span className="text-sm font-medium">{t('operator.workflow.serviceDetails')}</span>
                             </div>
                             <div className="flex-1 h-px bg-gray-200" />
                             <div className={`flex items-center space-x-2 ${workflowStep === 'confirmation' ? 'text-blue-600' : workflowStep === 'completed' ? 'text-green-600' : 'text-gray-500'}`}>
                                 <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'confirmation' ? 'bg-blue-100 text-blue-600' : workflowStep === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
                                     3
                                 </div>
-                                <span className="text-sm font-medium">Confirmation</span>
+                                <span className="text-sm font-medium">{t('operator.workflow.confirmation')}</span>
                             </div>
                             <div className="flex-1 h-px bg-gray-200" />
                             <div className={`flex items-center space-x-2 ${workflowStep === 'completed' ? 'text-green-600' : 'text-gray-500'}`}>
                                 <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
                                     4
                                 </div>
-                                <span className="text-sm font-medium">Token Generated</span>
+                                <span className="text-sm font-medium">{t('operator.workflow.tokenGenerated')}</span>
                             </div>
                         </div>
 
                         {/* Mobile Progress Indicator */}
                         <div className="sm:hidden space-y-2">
                             <div className="flex items-center justify-between text-xs">
-                                <span>Step {workflowStep === 'phoneUpdate' ? '1' : workflowStep === 'service' ? '2' : workflowStep === 'confirmation' ? '3' : '4'} of 4</span>
+                                <span>{t('operator.workflow.step', { current: workflowStep === 'phoneUpdate' ? '1' : workflowStep === 'service' ? '2' : workflowStep === 'confirmation' ? '3' : '4', total: '4' })}</span>
                                 <span className="text-muted-foreground">
-                                    {workflowStep === 'phoneUpdate' ? 'Phone Update' :
-                                        workflowStep === 'service' ? 'Service Details' :
-                                            workflowStep === 'confirmation' ? 'Confirmation' : 'Token Generated'}
+                                    {workflowStep === 'phoneUpdate' ? t('operator.workflow.phoneUpdate') :
+                                        workflowStep === 'service' ? t('operator.workflow.serviceDetails') :
+                                            workflowStep === 'confirmation' ? t('operator.workflow.confirmation') : t('operator.workflow.tokenGenerated')}
                                 </span>
                             </div>
                             <div className="w-full bg-gray-200 rounded-full h-2">
@@ -402,15 +404,15 @@ export function OperatorWorkflow() {
                     {showConfirmation && selectedVoter && serviceData && (
                         <Card>
                             <CardHeader>
-                                <CardTitle>Confirm Service Creation</CardTitle>
+                                <CardTitle>{t('operator.confirmation.title')}</CardTitle>
                                 <CardDescription>
-                                    Please review the service details before creating the beneficiary service
+                                    {t('operator.confirmation.description')}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
                                 {/* Voter Information */}
                                 <div className="space-y-4">
-                                    <h3 className="text-lg font-semibold">Voter Information</h3>
+                                    <h3 className="text-lg font-semibold">{t('operator.confirmation.voterInfo')}</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
                                         <div>
                                             <Label className="text-sm font-medium">Name</Label>
@@ -433,29 +435,29 @@ export function OperatorWorkflow() {
 
                                 {/* Service Information */}
                                 <div className="space-y-4">
-                                    <h3 className="text-lg font-semibold">Service Details</h3>
+                                    <h3 className="text-lg font-semibold">{t('operator.confirmation.serviceDetails')}</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
                                         <div>
-                                            <Label className="text-sm font-medium">Service Type</Label>
+                                            <Label className="text-sm font-medium">{t('operator.confirmation.serviceType')}</Label>
                                             <p className="capitalize">{serviceData.serviceType}</p>
                                         </div>
                                         <div>
-                                            <Label className="text-sm font-medium">Service Name</Label>
+                                            <Label className="text-sm font-medium">{t('operator.confirmation.serviceName')}</Label>
                                             <p>{serviceData.serviceName}</p>
                                         </div>
                                         <div>
-                                            <Label className="text-sm font-medium">Priority</Label>
+                                            <Label className="text-sm font-medium">{t('operator.confirmation.priority')}</Label>
                                             <p className="capitalize">{serviceData.priority || 'Medium'}</p>
                                         </div>
                                         {serviceData.description && (
                                             <div className="md:col-span-2">
-                                                <Label className="text-sm font-medium">Description</Label>
+                                                <Label className="text-sm font-medium">{t('operator.confirmation.description')}</Label>
                                                 <p>{serviceData.description}</p>
                                             </div>
                                         )}
                                         {serviceData.notes && (
                                             <div className="md:col-span-2">
-                                                <Label className="text-sm font-medium">Notes</Label>
+                                                <Label className="text-sm font-medium">{t('operator.confirmation.notes')}</Label>
                                                 <p>{serviceData.notes}</p>
                                             </div>
                                         )}
@@ -465,10 +467,10 @@ export function OperatorWorkflow() {
                                 {/* Action Buttons */}
                                 <div className="flex gap-4">
                                     <Button onClick={handleConfirmService} className="flex-1">
-                                        Confirm & Create Service
+                                        {t('operator.confirmation.confirmButton')}
                                     </Button>
                                     <Button variant="outline" onClick={handleCancel}>
-                                        Cancel
+                                        {t('common.cancel')}
                                     </Button>
                                 </div>
                             </CardContent>
@@ -479,53 +481,53 @@ export function OperatorWorkflow() {
                     {workflowStep === 'completed' && createdService && (
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-green-600">Service Created Successfully!</CardTitle>
+                                <CardTitle className="text-green-600">{t('operator.completion.title')}</CardTitle>
                                 <CardDescription>
-                                    Your beneficiary service has been created and a reference token has been generated
+                                    {t('operator.completion.description')}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-6">
                                 {/* Token Display */}
                                 <div className="text-center space-y-4">
                                     <div className="p-6 bg-green-50 border-2 border-green-200 rounded-lg">
-                                        <Label className="text-sm font-medium text-green-800">Reference Token</Label>
+                                        <Label className="text-sm font-medium text-green-800">{t('operator.completion.referenceToken')}</Label>
                                         <p className="text-2xl font-bold text-green-900 mt-2">{createdService.token}</p>
                                         <p className="text-sm text-green-700 mt-2">
-                                            Save this token for future reference and tracking
+                                            {t('operator.completion.saveToken')}
                                         </p>
                                     </div>
                                 </div>
 
                                 {/* Service Summary */}
                                 <div className="space-y-4">
-                                    <h3 className="text-lg font-semibold">Service Summary</h3>
+                                    <h3 className="text-lg font-semibold">{t('operator.completion.serviceSummary')}</h3>
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
                                         <div>
-                                            <Label className="text-sm font-medium">Service ID</Label>
+                                            <Label className="text-sm font-medium">{t('operator.completion.serviceId')}</Label>
                                             <p className="font-mono text-sm">{createdService.id}</p>
                                         </div>
                                         <div>
-                                            <Label className="text-sm font-medium">Token</Label>
+                                            <Label className="text-sm font-medium">{t('operator.completion.token')}</Label>
                                             <p className="font-mono text-sm">{createdService.token}</p>
                                         </div>
                                         <div>
-                                            <Label className="text-sm font-medium">Service Type</Label>
+                                            <Label className="text-sm font-medium">{t('operator.confirmation.serviceType')}</Label>
                                             <p className="capitalize">{createdService.serviceType}</p>
                                         </div>
                                         <div>
-                                            <Label className="text-sm font-medium">Service Name</Label>
+                                            <Label className="text-sm font-medium">{t('operator.confirmation.serviceName')}</Label>
                                             <p>{createdService.serviceName}</p>
                                         </div>
                                         <div>
-                                            <Label className="text-sm font-medium">Status</Label>
+                                            <Label className="text-sm font-medium">{t('operator.completion.status')}</Label>
                                             <p className="capitalize">{createdService.status}</p>
                                         </div>
                                         <div>
-                                            <Label className="text-sm font-medium">Priority</Label>
+                                            <Label className="text-sm font-medium">{t('operator.confirmation.priority')}</Label>
                                             <p className="capitalize">{createdService.priority}</p>
                                         </div>
                                         <div>
-                                            <Label className="text-sm font-medium">Created At</Label>
+                                            <Label className="text-sm font-medium">{t('operator.completion.createdAt')}</Label>
                                             <p>{new Date(createdService.createdAt).toLocaleString()}</p>
                                         </div>
                                     </div>
@@ -534,7 +536,7 @@ export function OperatorWorkflow() {
                                 {/* Action Buttons */}
                                 <div className="flex gap-4">
                                     <Button onClick={handleStartNew} className="flex-1">
-                                        Create Another Service
+                                        {t('operator.completion.createAnother')}
                                     </Button>
                                 </div>
                             </CardContent>
@@ -545,9 +547,9 @@ export function OperatorWorkflow() {
                     {workflowStep === 'search' && (
                         <Card>
                             <CardHeader>
-                                <CardTitle>Search Voter</CardTitle>
+                                <CardTitle>{t('operator.search.title')}</CardTitle>
                                 <CardDescription className="text-sm">
-                                    Search for voters by VoterId (EPIC Number), name, or phone number to create beneficiary services
+                                    {t('operator.search.description')}
                                 </CardDescription>
                             </CardHeader>
                             <CardContent>
@@ -565,7 +567,7 @@ export function OperatorWorkflow() {
                                                 className="size-4"
                                             />
                                             <Label htmlFor="details" className="text-sm font-medium cursor-pointer flex-1">
-                                                Detailed Search
+                                                {t('operator.search.types.detailed')}
                                             </Label>
                                         </div>
                                         <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
@@ -579,7 +581,7 @@ export function OperatorWorkflow() {
                                                 className="size-4"
                                             />
                                             <Label htmlFor="phone" className="text-sm font-medium cursor-pointer flex-1">
-                                                Phone Number
+                                                {t('operator.search.types.phone')}
                                             </Label>
                                         </div>
                                         <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
@@ -593,7 +595,7 @@ export function OperatorWorkflow() {
                                                 className="size-4"
                                             />
                                             <Label htmlFor="voterId" className="text-sm font-medium cursor-pointer flex-1">
-                                                VoterId (EPIC)
+                                                {t('operator.search.types.voterId')}
                                             </Label>
                                         </div>
                                     </div>
@@ -603,25 +605,25 @@ export function OperatorWorkflow() {
                                         <div className="space-y-6">
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div>
-                                                    <Label htmlFor="name">Name (Optional)</Label>
+                                                    <Label htmlFor="name">{t('backOffice.nameOptional')}</Label>
                                                     <Input
                                                         id="name"
                                                         value={name}
                                                         onChange={(e) => setName(e.target.value)}
-                                                        placeholder="Enter voter name..."
+                                                        placeholder={t('operator.search.namePlaceholder')}
                                                         type="text"
                                                     />
                                                 </div>
                                                 <div>
-                                                    <Label htmlFor="gender">Gender (Optional)</Label>
+                                                    <Label htmlFor="gender">{t('backOffice.genderOptional')}</Label>
                                                     <Select value={gender} onValueChange={setGender}>
                                                         <SelectTrigger>
-                                                            <SelectValue placeholder="Select gender" />
+                                                            <SelectValue placeholder={t('backOffice.selectGender')} />
                                                         </SelectTrigger>
                                                         <SelectContent>
-                                                            <SelectItem value="any">Any Gender</SelectItem>
-                                                            <SelectItem value="M">Male</SelectItem>
-                                                            <SelectItem value="F">Female</SelectItem>
+                                                            <SelectItem value="any">{t('backOffice.anyGender')}</SelectItem>
+                                                            <SelectItem value="M">{t('backOffice.male')}</SelectItem>
+                                                            <SelectItem value="F">{t('backOffice.female')}</SelectItem>
                                                         </SelectContent>
                                                     </Select>
                                                 </div>
@@ -629,7 +631,7 @@ export function OperatorWorkflow() {
 
                                             <div className="space-y-4">
                                                 <div>
-                                                    <Label htmlFor="age">Age (years)</Label>
+                                                    <Label htmlFor="age">{t('backOffice.ageYears')}</Label>
                                                     <Input
                                                         id="age"
                                                         type="number"
@@ -637,12 +639,12 @@ export function OperatorWorkflow() {
                                                         max={100}
                                                         value={age}
                                                         onChange={(e) => setAge(Number.parseInt(e.target.value) || 25)}
-                                                        placeholder="Enter age..."
+                                                        placeholder={t('backOffice.enterAge')}
                                                         className="w-full"
                                                     />
                                                 </div>
                                                 <div>
-                                                    <Label htmlFor="ageRange">Age Range: ±{ageRange} years</Label>
+                                                    <Label htmlFor="ageRange">{t('backOffice.ageRange', { range: ageRange })}</Label>
                                                     <Slider
                                                         id="ageRange"
                                                         min={0}
@@ -653,14 +655,14 @@ export function OperatorWorkflow() {
                                                         className="w-full"
                                                     />
                                                     <p className="text-sm text-muted-foreground mt-1">
-                                                        Search range: {age - ageRange} to {age + ageRange} years
+                                                        {t('backOffice.searchRange', { min: age - ageRange, max: age + ageRange })}
                                                     </p>
                                                 </div>
                                             </div>
 
                                             <div className="flex gap-2">
                                                 <Button onClick={handleSearch} disabled={isSearching} className="flex-1">
-                                                    {isSearching ? 'Searching...' : 'Search'}
+                                                    {isSearching ? t('operator.search.searching') : t('common.search')}
                                                 </Button>
                                                 <Button
                                                     variant="outline"
@@ -676,7 +678,7 @@ export function OperatorWorkflow() {
                                                     }}
                                                     className="px-4"
                                                 >
-                                                    Clear
+                                                    {t('backOffice.clear')}
                                                 </Button>
                                             </div>
                                         </div>
@@ -684,7 +686,7 @@ export function OperatorWorkflow() {
                                         <div className="space-y-4">
                                             <div>
                                                 <Label htmlFor="search">
-                                                    {searchType === 'voterId' ? 'VoterId (EPIC Number)' : 'Phone Number'}
+                                                    {searchType === 'voterId' ? t('backOffice.voterIdEpicNumber') : t('operator.search.types.phone')}
                                                 </Label>
                                                 <div className="relative">
                                                     <Input
@@ -693,8 +695,8 @@ export function OperatorWorkflow() {
                                                         onChange={(e) => setSearchTerm(e.target.value)}
                                                         placeholder={
                                                             searchType === 'voterId'
-                                                                ? 'Enter VoterId (e.g., ABC1234567)...'
-                                                                : 'Enter phone number (e.g., 9876543210)...'
+                                                                ? t('operator.search.voterIdPlaceholder')
+                                                                : t('operator.search.phonePlaceholder')
                                                         }
                                                         type={searchType === 'phone' ? 'tel' : 'text'}
                                                         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -732,7 +734,7 @@ export function OperatorWorkflow() {
                                             </div>
                                             <div className="flex gap-2">
                                                 <Button onClick={handleSearch} disabled={isSearching} className="flex-1">
-                                                    {isSearching ? 'Searching...' : 'Search'}
+                                                    {isSearching ? t('operator.search.searching') : t('common.search')}
                                                 </Button>
                                                 {searchTerm && (
                                                     <Button
@@ -758,11 +760,11 @@ export function OperatorWorkflow() {
                                 {searchResults.length > 0 && (
                                     <div className="mt-4">
                                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-                                            <h3 className="text-lg font-semibold">Search Results</h3>
+                                            <h3 className="text-lg font-semibold">{t('backOffice.searchResults')}</h3>
                                             {lastSearchType && (
                                                 <span className="text-sm text-muted-foreground">
-                                                    Found by {lastSearchType === 'voterId' ? 'VoterId' :
-                                                        lastSearchType === 'phone' ? 'Phone Number' : 'Details'}
+                                                    {t('operator.search.foundBy', { type: lastSearchType === 'voterId' ? t('backOffice.voterIdType') :
+                                                        lastSearchType === 'phone' ? t('operator.search.types.phone') : t('backOffice.detailsType') })}
                                                 </span>
                                             )}
                                         </div>
@@ -793,11 +795,11 @@ export function OperatorWorkflow() {
                                                             {/* Key Details */}
                                                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm mb-2">
                                                                 <div className="flex items-center gap-1">
-                                                                    <span className="font-medium text-muted-foreground">Age:</span>
+                                                                    <span className="font-medium text-muted-foreground">{t('backOffice.age')}:</span>
                                                                     <span>{voter.age || 'N/A'}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
-                                                                    <span className="font-medium text-muted-foreground">Gender:</span>
+                                                                    <span className="font-medium text-muted-foreground">{t('backOffice.gender')}:</span>
                                                                     <span>{voter.gender || 'N/A'}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
@@ -817,14 +819,14 @@ export function OperatorWorkflow() {
                                                         {/* Mobile Numbers */}
                                                         <div className="text-right ml-4">
                                                             <div className="text-sm">
-                                                                <span className="font-medium text-muted-foreground">Primary:</span>
+                                                                <span className="font-medium text-muted-foreground">{t('backOffice.primary')}:</span>
                                                                 <p className="text-sm">
-                                                                    {voter.mobileNoPrimary || 'Not set'}
+                                                                    {voter.mobileNoPrimary || t('backOffice.notSet')}
                                                                 </p>
                                                             </div>
                                                             {voter.mobileNoSecondary && (
                                                                 <div className="text-sm mt-1">
-                                                                    <span className="font-medium text-muted-foreground">Secondary:</span>
+                                                                    <span className="font-medium text-muted-foreground">{t('backOffice.secondary')}:</span>
                                                                     <p className="text-sm text-muted-foreground">
                                                                         {voter.mobileNoSecondary}
                                                                     </p>
@@ -844,7 +846,7 @@ export function OperatorWorkflow() {
                                         <div className="flex items-center justify-center gap-3">
                                             <div className="animate-spin rounded-full size-5 border-b-2 border-primary" />
                                             <p className="text-sm text-muted-foreground">
-                                                Searching voters...
+                                                {t('backOffice.searchingVoters')}
                                             </p>
                                         </div>
                                     </div>
@@ -871,10 +873,10 @@ export function OperatorWorkflow() {
                                             </div>
                                             <div>
                                                 <p className="text-sm font-medium text-muted-foreground">
-                                                    No voter found with the provided search criteria.
+                                                    {t('operator.search.noResults')}
                                                 </p>
                                                 <p className="text-xs text-muted-foreground mt-1">
-                                                    Try adjusting your search criteria or contact an administrator.
+                                                    {t('operator.search.noResultsHelp')}
                                                 </p>
                                             </div>
                                         </div>

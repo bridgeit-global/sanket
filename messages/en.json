@@ -444,5 +444,299 @@
     "download": "Download",
     "delete": "Delete",
     "noExportsYet": "No exports yet. Start an export to see it here."
+  },
+  "operator": {
+    "dashboard": {
+      "title": "Operator Dashboard",
+      "subtitle": "Voter management and beneficiary service creation"
+    },
+    "tabs": {
+      "createService": "Create Service",
+      "create": "Create",
+      "manageTasks": "Manage Tasks",
+      "manage": "Manage"
+    },
+    "search": {
+      "title": "Search Voter",
+      "description": "Search for voters by VoterId (EPIC Number), name, or phone number to create beneficiary services",
+      "types": {
+        "detailed": "Detailed Search",
+        "phone": "Phone Number",
+        "voterId": "VoterId (EPIC)"
+      },
+      "namePlaceholder": "Enter voter name...",
+      "phonePlaceholder": "Enter phone number (e.g., 9876543210)...",
+      "voterIdPlaceholder": "Enter VoterId (e.g., ABC1234567)...",
+      "searching": "Searching...",
+      "noResults": "No voter found with the provided search criteria.",
+      "noResultsHelp": "Try adjusting your search criteria or contact an administrator.",
+      "foundBy": "Found by {type}",
+      "foundCount": "Found {count} voter(s) by {type}",
+      "noVotersFound": "No voters found with that {type}"
+    },
+    "workflow": {
+      "phoneUpdate": "Phone Update",
+      "serviceDetails": "Service Details",
+      "confirmation": "Confirmation",
+      "tokenGenerated": "Token Generated",
+      "step": "Step {current} of {total}"
+    },
+    "confirmation": {
+      "title": "Confirm Service Creation",
+      "description": "Please review the service details before creating the beneficiary service",
+      "voterInfo": "Voter Information",
+      "serviceDetails": "Service Details",
+      "serviceType": "Service Type",
+      "serviceName": "Service Name",
+      "priority": "Priority",
+      "description": "Description",
+      "notes": "Notes",
+      "confirmButton": "Confirm & Create Service"
+    },
+    "completion": {
+      "title": "Service Created Successfully!",
+      "description": "Your beneficiary service has been created and a reference token has been generated",
+      "referenceToken": "Reference Token",
+      "saveToken": "Save this token for future reference and tracking",
+      "serviceSummary": "Service Summary",
+      "serviceId": "Service ID",
+      "token": "Token",
+      "status": "Status",
+      "createdAt": "Created At",
+      "createAnother": "Create Another Service"
+    },
+    "messages": {
+      "pleaseProvideCriteria": "Please provide at least one search criteria (name, gender, or age)",
+      "pleaseEnterVoterId": "Please enter a VoterId, name, or phone number to search",
+      "failedToSearch": "Failed to search voters. Please try again.",
+      "noVotersFound": "No voters found with that {type}",
+      "votersFound": "Found {count} voter(s) by {type}",
+      "serviceDataMissing": "Service data is missing",
+      "serviceCreatedSuccess": "Beneficiary service created successfully!",
+      "serviceCreateFailed": "Failed to create beneficiary service. Please try again.",
+      "phoneUpdatedSuccess": "Phone number updated successfully",
+      "phoneUpdateFailed": "Failed to update phone number. Please try again."
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "Sign In",
+      "description": "Use your user ID and password to sign in",
+      "submit": "Sign in",
+      "noAccount": "Don't have an account? ",
+      "signUpLink": "Sign up",
+      "signUpSuffix": " for free."
+    },
+    "register": {
+      "title": "Sign Up",
+      "description": "Create an account with your user ID and password",
+      "submit": "Sign Up",
+      "hasAccount": "Already have an account? ",
+      "signInLink": "Sign in",
+      "signInSuffix": " instead."
+    },
+    "messages": {
+      "invalidCredentials": "Invalid credentials!",
+      "validationFailed": "Failed validating your submission!",
+      "accountExists": "Account already exists!",
+      "createFailed": "Failed to create account!",
+      "createSuccess": "Account created successfully! Please sign in."
+    }
+  },
+  "unauthorized": {
+    "title": "Access Denied",
+    "description": "You don't have permission to access this page.",
+    "contactAdmin": "Please contact your administrator if you believe this is an error."
+  },
+  "voterProfile": {
+    "services": {
+      "title": "Beneficiary Services Availed",
+      "description": "Services requested and availed by this voter",
+      "individual": "Individual Services",
+      "community": "Community-Based Services",
+      "noIndividual": "No individual services found.",
+      "noCommunity": "No community-based services found."
+    },
+    "events": {
+      "title": "Daily Programme Events Attended",
+      "description": "Events and programmes attended by this voter",
+      "noEvents": "No daily programme events found.",
+      "attended": "Attended",
+      "notAttended": "Not Attended"
+    },
+    "related": {
+      "title": "Related Voters Services and Events",
+      "description": "Services and events for related voters",
+      "noData": "No services or events found for related voters."
+    },
+    "fields": {
+      "token": "Token:",
+      "created": "Created:",
+      "completed": "Completed:",
+      "updated": "Updated:",
+      "notes": "Notes:",
+      "date": "Date:",
+      "time": "Time:",
+      "location": "Location:",
+      "visitorName": "Visitor Name:"
+    }
+  },
+  "beneficiaryService": {
+    "form": {
+      "title": "Create Beneficiary Service",
+      "description": "Create a service request for {name} ({epicNumber})",
+      "types": {
+        "individual": "Individual Service",
+        "community": "Community Service"
+      },
+      "fields": {
+        "serviceType": "Service Type *",
+        "serviceName": "Service Name *",
+        "priority": "Priority",
+        "description": "Description",
+        "notes": "Notes",
+        "selectService": "Select a service",
+        "customService": "+ Add Custom Service",
+        "customServiceName": "Enter custom service name",
+        "selectPriority": "Select priority",
+        "descriptionPlaceholder": "Describe the service requirements",
+        "notesPlaceholder": "Additional notes or comments"
+      },
+      "serviceAreas": {
+        "title": "Service Areas",
+        "addArea": "Add Area",
+        "partNo": "Part No",
+        "wardNo": "Ward No",
+        "acNo": "AC No",
+        "partNoPlaceholder": "Part number",
+        "wardNoPlaceholder": "Ward number",
+        "acNoPlaceholder": "AC number",
+        "remove": "Remove"
+      },
+      "submit": "Create Service",
+      "submitting": "Creating Service...",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "messages": {
+      "serviceNameRequired": "Service name is required",
+      "areaIdentifierRequired": "Please provide at least one area identifier (Part No, Ward No, or AC No) for community service",
+      "createdSuccess": "Beneficiary service created successfully",
+      "createFailed": "Failed to create beneficiary service. Please try again.",
+      "serviceCreatedMessage": "Service created successfully. You can now search for another voter.",
+      "serviceSkippedMessage": "Service creation skipped. You can now search for another voter."
+    }
+  },
+  "phoneUpdate": {
+    "title": "Update Phone Number",
+    "description": "Please update the contact information. Related family members will be shown after the update.",
+    "voterInfo": "Voter Information",
+    "contactInfo": "Contact Information",
+    "primary": "Primary Mobile Number",
+    "secondary": "Secondary Mobile Number",
+    "primaryPlaceholder": "Enter primary mobile number",
+    "secondaryPlaceholder": "Enter secondary mobile number (optional)",
+    "primaryHelp": "This is the main contact number for the voter",
+    "secondaryHelp": "Optional alternative contact number",
+    "update": "Update Phone Number",
+    "updating": "Updating...",
+    "skip": "Skip",
+    "messages": {
+      "updatedSuccess": "Phone number updated successfully",
+      "updateFailed": "Failed to update phone number. Please try again.",
+      "pleaseSelectVoter": "Please select a voter first",
+      "updateBeforeService": "Please update mobile number before creating service.",
+      "updateCompleted": "Mobile number updated. You can now create a service.",
+      "updateBeforeServiceFor": "Please update mobile numbers for {name} before proceeding to service creation.",
+      "updateFor": "Update mobile numbers for {name}",
+      "proceedToService": "Proceed to Service Creation",
+      "skipUpdateAndGoToService": "Skip Update & Go to Service"
+    }
+  },
+  "taskManagement": {
+    "title": "Task Management",
+    "description": "Manage beneficiary service tasks and requests",
+    "filters": {
+      "status": "Status",
+      "priority": "Priority",
+      "serviceToken": "Service Token",
+      "mobileNumber": "Mobile Number",
+      "voterId": "Voter ID",
+      "selectStatus": "Select status",
+      "selectPriority": "Select priority",
+      "enterToken": "Enter service token...",
+      "enterMobile": "Enter mobile number...",
+      "enterVoterId": "Enter voter ID...",
+      "allTasks": "All Tasks",
+      "allPriorities": "All Priorities",
+      "itemsPerPage": "Items per page",
+      "showing": "Showing {count} of {total} tasks"
+    },
+    "status": {
+      "pending": "Pending",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "priority": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "urgent": "Urgent"
+    },
+    "actions": {
+      "search": "Search",
+      "searching": "Searching...",
+      "clearFilters": "Clear Filters",
+      "manage": "Manage",
+      "escalate": "Escalate"
+    },
+    "loading": "Loading tasks...",
+    "noTasks": "No tasks found",
+    "noTasksHelp": "Try adjusting your filters to find tasks",
+    "serviceRequest": "Service Request",
+    "service": "Service:",
+    "token": "Token:",
+    "voterInformation": "Voter Information",
+    "name": "Name:",
+    "voterId": "Voter ID:",
+    "phone": "Phone:",
+    "created": "Created:",
+    "updated": "Updated:",
+    "notes": "Notes:",
+    "dialog": {
+      "manageTitle": "Manage Task",
+      "manageDescription": "Update task status and add notes",
+      "taskType": "Task Type",
+      "updateStatus": "Update Status",
+      "selectNewStatus": "Select new status",
+      "addNote": "Add Note",
+      "addNotePlaceholder": "Add a note about this task...",
+      "updateTask": "Update Task",
+      "escalationTitle": "Request Escalation",
+      "escalationDescription": "Escalate this task for higher priority support",
+      "task": "Task",
+      "priorityLevel": "Priority Level",
+      "escalationReason": "Reason for Escalation",
+      "escalationReasonPlaceholder": "Please provide a detailed reason for escalation...",
+      "submitEscalation": "Submit Escalation"
+    },
+    "pagination": {
+      "page": "Page {current} of {total} ({count} total tasks)",
+      "first": "First",
+      "previous": "Previous",
+      "next": "Next",
+      "last": "Last"
+    },
+    "messages": {
+      "fetchFailed": "Failed to fetch tasks",
+      "updateSuccess": "Task status updated successfully",
+      "updateFailed": "Failed to update task status",
+      "escalationReasonRequired": "Please provide a reason for escalation",
+      "escalationSuccess": "Escalation request submitted successfully",
+      "escalationFailed": "Failed to escalate request"
+    }
   }
 }

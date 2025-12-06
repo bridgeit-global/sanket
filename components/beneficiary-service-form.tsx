@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Combobox } from '@/components/ui/combobox';
 import { toast } from '@/components/toast';
+import { useTranslations } from '@/hooks/use-translations';
 import type { VoterWithPartNo } from '@/lib/db/schema';
 
 interface BeneficiaryServiceFormProps {
@@ -85,6 +86,7 @@ const COMMUNITY_SERVICES = [
 ];
 
 export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataReady, onCancel }: BeneficiaryServiceFormProps) {
+    const { t } = useTranslations();
     const [serviceType, setServiceType] = useState<'individual' | 'community'>('individual');
     const [serviceName, setServiceName] = useState('');
     const [customServiceName, setCustomServiceName] = useState('');
@@ -130,7 +132,7 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
         if (!finalServiceName.trim()) {
             toast({
                 type: 'error',
-                description: 'Service name is required',
+                description: t('beneficiaryService.messages.serviceNameRequired'),
             });
             return;
         }
@@ -138,7 +140,7 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
         if (serviceType === 'community' && serviceAreas.some(area => !area.partNo && !area.wardNo && !area.acNo)) {
             toast({
                 type: 'error',
-                description: 'Please provide at least one area identifier (Part No, Ward No, or AC No) for community service',
+                description: t('beneficiaryService.messages.areaIdentifierRequired'),
             });
             return;
         }
@@ -180,12 +182,12 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
             onServiceCreated(data.serviceId);
             toast({
                 type: 'success',
-                description: 'Beneficiary service created successfully',
+                description: t('beneficiaryService.messages.createdSuccess'),
             });
         } catch (error) {
             toast({
                 type: 'error',
-                description: 'Failed to create beneficiary service. Please try again.',
+                description: t('beneficiaryService.messages.createFailed'),
             });
         } finally {
             setIsSubmitting(false);
@@ -195,16 +197,16 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Create Beneficiary Service</CardTitle>
+                <CardTitle>{t('beneficiaryService.form.title')}</CardTitle>
                 <CardDescription>
-                    Create a service request for {voter.fullName} ({voter.epicNumber})
+                    {t('beneficiaryService.form.description', { name: voter.fullName, epicNumber: voter.epicNumber })}
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Service Type */}
                     <div className="space-y-4">
-                        <Label>Service Type *</Label>
+                        <Label>{t('beneficiaryService.form.fields.serviceType')}</Label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                                 <input
@@ -217,7 +219,7 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                                     className="size-4"
                                 />
                                 <Label htmlFor="individual" className="text-sm font-medium cursor-pointer flex-1">
-                                    Individual Service
+                                    {t('beneficiaryService.form.types.individual')}
                                 </Label>
                             </div>
                             <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
@@ -231,7 +233,7 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                                     className="size-4"
                                 />
                                 <Label htmlFor="community" className="text-sm font-medium cursor-pointer flex-1">
-                                    Community Service
+                                    {t('beneficiaryService.form.types.community')}
                                 </Label>
                             </div>
                         </div>
@@ -239,10 +241,10 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
 
                     {/* Service Details */}
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Service Details</h3>
+                        <h3 className="text-lg font-semibold">{t('operator.confirmation.serviceDetails')}</h3>
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             <div>
-                                <Label htmlFor="serviceName">Service Name *</Label>
+                                <Label htmlFor="serviceName">{t('beneficiaryService.form.fields.serviceName')}</Label>
                                 <div className="space-y-2">
                                     <Combobox
                                         value={isCustomService ? 'custom' : serviceName}
@@ -256,7 +258,7 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                                                 setCustomServiceName('');
                                             }
                                         }}
-                                        placeholder="Select a service"
+                                        placeholder={t('beneficiaryService.form.fields.selectService')}
                                         options={[
                                             ...(serviceType === 'individual' ? INDIVIDUAL_SERVICES : COMMUNITY_SERVICES).map((service) => ({
                                                 value: service,
@@ -264,7 +266,7 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                                             })),
                                             {
                                                 value: 'custom',
-                                                label: '+ Add Custom Service',
+                                                label: t('beneficiaryService.form.fields.customService'),
                                                 renderLabel: (label) => <span className="italic">{label}</span>,
                                             },
                                         ]}
@@ -274,44 +276,44 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                                         <Input
                                             value={customServiceName}
                                             onChange={(e) => setCustomServiceName(e.target.value)}
-                                            placeholder="Enter custom service name"
+                                            placeholder={t('beneficiaryService.form.fields.customServiceName')}
                                             className="mt-2"
                                         />
                                     )}
                                 </div>
                             </div>
                             <div>
-                                <Label htmlFor="priority">Priority</Label>
+                                <Label htmlFor="priority">{t('beneficiaryService.form.fields.priority')}</Label>
                                 <Select value={priority} onValueChange={(value: any) => setPriority(value)}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select priority" />
+                                        <SelectValue placeholder={t('beneficiaryService.form.fields.selectPriority')} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="low">Low</SelectItem>
-                                        <SelectItem value="medium">Medium</SelectItem>
-                                        <SelectItem value="high">High</SelectItem>
-                                        <SelectItem value="urgent">Urgent</SelectItem>
+                                        <SelectItem value="low">{t('beneficiaryService.form.low')}</SelectItem>
+                                        <SelectItem value="medium">{t('beneficiaryService.form.medium')}</SelectItem>
+                                        <SelectItem value="high">{t('beneficiaryService.form.high')}</SelectItem>
+                                        <SelectItem value="urgent">{t('beneficiaryService.form.urgent')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
                         </div>
                         <div>
-                            <Label htmlFor="description">Description</Label>
+                            <Label htmlFor="description">{t('beneficiaryService.form.fields.description')}</Label>
                             <Textarea
                                 id="description"
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
-                                placeholder="Describe the service requirements"
+                                placeholder={t('beneficiaryService.form.fields.descriptionPlaceholder')}
                                 rows={3}
                             />
                         </div>
                         <div>
-                            <Label htmlFor="notes">Notes</Label>
+                            <Label htmlFor="notes">{t('beneficiaryService.form.fields.notes')}</Label>
                             <Textarea
                                 id="notes"
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
-                                placeholder="Additional notes or comments"
+                                placeholder={t('beneficiaryService.form.fields.notesPlaceholder')}
                                 rows={2}
                             />
                         </div>
@@ -321,39 +323,39 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                     {serviceType === 'community' && (
                         <div className="space-y-4">
                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                                <h3 className="text-lg font-semibold">Service Areas</h3>
+                                <h3 className="text-lg font-semibold">{t('beneficiaryService.form.serviceAreas.title')}</h3>
                                 <Button type="button" variant="outline" size="sm" onClick={addServiceArea} className="w-full sm:w-auto">
-                                    Add Area
+                                    {t('beneficiaryService.form.serviceAreas.addArea')}
                                 </Button>
                             </div>
                             <div className="space-y-3">
                                 {serviceAreas.map((area, index) => (
                                     <div key={`area-${index}-${area.partNo}-${area.wardNo}-${area.acNo}`} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-4 border rounded-lg">
                                         <div>
-                                            <Label htmlFor={`partNo-${index}`}>Part No</Label>
+                                            <Label htmlFor={`partNo-${index}`}>{t('beneficiaryService.form.serviceAreas.partNo')}</Label>
                                             <Input
                                                 id={`partNo-${index}`}
                                                 value={area.partNo}
                                                 onChange={(e) => updateServiceArea(index, 'partNo', e.target.value)}
-                                                placeholder="Part number"
+                                                placeholder={t('beneficiaryService.form.serviceAreas.partNoPlaceholder')}
                                             />
                                         </div>
                                         <div>
-                                            <Label htmlFor={`wardNo-${index}`}>Ward No</Label>
+                                            <Label htmlFor={`wardNo-${index}`}>{t('beneficiaryService.form.serviceAreas.wardNo')}</Label>
                                             <Input
                                                 id={`wardNo-${index}`}
                                                 value={area.wardNo}
                                                 onChange={(e) => updateServiceArea(index, 'wardNo', e.target.value)}
-                                                placeholder="Ward number"
+                                                placeholder={t('beneficiaryService.form.serviceAreas.wardNoPlaceholder')}
                                             />
                                         </div>
                                         <div>
-                                            <Label htmlFor={`acNo-${index}`}>AC No</Label>
+                                            <Label htmlFor={`acNo-${index}`}>{t('beneficiaryService.form.serviceAreas.acNo')}</Label>
                                             <Input
                                                 id={`acNo-${index}`}
                                                 value={area.acNo}
                                                 onChange={(e) => updateServiceArea(index, 'acNo', e.target.value)}
-                                                placeholder="AC number"
+                                                placeholder={t('beneficiaryService.form.serviceAreas.acNoPlaceholder')}
                                             />
                                         </div>
                                         <div className="flex items-end">
@@ -365,7 +367,7 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                                                 disabled={serviceAreas.length === 1}
                                                 className="w-full sm:w-auto"
                                             >
-                                                Remove
+                                                {t('beneficiaryService.form.serviceAreas.remove')}
                                             </Button>
                                         </div>
                                     </div>
@@ -377,10 +379,10 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                     {/* Action Buttons */}
                     <div className="flex flex-col sm:flex-row gap-4">
                         <Button type="submit" disabled={isSubmitting} className="flex-1">
-                            {isSubmitting ? 'Creating Service...' : 'Create Service'}
+                            {isSubmitting ? t('beneficiaryService.form.submitting') : t('beneficiaryService.form.submit')}
                         </Button>
                         <Button type="button" variant="outline" onClick={onCancel} className="flex-1 sm:flex-none">
-                            Cancel
+                            {t('common.cancel')}
                         </Button>
                     </div>
                 </form>

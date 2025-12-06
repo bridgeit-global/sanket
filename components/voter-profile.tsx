@@ -9,6 +9,7 @@ import type { VoterWithPartNo, BeneficiaryService, DailyProgramme } from '@/lib/
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { useTranslations } from '@/hooks/use-translations';
 
 interface VoterProfileProps {
   epicNumber: string;
@@ -31,6 +32,7 @@ interface RelatedVoterData {
 
 export function VoterProfile({ epicNumber }: VoterProfileProps) {
   const router = useRouter();
+  const { t } = useTranslations();
   const [voter, setVoter] = useState<VoterWithPartNo | null>(null);
   const [relatedVoters, setRelatedVoters] = useState<VoterWithPartNo[]>([]);
   const [beneficiaryServices, setBeneficiaryServices] = useState<BeneficiaryServicesData>({ individual: [], community: [] });
@@ -90,7 +92,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4" />
-            <p className="text-muted-foreground">Loading voter profile...</p>
+            <p className="text-muted-foreground">{t('common.loading')}</p>
           </div>
         </div>
       </div>
@@ -309,7 +311,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Related Voters
+              {t('backOffice.relatedFamilyMembers')}
             </CardTitle>
             <CardDescription>
               Voters related by family, relation, or same household
@@ -375,16 +377,16 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Briefcase className="h-5 w-5" />
-            Beneficiary Services Availed
+            {t('voterProfile.services.title')}
           </CardTitle>
           <CardDescription>
-            Services requested and availed by this voter
+            {t('voterProfile.services.description')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Individual Services */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Individual Services</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('voterProfile.services.individual')}</h3>
             {beneficiaryServices.individual.length > 0 ? (
               <div className="space-y-3">
                 {beneficiaryServices.individual.map((service) => (
@@ -405,27 +407,27 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>
-                        <span className="font-medium text-muted-foreground">Token:</span>
+                        <span className="font-medium text-muted-foreground">{t('voterProfile.fields.token')}</span>
                         <p className="mt-1">{service.token}</p>
                       </div>
                       <div>
-                        <span className="font-medium text-muted-foreground">Created:</span>
+                        <span className="font-medium text-muted-foreground">{t('voterProfile.fields.created')}</span>
                         <p className="mt-1">{new Date(service.createdAt).toLocaleDateString()}</p>
                       </div>
                       {service.completedAt && (
                         <div>
-                          <span className="font-medium text-muted-foreground">Completed:</span>
+                          <span className="font-medium text-muted-foreground">{t('voterProfile.fields.completed')}</span>
                           <p className="mt-1">{new Date(service.completedAt).toLocaleDateString()}</p>
                         </div>
                       )}
                       <div>
-                        <span className="font-medium text-muted-foreground">Updated:</span>
+                        <span className="font-medium text-muted-foreground">{t('voterProfile.fields.updated')}</span>
                         <p className="mt-1">{new Date(service.updatedAt).toLocaleDateString()}</p>
                       </div>
                     </div>
                     {service.notes && (
                       <div className="mt-2 pt-2 border-t">
-                        <span className="font-medium text-sm text-muted-foreground">Notes:</span>
+                        <span className="font-medium text-sm text-muted-foreground">{t('voterProfile.fields.notes')}</span>
                         <p className="text-sm mt-1">{service.notes}</p>
                       </div>
                     )}
@@ -433,13 +435,13 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No individual services found.</p>
+              <p className="text-sm text-muted-foreground">{t('voterProfile.services.noIndividual')}</p>
             )}
           </div>
 
           {/* Community-Based Services */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Community-Based Services</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('voterProfile.services.community')}</h3>
             {beneficiaryServices.community.length > 0 ? (
               <div className="space-y-3">
                 {beneficiaryServices.community.map((service) => (
@@ -460,27 +462,27 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                     </div>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                       <div>
-                        <span className="font-medium text-muted-foreground">Token:</span>
+                        <span className="font-medium text-muted-foreground">{t('voterProfile.fields.token')}</span>
                         <p className="mt-1">{service.token}</p>
                       </div>
                       <div>
-                        <span className="font-medium text-muted-foreground">Created:</span>
+                        <span className="font-medium text-muted-foreground">{t('voterProfile.fields.created')}</span>
                         <p className="mt-1">{new Date(service.createdAt).toLocaleDateString()}</p>
                       </div>
                       {service.completedAt && (
                         <div>
-                          <span className="font-medium text-muted-foreground">Completed:</span>
+                          <span className="font-medium text-muted-foreground">{t('voterProfile.fields.completed')}</span>
                           <p className="mt-1">{new Date(service.completedAt).toLocaleDateString()}</p>
                         </div>
                       )}
                       <div>
-                        <span className="font-medium text-muted-foreground">Updated:</span>
+                        <span className="font-medium text-muted-foreground">{t('voterProfile.fields.updated')}</span>
                         <p className="mt-1">{new Date(service.updatedAt).toLocaleDateString()}</p>
                       </div>
                     </div>
                     {service.notes && (
                       <div className="mt-2 pt-2 border-t">
-                        <span className="font-medium text-sm text-muted-foreground">Notes:</span>
+                        <span className="font-medium text-sm text-muted-foreground">{t('voterProfile.fields.notes')}</span>
                         <p className="text-sm mt-1">{service.notes}</p>
                       </div>
                     )}
@@ -488,7 +490,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">No community-based services found.</p>
+              <p className="text-sm text-muted-foreground">{t('voterProfile.services.noCommunity')}</p>
             )}
           </div>
         </CardContent>
@@ -499,10 +501,10 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Clock className="h-5 w-5" />
-            Daily Programme Events Attended
+            {t('voterProfile.events.title')}
           </CardTitle>
           <CardDescription>
-            Events and programmes attended by this voter
+            {t('voterProfile.events.description')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -519,25 +521,25 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                     </div>
                     {event.attended !== null && (
                       <Badge variant={event.attended ? 'default' : 'secondary'}>
-                        {event.attended ? 'Attended' : 'Not Attended'}
+                        {event.attended ? t('voterProfile.events.attended') : t('voterProfile.events.notAttended')}
                       </Badge>
                     )}
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
-                      <span className="font-medium text-muted-foreground">Date:</span>
+                      <span className="font-medium text-muted-foreground">{t('voterProfile.fields.date')}</span>
                       <p className="mt-1">{new Date(event.date).toLocaleDateString()}</p>
                     </div>
                     <div>
-                      <span className="font-medium text-muted-foreground">Time:</span>
+                      <span className="font-medium text-muted-foreground">{t('voterProfile.fields.time')}</span>
                       <p className="mt-1">{event.startTime}{event.endTime ? ` - ${event.endTime}` : ''}</p>
                     </div>
                     <div>
-                      <span className="font-medium text-muted-foreground">Location:</span>
+                      <span className="font-medium text-muted-foreground">{t('voterProfile.fields.location')}</span>
                       <p className="mt-1">{event.location}</p>
                     </div>
                     <div>
-                      <span className="font-medium text-muted-foreground">Visitor Name:</span>
+                      <span className="font-medium text-muted-foreground">{t('voterProfile.fields.visitorName')}</span>
                       <p className="mt-1">{event.visitorName}</p>
                     </div>
                   </div>
@@ -545,7 +547,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No daily programme events found.</p>
+            <p className="text-sm text-muted-foreground">{t('voterProfile.events.noEvents')}</p>
           )}
         </CardContent>
       </Card>
@@ -556,10 +558,10 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="h-5 w-5" />
-              Related Voters Services and Events
+              {t('voterProfile.related.title')}
             </CardTitle>
             <CardDescription>
-              Services and events for related voters
+              {t('voterProfile.related.description')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -594,7 +596,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                           <div className="space-y-4">
                             {relatedData.services.individual.length > 0 && (
                               <div>
-                                <h4 className="font-semibold mb-3 text-sm">Individual Services</h4>
+                                <h4 className="font-semibold mb-3 text-sm">{t('voterProfile.services.individual')}</h4>
                                 <div className="space-y-2">
                                   {relatedData.services.individual.map((service) => (
                                     <div key={service.id} className="border rounded-lg p-3 space-y-2">
@@ -612,7 +614,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                                         </div>
                                       </div>
                                       <div className="text-xs text-muted-foreground">
-                                        Token: {service.token} | Created: {new Date(service.createdAt).toLocaleDateString()}
+                                        {t('voterProfile.fields.token')} {service.token} | {t('voterProfile.fields.created')} {new Date(service.createdAt).toLocaleDateString()}
                                       </div>
                                     </div>
                                   ))}
@@ -621,7 +623,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                             )}
                             {relatedData.services.community.length > 0 && (
                               <div>
-                                <h4 className="font-semibold mb-3 text-sm">Community-Based Services</h4>
+                                <h4 className="font-semibold mb-3 text-sm">{t('voterProfile.services.community')}</h4>
                                 <div className="space-y-2">
                                   {relatedData.services.community.map((service) => (
                                     <div key={service.id} className="border rounded-lg p-3 space-y-2">
@@ -639,7 +641,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                                         </div>
                                       </div>
                                       <div className="text-xs text-muted-foreground">
-                                        Token: {service.token} | Created: {new Date(service.createdAt).toLocaleDateString()}
+                                        {t('voterProfile.fields.token')} {service.token} | {t('voterProfile.fields.created')} {new Date(service.createdAt).toLocaleDateString()}
                                       </div>
                                     </div>
                                   ))}
@@ -652,7 +654,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                         {/* Events for this related voter */}
                         {relatedData.events.length > 0 && (
                           <div>
-                            <h4 className="font-semibold mb-3 text-sm">Daily Programme Events</h4>
+                            <h4 className="font-semibold mb-3 text-sm">{t('voterProfile.events.title')}</h4>
                             <div className="space-y-2">
                               {relatedData.events.map((event) => (
                                 <div key={event.id} className="border rounded-lg p-3 space-y-2">
@@ -665,7 +667,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                                     </div>
                                     {event.attended !== null && (
                                       <Badge variant={event.attended ? 'default' : 'secondary'} className="text-xs">
-                                        {event.attended ? 'Attended' : 'Not Attended'}
+                                        {event.attended ? t('voterProfile.events.attended') : t('voterProfile.events.notAttended')}
                                       </Badge>
                                     )}
                                   </div>

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useTranslations } from '@/hooks/use-translations';
 import type { Voter } from '@/lib/db/schema';
 
 interface PhoneUpdateFormProps {
@@ -15,6 +16,7 @@ interface PhoneUpdateFormProps {
 }
 
 export function PhoneUpdateForm({ voter, onPhoneUpdate, onSkip, onCancel }: PhoneUpdateFormProps) {
+    const { t } = useTranslations();
     const [mobileNoPrimary, setMobileNoPrimary] = useState(voter.mobileNoPrimary || '');
     const [mobileNoSecondary, setMobileNoSecondary] = useState(voter.mobileNoSecondary || '');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -40,31 +42,31 @@ export function PhoneUpdateForm({ voter, onPhoneUpdate, onSkip, onCancel }: Phon
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Update Phone Number</CardTitle>
+                <CardTitle>{t('phoneUpdate.title')}</CardTitle>
                 <CardDescription>
-                    Please update the contact information. Related family members will be shown after the update.
+                    {t('phoneUpdate.description')}
                 </CardDescription>
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Voter Information Display */}
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Voter Information</h3>
+                        <h3 className="text-lg font-semibold">{t('phoneUpdate.voterInfo')}</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
                             <div>
-                                <Label className="text-sm font-medium">Name</Label>
+                                <Label className="text-sm font-medium">{t('common.name')}</Label>
                                 <p className="text-sm">{voter.fullName}</p>
                             </div>
                             <div>
-                                <Label className="text-sm font-medium">EPIC Number</Label>
+                                <Label className="text-sm font-medium">{t('forms.epicNumber')}</Label>
                                 <p className="text-sm font-mono">{voter.epicNumber}</p>
                             </div>
                             <div>
-                                <Label className="text-sm font-medium">Age</Label>
+                                <Label className="text-sm font-medium">{t('forms.age')}</Label>
                                 <p className="text-sm">{voter.age || 'N/A'}</p>
                             </div>
                             <div>
-                                <Label className="text-sm font-medium">Gender</Label>
+                                <Label className="text-sm font-medium">{t('forms.gender')}</Label>
                                 <p className="text-sm">{voter.gender || 'N/A'}</p>
                             </div>
                         </div>
@@ -72,39 +74,39 @@ export function PhoneUpdateForm({ voter, onPhoneUpdate, onSkip, onCancel }: Phon
 
                     {/* Phone Number Input Fields */}
                     <div className="space-y-4">
-                        <h3 className="text-lg font-semibold">Contact Information</h3>
+                        <h3 className="text-lg font-semibold">{t('phoneUpdate.contactInfo')}</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="mobileNoPrimary">
-                                    Primary Mobile Number <span className="text-red-500">*</span>
+                                    {t('phoneUpdate.primary')} <span className="text-red-500">*</span>
                                 </Label>
                                 <Input
                                     id="mobileNoPrimary"
                                     type="tel"
                                     value={mobileNoPrimary}
                                     onChange={(e) => setMobileNoPrimary(e.target.value)}
-                                    placeholder="Enter primary mobile number"
+                                    placeholder={t('phoneUpdate.primaryPlaceholder')}
                                     required
                                     className="font-mono"
                                 />
                                 <p className="text-xs text-muted-foreground">
-                                    This is the main contact number for the voter
+                                    {t('phoneUpdate.primaryHelp')}
                                 </p>
                             </div>
                             <div className="space-y-2">
                                 <Label htmlFor="mobileNoSecondary">
-                                    Secondary Mobile Number
+                                    {t('phoneUpdate.secondary')}
                                 </Label>
                                 <Input
                                     id="mobileNoSecondary"
                                     type="tel"
                                     value={mobileNoSecondary}
                                     onChange={(e) => setMobileNoSecondary(e.target.value)}
-                                    placeholder="Enter secondary mobile number (optional)"
+                                    placeholder={t('phoneUpdate.secondaryPlaceholder')}
                                     className="font-mono"
                                 />
                                 <p className="text-xs text-muted-foreground">
-                                    Optional alternative contact number
+                                    {t('phoneUpdate.secondaryHelp')}
                                 </p>
                             </div>
                         </div>
@@ -117,7 +119,7 @@ export function PhoneUpdateForm({ voter, onPhoneUpdate, onSkip, onCancel }: Phon
                             disabled={isSubmitting || !mobileNoPrimary.trim()}
                             className="flex-1"
                         >
-                            {isSubmitting ? 'Updating...' : 'Update Phone Number'}
+                            {isSubmitting ? t('phoneUpdate.updating') : t('phoneUpdate.update')}
                         </Button>
 
                         <Button
@@ -126,7 +128,7 @@ export function PhoneUpdateForm({ voter, onPhoneUpdate, onSkip, onCancel }: Phon
                             onClick={onCancel}
                             disabled={isSubmitting}
                         >
-                            Cancel
+                            {t('common.cancel')}
                         </Button>
                     </div>
                 </form>

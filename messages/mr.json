@@ -444,5 +444,299 @@
     "download": "डाउनलोड करा",
     "delete": "हटवा",
     "noExportsYet": "अद्याप कोणतेही एक्सपोर्ट नाहीत. एक्सपोर्ट सुरू करा ते येथे दिसेल."
+  },
+  "operator": {
+    "dashboard": {
+      "title": "ऑपरेटर डॅशबोर्ड",
+      "subtitle": "मतदार व्यवस्थापन आणि लाभार्थी सेवा निर्मिती"
+    },
+    "tabs": {
+      "createService": "सेवा तयार करा",
+      "create": "तयार करा",
+      "manageTasks": "कार्ये व्यवस्थापित करा",
+      "manage": "व्यवस्थापित करा"
+    },
+    "search": {
+      "title": "मतदार शोधा",
+      "description": "लाभार्थी सेवा तयार करण्यासाठी मतदार आयडी (EPIC क्रमांक), नाव किंवा फोन नंबरद्वारे मतदार शोधा",
+      "types": {
+        "detailed": "तपशीलवार शोध",
+        "phone": "फोन नंबर",
+        "voterId": "मतदार आयडी (EPIC)"
+      },
+      "namePlaceholder": "मतदाराचे नाव प्रविष्ट करा...",
+      "phonePlaceholder": "फोन नंबर प्रविष्ट करा (उदा., 9876543210)...",
+      "voterIdPlaceholder": "मतदार आयडी प्रविष्ट करा (उदा., ABC1234567)...",
+      "searching": "शोधत आहे...",
+      "noResults": "प्रदान केलेल्या शोध निकषांसह कोणतेही मतदार आढळले नाहीत.",
+      "noResultsHelp": "कृपया आपले शोध निकष समायोजित करा किंवा प्रशासकाशी संपर्क साधा.",
+      "foundBy": "{type} द्वारे आढळले",
+      "foundCount": "{type} द्वारे {count} मतदार(चे) आढळले",
+      "noVotersFound": "त्या {type} सह कोणतेही मतदार आढळले नाहीत"
+    },
+    "workflow": {
+      "phoneUpdate": "फोन अपडेट",
+      "serviceDetails": "सेवा तपशील",
+      "confirmation": "पुष्टीकरण",
+      "tokenGenerated": "टोकन निर्मित",
+      "step": "पायरी {current} पैकी {total}"
+    },
+    "confirmation": {
+      "title": "सेवा निर्मितीची पुष्टी करा",
+      "description": "लाभार्थी सेवा तयार करण्यापूर्वी कृपया सेवा तपशीलांचे पुनरावलोकन करा",
+      "voterInfo": "मतदार माहिती",
+      "serviceDetails": "सेवा तपशील",
+      "serviceType": "सेवा प्रकार",
+      "serviceName": "सेवा नाव",
+      "priority": "प्राधान्य",
+      "description": "वर्णन",
+      "notes": "टिप्पण्या",
+      "confirmButton": "पुष्टी करा आणि सेवा तयार करा"
+    },
+    "completion": {
+      "title": "सेवा यशस्वीरित्या तयार केली!",
+      "description": "आपली लाभार्थी सेवा तयार केली गेली आहे आणि संदर्भ टोकन निर्मित केले गेले आहे",
+      "referenceToken": "संदर्भ टोकन",
+      "saveToken": "भविष्यातील संदर्भ आणि ट्रॅकिंगसाठी हे टोकन साठवा",
+      "serviceSummary": "सेवा सारांश",
+      "serviceId": "सेवा आयडी",
+      "token": "टोकन",
+      "status": "स्थिती",
+      "createdAt": "तयार केलेली तारीख",
+      "createAnother": "आणखी सेवा तयार करा"
+    },
+    "messages": {
+      "pleaseProvideCriteria": "कृपया किमान एक शोध निकष प्रदान करा (नाव, लिंग, किंवा वय)",
+      "pleaseEnterVoterId": "कृपया शोधण्यासाठी मतदार आयडी, नाव किंवा फोन नंबर प्रविष्ट करा",
+      "failedToSearch": "मतदार शोधण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा.",
+      "noVotersFound": "त्या {type} सह कोणतेही मतदार आढळले नाहीत",
+      "votersFound": "{type} द्वारे {count} मतदार(चे) आढळले",
+      "serviceDataMissing": "सेवा डेटा गहाळ आहे",
+      "serviceCreatedSuccess": "लाभार्थी सेवा यशस्वीरित्या तयार केली!",
+      "serviceCreateFailed": "लाभार्थी सेवा तयार करण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा.",
+      "phoneUpdatedSuccess": "फोन नंबर यशस्वीरित्या अपडेट केला",
+      "phoneUpdateFailed": "फोन नंबर अपडेट करण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा."
+    }
+  },
+  "auth": {
+    "login": {
+      "title": "साइन इन करा",
+      "description": "साइन इन करण्यासाठी आपले वापरकर्ता आयडी आणि पासवर्ड वापरा",
+      "submit": "साइन इन करा",
+      "noAccount": "खाते नाही? ",
+      "signUpLink": "साइन अप करा",
+      "signUpSuffix": " विनामूल्य."
+    },
+    "register": {
+      "title": "साइन अप करा",
+      "description": "आपले वापरकर्ता आयडी आणि पासवर्डसह खाते तयार करा",
+      "submit": "साइन अप करा",
+      "hasAccount": "आधीपासून खाते आहे? ",
+      "signInLink": "साइन इन करा",
+      "signInSuffix": " याऐवजी."
+    },
+    "messages": {
+      "invalidCredentials": "अवैध क्रेडेन्शियल्स!",
+      "validationFailed": "आपली सबमिशन वैध करण्यात अयशस्वी!",
+      "accountExists": "खाते आधीपासून अस्तित्वात आहे!",
+      "createFailed": "खाते तयार करण्यात अयशस्वी!",
+      "createSuccess": "खाते यशस्वीरित्या तयार केले! कृपया साइन इन करा."
+    }
+  },
+  "unauthorized": {
+    "title": "प्रवेश नाकारला",
+    "description": "आपल्याला या पृष्ठावर प्रवेश करण्याची परवानगी नाही.",
+    "contactAdmin": "आपल्याला वाटत असेल की ही त्रुटी आहे तर कृपया आपल्या प्रशासकाशी संपर्क साधा."
+  },
+  "voterProfile": {
+    "services": {
+      "title": "लाभार्थी सेवा वापरल्या",
+      "description": "या मतदाराने विनंती केलेल्या आणि वापरल्या गेलेल्या सेवा",
+      "individual": "वैयक्तिक सेवा",
+      "community": "समुदाय-आधारित सेवा",
+      "noIndividual": "कोणतीही वैयक्तिक सेवा आढळली नाही.",
+      "noCommunity": "कोणतीही समुदाय-आधारित सेवा आढळली नाही."
+    },
+    "events": {
+      "title": "दैनंदिन कार्यक्रम इव्हेंटमध्ये उपस्थित",
+      "description": "या मतदाराने उपस्थित असलेले इव्हेंट आणि कार्यक्रम",
+      "noEvents": "कोणतेही दैनंदिन कार्यक्रम इव्हेंट आढळले नाहीत.",
+      "attended": "उपस्थित",
+      "notAttended": "उपस्थित नाही"
+    },
+    "related": {
+      "title": "संबंधित मतदारांच्या सेवा आणि इव्हेंट",
+      "description": "संबंधित मतदारांच्या सेवा आणि इव्हेंट",
+      "noData": "संबंधित मतदारांसाठी कोणतीही सेवा किंवा इव्हेंट आढळले नाहीत."
+    },
+    "fields": {
+      "token": "टोकन:",
+      "created": "तयार केले:",
+      "completed": "पूर्ण झाले:",
+      "updated": "अपडेट केले:",
+      "notes": "टिप्पण्या:",
+      "date": "तारीख:",
+      "time": "वेळ:",
+      "location": "स्थान:",
+      "visitorName": "भेट देणार्याचे नाव:"
+    }
+  },
+  "beneficiaryService": {
+    "form": {
+      "title": "लाभार्थी सेवा तयार करा",
+      "description": "{name} ({epicNumber}) साठी सेवा विनंती तयार करा",
+      "types": {
+        "individual": "वैयक्तिक सेवा",
+        "community": "समुदाय सेवा"
+      },
+      "fields": {
+        "serviceType": "सेवा प्रकार *",
+        "serviceName": "सेवा नाव *",
+        "priority": "प्राधान्य",
+        "description": "वर्णन",
+        "notes": "टिप्पण्या",
+        "selectService": "सेवा निवडा",
+        "customService": "+ सानुकूल सेवा जोडा",
+        "customServiceName": "सानुकूल सेवा नाव प्रविष्ट करा",
+        "selectPriority": "प्राधान्य निवडा",
+        "descriptionPlaceholder": "सेवा आवश्यकता वर्णन करा",
+        "notesPlaceholder": "अतिरिक्त टिप्पण्या किंवा टिप्पण्या"
+      },
+      "serviceAreas": {
+        "title": "सेवा क्षेत्रे",
+        "addArea": "क्षेत्र जोडा",
+        "partNo": "भाग क्र.",
+        "wardNo": "वॉर्ड क्र.",
+        "acNo": "AC क्र.",
+        "partNoPlaceholder": "भाग क्रमांक",
+        "wardNoPlaceholder": "वॉर्ड क्रमांक",
+        "acNoPlaceholder": "AC क्रमांक",
+        "remove": "हटवा"
+      },
+      "submit": "सेवा तयार करा",
+      "submitting": "सेवा तयार करत आहे...",
+      "low": "कमी",
+      "medium": "मध्यम",
+      "high": "उच्च",
+      "urgent": "तातडीचे"
+    },
+    "messages": {
+      "serviceNameRequired": "सेवा नाव आवश्यक आहे",
+      "areaIdentifierRequired": "कृपया समुदाय सेवेसाठी किमान एक क्षेत्र ओळखकर्ता (भाग क्र., वॉर्ड क्र., किंवा AC क्र.) प्रदान करा",
+      "createdSuccess": "लाभार्थी सेवा यशस्वीरित्या तयार केली",
+      "createFailed": "लाभार्थी सेवा तयार करण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा.",
+      "serviceCreatedMessage": "सेवा यशस्वीरित्या तयार केली. आता आपण दुसरा मतदार शोधू शकता.",
+      "serviceSkippedMessage": "सेवा निर्मिती वगळली. आता आपण दुसरा मतदार शोधू शकता."
+    }
+  },
+  "phoneUpdate": {
+    "title": "फोन नंबर अपडेट करा",
+    "description": "कृपया संपर्क माहिती अपडेट करा. अपडेट नंतर संबंधित कुटुंब सदस्य दर्शविले जातील.",
+    "voterInfo": "मतदार माहिती",
+    "contactInfo": "संपर्क माहिती",
+    "primary": "प्राथमिक मोबाइल नंबर",
+    "secondary": "दुय्यम मोबाइल नंबर",
+    "primaryPlaceholder": "प्राथमिक मोबाइल नंबर प्रविष्ट करा",
+    "secondaryPlaceholder": "दुय्यम मोबाइल नंबर प्रविष्ट करा (ऐच्छिक)",
+    "primaryHelp": "हे मतदारासाठी मुख्य संपर्क नंबर आहे",
+    "secondaryHelp": "ऐच्छिक पर्यायी संपर्क नंबर",
+    "update": "फोन नंबर अपडेट करा",
+    "updating": "अपडेट करत आहे...",
+    "skip": "वगळा",
+    "messages": {
+      "updatedSuccess": "फोन नंबर यशस्वीरित्या अपडेट केला",
+      "updateFailed": "फोन नंबर अपडेट करण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा.",
+      "pleaseSelectVoter": "कृपया प्रथम मतदार निवडा",
+      "updateBeforeService": "सेवा तयार करण्यापूर्वी कृपया मोबाइल नंबर अपडेट करा.",
+      "updateCompleted": "मोबाइल नंबर अपडेट केला. आता आपण सेवा तयार करू शकता.",
+      "updateBeforeServiceFor": "सेवा निर्मिती पुढे जाण्यापूर्वी कृपया {name} साठी मोबाइल नंबर अपडेट करा.",
+      "updateFor": "{name} साठी मोबाइल नंबर अपडेट करा",
+      "proceedToService": "सेवा निर्मितीकडे पुढे जा",
+      "skipUpdateAndGoToService": "अपडेट वगळा आणि सेवाकडे जा"
+    }
+  },
+  "taskManagement": {
+    "title": "कार्य व्यवस्थापन",
+    "description": "लाभार्थी सेवा कार्ये आणि विनंत्या व्यवस्थापित करा",
+    "filters": {
+      "status": "स्थिती",
+      "priority": "प्राधान्य",
+      "serviceToken": "सेवा टोकन",
+      "mobileNumber": "मोबाइल नंबर",
+      "voterId": "मतदार आयडी",
+      "selectStatus": "स्थिती निवडा",
+      "selectPriority": "प्राधान्य निवडा",
+      "enterToken": "सेवा टोकन प्रविष्ट करा...",
+      "enterMobile": "मोबाइल नंबर प्रविष्ट करा...",
+      "enterVoterId": "मतदार आयडी प्रविष्ट करा...",
+      "allTasks": "सर्व कार्ये",
+      "allPriorities": "सर्व प्राधान्ये",
+      "itemsPerPage": "प्रति पृष्ठ आयटम",
+      "showing": "{count} पैकी {total} कार्ये दर्शवत आहे"
+    },
+    "status": {
+      "pending": "प्रलंबित",
+      "inProgress": "प्रगतीपथावर",
+      "completed": "पूर्ण",
+      "cancelled": "रद्द केले"
+    },
+    "priority": {
+      "low": "कमी",
+      "medium": "मध्यम",
+      "high": "उच्च",
+      "urgent": "तातडीचे"
+    },
+    "actions": {
+      "search": "शोधा",
+      "searching": "शोधत आहे...",
+      "clearFilters": "फिल्टर साफ करा",
+      "manage": "व्यवस्थापित करा",
+      "escalate": "वाढवा"
+    },
+    "loading": "कार्ये लोड होत आहेत...",
+    "noTasks": "कोणतीही कार्ये आढळली नाहीत",
+    "noTasksHelp": "कार्ये शोधण्यासाठी आपले फिल्टर समायोजित करण्याचा प्रयत्न करा",
+    "serviceRequest": "सेवा विनंती",
+    "service": "सेवा:",
+    "token": "टोकन:",
+    "voterInformation": "मतदार माहिती",
+    "name": "नाव:",
+    "voterId": "मतदार आयडी:",
+    "phone": "फोन:",
+    "created": "तयार केले:",
+    "updated": "अपडेट केले:",
+    "notes": "टिप्पण्या:",
+    "dialog": {
+      "manageTitle": "कार्य व्यवस्थापित करा",
+      "manageDescription": "कार्य स्थिती अपडेट करा आणि टिप्पण्या जोडा",
+      "taskType": "कार्य प्रकार",
+      "updateStatus": "स्थिती अपडेट करा",
+      "selectNewStatus": "नवीन स्थिती निवडा",
+      "addNote": "टिप्पणी जोडा",
+      "addNotePlaceholder": "या कार्याबद्दल टिप्पणी जोडा...",
+      "updateTask": "कार्य अपडेट करा",
+      "escalationTitle": "वाढवण्याची विनंती",
+      "escalationDescription": "उच्च प्राधान्य समर्थनासाठी हे कार्य वाढवा",
+      "task": "कार्य",
+      "priorityLevel": "प्राधान्य स्तर",
+      "escalationReason": "वाढवण्याचे कारण",
+      "escalationReasonPlaceholder": "कृपया वाढवण्यासाठी तपशीलवार कारण प्रदान करा...",
+      "submitEscalation": "वाढवण्याची विनंती सबमिट करा"
+    },
+    "pagination": {
+      "page": "पृष्ठ {current} पैकी {total} ({count} एकूण कार्ये)",
+      "first": "पहिले",
+      "previous": "मागील",
+      "next": "पुढे",
+      "last": "शेवटचे"
+    },
+    "messages": {
+      "fetchFailed": "कार्ये मिळवण्यात अयशस्वी",
+      "updateSuccess": "कार्य स्थिती यशस्वीरित्या अपडेट केली",
+      "updateFailed": "कार्य स्थिती अपडेट करण्यात अयशस्वी",
+      "escalationReasonRequired": "कृपया वाढवण्याचे कारण प्रदान करा",
+      "escalationSuccess": "वाढवण्याची विनंती यशस्वीरित्या सबमिट केली",
+      "escalationFailed": "वाढवण्याची विनंती करण्यात अयशस्वी"
+    }
   }
 }

@@ -9,11 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from '@/components/toast';
 import { VoterProfilingForm } from '@/components/voter-profiling-form';
 import { BeneficiaryServiceForm } from '@/components/beneficiary-service-form';
+import { useTranslations } from '@/hooks/use-translations';
 // API calls will be made directly in the component
 import type { VoterWithPartNo } from '@/lib/db/schema';
 
 export function VoterMobileUpdateInterface() {
     const router = useRouter();
+    const { t } = useTranslations();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<VoterWithPartNo[]>([]);
     const [selectedVoter, setSelectedVoter] = useState<VoterWithPartNo | null>(null);
@@ -31,7 +33,7 @@ export function VoterMobileUpdateInterface() {
         if (!searchTerm.trim()) {
             toast({
                 type: 'error',
-                description: 'Please enter a VoterId, name, or phone number to search',
+                description: t('operator.messages.pleaseEnterVoterId'),
             });
             return;
         }
@@ -58,27 +60,27 @@ export function VoterMobileUpdateInterface() {
             setLastSearchType(data.searchType || searchType);
 
             if (data.voters.length === 0) {
-                const searchTypeText = data.searchType === 'voterId' ? 'VoterId' :
-                    data.searchType === 'phone' ? 'phone number' : 'name';
+                const searchTypeText = data.searchType === 'voterId' ? t('backOffice.voterIdType') :
+                    data.searchType === 'phone' ? t('operator.search.types.phone') : t('backOffice.nameType');
                 toast({
                     type: 'error',
-                    description: `No voters found with that ${searchTypeText}`,
+                    description: t('operator.messages.noVotersFound', { type: searchTypeText }),
                 });
                 // Show voter profiling form for unidentified voters
                 setShowVoterProfiling(true);
                 setWorkflowStep('profile');
             } else {
-                const searchTypeText = data.searchType === 'voterId' ? 'VoterId' :
-                    data.searchType === 'phone' ? 'phone number' : 'name';
+                const searchTypeText = data.searchType === 'voterId' ? t('backOffice.voterIdType') :
+                    data.searchType === 'phone' ? t('operator.search.types.phone') : t('backOffice.nameType');
                 toast({
                     type: 'success',
-                    description: `Found ${data.voters.length} voter(s) by ${searchTypeText}`,
+                    description: t('operator.messages.votersFound', { count: data.voters.length, type: searchTypeText }),
                 });
             }
         } catch (error) {
             toast({
                 type: 'error',
-                description: 'Failed to search voters. Please try again.',
+                description: t('operator.messages.failedToSearch'),
             });
         } finally {
             setIsSearching(false);
@@ -99,7 +101,7 @@ export function VoterMobileUpdateInterface() {
         if (!selectedVoter) {
             toast({
                 type: 'error',
-                description: 'Please select a voter first',
+                description: t('phoneUpdate.messages.pleaseSelectVoter'),
             });
             return;
         }
@@ -131,13 +133,13 @@ export function VoterMobileUpdateInterface() {
             } else {
                 toast({
                     type: 'success',
-                    description: 'Mobile numbers updated successfully',
+                    description: t('phoneUpdate.messages.updatedSuccess'),
                 });
             }
         } catch (error) {
             toast({
                 type: 'error',
-                description: 'Failed to update mobile numbers. Please try again.',
+                description: t('phoneUpdate.messages.updateFailed'),
             });
         } finally {
             setIsUpdating(false);
@@ -168,7 +170,7 @@ export function VoterMobileUpdateInterface() {
             setWorkflowStep('mobile_update');
             toast({
                 type: 'success',
-                description: 'Please update mobile number before creating service.',
+                description: t('phoneUpdate.messages.updateBeforeService'),
             });
         } else {
             setMobileNoPrimary(voter.mobileNoPrimary || '');
@@ -196,7 +198,7 @@ export function VoterMobileUpdateInterface() {
         setWorkflowStep('search');
         toast({
             type: 'success',
-            description: 'Service created successfully. You can now search for another voter.',
+            description: t('beneficiaryService.messages.serviceCreatedMessage'),
         });
     };
 
@@ -210,7 +212,7 @@ export function VoterMobileUpdateInterface() {
         setWorkflowStep('search');
         toast({
             type: 'success',
-            description: 'Service creation skipped. You can now search for another voter.',
+            description: t('beneficiaryService.messages.serviceSkippedMessage'),
         });
     };
 
@@ -220,7 +222,7 @@ export function VoterMobileUpdateInterface() {
         setWorkflowStep('service');
         toast({
             type: 'success',
-            description: 'Mobile number updated. You can now create a service.',
+            description: t('phoneUpdate.messages.updateCompleted'),
         });
     };
 
@@ -289,7 +291,7 @@ export function VoterMobileUpdateInterface() {
             {workflowStep === 'search' && (
                 <Card>
                     <CardHeader>
-                        <CardTitle>Search Voter</CardTitle>
+                        <CardTitle>{t('operator.search.title')}</CardTitle>
                         <CardDescription>
                             Search for voters by VoterId (EPIC Number), name, or phone number to update their mobile numbers
                         </CardDescription>
@@ -309,7 +311,7 @@ export function VoterMobileUpdateInterface() {
                                         className="size-4"
                                     />
                                     <Label htmlFor="phone" className="text-sm font-medium">
-                                        Phone Number
+                                        {t('operator.search.types.phone')}
                                     </Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
@@ -323,7 +325,7 @@ export function VoterMobileUpdateInterface() {
                                         className="size-4"
                                     />
                                     <Label htmlFor="voterId" className="text-sm font-medium">
-                                        VoterId (EPIC Number)
+                                        {t('operator.search.types.voterId')}
                                     </Label>
                                 </div>
                                 <div className="flex items-center space-x-2">
@@ -337,7 +339,7 @@ export function VoterMobileUpdateInterface() {
                                         className="size-4"
                                     />
                                     <Label htmlFor="name" className="text-sm font-medium">
-                                        Name
+                                        {t('backOffice.nameType')}
                                     </Label>
                                 </div>
                             </div>
@@ -346,8 +348,8 @@ export function VoterMobileUpdateInterface() {
                             <div className="flex gap-4">
                                 <div className="flex-1">
                                     <Label htmlFor="search">
-                                        {searchType === 'voterId' ? 'VoterId (EPIC Number)' :
-                                            searchType === 'phone' ? 'Phone Number' : 'Voter Name'}
+                                        {searchType === 'voterId' ? t('backOffice.voterIdEpicNumber') :
+                                            searchType === 'phone' ? t('operator.search.types.phone') : t('backOffice.nameType')}
                                     </Label>
                                     <Input
                                         id="search"
@@ -355,10 +357,10 @@ export function VoterMobileUpdateInterface() {
                                         onChange={(e) => setSearchTerm(e.target.value)}
                                         placeholder={
                                             searchType === 'voterId'
-                                                ? 'Enter VoterId (e.g., ABC1234567)...'
+                                                ? t('operator.search.voterIdPlaceholder')
                                                 : searchType === 'phone'
-                                                    ? 'Enter phone number (e.g., 9876543210)...'
-                                                    : 'Enter voter name...'
+                                                    ? t('operator.search.phonePlaceholder')
+                                                    : t('operator.search.namePlaceholder')
                                         }
                                         type={searchType === 'phone' ? 'tel' : 'text'}
                                         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -366,7 +368,7 @@ export function VoterMobileUpdateInterface() {
                                 </div>
                                 <div className="flex items-end">
                                     <Button onClick={handleSearch} disabled={isSearching}>
-                                        {isSearching ? 'Searching...' : 'Search'}
+                                        {isSearching ? t('operator.search.searching') : t('common.search')}
                                     </Button>
                                 </div>
                             </div>
@@ -376,7 +378,7 @@ export function VoterMobileUpdateInterface() {
                         {searchResults.length > 0 && (
                             <div className="mt-4">
                                 <div className="flex items-center justify-between mb-2">
-                                    <h3 className="text-lg font-semibold">Search Results</h3>
+                                    <h3 className="text-lg font-semibold">{t('backOffice.searchResults')}</h3>
                                     {lastSearchType && (
                                         <span className="text-sm text-muted-foreground">
                                             Found by {lastSearchType === 'voterId' ? 'VoterId' :
@@ -461,15 +463,15 @@ export function VoterMobileUpdateInterface() {
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center justify-between">
-                            {workflowStep === 'mobile_update' ? 'Update Mobile Numbers (Required)' : 'Update Mobile Numbers'}
+                            {workflowStep === 'mobile_update' ? `${t('phoneUpdate.title')} (${t('common.required')})` : t('phoneUpdate.title')}
                             <Button variant="outline" size="sm" onClick={handleClearSelection}>
-                                Clear Selection
+                                {t('common.clear')}
                             </Button>
                         </CardTitle>
                         <CardDescription>
                             {workflowStep === 'mobile_update'
-                                ? `Please update mobile numbers for ${selectedVoter.fullName} before proceeding to service creation.`
-                                : `Update mobile numbers for ${selectedVoter.fullName}`
+                                ? t('phoneUpdate.messages.updateBeforeServiceFor', { name: selectedVoter.fullName })
+                                : t('phoneUpdate.messages.updateFor', { name: selectedVoter.fullName })
                             }
                         </CardDescription>
                     </CardHeader>
@@ -478,27 +480,27 @@ export function VoterMobileUpdateInterface() {
                             {/* Voter Info */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
                                 <div>
-                                    <Label className="text-sm font-medium">Name</Label>
+                                    <Label className="text-sm font-medium">{t('common.name')}</Label>
                                     <p>{selectedVoter.fullName}</p>
                                 </div>
                                 <div>
-                                    <Label className="text-sm font-medium">EPIC Number</Label>
+                                    <Label className="text-sm font-medium">{t('forms.epicNumber')}</Label>
                                     <p>{selectedVoter.epicNumber}</p>
                                 </div>
                                 <div>
-                                    <Label className="text-sm font-medium">AC Number</Label>
+                                    <Label className="text-sm font-medium">{t('dataExport.acNumber')}</Label>
                                     <p>{selectedVoter.acNo || 'N/A'}</p>
                                 </div>
                                 <div>
-                                    <Label className="text-sm font-medium">Ward Number</Label>
+                                    <Label className="text-sm font-medium">{t('dataExport.wardNumber')}</Label>
                                     <p>{selectedVoter.wardNo || 'N/A'}</p>
                                 </div>
                                 <div>
-                                    <Label className="text-sm font-medium">Age</Label>
+                                    <Label className="text-sm font-medium">{t('forms.age')}</Label>
                                     <p>{selectedVoter.age || 'N/A'}</p>
                                 </div>
                                 <div>
-                                    <Label className="text-sm font-medium">Gender</Label>
+                                    <Label className="text-sm font-medium">{t('forms.gender')}</Label>
                                     <p>{selectedVoter.gender || 'N/A'}</p>
                                 </div>
                             </div>
@@ -506,22 +508,22 @@ export function VoterMobileUpdateInterface() {
                             {/* Mobile Number Fields */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <Label htmlFor="primary-mobile">Primary Mobile Number</Label>
+                                    <Label htmlFor="primary-mobile">{t('phoneUpdate.primary')}</Label>
                                     <Input
                                         id="primary-mobile"
                                         value={mobileNoPrimary}
                                         onChange={(e) => setMobileNoPrimary(e.target.value)}
-                                        placeholder="Enter primary mobile number"
+                                        placeholder={t('phoneUpdate.primaryPlaceholder')}
                                         type="tel"
                                     />
                                 </div>
                                 <div>
-                                    <Label htmlFor="secondary-mobile">Secondary Mobile Number</Label>
+                                    <Label htmlFor="secondary-mobile">{t('phoneUpdate.secondary')}</Label>
                                     <Input
                                         id="secondary-mobile"
                                         value={mobileNoSecondary}
                                         onChange={(e) => setMobileNoSecondary(e.target.value)}
-                                        placeholder="Enter secondary mobile number (optional)"
+                                        placeholder={t('phoneUpdate.secondaryPlaceholder')}
                                         type="tel"
                                     />
                                 </div>
@@ -530,7 +532,7 @@ export function VoterMobileUpdateInterface() {
                             {/* Action Buttons */}
                             <div className="flex gap-4">
                                 <Button onClick={handleUpdateMobile} disabled={isUpdating}>
-                                    {isUpdating ? 'Updating...' : 'Update Mobile Numbers'}
+                                    {isUpdating ? t('phoneUpdate.updating') : t('phoneUpdate.update')}
                                 </Button>
                                 {workflowStep === 'mobile_update' && (
                                     <Button
@@ -538,7 +540,7 @@ export function VoterMobileUpdateInterface() {
                                         onClick={handleMobileUpdateCompleted}
                                         disabled={!mobileNoPrimary && !mobileNoSecondary}
                                     >
-                                        Proceed to Service Creation
+                                        {t('phoneUpdate.messages.proceedToService')}
                                     </Button>
                                 )}
                                 {workflowStep === 'mobile_update' && (
@@ -550,11 +552,11 @@ export function VoterMobileUpdateInterface() {
                                         }}
                                         disabled={!mobileNoPrimary && !mobileNoSecondary}
                                     >
-                                        Skip Update & Go to Service
+                                        {t('phoneUpdate.messages.skipUpdateAndGoToService')}
                                     </Button>
                                 )}
                                 <Button variant="outline" onClick={handleClearSelection}>
-                                    Cancel
+                                    {t('common.cancel')}
                                 </Button>
                             </div>
                         </div>

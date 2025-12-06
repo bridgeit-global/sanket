@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/
 import { Badge } from './ui/badge';
 import { Search, User, FileText, CheckCircle, AlertCircle, ArrowLeft, ArrowRight, Plus } from 'lucide-react';
 import { toast } from './toast';
+import { useTranslations } from '@/hooks/use-translations';
 
 interface Voter {
     id: string;
@@ -54,6 +55,7 @@ export function AddBeneficiaryServiceForm({
     onClose: () => void;
     sendMessage: (message: any) => void;
 }) {
+    const { t } = useTranslations();
     // Helper function to format dates in human-readable format
     const formatDate = (dateString: string) => {
         const date = new Date(dateString);
@@ -288,14 +290,14 @@ export function AddBeneficiaryServiceForm({
                     category: ''
                 });
 
-                toast({ type: 'success', description: 'Service created successfully!' });
+                toast({ type: 'success', description: t('beneficiaryService.messages.createdSuccess') });
             } else {
                 console.error('Service creation failed:', result.error);
-                toast({ type: 'error', description: result.error || 'Failed to create service' });
+                toast({ type: 'error', description: result.error || t('beneficiaryService.messages.createFailed') });
             }
         } catch (error) {
             console.error('Error creating service:', error);
-            toast({ type: 'error', description: 'Failed to create service. Please try again.' });
+            toast({ type: 'error', description: t('beneficiaryService.messages.createFailed') });
         } finally {
             setIsCreatingService(false);
         }
@@ -364,11 +366,11 @@ export function AddBeneficiaryServiceForm({
                 toast({ type: 'success', description: result.message });
                 onClose();
             } else {
-                toast({ type: 'error', description: result.error || 'Failed to create beneficiary service request' });
+                toast({ type: 'error', description: result.error || t('beneficiaryService.messages.createFailed') });
             }
         } catch (error) {
             console.error('Error creating beneficiary:', error);
-            toast({ type: 'error', description: 'Failed to create beneficiary service request. Please try again.' });
+            toast({ type: 'error', description: t('beneficiaryService.messages.createFailed') });
         }
     };
 
@@ -493,7 +495,7 @@ export function AddBeneficiaryServiceForm({
                                 }}
                                 disabled={isCreatingService || !newService.name.trim() || !newService.category.trim()}
                             >
-                                {isCreatingService ? 'Creating...' : 'Create Service'}
+                                {isCreatingService ? t('beneficiaryService.form.submitting') : t('beneficiaryService.form.submit')}
                             </Button>
                             <Button
                                 variant="outline"
@@ -858,7 +860,7 @@ export function AddBeneficiaryServiceForm({
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <FileText className="size-5" />
-                    Service Details
+                    {t('operator.confirmation.serviceDetails')}
                 </CardTitle>
                 <CardDescription>
                     Provide details about the beneficiary service request

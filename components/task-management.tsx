@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/components/toast';
 import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
+import { useTranslations } from '@/hooks/use-translations';
 import type { VoterTask, BeneficiaryService, Voter } from '@/lib/db/schema';
 
 interface TaskWithService extends VoterTask {
@@ -26,6 +27,7 @@ interface TaskResponse {
 }
 
 export function TaskManagement() {
+    const { t } = useTranslations();
     const [tasks, setTasks] = useState<TaskWithService[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedTask, setSelectedTask] = useState<TaskWithService | null>(null);
@@ -76,7 +78,7 @@ export function TaskManagement() {
             console.error('Error fetching tasks:', error);
             toast({
                 type: 'error',
-                description: 'Failed to fetch tasks',
+                description: t('taskManagement.messages.fetchFailed'),
             });
         } finally {
             setIsLoading(false);
@@ -120,7 +122,7 @@ export function TaskManagement() {
 
             toast({
                 type: 'success',
-                description: 'Task status updated successfully',
+                description: t('taskManagement.messages.updateSuccess'),
             });
 
             fetchTasks();
@@ -131,7 +133,7 @@ export function TaskManagement() {
             console.error('Error updating task status:', error);
             toast({
                 type: 'error',
-                description: 'Failed to update task status',
+                description: t('taskManagement.messages.updateFailed'),
             });
         }
     };
@@ -140,7 +142,7 @@ export function TaskManagement() {
         if (!selectedTask || !escalationReason.trim()) {
             toast({
                 type: 'error',
-                description: 'Please provide a reason for escalation',
+                description: t('taskManagement.messages.escalationReasonRequired'),
             });
             return;
         }
@@ -165,7 +167,7 @@ export function TaskManagement() {
 
             toast({
                 type: 'success',
-                description: 'Escalation request submitted successfully',
+                description: t('taskManagement.messages.escalationSuccess'),
             });
 
             setShowEscalationDialog(false);
@@ -176,7 +178,7 @@ export function TaskManagement() {
             console.error('Error escalating request:', error);
             toast({
                 type: 'error',
-                description: 'Failed to escalate request',
+                description: t('taskManagement.messages.escalationFailed'),
             });
         }
     };
@@ -231,9 +233,9 @@ export function TaskManagement() {
         <div className="space-y-6">
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-bold">Task Management</h1>
+                <h1 className="text-3xl font-bold">{t('taskManagement.title')}</h1>
                 <p className="text-muted-foreground mt-2">
-                    Manage beneficiary service tasks and requests
+                    {t('taskManagement.description')}
                 </p>
             </div>
 
@@ -243,62 +245,62 @@ export function TaskManagement() {
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
                             <div>
-                                <Label htmlFor="status-filter">Status</Label>
+                                <Label htmlFor="status-filter">{t('taskManagement.filters.status')}</Label>
                                 <Select value={filterStatus} onValueChange={setFilterStatus}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select status" />
+                                        <SelectValue placeholder={t('taskManagement.filters.selectStatus')} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">All Tasks</SelectItem>
-                                        <SelectItem value="pending">Pending</SelectItem>
-                                        <SelectItem value="in_progress">In Progress</SelectItem>
-                                        <SelectItem value="completed">Completed</SelectItem>
-                                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                                        <SelectItem value="all">{t('taskManagement.filters.allTasks')}</SelectItem>
+                                        <SelectItem value="pending">{t('taskManagement.status.pending')}</SelectItem>
+                                        <SelectItem value="in_progress">{t('taskManagement.status.inProgress')}</SelectItem>
+                                        <SelectItem value="completed">{t('taskManagement.status.completed')}</SelectItem>
+                                        <SelectItem value="cancelled">{t('taskManagement.status.cancelled')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
 
                             <div>
-                                <Label htmlFor="priority-filter">Priority</Label>
+                                <Label htmlFor="priority-filter">{t('taskManagement.filters.priority')}</Label>
                                 <Select value={filterPriority} onValueChange={setFilterPriority}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select priority" />
+                                        <SelectValue placeholder={t('taskManagement.filters.selectPriority')} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">All Priorities</SelectItem>
-                                        <SelectItem value="low">Low</SelectItem>
-                                        <SelectItem value="medium">Medium</SelectItem>
-                                        <SelectItem value="high">High</SelectItem>
-                                        <SelectItem value="urgent">Urgent</SelectItem>
+                                        <SelectItem value="all">{t('taskManagement.filters.allPriorities')}</SelectItem>
+                                        <SelectItem value="low">{t('taskManagement.priority.low')}</SelectItem>
+                                        <SelectItem value="medium">{t('taskManagement.priority.medium')}</SelectItem>
+                                        <SelectItem value="high">{t('taskManagement.priority.high')}</SelectItem>
+                                        <SelectItem value="urgent">{t('taskManagement.priority.urgent')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
 
                             <div>
-                                <Label htmlFor="token-filter">Service Token</Label>
+                                <Label htmlFor="token-filter">{t('taskManagement.filters.serviceToken')}</Label>
                                 <Input
                                     id="token-filter"
-                                    placeholder="Enter service token..."
+                                    placeholder={t('taskManagement.filters.enterToken')}
                                     value={filterToken}
                                     onChange={(e) => setFilterToken(e.target.value)}
                                 />
                             </div>
 
                             <div>
-                                <Label htmlFor="mobile-filter">Mobile Number</Label>
+                                <Label htmlFor="mobile-filter">{t('taskManagement.filters.mobileNumber')}</Label>
                                 <Input
                                     id="mobile-filter"
-                                    placeholder="Enter mobile number..."
+                                    placeholder={t('taskManagement.filters.enterMobile')}
                                     value={filterMobile}
                                     onChange={(e) => setFilterMobile(e.target.value)}
                                 />
                             </div>
 
                             <div>
-                                <Label htmlFor="voter-filter">Voter ID</Label>
+                                <Label htmlFor="voter-filter">{t('taskManagement.filters.voterId')}</Label>
                                 <Input
                                     id="voter-filter"
-                                    placeholder="Enter voter ID..."
+                                    placeholder={t('taskManagement.filters.enterVoterId')}
                                     value={filterVoterId}
                                     onChange={(e) => setFilterVoterId(e.target.value)}
                                 />
@@ -308,7 +310,7 @@ export function TaskManagement() {
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                                 <div>
-                                    <Label htmlFor="page-size">Items per page</Label>
+                                    <Label htmlFor="page-size">{t('taskManagement.filters.itemsPerPage')}</Label>
                                     <Select value={pageSize.toString()} onValueChange={(value) => {
                                         setPageSize(Number.parseInt(value));
                                         setCurrentPage(1);
@@ -325,16 +327,16 @@ export function TaskManagement() {
                                     </Select>
                                 </div>
                                 <div className="text-sm text-muted-foreground">
-                                    Showing {tasks.length} of {totalCount} tasks
+                                    {t('taskManagement.filters.showing', { count: tasks.length, total: totalCount })}
                                 </div>
                             </div>
 
                             <div className="flex flex-col sm:flex-row gap-2">
                                 <Button onClick={handleSearch} disabled={isLoading} className="flex-1 sm:flex-none">
-                                    {isLoading ? 'Searching...' : 'Search'}
+                                    {isLoading ? t('taskManagement.actions.searching') : t('taskManagement.actions.search')}
                                 </Button>
                                 <Button onClick={handleClearFilters} variant="outline" className="flex-1 sm:flex-none">
-                                    Clear Filters
+                                    {t('taskManagement.actions.clearFilters')}
                                 </Button>
                             </div>
                         </div>
@@ -347,7 +349,7 @@ export function TaskManagement() {
                 <div className="min-h-screen bg-background flex items-center justify-center">
                     <div className="text-center">
                         <div className="animate-spin rounded-full size-8 border-b-2 border-gray-900 mx-auto" />
-                        <p className="mt-2 text-muted-foreground">Loading tasks...</p>
+                        <p className="mt-2 text-muted-foreground">{t('taskManagement.loading')}</p>
                     </div>
                 </div>
             ) : (
@@ -356,9 +358,9 @@ export function TaskManagement() {
                         <Card>
                             <CardContent className="pt-6">
                                 <div className="text-center py-8">
-                                    <p className="text-muted-foreground">No tasks found</p>
+                                    <p className="text-muted-foreground">{t('taskManagement.noTasks')}</p>
                                     <p className="text-sm text-muted-foreground mt-2">
-                                        Try adjusting your filters to find tasks
+                                        {t('taskManagement.noTasksHelp')}
                                     </p>
                                 </div>
                             </CardContent>
@@ -371,7 +373,7 @@ export function TaskManagement() {
                                         <div className="flex-1">
                                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
                                                 <h3 className="text-lg font-semibold">
-                                                    {task.taskType.replace('service_request', '').trim() || 'Service Request'}
+                                                    {task.taskType.replace('service_request', '').trim() || t('taskManagement.serviceRequest')}
                                                 </h3>
                                                 <div className="flex gap-2">
                                                     <Badge className={getStatusColor(task.status)}>
@@ -392,9 +394,9 @@ export function TaskManagement() {
 
                                             {task.service && (
                                                 <div className="text-sm text-muted-foreground mb-2">
-                                                    <strong>Service:</strong> {task.service.serviceName} ({task.service.serviceType})
+                                                    <strong>{t('taskManagement.service')}</strong> {task.service.serviceName} ({task.service.serviceType})
                                                     {task.service.token && (
-                                                        <span> | <strong>Token:</strong> {task.service.token}</span>
+                                                        <span> | <strong>{t('taskManagement.token')}</strong> {task.service.token}</span>
                                                     )}
                                                 </div>
                                             )}
@@ -402,28 +404,28 @@ export function TaskManagement() {
                                             {task.voter && (
                                                 <div className="bg-gray-50 p-3 rounded-lg mb-3">
                                                     <div className="text-sm font-medium text-gray-900 mb-1">
-                                                        Voter Information
+                                                        {t('taskManagement.voterInformation')}
                                                     </div>
                                                     <div className="text-sm text-gray-700 space-y-1">
-                                                        <div><strong>Name:</strong> {task.voter.fullName}</div>
-                                                        <div><strong>Voter ID:</strong> {task.voterId}</div>
+                                                        <div><strong>{t('taskManagement.name')}</strong> {task.voter.fullName}</div>
+                                                        <div><strong>{t('taskManagement.voterId')}</strong> {task.voterId}</div>
                                                         {task.voter.mobileNoPrimary && (
-                                                            <div><strong>Phone:</strong> {task.voter.mobileNoPrimary}</div>
+                                                            <div><strong>{t('taskManagement.phone')}</strong> {task.voter.mobileNoPrimary}</div>
                                                         )}
                                                     </div>
                                                 </div>
                                             )}
 
                                             <div className="text-sm text-muted-foreground">
-                                                <strong>Created:</strong> {new Date(task.createdAt).toLocaleDateString()}
+                                                <strong>{t('taskManagement.created')}</strong> {new Date(task.createdAt).toLocaleDateString()}
                                                 {task.updatedAt !== task.createdAt && (
-                                                    <span> | <strong>Updated:</strong> {new Date(task.updatedAt).toLocaleDateString()}</span>
+                                                    <span> | <strong>{t('taskManagement.updated')}</strong> {new Date(task.updatedAt).toLocaleDateString()}</span>
                                                 )}
                                             </div>
 
                                             {task.notes && (
                                                 <div className="mt-2 p-2 bg-muted rounded text-sm">
-                                                    <strong>Notes:</strong> {task.notes}
+                                                    <strong>{t('taskManagement.notes')}</strong> {task.notes}
                                                 </div>
                                             )}
                                         </div>
@@ -438,7 +440,7 @@ export function TaskManagement() {
                                                 }}
                                                 className="flex-1 sm:flex-none"
                                             >
-                                                Manage
+                                                {t('taskManagement.actions.manage')}
                                             </Button>
                                             <Button
                                                 variant="outline"
@@ -449,7 +451,7 @@ export function TaskManagement() {
                                                 }}
                                                 className="flex-1 sm:flex-none"
                                             >
-                                                Escalate
+                                                {t('taskManagement.actions.escalate')}
                                             </Button>
                                         </div>
                                     </div>
@@ -465,41 +467,41 @@ export function TaskManagement() {
             <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Manage Task</DialogTitle>
+                        <DialogTitle>{t('taskManagement.dialog.manageTitle')}</DialogTitle>
                         <DialogDescription>
-                            Update task status and add notes
+                            {t('taskManagement.dialog.manageDescription')}
                         </DialogDescription>
                     </DialogHeader>
 
                     {selectedTask && (
                         <div className="space-y-4">
                             <div>
-                                <Label>Task Type</Label>
+                                <Label>{t('taskManagement.dialog.taskType')}</Label>
                                 <p className="text-sm text-muted-foreground">{selectedTask.taskType}</p>
                             </div>
 
                             <div>
-                                <Label htmlFor="new-status">Update Status</Label>
+                                <Label htmlFor="new-status">{t('taskManagement.dialog.updateStatus')}</Label>
                                 <Select value={newStatus} onValueChange={setNewStatus}>
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select new status" />
+                                        <SelectValue placeholder={t('taskManagement.dialog.selectNewStatus')} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="pending">Pending</SelectItem>
-                                        <SelectItem value="in_progress">In Progress</SelectItem>
-                                        <SelectItem value="completed">Completed</SelectItem>
-                                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                                        <SelectItem value="pending">{t('taskManagement.status.pending')}</SelectItem>
+                                        <SelectItem value="in_progress">{t('taskManagement.status.inProgress')}</SelectItem>
+                                        <SelectItem value="completed">{t('taskManagement.status.completed')}</SelectItem>
+                                        <SelectItem value="cancelled">{t('taskManagement.status.cancelled')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
 
                             <div>
-                                <Label htmlFor="new-note">Add Note</Label>
+                                <Label htmlFor="new-note">{t('taskManagement.dialog.addNote')}</Label>
                                 <Textarea
                                     id="new-note"
                                     value={newNote}
                                     onChange={(e) => setNewNote(e.target.value)}
-                                    placeholder="Add a note about this task..."
+                                    placeholder={t('taskManagement.dialog.addNotePlaceholder')}
                                     rows={3}
                                 />
                             </div>
@@ -510,10 +512,10 @@ export function TaskManagement() {
                                     disabled={!newStatus && !newNote.trim()}
                                     className="flex-1"
                                 >
-                                    Update Task
+                                    {t('taskManagement.dialog.updateTask')}
                                 </Button>
                                 <Button variant="outline" onClick={() => setShowTaskDialog(false)} className="flex-1 sm:flex-none">
-                                    Cancel
+                                    {t('common.cancel')}
                                 </Button>
                             </div>
                         </div>
@@ -525,49 +527,49 @@ export function TaskManagement() {
             <Dialog open={showEscalationDialog} onOpenChange={setShowEscalationDialog}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Request Escalation</DialogTitle>
+                        <DialogTitle>{t('taskManagement.dialog.escalationTitle')}</DialogTitle>
                         <DialogDescription>
-                            Escalate this task for higher priority support
+                            {t('taskManagement.dialog.escalationDescription')}
                         </DialogDescription>
                     </DialogHeader>
 
                     {selectedTask && (
                         <div className="space-y-4">
                             <div>
-                                <Label>Task</Label>
+                                <Label>{t('taskManagement.dialog.task')}</Label>
                                 <p className="text-sm text-muted-foreground">{selectedTask.taskType}</p>
                             </div>
 
                             <div>
-                                <Label htmlFor="escalation-priority">Priority Level</Label>
+                                <Label htmlFor="escalation-priority">{t('taskManagement.dialog.priorityLevel')}</Label>
                                 <Select value={escalationPriority} onValueChange={(value: 'high' | 'urgent') => setEscalationPriority(value)}>
                                     <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="high">High</SelectItem>
-                                        <SelectItem value="urgent">Urgent</SelectItem>
+                                        <SelectItem value="high">{t('taskManagement.priority.high')}</SelectItem>
+                                        <SelectItem value="urgent">{t('taskManagement.priority.urgent')}</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
 
                             <div>
-                                <Label htmlFor="escalation-reason">Reason for Escalation</Label>
+                                <Label htmlFor="escalation-reason">{t('taskManagement.dialog.escalationReason')}</Label>
                                 <Textarea
                                     id="escalation-reason"
                                     value={escalationReason}
                                     onChange={(e) => setEscalationReason(e.target.value)}
-                                    placeholder="Please provide a detailed reason for escalation..."
+                                    placeholder={t('taskManagement.dialog.escalationReasonPlaceholder')}
                                     rows={4}
                                 />
                             </div>
 
                             <div className="flex flex-col sm:flex-row gap-2">
                                 <Button onClick={handleEscalation} disabled={!escalationReason.trim()} className="flex-1">
-                                    Submit Escalation
+                                    {t('taskManagement.dialog.submitEscalation')}
                                 </Button>
                                 <Button variant="outline" onClick={() => setShowEscalationDialog(false)} className="flex-1 sm:flex-none">
-                                    Cancel
+                                    {t('common.cancel')}
                                 </Button>
                             </div>
                         </div>
@@ -581,7 +583,7 @@ export function TaskManagement() {
                     <CardContent className="pt-6">
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div className="text-sm text-muted-foreground text-center sm:text-left">
-                                Page {currentPage} of {totalPages} ({totalCount} total tasks)
+                                {t('taskManagement.pagination.page', { current: currentPage, total: totalPages, count: totalCount })}
                             </div>
 
                             <div className="flex items-center gap-2 justify-center sm:justify-end">
@@ -591,7 +593,7 @@ export function TaskManagement() {
                                     onClick={() => setCurrentPage(1)}
                                     disabled={currentPage === 1}
                                 >
-                                    First
+                                    {t('taskManagement.pagination.first')}
                                 </Button>
                                 <Button
                                     variant="outline"
@@ -599,7 +601,7 @@ export function TaskManagement() {
                                     onClick={() => setCurrentPage(currentPage - 1)}
                                     disabled={currentPage === 1}
                                 >
-                                    Previous
+                                    {t('taskManagement.pagination.previous')}
                                 </Button>
 
                                 {/* Page numbers */}
@@ -636,7 +638,7 @@ export function TaskManagement() {
                                     onClick={() => setCurrentPage(currentPage + 1)}
                                     disabled={currentPage === totalPages}
                                 >
-                                    Next
+                                    {t('taskManagement.pagination.next')}
                                 </Button>
                                 <Button
                                     variant="outline"
@@ -644,7 +646,7 @@ export function TaskManagement() {
                                     onClick={() => setCurrentPage(totalPages)}
                                     disabled={currentPage === totalPages}
                                 >
-                                    Last
+                                    {t('taskManagement.pagination.last')}
                                 </Button>
                             </div>
                         </div>
