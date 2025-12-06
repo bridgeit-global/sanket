@@ -3263,6 +3263,7 @@ export async function getVotersForExport(filters?: {
   maxAge?: number;
   hasPhone?: boolean;
   religion?: string;
+  isVoted2024?: boolean;
 }): Promise<Voter[]> {
   try {
     const conditions: SQL<unknown>[] = [];
@@ -3320,6 +3321,9 @@ export async function getVotersForExport(filters?: {
     if (filters?.religion) {
       conditions.push(eq(Voters.religion, filters.religion));
     }
+    if (filters?.isVoted2024 !== undefined) {
+      conditions.push(eq(Voters.isVoted2024, filters.isVoted2024));
+    }
 
     if (needsPartNoJoin) {
       if (conditions.length > 0) {
@@ -3366,6 +3370,7 @@ export async function getVotersCountForExport(filters?: {
   maxAge?: number;
   hasPhone?: boolean;
   religion?: string;
+  isVoted2024?: boolean;
 }): Promise<number> {
   try {
     const conditions: SQL<unknown>[] = [];
@@ -3422,6 +3427,9 @@ export async function getVotersCountForExport(filters?: {
     }
     if (filters?.religion) {
       conditions.push(eq(Voters.religion, filters.religion));
+    }
+    if (filters?.isVoted2024 !== undefined) {
+      conditions.push(eq(Voters.isVoted2024, filters.isVoted2024));
     }
 
     let result;

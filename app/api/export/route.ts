@@ -129,21 +129,23 @@ async function processExport(
 
     const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm');
 
+    const selectedColumns = (filters?.selectedColumns as string[]) || undefined;
+
     if (exportFormat === 'csv') {
       // Generate CSV
-      fileContent = generateCSV(voters);
+      fileContent = generateCSV(voters, selectedColumns);
       fileName = `voters_export_${timestamp}.csv`;
       contentType = 'text/csv';
     } else if (exportFormat === 'excel') {
       // Generate Excel-compatible CSV (with BOM for UTF-8)
-      const csvContent = generateCSV(voters);
+      const csvContent = generateCSV(voters, selectedColumns);
       // Add BOM for Excel UTF-8 compatibility
       fileContent = `\ufeff${csvContent}`;
       fileName = `voters_export_${timestamp}.csv`;
       contentType = 'text/csv; charset=utf-8';
     } else {
       // Generate HTML for PDF-like export
-      fileContent = generateHTMLReport(voters, filters);
+      fileContent = generateHTMLReport(voters, filters, selectedColumns);
       fileName = `voters_export_${timestamp}.html`;
       contentType = 'text/html';
     }
@@ -186,46 +188,39 @@ async function processExport(
   }
 }
 
-function generateCSV(voters: any[]): string {
-  const headers = [
-    'EPIC Number',
-    'Full Name',
-    'Relation Type',
-    'Relation Name',
-    'Age',
-    'Gender',
-    'Mobile (Primary)',
-    'Mobile (Secondary)',
-    'House Number',
-    'Address',
-    'Pincode',
-    'AC No',
-    'Ward No',
-    'Part No',
-    'Booth Name',
-    'Religion',
-    'Voted 2024',
-  ];
+// Column mapping for export
+const COLUMN_MAP: Record<string, { header: string; getValue: (voter: any) => string }> = {
+  epicNumber: { header: 'EPIC Number', getValue: (v) => v.epicNumber || '' },
+  fullName: { header: 'Full Name', getValue: (v) => v.fullName || '' },
+  relationType: { header: 'Relation Type', getValue: (v) => v.relationType || '' },
+  relationName: { header: 'Relation Name', getValue: (v) => v.relationName || '' },
+  age: { header: 'Age', getValue: (v) => v.age?.toString() || '' },
+  gender: { header: 'Gender', getValue: (v) => v.gender || '' },
+  mobileNoPrimary: { header: 'Mobile (Primary)', getValue: (v) => v.mobileNoPrimary || '' },
+  mobileNoSecondary: { header: 'Mobile (Secondary)', getValue: (v) => v.mobileNoSecondary || '' },
+  houseNumber: { header: 'House Number', getValue: (v) => v.houseNumber || '' },
+  address: { header: 'Address', getValue: (v) => v.address || '' },
+  pincode: { header: 'Pincode', getValue: (v) => v.pincode || '' },
+  acNo: { header: 'AC No', getValue: (v) => v.acNo || '' },
+  wardNo: { header: 'Ward No', getValue: (v) => v.wardNo || '' },
+  partNo: { header: 'Part No', getValue: (v) => v.partNo || '' },
+  boothName: { header: 'Booth Name', getValue: (v) => v.boothName || '' },
+  religion: { header: 'Religion', getValue: (v) => v.religion || '' },
+  isVoted2024: { header: 'Voted 2024', getValue: (v) => v.isVoted2024 ? 'Yes' : 'No' },
+};
 
-  const rows = voters.map((voter) => [
-    voter.epicNumber || '',
-    voter.fullName || '',
-    voter.relationType || '',
-    voter.relationName || '',
-    voter.age?.toString() || '',
-    voter.gender || '',
-    voter.mobileNoPrimary || '',
-    voter.mobileNoSecondary || '',
-    voter.houseNumber || '',
-    voter.address || '',
-    voter.pincode || '',
-    voter.acNo || '',
-    voter.wardNo || '',
-    voter.partNo || '',
-    voter.boothName || '',
-    voter.religion || '',
-    voter.isVoted2024 ? 'Yes' : 'No',
-  ]);
+// Default columns (all columns)
+const DEFAULT_COLUMNS = Object.keys(COLUMN_MAP);
+
+function generateCSV(voters: any[], selectedColumns?: string[]): string {
+  const columnsToExport = selectedColumns && selectedColumns.length > 0 
+    ? selectedColumns.filter(col => COLUMN_MAP[col])
+    : DEFAULT_COLUMNS;
+
+  const headers = columnsToExport.map(col => COLUMN_MAP[col].header);
+  const rows = voters.map((voter) => 
+    columnsToExport.map(col => COLUMN_MAP[col].getValue(voter))
+  );
 
   const csvRows = [
     headers.join(','),
@@ -237,7 +232,7 @@ function generateCSV(voters: any[]): string {
   return csvRows.join('\n');
 }
 
-function generateHTMLReport(voters: any[], filters?: Record<string, unknown>): string {
+function generateHTMLReport(voters: any[], filters?: Record<string, unknown>, selectedColumns?: string[]): string {
   const filterDesc = filters
     ? Object.entries(filters)
       .filter(([, v]) => v !== undefined && v !== '')
@@ -362,30 +357,41 @@ function generateHTMLReport(voters: any[], filters?: Record<string, unknown>): s
       <thead>
         <tr>
           <th>#</th>
-          <th>EPIC Number</th>
-          <th>Name</th>
-          <th>Age</th>
-          <th>Gender</th>
-          <th>Mobile</th>
-          <th>Ward</th>
-          <th>Part</th>
-          <th>Voted 2024</th>
+          ${(() => {
+            const columnsToExport = selectedColumns && selectedColumns.length > 0 
+              ? selectedColumns.filter(col => COLUMN_MAP[col])
+              : DEFAULT_COLUMNS;
+            return columnsToExport.map(col => `<th>${COLUMN_MAP[col].header}</th>`).join('');
+          })()}
         </tr>
       </thead>
       <tbody>
-        ${voters.map((voter, idx) => `
-        <tr>
-          <td>${idx + 1}</td>
-          <td><code>${voter.epicNumber || '-'}</code></td>
-          <td><strong>${voter.fullName || '-'}</strong></td>
-          <td>${voter.age || '-'}</td>
-          <td><span class="badge badge-${(voter.gender || '').toLowerCase()}">${voter.gender || '-'}</span></td>
-          <td>${voter.mobileNoPrimary || '-'}</td>
-          <td>${voter.wardNo || '-'}</td>
-          <td>${voter.partNo || '-'}</td>
-          <td><span class="badge ${voter.isVoted2024 ? 'badge-voted' : 'badge-not-voted'}">${voter.isVoted2024 ? 'Yes' : 'No'}</span></td>
-        </tr>
-        `).join('')}
+        ${voters.map((voter, idx) => {
+          const columnsToExport = selectedColumns && selectedColumns.length > 0 
+            ? selectedColumns.filter(col => COLUMN_MAP[col])
+            : DEFAULT_COLUMNS;
+          
+          const cells = columnsToExport.map(col => {
+            const value = COLUMN_MAP[col].getValue(voter);
+            // Format special columns
+            if (col === 'epicNumber') {
+              return `<td><code>${value || '-'}</code></td>`;
+            }
+            if (col === 'fullName') {
+              return `<td><strong>${value || '-'}</strong></td>`;
+            }
+            if (col === 'gender') {
+              return `<td><span class="badge badge-${(value || '').toLowerCase()}">${value || '-'}</span></td>`;
+            }
+            if (col === 'isVoted2024') {
+              const isVoted = voter.isVoted2024;
+              return `<td><span class="badge ${isVoted ? 'badge-voted' : 'badge-not-voted'}">${isVoted ? 'Yes' : 'No'}</span></td>`;
+            }
+            return `<td>${value || '-'}</td>`;
+          }).join('');
+          
+          return `<tr><td>${idx + 1}</td>${cells}</tr>`;
+        }).join('')}
       </tbody>
     </table>
   </div>

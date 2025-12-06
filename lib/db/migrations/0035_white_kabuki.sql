@@ -1,0 +1,1 @@
+ALTER TABLE "DailyProgramme" ADD COLUMN "attended" boolean;

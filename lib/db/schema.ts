@@ -330,6 +330,7 @@ export const dailyProgramme = pgTable('DailyProgramme', {
   title: varchar('title', { length: 255 }).notNull(),
   location: varchar('location', { length: 255 }).notNull(),
   remarks: text('remarks'),
+  attended: boolean('attended'), // null = not set, true = attended, false = not attended
   createdBy: uuid('created_by')
     .notNull()
     .references(() => user.id),

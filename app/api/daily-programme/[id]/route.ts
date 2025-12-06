@@ -72,6 +72,7 @@ export async function PUT(
     if (body.title !== undefined) updateData.title = body.title;
     if (body.location !== undefined) updateData.location = body.location;
     if (body.remarks !== undefined) updateData.remarks = body.remarks;
+    if (body.attended !== undefined) updateData.attended = body.attended;
 
     const updated = await updateDailyProgrammeItem(id, updateData);
     if (!updated) {

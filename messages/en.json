@@ -334,6 +334,9 @@
     "failedToAddProgrammeItem": "Failed to add programme item",
     "failedToDeleteProgrammeItem": "Failed to delete programme item",
     "failedToSaveProgrammeItem": "Failed to save programme item",
+    "attendance": "Attendance",
+    "attendanceUpdatedSuccess": "Attendance status updated successfully",
+    "failedToUpdateAttendance": "Failed to update attendance status",
     "mlaName": "Hon' MLA, Smt. Sana Malik Shaikh",
     "printHeaderTitle": "Daily / Weekly Programme"
   },

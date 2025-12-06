@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Calendar, Pencil } from 'lucide-react';
+import { Printer, Calendar, Pencil, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { format, addDays, parseISO, startOfToday } from 'date-fns';
 import {
   Select,
@@ -31,6 +31,14 @@ import { ModulePageHeader } from '@/components/module-page-header';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslations } from '@/hooks/use-translations';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface ProgrammeItem {
   id: string;
@@ -40,6 +48,7 @@ interface ProgrammeItem {
   title: string;
   location: string;
   remarks?: string | null;
+  attended?: boolean | null;
 }
 
 interface DailyProgrammeProps {
@@ -191,6 +200,13 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
   // Delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+
+  // Beneficiary task creation dialog
+  const [beneficiaryTaskDialogOpen, setBeneficiaryTaskDialogOpen] = useState(false);
+  const [programmeItemForTask, setProgrammeItemForTask] = useState<ProgrammeItem | null>(null);
+  const [voterEpicNumber, setVoterEpicNumber] = useState('');
+  const [voterName, setVoterName] = useState('');
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
 
   // Group items by date
   const itemsByDate = useMemo(() => {
@@ -519,6 +535,70 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
     setDateRange({ start, end });
   };
 
+  const handleAttendanceChange = async (item: ProgrammeItem, attended: boolean | null) => {
+    try {
+      const response = await fetch(`/api/daily-programme/${item.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attended }),
+      });
+
+      if (response.ok) {
+        toast.success(t('dailyProgramme.attendanceUpdatedSuccess'));
+        await loadItems();
+
+        // If not attended, prompt for beneficiary task creation
+        if (attended === false) {
+          setProgrammeItemForTask(item);
+          setBeneficiaryTaskDialogOpen(true);
+        }
+      } else {
+        toast.error(t('dailyProgramme.failedToUpdateAttendance'));
+      }
+    } catch (error) {
+      console.error('Error updating attendance:', error);
+      toast.error(t('dailyProgramme.failedToUpdateAttendance'));
+    }
+  };
+
+  const handleCreateBeneficiaryTask = async () => {
+    if (!programmeItemForTask || !voterEpicNumber.trim()) {
+      toast.error('Please enter voter EPIC number');
+      return;
+    }
+
+    try {
+      setIsCreatingTask(true);
+      const response = await fetch('/api/daily-programme/create-beneficiary-task', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          programmeItemId: programmeItemForTask.id,
+          voterEpicNumber: voterEpicNumber.trim(),
+          voterName: voterName.trim() || undefined,
+          programmeTitle: programmeItemForTask.title,
+          programmeDate: programmeItemForTask.date,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Beneficiary task for token of gratitude created successfully');
+        setBeneficiaryTaskDialogOpen(false);
+        setProgrammeItemForTask(null);
+        setVoterEpicNumber('');
+        setVoterName('');
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        toast.error(errorData.error || 'Failed to create beneficiary task');
+      }
+    } catch (error) {
+      console.error('Error creating beneficiary task:', error);
+      toast.error('Failed to create beneficiary task');
+    } finally {
+      setIsCreatingTask(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <ModulePageHeader
@@ -729,6 +809,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                     <TableHead className="w-[60px] text-center">{t('dailyProgramme.serialNo')}</TableHead>
                                     <TableHead className="w-[280px]">{t('dailyProgramme.timeAndLocation')}</TableHead>
                                     <TableHead className="w-[450px]">{t('dailyProgramme.titleAndRemarks')}</TableHead>
+                                    <TableHead className="w-[150px] no-print">{t('dailyProgramme.attendance')}</TableHead>
                                     <TableHead className="w-[100px] no-print">{t('dailyProgramme.actions')}</TableHead>
                                   </TableRow>
                                 </TableHeader>
@@ -783,6 +864,48 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                               )}
                                             </div>
                                           </TableCell>
+                                          <TableCell className="w-[150px] no-print">
+                                            <Select
+                                              value={
+                                                item.attended == null
+                                                  ? 'not_set'
+                                                  : item.attended
+                                                    ? 'attended'
+                                                    : 'not_attended'
+                                              }
+                                              onValueChange={(value) => {
+                                                const newValue =
+                                                  value === 'not_set'
+                                                    ? null
+                                                    : value === 'attended';
+                                                handleAttendanceChange(item, newValue);
+                                              }}
+                                            >
+                                              <SelectTrigger className="h-8 w-full">
+                                                <SelectValue />
+                                              </SelectTrigger>
+                                              <SelectContent>
+                                                <SelectItem value="not_set">
+                                                  <div className="flex items-center gap-2">
+                                                    <Clock className="h-4 w-4 text-muted-foreground" />
+                                                    <span>Not Set</span>
+                                                  </div>
+                                                </SelectItem>
+                                                <SelectItem value="attended">
+                                                  <div className="flex items-center gap-2">
+                                                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                                    <span>Attended</span>
+                                                  </div>
+                                                </SelectItem>
+                                                <SelectItem value="not_attended">
+                                                  <div className="flex items-center gap-2">
+                                                    <XCircle className="h-4 w-4 text-red-600" />
+                                                    <span>Not Attended</span>
+                                                  </div>
+                                                </SelectItem>
+                                              </SelectContent>
+                                            </Select>
+                                          </TableCell>
                                           <TableCell className="w-[100px] no-print">
                                             <div className="flex gap-1">
                                               <Button
@@ -833,6 +956,75 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
         variant="destructive"
         onConfirm={confirmDelete}
       />
+
+      {/* Beneficiary Task Creation Dialog */}
+      <Dialog open={beneficiaryTaskDialogOpen} onOpenChange={setBeneficiaryTaskDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create Beneficiary Task - Token of Gratitude</DialogTitle>
+            <DialogDescription>
+              The programme item &quot;{programmeItemForTask?.title}&quot; was marked as not attended.
+              Please provide voter details to create a beneficiary task for token of gratitude.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="voterEpicNumber">Voter EPIC Number *</Label>
+              <Input
+                id="voterEpicNumber"
+                placeholder="Enter EPIC number"
+                value={voterEpicNumber}
+                onChange={(e) => setVoterEpicNumber(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="voterName">Voter Name (Optional)</Label>
+              <Input
+                id="voterName"
+                placeholder="Enter voter name"
+                value={voterName}
+                onChange={(e) => setVoterName(e.target.value)}
+              />
+            </div>
+            {programmeItemForTask && (
+              <div className="rounded-lg bg-muted p-3 text-sm">
+                <div className="font-medium">Programme Details:</div>
+                <div className="mt-1 text-muted-foreground">
+                  <div>Title: {programmeItemForTask.title}</div>
+                  <div>Date: {(() => {
+                    const normalizedDate = programmeItemForTask.date ? normalizeDate(programmeItemForTask.date) : null;
+                    return normalizedDate ? format(parseISO(normalizedDate), 'dd MMM yyyy') : 'N/A';
+                  })()}</div>
+                  <div>Location: {programmeItemForTask.location}</div>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setBeneficiaryTaskDialogOpen(false);
+                setProgrammeItemForTask(null);
+                setVoterEpicNumber('');
+                setVoterName('');
+              }}
+              disabled={isCreatingTask}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleCreateBeneficiaryTask}
+              disabled={isCreatingTask || !voterEpicNumber.trim()}
+            >
+              {isCreatingTask ? 'Creating...' : 'Create Task'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

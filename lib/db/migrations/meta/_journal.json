@@ -246,6 +246,13 @@
       "when": 1764962372685,
       "tag": "0034_superb_sentinels",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1765030434772,
+      "tag": "0035_white_kabuki",
+      "breakpoints": true
     }
   ]
 }
