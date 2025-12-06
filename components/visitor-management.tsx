@@ -116,9 +116,9 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
   const loadProgrammeEvents = async () => {
     try {
       const today = format(new Date(), 'yyyy-MM-dd');
-      const futureDate = format(addDays(new Date(), 30), 'yyyy-MM-dd');
+      const pastDate = format(addDays(new Date(), -7), 'yyyy-MM-dd');
       const response = await fetch(
-        `/api/daily-programme?startDate=${today}&endDate=${futureDate}`,
+        `/api/daily-programme?startDate=${pastDate}&endDate=${today}`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -417,11 +417,40 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
                   <Label htmlFor="programmeEventId">Link to Programme Event (Optional)</Label>
                   <Select
                     value={editingVisitor ? (editingVisitor.programmeEventId || 'none') : (addForm.programmeEventId || 'none')}
-                    onValueChange={(value) =>
-                      editingVisitor
-                        ? setEditingVisitor({ ...editingVisitor, programmeEventId: value === 'none' ? '' : value })
-                        : setAddForm({ ...addForm, programmeEventId: value === 'none' ? '' : value })
-                    }
+                    onValueChange={(value) => {
+                      const selectedEventId = value === 'none' ? '' : value;
+                      // Try to find event in loaded events, or use visitor's programmeEvent if editing
+                      let selectedEvent = programmeEvents.find(e => e.id === selectedEventId);
+                      if (!selectedEvent && editingVisitor && editingVisitor.programmeEvent && editingVisitor.programmeEvent.id === selectedEventId) {
+                        selectedEvent = editingVisitor.programmeEvent;
+                      }
+
+                      if (editingVisitor) {
+                        const updatedVisitor = { ...editingVisitor, programmeEventId: selectedEventId };
+                        // Auto-fill date and time from event if selected
+                        if (selectedEvent?.date && selectedEvent?.startTime) {
+                          const eventDate = typeof selectedEvent.date === 'string'
+                            ? parseISO(selectedEvent.date)
+                            : new Date(selectedEvent.date);
+                          const [hours, minutes] = selectedEvent.startTime.split(':');
+                          eventDate.setHours(Number.parseInt(hours, 10), Number.parseInt(minutes, 10), 0, 0);
+                          updatedVisitor.visitDate = format(eventDate, "yyyy-MM-dd'T'HH:mm");
+                        }
+                        setEditingVisitor(updatedVisitor);
+                      } else {
+                        const updatedForm = { ...addForm, programmeEventId: selectedEventId };
+                        // Auto-fill date and time from event if selected
+                        if (selectedEvent?.date && selectedEvent?.startTime) {
+                          const eventDate = typeof selectedEvent.date === 'string'
+                            ? parseISO(selectedEvent.date)
+                            : new Date(selectedEvent.date);
+                          const [hours, minutes] = selectedEvent.startTime.split(':');
+                          eventDate.setHours(Number.parseInt(hours, 10), Number.parseInt(minutes, 10), 0, 0);
+                          updatedForm.visitDate = format(eventDate, "yyyy-MM-dd'T'HH:mm");
+                        }
+                        setAddForm(updatedForm);
+                      }
+                    }}
                   >
                     <SelectTrigger id="programmeEventId">
                       <SelectValue placeholder="Select programme event" />
@@ -433,6 +462,13 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
                           {formatDateOnly(event.date)} - {event.title}
                         </SelectItem>
                       ))}
+                      {/* Include visitor's current event if editing and it's not in the loaded events */}
+                      {editingVisitor?.programmeEvent &&
+                        !programmeEvents.find(e => e.id === editingVisitor.programmeEvent?.id) && (
+                          <SelectItem value={editingVisitor.programmeEvent.id}>
+                            {formatDateOnly(editingVisitor.programmeEvent.date)} - {editingVisitor.programmeEvent.title}
+                          </SelectItem>
+                        )}
                     </SelectContent>
                   </Select>
                 </div>
@@ -440,21 +476,44 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
                   <Label htmlFor="visitDate">
                     Visit Date & Time <span className="text-destructive">*</span>
                   </Label>
-                  <Input
-                    id="visitDate"
-                    type="datetime-local"
-                    value={
-                      editingVisitor
-                        ? format(new Date(editingVisitor.visitDate), "yyyy-MM-dd'T'HH:mm")
-                        : addForm.visitDate
-                    }
-                    onChange={(e) =>
-                      editingVisitor
-                        ? setEditingVisitor({ ...editingVisitor, visitDate: e.target.value })
-                        : setAddForm({ ...addForm, visitDate: e.target.value })
-                    }
-                    required
-                  />
+                  {(() => {
+                    const currentProgrammeEventId = editingVisitor
+                      ? (editingVisitor.programmeEventId || 'none')
+                      : (addForm.programmeEventId || 'none');
+                    const hasEvent = currentProgrammeEventId !== 'none';
+
+                    return (
+                      <Input
+                        id="visitDate"
+                        type="datetime-local"
+                        value={
+                          editingVisitor
+                            ? format(new Date(editingVisitor.visitDate), "yyyy-MM-dd'T'HH:mm")
+                            : addForm.visitDate
+                        }
+                        onChange={(e) =>
+                          editingVisitor
+                            ? setEditingVisitor({ ...editingVisitor, visitDate: e.target.value })
+                            : setAddForm({ ...addForm, visitDate: e.target.value })
+                        }
+                        disabled={hasEvent}
+                        required
+                        className={hasEvent ? 'bg-muted' : ''}
+                      />
+                    );
+                  })()}
+                  {(() => {
+                    const currentProgrammeEventId = editingVisitor
+                      ? (editingVisitor.programmeEventId || 'none')
+                      : (addForm.programmeEventId || 'none');
+                    const hasEvent = currentProgrammeEventId !== 'none';
+
+                    return hasEvent ? (
+                      <p className="text-xs text-muted-foreground">
+                        Date and time are automatically set from the selected programme event
+                      </p>
+                    ) : null;
+                  })()}
                 </div>
               </div>
 

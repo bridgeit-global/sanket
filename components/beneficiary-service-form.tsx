@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { toast } from '@/components/toast';
 import type { VoterWithPartNo } from '@/lib/db/schema';
 
@@ -243,7 +244,7 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                             <div>
                                 <Label htmlFor="serviceName">Service Name *</Label>
                                 <div className="space-y-2">
-                                    <Select
+                                    <Combobox
                                         value={isCustomService ? 'custom' : serviceName}
                                         onValueChange={(value) => {
                                             if (value === 'custom') {
@@ -255,21 +256,19 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                                                 setCustomServiceName('');
                                             }
                                         }}
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a service" />
-                                        </SelectTrigger>
-                                        <SelectContent className="max-h-60">
-                                            {(serviceType === 'individual' ? INDIVIDUAL_SERVICES : COMMUNITY_SERVICES).map((service) => (
-                                                <SelectItem key={service} value={service}>
-                                                    {service}
-                                                </SelectItem>
-                                            ))}
-                                            <SelectItem value="custom">
-                                                <span className="italic">+ Add Custom Service</span>
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                        placeholder="Select a service"
+                                        options={[
+                                            ...(serviceType === 'individual' ? INDIVIDUAL_SERVICES : COMMUNITY_SERVICES).map((service) => ({
+                                                value: service,
+                                                label: service,
+                                            })),
+                                            {
+                                                value: 'custom',
+                                                label: '+ Add Custom Service',
+                                                renderLabel: (label) => <span className="italic">{label}</span>,
+                                            },
+                                        ]}
+                                    />
 
                                     {isCustomService && (
                                         <Input

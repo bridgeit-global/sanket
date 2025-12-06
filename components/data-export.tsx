@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { MultiCombobox } from '@/components/ui/multi-combobox';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -106,35 +107,99 @@ export function DataExport() {
   const [loadingParts, setLoadingParts] = useState(false);
   const [loadingReligions, setLoadingReligions] = useState(true);
   const [processedWards, setProcessedWards] = useState<Set<string>>(new Set());
-  const [searchTerm, setSearchTerm] = useState('');
   const [selectedColumns, setSelectedColumns] = useState<string[]>(DEFAULT_COLUMNS);
 
-  // Filter wards and parts based on search term
-  const filteredWardNumbers = useMemo(() => {
-    if (!searchTerm.trim()) return wardNumbers;
-    const term = searchTerm.toLowerCase().trim()
-      .replace(/^ward\s*/i, '') // Remove "ward" prefix if present
-      .replace(/\s+/g, ''); // Remove all spaces
-    if (!term) return wardNumbers;
-    return wardNumbers.filter(wardNo => {
-      const normalizedWard = wardNo.toLowerCase().replace(/\s+/g, '');
-      return normalizedWard.includes(term) ||
-        `ward${normalizedWard}`.includes(term);
-    });
-  }, [wardNumbers, searchTerm]);
+  // Prepare ward and part options for MultiCombobox
+  const wardOptions = useMemo(() => {
+    return wardNumbers.map(wardNo => ({
+      value: wardNo,
+      label: `Ward ${wardNo}`,
+      type: 'ward' as const,
+      partCount: partsByWard[wardNo]?.length || 0,
+    }));
+  }, [wardNumbers, partsByWard]);
 
-  const filteredPartNumbers = useMemo(() => {
-    if (!searchTerm.trim()) return allPartNumbers;
-    const term = searchTerm.toLowerCase().trim()
-      .replace(/^part\s*/i, '') // Remove "part" prefix if present
-      .replace(/\s+/g, ''); // Remove all spaces
-    if (!term) return allPartNumbers;
-    return allPartNumbers.filter(partNo => {
-      const normalizedPart = partNo.toLowerCase().replace(/\s+/g, '');
-      return normalizedPart.includes(term) ||
-        `part${normalizedPart}`.includes(term);
+  const partOptions = useMemo(() => {
+    return allPartNumbers.map(partNo => {
+      const wardForPart = Object.keys(partsByWard).find(ward =>
+        partsByWard[ward]?.includes(partNo)
+      );
+      return {
+        value: partNo,
+        label: `Part ${partNo}`,
+        type: 'part' as const,
+        wardForPart,
+      };
     });
-  }, [allPartNumbers, searchTerm]);
+  }, [allPartNumbers, partsByWard]);
+
+  const handleWardToggle = (wardValue: string, checked: boolean) => {
+    const currentWards = filters.wardNo || [];
+    const currentParts = filters.partNo || [];
+    const wardParts = partsByWard[wardValue] || [];
+
+    if (checked) {
+      // Add ward - parts will be auto-selected by useEffect
+      setFilters(prev => ({
+        ...prev,
+        wardNo: [...currentWards, wardValue]
+      }));
+    } else {
+      // Remove ward and all its parts
+      const newWards = currentWards.filter(w => w !== wardValue);
+      const newParts = currentParts.filter(p => !wardParts.includes(p));
+
+      // Remove from processed wards so it can be re-processed if selected again
+      setProcessedWards(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(wardValue);
+        return newSet;
+      });
+
+      setFilters(prev => ({
+        ...prev,
+        wardNo: newWards,
+        partNo: newParts
+      }));
+    }
+  };
+
+  const handlePartToggle = (partValue: string, checked: boolean) => {
+    const currentParts = filters.partNo || [];
+    
+    // Find which ward this part belongs to (if any)
+    const wardForPart = Object.keys(partsByWard).find(ward =>
+      partsByWard[ward]?.includes(partValue)
+    );
+
+    if (checked) {
+      setFilters(prev => ({
+        ...prev,
+        partNo: [...currentParts, partValue]
+      }));
+    } else {
+      const newParts = currentParts.filter(p => p !== partValue);
+      
+      // If unchecking a part, also uncheck the ward if all parts are now unchecked
+      if (wardForPart) {
+        const wardParts = partsByWard[wardForPart] || [];
+        const remainingWardParts = wardParts.filter(p => newParts.includes(p));
+        
+        setFilters(prev => ({
+          ...prev,
+          partNo: newParts,
+          wardNo: remainingWardParts.length === 0
+            ? (prev.wardNo || []).filter(w => w !== wardForPart)
+            : prev.wardNo
+        }));
+      } else {
+        setFilters(prev => ({
+          ...prev,
+          partNo: newParts
+        }));
+      }
+    }
+  };
 
   // Fetch export jobs
   const fetchJobs = useCallback(async () => {
@@ -482,203 +547,17 @@ export function DataExport() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 <div className="sm:col-span-2">
                   <Label htmlFor="wardPartNo" className="text-xs text-muted-foreground">Ward No / Part No</Label>
-                  <DropdownMenu onOpenChange={(open) => {
-                    if (!open) {
-                      setSearchTerm('');
-                    }
-                  }}>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-between h-10"
-                        disabled={loadingWards}
-                      >
-                        <span className="truncate">
-                          {loadingWards
-                            ? "Loading..."
-                            : (filters.wardNo && filters.wardNo.length > 0) || (filters.partNo && filters.partNo.length > 0)
-                              ? `${filters.wardNo?.length || 0} ward(s), ${filters.partNo?.length || 0} part(s)`
-                              : "Select Ward No / Part No"}
-                        </span>
-                        <ChevronDown className="size-4 opacity-50" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-80 max-h-96 overflow-y-auto">
-                      <div className="p-2 space-y-4">
-                        {/* Search Input */}
-                        <div className="px-2">
-                          <div className="relative">
-                            <Search className="absolute left-2 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-                            <Input
-                              placeholder="Search ward or part number..."
-                              value={searchTerm}
-                              onChange={(e) => setSearchTerm(e.target.value)}
-                              className="pl-8 h-9"
-                              onClick={(e) => e.stopPropagation()}
-                              onKeyDown={(e) => e.stopPropagation()}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Ward No Section */}
-                        <div>
-                          <div className="text-xs font-semibold text-muted-foreground mb-2 px-2">Ward No</div>
-                          <div className="space-y-1 max-h-48 overflow-y-auto">
-                            {filteredWardNumbers.length > 0 ? (
-                              filteredWardNumbers.map((wardNo) => {
-                                const wardParts = partsByWard[wardNo] || [];
-                                const allWardPartsSelected = wardParts.length > 0 && wardParts.every(part => filters.partNo?.includes(part));
-                                const someWardPartsSelected = wardParts.some(part => filters.partNo?.includes(part));
-
-                                return (
-                                  <div key={wardNo} className="space-y-1">
-                                    <div className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-accent">
-                                      <Checkbox
-                                        checked={filters.wardNo?.includes(wardNo) || false}
-                                        onChange={(e) => {
-                                          const currentWards = filters.wardNo || [];
-                                          const currentParts = filters.partNo || [];
-
-                                          if (e.target.checked) {
-                                            // Add ward - parts will be auto-selected by useEffect
-                                            setFilters(prev => ({
-                                              ...prev,
-                                              wardNo: [...currentWards, wardNo]
-                                            }));
-                                          } else {
-                                            // Remove ward and all its parts
-                                            const newWards = currentWards.filter(w => w !== wardNo);
-                                            const newParts = currentParts.filter(p => !wardParts.includes(p));
-
-                                            // Remove from processed wards so it can be re-processed if selected again
-                                            setProcessedWards(prev => {
-                                              const newSet = new Set(prev);
-                                              newSet.delete(wardNo);
-                                              return newSet;
-                                            });
-
-                                            setFilters(prev => ({
-                                              ...prev,
-                                              wardNo: newWards,
-                                              partNo: newParts
-                                            }));
-                                          }
-                                        }}
-                                      />
-                                      <span className="text-sm font-medium">Ward {wardNo}</span>
-                                      {wardParts.length > 0 && (
-                                        <span className="text-xs text-muted-foreground ml-auto">
-                                          ({wardParts.length} parts)
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    {/* Part No sub-items for this ward */}
-                                    {filters.wardNo?.includes(wardNo) && wardParts.length > 0 && (
-                                      <div className="ml-6 space-y-1 border-l-2 border-muted pl-3">
-                                        {wardParts.map((partNo) => (
-                                          <div
-                                            key={partNo}
-                                            className="flex items-center space-x-2 cursor-pointer p-1.5 rounded hover:bg-accent/50"
-                                          >
-                                            <Checkbox
-                                              checked={filters.partNo?.includes(partNo) || false}
-                                              onChange={(e) => {
-                                                const currentParts = filters.partNo || [];
-                                                if (e.target.checked) {
-                                                  setFilters(prev => ({
-                                                    ...prev,
-                                                    partNo: [...currentParts, partNo]
-                                                  }));
-                                                } else {
-                                                  // If unchecking a part, also uncheck the ward if all parts are now unchecked
-                                                  const newParts = currentParts.filter(p => p !== partNo);
-                                                  const remainingWardParts = wardParts.filter(p => newParts.includes(p));
-
-                                                  setFilters(prev => ({
-                                                    ...prev,
-                                                    partNo: newParts,
-                                                    wardNo: remainingWardParts.length === 0
-                                                      ? (prev.wardNo || []).filter(w => w !== wardNo)
-                                                      : prev.wardNo
-                                                  }));
-                                                }
-                                              }}
-                                            />
-                                            <span className="text-xs">Part {partNo}</span>
-                                          </div>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })
-                            ) : (
-                              <div className="text-xs text-muted-foreground p-2">
-                                {searchTerm ? 'No wards found' : 'No wards available'}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Part No Section - Independent Selection */}
-                        <div className="border-t pt-4">
-                          <div className="text-xs font-semibold text-muted-foreground mb-2 px-2">Part No</div>
-                          {loadingParts ? (
-                            <div className="text-xs text-muted-foreground p-2">Loading parts...</div>
-                          ) : (
-                            <div className="space-y-1 max-h-48 overflow-y-auto">
-                              {filteredPartNumbers.length > 0 ? (
-                                filteredPartNumbers.map((partNo) => {
-                                  const isSelected = filters.partNo?.includes(partNo) || false;
-                                  // Find which ward this part belongs to (if any)
-                                  const wardForPart = Object.keys(partsByWard).find(ward =>
-                                    partsByWard[ward]?.includes(partNo)
-                                  );
-
-                                  return (
-                                    <div
-                                      key={partNo}
-                                      className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-accent"
-                                    >
-                                      <Checkbox
-                                        checked={isSelected}
-                                        onChange={(e) => {
-                                          const currentParts = filters.partNo || [];
-                                          if (e.target.checked) {
-                                            setFilters(prev => ({
-                                              ...prev,
-                                              partNo: [...currentParts, partNo]
-                                            }));
-                                          } else {
-                                            const newParts = currentParts.filter(p => p !== partNo);
-                                            setFilters(prev => ({
-                                              ...prev,
-                                              partNo: newParts
-                                            }));
-                                          }
-                                        }}
-                                      />
-                                      <span className="text-sm">Part {partNo}</span>
-                                      {wardForPart && (
-                                        <span className="text-xs text-muted-foreground ml-auto">
-                                          (Ward {wardForPart})
-                                        </span>
-                                      )}
-                                    </div>
-                                  );
-                                })
-                              ) : (
-                                <div className="text-xs text-muted-foreground p-2">
-                                  {searchTerm ? 'No parts found' : 'No parts available'}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <MultiCombobox
+                    wards={wardOptions}
+                    parts={partOptions}
+                    partsByWard={partsByWard}
+                    selectedWards={filters.wardNo || []}
+                    selectedParts={filters.partNo || []}
+                    onWardToggle={handleWardToggle}
+                    onPartToggle={handlePartToggle}
+                    loading={loadingWards || loadingParts}
+                    placeholder="Select Ward No / Part No"
+                  />
                   {(filters.wardNo && filters.wardNo.length > 0) || (filters.partNo && filters.partNo.length > 0) ? (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {filters.wardNo?.map((wardNo) => (
