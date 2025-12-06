@@ -2530,11 +2530,15 @@ export async function getRegisterEntriesWithAttachments({
   type,
   startDate,
   endDate,
+  projectIds,
+  projectStatus,
   limit = 100,
 }: {
   type?: 'inward' | 'outward';
   startDate?: Date | string;
   endDate?: Date | string;
+  projectIds?: string[];
+  projectStatus?: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
   limit?: number;
 } = {}): Promise<Array<RegisterEntry & { attachments: RegisterAttachment[] }>> {
   try {
@@ -2548,15 +2552,27 @@ export async function getRegisterEntriesWithAttachments({
     if (endDate) {
       conditions.push(lte(registerEntry.date, formatDateToString(endDate)));
     }
+    if (projectIds && projectIds.length > 0) {
+      conditions.push(inArray(registerEntry.projectId, projectIds));
+    }
 
     // Get entries with their attachments using a left join
-    const results = await db
+    // Also join with mlaProject if filtering by project status
+    let query = db
       .select({
         entry: registerEntry,
         attachment: registerAttachment,
       })
       .from(registerEntry)
-      .leftJoin(registerAttachment, eq(registerEntry.id, registerAttachment.entryId))
+      .leftJoin(registerAttachment, eq(registerEntry.id, registerAttachment.entryId));
+    
+    // Join with mlaProject if filtering by project status
+    if (projectStatus) {
+      query = query.leftJoin(mlaProject, eq(registerEntry.projectId, mlaProject.id));
+      conditions.push(eq(mlaProject.status, projectStatus));
+    }
+
+    const results = await query
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(registerEntry.date), desc(registerEntry.createdAt))
       .limit(limit * 10); // Account for multiple attachments per entry

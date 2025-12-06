@@ -19,6 +19,13 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type') as 'inward' | 'outward' | null;
     const startDateParam = searchParams.get('startDate');
     const endDateParam = searchParams.get('endDate');
+    const projectIdsParam = searchParams.get('projectIds');
+    const projectStatusParam = searchParams.get('projectStatus') as
+      | 'Concept'
+      | 'Proposal'
+      | 'In Progress'
+      | 'Completed'
+      | null;
 
     // Check module access based on type
     if (type === 'inward') {
@@ -42,12 +49,18 @@ export async function GET(request: NextRequest) {
 
     const startDate = startDateParam ? new Date(startDateParam) : undefined;
     const endDate = endDateParam ? new Date(endDateParam) : undefined;
+    const projectIds = projectIdsParam
+      ? projectIdsParam.split(',').filter(Boolean)
+      : undefined;
+    const projectStatus = projectStatusParam || undefined;
 
     // Use the optimized query that includes attachments
     const entries = await getRegisterEntriesWithAttachments({
       type: type || undefined,
       startDate,
       endDate,
+      projectIds,
+      projectStatus,
     });
 
     return NextResponse.json(entries);

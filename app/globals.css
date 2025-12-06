@@ -695,4 +695,48 @@
         padding: 24px;
         color: #333 !important;
     }
+
+    /* Register print styles */
+    .register-print-content {
+        display: block !important;
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        padding: 20px;
+        background: white;
+        color: #000;
+    }
+
+    .register-print-content * {
+        visibility: visible;
+        color: #000;
+    }
+
+    .register-print-header {
+        text-align: center;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #000;
+    }
+
+    .register-print-header h2 {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 0 0 8px 0;
+        color: #000 !important;
+    }
+
+    .register-print-header h1 {
+        font-size: 24px;
+        font-weight: bold;
+        margin: 0 0 8px 0;
+        color: #000 !important;
+    }
+
+    .register-print-header .print-date {
+        font-size: 12px;
+        color: #333 !important;
+        margin: 8px 0 0 0;
+    }
 }

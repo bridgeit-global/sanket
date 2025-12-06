@@ -20,7 +20,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Download, Paperclip, Eye, FileText, Search } from 'lucide-react';
+import { Printer, Download, Paperclip, Eye, FileText, Search, X } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 import { RegisterAttachmentDialog } from '@/components/register-attachment-dialog';
 import { RegisterSkeleton } from '@/components/module-skeleton';
@@ -73,16 +75,40 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
 
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Filter state
+  const [filters, setFilters] = useState({
+    startDate: '',
+    endDate: '',
+    projectIds: [] as string[],
+    projectStatus: 'all' as 'all' | 'Concept' | 'Proposal' | 'In Progress' | 'Completed',
+  });
 
   useEffect(() => {
     loadData();
-  }, [type]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type, filters]);
 
   const loadData = async () => {
     try {
       setLoading(true);
+      const params = new URLSearchParams();
+      params.set('type', type);
+      if (filters.startDate) {
+        params.set('startDate', filters.startDate);
+      }
+      if (filters.endDate) {
+        params.set('endDate', filters.endDate);
+      }
+      if (filters.projectIds.length > 0) {
+        params.set('projectIds', filters.projectIds.join(','));
+      }
+      if (filters.projectStatus && filters.projectStatus !== 'all') {
+        params.set('projectStatus', filters.projectStatus);
+      }
+
       const [entriesRes, projectsRes] = await Promise.all([
-        fetch(`/api/register?type=${type}`),
+        fetch(`/api/register?${params.toString()}`),
         fetch('/api/projects'),
       ]);
 
@@ -203,12 +229,61 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
+      {/* Print-only content */}
+      <div className="register-print-content hidden">
+        <div className="register-print-header">
+          <h2>Hon&apos; MLA, Smt. Sana Malik Shaikh</h2>
+          <h1>{heading}</h1>
+          <p className="print-date">Printed on: {format(new Date(), 'dd MMM yyyy')}</p>
+        </div>
+
+        {filteredEntries.length > 0 ? (
+          <div className="register-section">
+            <table className="register-table">
+              <thead>
+                <tr>
+                  <th>Sr.</th>
+                  <th>Date</th>
+                  <th>{labelFromTo}</th>
+                  <th>Subject</th>
+                  <th>Project</th>
+                  <th>Mode</th>
+                  <th>Ref No.</th>
+                  <th>Officer</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredEntries.map((entry, index) => {
+                  const project = projects.find((p) => p.id === entry.projectId);
+                  return (
+                    <tr key={entry.id}>
+                      <td>{index + 1}</td>
+                      <td>{format(new Date(entry.date), 'dd MMM yyyy')}</td>
+                      <td>{entry.fromTo}</td>
+                      <td>{entry.subject}</td>
+                      <td>{project?.name || '-'}</td>
+                      <td>{entry.mode || '-'}</td>
+                      <td>{entry.refNo || '-'}</td>
+                      <td>{entry.officer || '-'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="no-entries">
+            <p>No entries found.</p>
+          </div>
+        )}
+      </div>
+
       <ModulePageHeader
         title={heading}
         description={type === 'inward' ? t('register.manageIncoming') : t('register.manageOutgoing')}
       />
 
-      <Card>
+      <Card className="no-print">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>{heading}</CardTitle>
@@ -304,7 +379,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="no-print">
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Entries</CardTitle>
@@ -314,6 +389,123 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Filters */}
+          <div className="mb-4 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="startDate" className="text-xs text-muted-foreground">Start Date</Label>
+                <Input
+                  id="startDate"
+                  type="date"
+                  value={filters.startDate}
+                  onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="endDate" className="text-xs text-muted-foreground">End Date</Label>
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={filters.endDate}
+                  onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="projectStatus" className="text-xs text-muted-foreground">Project Status</Label>
+                <Select
+                  value={filters.projectStatus}
+                  onValueChange={(value) =>
+                    setFilters({ ...filters, projectStatus: value as typeof filters.projectStatus })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All Statuses" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="Concept">Concept</SelectItem>
+                    <SelectItem value="Proposal">Proposal</SelectItem>
+                    <SelectItem value="In Progress">In Progress</SelectItem>
+                    <SelectItem value="Completed">Completed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="projects" className="text-xs text-muted-foreground">Projects</Label>
+                <div className="relative">
+                  <Select
+                    value="__placeholder__"
+                    onValueChange={(value) => {
+                      if (value && value !== '__placeholder__' && !filters.projectIds.includes(value)) {
+                        setFilters({
+                          ...filters,
+                          projectIds: [...filters.projectIds, value],
+                        });
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select projects..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects
+                        .filter((p) => !filters.projectIds.includes(p.id))
+                        .map((project) => (
+                          <SelectItem key={project.id} value={project.id}>
+                            {project.name}
+                          </SelectItem>
+                        ))}
+                      {projects.filter((p) => !filters.projectIds.includes(p.id)).length === 0 && (
+                        <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                          No more projects
+                        </div>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            {filters.projectIds.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {filters.projectIds.map((projectId) => {
+                  const project = projects.find((p) => p.id === projectId);
+                  return (
+                    <Badge
+                      key={projectId}
+                      variant="secondary"
+                      className="text-xs cursor-pointer"
+                      onClick={() =>
+                        setFilters({
+                          ...filters,
+                          projectIds: filters.projectIds.filter((id) => id !== projectId),
+                        })
+                      }
+                    >
+                      {project?.name || projectId}
+                      <X className="ml-1 h-3 w-3" />
+                    </Badge>
+                  );
+                })}
+              </div>
+            )}
+            {(filters.startDate || filters.endDate || filters.projectIds.length > 0 || filters.projectStatus !== 'all') && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setFilters({
+                    startDate: '',
+                    endDate: '',
+                    projectIds: [],
+                    projectStatus: 'all',
+                  })
+                }
+                className="h-8"
+              >
+                Clear Filters
+              </Button>
+            )}
+          </div>
           {/* Search */}
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -335,7 +527,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                   <TableHead>Mode</TableHead>
                   <TableHead>Ref No.</TableHead>
                   <TableHead>Officer</TableHead>
-                  <TableHead>Attachments</TableHead>
+                  <TableHead className="no-print">Attachments</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -364,7 +556,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                         <TableCell>{entry.mode || '-'}</TableCell>
                         <TableCell>{entry.refNo || '-'}</TableCell>
                         <TableCell>{entry.officer || '-'}</TableCell>
-                        <TableCell>
+                        <TableCell className="no-print">
                           <Button
                             variant="outline"
                             size="sm"

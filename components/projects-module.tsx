@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,7 @@ import { TablePagination, usePagination } from '@/components/table-pagination';
 import { projectFormSchema, type ProjectFormData, validateForm } from '@/lib/validations';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { useTranslations } from '@/hooks/use-translations';
+import { WardBeatCombobox } from '@/components/ui/ward-beat-combobox';
 
 interface Project {
   id: string;
@@ -50,6 +51,7 @@ export function ProjectsModule() {
     type: '',
     status: 'Concept' as Project['status'],
   });
+  const [wardValues, setWardValues] = useState<string[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   
@@ -59,6 +61,23 @@ export function ProjectsModule() {
   
   // Form validation errors
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  // Get unique ward/beat values from all projects
+  const availableWardValues = useMemo(() => {
+    const values = new Set<string>();
+    projects.forEach((project) => {
+      if (project.ward) {
+        // Split by comma and trim each value
+        project.ward.split(',').forEach((w) => {
+          const trimmed = w.trim();
+          if (trimmed) {
+            values.add(trimmed);
+          }
+        });
+      }
+    });
+    return Array.from(values).sort();
+  }, [projects]);
 
   useEffect(() => {
     loadProjects();
@@ -82,8 +101,14 @@ export function ProjectsModule() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Combine ward values into comma-separated string
+    const formData = {
+      ...form,
+      ward: wardValues.join(', '),
+    };
+    
     // Validate form
-    const validation = validateForm(projectFormSchema, form);
+    const validation = validateForm(projectFormSchema, formData);
     if (!validation.success) {
       setFormErrors(validation.errors);
       const firstError = Object.values(validation.errors)[0];
@@ -135,6 +160,17 @@ export function ProjectsModule() {
       type: project.type || '',
       status: project.status,
     });
+    // Parse ward string into array
+    if (project.ward) {
+      setWardValues(
+        project.ward
+          .split(',')
+          .map((w) => w.trim())
+          .filter(Boolean)
+      );
+    } else {
+      setWardValues([]);
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -169,6 +205,7 @@ export function ProjectsModule() {
 
   const resetForm = () => {
     setForm({ name: '', ward: '', type: '', status: 'Concept' });
+    setWardValues([]);
     setEditingId(null);
     setFormErrors({});
   };
@@ -221,11 +258,12 @@ export function ProjectsModule() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="ward">{t('projects.wardBeat')}</Label>
-              <Input
-                id="ward"
+              <WardBeatCombobox
+                values={availableWardValues}
+                selectedValues={wardValues}
+                onValuesChange={setWardValues}
                 placeholder={t('projects.wardPlaceholder')}
-                value={form.ward}
-                onChange={(e) => setForm({ ...form, ward: e.target.value })}
+                allowNew={true}
               />
             </div>
             <div className="space-y-2">
