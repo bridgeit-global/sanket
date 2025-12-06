@@ -1549,6 +1549,113 @@ export async function getVoterTasksByVoterId(voterId: string): Promise<Array<Vot
   }
 }
 
+export async function getVoterBeneficiaryServices(voterId: string): Promise<{
+  individual: Array<BeneficiaryService>;
+  community: Array<BeneficiaryService>;
+}> {
+  try {
+    const tasks = await db
+      .select({
+        service: beneficiaryServices,
+      })
+      .from(voterTasks)
+      .innerJoin(beneficiaryServices, eq(voterTasks.serviceId, beneficiaryServices.id))
+      .where(eq(voterTasks.voterId, voterId))
+      .orderBy(desc(beneficiaryServices.createdAt));
+
+    const services = tasks.map(row => row.service);
+    
+    return {
+      individual: services.filter(s => s.serviceType === 'individual'),
+      community: services.filter(s => s.serviceType === 'community'),
+    };
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voter beneficiary services',
+    );
+  }
+}
+
+export async function getVoterDailyProgrammeEvents(contactNumbers: string[]): Promise<Array<DailyProgramme & { visitorName: string }>> {
+  try {
+    if (contactNumbers.length === 0) {
+      return [];
+    }
+
+    // Filter out null/undefined/empty contact numbers
+    const validContactNumbers = contactNumbers.filter(cn => cn && cn.trim().length > 0);
+    
+    if (validContactNumbers.length === 0) {
+      return [];
+    }
+
+    const visitors = await db
+      .select({
+        visitor,
+        programmeEvent: dailyProgramme,
+      })
+      .from(visitor)
+      .leftJoin(dailyProgramme, eq(visitor.programmeEventId, dailyProgramme.id))
+      .where(inArray(visitor.contactNumber, validContactNumbers))
+      .orderBy(desc(visitor.visitDate));
+
+    // Filter out visitors without programme events and map to the expected format
+    return visitors
+      .filter(row => row.programmeEvent !== null)
+      .map(row => ({
+        ...row.programmeEvent!,
+        visitorName: row.visitor.name,
+      }));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voter daily programme events',
+    );
+  }
+}
+
+export async function getRelatedVotersServicesAndEvents(relatedVoters: Array<VoterWithPartNo>): Promise<Array<{
+  voter: VoterWithPartNo;
+  services: {
+    individual: Array<BeneficiaryService>;
+    community: Array<BeneficiaryService>;
+  };
+  events: Array<DailyProgramme & { visitorName: string }>;
+}>> {
+  try {
+    if (relatedVoters.length === 0) {
+      return [];
+    }
+
+    const results = await Promise.all(
+      relatedVoters.map(async (voter) => {
+        // Get services for this voter
+        const services = await getVoterBeneficiaryServices(voter.epicNumber);
+        
+        // Get events for this voter (using their contact numbers)
+        const contactNumbers: string[] = [];
+        if (voter.mobileNoPrimary) contactNumbers.push(voter.mobileNoPrimary);
+        if (voter.mobileNoSecondary) contactNumbers.push(voter.mobileNoSecondary);
+        const events = await getVoterDailyProgrammeEvents(contactNumbers);
+
+        return {
+          voter,
+          services,
+          events,
+        };
+      })
+    );
+
+    return results;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get related voters services and events',
+    );
+  }
+}
+
 export async function getTasksWithFilters({
   status,
   priority,

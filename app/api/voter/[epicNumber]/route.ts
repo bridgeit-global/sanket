@@ -1,6 +1,13 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { getVoterByEpicNumber, getRelatedVoters, updateVoter } from '@/lib/db/queries';
+import { 
+  getVoterByEpicNumber, 
+  getRelatedVoters, 
+  updateVoter,
+  getVoterBeneficiaryServices,
+  getVoterDailyProgrammeEvents,
+  getRelatedVotersServicesAndEvents,
+} from '@/lib/db/queries';
 
 export async function GET(
   request: NextRequest,
@@ -28,10 +35,25 @@ export async function GET(
     // Get related voters
     const relatedVoters = await getRelatedVoters(voter);
 
+    // Get beneficiary services for the voter
+    const beneficiaryServices = await getVoterBeneficiaryServices(voter.epicNumber);
+
+    // Get daily programme events for the voter (by contact numbers)
+    const contactNumbers: string[] = [];
+    if (voter.mobileNoPrimary) contactNumbers.push(voter.mobileNoPrimary);
+    if (voter.mobileNoSecondary) contactNumbers.push(voter.mobileNoSecondary);
+    const dailyProgrammeEvents = await getVoterDailyProgrammeEvents(contactNumbers);
+
+    // Get services and events for related voters
+    const relatedVotersData = await getRelatedVotersServicesAndEvents(relatedVoters);
+
     return NextResponse.json({
       success: true,
       voter,
       relatedVoters,
+      beneficiaryServices,
+      dailyProgrammeEvents,
+      relatedVotersData,
     });
   } catch (error) {
     console.error('Error getting voter profile:', error);

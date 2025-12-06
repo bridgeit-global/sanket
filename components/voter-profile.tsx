@@ -4,18 +4,38 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Phone, MapPin, Calendar, FileText, Users, Edit } from 'lucide-react';
-import type { VoterWithPartNo } from '@/lib/db/schema';
+import { ArrowLeft, User, Phone, MapPin, Calendar, FileText, Users, Edit, Briefcase, Clock } from 'lucide-react';
+import type { VoterWithPartNo, BeneficiaryService, DailyProgramme } from '@/lib/db/schema';
 import Link from 'next/link';
+import { Badge } from '@/components/ui/badge';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 interface VoterProfileProps {
   epicNumber: string;
+}
+
+interface BeneficiaryServicesData {
+  individual: BeneficiaryService[];
+  community: BeneficiaryService[];
+}
+
+interface DailyProgrammeEvent extends DailyProgramme {
+  visitorName: string;
+}
+
+interface RelatedVoterData {
+  voter: VoterWithPartNo;
+  services: BeneficiaryServicesData;
+  events: DailyProgrammeEvent[];
 }
 
 export function VoterProfile({ epicNumber }: VoterProfileProps) {
   const router = useRouter();
   const [voter, setVoter] = useState<VoterWithPartNo | null>(null);
   const [relatedVoters, setRelatedVoters] = useState<VoterWithPartNo[]>([]);
+  const [beneficiaryServices, setBeneficiaryServices] = useState<BeneficiaryServicesData>({ individual: [], community: [] });
+  const [dailyProgrammeEvents, setDailyProgrammeEvents] = useState<DailyProgrammeEvent[]>([]);
+  const [relatedVotersData, setRelatedVotersData] = useState<RelatedVoterData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,6 +67,9 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
         if (data.success) {
           setVoter(data.voter);
           setRelatedVoters(data.relatedVoters || []);
+          setBeneficiaryServices(data.beneficiaryServices || { individual: [], community: [] });
+          setDailyProgrammeEvents(data.dailyProgrammeEvents || []);
+          setRelatedVotersData(data.relatedVotersData || []);
         } else {
           setError('Failed to load voter profile');
         }
@@ -343,6 +366,323 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                 </Link>
               ))}
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Beneficiary Services Availed */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Briefcase className="h-5 w-5" />
+            Beneficiary Services Availed
+          </CardTitle>
+          <CardDescription>
+            Services requested and availed by this voter
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Individual Services */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Individual Services</h3>
+            {beneficiaryServices.individual.length > 0 ? (
+              <div className="space-y-3">
+                {beneficiaryServices.individual.map((service) => (
+                  <div key={service.id} className="border rounded-lg p-4 space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-base">{service.serviceName}</h4>
+                        {service.description && (
+                          <p className="text-sm text-muted-foreground mt-1">{service.description}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <Badge variant={service.status === 'completed' ? 'default' : service.status === 'cancelled' ? 'destructive' : 'secondary'}>
+                          {service.status}
+                        </Badge>
+                        <Badge variant="outline">{service.priority}</Badge>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <span className="font-medium text-muted-foreground">Token:</span>
+                        <p className="mt-1">{service.token}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-muted-foreground">Created:</span>
+                        <p className="mt-1">{new Date(service.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      {service.completedAt && (
+                        <div>
+                          <span className="font-medium text-muted-foreground">Completed:</span>
+                          <p className="mt-1">{new Date(service.completedAt).toLocaleDateString()}</p>
+                        </div>
+                      )}
+                      <div>
+                        <span className="font-medium text-muted-foreground">Updated:</span>
+                        <p className="mt-1">{new Date(service.updatedAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    {service.notes && (
+                      <div className="mt-2 pt-2 border-t">
+                        <span className="font-medium text-sm text-muted-foreground">Notes:</span>
+                        <p className="text-sm mt-1">{service.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No individual services found.</p>
+            )}
+          </div>
+
+          {/* Community-Based Services */}
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Community-Based Services</h3>
+            {beneficiaryServices.community.length > 0 ? (
+              <div className="space-y-3">
+                {beneficiaryServices.community.map((service) => (
+                  <div key={service.id} className="border rounded-lg p-4 space-y-2">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-base">{service.serviceName}</h4>
+                        {service.description && (
+                          <p className="text-sm text-muted-foreground mt-1">{service.description}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <Badge variant={service.status === 'completed' ? 'default' : service.status === 'cancelled' ? 'destructive' : 'secondary'}>
+                          {service.status}
+                        </Badge>
+                        <Badge variant="outline">{service.priority}</Badge>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div>
+                        <span className="font-medium text-muted-foreground">Token:</span>
+                        <p className="mt-1">{service.token}</p>
+                      </div>
+                      <div>
+                        <span className="font-medium text-muted-foreground">Created:</span>
+                        <p className="mt-1">{new Date(service.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      {service.completedAt && (
+                        <div>
+                          <span className="font-medium text-muted-foreground">Completed:</span>
+                          <p className="mt-1">{new Date(service.completedAt).toLocaleDateString()}</p>
+                        </div>
+                      )}
+                      <div>
+                        <span className="font-medium text-muted-foreground">Updated:</span>
+                        <p className="mt-1">{new Date(service.updatedAt).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    {service.notes && (
+                      <div className="mt-2 pt-2 border-t">
+                        <span className="font-medium text-sm text-muted-foreground">Notes:</span>
+                        <p className="text-sm mt-1">{service.notes}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No community-based services found.</p>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Daily Programme Events Attended */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            Daily Programme Events Attended
+          </CardTitle>
+          <CardDescription>
+            Events and programmes attended by this voter
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {dailyProgrammeEvents.length > 0 ? (
+            <div className="space-y-3">
+              {dailyProgrammeEvents.map((event) => (
+                <div key={event.id} className="border rounded-lg p-4 space-y-2">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-base">{event.title}</h4>
+                      {event.remarks && (
+                        <p className="text-sm text-muted-foreground mt-1">{event.remarks}</p>
+                      )}
+                    </div>
+                    {event.attended !== null && (
+                      <Badge variant={event.attended ? 'default' : 'secondary'}>
+                        {event.attended ? 'Attended' : 'Not Attended'}
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium text-muted-foreground">Date:</span>
+                      <p className="mt-1">{new Date(event.date).toLocaleDateString()}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-muted-foreground">Time:</span>
+                      <p className="mt-1">{event.startTime}{event.endTime ? ` - ${event.endTime}` : ''}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-muted-foreground">Location:</span>
+                      <p className="mt-1">{event.location}</p>
+                    </div>
+                    <div>
+                      <span className="font-medium text-muted-foreground">Visitor Name:</span>
+                      <p className="mt-1">{event.visitorName}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No daily programme events found.</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Related Voters Services and Events */}
+      {relatedVotersData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Related Voters Services and Events
+            </CardTitle>
+            <CardDescription>
+              Services and events for related voters
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Accordion type="multiple" defaultValue={[]}>
+              {relatedVotersData.map((relatedData) => {
+                const hasServices = relatedData.services.individual.length > 0 || relatedData.services.community.length > 0;
+                const hasEvents = relatedData.events.length > 0;
+
+                if (!hasServices && !hasEvents) {
+                  return null;
+                }
+
+                return (
+                  <AccordionItem key={relatedData.voter.epicNumber} value={relatedData.voter.epicNumber}>
+                    <AccordionTrigger>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{relatedData.voter.fullName}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {relatedData.voter.epicNumber}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          ({hasServices ? `${relatedData.services.individual.length + relatedData.services.community.length} services` : ''}
+                          {hasServices && hasEvents ? ', ' : ''}
+                          {hasEvents ? `${relatedData.events.length} events` : ''})
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="space-y-6 pt-4">
+                        {/* Services for this related voter */}
+                        {(relatedData.services.individual.length > 0 || relatedData.services.community.length > 0) && (
+                          <div className="space-y-4">
+                            {relatedData.services.individual.length > 0 && (
+                              <div>
+                                <h4 className="font-semibold mb-3 text-sm">Individual Services</h4>
+                                <div className="space-y-2">
+                                  {relatedData.services.individual.map((service) => (
+                                    <div key={service.id} className="border rounded-lg p-3 space-y-2">
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                          <h5 className="font-medium text-sm">{service.serviceName}</h5>
+                                          {service.description && (
+                                            <p className="text-xs text-muted-foreground mt-1">{service.description}</p>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-2 ml-4">
+                                          <Badge variant={service.status === 'completed' ? 'default' : service.status === 'cancelled' ? 'destructive' : 'secondary'} className="text-xs">
+                                            {service.status}
+                                          </Badge>
+                                        </div>
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        Token: {service.token} | Created: {new Date(service.createdAt).toLocaleDateString()}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {relatedData.services.community.length > 0 && (
+                              <div>
+                                <h4 className="font-semibold mb-3 text-sm">Community-Based Services</h4>
+                                <div className="space-y-2">
+                                  {relatedData.services.community.map((service) => (
+                                    <div key={service.id} className="border rounded-lg p-3 space-y-2">
+                                      <div className="flex items-start justify-between">
+                                        <div className="flex-1">
+                                          <h5 className="font-medium text-sm">{service.serviceName}</h5>
+                                          {service.description && (
+                                            <p className="text-xs text-muted-foreground mt-1">{service.description}</p>
+                                          )}
+                                        </div>
+                                        <div className="flex items-center gap-2 ml-4">
+                                          <Badge variant={service.status === 'completed' ? 'default' : service.status === 'cancelled' ? 'destructive' : 'secondary'} className="text-xs">
+                                            {service.status}
+                                          </Badge>
+                                        </div>
+                                      </div>
+                                      <div className="text-xs text-muted-foreground">
+                                        Token: {service.token} | Created: {new Date(service.createdAt).toLocaleDateString()}
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Events for this related voter */}
+                        {relatedData.events.length > 0 && (
+                          <div>
+                            <h4 className="font-semibold mb-3 text-sm">Daily Programme Events</h4>
+                            <div className="space-y-2">
+                              {relatedData.events.map((event) => (
+                                <div key={event.id} className="border rounded-lg p-3 space-y-2">
+                                  <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                      <h5 className="font-medium text-sm">{event.title}</h5>
+                                      {event.remarks && (
+                                        <p className="text-xs text-muted-foreground mt-1">{event.remarks}</p>
+                                      )}
+                                    </div>
+                                    {event.attended !== null && (
+                                      <Badge variant={event.attended ? 'default' : 'secondary'} className="text-xs">
+                                        {event.attended ? 'Attended' : 'Not Attended'}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {new Date(event.date).toLocaleDateString()} | {event.startTime}{event.endTime ? ` - ${event.endTime}` : ''} | {event.location}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
           </CardContent>
         </Card>
       )}
