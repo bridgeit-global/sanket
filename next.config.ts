@@ -2,9 +2,6 @@ import type { NextConfig } from 'next';
 import packageJson from './package.json';
 
 const nextConfig: NextConfig = {
-  experimental: {
-    ppr: true,
-  },
   images: {
     remotePatterns: [
       {
