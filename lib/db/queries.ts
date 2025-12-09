@@ -2930,7 +2930,7 @@ export async function createRole(
       
       if (!accessibleModules.includes(defaultLandingModule)) {
         throw new ChatSDKError(
-          'bad_request:validation',
+          'bad_request:api',
           `Default landing module "${defaultLandingModule}" must be one of the role's accessible modules`,
         );
       }
@@ -2988,7 +2988,7 @@ export async function updateRole(
       
       if (!accessibleModules.includes(defaultLandingModule)) {
         throw new ChatSDKError(
-          'bad_request:validation',
+          'bad_request:api',
           `Default landing module "${defaultLandingModule}" must be one of the role's accessible modules`,
         );
       }

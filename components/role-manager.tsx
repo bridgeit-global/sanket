@@ -44,6 +44,13 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { TableSkeleton } from '@/components/module-skeleton';
 import { useTranslations } from '@/hooks/use-translations';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface RoleWithPermissions extends Role {
   permissions: Record<string, boolean>;
@@ -63,6 +70,7 @@ export function RoleManager() {
     name: '',
     description: '',
     permissions: {} as Record<string, boolean>,
+    defaultLandingModule: '' as string | null,
   });
 
   useEffect(() => {
@@ -91,6 +99,7 @@ export function RoleManager() {
         name: role.name,
         description: role.description || '',
         permissions: { ...role.permissions },
+        defaultLandingModule: role.defaultLandingModule || null,
       });
     } else {
       setEditingRole(null);
@@ -98,6 +107,7 @@ export function RoleManager() {
         name: '',
         description: '',
         permissions: {},
+        defaultLandingModule: null,
       });
     }
     setShowRoleDialog(true);
@@ -110,6 +120,7 @@ export function RoleManager() {
       name: '',
       description: '',
       permissions: {},
+      defaultLandingModule: null,
     });
   };
 
@@ -143,6 +154,7 @@ export function RoleManager() {
           name: roleForm.name.trim(),
           description: roleForm.description.trim() || null,
           permissions: roleForm.permissions,
+          defaultLandingModule: roleForm.defaultLandingModule || null,
         }),
       });
 
@@ -255,6 +267,36 @@ export function RoleManager() {
                       rows={3}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="default-landing-module">Default Landing Module</Label>
+                    <Select
+                      value={roleForm.defaultLandingModule || undefined}
+                      onValueChange={(value) =>
+                        setRoleForm({
+                          ...roleForm,
+                          defaultLandingModule: value === '__none__' ? null : value,
+                        })
+                      }
+                    >
+                      <SelectTrigger id="default-landing-module">
+                        <SelectValue placeholder="Select default landing module (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">None (use priority list)</SelectItem>
+                        {ALL_MODULES.filter((module) => {
+                          // Only show modules that have access enabled
+                          return roleForm.permissions[module.key] === true;
+                        }).map((module) => (
+                          <SelectItem key={module.key} value={module.key}>
+                            {module.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      Users with this role will be redirected to this module after login. Only accessible modules are shown.
+                    </p>
+                  </div>
                   <div className="space-y-3">
                     <Label>{t('roleManagement.modulePermissions')}</Label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-96 overflow-y-auto p-2 border rounded-md">
@@ -357,26 +399,39 @@ export function RoleManager() {
                           {ALL_MODULES.map((module) => {
                             const hasAccess =
                               roleItem.permissions[module.key] || false;
+                            const isDefault = roleItem.defaultLandingModule === module.key;
                             return (
                               <div
                                 key={module.key}
-                                className={`flex items-center space-x-2 p-2 rounded-md border ${
-                                  hasAccess
-                                    ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'
-                                    : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800'
-                                }`}
+                                className={`flex items-center space-x-2 p-2 rounded-md border ${hasAccess
+                                  ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'
+                                  : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800'
+                                  }`}
                               >
                                 <Checkbox
                                   checked={hasAccess}
                                   disabled
                                 />
-                                <Label className="text-sm font-normal">
+                                <Label className="text-sm font-normal flex-1">
                                   {module.label}
+                                  {isDefault && (
+                                    <span className="ml-2 text-xs text-primary font-medium">
+                                      (Default Landing)
+                                    </span>
+                                  )}
                                 </Label>
                               </div>
                             );
                           })}
                         </div>
+                        {roleItem.defaultLandingModule && (
+                          <div className="mt-3 p-2 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                            <p className="text-sm text-blue-900 dark:text-blue-100">
+                              <strong>Default Landing Module:</strong>{' '}
+                              {ALL_MODULES.find((m) => m.key === roleItem.defaultLandingModule)?.label || roleItem.defaultLandingModule}
+                            </p>
+                          </div>
+                        )}
                       </div>
                       <div className="flex justify-end gap-2 pt-2 border-t">
                         <Button
