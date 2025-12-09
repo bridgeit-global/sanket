@@ -19,6 +19,7 @@ export const role = pgTable('Role', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   name: varchar('name', { length: 100 }).notNull().unique(),
   description: text('description'),
+  defaultLandingModule: varchar('default_landing_module', { length: 50 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

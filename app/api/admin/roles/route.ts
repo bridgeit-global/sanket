@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { name, description, permissions } = body;
+        const { name, description, permissions, defaultLandingModule } = body;
 
         if (!name) {
             return NextResponse.json(
@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
             name,
             description || null,
             permissions,
+            defaultLandingModule || null,
         );
 
         // Fetch the role with permissions

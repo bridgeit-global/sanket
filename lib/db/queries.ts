@@ -2919,13 +2919,29 @@ export async function createRole(
   name: string,
   description: string | null,
   permissions: Record<string, boolean>,
+  defaultLandingModule?: string | null,
 ): Promise<Role> {
   try {
+    // Validate defaultLandingModule if provided
+    if (defaultLandingModule && defaultLandingModule.trim() !== '') {
+      const accessibleModules = Object.entries(permissions)
+        .filter(([, hasAccess]) => hasAccess)
+        .map(([moduleKey]) => moduleKey);
+      
+      if (!accessibleModules.includes(defaultLandingModule)) {
+        throw new ChatSDKError(
+          'bad_request:validation',
+          `Default landing module "${defaultLandingModule}" must be one of the role's accessible modules`,
+        );
+      }
+    }
+
     const [newRole] = await db
       .insert(role)
       .values({
         name,
         description,
+        defaultLandingModule: defaultLandingModule && defaultLandingModule.trim() !== '' ? defaultLandingModule : null,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -2946,6 +2962,9 @@ export async function createRole(
 
     return newRole;
   } catch (error) {
+    if (error instanceof ChatSDKError) {
+      throw error;
+    }
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to create role',
@@ -2958,13 +2977,29 @@ export async function updateRole(
   name: string,
   description: string | null,
   permissions: Record<string, boolean>,
+  defaultLandingModule?: string | null,
 ): Promise<Role> {
   try {
+    // Validate defaultLandingModule if provided
+    if (defaultLandingModule && defaultLandingModule.trim() !== '') {
+      const accessibleModules = Object.entries(permissions)
+        .filter(([, hasAccess]) => hasAccess)
+        .map(([moduleKey]) => moduleKey);
+      
+      if (!accessibleModules.includes(defaultLandingModule)) {
+        throw new ChatSDKError(
+          'bad_request:validation',
+          `Default landing module "${defaultLandingModule}" must be one of the role's accessible modules`,
+        );
+      }
+    }
+
     const [updatedRole] = await db
       .update(role)
       .set({
         name,
         description,
+        defaultLandingModule: defaultLandingModule && defaultLandingModule.trim() !== '' ? defaultLandingModule : null,
         updatedAt: new Date(),
       })
       .where(eq(role.id, roleId))

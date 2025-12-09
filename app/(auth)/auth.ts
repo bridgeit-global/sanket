@@ -17,6 +17,7 @@ declare module 'next-auth' {
       roleName?: string;
       modules: string[];
       userId?: string;
+      defaultLandingModule?: string;
     } & DefaultSession['user'];
   }
 
@@ -26,6 +27,7 @@ declare module 'next-auth' {
     roleName?: string;
     modules: string[];
     userId?: string;
+    defaultLandingModule?: string;
   }
 }
 
@@ -36,6 +38,7 @@ declare module 'next-auth/jwt' {
     roleName?: string;
     modules: string[];
     userId?: string;
+    defaultLandingModule?: string;
   }
 }
 
@@ -73,16 +76,21 @@ export const {
         let roleName: string | undefined;
 
         // First, get role-based modules if user has a roleId
+        let defaultLandingModule: string | undefined;
         if (user.roleId) {
           const roleModules = await getRoleAccessibleModules(user.roleId);
           for (const moduleKey of roleModules) {
             accessibleModules.add(moduleKey);
           }
           
-          // Get role name for backward compatibility with entitlements
+          // Get role name and default landing module for backward compatibility with entitlements
           const roleRecord = await getRoleById(user.roleId);
           if (roleRecord) {
             roleName = roleRecord.name.toLowerCase();
+            // Validate that defaultLandingModule is in accessible modules
+            if (roleRecord.defaultLandingModule && accessibleModules.has(roleRecord.defaultLandingModule)) {
+              defaultLandingModule = roleRecord.defaultLandingModule;
+            }
           }
         }
 
@@ -112,6 +120,7 @@ export const {
           roleId: user.roleId || undefined,
           roleName: roleName || undefined,
           modules: Array.from(accessibleModules),
+          defaultLandingModule: defaultLandingModule,
         };
       },
     }),
@@ -124,6 +133,7 @@ export const {
         token.roleName = user.roleName;
         token.modules = user.modules;
         token.userId = (user as any).userId;
+        token.defaultLandingModule = user.defaultLandingModule;
       }
 
       return token;
@@ -135,6 +145,7 @@ export const {
         session.user.roleName = token.roleName;
         session.user.modules = token.modules;
         session.user.userId = token.userId || session.user.userId;
+        session.user.defaultLandingModule = token.defaultLandingModule;
       }
 
       return session;

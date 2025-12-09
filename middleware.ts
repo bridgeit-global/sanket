@@ -42,10 +42,18 @@ export async function middleware(request: NextRequest) {
 
   // Module-based access control
   const modules = (token.modules as string[]) || [];
+  const defaultLandingModule = token.defaultLandingModule as string | undefined;
 
-  // Root path - redirect to first available module
+  // Root path - redirect to default landing module or first available module
   if (pathname === '/' || pathname.startsWith('/chat')) {
     if (modules.length > 0) {
+      // Check if default landing module exists and is accessible
+      if (defaultLandingModule && modules.includes(defaultLandingModule)) {
+        return NextResponse.redirect(
+          new URL(`/modules/${defaultLandingModule}`, request.url),
+        );
+      }
+      // Fall back to first module
       const firstModule = modules[0];
       return NextResponse.redirect(new URL(`/modules/${firstModule}`, request.url));
     }

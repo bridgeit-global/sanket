@@ -1,0 +1,1 @@
+ALTER TABLE "Role" ADD COLUMN "default_landing_module" varchar(50);

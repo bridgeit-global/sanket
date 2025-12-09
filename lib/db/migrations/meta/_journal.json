@@ -253,6 +253,13 @@
       "when": 1765030434772,
       "tag": "0035_white_kabuki",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1765305640506,
+      "tag": "0036_slimy_callisto",
+      "breakpoints": true
     }
   ]
 }

@@ -9,10 +9,20 @@ export default async function Page() {
     redirect('/login');
   }
 
-  // Get user's accessible modules and redirect to first available module
+  // Get user's accessible modules and redirect to default landing module or first available module
   const modules = await getUserAccessibleModules(session.user.id);
 
-  // Priority order for redirects
+  // Check if user has a default landing module set and it's accessible
+  if (session.user.defaultLandingModule) {
+    const defaultModule = modules.find(
+      (m) => m.key === session.user.defaultLandingModule,
+    );
+    if (defaultModule) {
+      redirect(defaultModule.route);
+    }
+  }
+
+  // Fall back to priority order for redirects
   const priorityModules = [
     'chat',
     'dashboard',
