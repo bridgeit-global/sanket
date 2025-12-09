@@ -807,8 +807,9 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                 <TableHeader>
                                   <TableRow>
                                     <TableHead className="w-[60px] text-center">{t('dailyProgramme.serialNo')}</TableHead>
-                                    <TableHead className="w-[280px]">{t('dailyProgramme.timeAndLocation')}</TableHead>
-                                    <TableHead className="w-[450px]">{t('dailyProgramme.titleAndRemarks')}</TableHead>
+                                    <TableHead className="w-[150px]">{t('dailyProgramme.time')}</TableHead>
+                                    <TableHead className="w-[400px]">{t('dailyProgramme.programmeNatureAndPlace')}</TableHead>
+                                    <TableHead className="w-[300px]">{t('dailyProgramme.reference')}</TableHead>
                                     <TableHead className="w-[150px] no-print">{t('dailyProgramme.attendance')}</TableHead>
                                     <TableHead className="w-[100px] no-print">{t('dailyProgramme.actions')}</TableHead>
                                   </TableRow>
@@ -837,32 +838,34 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                           <TableCell className="w-[60px] text-center font-medium">
                                             {index + 1}
                                           </TableCell>
-                                          <TableCell className="w-[280px]">
+                                          <TableCell className="w-[150px]">
+                                            <div className="font-mono font-semibold">
+                                              {formatTimeTo12Hour(item.startTime)}
+                                              {durationLabel && (
+                                                <span className="text-xs font-normal text-muted-foreground ml-1">
+                                                  ({durationLabel})
+                                                </span>
+                                              )}
+                                            </div>
+                                          </TableCell>
+                                          <TableCell className="w-[400px]">
                                             <div className="space-y-1">
-                                              <div className="font-mono font-semibold">
-                                                {formatTimeTo12Hour(item.startTime)}
-                                                {durationLabel && (
-                                                  <span className="text-xs font-normal text-muted-foreground ml-1">
-                                                    ({durationLabel})
-                                                  </span>
-                                                )}
+                                              <div className="font-medium">
+                                                {item.title}
                                               </div>
                                               <div className="text-sm text-muted-foreground">
                                                 {item.location}
                                               </div>
                                             </div>
                                           </TableCell>
-                                          <TableCell className="w-[450px]">
-                                            <div className="space-y-1">
-                                              <div className="font-medium">
-                                                {item.title}
+                                          <TableCell className="w-[300px]">
+                                            {item.remarks ? (
+                                              <div className="text-sm">
+                                                {item.remarks}
                                               </div>
-                                              {item.remarks && (
-                                                <div className="text-sm text-muted-foreground">
-                                                  {item.remarks}
-                                                </div>
-                                              )}
-                                            </div>
+                                            ) : (
+                                              <span className="text-muted-foreground">—</span>
+                                            )}
                                           </TableCell>
                                           <TableCell className="w-[150px] no-print">
                                             <Select

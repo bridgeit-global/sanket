@@ -338,7 +338,9 @@
     "attendanceUpdatedSuccess": "Attendance status updated successfully",
     "failedToUpdateAttendance": "Failed to update attendance status",
     "mlaName": "Hon' MLA, Smt. Sana Malik Shaikh",
-    "printHeaderTitle": "Daily / Weekly Programme"
+    "printHeaderTitle": "Daily / Weekly Programme",
+    "programmeNatureAndPlace": "Nature and Place of Program",
+    "reference": "Reference"
   },
   "projects": {
     "title": "Constituency Projects",
