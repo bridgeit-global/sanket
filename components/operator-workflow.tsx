@@ -1135,7 +1135,7 @@ export function BeneficiaryManagement() {
                                                             {t('visitorManagement.visitDate')} <span className="text-destructive">*</span>
                                                         </Label>
                                                         {(() => {
-                                                            const hasEvent = visitorFormData.programmeEventId && visitorFormData.programmeEventId !== 'none';
+                                                            const hasEvent = !!(visitorFormData.programmeEventId && visitorFormData.programmeEventId !== 'none');
                                                             return (
                                                                 <Input
                                                                     id="visitorDate"
