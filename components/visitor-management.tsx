@@ -35,6 +35,7 @@ interface Visitor {
   id: string;
   name: string;
   contactNumber: string;
+  aadharNumber?: string | null;
   purpose: string;
   programmeEventId?: string | null;
   visitDate: string | Date;
@@ -76,6 +77,7 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
   const [addForm, setAddForm] = useState({
     name: '',
     contactNumber: '',
+    aadharNumber: '',
     purpose: '',
     programmeEventId: '',
     visitDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
@@ -156,6 +158,7 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
     const validation = validateForm(visitorFormSchema, {
       name: addForm.name,
       contactNumber: addForm.contactNumber,
+      aadharNumber: addForm.aadharNumber,
       purpose: addForm.purpose,
       programmeEventId: addForm.programmeEventId || null,
       visitDate: addForm.visitDate,
@@ -175,6 +178,7 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
         body: JSON.stringify({
           name: addForm.name,
           contactNumber: addForm.contactNumber,
+          aadharNumber: addForm.aadharNumber,
           purpose: addForm.purpose,
           programmeEventId: addForm.programmeEventId && addForm.programmeEventId !== 'none' ? addForm.programmeEventId : null,
           visitDate: new Date(addForm.visitDate).toISOString(),
@@ -186,6 +190,7 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
         setAddForm({
           name: '',
           contactNumber: '',
+          aadharNumber: '',
           purpose: '',
           programmeEventId: '',
           visitDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
@@ -218,6 +223,7 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
         body: JSON.stringify({
           name: editingVisitor.name,
           contactNumber: editingVisitor.contactNumber,
+          aadharNumber: editingVisitor.aadharNumber || '',
           purpose: editingVisitor.purpose,
           programmeEventId: editingVisitor.programmeEventId && editingVisitor.programmeEventId !== 'none' ? editingVisitor.programmeEventId : null,
           visitDate: new Date(editingVisitor.visitDate).toISOString(),
@@ -392,6 +398,28 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="aadharNumber">
+                  Aadhar Number <span className="text-destructive">*</span>
+                </Label>
+                <Input
+                  id="aadharNumber"
+                  type="text"
+                  maxLength={12}
+                  value={editingVisitor ? (editingVisitor.aadharNumber || '') : addForm.aadharNumber}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, ''); // Only allow digits
+                    if (editingVisitor) {
+                      setEditingVisitor({ ...editingVisitor, aadharNumber: value });
+                    } else {
+                      setAddForm({ ...addForm, aadharNumber: value });
+                    }
+                  }}
+                  placeholder="Enter 12-digit Aadhar number"
+                  required
+                />
               </div>
 
               <div className="space-y-2">
@@ -634,6 +662,7 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
                       <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Contact</TableHead>
+                        <TableHead>Aadhar</TableHead>
                         <TableHead>Purpose</TableHead>
                         <TableHead>Programme Event</TableHead>
                         <TableHead>Visit Date</TableHead>
@@ -645,6 +674,7 @@ export function VisitorManagement({ userRole }: VisitorManagementProps) {
                         <TableRow key={visitor.id}>
                           <TableCell className="font-medium">{visitor.name}</TableCell>
                           <TableCell>{visitor.contactNumber}</TableCell>
+                          <TableCell>{visitor.aadharNumber || '-'}</TableCell>
                           <TableCell className="max-w-xs truncate">
                             {visitor.purpose}
                           </TableCell>

@@ -1,6 +1,6 @@
 import { auth } from '@/app/(auth)/auth';
 import { redirect } from 'next/navigation';
-import { OperatorWorkflow } from '@/components/operator-workflow';
+import { BeneficiaryManagement } from '@/components/operator-workflow';
 import { hasModuleAccess } from '@/lib/db/queries';
 
 export default async function OperatorPage() {
@@ -18,7 +18,7 @@ export default async function OperatorPage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto p-4 sm:py-8 max-w-7xl">
-        <OperatorWorkflow />
+        <BeneficiaryManagement />
       </div>
     </div>
   );

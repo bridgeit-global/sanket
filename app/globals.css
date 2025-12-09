@@ -393,6 +393,12 @@
         visibility: visible;
     }
 
+    /* Show service completion print section */
+    .service-completion-print,
+    .service-completion-print * {
+        visibility: visible;
+    }
+
     /* Position the printable content at the top */
     .print-schedule {
         position: absolute;
@@ -738,5 +744,97 @@
         font-size: 12px;
         color: #333 !important;
         margin: 8px 0 0 0;
+    }
+
+    /* Service Completion Print Styles */
+    .service-completion-print,
+    .service-completion-print * {
+        visibility: visible;
+    }
+
+    .service-completion-print {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        padding: 20px;
+        background: white;
+        color: #000;
+    }
+
+    .service-completion-print * {
+        color: #000 !important;
+    }
+
+    .service-completion-print .print-header {
+        text-align: center;
+        margin-bottom: 24px;
+        padding-bottom: 16px;
+        border-bottom: 2px solid #000;
+    }
+
+    .service-completion-print .print-header h1 {
+        font-size: 24px;
+        font-weight: bold;
+        margin: 0 0 8px 0;
+        color: #000 !important;
+    }
+
+    .service-completion-print .print-header p {
+        font-size: 14px;
+        color: #333 !important;
+        margin: 0;
+    }
+
+    .service-completion-print .token-display {
+        text-align: center;
+        margin: 24px 0;
+        padding: 20px;
+        border: 2px solid #000;
+        background: #f9fafb;
+    }
+
+    .service-completion-print .token-display p {
+        font-size: 32px;
+        font-weight: bold;
+        color: #000 !important;
+        margin: 8px 0;
+    }
+
+    .service-completion-print .service-summary {
+        margin-top: 24px;
+    }
+
+    .service-completion-print .service-summary h3 {
+        font-size: 18px;
+        font-weight: 700;
+        margin: 0 0 16px 0;
+        padding-bottom: 8px;
+        border-bottom: 1px solid #000;
+        color: #000 !important;
+    }
+
+    .service-completion-print .summary-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 16px;
+    }
+
+    .service-completion-print .summary-item {
+        padding: 8px 0;
+        border-bottom: 1px solid #ddd;
+    }
+
+    .service-completion-print .summary-item label {
+        font-weight: 600;
+        display: block;
+        margin-bottom: 4px;
+        color: #000 !important;
+    }
+
+    .service-completion-print .summary-item p {
+        color: #333 !important;
+        margin: 0;
     }
 }

@@ -63,11 +63,11 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, contactNumber, purpose, programmeEventId, visitDate } = body;
+    const { name, contactNumber, aadharNumber, purpose, programmeEventId, visitDate } = body;
 
-    if (!name || !contactNumber || !purpose || !visitDate) {
+    if (!name || !contactNumber || !aadharNumber || !purpose || !visitDate) {
       return NextResponse.json(
-        { error: 'name, contactNumber, purpose, and visitDate are required' },
+        { error: 'name, contactNumber, aadharNumber, purpose, and visitDate are required' },
         { status: 400 },
       );
     }
@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
     const visitor = await createVisitor({
       name,
       contactNumber,
+      aadharNumber,
       purpose,
       programmeEventId: programmeEventId || undefined,
       visitDate: new Date(visitDate),

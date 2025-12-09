@@ -66,8 +66,8 @@
       "description": "Profile update workflow and data management"
     },
     "operator": {
-      "label": "Operator Workflow",
-      "description": "Manage voter tasks and beneficiary services"
+      "label": "Beneficiary Management",
+      "description": "Manage beneficiary services and visitor registration"
     },
     "dataExport": {
       "label": "Data Export",
@@ -449,7 +449,7 @@
   },
   "operator": {
     "dashboard": {
-      "title": "Operator Dashboard",
+      "title": "Beneficiary Management",
       "subtitle": "Voter management and beneficiary service creation"
     },
     "tabs": {
@@ -474,7 +474,10 @@
       "noResultsHelp": "Try adjusting your search criteria or contact an administrator.",
       "foundBy": "Found by {type}",
       "foundCount": "Found {count} voter(s) by {type}",
-      "noVotersFound": "No voters found with that {type}"
+      "noVotersFound": "No voters found with that {type}",
+      "addAsVisitor": "Add as Visitor",
+      "visitorFormTitle": "Add Visitor Information",
+      "visitorCreatedSuccess": "Visitor added successfully"
     },
     "workflow": {
       "phoneUpdate": "Phone Update",
@@ -505,7 +508,8 @@
       "token": "Token",
       "status": "Status",
       "createdAt": "Created At",
-      "createAnother": "Create Another Service"
+      "createAnother": "Create Another Service",
+      "print": "Print Service Details"
     },
     "messages": {
       "pleaseProvideCriteria": "Please provide at least one search criteria (name, gender, or age)",

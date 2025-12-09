@@ -3090,6 +3090,7 @@ export async function getUsersWithRole(roleId: string): Promise<Array<User>> {
 export async function createVisitor({
   name,
   contactNumber,
+  aadharNumber,
   purpose,
   programmeEventId,
   visitDate,
@@ -3097,6 +3098,7 @@ export async function createVisitor({
 }: {
   name: string;
   contactNumber: string;
+  aadharNumber: string;
   purpose: string;
   programmeEventId?: string;
   visitDate: Date | string;
@@ -3108,6 +3110,7 @@ export async function createVisitor({
       .values({
         name,
         contactNumber,
+        aadharNumber,
         purpose,
         programmeEventId: programmeEventId || null,
         visitDate: typeof visitDate === 'string' ? new Date(visitDate) : visitDate,
@@ -3244,6 +3247,7 @@ export async function updateVisitor({
   id,
   name,
   contactNumber,
+  aadharNumber,
   purpose,
   programmeEventId,
   visitDate,
@@ -3251,6 +3255,7 @@ export async function updateVisitor({
   id: string;
   name?: string;
   contactNumber?: string;
+  aadharNumber?: string;
   purpose?: string;
   programmeEventId?: string | null;
   visitDate?: Date | string;
@@ -3262,6 +3267,7 @@ export async function updateVisitor({
 
     if (name !== undefined) updateData.name = name;
     if (contactNumber !== undefined) updateData.contactNumber = contactNumber;
+    if (aadharNumber !== undefined) updateData.aadharNumber = aadharNumber;
     if (purpose !== undefined) updateData.purpose = purpose;
     if (programmeEventId !== undefined) updateData.programmeEventId = programmeEventId;
     if (visitDate !== undefined) {

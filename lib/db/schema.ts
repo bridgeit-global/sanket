@@ -414,6 +414,7 @@ export const visitor = pgTable('Visitor', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   name: varchar('name', { length: 255 }).notNull(),
   contactNumber: varchar('contact_number', { length: 20 }).notNull(),
+  aadharNumber: varchar('aadhar_number', { length: 12 }).notNull(),
   purpose: text('purpose').notNull(),
   programmeEventId: uuid('programme_event_id').references(() => dailyProgramme.id, { onDelete: 'set null' }),
   visitDate: timestamp('visit_date').notNull(),

@@ -67,12 +67,13 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const { name, contactNumber, purpose, programmeEventId, visitDate } = body;
+    const { name, contactNumber, aadharNumber, purpose, programmeEventId, visitDate } = body;
 
     const visitor = await updateVisitor({
       id,
       name,
       contactNumber,
+      aadharNumber,
       purpose,
       programmeEventId,
       visitDate: visitDate ? new Date(visitDate) : undefined,

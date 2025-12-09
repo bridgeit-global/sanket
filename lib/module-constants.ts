@@ -43,8 +43,8 @@ export const ALL_MODULES: ModuleDefinition[] = [
   // Operations modules
   {
     key: 'operator',
-    label: 'Operator Workflow',
-    description: 'Manage voter tasks and beneficiary services',
+    label: 'Beneficiary Management',
+    description: 'Manage beneficiary services and visitor registration',
     route: '/modules/operator',
     icon: 'Briefcase',
     category: 'operations',

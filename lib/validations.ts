@@ -43,6 +43,10 @@ export const visitorFormSchema = z.object({
     .min(1, 'Contact number is required')
     .regex(/^[0-9+\-\s()]+$/, 'Invalid contact number format')
     .max(20, 'Contact number is too long'),
+  aadharNumber: z
+    .string()
+    .min(1, 'Aadhar number is required')
+    .regex(/^[0-9]{12}$/, 'Aadhar number must be exactly 12 digits'),
   purpose: z.string().min(1, 'Purpose is required').max(1000, 'Purpose is too long'),
   programmeEventId: z.string().optional().nullable(),
   visitDate: z.string().min(1, 'Visit date is required'),

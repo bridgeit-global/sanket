@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,14 +9,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/components/toast';
 import { BeneficiaryServiceForm } from '@/components/beneficiary-service-form';
 import { PhoneUpdateForm } from '@/components/phone-update-form';
 import { TaskManagement } from '@/components/task-management';
 import { useTranslations } from '@/hooks/use-translations';
-import type { VoterWithPartNo, BeneficiaryService } from '@/lib/db/schema';
+import { Printer } from 'lucide-react';
+import { format, parseISO, addDays } from 'date-fns';
+import type { VoterWithPartNo, BeneficiaryService, DailyProgramme } from '@/lib/db/schema';
 
-export function OperatorWorkflow() {
+export function BeneficiaryManagement() {
     const { t } = useTranslations();
     const router = useRouter();
     const [searchTerm, setSearchTerm] = useState('');
@@ -39,6 +42,52 @@ export function OperatorWorkflow() {
     const [createdService, setCreatedService] = useState<BeneficiaryService | null>(null);
     const [workflowStep, setWorkflowStep] = useState<'search' | 'phoneUpdate' | 'service' | 'confirmation' | 'completed' | 'tasks'>('search');
     const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create');
+    
+    // Visitor form state
+    const [showVisitorForm, setShowVisitorForm] = useState(false);
+    const [visitorFormData, setVisitorFormData] = useState({
+        name: '',
+        contactNumber: '',
+        aadharNumber: '',
+        purpose: '',
+        programmeEventId: '',
+        visitDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+    });
+    const [isSubmittingVisitor, setIsSubmittingVisitor] = useState(false);
+    const [programmeEvents, setProgrammeEvents] = useState<DailyProgramme[]>([]);
+
+    // Helper function to format date only
+    const formatDateOnly = (date: string | Date): string => {
+        try {
+            const dateObj = typeof date === 'string' ? parseISO(date) : date;
+            return format(dateObj, 'dd MMM yyyy');
+        } catch (error) {
+            return String(date);
+        }
+    };
+
+    // Load programme events when visitor form is shown
+    useEffect(() => {
+        if (showVisitorForm) {
+            loadProgrammeEvents();
+        }
+    }, [showVisitorForm]);
+
+    const loadProgrammeEvents = async () => {
+        try {
+            const today = format(new Date(), 'yyyy-MM-dd');
+            const pastDate = format(addDays(new Date(), -7), 'yyyy-MM-dd');
+            const response = await fetch(
+                `/api/daily-programme?startDate=${pastDate}&endDate=${today}`,
+            );
+            if (response.ok) {
+                const data = await response.json();
+                setProgrammeEvents(data);
+            }
+        } catch (error) {
+            console.error('Error loading programme events:', error);
+        }
+    };
 
     // Helper function to clear search state when switching tabs
     const clearSearchStateIfNeeded = () => {
@@ -261,7 +310,88 @@ export function OperatorWorkflow() {
         setShowPhoneUpdate(false);
         setServiceData(null);
         setCreatedService(null);
+        setShowVisitorForm(false);
+        setVisitorFormData({
+            name: '',
+            contactNumber: '',
+            aadharNumber: '',
+            purpose: '',
+            programmeEventId: '',
+            visitDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+        });
         setWorkflowStep('search');
+    };
+
+    const handleAddAsVisitor = () => {
+        setShowVisitorForm(true);
+    };
+
+    const handleVisitorFormSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        
+        if (!visitorFormData.name.trim() || !visitorFormData.contactNumber.trim() || !visitorFormData.aadharNumber.trim() || !visitorFormData.purpose.trim()) {
+            toast({
+                type: 'error',
+                description: 'Please fill in all required fields',
+            });
+            return;
+        }
+
+        setIsSubmittingVisitor(true);
+        try {
+            const response = await fetch('/api/visitors', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name: visitorFormData.name,
+                    contactNumber: visitorFormData.contactNumber,
+                    aadharNumber: visitorFormData.aadharNumber,
+                    purpose: visitorFormData.purpose,
+                    programmeEventId: visitorFormData.programmeEventId && visitorFormData.programmeEventId !== 'none' ? visitorFormData.programmeEventId : null,
+                    visitDate: new Date(visitorFormData.visitDate).toISOString(),
+                }),
+            });
+
+            if (response.ok) {
+                toast({
+                    type: 'success',
+                    description: t('operator.search.visitorCreatedSuccess'),
+                });
+                setShowVisitorForm(false);
+                setVisitorFormData({
+                    name: '',
+                    contactNumber: '',
+                    aadharNumber: '',
+                    purpose: '',
+                    programmeEventId: '',
+                    visitDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+                });
+                setHasSearched(false);
+                setSearchTerm('');
+                setName('');
+                setGender('');
+                setAge(25);
+                setAgeRange(5);
+            } else {
+                const error = await response.json();
+                toast({
+                    type: 'error',
+                    description: error.error || 'Failed to add visitor',
+                });
+            }
+        } catch (error) {
+            console.error('Error adding visitor:', error);
+            toast({
+                type: 'error',
+                description: 'Failed to add visitor. Please try again.',
+            });
+        } finally {
+            setIsSubmittingVisitor(false);
+        }
+    };
+
+    const handlePrint = () => {
+        window.print();
     };
 
     const handleCancel = () => {
@@ -479,7 +609,7 @@ export function OperatorWorkflow() {
 
                     {/* Completion Step */}
                     {workflowStep === 'completed' && createdService && (
-                        <Card>
+                        <Card className="service-completion-print">
                             <CardHeader>
                                 <CardTitle className="text-green-600">{t('operator.completion.title')}</CardTitle>
                                 <CardDescription>
@@ -488,7 +618,7 @@ export function OperatorWorkflow() {
                             </CardHeader>
                             <CardContent className="space-y-6">
                                 {/* Token Display */}
-                                <div className="text-center space-y-4">
+                                <div className="text-center space-y-4 token-display">
                                     <div className="p-6 bg-green-50 border-2 border-green-200 rounded-lg">
                                         <Label className="text-sm font-medium text-green-800">{t('operator.completion.referenceToken')}</Label>
                                         <p className="text-2xl font-bold text-green-900 mt-2">{createdService.token}</p>
@@ -499,34 +629,34 @@ export function OperatorWorkflow() {
                                 </div>
 
                                 {/* Service Summary */}
-                                <div className="space-y-4">
+                                <div className="space-y-4 service-summary">
                                     <h3 className="text-lg font-semibold">{t('operator.completion.serviceSummary')}</h3>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-lg">
-                                        <div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted rounded-lg summary-grid">
+                                        <div className="summary-item">
                                             <Label className="text-sm font-medium">{t('operator.completion.serviceId')}</Label>
                                             <p className="font-mono text-sm">{createdService.id}</p>
                                         </div>
-                                        <div>
+                                        <div className="summary-item">
                                             <Label className="text-sm font-medium">{t('operator.completion.token')}</Label>
                                             <p className="font-mono text-sm">{createdService.token}</p>
                                         </div>
-                                        <div>
+                                        <div className="summary-item">
                                             <Label className="text-sm font-medium">{t('operator.confirmation.serviceType')}</Label>
                                             <p className="capitalize">{createdService.serviceType}</p>
                                         </div>
-                                        <div>
+                                        <div className="summary-item">
                                             <Label className="text-sm font-medium">{t('operator.confirmation.serviceName')}</Label>
                                             <p>{createdService.serviceName}</p>
                                         </div>
-                                        <div>
+                                        <div className="summary-item">
                                             <Label className="text-sm font-medium">{t('operator.completion.status')}</Label>
                                             <p className="capitalize">{createdService.status}</p>
                                         </div>
-                                        <div>
+                                        <div className="summary-item">
                                             <Label className="text-sm font-medium">{t('operator.confirmation.priority')}</Label>
                                             <p className="capitalize">{createdService.priority}</p>
                                         </div>
-                                        <div>
+                                        <div className="summary-item">
                                             <Label className="text-sm font-medium">{t('operator.completion.createdAt')}</Label>
                                             <p>{new Date(createdService.createdAt).toLocaleString()}</p>
                                         </div>
@@ -534,9 +664,13 @@ export function OperatorWorkflow() {
                                 </div>
 
                                 {/* Action Buttons */}
-                                <div className="flex gap-4">
+                                <div className="flex gap-4 no-print">
                                     <Button onClick={handleStartNew} className="flex-1">
                                         {t('operator.completion.createAnother')}
+                                    </Button>
+                                    <Button onClick={handlePrint} variant="outline" className="flex-1">
+                                        <Printer className="mr-2 h-4 w-4" />
+                                        {t('operator.completion.print')}
                                     </Button>
                                 </div>
                             </CardContent>
@@ -853,7 +987,7 @@ export function OperatorWorkflow() {
                                 )}
 
                                 {/* No Results Message */}
-                                {hasSearched && !isSearching && searchResults.length === 0 && (
+                                {hasSearched && !isSearching && searchResults.length === 0 && !showVisitorForm && (
                                     <div className="mt-4 p-4 border border-muted-foreground/25 rounded-lg bg-muted/20">
                                         <div className="flex items-center gap-3">
                                             <div className="text-muted-foreground">
@@ -871,7 +1005,7 @@ export function OperatorWorkflow() {
                                                     />
                                                 </svg>
                                             </div>
-                                            <div>
+                                            <div className="flex-1">
                                                 <p className="text-sm font-medium text-muted-foreground">
                                                     {t('operator.search.noResults')}
                                                 </p>
@@ -879,8 +1013,173 @@ export function OperatorWorkflow() {
                                                     {t('operator.search.noResultsHelp')}
                                                 </p>
                                             </div>
+                                            <Button
+                                                variant="outline"
+                                                onClick={handleAddAsVisitor}
+                                                className="ml-auto"
+                                            >
+                                                {t('operator.search.addAsVisitor')}
+                                            </Button>
                                         </div>
                                     </div>
+                                )}
+
+                                {/* Visitor Form */}
+                                {showVisitorForm && (
+                                    <Card className="mt-4">
+                                        <CardHeader>
+                                            <CardTitle>{t('operator.search.visitorFormTitle')}</CardTitle>
+                                            <CardDescription>
+                                                Add visitor information for the person who could not be found in the voter database
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <form onSubmit={handleVisitorFormSubmit} className="space-y-4">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="visitorName">
+                                                            {t('visitorManagement.name')} <span className="text-destructive">*</span>
+                                                        </Label>
+                                                        <Input
+                                                            id="visitorName"
+                                                            value={visitorFormData.name}
+                                                            onChange={(e) => setVisitorFormData({ ...visitorFormData, name: e.target.value })}
+                                                            placeholder={t('visitorManagement.enterVisitorName')}
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="visitorContact">
+                                                            {t('visitorManagement.contactNumber')} <span className="text-destructive">*</span>
+                                                        </Label>
+                                                        <Input
+                                                            id="visitorContact"
+                                                            type="tel"
+                                                            value={visitorFormData.contactNumber}
+                                                            onChange={(e) => setVisitorFormData({ ...visitorFormData, contactNumber: e.target.value })}
+                                                            placeholder={t('visitorManagement.enterContactNumber')}
+                                                            required
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="visitorAadhar">
+                                                        Aadhar Number <span className="text-destructive">*</span>
+                                                    </Label>
+                                                    <Input
+                                                        id="visitorAadhar"
+                                                        type="text"
+                                                        maxLength={12}
+                                                        value={visitorFormData.aadharNumber}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value.replace(/\D/g, ''); // Only allow digits
+                                                            setVisitorFormData({ ...visitorFormData, aadharNumber: value });
+                                                        }}
+                                                        placeholder="Enter 12-digit Aadhar number"
+                                                        required
+                                                    />
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="visitorPurpose">
+                                                        {t('visitorManagement.purposeOfVisit')} <span className="text-destructive">*</span>
+                                                    </Label>
+                                                    <Textarea
+                                                        id="visitorPurpose"
+                                                        value={visitorFormData.purpose}
+                                                        onChange={(e) => setVisitorFormData({ ...visitorFormData, purpose: e.target.value })}
+                                                        placeholder={t('visitorManagement.enterPurposeOfVisit')}
+                                                        rows={3}
+                                                        required
+                                                    />
+                                                </div>
+
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="programmeEventId">Link to Programme Event (Optional)</Label>
+                                                        <Select
+                                                            value={visitorFormData.programmeEventId || 'none'}
+                                                            onValueChange={(value) => {
+                                                                const selectedEventId = value === 'none' ? '' : value;
+                                                                const selectedEvent = programmeEvents.find(e => e.id === selectedEventId);
+                                                                const updatedForm = { ...visitorFormData, programmeEventId: selectedEventId };
+                                                                
+                                                                // Auto-fill date and time from event if selected
+                                                                if (selectedEvent?.date && selectedEvent?.startTime) {
+                                                                    const eventDate = typeof selectedEvent.date === 'string'
+                                                                        ? parseISO(selectedEvent.date)
+                                                                        : new Date(selectedEvent.date);
+                                                                    const [hours, minutes] = selectedEvent.startTime.split(':');
+                                                                    eventDate.setHours(Number.parseInt(hours, 10), Number.parseInt(minutes, 10), 0, 0);
+                                                                    updatedForm.visitDate = format(eventDate, "yyyy-MM-dd'T'HH:mm");
+                                                                }
+                                                                setVisitorFormData(updatedForm);
+                                                            }}
+                                                        >
+                                                            <SelectTrigger id="programmeEventId">
+                                                                <SelectValue placeholder="Select programme event" />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="none">No event selected</SelectItem>
+                                                                {programmeEvents.map((event) => (
+                                                                    <SelectItem key={event.id} value={event.id}>
+                                                                        {formatDateOnly(event.date)} - {event.title}
+                                                                    </SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="visitorDate">
+                                                            {t('visitorManagement.visitDate')} <span className="text-destructive">*</span>
+                                                        </Label>
+                                                        {(() => {
+                                                            const hasEvent = visitorFormData.programmeEventId && visitorFormData.programmeEventId !== 'none';
+                                                            return (
+                                                                <Input
+                                                                    id="visitorDate"
+                                                                    type="datetime-local"
+                                                                    value={visitorFormData.visitDate}
+                                                                    onChange={(e) => setVisitorFormData({ ...visitorFormData, visitDate: e.target.value })}
+                                                                    disabled={hasEvent}
+                                                                    required
+                                                                    className={hasEvent ? 'bg-muted' : ''}
+                                                                />
+                                                            );
+                                                        })()}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        type="submit"
+                                                        disabled={isSubmittingVisitor}
+                                                        className="flex-1"
+                                                    >
+                                                        {isSubmittingVisitor ? t('common.loading') : t('visitorManagement.submit')}
+                                                    </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        onClick={() => {
+                                                            setShowVisitorForm(false);
+                                                            setVisitorFormData({
+                                                                name: '',
+                                                                contactNumber: '',
+                                                                aadharNumber: '',
+                                                                purpose: '',
+                                                                programmeEventId: '',
+                                                                visitDate: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+                                                            });
+                                                        }}
+                                                    >
+                                                        {t('common.cancel')}
+                                                    </Button>
+                                                </div>
+                                            </form>
+                                        </CardContent>
+                                    </Card>
                                 )}
                             </CardContent>
                         </Card>
