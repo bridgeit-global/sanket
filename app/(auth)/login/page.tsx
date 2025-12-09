@@ -39,14 +39,17 @@ export default function Page() {
         type: 'error',
         description: t('auth.messages.validationFailed'),
       });
-    } else if (state.status === 'success') {
+    } else if (state.status === 'success' && !isSuccessful) {
       setIsSuccessful(true);
-      updateSession();
-      const params = new URLSearchParams(window.location.search);
-      const callbackUrl = params.get('callbackUrl');
-      router.push(callbackUrl || '/');
+      // Update session and then navigate
+      updateSession().then(() => {
+        const params = new URLSearchParams(window.location.search);
+        const callbackUrl = params.get('callbackUrl');
+        // Use window.location for a hard navigation to ensure cookies are set
+        window.location.href = callbackUrl || '/';
+      });
     }
-  }, [state.status, t, updateSession, router]);
+  }, [state.status, isSuccessful, t, updateSession]);
 
   const handleSubmit = (formData: FormData) => {
     setUserId(formData.get('userId') as string);
