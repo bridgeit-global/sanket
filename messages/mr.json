@@ -337,7 +337,7 @@
     "attendance": "उपस्थिती",
     "attendanceUpdatedSuccess": "उपस्थिती स्थिती यशस्वीरित्या अपडेट केली",
     "failedToUpdateAttendance": "उपस्थिती स्थिती अपडेट करण्यात अयशस्वी",
-    "mlaName": "मा. आमदार, सुश्री सना मलिक शेख",
+    "mlaName": "मा. आमदार श्रीमती सना मलिक",
     "printHeaderTitle": "दैनंदिन / साप्ताहिक कार्यक्रम",
     "programmeNatureAndPlace": "कार्यक्रमाचे स्वरुप व ठिकाण",
     "reference": "संदर्भ"
@@ -494,7 +494,6 @@
       "serviceType": "सेवा प्रकार",
       "serviceName": "सेवा नाव",
       "priority": "प्राधान्य",
-      "description": "वर्णन",
       "notes": "टिप्पण्या",
       "confirmButton": "पुष्टी करा आणि सेवा तयार करा"
     },
