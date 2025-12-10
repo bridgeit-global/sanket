@@ -642,7 +642,7 @@ export async function getVoterByEpicNumber(epicNumber: string): Promise<Array<Vo
       .from(Voters)
       .leftJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
       .where(eq(Voters.epicNumber, epicNumber));
-    
+
     return results as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
@@ -794,7 +794,7 @@ export async function searchVoterByEpicNumber(epicNumber: string): Promise<Array
       .leftJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
       .where(sql`LOWER(${Voters.epicNumber}) LIKE LOWER(${`%${epicNumber}%`})`)
       .orderBy(asc(Voters.epicNumber));
-    
+
     return results;
   } catch (error) {
     throw new ChatSDKError(
@@ -835,7 +835,7 @@ export async function searchVoterByName(name: string): Promise<Array<VoterWithPa
       .leftJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
       .where(sql`LOWER(${Voters.fullName}) LIKE LOWER(${`%${name}%`})`)
       .orderBy(asc(Voters.fullName));
-    
+
     return results as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
@@ -881,7 +881,7 @@ export async function searchVoterByPhoneNumber(phoneNumber: string): Promise<Arr
         sql`(${Voters.mobileNoPrimary} LIKE ${`%${cleanPhone}%`} OR ${Voters.mobileNoSecondary} LIKE ${`%${cleanPhone}%`})`
       )
       .orderBy(asc(Voters.fullName));
-    
+
     return results as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
@@ -1009,7 +1009,7 @@ export async function searchVoterByDetails(params: {
       .leftJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
       .where(sql`${sql.join(conditions, sql` AND `)}`)
       .orderBy(asc(Voters.fullName));
-    
+
     return results as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
@@ -1564,7 +1564,7 @@ export async function getVoterBeneficiaryServices(voterId: string): Promise<{
       .orderBy(desc(beneficiaryServices.createdAt));
 
     const services = tasks.map(row => row.service);
-    
+
     return {
       individual: services.filter(s => s.serviceType === 'individual'),
       community: services.filter(s => s.serviceType === 'community'),
@@ -1585,7 +1585,7 @@ export async function getVoterDailyProgrammeEvents(contactNumbers: string[]): Pr
 
     // Filter out null/undefined/empty contact numbers
     const validContactNumbers = contactNumbers.filter(cn => cn && cn.trim().length > 0);
-    
+
     if (validContactNumbers.length === 0) {
       return [];
     }
@@ -1632,7 +1632,7 @@ export async function getRelatedVotersServicesAndEvents(relatedVoters: Array<Vot
       relatedVoters.map(async (voter) => {
         // Get services for this voter
         const services = await getVoterBeneficiaryServices(voter.epicNumber);
-        
+
         // Get events for this voter (using their contact numbers)
         const contactNumbers: string[] = [];
         if (voter.mobileNoPrimary) contactNumbers.push(voter.mobileNoPrimary);
@@ -2413,17 +2413,33 @@ export async function updateDailyProgrammeItem(
   data: Partial<Omit<DailyProgramme, 'id' | 'createdBy' | 'createdAt'>>,
 ): Promise<DailyProgramme | null> {
   try {
+    // Format date if it's a Date object (schema expects string)
+    const updateData: any = { ...data };
+    if (updateData.date && updateData.date instanceof Date) {
+      updateData.date = formatDateToString(updateData.date);
+    }
+
+    // Normalize empty strings to null for nullable fields
+    if (updateData.endTime === '') {
+      updateData.endTime = null;
+    }
+    if (updateData.remarks === '') {
+      updateData.remarks = null;
+    }
+
     const [updated] = await db
       .update(dailyProgramme)
-      .set({ ...data, updatedAt: new Date() })
+      .set({ ...updateData, updatedAt: new Date() })
       .where(eq(dailyProgramme.id, id))
       .returning();
 
     return updated || null;
   } catch (error) {
+    console.error('Database error updating daily programme item:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     throw new ChatSDKError(
       'bad_request:database',
-      'Failed to update daily programme item',
+      errorMessage,
     );
   }
 }
@@ -2565,7 +2581,7 @@ export async function getRegisterEntriesWithAttachments({
       })
       .from(registerEntry)
       .leftJoin(registerAttachment, eq(registerEntry.id, registerAttachment.entryId));
-    
+
     // Join with mlaProject if filtering by project status
     if (projectStatus) {
       query = query.leftJoin(mlaProject, eq(registerEntry.projectId, mlaProject.id));
@@ -2927,7 +2943,7 @@ export async function createRole(
       const accessibleModules = Object.entries(permissions)
         .filter(([, hasAccess]) => hasAccess)
         .map(([moduleKey]) => moduleKey);
-      
+
       if (!accessibleModules.includes(defaultLandingModule)) {
         throw new ChatSDKError(
           'bad_request:api',
@@ -2985,7 +3001,7 @@ export async function updateRole(
       const accessibleModules = Object.entries(permissions)
         .filter(([, hasAccess]) => hasAccess)
         .map(([moduleKey]) => moduleKey);
-      
+
       if (!accessibleModules.includes(defaultLandingModule)) {
         throw new ChatSDKError(
           'bad_request:api',
@@ -3433,7 +3449,7 @@ export async function getVotersForExport(filters?: {
     const conditions: SQL<unknown>[] = [];
 
     const needsPartNoJoin = filters?.wardNo !== undefined;
-    
+
     if (filters?.partNo) {
       if (Array.isArray(filters.partNo) && filters.partNo.length > 0) {
         conditions.push(inArray(Voters.partNo, filters.partNo));
@@ -3547,7 +3563,7 @@ export async function getVotersCountForExport(filters?: {
       }
     }
     const needsPartNoJoin = filters?.wardNo !== undefined;
-    
+
     if (filters?.wardNo) {
       if (Array.isArray(filters.wardNo) && filters.wardNo.length > 0) {
         conditions.push(inArray(PartNo.wardNo, filters.wardNo));

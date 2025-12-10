@@ -154,7 +154,7 @@ export function TimePicker({
               {/* Hour markers - 12 hour clock */}
               {hourPositions.map((pos) => {
                 const isSelected = selectedHour12 === pos.hour;
-                
+
                 return (
                   <g key={pos.hour}>
                     <circle
@@ -181,7 +181,7 @@ export function TimePicker({
                   </g>
                 );
               })}
-              
+
               {/* Hour hand */}
               {selectedHour12 !== null && (
                 <line
@@ -201,7 +201,7 @@ export function TimePicker({
               {minutePositions.map((pos) => {
                 const isSelected = selectedMinute === pos.minute;
                 const isMajor = pos.minute % 15 === 0;
-                
+
                 return (
                   <g key={pos.minute}>
                     <circle
@@ -229,7 +229,7 @@ export function TimePicker({
                   </g>
                 );
               })}
-              
+
               {/* Minute hand */}
               {selectedMinute !== null && (
                 <line
@@ -304,14 +304,19 @@ export function TimePicker({
           {/* Clock face */}
           <div className="flex items-center justify-center">{renderClockFace()}</div>
 
-          {/* AM/PM toggle - only show in hour mode */}
-          {mode === 'hour' && selectedHour12 !== null && (
+          {/* AM/PM toggle - show in hour mode and minute mode */}
+          {(mode === 'hour' || mode === 'minute') && (
             <div className="flex gap-2 justify-center">
               <Button
                 type="button"
                 variant={!isPM ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setIsPM(false)}
+                onClick={() => {
+                  setIsPM(false);
+                  if (selectedHour12 !== null && selectedMinute !== null) {
+                    handleTimeChange(selectedHour12, selectedMinute, false);
+                  }
+                }}
               >
                 AM
               </Button>
@@ -319,7 +324,12 @@ export function TimePicker({
                 type="button"
                 variant={isPM ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setIsPM(true)}
+                onClick={() => {
+                  setIsPM(true);
+                  if (selectedHour12 !== null && selectedMinute !== null) {
+                    handleTimeChange(selectedHour12, selectedMinute, true);
+                  }
+                }}
               >
                 PM
               </Button>
