@@ -433,6 +433,12 @@
         break-after: avoid;
     }
 
+    /* Show print header even if it has hidden class */
+    .print-header.hidden {
+        display: block !important;
+        visibility: visible !important;
+    }
+
     .print-header h2 {
         font-size: 18px;
         font-weight: 600;
@@ -458,6 +464,12 @@
         width: 100%;
         border-collapse: collapse;
         page-break-inside: auto;
+        table-layout: fixed;
+    }
+
+    /* Remove overflow scrollbar in print */
+    .print-table-wrapper {
+        overflow: visible !important;
     }
 
     /* Prevent table rows from breaking across pages */
@@ -472,31 +484,45 @@
     .print-schedule th,
     .print-schedule td {
         border: 1px solid #333;
-        padding: 8px 12px;
+        padding: 8px 10px;
         text-align: left;
         page-break-inside: avoid;
         break-inside: avoid;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
     }
 
     /* Serial number column styling for print */
     .print-schedule th:first-child,
     .print-schedule td:first-child {
         text-align: center;
-        width: 60px;
+        width: 8%;
+        min-width: 50px;
+        max-width: 60px;
         padding: 8px 6px;
     }
 
-    /* Time & Location column width for print */
+    /* Time column width for print */
     .print-schedule th:nth-child(2),
     .print-schedule td:nth-child(2) {
-        width: 280px;
+        width: 15%;
+        min-width: 120px;
+        max-width: 150px;
     }
 
-    /* Title & Remarks column - wider for print */
+    /* Programme Nature & Place column - wider for print */
     .print-schedule th:nth-child(3),
     .print-schedule td:nth-child(3) {
-        width: 450px;
-        min-width: 450px;
+        width: 42%;
+        min-width: 200px;
+    }
+
+    /* Reference column width for print */
+    .print-schedule th:nth-child(4),
+    .print-schedule td:nth-child(4) {
+        width: 35%;
+        min-width: 150px;
     }
 
     .print-schedule th {
@@ -524,6 +550,8 @@
     .print-table-wrapper {
         page-break-inside: avoid;
         break-inside: avoid;
+        overflow: visible !important;
+        width: 100%;
     }
 
     /* Ensure table headers are visible and styled properly */
@@ -558,14 +586,28 @@
     /* Better cell padding for print */
     .print-schedule th,
     .print-schedule td {
-        padding: 10px 12px;
+        padding: 10px 10px;
         vertical-align: top;
+    }
+
+    /* Ensure text wraps properly in cells */
+    .print-schedule td {
+        word-break: break-word;
+        overflow-wrap: break-word;
+        white-space: normal;
+    }
+
+    /* Prevent horizontal overflow */
+    .print-schedule {
+        overflow: visible !important;
+        max-width: 100%;
     }
 
     /* Ensure table doesn't overflow page width */
     .print-schedule table {
         max-width: 100%;
-        table-layout: auto;
+        table-layout: fixed;
+        width: 100%;
     }
 
     /* Hide elements that shouldn't be printed */
