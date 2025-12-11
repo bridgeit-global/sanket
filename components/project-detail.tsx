@@ -29,6 +29,12 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 import { ArrowLeft, Edit, Trash2, Plus, FileText, Inbox, Send, Paperclip, Printer } from 'lucide-react';
 import { format } from 'date-fns';
 import { SidebarToggle } from '@/components/sidebar-toggle';
@@ -48,6 +54,7 @@ interface Attachment {
 interface RegisterEntry {
   id: string;
   type: 'inward' | 'outward';
+  documentType: 'VIP' | 'Department' | 'General';
   date: string;
   fromTo: string;
   subject: string;
@@ -55,6 +62,7 @@ interface RegisterEntry {
   mode?: string;
   refNo?: string;
   officer?: string;
+  createdAt?: string;
   attachments?: Attachment[];
 }
 
@@ -91,6 +99,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   // Entry form
   const [entryForm, setEntryForm] = useState({
     type: 'inward' as 'inward' | 'outward',
+    documentType: 'General' as 'VIP' | 'Department' | 'General',
     date: format(new Date(), 'yyyy-MM-dd'),
     fromTo: '',
     subject: '',
@@ -149,7 +158,9 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
       if (response.ok) {
         const updated = await response.json();
-        setProject({ ...project!, ...updated });
+        if (project) {
+          setProject({ ...project, ...updated });
+        }
         setEditingProject(false);
         toast.success('Project updated successfully');
       } else {
@@ -180,6 +191,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         setShowAddForm(false);
         setEntryForm({
           type: 'inward',
+          documentType: 'General',
           date: format(new Date(), 'yyyy-MM-dd'),
           fromTo: '',
           subject: '',
@@ -210,6 +222,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           date: entryForm.date,
           fromTo: entryForm.fromTo,
           subject: entryForm.subject,
+          documentType: entryForm.documentType,
           mode: entryForm.mode,
           refNo: entryForm.refNo,
           officer: entryForm.officer,
@@ -261,6 +274,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     setEditingEntry(entry);
     setEntryForm({
       type: entry.type,
+      documentType: entry.documentType || 'General',
       date: entry.date,
       fromTo: entry.fromTo,
       subject: entry.subject,
@@ -270,10 +284,28 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     });
   };
 
+  // Helper function to sort entries chronologically (by date descending, then createdAt descending)
+  const sortEntriesChronologically = (entriesList: RegisterEntry[]) => {
+    return [...entriesList].sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      if (dateB !== dateA) {
+        return dateB - dateA; // Descending by date
+      }
+      // If dates are equal, sort by createdAt descending
+      const createdAtA = new Date(a.createdAt || 0).getTime();
+      const createdAtB = new Date(b.createdAt || 0).getTime();
+      return createdAtB - createdAtA;
+    });
+  };
+
+  // Filter entries by documentType
+  const vipEntries = sortEntriesChronologically(entries.filter((e) => e.documentType === 'VIP'));
+  const departmentEntries = sortEntriesChronologically(entries.filter((e) => e.documentType === 'Department'));
+  const generalEntries = sortEntriesChronologically(entries.filter((e) => e.documentType === 'General'));
+
   const inwardCount = entries.filter((e) => e.type === 'inward').length;
   const outwardCount = entries.filter((e) => e.type === 'outward').length;
-  const inwardEntries = entries.filter((e) => e.type === 'inward');
-  const outwardEntries = entries.filter((e) => e.type === 'outward');
 
   if (loading) {
     return <ProjectsSkeleton />;
@@ -557,7 +589,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         <CardContent>
           {showAddForm && (
             <form onSubmit={handleAddEntry} className="mb-6 p-4 border rounded-lg space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
                   <Label htmlFor="entry-type">Type *</Label>
                   <Select
@@ -572,6 +604,24 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                     <SelectContent>
                       <SelectItem value="inward">Inward</SelectItem>
                       <SelectItem value="outward">Outward</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="entry-documentType">Document Type *</Label>
+                  <Select
+                    value={entryForm.documentType}
+                    onValueChange={(value) =>
+                      setEntryForm({ ...entryForm, documentType: value as 'VIP' | 'Department' | 'General' })
+                    }
+                  >
+                    <SelectTrigger id="entry-documentType">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="VIP">VIP</SelectItem>
+                      <SelectItem value="Department">Department</SelectItem>
+                      <SelectItem value="General">General</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -648,96 +698,289 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             </form>
           )}
 
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>From/To</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Mode</TableHead>
-                  <TableHead>Ref No</TableHead>
-                  <TableHead>Officer</TableHead>
-                  <TableHead>Attachments</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entries.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={9}
-                      className="text-center text-muted-foreground"
-                    >
-                      No register entries yet.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  entries.map((entry) => (
-                    <TableRow key={entry.id}>
-                      <TableCell>
-                        <span
-                          className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${entry.type === 'inward'
-                              ? 'bg-blue-100 text-blue-800'
-                              : 'bg-green-100 text-green-800'
-                            }`}
-                        >
-                          {entry.type === 'inward' ? (
-                            <Inbox className="mr-1 h-3 w-3" />
-                          ) : (
-                            <Send className="mr-1 h-3 w-3" />
-                          )}
-                          {entry.type}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(entry.date), 'dd MMM yyyy')}
-                      </TableCell>
-                      <TableCell>{entry.fromTo}</TableCell>
-                      <TableCell className="font-medium">{entry.subject}</TableCell>
-                      <TableCell>{entry.mode || '-'}</TableCell>
-                      <TableCell>{entry.refNo || '-'}</TableCell>
-                      <TableCell>{entry.officer || '-'}</TableCell>
-                      <TableCell>
-                        {entry.attachments && entry.attachments.length > 0 ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-auto py-1 px-2 text-sm text-muted-foreground hover:text-foreground"
-                            onClick={() => setAttachmentDialogEntry(entry)}
-                          >
-                            <Paperclip className="h-3 w-3 mr-1" />
-                            {entry.attachments.length} file(s)
-                          </Button>
-                        ) : (
-                          '-'
-                        )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => startEditEntry(entry)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDeleteEntry(entry.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+          <Tabs defaultValue="VIP" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="VIP">VIP ({vipEntries.length})</TabsTrigger>
+              <TabsTrigger value="Department">Department ({departmentEntries.length})</TabsTrigger>
+              <TabsTrigger value="General">General ({generalEntries.length})</TabsTrigger>
+            </TabsList>
+            <TabsContent value="VIP" className="mt-4">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>From/To</TableHead>
+                      <TableHead>Subject</TableHead>
+                      <TableHead>Mode</TableHead>
+                      <TableHead>Ref No</TableHead>
+                      <TableHead>Officer</TableHead>
+                      <TableHead>Attachments</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {vipEntries.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={9}
+                          className="text-center text-muted-foreground"
+                        >
+                          No VIP register entries yet.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      vipEntries.map((entry) => (
+                        <TableRow key={entry.id}>
+                          <TableCell>
+                            <span
+                              className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${entry.type === 'inward'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-green-100 text-green-800'
+                                }`}
+                            >
+                              {entry.type === 'inward' ? (
+                                <Inbox className="mr-1 h-3 w-3" />
+                              ) : (
+                                <Send className="mr-1 h-3 w-3" />
+                              )}
+                              {entry.type}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(entry.date), 'dd MMM yyyy')}
+                          </TableCell>
+                          <TableCell>{entry.fromTo}</TableCell>
+                          <TableCell className="font-medium">{entry.subject}</TableCell>
+                          <TableCell>{entry.mode || '-'}</TableCell>
+                          <TableCell>{entry.refNo || '-'}</TableCell>
+                          <TableCell>{entry.officer || '-'}</TableCell>
+                          <TableCell>
+                            {entry.attachments && entry.attachments.length > 0 ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto py-1 px-2 text-sm text-muted-foreground hover:text-foreground"
+                                onClick={() => setAttachmentDialogEntry(entry)}
+                              >
+                                <Paperclip className="h-3 w-3 mr-1" />
+                                {entry.attachments.length} file(s)
+                              </Button>
+                            ) : (
+                              '-'
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => startEditEntry(entry)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteEntry(entry.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+            <TabsContent value="Department" className="mt-4">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>From/To</TableHead>
+                      <TableHead>Subject</TableHead>
+                      <TableHead>Mode</TableHead>
+                      <TableHead>Ref No</TableHead>
+                      <TableHead>Officer</TableHead>
+                      <TableHead>Attachments</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {departmentEntries.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={9}
+                          className="text-center text-muted-foreground"
+                        >
+                          No Department register entries yet.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      departmentEntries.map((entry) => (
+                        <TableRow key={entry.id}>
+                          <TableCell>
+                            <span
+                              className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${entry.type === 'inward'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-green-100 text-green-800'
+                                }`}
+                            >
+                              {entry.type === 'inward' ? (
+                                <Inbox className="mr-1 h-3 w-3" />
+                              ) : (
+                                <Send className="mr-1 h-3 w-3" />
+                              )}
+                              {entry.type}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(entry.date), 'dd MMM yyyy')}
+                          </TableCell>
+                          <TableCell>{entry.fromTo}</TableCell>
+                          <TableCell className="font-medium">{entry.subject}</TableCell>
+                          <TableCell>{entry.mode || '-'}</TableCell>
+                          <TableCell>{entry.refNo || '-'}</TableCell>
+                          <TableCell>{entry.officer || '-'}</TableCell>
+                          <TableCell>
+                            {entry.attachments && entry.attachments.length > 0 ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto py-1 px-2 text-sm text-muted-foreground hover:text-foreground"
+                                onClick={() => setAttachmentDialogEntry(entry)}
+                              >
+                                <Paperclip className="h-3 w-3 mr-1" />
+                                {entry.attachments.length} file(s)
+                              </Button>
+                            ) : (
+                              '-'
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => startEditEntry(entry)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteEntry(entry.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+            <TabsContent value="General" className="mt-4">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>From/To</TableHead>
+                      <TableHead>Subject</TableHead>
+                      <TableHead>Mode</TableHead>
+                      <TableHead>Ref No</TableHead>
+                      <TableHead>Officer</TableHead>
+                      <TableHead>Attachments</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {generalEntries.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={9}
+                          className="text-center text-muted-foreground"
+                        >
+                          No General register entries yet.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      generalEntries.map((entry) => (
+                        <TableRow key={entry.id}>
+                          <TableCell>
+                            <span
+                              className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${entry.type === 'inward'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-green-100 text-green-800'
+                                }`}
+                            >
+                              {entry.type === 'inward' ? (
+                                <Inbox className="mr-1 h-3 w-3" />
+                              ) : (
+                                <Send className="mr-1 h-3 w-3" />
+                              )}
+                              {entry.type}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {format(new Date(entry.date), 'dd MMM yyyy')}
+                          </TableCell>
+                          <TableCell>{entry.fromTo}</TableCell>
+                          <TableCell className="font-medium">{entry.subject}</TableCell>
+                          <TableCell>{entry.mode || '-'}</TableCell>
+                          <TableCell>{entry.refNo || '-'}</TableCell>
+                          <TableCell>{entry.officer || '-'}</TableCell>
+                          <TableCell>
+                            {entry.attachments && entry.attachments.length > 0 ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-auto py-1 px-2 text-sm text-muted-foreground hover:text-foreground"
+                                onClick={() => setAttachmentDialogEntry(entry)}
+                              >
+                                <Paperclip className="h-3 w-3 mr-1" />
+                                {entry.attachments.length} file(s)
+                              </Button>
+                            ) : (
+                              '-'
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => startEditEntry(entry)}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteEntry(entry.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
@@ -751,10 +994,28 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUpdateEntry} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
                 <Label>Type</Label>
                 <Input value={editingEntry?.type} disabled />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-documentType">Document Type *</Label>
+                <Select
+                  value={entryForm.documentType}
+                  onValueChange={(value) =>
+                    setEntryForm({ ...entryForm, documentType: value as 'VIP' | 'Department' | 'General' })
+                  }
+                >
+                  <SelectTrigger id="edit-documentType">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="VIP">VIP</SelectItem>
+                    <SelectItem value="Department">Department</SelectItem>
+                    <SelectItem value="General">General</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-date">Date *</Label>

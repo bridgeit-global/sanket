@@ -79,6 +79,16 @@ export async function PUT(
     if (body.mode !== undefined) updateData.mode = body.mode;
     if (body.refNo !== undefined) updateData.refNo = body.refNo;
     if (body.officer !== undefined) updateData.officer = body.officer;
+    if (body.documentType !== undefined) {
+      // Validate documentType
+      if (!['VIP', 'Department', 'General'].includes(body.documentType)) {
+        return NextResponse.json(
+          { error: 'documentType must be one of: VIP, Department, General' },
+          { status: 400 },
+        );
+      }
+      updateData.documentType = body.documentType;
+    }
 
     const updated = await updateRegisterEntry(id, updateData);
     if (!updated) {

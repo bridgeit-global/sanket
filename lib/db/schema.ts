@@ -379,6 +379,7 @@ export type ProjectAttachment = InferSelectModel<typeof projectAttachment>;
 export const registerEntry = pgTable('RegisterEntry', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   type: varchar('type', { enum: ['inward', 'outward'] }).notNull(),
+  documentType: varchar('document_type', { enum: ['VIP', 'Department', 'General'] }).notNull().default('General'),
   date: date('date', { mode: 'string' }).notNull(),
   fromTo: varchar('from_to', { length: 255 }).notNull(), // "From" for inward, "To" for outward
   subject: varchar('subject', { length: 500 }).notNull(),

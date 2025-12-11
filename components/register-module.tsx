@@ -41,6 +41,7 @@ interface Attachment {
 interface RegisterEntry {
   id: string;
   type: 'inward' | 'outward';
+  documentType: 'VIP' | 'Department' | 'General';
   date: string;
   fromTo: string;
   subject: string;
@@ -62,6 +63,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({
+    documentType: 'General' as 'VIP' | 'Department' | 'General',
     date: format(new Date(), 'yyyy-MM-dd'),
     fromTo: '',
     subject: '',
@@ -75,7 +77,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
 
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Filter state
   const [filters, setFilters] = useState({
     startDate: '',
@@ -147,6 +149,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
       if (response.ok) {
         await loadData();
         setForm({
+          documentType: 'General',
           date: format(new Date(), 'yyyy-MM-dd'),
           fromTo: '',
           subject: '',
@@ -296,6 +299,24 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
         <CardContent>
           <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-6">
             <div className="space-y-2 md:col-span-1">
+              <Label htmlFor="documentType">Document Type</Label>
+              <Select
+                value={form.documentType}
+                onValueChange={(value) =>
+                  setForm({ ...form, documentType: value as 'VIP' | 'Department' | 'General' })
+                }
+              >
+                <SelectTrigger id="documentType">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="VIP">VIP</SelectItem>
+                  <SelectItem value="Department">Department</SelectItem>
+                  <SelectItem value="General">General</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 md:col-span-1">
               <Label htmlFor="date">{t('common.date')}</Label>
               <Input
                 id="date"
@@ -314,7 +335,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                 onChange={(e) => setForm({ ...form, fromTo: e.target.value })}
               />
             </div>
-            <div className="space-y-2 md:col-span-3">
+            <div className="space-y-2 md:col-span-2">
               <Label htmlFor="subject">{t('forms.subject')}</Label>
               <Input
                 id="subject"

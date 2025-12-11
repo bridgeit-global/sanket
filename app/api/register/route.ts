@@ -82,12 +82,20 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { type, date, fromTo, subject, projectId, mode, refNo, officer } =
+    const { type, documentType, date, fromTo, subject, projectId, mode, refNo, officer } =
       body;
 
     if (!type || !date || !fromTo || !subject) {
       return NextResponse.json(
         { error: 'type, date, fromTo, and subject are required' },
+        { status: 400 },
+      );
+    }
+
+    // Validate documentType if provided
+    if (documentType && !['VIP', 'Department', 'General'].includes(documentType)) {
+      return NextResponse.json(
+        { error: 'documentType must be one of: VIP, Department, General' },
         { status: 400 },
       );
     }
@@ -101,6 +109,7 @@ export async function POST(request: NextRequest) {
 
     const entry = await createRegisterEntry({
       type,
+      documentType: documentType || 'General',
       date: new Date(date),
       fromTo,
       subject,

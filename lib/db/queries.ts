@@ -2458,6 +2458,7 @@ export async function deleteDailyProgrammeItem(id: string): Promise<void> {
 // Register Entry Queries
 export async function createRegisterEntry({
   type,
+  documentType,
   date,
   fromTo,
   subject,
@@ -2468,6 +2469,7 @@ export async function createRegisterEntry({
   createdBy,
 }: {
   type: 'inward' | 'outward';
+  documentType?: 'VIP' | 'Department' | 'General';
   date: Date | string;
   fromTo: string;
   subject: string;
@@ -2482,6 +2484,7 @@ export async function createRegisterEntry({
       .insert(registerEntry)
       .values({
         type,
+        documentType: documentType || 'General',
         date: formatDateToString(date),
         fromTo,
         subject,
