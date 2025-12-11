@@ -180,7 +180,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           const parts: string[] = [];
           // Try to parse "Ward X" and "Part Y" patterns
           const items = data.ward.split(',').map((w: string) => w.trim()).filter((w: string) => w.length > 0);
-          items.forEach((item) => {
+          items.forEach((item: string) => {
             const wardMatch = item.match(/^Ward\s+(\d+)$/i);
             const partMatch = item.match(/^Part\s+(\d+)$/i);
             if (wardMatch) {

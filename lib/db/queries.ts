@@ -1756,18 +1756,17 @@ export async function getTasksWithFilters({
     // Need to include JOINs when filters require them
     const needsJoins = !!(token || serviceType || mobileNo);
 
-    let totalCountQuery = db
-      .select({ count: count() })
-      .from(voterTasks);
-
-    if (needsJoins) {
-      totalCountQuery = totalCountQuery
+    const totalCountResult = needsJoins
+      ? await db
+        .select({ count: count() })
+        .from(voterTasks)
         .leftJoin(beneficiaryServices, eq(voterTasks.serviceId, beneficiaryServices.id))
-        .leftJoin(Voters, eq(voterTasks.voterId, Voters.epicNumber));
-    }
-
-    const totalCountResult = await totalCountQuery
-      .where(finalWhereConditions.length > 0 ? and(...finalWhereConditions) : sql`1=1`);
+        .leftJoin(Voters, eq(voterTasks.voterId, Voters.epicNumber))
+        .where(finalWhereConditions.length > 0 ? and(...finalWhereConditions) : sql`1=1`)
+      : await db
+        .select({ count: count() })
+        .from(voterTasks)
+        .where(finalWhereConditions.length > 0 ? and(...finalWhereConditions) : sql`1=1`);
 
     const totalCount = totalCountResult[0]?.count || 0;
     const totalPages = Math.ceil(totalCount / limit);
