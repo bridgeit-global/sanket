@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { toast } from '@/components/toast';
 import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
 import { useTranslations } from '@/hooks/use-translations';
-import type { VoterTask, BeneficiaryService, Voter } from '@/lib/db/schema';
+import type { VoterTask, BeneficiaryService, Voter, CommunityServiceArea } from '@/lib/db/schema';
 
 interface TaskWithService extends VoterTask {
     service?: BeneficiaryService;
@@ -21,6 +21,17 @@ interface TaskWithService extends VoterTask {
 
 interface TaskResponse {
     tasks: TaskWithService[];
+    totalCount: number;
+    totalPages: number;
+    currentPage: number;
+}
+
+interface CommunityServiceWithAreas extends BeneficiaryService {
+    areas: Array<CommunityServiceArea>;
+}
+
+interface CommunityServicesResponse {
+    services: CommunityServiceWithAreas[];
     totalCount: number;
     totalPages: number;
     currentPage: number;
@@ -37,17 +48,54 @@ export function TaskManagement() {
     const [escalationPriority, setEscalationPriority] = useState<'high' | 'urgent'>('high');
     const [filterStatus, setFilterStatus] = useState<string>('all');
     const [filterPriority, setFilterPriority] = useState<string>('all');
+    const [filterServiceType, setFilterServiceType] = useState<string>('all'); // all, individual, community
     const [filterToken, setFilterToken] = useState<string>('');
     const [filterMobile, setFilterMobile] = useState<string>('');
     const [filterVoterId, setFilterVoterId] = useState<string>('');
     const [newNote, setNewNote] = useState('');
     const [newStatus, setNewStatus] = useState<string>('');
 
+    // Community services state
+    const [communityServices, setCommunityServices] = useState<CommunityServiceWithAreas[]>([]);
+    const [communityServicesPage, setCommunityServicesPage] = useState(1);
+    const [communityServicesTotalPages, setCommunityServicesTotalPages] = useState(1);
+    const [communityServicesTotalCount, setCommunityServicesTotalCount] = useState(0);
+
     // Pagination state
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
     const [pageSize, setPageSize] = useState(10);
+
+    const fetchCommunityServices = useCallback(async () => {
+        try {
+            // Build query parameters
+            const params = new URLSearchParams();
+            if (filterStatus !== 'all') params.append('status', filterStatus);
+            if (filterPriority !== 'all') params.append('priority', filterPriority);
+            if (filterToken) params.append('token', filterToken);
+            params.append('page', communityServicesPage.toString());
+            params.append('limit', pageSize.toString());
+
+            const response = await fetch(`/operator/api/community-services?${params.toString()}`);
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch community services');
+            }
+
+            const data: CommunityServicesResponse = await response.json();
+            setCommunityServices(data.services);
+            setCommunityServicesTotalPages(data.totalPages);
+            setCommunityServicesTotalCount(data.totalCount);
+            setCommunityServicesPage(data.currentPage);
+        } catch (error) {
+            console.error('Error fetching community services:', error);
+            toast({
+                type: 'error',
+                description: 'Failed to fetch community services',
+            });
+        }
+    }, [communityServicesPage, pageSize, filterStatus, filterPriority, filterToken]);
 
     const fetchTasks = useCallback(async () => {
         try {
@@ -60,6 +108,8 @@ export function TaskManagement() {
             if (filterToken) params.append('token', filterToken);
             if (filterMobile) params.append('mobileNo', filterMobile);
             if (filterVoterId) params.append('voterId', filterVoterId);
+            if (filterServiceType === 'individual') params.append('serviceType', 'individual');
+            if (filterServiceType === 'community') params.append('serviceType', 'community');
             params.append('page', currentPage.toString());
             params.append('limit', pageSize.toString());
 
@@ -83,11 +133,25 @@ export function TaskManagement() {
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId]);
+    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceType, t]);
 
     useEffect(() => {
-        fetchTasks();
-    }, [fetchTasks]);
+        if (filterServiceType === 'all' || filterServiceType === 'individual') {
+            fetchTasks();
+        } else {
+            setTasks([]);
+            setTotalCount(0);
+            setTotalPages(1);
+        }
+
+        if (filterServiceType === 'all' || filterServiceType === 'community') {
+            fetchCommunityServices();
+        } else {
+            setCommunityServices([]);
+            setCommunityServicesTotalCount(0);
+            setCommunityServicesTotalPages(1);
+        }
+    }, [fetchTasks, fetchCommunityServices, filterServiceType]);
 
     const handleSearch = () => {
         setCurrentPage(1); // Reset to first page when searching
@@ -97,10 +161,12 @@ export function TaskManagement() {
     const handleClearFilters = () => {
         setFilterStatus('all');
         setFilterPriority('all');
+        setFilterServiceType('all');
         setFilterToken('');
         setFilterMobile('');
         setFilterVoterId('');
         setCurrentPage(1);
+        setCommunityServicesPage(1);
     };
 
     const handleStatusUpdate = async (taskId: string, status: string, notes?: string) => {
@@ -243,7 +309,21 @@ export function TaskManagement() {
             <Card>
                 <CardContent className="pt-6">
                     <div className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                            <div>
+                                <Label htmlFor="service-type-filter">Service Type</Label>
+                                <Select value={filterServiceType} onValueChange={setFilterServiceType}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Select service type" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Services</SelectItem>
+                                        <SelectItem value="individual">Individual</SelectItem>
+                                        <SelectItem value="community">Community</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
                             <div>
                                 <Label htmlFor="status-filter">{t('taskManagement.filters.status')}</Label>
                                 <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -327,7 +407,12 @@ export function TaskManagement() {
                                     </Select>
                                 </div>
                                 <div className="text-sm text-muted-foreground">
-                                    {t('taskManagement.filters.showing', { count: tasks.length, total: totalCount })}
+                                    {filterServiceType === 'all'
+                                        ? `Showing ${tasks.length + communityServices.length} of ${totalCount + communityServicesTotalCount} items`
+                                        : filterServiceType === 'community'
+                                            ? `Showing ${communityServices.length} of ${communityServicesTotalCount} community services`
+                                            : t('taskManagement.filters.showing', { count: tasks.length, total: totalCount })
+                                    }
                                 </div>
                             </div>
 
@@ -354,110 +439,225 @@ export function TaskManagement() {
                 </div>
             ) : (
                 <div className="space-y-4">
-                    {tasks.length === 0 ? (
+                    {/* Tasks Section */}
+                    {(filterServiceType === 'all' || filterServiceType === 'individual') && (
+                        <div>
+                            {tasks.length === 0 ? (
+                                <Card>
+                                    <CardContent className="pt-6">
+                                        <div className="text-center py-8">
+                                            <p className="text-muted-foreground">{t('taskManagement.noTasks')}</p>
+                                            <p className="text-sm text-muted-foreground mt-2">
+                                                {t('taskManagement.noTasksHelp')}
+                                            </p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                tasks.map((task) => (
+                                    <Card key={task.id} className="hover:shadow-md transition-shadow">
+                                        <CardContent className="pt-6">
+                                            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
+                                                <div className="flex-1">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                                                        <h3 className="text-lg font-semibold">
+                                                            {task.taskType.replace('service_request', '').trim() || t('taskManagement.serviceRequest')}
+                                                        </h3>
+                                                        <div className="flex gap-2">
+                                                            <Badge className={getStatusColor(task.status)}>
+                                                                {task.status.replace('_', ' ')}
+                                                            </Badge>
+                                                            <Badge className={getPriorityColor(task.priority)}>
+                                                                <div className="flex items-center gap-1">
+                                                                    {getPriorityIcon(task.priority)}
+                                                                    {task.priority}
+                                                                </div>
+                                                            </Badge>
+                                                        </div>
+                                                    </div>
+
+                                                    {task.description && (
+                                                        <p className="text-muted-foreground mb-2">{task.description}</p>
+                                                    )}
+
+                                                    {task.service && (
+                                                        <div className="text-sm text-muted-foreground mb-2">
+                                                            <strong>{t('taskManagement.service')}</strong> {task.service.serviceName}
+                                                            <Badge variant="outline" className="ml-2">
+                                                                {task.service.serviceType === 'community' ? 'Community' : 'Individual'}
+                                                            </Badge>
+                                                            {task.service.token && (
+                                                                <span> | <strong>{t('taskManagement.token')}</strong> {task.service.token}</span>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {task.voter && (
+                                                        <div className="bg-gray-50 p-3 rounded-lg mb-3">
+                                                            <div className="text-sm font-medium text-gray-900 mb-1">
+                                                                {t('taskManagement.voterInformation')}
+                                                            </div>
+                                                            <div className="text-sm text-gray-700 space-y-1">
+                                                                <div><strong>{t('taskManagement.name')}</strong> {task.voter.fullName}</div>
+                                                                <div><strong>{t('taskManagement.voterId')}</strong> {task.voterId}</div>
+                                                                {task.voter.mobileNoPrimary && (
+                                                                    <div><strong>{t('taskManagement.phone')}</strong> {task.voter.mobileNoPrimary}</div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="text-sm text-muted-foreground">
+                                                        <strong>{t('taskManagement.created')}</strong> {new Date(task.createdAt).toLocaleDateString()}
+                                                        {task.updatedAt !== task.createdAt && (
+                                                            <span> | <strong>{t('taskManagement.updated')}</strong> {new Date(task.updatedAt).toLocaleDateString()}</span>
+                                                        )}
+                                                    </div>
+
+                                                    {task.notes && (
+                                                        <div className="mt-2 p-2 bg-muted rounded text-sm">
+                                                            <strong>{t('taskManagement.notes')}</strong> {task.notes}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex flex-col sm:flex-row gap-2 lg:ml-4">
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => {
+                                                            setSelectedTask(task);
+                                                            setShowTaskDialog(true);
+                                                        }}
+                                                        className="flex-1 sm:flex-none"
+                                                    >
+                                                        {t('taskManagement.actions.manage')}
+                                                    </Button>
+                                                    <Button
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() => {
+                                                            setSelectedTask(task);
+                                                            setShowEscalationDialog(true);
+                                                        }}
+                                                        className="flex-1 sm:flex-none"
+                                                    >
+                                                        {t('taskManagement.actions.escalate')}
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))
+                            )}
+                        </div>
+                    )}
+
+                    {/* Community Services Section */}
+                    {(filterServiceType === 'all' || filterServiceType === 'community') && (
+                        <div>
+                            {communityServices.length === 0 && (filterServiceType === 'community' || (filterServiceType === 'all' && tasks.length === 0)) ? (
+                                <Card>
+                                    <CardContent className="pt-6">
+                                        <div className="text-center py-8">
+                                            <p className="text-muted-foreground">No community services found</p>
+                                            <p className="text-sm text-muted-foreground mt-2">
+                                                Try adjusting your filters to find community services
+                                            </p>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <div>
+                                    {filterServiceType === 'all' && communityServices.length > 0 && (
+                                        <div className="mb-4">
+                                            <h2 className="text-2xl font-semibold mb-4">Community Services</h2>
+                                        </div>
+                                    )}
+                                    {communityServices.map((service) => (
+                                        <Card key={service.id} className="hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
+                                            <CardContent className="pt-6">
+                                                <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
+                                                    <div className="flex-1">
+                                                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                                                            <h3 className="text-lg font-semibold">{service.serviceName}</h3>
+                                                            <div className="flex gap-2">
+                                                                <Badge className={getStatusColor(service.status || 'pending')}>
+                                                                    {service.status?.replace('_', ' ') || 'pending'}
+                                                                </Badge>
+                                                                <Badge className={getPriorityColor(service.priority || 'medium')}>
+                                                                    <div className="flex items-center gap-1">
+                                                                        {getPriorityIcon(service.priority || 'medium')}
+                                                                        {service.priority || 'medium'}
+                                                                    </div>
+                                                                </Badge>
+                                                                <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                                                                    Community Service
+                                                                </Badge>
+                                                            </div>
+                                                        </div>
+
+                                                        {service.description && (
+                                                            <p className="text-muted-foreground mb-3">{service.description}</p>
+                                                        )}
+
+                                                        {service.token && (
+                                                            <div className="text-sm text-muted-foreground mb-3">
+                                                                <strong>{t('taskManagement.token')}</strong> {service.token}
+                                                            </div>
+                                                        )}
+
+                                                        {service.areas && service.areas.length > 0 && (
+                                                            <div className="bg-blue-50 p-3 rounded-lg mb-3">
+                                                                <div className="text-sm font-medium text-blue-900 mb-2">
+                                                                    Service Areas
+                                                                </div>
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-sm text-blue-700">
+                                                                    {service.areas.map((area) => (
+                                                                        <div key={`${area.partNo || ''}-${area.wardNo || ''}-${area.acNo || ''}`} className="flex flex-wrap gap-1">
+                                                                            {area.partNo && <span><strong>Part:</strong> {area.partNo}</span>}
+                                                                            {area.wardNo && <span><strong>Ward:</strong> {area.wardNo}</span>}
+                                                                            {area.acNo && <span><strong>AC:</strong> {area.acNo}</span>}
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="text-sm text-muted-foreground">
+                                                            <strong>Created:</strong> {new Date(service.createdAt).toLocaleDateString()}
+                                                            {service.updatedAt && service.updatedAt !== service.createdAt && (
+                                                                <span> | <strong>Updated:</strong> {new Date(service.updatedAt).toLocaleDateString()}</span>
+                                                            )}
+                                                        </div>
+
+                                                        {service.notes && (
+                                                            <div className="mt-2 p-2 bg-muted rounded text-sm">
+                                                                <strong>Notes:</strong> {service.notes}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Show message if no results at all */}
+                    {filterServiceType === 'all' && tasks.length === 0 && communityServices.length === 0 && (
                         <Card>
                             <CardContent className="pt-6">
                                 <div className="text-center py-8">
-                                    <p className="text-muted-foreground">{t('taskManagement.noTasks')}</p>
+                                    <p className="text-muted-foreground">No tasks or community services found</p>
                                     <p className="text-sm text-muted-foreground mt-2">
-                                        {t('taskManagement.noTasksHelp')}
+                                        Try adjusting your filters
                                     </p>
                                 </div>
                             </CardContent>
                         </Card>
-                    ) : (
-                        tasks.map((task) => (
-                            <Card key={task.id} className="hover:shadow-md transition-shadow">
-                                <CardContent className="pt-6">
-                                    <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
-                                        <div className="flex-1">
-                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                                                <h3 className="text-lg font-semibold">
-                                                    {task.taskType.replace('service_request', '').trim() || t('taskManagement.serviceRequest')}
-                                                </h3>
-                                                <div className="flex gap-2">
-                                                    <Badge className={getStatusColor(task.status)}>
-                                                        {task.status.replace('_', ' ')}
-                                                    </Badge>
-                                                    <Badge className={getPriorityColor(task.priority)}>
-                                                        <div className="flex items-center gap-1">
-                                                            {getPriorityIcon(task.priority)}
-                                                            {task.priority}
-                                                        </div>
-                                                    </Badge>
-                                                </div>
-                                            </div>
-
-                                            {task.description && (
-                                                <p className="text-muted-foreground mb-2">{task.description}</p>
-                                            )}
-
-                                            {task.service && (
-                                                <div className="text-sm text-muted-foreground mb-2">
-                                                    <strong>{t('taskManagement.service')}</strong> {task.service.serviceName} ({task.service.serviceType})
-                                                    {task.service.token && (
-                                                        <span> | <strong>{t('taskManagement.token')}</strong> {task.service.token}</span>
-                                                    )}
-                                                </div>
-                                            )}
-
-                                            {task.voter && (
-                                                <div className="bg-gray-50 p-3 rounded-lg mb-3">
-                                                    <div className="text-sm font-medium text-gray-900 mb-1">
-                                                        {t('taskManagement.voterInformation')}
-                                                    </div>
-                                                    <div className="text-sm text-gray-700 space-y-1">
-                                                        <div><strong>{t('taskManagement.name')}</strong> {task.voter.fullName}</div>
-                                                        <div><strong>{t('taskManagement.voterId')}</strong> {task.voterId}</div>
-                                                        {task.voter.mobileNoPrimary && (
-                                                            <div><strong>{t('taskManagement.phone')}</strong> {task.voter.mobileNoPrimary}</div>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            <div className="text-sm text-muted-foreground">
-                                                <strong>{t('taskManagement.created')}</strong> {new Date(task.createdAt).toLocaleDateString()}
-                                                {task.updatedAt !== task.createdAt && (
-                                                    <span> | <strong>{t('taskManagement.updated')}</strong> {new Date(task.updatedAt).toLocaleDateString()}</span>
-                                                )}
-                                            </div>
-
-                                            {task.notes && (
-                                                <div className="mt-2 p-2 bg-muted rounded text-sm">
-                                                    <strong>{t('taskManagement.notes')}</strong> {task.notes}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="flex flex-col sm:flex-row gap-2 lg:ml-4">
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => {
-                                                    setSelectedTask(task);
-                                                    setShowTaskDialog(true);
-                                                }}
-                                                className="flex-1 sm:flex-none"
-                                            >
-                                                {t('taskManagement.actions.manage')}
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                size="sm"
-                                                onClick={() => {
-                                                    setSelectedTask(task);
-                                                    setShowEscalationDialog(true);
-                                                }}
-                                                className="flex-1 sm:flex-none"
-                                            >
-                                                {t('taskManagement.actions.escalate')}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        ))
                     )}
                 </div>
             )}

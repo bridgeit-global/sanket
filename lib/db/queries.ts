@@ -1665,6 +1665,7 @@ export async function getTasksWithFilters({
   page = 1,
   limit = 10,
   assignedTo,
+  serviceType,
 }: {
   status?: string;
   priority?: string;
@@ -1674,6 +1675,7 @@ export async function getTasksWithFilters({
   page?: number;
   limit?: number;
   assignedTo?: string;
+  serviceType?: 'individual' | 'community';
 }): Promise<{
   tasks: Array<VoterTask & {
     service?: {
@@ -1743,6 +1745,10 @@ export async function getTasksWithFilters({
 
     if (token) {
       finalWhereConditions.push(eq(beneficiaryServices.token, token));
+    }
+
+    if (serviceType) {
+      finalWhereConditions.push(eq(beneficiaryServices.serviceType, serviceType));
     }
 
     if (mobileNo) {
@@ -2012,6 +2018,87 @@ export async function getCommunityServiceAreasByServiceId(serviceId: string): Pr
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get community service areas by service id',
+    );
+  }
+}
+
+export async function getCommunityServicesWithAreas({
+  status,
+  priority,
+  token,
+  page = 1,
+  limit = 10,
+}: {
+  status?: string;
+  priority?: string;
+  token?: string;
+  page?: number;
+  limit?: number;
+}): Promise<{
+  services: Array<BeneficiaryService & {
+    areas: Array<CommunityServiceArea>;
+  }>;
+  totalCount: number;
+  totalPages: number;
+  currentPage: number;
+}> {
+  try {
+    const offset = (page - 1) * limit;
+
+    // Build where conditions
+    const whereConditions: SQL[] = [eq(beneficiaryServices.serviceType, 'community')];
+
+    if (status) {
+      whereConditions.push(eq(beneficiaryServices.status, status as any));
+    }
+
+    if (priority) {
+      whereConditions.push(eq(beneficiaryServices.priority, priority as any));
+    }
+
+    if (token) {
+      whereConditions.push(eq(beneficiaryServices.token, token));
+    }
+
+    // Get total count for pagination
+    const totalCountResult = await db
+      .select({ count: count() })
+      .from(beneficiaryServices)
+      .where(and(...whereConditions));
+
+    const totalCount = totalCountResult[0]?.count || 0;
+    const totalPages = Math.ceil(totalCount / limit);
+
+    // Get services
+    const services = await db
+      .select()
+      .from(beneficiaryServices)
+      .where(and(...whereConditions))
+      .orderBy(desc(beneficiaryServices.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    // Get areas for each service
+    const servicesWithAreas = await Promise.all(
+      services.map(async (service) => {
+        const areas = await getCommunityServiceAreasByServiceId(service.id);
+        return {
+          ...service,
+          areas,
+        };
+      })
+    );
+
+    return {
+      services: servicesWithAreas,
+      totalCount,
+      totalPages,
+      currentPage: page,
+    };
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get community services with areas',
     );
   }
 }
