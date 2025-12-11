@@ -72,13 +72,17 @@ export async function PUT(
     const body = await request.json();
     const updateData: any = {};
 
-    if (body.date) updateData.date = new Date(body.date);
+    // Date should remain as string (YYYY-MM-DD format) as per schema
+    if (body.date !== undefined) updateData.date = body.date;
     if (body.fromTo !== undefined) updateData.fromTo = body.fromTo;
     if (body.subject !== undefined) updateData.subject = body.subject;
-    if (body.projectId !== undefined) updateData.projectId = body.projectId;
-    if (body.mode !== undefined) updateData.mode = body.mode;
-    if (body.refNo !== undefined) updateData.refNo = body.refNo;
-    if (body.officer !== undefined) updateData.officer = body.officer;
+    if (body.projectId !== undefined) {
+      // Convert empty string to null for optional projectId
+      updateData.projectId = body.projectId === '' ? null : body.projectId;
+    }
+    if (body.mode !== undefined) updateData.mode = body.mode || null;
+    if (body.refNo !== undefined) updateData.refNo = body.refNo || null;
+    if (body.officer !== undefined) updateData.officer = body.officer || null;
     if (body.documentType !== undefined) {
       // Validate documentType
       if (!['VIP', 'Department', 'General'].includes(body.documentType)) {
@@ -98,8 +102,9 @@ export async function PUT(
     return NextResponse.json(updated);
   } catch (error) {
     console.error('Error updating register entry:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update register entry';
     return NextResponse.json(
-      { error: 'Failed to update register entry' },
+      { error: errorMessage },
       { status: 500 },
     );
   }

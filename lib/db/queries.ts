@@ -2663,9 +2663,11 @@ export async function updateRegisterEntry(
 
     return updated || null;
   } catch (error) {
+    console.error('Error updating register entry:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Failed to update register entry';
     throw new ChatSDKError(
       'bad_request:database',
-      'Failed to update register entry',
+      errorMessage,
     );
   }
 }

@@ -20,9 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Download, Paperclip, Eye, FileText, Search, X, Upload } from 'lucide-react';
+import { Printer, Paperclip, Search, X, Upload, Edit, Trash2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
 import { RegisterAttachmentDialog } from '@/components/register-attachment-dialog';
 import { RegisterSkeleton } from '@/components/module-skeleton';
@@ -30,6 +29,15 @@ import { TablePagination, usePagination } from '@/components/table-pagination';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { useTranslations } from '@/hooks/use-translations';
 import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 
 interface Attachment {
   id: string;
@@ -75,6 +83,9 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
   });
   const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<RegisterEntry | null>(null);
+  const [editingEntry, setEditingEntry] = useState<RegisterEntry | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
 
   // File upload state for new entries
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -297,6 +308,93 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
       } catch (error) {
         console.error('Error refreshing attachments:', error);
       }
+    }
+  };
+
+  const startEditEntry = (entry: RegisterEntry) => {
+    setEditingEntry(entry);
+    setForm({
+      documentType: entry.documentType || 'General',
+      date: entry.date,
+      fromTo: entry.fromTo,
+      subject: entry.subject,
+      projectId: entry.projectId || '',
+      mode: entry.mode || '',
+      refNo: entry.refNo || '',
+      officer: entry.officer || '',
+    });
+  };
+
+  const handleUpdateEntry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingEntry) return;
+
+    try {
+      const response = await fetch(`/api/register/${editingEntry.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: form.date,
+          fromTo: form.fromTo,
+          subject: form.subject,
+          documentType: form.documentType,
+          projectId: form.projectId || undefined,
+          mode: form.mode,
+          refNo: form.refNo,
+          officer: form.officer,
+        }),
+      });
+
+      if (response.ok) {
+        await loadData();
+        setEditingEntry(null);
+        toast.success('Entry updated successfully');
+        // Reset form
+        setForm({
+          documentType: 'General',
+          date: format(new Date(), 'yyyy-MM-dd'),
+          fromTo: '',
+          subject: '',
+          projectId: '',
+          mode: '',
+          refNo: '',
+          officer: '',
+        });
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to update entry');
+      }
+    } catch (error) {
+      console.error('Error updating entry:', error);
+      toast.error('Failed to update entry');
+    }
+  };
+
+  const handleDeleteEntry = (entryId: string) => {
+    setEntryToDelete(entryId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteEntry = async () => {
+    if (!entryToDelete) return;
+
+    try {
+      const response = await fetch(`/api/register/${entryToDelete}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        await loadData();
+        toast.success('Entry deleted successfully');
+      } else {
+        toast.error('Failed to delete entry');
+      }
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+      toast.error('Failed to delete entry');
+    } finally {
+      setEntryToDelete(null);
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -528,7 +626,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                   <div className="space-y-1 max-h-32 overflow-y-auto border rounded p-2">
                     {selectedFiles.map((file, index) => (
                       <div
-                        key={index}
+                        key={`${file.name}-${file.size}-${file.lastModified}`}
                         className="flex items-center justify-between text-sm bg-muted p-2 rounded"
                       >
                         <span className="flex items-center gap-2">
@@ -711,13 +809,14 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                   <TableHead>Ref No.</TableHead>
                   <TableHead>Officer</TableHead>
                   <TableHead className="no-print">Attachments</TableHead>
+                  <TableHead className="no-print text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedEntries.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={8}
+                      colSpan={9}
                       className="text-center text-muted-foreground"
                     >
                       {entries.length === 0 ? 'No entries yet.' : 'No entries match your search.'}
@@ -758,6 +857,26 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                             )}
                           </Button>
                         </TableCell>
+                        <TableCell className="no-print text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => startEditEntry(entry)}
+                              title="Edit entry"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteEntry(entry.id)}
+                              title="Delete entry"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
                       </TableRow>
                     );
                   })
@@ -777,6 +896,168 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Entry Dialog */}
+      <Dialog open={!!editingEntry} onOpenChange={() => {
+        setEditingEntry(null);
+        // Reset form when closing
+        setForm({
+          documentType: 'General',
+          date: format(new Date(), 'yyyy-MM-dd'),
+          fromTo: '',
+          subject: '',
+          projectId: '',
+          mode: '',
+          refNo: '',
+          officer: '',
+        });
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Register Entry</DialogTitle>
+            <DialogDescription>
+              Update the details of this {editingEntry?.type} entry
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateEntry} className="space-y-4">
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Input value={editingEntry?.type} disabled />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-documentType">Document Type *</Label>
+                <Select
+                  value={form.documentType}
+                  onValueChange={(value) =>
+                    setForm({ ...form, documentType: value as 'VIP' | 'Department' | 'General' })
+                  }
+                >
+                  <SelectTrigger id="edit-documentType">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="VIP">VIP</SelectItem>
+                    <SelectItem value="Department">Department</SelectItem>
+                    <SelectItem value="General">General</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-date">Date *</Label>
+                <Input
+                  id="edit-date"
+                  type="date"
+                  value={form.date}
+                  onChange={(e) => setForm({ ...form, date: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-fromTo">
+                {editingEntry?.type === 'inward' ? 'From' : 'To'} *
+              </Label>
+              <Input
+                id="edit-fromTo"
+                value={form.fromTo}
+                onChange={(e) => setForm({ ...form, fromTo: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-subject">Subject *</Label>
+              <Input
+                id="edit-subject"
+                value={form.subject}
+                onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-project">Project</Label>
+              <Select
+                value={form.projectId || 'none'}
+                onValueChange={(value) =>
+                  setForm({ ...form, projectId: value === 'none' ? '' : value })
+                }
+              >
+                <SelectTrigger id="edit-project">
+                  <SelectValue placeholder="Select project (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {projects.map((project) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="space-y-2">
+                <Label htmlFor="edit-mode">Mode</Label>
+                <Input
+                  id="edit-mode"
+                  value={form.mode}
+                  onChange={(e) => setForm({ ...form, mode: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-refNo">Reference No</Label>
+                <Input
+                  id="edit-refNo"
+                  value={form.refNo}
+                  onChange={(e) => setForm({ ...form, refNo: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-officer">Officer</Label>
+                <Input
+                  id="edit-officer"
+                  value={form.officer}
+                  onChange={(e) => setForm({ ...form, officer: e.target.value })}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setEditingEntry(null);
+                  setForm({
+                    documentType: 'General',
+                    date: format(new Date(), 'yyyy-MM-dd'),
+                    fromTo: '',
+                    subject: '',
+                    projectId: '',
+                    mode: '',
+                    refNo: '',
+                    officer: '',
+                  });
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save Changes</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Entry"
+        description="Are you sure you want to delete this register entry? This action cannot be undone."
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
+        onConfirm={confirmDeleteEntry}
+      />
 
       {/* Attachment Dialog */}
       {selectedEntry && (

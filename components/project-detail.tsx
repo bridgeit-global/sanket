@@ -573,7 +573,18 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setEditingProject(!editingProject)}
+                onClick={() => {
+                  if (project) {
+                    // Reset form to current project values when starting to edit
+                    setProjectForm({
+                      name: project.name,
+                      ward: project.ward || '',
+                      type: project.type || '',
+                      status: project.status,
+                    });
+                  }
+                  setEditingProject(!editingProject);
+                }}
               >
                 <Edit className="mr-2 h-4 w-4" />
                 Edit Project
@@ -641,7 +652,18 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => setEditingProject(false)}
+                  onClick={() => {
+                    // Reset form to current project values when canceling
+                    if (project) {
+                      setProjectForm({
+                        name: project.name,
+                        ward: project.ward || '',
+                        type: project.type || '',
+                        status: project.status,
+                      });
+                    }
+                    setEditingProject(false);
+                  }}
                 >
                   Cancel
                 </Button>
