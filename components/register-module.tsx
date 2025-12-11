@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Download, Paperclip, Eye, FileText, Search, X } from 'lucide-react';
+import { Printer, Download, Paperclip, Eye, FileText, Search, X, Upload } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { format } from 'date-fns';
@@ -29,6 +29,7 @@ import { RegisterSkeleton } from '@/components/module-skeleton';
 import { TablePagination, usePagination } from '@/components/table-pagination';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { useTranslations } from '@/hooks/use-translations';
+import { toast } from 'sonner';
 
 interface Attachment {
   id: string;
@@ -74,6 +75,11 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
   });
   const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<RegisterEntry | null>(null);
+
+  // File upload state for new entries
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
@@ -136,6 +142,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
     if (!form.date || !form.subject) return;
 
     try {
+      // Create the entry first
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -147,7 +154,54 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
       });
 
       if (response.ok) {
+        const newEntry = await response.json();
+
+        // Upload files if any
+        if (selectedFiles.length > 0) {
+          setUploadingFiles(true);
+          let successCount = 0;
+          let errorCount = 0;
+
+          for (const file of selectedFiles) {
+            try {
+              const formData = new FormData();
+              formData.append('file', file);
+
+              const uploadResponse = await fetch(`/api/register/${newEntry.id}/attachments`, {
+                method: 'POST',
+                body: formData,
+              });
+
+              if (uploadResponse.ok) {
+                successCount++;
+              } else {
+                const errorData = await uploadResponse.json();
+                toast.error(`Failed to upload ${file.name}: ${errorData.error}`);
+                errorCount++;
+              }
+            } catch (error) {
+              console.error('Upload error:', error);
+              toast.error(`Failed to upload ${file.name}`);
+              errorCount++;
+            }
+          }
+
+          setUploadingFiles(false);
+
+          if (successCount > 0) {
+            toast.success(
+              `Entry created and ${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully`,
+            );
+          }
+        } else {
+          toast.success('Entry created successfully');
+        }
+
         await loadData();
+        setSelectedFiles([]);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
         setForm({
           documentType: 'General',
           date: format(new Date(), 'yyyy-MM-dd'),
@@ -158,10 +212,59 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
           refNo: '',
           officer: '',
         });
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to create entry');
       }
     } catch (error) {
       console.error('Error creating register entry:', error);
+      toast.error('Failed to create entry');
+      setUploadingFiles(false);
     }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const fileArray = Array.from(files);
+      // Validate file types and sizes
+      const validFiles: File[] = [];
+      const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+      const ALLOWED_TYPES = [
+        'application/pdf',
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/plain',
+      ];
+
+      for (const file of fileArray) {
+        if (file.size > MAX_SIZE) {
+          toast.error(`${file.name} is too large. Maximum size is 10MB.`);
+          continue;
+        }
+        if (!ALLOWED_TYPES.includes(file.type)) {
+          toast.error(`${file.name} is not an allowed file type.`);
+          continue;
+        }
+        validFiles.push(file);
+      }
+
+      setSelectedFiles((prev) => [...prev, ...validFiles]);
+    }
+    // Reset input
+    if (e.target) {
+      e.target.value = '';
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handlePrint = () => {
@@ -393,8 +496,67 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                 onChange={(e) => setForm({ ...form, officer: e.target.value })}
               />
             </div>
+            <div className="space-y-2 md:col-span-6">
+              <Label htmlFor="files">Attachments (Optional)</Label>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-fit"
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    Select Files
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={handleFileSelect}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.txt"
+                  />
+                  {selectedFiles.length > 0 && (
+                    <span className="text-sm text-muted-foreground">
+                      {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
+                    </span>
+                  )}
+                </div>
+                {selectedFiles.length > 0 && (
+                  <div className="space-y-1 max-h-32 overflow-y-auto border rounded p-2">
+                    {selectedFiles.map((file, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between text-sm bg-muted p-2 rounded"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Paperclip className="h-3 w-3" />
+                          <span className="truncate max-w-xs">{file.name}</span>
+                          <span className="text-muted-foreground">
+                            ({(file.size / 1024).toFixed(1)} KB)
+                          </span>
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeFile(index)}
+                          className="h-6 w-6 p-0"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
             <div className="md:col-span-6 flex justify-end">
-              <Button type="submit">Add Entry</Button>
+              <Button type="submit" disabled={uploadingFiles}>
+                {uploadingFiles ? 'Uploading...' : 'Add Entry'}
+              </Button>
             </div>
           </form>
         </CardContent>
