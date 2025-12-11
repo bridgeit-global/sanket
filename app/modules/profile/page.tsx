@@ -1,7 +1,7 @@
 import { auth } from '@/app/(auth)/auth';
 import { redirect } from 'next/navigation';
 import { UserProfile } from '@/components/user-profile';
-import { ModulePageHeader } from '@/components/module-page-header';
+import { ProfileHeader } from '@/components/profile-header';
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -12,6 +12,7 @@ export default async function ProfilePage() {
 
   return (
     <div className="container mx-auto p-4 sm:py-8 max-w-7xl">
+      <ProfileHeader />
       <UserProfile userId={session.user.id} />
     </div>
   );
