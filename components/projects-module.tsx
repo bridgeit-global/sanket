@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,7 +26,7 @@ import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ProjectsSkeleton } from '@/components/module-skeleton';
 import { TablePagination, usePagination } from '@/components/table-pagination';
-import { projectFormSchema, type ProjectFormData, validateForm } from '@/lib/validations';
+import { projectFormSchema, validateForm } from '@/lib/validations';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { useTranslations } from '@/hooks/use-translations';
 import { WardBeatCombobox } from '@/components/ui/ward-beat-combobox';
@@ -51,33 +51,18 @@ export function ProjectsModule() {
     type: '',
     status: 'Concept' as Project['status'],
   });
-  const [wardValues, setWardValues] = useState<string[]>([]);
+  const [selectedWards, setSelectedWards] = useState<string[]>([]);
+  const [selectedParts, setSelectedParts] = useState<string[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
-  
+
   // Search and filter state
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  
+
   // Form validation errors
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
-  // Get unique ward/beat values from all projects
-  const availableWardValues = useMemo(() => {
-    const values = new Set<string>();
-    projects.forEach((project) => {
-      if (project.ward) {
-        // Split by comma and trim each value
-        project.ward.split(',').forEach((w) => {
-          const trimmed = w.trim();
-          if (trimmed) {
-            values.add(trimmed);
-          }
-        });
-      }
-    });
-    return Array.from(values).sort();
-  }, [projects]);
 
   useEffect(() => {
     loadProjects();
@@ -100,13 +85,16 @@ export function ProjectsModule() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Combine ward values into comma-separated string
+
+    // Convert selected wards and parts to comma-separated string
+    const wardParts: string[] = [];
+    selectedWards.forEach(ward => wardParts.push(`Ward ${ward}`));
+    selectedParts.forEach(part => wardParts.push(`Part ${part}`));
     const formData = {
       ...form,
-      ward: wardValues.join(', '),
+      ward: wardParts.join(', '),
     };
-    
+
     // Validate form
     const validation = validateForm(projectFormSchema, formData);
     if (!validation.success) {
@@ -115,7 +103,7 @@ export function ProjectsModule() {
       toast.error(firstError);
       return;
     }
-    
+
     setFormErrors({});
 
     try {
@@ -160,16 +148,25 @@ export function ProjectsModule() {
       type: project.type || '',
       status: project.status,
     });
-    // Parse ward string into array
+    // Parse ward string to extract ward numbers and part numbers
     if (project.ward) {
-      setWardValues(
-        project.ward
-          .split(',')
-          .map((w) => w.trim())
-          .filter(Boolean)
-      );
+      const wards: string[] = [];
+      const parts: string[] = [];
+      const items = project.ward.split(',').map((w: string) => w.trim()).filter((w: string) => w.length > 0);
+      items.forEach((item) => {
+        const wardMatch = item.match(/^Ward\s+(\d+)$/i);
+        const partMatch = item.match(/^Part\s+(\d+)$/i);
+        if (wardMatch) {
+          wards.push(wardMatch[1]);
+        } else if (partMatch) {
+          parts.push(partMatch[1]);
+        }
+      });
+      setSelectedWards(wards);
+      setSelectedParts(parts);
     } else {
-      setWardValues([]);
+      setSelectedWards([]);
+      setSelectedParts([]);
     }
   };
 
@@ -205,20 +202,21 @@ export function ProjectsModule() {
 
   const resetForm = () => {
     setForm({ name: '', ward: '', type: '', status: 'Concept' });
-    setWardValues([]);
+    setSelectedWards([]);
+    setSelectedParts([]);
     setEditingId(null);
     setFormErrors({});
   };
 
   // Filter projects based on search term and status
   const filteredProjects = projects.filter((project) => {
-    const matchesSearch = searchTerm === '' || 
+    const matchesSearch = searchTerm === '' ||
       project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (project.ward || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (project.type || '').toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
-    
+
     return matchesSearch && matchesStatus;
   });
 
@@ -239,8 +237,8 @@ export function ProjectsModule() {
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
-      <ModulePageHeader 
-        title={t('projects.title')} 
+      <ModulePageHeader
+        title={t('projects.title')}
         description={t('projects.description')}
       />
       <Card>
@@ -259,11 +257,23 @@ export function ProjectsModule() {
             <div className="space-y-2">
               <Label htmlFor="ward">{t('projects.wardBeat')}</Label>
               <WardBeatCombobox
-                values={availableWardValues}
-                selectedValues={wardValues}
-                onValuesChange={setWardValues}
-                placeholder={t('projects.wardPlaceholder')}
-                allowNew={true}
+                selectedWards={selectedWards}
+                selectedParts={selectedParts}
+                onWardToggle={(wardValue, checked) => {
+                  if (checked) {
+                    setSelectedWards(prev => [...prev, wardValue]);
+                  } else {
+                    setSelectedWards(prev => prev.filter(w => w !== wardValue));
+                  }
+                }}
+                onPartToggle={(partValue, checked) => {
+                  if (checked) {
+                    setSelectedParts(prev => [...prev, partValue]);
+                  } else {
+                    setSelectedParts(prev => prev.filter(p => p !== partValue));
+                  }
+                }}
+                placeholder="Select Ward No / Part No"
               />
             </div>
             <div className="space-y-2">
@@ -368,6 +378,7 @@ export function ProjectsModule() {
                     <TableRow key={project.id}>
                       <TableCell className="font-medium">
                         <button
+                          type="button"
                           onClick={() =>
                             router.push(`/modules/projects/${project.id}`)
                           }
@@ -380,9 +391,9 @@ export function ProjectsModule() {
                       <TableCell>{project.type || '-'}</TableCell>
                       <TableCell>
                         {project.status === 'Concept' ? t('projects.concept') :
-                         project.status === 'Proposal' ? t('projects.proposal') :
-                         project.status === 'In Progress' ? t('projects.inProgress') :
-                         project.status === 'Completed' ? t('projects.completed') : project.status}
+                          project.status === 'Proposal' ? t('projects.proposal') :
+                            project.status === 'In Progress' ? t('projects.inProgress') :
+                              project.status === 'Completed' ? t('projects.completed') : project.status}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">

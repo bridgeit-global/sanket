@@ -853,9 +853,11 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                               <div className="font-medium">
                                                 {item.title}
                                               </div>
-                                              <div className="text-sm text-muted-foreground">
-                                                {item.location}
-                                              </div>
+                                              {item.location && (
+                                                <div className="text-muted-foreground">
+                                                  📍 {item.location}
+                                                </div>
+                                              )}
                                             </div>
                                           </TableCell>
                                           <TableCell className="w-[300px]">

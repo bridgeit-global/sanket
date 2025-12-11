@@ -1731,15 +1731,6 @@ export async function getTasksWithFilters({
       whereConditions.push(eq(voterTasks.voterId, voterId));
     }
 
-    // Get total count for pagination
-    const totalCountResult = await db
-      .select({ count: count() })
-      .from(voterTasks)
-      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined);
-
-    const totalCount = totalCountResult[0]?.count || 0;
-    const totalPages = Math.ceil(totalCount / limit);
-
     // Build final where conditions including join filters
     const finalWhereConditions = [...whereConditions];
 
@@ -1760,6 +1751,26 @@ export async function getTasksWithFilters({
         finalWhereConditions.push(mobileCondition);
       }
     }
+
+    // Get total count for pagination
+    // Need to include JOINs when filters require them
+    const needsJoins = !!(token || serviceType || mobileNo);
+
+    let totalCountQuery = db
+      .select({ count: count() })
+      .from(voterTasks);
+
+    if (needsJoins) {
+      totalCountQuery = totalCountQuery
+        .leftJoin(beneficiaryServices, eq(voterTasks.serviceId, beneficiaryServices.id))
+        .leftJoin(Voters, eq(voterTasks.voterId, Voters.epicNumber));
+    }
+
+    const totalCountResult = await totalCountQuery
+      .where(finalWhereConditions.length > 0 ? and(...finalWhereConditions) : sql`1=1`);
+
+    const totalCount = totalCountResult[0]?.count || 0;
+    const totalPages = Math.ceil(totalCount / limit);
 
     // Get tasks with joins
     const query = db

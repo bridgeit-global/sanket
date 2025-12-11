@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -42,6 +42,7 @@ import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ProjectsSkeleton } from '@/components/module-skeleton';
 import { RegisterAttachmentDialog } from '@/components/register-attachment-dialog';
+import { WardBeatCombobox } from '@/components/ui/ward-beat-combobox';
 
 interface Attachment {
   id: string;
@@ -87,6 +88,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState<RegisterEntry | null>(null);
   const [editingProject, setEditingProject] = useState(false);
+  const [allProjects, setAllProjects] = useState<Project[]>([]);
 
   // Project form
   const [projectForm, setProjectForm] = useState({
@@ -95,6 +97,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     type: '',
     status: 'Concept' as Project['status'],
   });
+
+  // Ward and Part values state for WardBeatCombobox
+  const [selectedWards, setSelectedWards] = useState<string[]>([]);
+  const [selectedParts, setSelectedParts] = useState<string[]>([]);
 
   // Entry form
   const [entryForm, setEntryForm] = useState({
@@ -120,9 +126,39 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const [uploadingFiles, setUploadingFiles] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Get unique ward/beat values from all projects
+  const availableWardValues = useMemo(() => {
+    const values = new Set<string>();
+    allProjects.forEach((project) => {
+      if (project.ward) {
+        // Split by comma and trim each value
+        project.ward.split(',').forEach((w) => {
+          const trimmed = w.trim();
+          if (trimmed) {
+            values.add(trimmed);
+          }
+        });
+      }
+    });
+    return Array.from(values).sort();
+  }, [allProjects]);
+
   useEffect(() => {
     loadProject();
-  }, [projectId]);
+    loadAllProjects();
+  }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadAllProjects = async () => {
+    try {
+      const response = await fetch('/api/projects');
+      if (response.ok) {
+        const data = await response.json();
+        setAllProjects(data);
+      }
+    } catch (error) {
+      console.error('Error loading all projects:', error);
+    }
+  };
 
   const loadProject = async () => {
     try {
@@ -138,6 +174,28 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           type: data.type || '',
           status: data.status,
         });
+        // Parse ward string to extract ward numbers and part numbers
+        if (data.ward) {
+          const wards: string[] = [];
+          const parts: string[] = [];
+          // Try to parse "Ward X" and "Part Y" patterns
+          const items = data.ward.split(',').map((w: string) => w.trim()).filter((w: string) => w.length > 0);
+          items.forEach((item) => {
+            const wardMatch = item.match(/^Ward\s+(\d+)$/i);
+            const partMatch = item.match(/^Part\s+(\d+)$/i);
+            if (wardMatch) {
+              wards.push(wardMatch[1]);
+            } else if (partMatch) {
+              parts.push(partMatch[1]);
+            }
+            // If no match, ignore (backward compatibility - old format won't be parsed)
+          });
+          setSelectedWards(wards);
+          setSelectedParts(parts);
+        } else {
+          setSelectedWards([]);
+          setSelectedParts([]);
+        }
       } else if (response.status === 404) {
         toast.error('Project not found');
         router.push('/modules/projects');
@@ -155,10 +213,20 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     if (!projectForm.name.trim()) return;
 
     try {
+      // Convert selected wards and parts to comma-separated string
+      const wardParts: string[] = [];
+      selectedWards.forEach(ward => wardParts.push(`Ward ${ward}`));
+      selectedParts.forEach(part => wardParts.push(`Part ${part}`));
+      const wardString = wardParts.join(', ');
+      const projectData = {
+        ...projectForm,
+        ward: wardString,
+      };
+
       const response = await fetch(`/api/projects/${projectId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(projectForm),
+        body: JSON.stringify(projectData),
       });
 
       if (response.ok) {
@@ -582,6 +650,26 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                       type: project.type || '',
                       status: project.status,
                     });
+                    // Parse ward string to extract ward numbers and part numbers
+                    if (project.ward) {
+                      const wards: string[] = [];
+                      const parts: string[] = [];
+                      const items = project.ward.split(',').map((w: string) => w.trim()).filter((w: string) => w.length > 0);
+                      items.forEach((item) => {
+                        const wardMatch = item.match(/^Ward\s+(\d+)$/i);
+                        const partMatch = item.match(/^Part\s+(\d+)$/i);
+                        if (wardMatch) {
+                          wards.push(wardMatch[1]);
+                        } else if (partMatch) {
+                          parts.push(partMatch[1]);
+                        }
+                      });
+                      setSelectedWards(wards);
+                      setSelectedParts(parts);
+                    } else {
+                      setSelectedWards([]);
+                      setSelectedParts([]);
+                    }
                   }
                   setEditingProject(!editingProject);
                 }}
@@ -608,12 +696,24 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="ward">Ward / Beat</Label>
-                <Input
-                  id="ward"
-                  value={projectForm.ward}
-                  onChange={(e) =>
-                    setProjectForm({ ...projectForm, ward: e.target.value })
-                  }
+                <WardBeatCombobox
+                  selectedWards={selectedWards}
+                  selectedParts={selectedParts}
+                  onWardToggle={(wardValue, checked) => {
+                    if (checked) {
+                      setSelectedWards(prev => [...prev, wardValue]);
+                    } else {
+                      setSelectedWards(prev => prev.filter(w => w !== wardValue));
+                    }
+                  }}
+                  onPartToggle={(partValue, checked) => {
+                    if (checked) {
+                      setSelectedParts(prev => [...prev, partValue]);
+                    } else {
+                      setSelectedParts(prev => prev.filter(p => p !== partValue));
+                    }
+                  }}
+                  placeholder="Select Ward No / Part No"
                 />
               </div>
               <div className="space-y-2">
@@ -661,6 +761,26 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                         type: project.type || '',
                         status: project.status,
                       });
+                      // Parse ward string to extract ward numbers and part numbers
+                      if (project.ward) {
+                        const wards: string[] = [];
+                        const parts: string[] = [];
+                        const items = project.ward.split(',').map((w: string) => w.trim()).filter((w: string) => w.length > 0);
+                        items.forEach((item) => {
+                          const wardMatch = item.match(/^Ward\s+(\d+)$/i);
+                          const partMatch = item.match(/^Part\s+(\d+)$/i);
+                          if (wardMatch) {
+                            wards.push(wardMatch[1]);
+                          } else if (partMatch) {
+                            parts.push(partMatch[1]);
+                          }
+                        });
+                        setSelectedWards(wards);
+                        setSelectedParts(parts);
+                      } else {
+                        setSelectedWards([]);
+                        setSelectedParts([]);
+                      }
                     }
                     setEditingProject(false);
                   }}

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { ChevronDown, Search } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -45,9 +45,9 @@ export function MultiCombobox({
 }: MultiComboboxProps) {
   const [open, setOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [isTyping, setIsTyping] = React.useState(false);
   const inputRef = React.useRef<HTMLInputElement>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
-  const searchInputRef = React.useRef<HTMLInputElement>(null);
 
   // Filter wards and parts based on search query
   const filteredWards = React.useMemo(() => {
@@ -85,6 +85,7 @@ export function MultiCombobox({
       ) {
         setOpen(false);
         setSearchQuery('');
+        setIsTyping(false);
       }
     };
 
@@ -94,27 +95,73 @@ export function MultiCombobox({
     }
   }, [open]);
 
-  // Focus search input when dropdown opens
+  // Focus and select text in main input when it opens and user is typing
   React.useEffect(() => {
-    if (open && searchInputRef.current) {
+    if (open && isTyping && inputRef.current) {
       setTimeout(() => {
-        searchInputRef.current?.focus();
+        inputRef.current?.focus();
+        inputRef.current?.select();
       }, 100);
     }
-  }, [open]);
+  }, [open, isTyping]);
+
+
+  const handleMainInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    setIsTyping(true);
+    if (!open) {
+      setOpen(true);
+    }
+    // Ensure cursor is visible
+    setTimeout(() => {
+      const input = e.target;
+      const length = input.value.length;
+      input.setSelectionRange(length, length);
+    }, 0);
+  };
+
+  const handleMainInputFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    if (!open) {
+      setOpen(true);
+    }
+    // Select all text when focusing (if not already typing)
+    if (!isTyping && e.target.value) {
+      setTimeout(() => {
+        e.target.select();
+      }, 0);
+    }
+  };
+
+  const handleMainInputBlur = () => {
+    // Delay to allow click events on dropdown items
+    setTimeout(() => {
+      if (!containerRef.current?.contains(document.activeElement)) {
+        setIsTyping(false);
+        setSearchQuery('');
+      }
+    }, 200);
+  };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {
       setOpen(false);
       setSearchQuery('');
+      setIsTyping(false);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      // Don't close on Enter, allow user to continue typing
     }
   };
 
-  const getDisplayText = () => {
+  const getInputValue = () => {
+    if (isTyping) {
+      return searchQuery;
+    }
     if (loading) return 'Loading...';
     if (displayValue) return displayValue;
     if ((selectedWards.length === 0 && selectedParts.length === 0)) {
-      return placeholder;
+      return '';
     }
     return `${selectedWards.length} ward(s), ${selectedParts.length} part(s)`;
   };
@@ -125,15 +172,29 @@ export function MultiCombobox({
         <Input
           ref={inputRef}
           type="text"
-          value={getDisplayText()}
-          readOnly
-          onClick={() => !disabled && setOpen(true)}
+          value={getInputValue()}
+          onChange={handleMainInputChange}
+          onFocus={handleMainInputFocus}
+          onBlur={handleMainInputBlur}
+          onClick={(e) => {
+            if (!disabled) {
+              setOpen(true);
+              // If there's text and user isn't typing, select it on click
+              if (!isTyping && e.currentTarget.value) {
+                setTimeout(() => {
+                  e.currentTarget.select();
+                }, 0);
+              }
+            }
+          }}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled || loading}
           className={cn(
-            'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer'
+            'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+            !isTyping && 'cursor-pointer'
           )}
+          autoComplete="off"
           role="combobox"
           aria-expanded={open}
           aria-controls="multi-combobox-options"
@@ -152,20 +213,6 @@ export function MultiCombobox({
           className="absolute z-50 w-full mt-1 max-h-96 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
         >
           <div className="p-2 space-y-4">
-            {/* Search Input */}
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                ref={searchInputRef}
-                placeholder="Search ward or part number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 h-9"
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-              />
-            </div>
-
             {/* Ward No Section */}
             <div>
               <div className="text-xs font-semibold text-muted-foreground mb-2 px-2">Ward No</div>

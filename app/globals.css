@@ -518,6 +518,11 @@
         min-width: 200px;
     }
 
+    /* Ensure consistent font size in Programme Nature & Place column */
+    .print-schedule td:nth-child(3)>div>div {
+        font-size: inherit !important;
+    }
+
     /* Reference column width for print */
     .print-schedule th:nth-child(4),
     .print-schedule td:nth-child(4) {

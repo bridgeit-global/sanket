@@ -41,6 +41,7 @@ export function TaskManagement() {
     const { t } = useTranslations();
     const [tasks, setTasks] = useState<TaskWithService[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isLoadingCommunityServices, setIsLoadingCommunityServices] = useState(false);
     const [selectedTask, setSelectedTask] = useState<TaskWithService | null>(null);
     const [showTaskDialog, setShowTaskDialog] = useState(false);
     const [showEscalationDialog, setShowEscalationDialog] = useState(false);
@@ -69,6 +70,7 @@ export function TaskManagement() {
 
     const fetchCommunityServices = useCallback(async () => {
         try {
+            setIsLoadingCommunityServices(true);
             // Build query parameters
             const params = new URLSearchParams();
             if (filterStatus !== 'all') params.append('status', filterStatus);
@@ -87,13 +89,18 @@ export function TaskManagement() {
             setCommunityServices(data.services);
             setCommunityServicesTotalPages(data.totalPages);
             setCommunityServicesTotalCount(data.totalCount);
-            setCommunityServicesPage(data.currentPage);
+            // Only update communityServicesPage if it actually changed to prevent unnecessary re-renders
+            if (data.currentPage !== communityServicesPage) {
+                setCommunityServicesPage(data.currentPage);
+            }
         } catch (error) {
             console.error('Error fetching community services:', error);
             toast({
                 type: 'error',
                 description: 'Failed to fetch community services',
             });
+        } finally {
+            setIsLoadingCommunityServices(false);
         }
     }, [communityServicesPage, pageSize, filterStatus, filterPriority, filterToken]);
 
@@ -123,7 +130,10 @@ export function TaskManagement() {
             setTasks(data.tasks);
             setTotalPages(data.totalPages);
             setTotalCount(data.totalCount);
-            setCurrentPage(data.currentPage);
+            // Only update currentPage if it actually changed to prevent unnecessary re-renders
+            if (data.currentPage !== currentPage) {
+                setCurrentPage(data.currentPage);
+            }
         } catch (error) {
             console.error('Error fetching tasks:', error);
             toast({
@@ -135,6 +145,7 @@ export function TaskManagement() {
         }
     }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceType, t]);
 
+    // Separate useEffect for tasks to avoid infinite loops
     useEffect(() => {
         if (filterServiceType === 'all' || filterServiceType === 'individual') {
             fetchTasks();
@@ -142,16 +153,23 @@ export function TaskManagement() {
             setTasks([]);
             setTotalCount(0);
             setTotalPages(1);
+            setIsLoading(false);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filterServiceType, currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId]);
 
+    // Separate useEffect for community services to avoid infinite loops
+    useEffect(() => {
         if (filterServiceType === 'all' || filterServiceType === 'community') {
             fetchCommunityServices();
         } else {
             setCommunityServices([]);
             setCommunityServicesTotalCount(0);
             setCommunityServicesTotalPages(1);
+            setIsLoadingCommunityServices(false);
         }
-    }, [fetchTasks, fetchCommunityServices, filterServiceType]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [filterServiceType, communityServicesPage, pageSize, filterStatus, filterPriority, filterToken]);
 
     const handleSearch = () => {
         setCurrentPage(1); // Reset to first page when searching
@@ -430,7 +448,13 @@ export function TaskManagement() {
             </Card>
 
             {/* is Loading */}
-            {isLoading ? (
+            {(() => {
+                const shouldShowLoading =
+                    (filterServiceType === 'community' && isLoadingCommunityServices) ||
+                    (filterServiceType === 'individual' && isLoading) ||
+                    (filterServiceType === 'all' && (isLoading || isLoadingCommunityServices));
+                return shouldShowLoading;
+            })() ? (
                 <div className="min-h-screen bg-background flex items-center justify-center">
                     <div className="text-center">
                         <div className="animate-spin rounded-full size-8 border-b-2 border-gray-900 mx-auto" />
