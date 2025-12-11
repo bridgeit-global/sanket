@@ -304,6 +304,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const departmentEntries = sortEntriesChronologically(entries.filter((e) => e.documentType === 'Department'));
   const generalEntries = sortEntriesChronologically(entries.filter((e) => e.documentType === 'General'));
 
+  // Filter entries by type for print view
+  const inwardEntries = sortEntriesChronologically(entries.filter((e) => e.type === 'inward'));
+  const outwardEntries = sortEntriesChronologically(entries.filter((e) => e.type === 'outward'));
+
   const inwardCount = entries.filter((e) => e.type === 'inward').length;
   const outwardCount = entries.filter((e) => e.type === 'outward').length;
 
