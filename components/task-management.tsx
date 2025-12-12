@@ -43,6 +43,7 @@ export function TaskManagement() {
     const [isLoading, setIsLoading] = useState(true);
     const [isLoadingCommunityServices, setIsLoadingCommunityServices] = useState(false);
     const [selectedTask, setSelectedTask] = useState<TaskWithService | null>(null);
+    const [selectedCommunityService, setSelectedCommunityService] = useState<CommunityServiceWithAreas | null>(null);
     const [showTaskDialog, setShowTaskDialog] = useState(false);
     const [showEscalationDialog, setShowEscalationDialog] = useState(false);
     const [escalationReason, setEscalationReason] = useState('');
@@ -222,8 +223,46 @@ export function TaskManagement() {
         }
     };
 
+    const handleCommunityServiceStatusUpdate = async (serviceId: string, status: string, notes?: string) => {
+        try {
+            const response = await fetch(`/operator/api/community-services/${serviceId}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    status,
+                    notes: notes || undefined,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to update community service status');
+            }
+
+            toast({
+                type: 'success',
+                description: t('taskManagement.messages.updateSuccess'),
+            });
+
+            fetchCommunityServices();
+            setShowTaskDialog(false);
+            setNewNote('');
+            setNewStatus('');
+        } catch (error) {
+            console.error('Error updating community service status:', error);
+            toast({
+                type: 'error',
+                description: t('taskManagement.messages.updateFailed'),
+            });
+        }
+    };
+
     const handleEscalation = async () => {
-        if (!selectedTask || !escalationReason.trim()) {
+        const taskId = selectedTask?.id;
+        const serviceId = selectedTask?.serviceId || selectedCommunityService?.id;
+        
+        if ((!selectedTask && !selectedCommunityService) || !escalationReason.trim()) {
             toast({
                 type: 'error',
                 description: t('taskManagement.messages.escalationReasonRequired'),
@@ -238,8 +277,8 @@ export function TaskManagement() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    taskId: selectedTask.id,
-                    serviceId: selectedTask.serviceId,
+                    taskId: taskId || undefined,
+                    serviceId: serviceId || undefined,
                     reason: escalationReason,
                     priority: escalationPriority,
                 }),
@@ -257,7 +296,12 @@ export function TaskManagement() {
             setShowEscalationDialog(false);
             setEscalationReason('');
             setEscalationPriority('high');
-            fetchTasks();
+            if (selectedTask) {
+                fetchTasks();
+            }
+            if (selectedCommunityService) {
+                fetchCommunityServices();
+            }
         } catch (error) {
             console.error('Error escalating request:', error);
             toast({
@@ -551,6 +595,9 @@ export function TaskManagement() {
                                                         size="sm"
                                                         onClick={() => {
                                                             setSelectedTask(task);
+                                                            setSelectedCommunityService(null);
+                                                            setNewStatus(task.status);
+                                                            setNewNote('');
                                                             setShowTaskDialog(true);
                                                         }}
                                                         className="flex-1 sm:flex-none"
@@ -661,6 +708,35 @@ export function TaskManagement() {
                                                             </div>
                                                         )}
                                                     </div>
+
+                                                    <div className="flex flex-col sm:flex-row gap-2 lg:ml-4">
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setSelectedCommunityService(service);
+                                                                setSelectedTask(null);
+                                                                setNewStatus(service.status || 'pending');
+                                                                setNewNote('');
+                                                                setShowTaskDialog(true);
+                                                            }}
+                                                            className="flex-1 sm:flex-none"
+                                                        >
+                                                            {t('taskManagement.actions.manage')}
+                                                        </Button>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => {
+                                                                setSelectedCommunityService(service);
+                                                                setSelectedTask(null);
+                                                                setShowEscalationDialog(true);
+                                                            }}
+                                                            className="flex-1 sm:flex-none"
+                                                        >
+                                                            {t('taskManagement.actions.escalate')}
+                                                        </Button>
+                                                    </div>
                                                 </div>
                                             </CardContent>
                                         </Card>
@@ -697,11 +773,13 @@ export function TaskManagement() {
                         </DialogDescription>
                     </DialogHeader>
 
-                    {selectedTask && (
+                    {(selectedTask || selectedCommunityService) && (
                         <div className="space-y-4">
                             <div>
                                 <Label>{t('taskManagement.dialog.taskType')}</Label>
-                                <p className="text-sm text-muted-foreground">{selectedTask.taskType}</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {selectedTask ? selectedTask.taskType : (selectedCommunityService?.serviceName || 'Community Service')}
+                                </p>
                             </div>
 
                             <div>
@@ -732,13 +810,27 @@ export function TaskManagement() {
 
                             <div className="flex flex-col sm:flex-row gap-2">
                                 <Button
-                                    onClick={() => handleStatusUpdate(selectedTask.id, newStatus || selectedTask.status, newNote)}
+                                    onClick={() => {
+                                        if (selectedTask) {
+                                            handleStatusUpdate(selectedTask.id, newStatus || selectedTask.status, newNote);
+                                        } else if (selectedCommunityService) {
+                                            handleCommunityServiceStatusUpdate(
+                                                selectedCommunityService.id,
+                                                newStatus || selectedCommunityService.status || 'pending',
+                                                newNote
+                                            );
+                                        }
+                                    }}
                                     disabled={!newStatus && !newNote.trim()}
                                     className="flex-1"
                                 >
                                     {t('taskManagement.dialog.updateTask')}
                                 </Button>
-                                <Button variant="outline" onClick={() => setShowTaskDialog(false)} className="flex-1 sm:flex-none">
+                                <Button variant="outline" onClick={() => {
+                                    setShowTaskDialog(false);
+                                    setSelectedTask(null);
+                                    setSelectedCommunityService(null);
+                                }} className="flex-1 sm:flex-none">
                                     {t('common.cancel')}
                                 </Button>
                             </div>
@@ -757,11 +849,13 @@ export function TaskManagement() {
                         </DialogDescription>
                     </DialogHeader>
 
-                    {selectedTask && (
+                    {(selectedTask || selectedCommunityService) && (
                         <div className="space-y-4">
                             <div>
                                 <Label>{t('taskManagement.dialog.task')}</Label>
-                                <p className="text-sm text-muted-foreground">{selectedTask.taskType}</p>
+                                <p className="text-sm text-muted-foreground">
+                                    {selectedTask ? selectedTask.taskType : (selectedCommunityService?.serviceName || 'Community Service')}
+                                </p>
                             </div>
 
                             <div>
@@ -792,7 +886,11 @@ export function TaskManagement() {
                                 <Button onClick={handleEscalation} disabled={!escalationReason.trim()} className="flex-1">
                                     {t('taskManagement.dialog.submitEscalation')}
                                 </Button>
-                                <Button variant="outline" onClick={() => setShowEscalationDialog(false)} className="flex-1 sm:flex-none">
+                                <Button variant="outline" onClick={() => {
+                                    setShowEscalationDialog(false);
+                                    setSelectedTask(null);
+                                    setSelectedCommunityService(null);
+                                }} className="flex-1 sm:flex-none">
                                     {t('common.cancel')}
                                 </Button>
                             </div>
