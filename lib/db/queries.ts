@@ -1421,6 +1421,26 @@ export async function getPhoneUpdateStats() {
       phoneUpdatesBySource[row.sourceModule] = row.count;
     }
 
+    // Count phone updates by user today
+    const updatesByUser = await db
+      .select({
+        updatedBy: phoneUpdateHistory.updatedBy,
+        updatedByUserId: user.userId,
+        count: count(),
+      })
+      .from(phoneUpdateHistory)
+      .leftJoin(user, eq(phoneUpdateHistory.updatedBy, user.id))
+      .where(gte(phoneUpdateHistory.createdAt, today))
+      .groupBy(phoneUpdateHistory.updatedBy, user.userId);
+
+    const phoneUpdatesByUser: Array<{ userId: string | null; count: number }> = [];
+    for (const row of updatesByUser) {
+      phoneUpdatesByUser.push({
+        userId: row.updatedByUserId || 'Unknown',
+        count: row.count,
+      });
+    }
+
     // Get recent phone updates (last 20) with voter info
     const recentUpdates = await db
       .select({
@@ -1445,6 +1465,7 @@ export async function getPhoneUpdateStats() {
     return {
       phoneUpdatesToday,
       phoneUpdatesBySource,
+      phoneUpdatesByUser,
       recentPhoneUpdates: recentUpdates.map((update) => ({
         id: update.id,
         epicNumber: update.epicNumber,

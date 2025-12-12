@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
       phoneUpdates: {
         today: phoneUpdateStats.phoneUpdatesToday,
         bySource: phoneUpdateStats.phoneUpdatesBySource,
+        byUser: phoneUpdateStats.phoneUpdatesByUser,
         recent: phoneUpdateStats.recentPhoneUpdates,
       },
       upcoming: programmeItems.slice(0, 3).map((item) => ({

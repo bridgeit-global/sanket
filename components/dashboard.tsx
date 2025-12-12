@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { DashboardSkeleton } from '@/components/module-skeleton';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { useTranslations } from '@/hooks/use-translations';
+import { PhoneUpdatesChart } from '@/components/phone-updates-chart';
 
 interface DashboardStats {
   meetings: number;
@@ -42,6 +43,7 @@ interface PhoneUpdate {
 interface PhoneUpdatesData {
   today: number;
   bySource: Record<string, number>;
+  byUser: Array<{ userId: string | null; count: number }>;
   recent: PhoneUpdate[];
 }
 
@@ -59,6 +61,7 @@ export function Dashboard() {
   const [phoneUpdates, setPhoneUpdates] = useState<PhoneUpdatesData>({
     today: 0,
     bySource: {},
+    byUser: [],
     recent: [],
   });
   const [loading, setLoading] = useState(true);
@@ -103,7 +106,7 @@ export function Dashboard() {
           <CardTitle>{t('dashboard.todayAtGlance')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-3">
             <div className="flex flex-col gap-1 rounded-lg border p-4">
               <span className="text-xs uppercase tracking-wide text-muted-foreground">
                 {t('dashboard.meetings')}
@@ -133,16 +136,23 @@ export function Dashboard() {
                 {t('dashboard.inProgressForConstituency')}
               </span>
             </div>
-            <div className="flex flex-col gap-1 rounded-lg border p-4">
-              <span className="text-xs uppercase tracking-wide text-muted-foreground">
-                Phone Updates
-              </span>
-              <span className="text-2xl font-semibold">{stats.phoneUpdates}</span>
-              <span className="text-xs text-muted-foreground">
-                Updated today
-              </span>
-            </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Phone className="h-5 w-5" />
+            Phone Number Updates
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PhoneUpdatesChart
+            phoneUpdatesBySource={phoneUpdates.bySource}
+            phoneUpdatesByUser={phoneUpdates.byUser}
+            totalUpdates={phoneUpdates.today}
+          />
         </CardContent>
       </Card>
 
