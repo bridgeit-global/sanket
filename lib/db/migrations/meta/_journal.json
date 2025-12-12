@@ -281,6 +281,13 @@
       "when": 1765562790545,
       "tag": "0039_wonderful_supernaut",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1765568786101,
+      "tag": "0040_pink_princess_powerful",
+      "breakpoints": true
     }
   ]
 }

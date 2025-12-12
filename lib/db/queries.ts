@@ -1501,6 +1501,78 @@ export async function getPhoneUpdateStats() {
   }
 }
 
+export async function getBeneficiaryServiceStats() {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Count total services created today
+    const [todayCountResult] = await db
+      .select({ count: count() })
+      .from(beneficiaryServices)
+      .where(gte(beneficiaryServices.createdAt, today));
+
+    const servicesCreatedToday = todayCountResult?.count || 0;
+
+    // Count total services
+    const [totalCountResult] = await db
+      .select({ count: count() })
+      .from(beneficiaryServices);
+
+    const totalServices = totalCountResult?.count || 0;
+
+    // Count by status
+    const statusCounts = await db
+      .select({
+        status: beneficiaryServices.status,
+        count: count(),
+      })
+      .from(beneficiaryServices)
+      .groupBy(beneficiaryServices.status);
+
+    const byStatus: Record<string, number> = {
+      pending: 0,
+      in_progress: 0,
+      completed: 0,
+      cancelled: 0,
+    };
+    for (const row of statusCounts) {
+      byStatus[row.status || 'pending'] = row.count;
+    }
+
+    // Count by type
+    const typeCounts = await db
+      .select({
+        serviceType: beneficiaryServices.serviceType,
+        count: count(),
+      })
+      .from(beneficiaryServices)
+      .groupBy(beneficiaryServices.serviceType);
+
+    const byType: Record<string, number> = {
+      individual: 0,
+      community: 0,
+    };
+    for (const row of typeCounts) {
+      if (row.serviceType === 'individual' || row.serviceType === 'community') {
+        byType[row.serviceType] = row.count;
+      }
+    }
+
+    return {
+      servicesCreatedToday,
+      totalServices,
+      byStatus,
+      byType,
+    };
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get beneficiary service statistics',
+    );
+  }
+}
+
 export async function createVoter(voterData: Partial<Voter>): Promise<Voter> {
   try {
     if (!voterData.epicNumber || !voterData.fullName) {
@@ -1686,6 +1758,7 @@ export async function createVoterTask({
   priority = 'medium',
   assignedTo,
   notes,
+  createdBy,
 }: {
   serviceId: string;
   voterId: string;
@@ -1694,6 +1767,7 @@ export async function createVoterTask({
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   assignedTo?: string;
   notes?: string;
+  createdBy?: string;
 }): Promise<VoterTask> {
   try {
     const [task] = await db
@@ -1707,6 +1781,7 @@ export async function createVoterTask({
         priority,
         assignedTo,
         notes,
+        createdBy,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
@@ -1985,6 +2060,8 @@ export async function getTasksWithFilters({
         status: voterTasks.status,
         priority: voterTasks.priority,
         assignedTo: voterTasks.assignedTo,
+        createdBy: voterTasks.createdBy,
+        updatedBy: voterTasks.updatedBy,
         createdAt: voterTasks.createdAt,
         updatedAt: voterTasks.updatedAt,
         completedAt: voterTasks.completedAt,
@@ -2034,6 +2111,8 @@ export async function getTasksWithFilters({
       status: row.status,
       priority: row.priority,
       assignedTo: row.assignedTo,
+      createdBy: row.createdBy,
+      updatedBy: row.updatedBy,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       completedAt: row.completedAt,
@@ -2104,6 +2183,7 @@ export async function updateVoterTaskStatus({
   notes,
   assignedTo,
   performedBy,
+  updatedBy,
 }: {
   id: string;
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
@@ -2111,6 +2191,7 @@ export async function updateVoterTaskStatus({
   notes?: string;
   assignedTo?: string;
   performedBy?: string;
+  updatedBy?: string;
 }): Promise<VoterTask | null> {
   try {
     // Get current task to track changes
@@ -2127,6 +2208,7 @@ export async function updateVoterTaskStatus({
     if (priority) updateData.priority = priority;
     if (notes) updateData.notes = notes;
     if (assignedTo) updateData.assignedTo = assignedTo;
+    if (updatedBy) updateData.updatedBy = updatedBy;
     if (status === 'completed') updateData.completedAt = new Date();
 
     const [updatedTask] = await db
@@ -2710,6 +2792,7 @@ export async function getDailyProgrammeItemById(id: string): Promise<DailyProgra
 export async function updateDailyProgrammeItem(
   id: string,
   data: Partial<Omit<DailyProgramme, 'id' | 'createdBy' | 'createdAt'>>,
+  updatedBy?: string,
 ): Promise<DailyProgramme | null> {
   try {
     // Format date if it's a Date object (schema expects string)
@@ -2724,6 +2807,10 @@ export async function updateDailyProgrammeItem(
     }
     if (updateData.remarks === '') {
       updateData.remarks = null;
+    }
+
+    if (updatedBy) {
+      updateData.updatedBy = updatedBy;
     }
 
     const [updated] = await db

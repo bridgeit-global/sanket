@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, Inbox, Send, FolderKanban, Phone } from 'lucide-react';
+import { CalendarDays, Inbox, Send, FolderKanban, Phone, Users, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { DashboardSkeleton } from '@/components/module-skeleton';
 import { ModulePageHeader } from '@/components/module-page-header';
@@ -48,6 +48,21 @@ interface PhoneUpdatesData {
   recent: PhoneUpdate[];
 }
 
+interface BeneficiaryServicesData {
+  servicesCreatedToday: number;
+  totalServices: number;
+  byStatus: {
+    pending: number;
+    in_progress: number;
+    completed: number;
+    cancelled: number;
+  };
+  byType: {
+    individual: number;
+    community: number;
+  };
+}
+
 export function Dashboard() {
   const router = useRouter();
   const { t } = useTranslations();
@@ -66,6 +81,20 @@ export function Dashboard() {
     byUser: [],
     recent: [],
   });
+  const [beneficiaryServices, setBeneficiaryServices] = useState<BeneficiaryServicesData>({
+    servicesCreatedToday: 0,
+    totalServices: 0,
+    byStatus: {
+      pending: 0,
+      in_progress: 0,
+      completed: 0,
+      cancelled: 0,
+    },
+    byType: {
+      individual: 0,
+      community: 0,
+    },
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -83,6 +112,9 @@ export function Dashboard() {
         setUpcoming(data.upcoming);
         if (data.phoneUpdates) {
           setPhoneUpdates(data.phoneUpdates);
+        }
+        if (data.beneficiaryServices) {
+          setBeneficiaryServices(data.beneficiaryServices);
         }
       }
     } catch (error) {
@@ -156,6 +188,87 @@ export function Dashboard() {
             totalUpdates={phoneUpdates.today}
             totalVotersWithPhone={phoneUpdates.totalVotersWithPhone}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5" />
+            Beneficiary Services
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            {/* Today's Services Created - Prominent Metric */}
+            <div className="flex flex-col gap-1 rounded-lg border p-4 bg-primary/5">
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                Services Created Today
+              </span>
+              <span className="text-3xl font-bold text-primary">
+                {beneficiaryServices.servicesCreatedToday}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                out of {beneficiaryServices.totalServices} total services
+              </span>
+            </div>
+
+            {/* Status Breakdown */}
+            <div>
+              <h4 className="text-sm font-semibold mb-3">Status Breakdown</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="text-center p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <div className="text-2xl font-bold text-yellow-600">
+                    {beneficiaryServices.byStatus.pending}
+                  </div>
+                  <div className="text-xs text-gray-600">Pending</div>
+                </div>
+                <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="text-2xl font-bold text-blue-600">
+                    {beneficiaryServices.byStatus.in_progress}
+                  </div>
+                  <div className="text-xs text-gray-600">In Progress</div>
+                </div>
+                <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
+                  <div className="text-2xl font-bold text-green-600">
+                    {beneficiaryServices.byStatus.completed}
+                  </div>
+                  <div className="text-xs text-gray-600">Completed</div>
+                </div>
+                <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
+                  <div className="text-2xl font-bold text-red-600">
+                    {beneficiaryServices.byStatus.cancelled}
+                  </div>
+                  <div className="text-xs text-gray-600">Cancelled</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Type Breakdown */}
+            <div>
+              <h4 className="text-sm font-semibold mb-3">Type Breakdown</h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <UserCheck className="h-4 w-4 text-purple-600" />
+                    <div className="text-2xl font-bold text-purple-600">
+                      {beneficiaryServices.byType.individual}
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-600">Individual</div>
+                </div>
+                <div className="text-center p-3 bg-indigo-50 rounded-lg border border-indigo-200">
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <Users className="h-4 w-4 text-indigo-600" />
+                    <div className="text-2xl font-bold text-indigo-600">
+                      {beneficiaryServices.byType.community}
+                    </div>
+                  </div>
+                  <div className="text-xs text-gray-600">Community</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

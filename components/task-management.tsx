@@ -13,6 +13,7 @@ import { toast } from '@/components/toast';
 import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
 import { useTranslations } from '@/hooks/use-translations';
 import type { VoterTask, BeneficiaryService, Voter, CommunityServiceArea } from '@/lib/db/schema';
+import { TablePagination } from '@/components/table-pagination';
 
 interface TaskWithService extends VoterTask {
     service?: BeneficiaryService;
@@ -577,8 +578,14 @@ export function TaskManagement() {
 
                                                     <div className="text-sm text-muted-foreground">
                                                         <strong>{t('taskManagement.created')}</strong> {new Date(task.createdAt).toLocaleDateString()}
+                                                        {task.createdBy && (
+                                                            <span> | <strong>Created by:</strong> {task.createdBy.substring(0, 8)}...</span>
+                                                        )}
                                                         {task.updatedAt !== task.createdAt && (
                                                             <span> | <strong>{t('taskManagement.updated')}</strong> {new Date(task.updatedAt).toLocaleDateString()}</span>
+                                                        )}
+                                                        {task.updatedBy && (
+                                                            <span> | <strong>Updated by:</strong> {task.updatedBy.substring(0, 8)}...</span>
                                                         )}
                                                     </div>
 
@@ -620,6 +627,22 @@ export function TaskManagement() {
                                         </CardContent>
                                     </Card>
                                 ))
+                            )}
+                            {/* Pagination for Individual Tasks */}
+                            {tasks.length > 0 && (filterServiceType === 'all' || filterServiceType === 'individual') && (
+                                <div className="mt-4">
+                                    <TablePagination
+                                        currentPage={currentPage}
+                                        totalPages={totalPages}
+                                        pageSize={pageSize}
+                                        totalItems={totalCount}
+                                        onPageChange={setCurrentPage}
+                                        onPageSizeChange={(size) => {
+                                            setPageSize(size);
+                                            setCurrentPage(1);
+                                        }}
+                                    />
+                                </div>
                             )}
                         </div>
                     )}
@@ -741,6 +764,22 @@ export function TaskManagement() {
                                             </CardContent>
                                         </Card>
                                     ))}
+                                    {/* Pagination for Community Services */}
+                                    {communityServices.length > 0 && (filterServiceType === 'all' || filterServiceType === 'community') && (
+                                        <div className="mt-4">
+                                            <TablePagination
+                                                currentPage={communityServicesPage}
+                                                totalPages={communityServicesTotalPages}
+                                                pageSize={pageSize}
+                                                totalItems={communityServicesTotalCount}
+                                                onPageChange={setCommunityServicesPage}
+                                                onPageSizeChange={(size) => {
+                                                    setPageSize(size);
+                                                    setCommunityServicesPage(1);
+                                                }}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -899,82 +938,6 @@ export function TaskManagement() {
                 </DialogContent>
             </Dialog>
 
-            {/* Pagination */}
-            {!isLoading && totalPages > 1 && (
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                            <div className="text-sm text-muted-foreground text-center sm:text-left">
-                                {t('taskManagement.pagination.page', { current: currentPage, total: totalPages, count: totalCount })}
-                            </div>
-
-                            <div className="flex items-center gap-2 justify-center sm:justify-end">
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage(1)}
-                                    disabled={currentPage === 1}
-                                >
-                                    {t('taskManagement.pagination.first')}
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage(currentPage - 1)}
-                                    disabled={currentPage === 1}
-                                >
-                                    {t('taskManagement.pagination.previous')}
-                                </Button>
-
-                                {/* Page numbers */}
-                                <div className="flex items-center gap-1">
-                                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                        let pageNum: number;
-                                        if (totalPages <= 5) {
-                                            pageNum = i + 1;
-                                        } else if (currentPage <= 3) {
-                                            pageNum = i + 1;
-                                        } else if (currentPage >= totalPages - 2) {
-                                            pageNum = totalPages - 4 + i;
-                                        } else {
-                                            pageNum = currentPage - 2 + i;
-                                        }
-
-                                        return (
-                                            <Button
-                                                key={pageNum}
-                                                variant={currentPage === pageNum ? "default" : "outline"}
-                                                size="sm"
-                                                onClick={() => setCurrentPage(pageNum)}
-                                                className="size-8 p-0"
-                                            >
-                                                {pageNum}
-                                            </Button>
-                                        );
-                                    })}
-                                </div>
-
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage(currentPage + 1)}
-                                    disabled={currentPage === totalPages}
-                                >
-                                    {t('taskManagement.pagination.next')}
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => setCurrentPage(totalPages)}
-                                    disabled={currentPage === totalPages}
-                                >
-                                    {t('taskManagement.pagination.last')}
-                                </Button>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
         </div>
     );
 }

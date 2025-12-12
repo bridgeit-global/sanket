@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { db, getPhoneUpdateStats } from '@/lib/db/queries';
+import { db, getPhoneUpdateStats, getBeneficiaryServiceStats } from '@/lib/db/queries';
 import { dailyProgramme, registerEntry, mlaProject } from '@/lib/db/schema';
 import { eq, and, gte, count } from 'drizzle-orm';
 
@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
       outwardCount,
       projectsCount,
       phoneUpdateStats,
+      beneficiaryServiceStats,
     ] = await Promise.all([
       // Today's programme items
       db
@@ -64,6 +65,9 @@ export async function GET(request: NextRequest) {
 
       // Phone update statistics
       getPhoneUpdateStats(),
+
+      // Beneficiary service statistics
+      getBeneficiaryServiceStats(),
     ]);
 
     return NextResponse.json({
@@ -80,6 +84,12 @@ export async function GET(request: NextRequest) {
         bySource: phoneUpdateStats.phoneUpdatesBySource,
         byUser: phoneUpdateStats.phoneUpdatesByUser,
         recent: phoneUpdateStats.recentPhoneUpdates,
+      },
+      beneficiaryServices: {
+        servicesCreatedToday: beneficiaryServiceStats.servicesCreatedToday,
+        totalServices: beneficiaryServiceStats.totalServices,
+        byStatus: beneficiaryServiceStats.byStatus,
+        byType: beneficiaryServiceStats.byType,
       },
       upcoming: programmeItems.slice(0, 3).map((item) => ({
         id: item.id,

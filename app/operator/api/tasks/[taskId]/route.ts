@@ -72,6 +72,7 @@ export async function PATCH(
             notes,
             assignedTo: assignedTo || session.user.id,
             performedBy: session.user.id,
+            updatedBy: session.user.id,
         });
 
         if (!updatedTask) {

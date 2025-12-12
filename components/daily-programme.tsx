@@ -868,6 +868,14 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                             ) : (
                                               <span className="text-muted-foreground">—</span>
                                             )}
+                                            <div className="text-xs text-muted-foreground mt-1">
+                                              {item.createdBy && (
+                                                <span>Created by: {item.createdBy.substring(0, 8)}...</span>
+                                              )}
+                                              {item.updatedBy && item.updatedBy !== item.createdBy && (
+                                                <span className="ml-2">Updated by: {item.updatedBy.substring(0, 8)}...</span>
+                                              )}
+                                            </div>
                                           </TableCell>
                                           <TableCell className="w-[150px] no-print">
                                             <Select

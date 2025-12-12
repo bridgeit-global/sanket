@@ -74,7 +74,7 @@ export async function PUT(
     if (body.remarks !== undefined) updateData.remarks = body.remarks;
     if (body.attended !== undefined) updateData.attended = body.attended;
 
-    const updated = await updateDailyProgrammeItem(id, updateData);
+    const updated = await updateDailyProgrammeItem(id, updateData, session.user.id);
     if (!updated) {
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }

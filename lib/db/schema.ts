@@ -276,6 +276,8 @@ export const voterTasks = pgTable('VoterTask', {
   status: varchar('status', { enum: ['pending', 'in_progress', 'completed', 'cancelled'] }).notNull().default('pending'),
   priority: varchar('priority', { enum: ['low', 'medium', 'high', 'urgent'] }).notNull().default('medium'),
   assignedTo: uuid('assigned_to').references(() => user.id),
+  createdBy: uuid('created_by').references(() => user.id),
+  updatedBy: uuid('updated_by').references(() => user.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   completedAt: timestamp('completed_at'),
@@ -335,6 +337,7 @@ export const dailyProgramme = pgTable('DailyProgramme', {
   createdBy: uuid('created_by')
     .notNull()
     .references(() => user.id),
+  updatedBy: uuid('updated_by').references(() => user.id),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });

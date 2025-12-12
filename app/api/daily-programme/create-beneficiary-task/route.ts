@@ -79,6 +79,7 @@ export async function POST(request: NextRequest) {
       description: `Token of gratitude for not attending programme: ${programmeTitle}${programmeDate ? ` on ${programmeDate}` : ''}`,
       priority: 'medium',
       notes: `Programme: ${programmeItem.title} at ${programmeItem.location}`,
+      createdBy: session.user.id,
     });
 
     return NextResponse.json(
