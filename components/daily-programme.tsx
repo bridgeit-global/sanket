@@ -49,6 +49,8 @@ interface ProgrammeItem {
   location: string;
   remarks?: string | null;
   attended?: boolean | null;
+  createdBy?: string | null;
+  updatedBy?: string | null;
 }
 
 interface DailyProgrammeProps {
