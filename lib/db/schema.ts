@@ -454,3 +454,22 @@ export const exportJob = pgTable('ExportJob', {
 
 export type ExportJob = InferSelectModel<typeof exportJob>;
 
+// Phone Update History Table
+export const phoneUpdateHistory = pgTable('PhoneUpdateHistory', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  epicNumber: varchar('epic_number', { length: 20 })
+    .notNull()
+    .references(() => Voters.epicNumber, { onDelete: 'cascade' }),
+  oldMobileNoPrimary: varchar('old_mobile_no_primary', { length: 15 }),
+  newMobileNoPrimary: varchar('new_mobile_no_primary', { length: 15 }),
+  oldMobileNoSecondary: varchar('old_mobile_no_secondary', { length: 15 }),
+  newMobileNoSecondary: varchar('new_mobile_no_secondary', { length: 15 }),
+  updatedBy: uuid('updated_by')
+    .notNull()
+    .references(() => user.id),
+  sourceModule: varchar('source_module', { length: 50 }).notNull(), // 'profile_update' or 'beneficiary_management'
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export type PhoneUpdateHistory = InferSelectModel<typeof phoneUpdateHistory>;
+

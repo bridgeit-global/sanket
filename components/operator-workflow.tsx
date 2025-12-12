@@ -191,17 +191,10 @@ export function BeneficiaryManagement() {
         setSearchResults([]);
         setSearchTerm('');
 
-        // Check if primary phone number is missing
-        if (!voter.mobileNoPrimary) {
-            setShowPhoneUpdate(true);
-            clearSearchStateIfNeeded();
-            setWorkflowStep('phoneUpdate');
-        } else {
-            // Go directly to service creation for existing voters with phone number
-            setShowBeneficiaryService(true);
-            clearSearchStateIfNeeded();
-            setWorkflowStep('service');
-        }
+        // Always show phone update form to allow updating phone numbers even if they exist
+        setShowPhoneUpdate(true);
+        clearSearchStateIfNeeded();
+        setWorkflowStep('phoneUpdate');
     };
 
     const handlePhoneUpdate = async (phoneData: { mobileNoPrimary: string; mobileNoSecondary?: string }) => {

@@ -125,22 +125,27 @@ export async function PUT(
       );
     }
 
-    // Update voter
-    const updatedVoter = await updateVoter(decodedEpicNumber, {
-      fullName: fullName.trim(),
-      age: age !== undefined ? Number(age) : undefined,
-      gender: gender?.trim() || undefined,
-      familyGrouping: familyGrouping?.trim() || undefined,
-      religion: religion?.trim() || undefined,
-      mobileNoPrimary: mobileNoPrimary?.trim() || undefined,
-      mobileNoSecondary: mobileNoSecondary?.trim() || undefined,
-      houseNumber: houseNumber?.trim() || undefined,
-      address: address?.trim() || undefined,
-      pincode: pincode?.trim() || undefined,
-      relationType: relationType?.trim() || undefined,
-      relationName: relationName?.trim() || undefined,
-      isVoted2024: isVoted2024 !== undefined ? Boolean(isVoted2024) : undefined,
-    });
+    // Update voter with tracking parameters
+    const updatedVoter = await updateVoter(
+      decodedEpicNumber,
+      {
+        fullName: fullName.trim(),
+        age: age !== undefined ? Number(age) : undefined,
+        gender: gender?.trim() || undefined,
+        familyGrouping: familyGrouping?.trim() || undefined,
+        religion: religion?.trim() || undefined,
+        mobileNoPrimary: mobileNoPrimary?.trim() || undefined,
+        mobileNoSecondary: mobileNoSecondary?.trim() || undefined,
+        houseNumber: houseNumber?.trim() || undefined,
+        address: address?.trim() || undefined,
+        pincode: pincode?.trim() || undefined,
+        relationType: relationType?.trim() || undefined,
+        relationName: relationName?.trim() || undefined,
+        isVoted2024: isVoted2024 !== undefined ? Boolean(isVoted2024) : undefined,
+      },
+      session.user.id,
+      'profile_update'
+    );
 
     if (!updatedVoter) {
       return NextResponse.json({ error: 'Voter not found' }, { status: 404 });

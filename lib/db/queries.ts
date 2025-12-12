@@ -62,6 +62,8 @@ import {
   type Visitor,
   exportJob,
   type ExportJob,
+  phoneUpdateHistory,
+  type PhoneUpdateHistory,
 } from './schema';
 import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
@@ -1180,9 +1182,28 @@ export async function getRelatedVoters(voter: Voter | VoterWithPartNo): Promise<
 export async function updateVoterMobileNumber(
   epicNumber: string,
   mobileNoPrimary?: string,
-  mobileNoSecondary?: string
+  mobileNoSecondary?: string,
+  updatedBy?: string,
+  sourceModule?: string
 ): Promise<Voter | null> {
   try {
+    // Fetch current phone numbers before update
+    const [currentVoter] = await db
+      .select({
+        mobileNoPrimary: Voters.mobileNoPrimary,
+        mobileNoSecondary: Voters.mobileNoSecondary,
+      })
+      .from(Voters)
+      .where(eq(Voters.epicNumber, epicNumber))
+      .limit(1);
+
+    if (!currentVoter) {
+      return null;
+    }
+
+    const oldMobileNoPrimary = currentVoter.mobileNoPrimary || null;
+    const oldMobileNoSecondary = currentVoter.mobileNoSecondary || null;
+
     const updateData: Partial<Voter> = { updatedAt: new Date() };
     if (mobileNoPrimary !== undefined) updateData.mobileNoPrimary = mobileNoPrimary;
     if (mobileNoSecondary !== undefined) updateData.mobileNoSecondary = mobileNoSecondary;
@@ -1193,7 +1214,30 @@ export async function updateVoterMobileNumber(
       .where(eq(Voters.epicNumber, epicNumber))
       .returning();
 
-    return updatedVoter || null;
+    if (!updatedVoter) {
+      return null;
+    }
+
+    // Track phone number changes if they actually changed and tracking parameters are provided
+    const newMobileNoPrimary = updatedVoter.mobileNoPrimary || null;
+    const newMobileNoSecondary = updatedVoter.mobileNoSecondary || null;
+
+    const primaryChanged = oldMobileNoPrimary !== newMobileNoPrimary;
+    const secondaryChanged = oldMobileNoSecondary !== newMobileNoSecondary;
+
+    if ((primaryChanged || secondaryChanged) && updatedBy && sourceModule) {
+      await db.insert(phoneUpdateHistory).values({
+        epicNumber,
+        oldMobileNoPrimary,
+        newMobileNoPrimary,
+        oldMobileNoSecondary,
+        newMobileNoSecondary,
+        updatedBy,
+        sourceModule,
+      });
+    }
+
+    return updatedVoter;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1239,9 +1283,34 @@ export async function updateVoterMobileNumbers(
 
 export async function updateVoter(
   epicNumber: string,
-  updateData: Partial<Pick<Voter, 'fullName' | 'age' | 'gender' | 'familyGrouping' | 'religion' | 'mobileNoPrimary' | 'mobileNoSecondary' | 'houseNumber' | 'address' | 'pincode' | 'relationType' | 'relationName' | 'isVoted2024'>>
+  updateData: Partial<Pick<Voter, 'fullName' | 'age' | 'gender' | 'familyGrouping' | 'religion' | 'mobileNoPrimary' | 'mobileNoSecondary' | 'houseNumber' | 'address' | 'pincode' | 'relationType' | 'relationName' | 'isVoted2024'>>,
+  updatedBy?: string,
+  sourceModule?: string
 ): Promise<Voter | null> {
   try {
+    // Check if phone numbers are being updated
+    const isUpdatingPhone = updateData.mobileNoPrimary !== undefined || updateData.mobileNoSecondary !== undefined;
+    
+    // Fetch current phone numbers before update if tracking phone changes
+    let oldMobileNoPrimary: string | null = null;
+    let oldMobileNoSecondary: string | null = null;
+    
+    if (isUpdatingPhone && updatedBy && sourceModule) {
+      const [currentVoter] = await db
+        .select({
+          mobileNoPrimary: Voters.mobileNoPrimary,
+          mobileNoSecondary: Voters.mobileNoSecondary,
+        })
+        .from(Voters)
+        .where(eq(Voters.epicNumber, epicNumber))
+        .limit(1);
+
+      if (currentVoter) {
+        oldMobileNoPrimary = currentVoter.mobileNoPrimary || null;
+        oldMobileNoSecondary = currentVoter.mobileNoSecondary || null;
+      }
+    }
+
     const dataToUpdate: Partial<Voter> = { updatedAt: new Date() };
 
     if (updateData.fullName !== undefined) {
@@ -1290,11 +1359,109 @@ export async function updateVoter(
       .where(eq(Voters.epicNumber, epicNumber))
       .returning();
 
-    return updatedVoter || null;
+    if (!updatedVoter) {
+      return null;
+    }
+
+    // Track phone number changes if they actually changed and tracking parameters are provided
+    if (isUpdatingPhone && updatedBy && sourceModule) {
+      const newMobileNoPrimary = updatedVoter.mobileNoPrimary || null;
+      const newMobileNoSecondary = updatedVoter.mobileNoSecondary || null;
+
+      const primaryChanged = oldMobileNoPrimary !== newMobileNoPrimary;
+      const secondaryChanged = oldMobileNoSecondary !== newMobileNoSecondary;
+
+      if (primaryChanged || secondaryChanged) {
+        await db.insert(phoneUpdateHistory).values({
+          epicNumber,
+          oldMobileNoPrimary,
+          newMobileNoPrimary,
+          oldMobileNoSecondary,
+          newMobileNoSecondary,
+          updatedBy,
+          sourceModule,
+        });
+      }
+    }
+
+    return updatedVoter;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to update voter',
+    );
+  }
+}
+
+export async function getPhoneUpdateStats() {
+  try {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Count total phone updates today
+    const [todayCountResult] = await db
+      .select({ count: count() })
+      .from(phoneUpdateHistory)
+      .where(gte(phoneUpdateHistory.createdAt, today));
+
+    const phoneUpdatesToday = todayCountResult?.count || 0;
+
+    // Count phone updates by source module today
+    const updatesBySource = await db
+      .select({
+        sourceModule: phoneUpdateHistory.sourceModule,
+        count: count(),
+      })
+      .from(phoneUpdateHistory)
+      .where(gte(phoneUpdateHistory.createdAt, today))
+      .groupBy(phoneUpdateHistory.sourceModule);
+
+    const phoneUpdatesBySource: Record<string, number> = {};
+    for (const row of updatesBySource) {
+      phoneUpdatesBySource[row.sourceModule] = row.count;
+    }
+
+    // Get recent phone updates (last 20) with voter info
+    const recentUpdates = await db
+      .select({
+        id: phoneUpdateHistory.id,
+        epicNumber: phoneUpdateHistory.epicNumber,
+        oldMobileNoPrimary: phoneUpdateHistory.oldMobileNoPrimary,
+        newMobileNoPrimary: phoneUpdateHistory.newMobileNoPrimary,
+        oldMobileNoSecondary: phoneUpdateHistory.oldMobileNoSecondary,
+        newMobileNoSecondary: phoneUpdateHistory.newMobileNoSecondary,
+        sourceModule: phoneUpdateHistory.sourceModule,
+        createdAt: phoneUpdateHistory.createdAt,
+        updatedBy: phoneUpdateHistory.updatedBy,
+        voterFullName: Voters.fullName,
+        updatedByUserId: user.userId,
+      })
+      .from(phoneUpdateHistory)
+      .leftJoin(Voters, eq(phoneUpdateHistory.epicNumber, Voters.epicNumber))
+      .leftJoin(user, eq(phoneUpdateHistory.updatedBy, user.id))
+      .orderBy(desc(phoneUpdateHistory.createdAt))
+      .limit(20);
+
+    return {
+      phoneUpdatesToday,
+      phoneUpdatesBySource,
+      recentPhoneUpdates: recentUpdates.map((update) => ({
+        id: update.id,
+        epicNumber: update.epicNumber,
+        voterFullName: update.voterFullName,
+        oldMobileNoPrimary: update.oldMobileNoPrimary,
+        newMobileNoPrimary: update.newMobileNoPrimary,
+        oldMobileNoSecondary: update.oldMobileNoSecondary,
+        newMobileNoSecondary: update.newMobileNoSecondary,
+        sourceModule: update.sourceModule,
+        createdAt: update.createdAt,
+        updatedBy: update.updatedByUserId,
+      })),
+    };
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get phone update statistics',
     );
   }
 }

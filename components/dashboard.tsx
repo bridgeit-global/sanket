@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CalendarDays, Inbox, Send, FolderKanban } from 'lucide-react';
+import { CalendarDays, Inbox, Send, FolderKanban, Phone } from 'lucide-react';
 import { format } from 'date-fns';
 import { DashboardSkeleton } from '@/components/module-skeleton';
 import { ModulePageHeader } from '@/components/module-page-header';
@@ -15,6 +15,7 @@ interface DashboardStats {
   inward: number;
   outward: number;
   projects: number;
+  phoneUpdates: number;
 }
 
 interface UpcomingProgramme {
@@ -25,6 +26,25 @@ interface UpcomingProgramme {
   location: string;
 }
 
+interface PhoneUpdate {
+  id: string;
+  epicNumber: string;
+  voterFullName: string | null;
+  oldMobileNoPrimary: string | null;
+  newMobileNoPrimary: string | null;
+  oldMobileNoSecondary: string | null;
+  newMobileNoSecondary: string | null;
+  sourceModule: string;
+  createdAt: Date | string;
+  updatedBy: string | null;
+}
+
+interface PhoneUpdatesData {
+  today: number;
+  bySource: Record<string, number>;
+  recent: PhoneUpdate[];
+}
+
 export function Dashboard() {
   const router = useRouter();
   const { t } = useTranslations();
@@ -33,8 +53,14 @@ export function Dashboard() {
     inward: 0,
     outward: 0,
     projects: 0,
+    phoneUpdates: 0,
   });
   const [upcoming, setUpcoming] = useState<UpcomingProgramme[]>([]);
+  const [phoneUpdates, setPhoneUpdates] = useState<PhoneUpdatesData>({
+    today: 0,
+    bySource: {},
+    recent: [],
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -50,6 +76,9 @@ export function Dashboard() {
         const data = await response.json();
         setStats(data.stats);
         setUpcoming(data.upcoming);
+        if (data.phoneUpdates) {
+          setPhoneUpdates(data.phoneUpdates);
+        }
       }
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -74,7 +103,7 @@ export function Dashboard() {
           <CardTitle>{t('dashboard.todayAtGlance')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-4">
             <div className="flex flex-col gap-1 rounded-lg border p-4">
               <span className="text-xs uppercase tracking-wide text-muted-foreground">
                 {t('dashboard.meetings')}
@@ -102,6 +131,15 @@ export function Dashboard() {
               <span className="text-2xl font-semibold">{stats.projects}</span>
               <span className="text-xs text-muted-foreground">
                 {t('dashboard.inProgressForConstituency')}
+              </span>
+            </div>
+            <div className="flex flex-col gap-1 rounded-lg border p-4">
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                Phone Updates
+              </span>
+              <span className="text-2xl font-semibold">{stats.phoneUpdates}</span>
+              <span className="text-xs text-muted-foreground">
+                Updated today
               </span>
             </div>
           </div>
@@ -183,6 +221,90 @@ export function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {phoneUpdates.recent.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Phone className="h-5 w-5" />
+              Recent Phone Number Updates
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {phoneUpdates.recent.map((update) => (
+                <div
+                  key={update.id}
+                  className="flex flex-col gap-2 rounded-lg border p-4 text-sm"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium">
+                        {update.voterFullName || update.epicNumber}
+                      </p>
+                      <p className="text-xs text-muted-foreground font-mono">
+                        EPIC: {update.epicNumber}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(update.createdAt), 'MMM dd, HH:mm')}
+                      </span>
+                      <p className="text-xs text-muted-foreground">
+                        {update.sourceModule === 'profile_update'
+                          ? 'Profile Update'
+                          : 'Beneficiary Management'}
+                      </p>
+                    </div>
+                  </div>
+                  {(update.oldMobileNoPrimary !== update.newMobileNoPrimary ||
+                    update.oldMobileNoSecondary !== update.newMobileNoSecondary) && (
+                    <div className="mt-2 space-y-1">
+                      {update.oldMobileNoPrimary !== update.newMobileNoPrimary && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            Primary:
+                          </span>
+                          {update.oldMobileNoPrimary && (
+                            <span className="text-xs line-through text-muted-foreground font-mono">
+                              {update.oldMobileNoPrimary}
+                            </span>
+                          )}
+                          <span className="text-xs">→</span>
+                          <span className="text-xs font-mono font-medium">
+                            {update.newMobileNoPrimary || 'Removed'}
+                          </span>
+                        </div>
+                      )}
+                      {update.oldMobileNoSecondary !== update.newMobileNoSecondary && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">
+                            Secondary:
+                          </span>
+                          {update.oldMobileNoSecondary && (
+                            <span className="text-xs line-through text-muted-foreground font-mono">
+                              {update.oldMobileNoSecondary}
+                            </span>
+                          )}
+                          <span className="text-xs">→</span>
+                          <span className="text-xs font-mono font-medium">
+                            {update.newMobileNoSecondary || 'Removed'}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {update.updatedBy && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Updated by: {update.updatedBy}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

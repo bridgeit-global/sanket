@@ -34,7 +34,9 @@ export async function POST(request: NextRequest) {
         const updatedVoter = await updateVoterMobileNumber(
             epicNumber,
             mobileNoPrimary,
-            mobileNoSecondary
+            mobileNoSecondary,
+            session.user.id,
+            'beneficiary_management'
         );
 
         if (!updatedVoter) {
