@@ -42,6 +42,7 @@ interface PhoneUpdate {
 
 interface PhoneUpdatesData {
   today: number;
+  totalVotersWithPhone: number;
   bySource: Record<string, number>;
   byUser: Array<{ userId: string | null; count: number }>;
   recent: PhoneUpdate[];
@@ -60,6 +61,7 @@ export function Dashboard() {
   const [upcoming, setUpcoming] = useState<UpcomingProgramme[]>([]);
   const [phoneUpdates, setPhoneUpdates] = useState<PhoneUpdatesData>({
     today: 0,
+    totalVotersWithPhone: 0,
     bySource: {},
     byUser: [],
     recent: [],
@@ -152,6 +154,7 @@ export function Dashboard() {
             phoneUpdatesBySource={phoneUpdates.bySource}
             phoneUpdatesByUser={phoneUpdates.byUser}
             totalUpdates={phoneUpdates.today}
+            totalVotersWithPhone={phoneUpdates.totalVotersWithPhone}
           />
         </CardContent>
       </Card>

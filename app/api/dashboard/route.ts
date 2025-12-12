@@ -76,6 +76,7 @@ export async function GET(request: NextRequest) {
       },
       phoneUpdates: {
         today: phoneUpdateStats.phoneUpdatesToday,
+        totalVotersWithPhone: phoneUpdateStats.totalVotersWithPhone,
         bySource: phoneUpdateStats.phoneUpdatesBySource,
         byUser: phoneUpdateStats.phoneUpdatesByUser,
         recent: phoneUpdateStats.recentPhoneUpdates,

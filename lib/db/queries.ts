@@ -1406,6 +1406,19 @@ export async function getPhoneUpdateStats() {
 
     const phoneUpdatesToday = todayCountResult?.count || 0;
 
+    // Count total voters with phone numbers (primary or secondary)
+    const [totalVotersWithPhoneResult] = await db
+      .select({ count: count() })
+      .from(Voters)
+      .where(
+        or(
+          sql`${Voters.mobileNoPrimary} IS NOT NULL AND ${Voters.mobileNoPrimary} != ''`,
+          sql`${Voters.mobileNoSecondary} IS NOT NULL AND ${Voters.mobileNoSecondary} != ''`
+        )!
+      );
+
+    const totalVotersWithPhone = totalVotersWithPhoneResult?.count || 0;
+
     // Count phone updates by source module today
     const updatesBySource = await db
       .select({
@@ -1464,6 +1477,7 @@ export async function getPhoneUpdateStats() {
 
     return {
       phoneUpdatesToday,
+      totalVotersWithPhone,
       phoneUpdatesBySource,
       phoneUpdatesByUser,
       recentPhoneUpdates: recentUpdates.map((update) => ({

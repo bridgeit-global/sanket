@@ -4,12 +4,14 @@ interface PhoneUpdatesChartProps {
   phoneUpdatesBySource: Record<string, number>;
   phoneUpdatesByUser: Array<{ userId: string | null; count: number }>;
   totalUpdates: number;
+  totalVotersWithPhone: number;
 }
 
 export function PhoneUpdatesChart({
   phoneUpdatesBySource,
   phoneUpdatesByUser,
   totalUpdates,
+  totalVotersWithPhone,
 }: PhoneUpdatesChartProps) {
   // Format module names for display
   const formatModuleName = (module: string) => {
@@ -31,10 +33,18 @@ export function PhoneUpdatesChart({
 
   return (
     <div className="space-y-6">
-      {/* Total Updates */}
-      <div className="text-center p-4 bg-primary/10 rounded-lg">
-        <div className="text-2xl font-bold text-primary">{totalUpdates}</div>
-        <div className="text-sm text-muted-foreground">Phone Updates Today</div>
+      {/* Stats Summary */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="text-center p-4 bg-primary/10 rounded-lg">
+          <div className="text-2xl font-bold text-primary">{totalUpdates}</div>
+          <div className="text-sm text-muted-foreground">Phone Updates Today</div>
+        </div>
+        <div className="text-center p-4 bg-blue-500/10 rounded-lg">
+          <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+            {totalVotersWithPhone.toLocaleString()}
+          </div>
+          <div className="text-sm text-muted-foreground">Total Voters with Phone Numbers</div>
+        </div>
       </div>
 
       {/* Module-wise Breakdown */}
