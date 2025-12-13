@@ -870,7 +870,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                             ) : (
                                               <span className="text-muted-foreground">—</span>
                                             )}
-                                            <div className="text-xs text-muted-foreground mt-1">
+                                            <div className="text-xs text-muted-foreground mt-1 no-print">
                                               {item.createdBy && (
                                                 <span>Created by: {item.createdBy.substring(0, 8)}...</span>
                                               )}
