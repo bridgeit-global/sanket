@@ -1290,11 +1290,11 @@ export async function updateVoter(
   try {
     // Check if phone numbers are being updated
     const isUpdatingPhone = updateData.mobileNoPrimary !== undefined || updateData.mobileNoSecondary !== undefined;
-    
+
     // Fetch current phone numbers before update if tracking phone changes
     let oldMobileNoPrimary: string | null = null;
     let oldMobileNoSecondary: string | null = null;
-    
+
     if (isUpdatingPhone && updatedBy && sourceModule) {
       const [currentVoter] = await db
         .select({
@@ -2748,7 +2748,7 @@ export async function getDailyProgrammeItems({
   startDate?: Date | string;
   endDate?: Date | string;
   limit?: number;
-} = {}): Promise<Array<DailyProgramme>> {
+} = {}): Promise<Array<DailyProgramme & { createdByUserId?: string | null; updatedByUserId?: string | null }>> {
   try {
     const conditions: SQL[] = [];
     if (startDate) {
@@ -2758,12 +2758,35 @@ export async function getDailyProgrammeItems({
       conditions.push(lte(dailyProgramme.date, formatDateToString(endDate)));
     }
 
-    return await db
-      .select()
+    // Use SQL aliases for joining user table twice
+    const createdByUser = sql`${user}`.as('created_by_user');
+    const updatedByUser = sql`${user}`.as('updated_by_user');
+
+    const results = await db
+      .select({
+        id: dailyProgramme.id,
+        date: dailyProgramme.date,
+        startTime: dailyProgramme.startTime,
+        endTime: dailyProgramme.endTime,
+        title: dailyProgramme.title,
+        location: dailyProgramme.location,
+        remarks: dailyProgramme.remarks,
+        attended: dailyProgramme.attended,
+        createdBy: dailyProgramme.createdBy,
+        updatedBy: dailyProgramme.updatedBy,
+        createdAt: dailyProgramme.createdAt,
+        updatedAt: dailyProgramme.updatedAt,
+        createdByUserId: sql<string | null>`created_by_user.user_id`,
+        updatedByUserId: sql<string | null>`updated_by_user.user_id`,
+      })
       .from(dailyProgramme)
+      .leftJoin(sql`${user} AS created_by_user`, sql`${dailyProgramme.createdBy} = created_by_user.id`)
+      .leftJoin(sql`${user} AS updated_by_user`, sql`${dailyProgramme.updatedBy} = updated_by_user.id`)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(asc(dailyProgramme.date), asc(dailyProgramme.startTime))
       .limit(limit);
+
+    return results;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',

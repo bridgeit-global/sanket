@@ -781,7 +781,6 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                   <div className="print-header hidden">
                     <h1 className="text-2xl font-semibold">{t('dailyProgramme.mlaName')}</h1>
                     <h2 className="text-lg font-bold mt-2">{t('dailyProgramme.printHeaderTitle')}</h2>
-                    <p className="mt-1">{dateRangeLabel}</p>
                   </div>
 
                   {filteredDateEntries.length === 0 ? (
@@ -806,7 +805,27 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                             </div>
                             <div className="overflow-x-auto print-table-wrapper">
                               <Table>
+                                {/* Explicit column width definitions for print - ensures proper width distribution */}
+                                <colgroup>
+                                  <col className="print-col-1" />
+                                  <col className="print-col-2" />
+                                  <col className="print-col-3" />
+                                  <col className="print-col-4" />
+                                  <col className="no-print" />
+                                  <col className="no-print" />
+                                </colgroup>
                                 <TableHeader>
+                                  {/* Date header row - repeats on each page when table breaks */}
+                                  <TableRow className="print-date-header-row">
+                                    <TableHead colSpan={4} className="text-center font-semibold py-2 border-b-2">
+                                      <div className="flex items-center justify-center gap-2">
+                                        <Calendar className="size-4" />
+                                        {format(date, 'EEEE, dd MMM yyyy')}
+                                      </div>
+                                    </TableHead>
+                                    <TableHead colSpan={2} className="no-print" />
+                                  </TableRow>
+                                  {/* Column headers row */}
                                   <TableRow>
                                     <TableHead className="w-[60px] text-center">{t('dailyProgramme.serialNo')}</TableHead>
                                     <TableHead className="w-[150px]">{t('dailyProgramme.time')}</TableHead>

@@ -399,15 +399,20 @@
         visibility: visible;
     }
 
-    /* Position the printable content at the top */
+    /* Position the printable content at the top - use relative positioning for normal flow */
     .print-schedule {
-        position: absolute;
-        left: 0;
-        top: 0;
+        position: relative;
         width: 100%;
-        padding: 20px;
+        padding: 0;
         background: white;
         color: #000;
+        margin: 0;
+        page-break-inside: auto;
+    }
+
+    /* Ensure print header and first content appear together on first page */
+    .print-header+* {
+        page-break-before: avoid;
     }
 
     /* Ensure all text is black in print */
@@ -421,17 +426,41 @@
         margin: 1.5cm;
     }
 
-    /* Print header styles */
+    /* Repeating header information on each page */
+    .print-schedule thead {
+        display: table-header-group;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    /* Make date headers repeat when content spans pages */
+    .print-date-section {
+        page-break-inside: auto;
+        break-inside: auto;
+    }
+
+    /* Date header should appear at top of page when section breaks */
+    .print-date-section>div:first-child {
+        page-break-after: avoid;
+        break-after: avoid;
+    }
+
+    /* Print header styles - compact version, appears at top of first page */
     .print-header {
         display: block !important;
         visibility: visible !important;
         text-align: center;
-        margin-bottom: 24px;
-        padding-bottom: 16px;
+        margin-bottom: 12px;
+        padding-bottom: 8px;
         border-bottom: 2px solid #000;
         page-break-after: avoid;
         break-after: avoid;
+        position: relative;
     }
+
+    /* Add repeating header information using CSS - appears on each page via thead */
+    /* The main header (MLA name, title) appears only on first page */
+    /* Date information repeats via thead in each table */
 
     /* Show print header even if it has hidden class */
     .print-header.hidden {
@@ -440,21 +469,21 @@
     }
 
     .print-header h2 {
-        font-size: 18px;
+        font-size: 16px;
         font-weight: 600;
-        margin: 0 0 8px 0;
+        margin: 0 0 4px 0;
         color: #000 !important;
     }
 
     .print-header h1 {
-        font-size: 24px;
+        font-size: 20px;
         font-weight: bold;
-        margin: 0 0 8px 0;
+        margin: 0 0 4px 0;
         color: #000 !important;
     }
 
     .print-header p {
-        font-size: 16px;
+        font-size: 14px;
         color: #333 !important;
         margin: 0;
     }
@@ -464,7 +493,7 @@
         width: 100%;
         border-collapse: collapse;
         page-break-inside: auto;
-        table-layout: fixed;
+        table-layout: fixed !important;
     }
 
     /* Remove overflow scrollbar in print */
@@ -472,15 +501,29 @@
         overflow: visible !important;
     }
 
-    /* Prevent table rows from breaking across pages */
-    .print-schedule tr {
+    /* Allow table rows to break across pages when necessary, but try to keep rows together */
+    .print-schedule tbody tr {
         page-break-inside: avoid;
         page-break-after: auto;
         break-inside: avoid;
         break-after: auto;
     }
 
-    /* Prevent table cells from breaking */
+    /* Header rows should never break - they repeat on each page */
+    .print-schedule thead tr {
+        page-break-inside: avoid;
+        break-inside: avoid;
+        page-break-after: avoid;
+        break-after: avoid;
+    }
+
+    /* Ensure thead stays together with at least one tbody row */
+    .print-schedule thead {
+        page-break-after: avoid;
+        break-after: avoid;
+    }
+
+    /* Prevent table cells from breaking, but allow if content is too large */
     .print-schedule th,
     .print-schedule td {
         border: 1px solid #333;
@@ -493,29 +536,64 @@
         hyphens: auto;
     }
 
-    /* Serial number column styling for print */
-    .print-schedule th:first-child,
-    .print-schedule td:first-child {
-        text-align: center;
-        width: 8%;
-        min-width: 50px;
-        max-width: 60px;
-        padding: 8px 6px;
+    /* Allow cells to break if they contain very long content */
+    .print-schedule td {
+        page-break-inside: auto;
+        break-inside: auto;
     }
 
-    /* Time column width for print */
-    .print-schedule th:nth-child(2),
-    .print-schedule td:nth-child(2) {
-        width: 15%;
-        min-width: 120px;
-        max-width: 150px;
+    /* Column width definitions using colgroup - most reliable for table-layout: fixed */
+    .print-schedule colgroup col.print-col-1 {
+        width: 4% !important;
     }
 
-    /* Programme Nature & Place column - wider for print */
-    .print-schedule th:nth-child(3),
-    .print-schedule td:nth-child(3) {
-        width: 42%;
-        min-width: 200px;
+    .print-schedule colgroup col.print-col-2 {
+        width: 12% !important;
+    }
+
+    .print-schedule colgroup col.print-col-3 {
+        width: 52% !important;
+    }
+
+    .print-schedule colgroup col.print-col-4 {
+        width: 32% !important;
+    }
+
+    .print-schedule colgroup col.no-print {
+        width: 0 !important;
+    }
+
+    /* Serial number column styling for print - narrower - override all width classes */
+    /* Target only the column header row (not the date header row) and data cells */
+    .print-schedule thead tr:last-child th:first-child,
+    .print-schedule tbody td:first-child,
+    .print-schedule th.w-\[60px\],
+    .print-schedule td.w-\[60px\] {
+        text-align: center !important;
+        width: 4% !important;
+        min-width: 30px !important;
+        max-width: 35px !important;
+        padding: 8px 3px !important;
+    }
+
+    /* Time column width for print - narrower - override all width classes */
+    .print-schedule thead tr:last-child th:nth-child(2),
+    .print-schedule tbody td:nth-child(2),
+    .print-schedule th.w-\[150px\],
+    .print-schedule td.w-\[150px\] {
+        width: 12% !important;
+        min-width: 70px !important;
+        max-width: 90px !important;
+        padding: 8px 5px !important;
+    }
+
+    /* Programme Nature & Place column - wider for print to accommodate content */
+    .print-schedule thead tr:last-child th:nth-child(3),
+    .print-schedule tbody td:nth-child(3),
+    .print-schedule th.w-\[400px\],
+    .print-schedule td.w-\[400px\] {
+        width: 52% !important;
+        min-width: 280px !important;
     }
 
     /* Ensure consistent font size in Programme Nature & Place column */
@@ -524,10 +602,12 @@
     }
 
     /* Reference column width for print */
-    .print-schedule th:nth-child(4),
-    .print-schedule td:nth-child(4) {
-        width: 35%;
-        min-width: 150px;
+    .print-schedule thead tr:last-child th:nth-child(4),
+    .print-schedule tbody td:nth-child(4),
+    .print-schedule th.w-\[300px\],
+    .print-schedule td.w-\[300px\] {
+        width: 32% !important;
+        min-width: 150px !important;
     }
 
     .print-schedule th {
@@ -537,39 +617,57 @@
         print-color-adjust: exact;
     }
 
-    /* Ensure date groups don't break awkwardly */
+    /* Allow date groups to break across pages when needed, but keep header with first row */
     .print-date-section {
-        page-break-inside: avoid;
-        break-inside: avoid;
-        margin-bottom: 20px;
-        padding-bottom: 12px;
+        page-break-inside: auto;
+        break-inside: auto;
+        margin-bottom: 16px;
+        padding-bottom: 8px;
     }
 
-    /* Allow page breaks between date groups, but not within them */
+    /* Allow page breaks between date groups */
     .print-date-section:not(:last-child) {
         page-break-after: auto;
         break-after: auto;
     }
 
-    /* Table wrapper to prevent breaking */
+    /* Table wrapper - allow breaking but keep header with content */
     .print-table-wrapper {
-        page-break-inside: avoid;
-        break-inside: avoid;
+        page-break-inside: auto;
+        break-inside: auto;
         overflow: visible !important;
         width: 100%;
     }
 
-    /* Ensure table headers are visible and styled properly */
+    /* Ensure table headers are visible and styled properly - they will repeat on each page */
     .print-schedule thead {
         display: table-header-group;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    /* Date header row in table - will repeat on each page */
+    .print-schedule .print-date-header-row {
+        background-color: #f9fafb !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .print-schedule .print-date-header-row th {
+        background-color: #f9fafb !important;
+        font-weight: 700;
+        font-size: 14px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 
     .print-schedule tbody {
         display: table-row-group;
     }
 
-    /* Better spacing for date headers in print */
+    /* Hide the date header outside table when printing (we use the one in thead instead) */
     .print-date-section>div:first-child {
+        display: none;
         margin-bottom: 8px;
         padding-bottom: 4px;
         border-bottom: 1px solid #ddd;
@@ -611,13 +709,26 @@
     /* Ensure table doesn't overflow page width */
     .print-schedule table {
         max-width: 100%;
-        table-layout: fixed;
+        table-layout: fixed !important;
         width: 100%;
     }
 
     /* Hide elements that shouldn't be printed */
     .no-print {
         display: none !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        max-width: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    /* Ensure hidden columns don't affect table column count */
+    .print-schedule table colgroup col.no-print,
+    .print-schedule table thead th.no-print,
+    .print-schedule table tbody td.no-print {
+        display: none !important;
+        width: 0 !important;
     }
 
     /* Project Detail Print Styles */
