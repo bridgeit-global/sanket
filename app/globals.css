@@ -665,9 +665,9 @@
         display: table-row-group;
     }
 
-    /* Hide the date header outside table when printing (we use the one in thead instead) */
+    /* Show the date header outside table when printing */
     .print-date-section>div:first-child {
-        display: none;
+        display: flex !important;
         margin-bottom: 8px;
         padding-bottom: 4px;
         border-bottom: 1px solid #ddd;

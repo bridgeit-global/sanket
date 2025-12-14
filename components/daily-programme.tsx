@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/table';
 import { Printer, Calendar, Pencil, CheckCircle2, XCircle, Clock } from 'lucide-react';
 import { format, addDays, parseISO, startOfToday } from 'date-fns';
+import { enIN } from 'date-fns/locale';
 import {
   Select,
   SelectContent,
@@ -57,8 +58,10 @@ interface DailyProgrammeProps {
   userRole: string;
 }
 
-// Generate duration options in minutes
-function generateDurationOptions(): Array<{ value: string; label: string }> {
+// Generate duration options in minutes with localization
+function generateDurationOptions(
+  t: (key: string) => string,
+): Array<{ value: string; label: string }> {
   const options: Array<{ value: string; label: string }> = [];
   // Common durations: 15, 30, 45, 60, 90, 120, 180, 240 minutes
   const durations = [15, 30, 45, 60, 90, 120, 180, 240];
@@ -68,11 +71,13 @@ function generateDurationOptions(): Array<{ value: string; label: string }> {
     const mins = minutes % 60;
     let label: string;
     if (hours === 0) {
-      label = `${minutes} min`;
+      label = `${minutes} ${t('dailyProgramme.min')}`;
     } else if (mins === 0) {
-      label = hours === 1 ? '1 hour' : `${hours} hours`;
+      label = hours === 1
+        ? `1 ${t('dailyProgramme.hour')}`
+        : `${hours} ${t('dailyProgramme.hours')}`;
     } else {
-      label = `${hours}h ${mins}m`;
+      label = `${hours}${t('dailyProgramme.hourShort')} ${mins}${t('dailyProgramme.minShort')}`;
     }
     options.push({ value: minutes.toString(), label });
   });
@@ -110,15 +115,22 @@ function calculateDuration(
   return endTotalMinutes - startTotalMinutes;
 }
 
-// Convert 24-hour time to 12-hour format with AM/PM
-function formatTimeTo12Hour(time24: string): string {
+// Convert 24-hour time to 12-hour format with localized AM/PM
+function formatTimeTo12Hour(time24: string, locale: 'en' | 'mr'): string {
   if (!time24) return '';
 
   const [hours, minutes] = time24.split(':').map(Number);
-  const period = hours >= 12 ? 'PM' : 'AM';
-  const hours12 = hours % 12 || 12; // Convert 0 to 12 for midnight
+  const date = new Date();
+  date.setHours(hours, minutes, 0, 0);
 
-  return `${hours12}:${minutes.toString().padStart(2, '0')} ${period}`;
+  // Use Intl.DateTimeFormat to get localized time format
+  const formatter = new Intl.DateTimeFormat(locale === 'mr' ? 'mr-IN' : 'en-IN', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+
+  return formatter.format(date);
 }
 
 function getDefaultDateRange() {
@@ -180,10 +192,58 @@ function normalizeDate(dateValue: string | Date | null | undefined): string | nu
   return null;
 }
 
-const DURATION_OPTIONS = generateDurationOptions();
+// DURATION_OPTIONS will be generated inside component with access to translations
+
+// Helper function to format dates with locale support
+function formatDateWithLocale(date: Date, formatStr: string, locale: 'en' | 'mr'): string {
+  if (locale === 'mr') {
+    // Use Intl API for Marathi since date-fns doesn't have mr locale
+    if (formatStr === 'EEEE, dd MMM yyyy') {
+      const formatter = new Intl.DateTimeFormat('mr-IN', {
+        weekday: 'long',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+      return formatter.format(date);
+    } else if (formatStr === 'dd MMM yyyy') {
+      const formatter = new Intl.DateTimeFormat('mr-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+      return formatter.format(date);
+    } else {
+      // Fallback to default format
+      const formatter = new Intl.DateTimeFormat('mr-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+      return formatter.format(date);
+    }
+  } else {
+    // Use date-fns for English
+    return format(date, formatStr, { locale: enIN });
+  }
+}
 
 export function DailyProgramme({ userRole }: DailyProgrammeProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
+
+  // Generate duration options with localization
+  const DURATION_OPTIONS = useMemo(
+    () => {
+      try {
+        return generateDurationOptions(t);
+      } catch (error) {
+        console.error('Error generating duration options:', error);
+        return [];
+      }
+    },
+    [t],
+  ) || [];
+
   const [allItems, setAllItems] = useState<ProgrammeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() =>
@@ -297,7 +357,8 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
     const formatDate = (value?: string) => {
       if (!value) return null;
       try {
-        return format(parseISO(value), 'dd MMM yyyy');
+        const date = parseISO(value);
+        return formatDateWithLocale(date, 'dd MMM yyyy', locale);
       } catch (error) {
         console.error('Error formatting date range value:', value, error);
         return value;
@@ -320,7 +381,7 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
       return `Until ${endLabel}`;
     }
     return 'All scheduled dates';
-  }, [dateRange.start, dateRange.end]);
+  }, [dateRange.start, dateRange.end, locale]);
 
   useEffect(() => {
     loadItems();
@@ -792,12 +853,14 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                     <div className="space-y-6">
                       {filteredDateEntries.map(([dateKey, items]) => {
                         const date = parseISO(dateKey);
+                        // Format date based on locale
+                        const formattedDate = formatDateWithLocale(date, 'EEEE, dd MMM yyyy', locale);
                         return (
                           <div key={dateKey} className="space-y-3 print-date-section">
                             <div className="flex flex-wrap items-center justify-between gap-2">
                               <div className="flex items-center gap-2 font-semibold">
                                 <Calendar className="h-4 w-4" />
-                                {format(date, 'EEEE, dd MMM yyyy')}
+                                {formattedDate}
                               </div>
                               <span className="text-xs text-muted-foreground">
                                 {items.length} {items.length !== 1 ? t('dailyProgramme.events') : t('dailyProgramme.event')}
@@ -815,16 +878,6 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                   <col className="no-print" />
                                 </colgroup>
                                 <TableHeader>
-                                  {/* Date header row - repeats on each page when table breaks */}
-                                  <TableRow className="print-date-header-row">
-                                    <TableHead colSpan={4} className="text-center font-semibold py-2 border-b-2">
-                                      <div className="flex items-center justify-center gap-2">
-                                        <Calendar className="size-4" />
-                                        {format(date, 'EEEE, dd MMM yyyy')}
-                                      </div>
-                                    </TableHead>
-                                    <TableHead colSpan={2} className="no-print" />
-                                  </TableRow>
                                   {/* Column headers row */}
                                   <TableRow>
                                     <TableHead className="w-[60px] text-center">{t('dailyProgramme.serialNo')}</TableHead>
@@ -845,23 +898,41 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                     })
                                     .map((item, index) => {
                                       const duration = calculateDuration(item.startTime, item.endTime);
-                                      const durationLabel = duration !== null && duration > 0
-                                        ? DURATION_OPTIONS.find(
+                                      let durationLabel: string | null = null;
+                                      if (duration !== null && duration > 0) {
+                                        // First, try to find in predefined options
+                                        const foundOption = DURATION_OPTIONS.find(
                                           (opt) => Number.parseInt(opt.value, 10) === duration,
-                                        )?.label ||
-                                        (duration < 60
-                                          ? `${duration} min`
-                                          : `${Math.floor(duration / 60)}h ${duration % 60}m`)
-                                        : null;
+                                        );
+                                        if (foundOption) {
+                                          durationLabel = foundOption.label;
+                                        } else {
+                                          // Generate label using same logic as generateDurationOptions
+                                          const hours = Math.floor(duration / 60);
+                                          const mins = duration % 60;
+                                          if (hours === 0) {
+                                            durationLabel = `${duration} ${t('dailyProgramme.min')}`;
+                                          } else if (mins === 0) {
+                                            durationLabel = hours === 1
+                                              ? `1 ${t('dailyProgramme.hour')}`
+                                              : `${hours} ${t('dailyProgramme.hours')}`;
+                                          } else {
+                                            durationLabel = `${hours}${t('dailyProgramme.hourShort')} ${mins}${t('dailyProgramme.minShort')}`;
+                                          }
+                                        }
+                                      }
+
+                                      // Format serial number based on locale
+                                      const serialNumber = (index + 1).toLocaleString(locale === 'mr' ? 'mr-IN' : 'en-IN');
 
                                       return (
                                         <TableRow key={item.id}>
                                           <TableCell className="w-[60px] text-center font-medium">
-                                            {index + 1}
+                                            {serialNumber}
                                           </TableCell>
                                           <TableCell className="w-[150px]">
                                             <div className="font-mono font-semibold">
-                                              {formatTimeTo12Hour(item.startTime)}
+                                              {formatTimeTo12Hour(item.startTime, locale)}
                                               {durationLabel && (
                                                 <span className="text-xs font-normal text-muted-foreground ml-1">
                                                   ({durationLabel})

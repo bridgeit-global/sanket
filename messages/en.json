@@ -340,7 +340,14 @@
     "mlaName": "Hon' MLA, Smt. Sana Malik Shaikh",
     "printHeaderTitle": "Daily / Weekly Programme",
     "programmeNatureAndPlace": "Nature and Place of Program",
-    "reference": "Reference"
+    "reference": "Reference",
+    "am": "AM",
+    "pm": "PM",
+    "hour": "hour",
+    "hours": "hours",
+    "min": "min",
+    "hourShort": "h",
+    "minShort": "m"
   },
   "projects": {
     "title": "Constituency Projects",
@@ -494,7 +501,6 @@
       "serviceType": "Service Type",
       "serviceName": "Service Name",
       "priority": "Priority",
-      "description": "Description",
       "notes": "Notes",
       "confirmButton": "Confirm & Create Service"
     },

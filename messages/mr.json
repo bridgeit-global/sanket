@@ -340,7 +340,14 @@
     "mlaName": "मा. आमदार श्रीमती सना मलिक",
     "printHeaderTitle": "दैनंदिन / साप्ताहिक कार्यक्रम",
     "programmeNatureAndPlace": "कार्यक्रमाचे स्वरुप व ठिकाण",
-    "reference": "संदर्भ"
+    "reference": "संदर्भ",
+    "am": "सकाळी",
+    "pm": "संध्याकाळी",
+    "hour": "तास",
+    "hours": "तास",
+    "min": "मिनिट",
+    "hourShort": "ता",
+    "minShort": "मि"
   },
   "projects": {
     "title": "मतदारसंघ प्रकल्प",
