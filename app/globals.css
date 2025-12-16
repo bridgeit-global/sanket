@@ -420,12 +420,8 @@
         background: white;
         color: #000;
         margin: 0;
+        margin-top: 0;
         page-break-inside: auto;
-    }
-
-    /* Add margin to first date section to account for fixed header on first page */
-    .print-schedule>.print-date-section:first-child {
-        margin-top: 7px;
     }
 
     /* Ensure table headers repeat on each page when tables break */
@@ -455,8 +451,8 @@
     @page {
         size: A4;
         margin: 1.5cm;
-        margin-top: 2.5cm;
-        /* Extra space at top for fixed header */
+        margin-top: 3.5cm;
+        /* Extra space at top for fixed header - increased to prevent overlap */
         margin-bottom: 2cm;
 
         /* Header in page margin - more reliable than position:fixed for repeating */
@@ -470,6 +466,8 @@
             text-align: center;
             padding-bottom: 8px;
             border-bottom: 2px solid #000;
+            margin-bottom: 0;
+            vertical-align: bottom;
         }
 
         /* Extra space for page numbers */
@@ -718,17 +716,27 @@
         break-inside: avoid;
         display: table-row !important;
         visibility: visible !important;
+        page-break-before: auto;
+        break-before: auto;
     }
 
     .print-schedule .print-date-header-row th {
         background-color: #f9fafb !important;
         font-weight: 700;
         font-size: 14px;
-        padding: 8px 10px;
+        padding: 20px 10px 8px 10px !important;
+        padding-top: 20px !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
         display: table-cell !important;
         visibility: visible !important;
+    }
+
+    /* Override any Tailwind padding classes on date header row in print */
+    .print-schedule .print-date-header-row th.py-2,
+    .print-schedule .print-date-header-row th[class*="py-"] {
+        padding-top: 20px !important;
+        padding-bottom: 8px !important;
     }
 
     /* Column header row - ensure it repeats */
@@ -748,14 +756,16 @@
         break-after: avoid;
     }
 
+    /* Ensure column header row has proper spacing */
+    .print-schedule thead tr:not(.print-date-header-row) th {
+        padding-top: 12px !important;
+    }
+
     .print-schedule tbody {
         display: table-row-group;
     }
 
-    /* Hide the date header outside table when printing (date is now in table header) */
-    .print-date-section>div:first-child {
-        display: none !important;
-    }
+
 
     /* Ensure proper font sizes for print */
     .print-schedule {

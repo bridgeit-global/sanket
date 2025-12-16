@@ -892,20 +892,6 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                   <col className="no-print" />
                                 </colgroup>
                                 <TableHeader>
-                                  {/* Date header row - repeats on each page */}
-                                  <TableRow className="print-date-header-row">
-                                    <TableHead colSpan={6} className="text-left font-semibold py-2">
-                                      <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <div className="flex items-center gap-2">
-                                          <Calendar className="h-4 w-4" />
-                                          {formattedDate}
-                                        </div>
-                                        <span className="text-xs text-muted-foreground font-normal">
-                                          {items.length} {items.length !== 1 ? t('dailyProgramme.events') : t('dailyProgramme.event')}
-                                        </span>
-                                      </div>
-                                    </TableHead>
-                                  </TableRow>
                                   {/* Column headers row */}
                                   <TableRow>
                                     <TableHead className="w-[60px] text-center">{t('dailyProgramme.serialNo')}</TableHead>
