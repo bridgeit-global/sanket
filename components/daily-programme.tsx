@@ -52,6 +52,8 @@ interface ProgrammeItem {
   attended?: boolean | null;
   createdBy?: string | null;
   updatedBy?: string | null;
+  createdByUserId?: string | null;
+  updatedByUserId?: string | null;
 }
 
 interface DailyProgrammeProps {
@@ -987,11 +989,11 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                               <span className="text-muted-foreground">—</span>
                                             )}
                                             <div className="text-xs text-muted-foreground mt-1 no-print">
-                                              {item.createdBy && (
-                                                <span>Created by: {item.createdBy.substring(0, 8)}...</span>
+                                              {item.createdByUserId && (
+                                                <span>Created by: {item.createdByUserId}</span>
                                               )}
-                                              {item.updatedBy && item.updatedBy !== item.createdBy && (
-                                                <span className="ml-2">Updated by: {item.updatedBy.substring(0, 8)}...</span>
+                                              {item.updatedByUserId && item.updatedByUserId !== item.createdByUserId && (
+                                                <span className="ml-2">Updated by: {item.updatedByUserId}</span>
                                               )}
                                             </div>
                                           </TableCell>
