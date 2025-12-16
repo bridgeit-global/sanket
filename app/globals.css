@@ -425,7 +425,7 @@
 
     /* Add margin to first date section to account for fixed header on first page */
     .print-schedule>.print-date-section:first-child {
-        margin-top: 70px;
+        margin-top: 7px;
     }
 
     /* Ensure table headers repeat on each page when tables break */
@@ -725,7 +725,6 @@
         font-weight: 700;
         font-size: 14px;
         padding: 8px 10px;
-        border-bottom: 1px solid #ddd;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
         display: table-cell !important;
