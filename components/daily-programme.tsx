@@ -575,6 +575,23 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
       document.title = 'Daily Programme';
     }
 
+    // Estimate total pages for fallback (for browsers that don't support CSS counter(pages))
+    // Portrait A4: 29.7cm height, minus 1.5cm top and 2cm bottom margins = ~26.2cm usable height
+    // Convert to pixels: ~26.2cm * 37.8px/cm ≈ 990px per page (at 96 DPI)
+    const printScheduleElement = document.querySelector('.print-schedule');
+    let estimatedTotalPages = 1;
+    if (printScheduleElement) {
+      const contentHeight = printScheduleElement.scrollHeight;
+      const pageHeight = 990; // Approximate pixels per page in portrait A4
+      estimatedTotalPages = Math.max(1, Math.ceil(contentHeight / pageHeight));
+    }
+
+    // Update footer with estimated page count (for browsers that need JavaScript fallback)
+    const footerElement = document.querySelector('.print-page-footer .total-pages');
+    if (footerElement) {
+      footerElement.textContent = estimatedTotalPages.toString();
+    }
+
     // Restore original title after print dialog closes
     const handleAfterPrint = () => {
       document.title = originalTitle;
@@ -838,11 +855,6 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
 
                 {/* Events Table - Printable Section */}
                 <div className="print-schedule">
-                  {/* Print Header - Only visible when printing */}
-                  <div className="print-header hidden">
-                    <h1 className="text-2xl font-semibold">{t('dailyProgramme.mlaName')}</h1>
-                    <h2 className="text-lg font-bold mt-2">{t('dailyProgramme.printHeaderTitle')}</h2>
-                  </div>
 
                   {filteredDateEntries.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
@@ -878,6 +890,20 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
                                   <col className="no-print" />
                                 </colgroup>
                                 <TableHeader>
+                                  {/* Date header row - repeats on each page */}
+                                  <TableRow className="print-date-header-row">
+                                    <TableHead colSpan={6} className="text-left font-semibold py-2">
+                                      <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div className="flex items-center gap-2">
+                                          <Calendar className="h-4 w-4" />
+                                          {formattedDate}
+                                        </div>
+                                        <span className="text-xs text-muted-foreground font-normal">
+                                          {items.length} {items.length !== 1 ? t('dailyProgramme.events') : t('dailyProgramme.event')}
+                                        </span>
+                                      </div>
+                                    </TableHead>
+                                  </TableRow>
                                   {/* Column headers row */}
                                   <TableRow>
                                     <TableHead className="w-[60px] text-center">{t('dailyProgramme.serialNo')}</TableHead>

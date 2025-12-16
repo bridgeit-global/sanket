@@ -393,6 +393,19 @@
         visibility: visible;
     }
 
+    /* Explicitly show print header (needed for fixed positioning) - must be outside normal flow */
+    .print-header {
+        visibility: visible !important;
+    }
+
+    .print-header,
+    .print-header *,
+    .print-header h1,
+    .print-header h2 {
+        visibility: visible !important;
+        display: block !important;
+    }
+
     /* Show service completion print section */
     .service-completion-print,
     .service-completion-print * {
@@ -410,20 +423,69 @@
         page-break-inside: auto;
     }
 
-    /* Ensure print header and first content appear together on first page */
-    .print-header+* {
-        page-break-before: avoid;
+    /* Add margin to first date section to account for fixed header on first page */
+    .print-schedule>.print-date-section:first-child {
+        margin-top: 70px;
     }
+
+    /* Ensure table headers repeat on each page when tables break */
+    .print-schedule table {
+        page-break-inside: auto;
+    }
+
+    .print-schedule thead {
+        display: table-header-group;
+    }
+
+    /* Ensure date section headers are visible and properly positioned */
+    .print-date-section>div:first-child {
+        page-break-after: avoid;
+        break-after: avoid;
+        position: relative;
+        z-index: 1;
+    }
+
 
     /* Ensure all text is black in print */
     .print-schedule * {
         color: #000 !important;
     }
 
-    /* Page setup for better printing */
+    /* Page setup for better printing - portrait orientation with page numbers */
     @page {
         size: A4;
         margin: 1.5cm;
+        margin-top: 2.5cm;
+        /* Extra space at top for fixed header */
+        margin-bottom: 2cm;
+
+        /* Header in page margin - more reliable than position:fixed for repeating */
+        @top-center {
+            content: "मा. आमदार श्रीमती सना मलिक\A दैनंदिन / साप्ताहिक कार्यक्रम";
+            white-space: pre-line;
+            font-size: 18px;
+            font-weight: bold;
+            color: #000;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #000;
+        }
+
+        /* Extra space for page numbers */
+        @bottom-center {
+            content: "Page " counter(page) " of " counter(pages);
+            font-size: 10px;
+            color: #333;
+            font-family: Arial, sans-serif;
+        }
+    }
+
+    /* Fallback page number footer for browsers that don't support @page margin boxes */
+    /* Note: Browsers that support @page margin boxes (Chrome, Edge) will use those instead */
+    /* This footer will be hidden by default and only shown via JavaScript for browsers that need it */
+    .print-page-footer {
+        display: none !important;
     }
 
     /* Repeating header information on each page */
@@ -433,37 +495,28 @@
         break-inside: avoid;
     }
 
-    /* Make date headers repeat when content spans pages */
+    /* Allow date sections to break across pages */
     .print-date-section {
         page-break-inside: auto;
         break-inside: auto;
     }
 
-    /* Date header should appear at top of page when section breaks */
+    /* Date header should stay with the table when section breaks */
     .print-date-section>div:first-child {
         page-break-after: avoid;
         break-after: avoid;
     }
 
-    /* Print header styles - compact version, appears at top of first page */
+    /* Print header styles - now using @page @top-center for reliable repetition */
+    /* Hide HTML header since we're using @page margin box */
     .print-header {
-        display: block !important;
-        visibility: visible !important;
-        text-align: center;
-        margin-bottom: 12px;
-        padding-bottom: 8px;
-        border-bottom: 2px solid #000;
-        page-break-after: avoid;
-        break-after: avoid;
-        position: relative;
+        display: none !important;
+        visibility: hidden !important;
     }
 
-    /* Add repeating header information using CSS - appears on each page via thead */
-    /* The main header (MLA name, title) appears only on first page */
-    /* Date information repeats via thead in each table */
-
-    /* Show print header even if it has hidden class */
-    .print-header.hidden {
+    /* Show print header even if it has hidden class - must override any hidden class rules */
+    .print-header.hidden,
+    .hidden.print-header {
         display: block !important;
         visibility: visible !important;
     }
@@ -473,6 +526,8 @@
         font-weight: 600;
         margin: 0 0 4px 0;
         color: #000 !important;
+        display: block !important;
+        visibility: visible !important;
     }
 
     .print-header h1 {
@@ -480,6 +535,8 @@
         font-weight: bold;
         margin: 0 0 4px 0;
         color: #000 !important;
+        display: block !important;
+        visibility: visible !important;
     }
 
     .print-header p {
@@ -544,7 +601,7 @@
 
     /* Column width definitions using colgroup - most reliable for table-layout: fixed */
     .print-schedule colgroup col.print-col-1 {
-        width: 4% !important;
+        width: 8% !important;
     }
 
     .print-schedule colgroup col.print-col-2 {
@@ -552,7 +609,7 @@
     }
 
     .print-schedule colgroup col.print-col-3 {
-        width: 52% !important;
+        width: 48% !important;
     }
 
     .print-schedule colgroup col.print-col-4 {
@@ -641,36 +698,64 @@
 
     /* Ensure table headers are visible and styled properly - they will repeat on each page */
     .print-schedule thead {
-        display: table-header-group;
+        display: table-header-group !important;
         page-break-inside: avoid;
         break-inside: avoid;
     }
 
-    /* Date header row in table - will repeat on each page */
+    /* Ensure thead rows are visible and repeat */
+    .print-schedule thead tr {
+        display: table-row !important;
+        visibility: visible !important;
+    }
+
+    /* Date header row in table - will repeat on each page with table headers */
     .print-schedule .print-date-header-row {
         background-color: #f9fafb !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
+        page-break-inside: avoid;
+        break-inside: avoid;
+        display: table-row !important;
+        visibility: visible !important;
     }
 
     .print-schedule .print-date-header-row th {
         background-color: #f9fafb !important;
         font-weight: 700;
         font-size: 14px;
+        padding: 8px 10px;
+        border-bottom: 1px solid #ddd;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
+        display: table-cell !important;
+        visibility: visible !important;
+    }
+
+    /* Column header row - ensure it repeats */
+    .print-schedule thead tr:last-child {
+        display: table-row !important;
+        visibility: visible !important;
+    }
+
+    .print-schedule thead tr:last-child th {
+        display: table-cell !important;
+        visibility: visible !important;
+    }
+
+    /* Ensure date header row stays with column headers */
+    .print-schedule thead tr.print-date-header-row {
+        page-break-after: avoid;
+        break-after: avoid;
     }
 
     .print-schedule tbody {
         display: table-row-group;
     }
 
-    /* Show the date header outside table when printing */
+    /* Hide the date header outside table when printing (date is now in table header) */
     .print-date-section>div:first-child {
-        display: flex !important;
-        margin-bottom: 8px;
-        padding-bottom: 4px;
-        border-bottom: 1px solid #ddd;
+        display: none !important;
     }
 
     /* Ensure proper font sizes for print */
