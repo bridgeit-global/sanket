@@ -1631,6 +1631,7 @@ export async function createBeneficiaryService({
   priority = 'medium',
   requestedBy,
   assignedTo,
+  voterId,
   notes,
 }: {
   serviceType: 'individual' | 'community';
@@ -1639,6 +1640,7 @@ export async function createBeneficiaryService({
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   requestedBy: string;
   assignedTo?: string;
+  voterId?: string;
   notes?: string;
 }): Promise<BeneficiaryService> {
   try {
@@ -1654,6 +1656,7 @@ export async function createBeneficiaryService({
         priority,
         requestedBy,
         assignedTo,
+        voterId: serviceType === 'individual' ? voterId : undefined,
         token,
         notes,
         createdAt: new Date(),
@@ -1831,20 +1834,40 @@ export async function getVoterBeneficiaryServices(voterId: string): Promise<{
   community: Array<BeneficiaryService>;
 }> {
   try {
-    const tasks = await db
+    // Query services directly using voterId for individual services
+    // For community services, we still need to check VoterTask for backward compatibility during transition
+    const individualServices = await db
+      .select()
+      .from(beneficiaryServices)
+      .where(
+        and(
+          eq(beneficiaryServices.voterId, voterId),
+          eq(beneficiaryServices.serviceType, 'individual')
+        )
+      )
+      .orderBy(desc(beneficiaryServices.createdAt));
+
+    // For community services, check if they're linked via VoterTask (legacy)
+    // In future, community services should not be linked to individual voters
+    const communityTasks = await db
       .select({
         service: beneficiaryServices,
       })
       .from(voterTasks)
       .innerJoin(beneficiaryServices, eq(voterTasks.serviceId, beneficiaryServices.id))
-      .where(eq(voterTasks.voterId, voterId))
+      .where(
+        and(
+          eq(voterTasks.voterId, voterId),
+          eq(beneficiaryServices.serviceType, 'community')
+        )
+      )
       .orderBy(desc(beneficiaryServices.createdAt));
 
-    const services = tasks.map(row => row.service);
+    const communityServices = communityTasks.map(row => row.service);
 
     return {
-      individual: services.filter(s => s.serviceType === 'individual'),
-      community: services.filter(s => s.serviceType === 'community'),
+      individual: individualServices,
+      community: communityServices,
     };
   } catch (error) {
     throw new ChatSDKError(
@@ -1989,7 +2012,150 @@ export async function getTasksWithFilters({
   try {
     const offset = (page - 1) * limit;
 
-    // Build where conditions
+    // For individual services, query BeneficiaryService directly
+    // For community services or when serviceType is not specified, use legacy VoterTask approach
+    if (serviceType === 'individual' || !serviceType) {
+      // Build where conditions for services
+      const whereConditions: SQL[] = [eq(beneficiaryServices.serviceType, 'individual')];
+
+      if (status) {
+        whereConditions.push(eq(beneficiaryServices.status, status as any));
+      }
+
+      if (priority) {
+        whereConditions.push(eq(beneficiaryServices.priority, priority as any));
+      }
+
+      if (assignedTo) {
+        whereConditions.push(eq(beneficiaryServices.assignedTo, assignedTo));
+      }
+
+      if (voterId) {
+        whereConditions.push(eq(beneficiaryServices.voterId, voterId));
+      }
+
+      if (token) {
+        whereConditions.push(eq(beneficiaryServices.token, token));
+      }
+
+      // Get total count
+      // Need voter join for mobile number filter
+      const needsVoterJoinForCount = !!mobileNo;
+      const totalCountQuery = needsVoterJoinForCount
+        ? db
+          .select({ count: count() })
+          .from(beneficiaryServices)
+          .leftJoin(Voters, eq(beneficiaryServices.voterId, Voters.epicNumber))
+          .where(whereConditions.length > 0 ? and(...whereConditions,
+            mobileNo ? or(
+              eq(Voters.mobileNoPrimary, mobileNo),
+              eq(Voters.mobileNoSecondary, mobileNo)
+            ) : sql`1=1`
+          ) : sql`1=1`)
+        : db
+          .select({ count: count() })
+          .from(beneficiaryServices)
+          .where(whereConditions.length > 0 ? and(...whereConditions) : sql`1=1`);
+
+      const totalCountResult = await totalCountQuery;
+      const totalCount = totalCountResult[0]?.count || 0;
+      const totalPages = Math.ceil(totalCount / limit);
+
+      // Get services with voter information
+      const servicesQuery = db
+        .select({
+          // Service fields
+          serviceId: beneficiaryServices.id,
+          serviceType: beneficiaryServices.serviceType,
+          serviceName: beneficiaryServices.serviceName,
+          serviceDescription: beneficiaryServices.description,
+          serviceStatus: beneficiaryServices.status,
+          servicePriority: beneficiaryServices.priority,
+          serviceToken: beneficiaryServices.token,
+          serviceCreatedAt: beneficiaryServices.createdAt,
+          serviceUpdatedAt: beneficiaryServices.updatedAt,
+          serviceCompletedAt: beneficiaryServices.completedAt,
+          serviceNotes: beneficiaryServices.notes,
+          serviceAssignedTo: beneficiaryServices.assignedTo,
+          serviceRequestedBy: beneficiaryServices.requestedBy,
+          // Voter fields
+          voterId: beneficiaryServices.voterId,
+          voterName: Voters.fullName,
+          voterMobilePrimary: Voters.mobileNoPrimary,
+          voterMobileSecondary: Voters.mobileNoSecondary,
+          voterAge: Voters.age,
+          voterGender: Voters.gender,
+          voterRelation: Voters.relationName,
+          voterPartNo: Voters.partNo,
+          voterAcNo: Voters.acNo,
+          // PartNo fields
+          voterWardNo: PartNo.wardNo,
+          voterBoothName: PartNo.boothName,
+        })
+        .from(beneficiaryServices)
+        .leftJoin(Voters, eq(beneficiaryServices.voterId, Voters.epicNumber))
+        .leftJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
+        .where(whereConditions.length > 0 ? and(...whereConditions) : sql`1=1`)
+        .orderBy(desc(beneficiaryServices.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      const results = await servicesQuery;
+
+      // Transform results to match expected structure (using service data as primary)
+      const tasks = results.map(row => ({
+        id: row.serviceId, // Use service ID as the primary identifier
+        serviceId: row.serviceId,
+        voterId: row.voterId || '',
+        taskType: 'service_request', // Default task type for services
+        description: row.serviceDescription || null,
+        status: row.serviceStatus || 'pending', // Use service status
+        priority: row.servicePriority || 'medium', // Use service priority
+        assignedTo: row.serviceAssignedTo || null,
+        createdBy: row.serviceRequestedBy || null,
+        updatedBy: null,
+        createdAt: row.serviceCreatedAt || new Date(),
+        updatedAt: row.serviceUpdatedAt || new Date(),
+        completedAt: row.serviceCompletedAt || null,
+        notes: row.serviceNotes || null,
+        service: {
+          id: row.serviceId,
+          serviceType: row.serviceType,
+          serviceName: row.serviceName,
+          description: row.serviceDescription,
+          status: row.serviceStatus,
+          priority: row.servicePriority,
+          token: row.serviceToken,
+          createdAt: row.serviceCreatedAt,
+          updatedAt: row.serviceUpdatedAt,
+          completedAt: row.serviceCompletedAt,
+          notes: row.serviceNotes,
+        },
+        voter: row.voterId ? {
+          epicNumber: row.voterId,
+          fullName: row.voterName,
+          mobileNoPrimary: row.voterMobilePrimary,
+          mobileNoSecondary: row.voterMobileSecondary,
+          age: row.voterAge,
+          gender: row.voterGender,
+          relationName: row.voterRelation,
+          partNo: row.voterPartNo,
+          wardNo: row.voterWardNo,
+          acNo: row.voterAcNo,
+          boothName: row.voterBoothName,
+        } : undefined,
+      }));
+
+      return {
+        tasks,
+        totalCount,
+        totalPages,
+        currentPage: page,
+      };
+    }
+
+    // Legacy path for community services (still uses VoterTask)
+    // This is kept for backward compatibility during transition
     const whereConditions: SQL[] = [];
 
     if (status) {
@@ -2008,15 +2174,14 @@ export async function getTasksWithFilters({
       whereConditions.push(eq(voterTasks.voterId, voterId));
     }
 
-    // Build final where conditions including join filters
     const finalWhereConditions = [...whereConditions];
 
     if (token) {
       finalWhereConditions.push(eq(beneficiaryServices.token, token));
     }
 
-    if (serviceType) {
-      finalWhereConditions.push(eq(beneficiaryServices.serviceType, serviceType));
+    if (serviceType === 'community') {
+      finalWhereConditions.push(eq(beneficiaryServices.serviceType, 'community'));
     }
 
     if (mobileNo) {
@@ -2029,8 +2194,6 @@ export async function getTasksWithFilters({
       }
     }
 
-    // Get total count for pagination
-    // Need to include JOINs when filters require them
     const needsJoins = !!(token || serviceType || mobileNo);
 
     const totalCountResult = needsJoins
@@ -2048,10 +2211,8 @@ export async function getTasksWithFilters({
     const totalCount = totalCountResult[0]?.count || 0;
     const totalPages = Math.ceil(totalCount / limit);
 
-    // Get tasks with joins
     const query = db
       .select({
-        // VoterTask fields
         id: voterTasks.id,
         serviceId: voterTasks.serviceId,
         voterId: voterTasks.voterId,
@@ -2066,7 +2227,6 @@ export async function getTasksWithFilters({
         updatedAt: voterTasks.updatedAt,
         completedAt: voterTasks.completedAt,
         notes: voterTasks.notes,
-        // Service fields
         serviceType: beneficiaryServices.serviceType,
         serviceName: beneficiaryServices.serviceName,
         serviceDescription: beneficiaryServices.description,
@@ -2077,7 +2237,6 @@ export async function getTasksWithFilters({
         serviceUpdatedAt: beneficiaryServices.updatedAt,
         serviceCompletedAt: beneficiaryServices.completedAt,
         serviceNotes: beneficiaryServices.notes,
-        // Voter fields
         voterName: Voters.fullName,
         voterMobilePrimary: Voters.mobileNoPrimary,
         voterMobileSecondary: Voters.mobileNoSecondary,
@@ -2086,7 +2245,6 @@ export async function getTasksWithFilters({
         voterRelation: Voters.relationName,
         voterPartNo: Voters.partNo,
         voterAcNo: Voters.acNo,
-        // PartNo fields
         voterWardNo: PartNo.wardNo,
         voterBoothName: PartNo.boothName,
       })
@@ -2101,7 +2259,6 @@ export async function getTasksWithFilters({
 
     const results = await query;
 
-    // Transform results to include nested objects
     const tasks = results.map(row => ({
       id: row.id,
       serviceId: row.serviceId,

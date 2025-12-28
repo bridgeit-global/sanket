@@ -2,6 +2,8 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import {
+    updateBeneficiaryServiceStatus,
+    getBeneficiaryServiceById,
     updateVoterTaskStatus,
     getVoterTaskById
 } from '@/lib/db/queries';
@@ -19,8 +21,34 @@ export async function GET(
         }
 
         const { taskId } = await params;
-        const task = await getVoterTaskById(taskId);
+        
+        // Try service first (for individual services)
+        const service = await getBeneficiaryServiceById(taskId);
+        if (service) {
+            // Return in task-like format for compatibility
+            return NextResponse.json({ 
+                task: {
+                    id: service.id,
+                    serviceId: service.id,
+                    voterId: service.voterId || '',
+                    taskType: 'service_request',
+                    description: service.description,
+                    status: service.status,
+                    priority: service.priority,
+                    assignedTo: service.assignedTo,
+                    createdBy: service.requestedBy,
+                    updatedBy: null,
+                    createdAt: service.createdAt,
+                    updatedAt: service.updatedAt,
+                    completedAt: service.completedAt,
+                    notes: service.notes,
+                    service: service,
+                }
+            });
+        }
 
+        // Fallback to legacy VoterTask for backward compatibility
+        const task = await getVoterTaskById(taskId);
         if (!task) {
             return NextResponse.json({ error: 'Task not found' }, { status: 404 });
         }
@@ -66,9 +94,47 @@ export async function PATCH(
         }
 
         const { taskId } = await params;
+        
+        // Try service first (for individual services)
+        const service = await getBeneficiaryServiceById(taskId);
+        if (service) {
+            const updatedService = await updateBeneficiaryServiceStatus({
+                id: taskId,
+                status: status as 'pending' | 'in_progress' | 'completed' | 'cancelled',
+                notes,
+                assignedTo: assignedTo || session.user.id,
+            });
+
+            if (!updatedService) {
+                return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+            }
+
+            // Return in task-like format for compatibility
+            return NextResponse.json({ 
+                task: {
+                    id: updatedService.id,
+                    serviceId: updatedService.id,
+                    voterId: updatedService.voterId || '',
+                    taskType: 'service_request',
+                    description: updatedService.description,
+                    status: updatedService.status,
+                    priority: updatedService.priority,
+                    assignedTo: updatedService.assignedTo,
+                    createdBy: updatedService.requestedBy,
+                    updatedBy: null,
+                    createdAt: updatedService.createdAt,
+                    updatedAt: updatedService.updatedAt,
+                    completedAt: updatedService.completedAt,
+                    notes: updatedService.notes,
+                    service: updatedService,
+                }
+            });
+        }
+
+        // Fallback to legacy VoterTask for backward compatibility
         const updatedTask = await updateVoterTaskStatus({
             id: taskId,
-            status,
+            status: status as 'pending' | 'in_progress' | 'completed' | 'cancelled',
             notes,
             assignedTo: assignedTo || session.user.id,
             performedBy: session.user.id,

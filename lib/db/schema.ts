@@ -259,6 +259,7 @@ export const beneficiaryServices = pgTable('BeneficiaryService', {
   priority: varchar('priority', { enum: ['low', 'medium', 'high', 'urgent'] }).notNull().default('medium'),
   requestedBy: uuid('requested_by').notNull().references(() => user.id),
   assignedTo: uuid('assigned_to').references(() => user.id),
+  voterId: varchar('voter_id', { length: 20 }).references(() => Voters.epicNumber),
   token: varchar('token', { length: 20 }).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),

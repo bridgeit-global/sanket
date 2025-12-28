@@ -5,7 +5,6 @@ import { hasModuleAccess } from '@/lib/db/queries';
 import {
   getDailyProgrammeItemById,
   createBeneficiaryService,
-  createVoterTask,
   getVoterByEpicNumber,
 } from '@/lib/db/queries';
 
@@ -68,25 +67,14 @@ export async function POST(request: NextRequest) {
       description: `Token of gratitude for not attending programme: ${programmeTitle}${programmeDate ? ` on ${programmeDate}` : ''}`,
       priority: 'medium',
       requestedBy: session.user.id,
-      notes: `Created automatically from daily programme item: ${programmeItem.title}`,
-    });
-
-    // Create voter task linked to the service
-    const task = await createVoterTask({
-      serviceId: service.id,
       voterId: voterEpicNumber,
-      taskType: 'Token of Gratitude',
-      description: `Token of gratitude for not attending programme: ${programmeTitle}${programmeDate ? ` on ${programmeDate}` : ''}`,
-      priority: 'medium',
-      notes: `Programme: ${programmeItem.title} at ${programmeItem.location}`,
-      createdBy: session.user.id,
+      notes: `Created automatically from daily programme item: ${programmeItem.title}. Programme: ${programmeItem.title} at ${programmeItem.location}`,
     });
 
     return NextResponse.json(
       {
         success: true,
         serviceId: service.id,
-        taskId: task.id,
         token: service.token,
       },
       { status: 201 },

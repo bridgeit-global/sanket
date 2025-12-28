@@ -2,7 +2,6 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import {
     createBeneficiaryService,
-    createVoterTask,
     createCommunityServiceAreas
 } from '@/lib/db/queries';
 
@@ -39,20 +38,9 @@ export async function POST(request: NextRequest) {
             description,
             priority,
             requestedBy: session.user.id,
+            voterId: serviceType === 'individual' ? voterId : undefined,
             notes,
         });
-
-        // Create voter task for individual service
-        if (serviceType === 'individual') {
-            await createVoterTask({
-                serviceId: service.id,
-                voterId,
-                taskType: 'service_request',
-                description: `Service request: ${serviceName}`,
-                priority,
-                notes,
-            });
-        }
 
         // Create community service areas for community service
         if (serviceType === 'community' && serviceAreas && serviceAreas.length > 0) {
