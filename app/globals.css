@@ -457,7 +457,7 @@
 
         /* Header in page margin - more reliable than position:fixed for repeating */
         @top-center {
-            content: "मा. आमदार श्रीमती सना मलिक\A दैनंदिन / साप्ताहिक कार्यक्रम";
+            content: "मा. आमदार श्रीमती सना मलिक शेख \A दैनंदिन / साप्ताहिक कार्यक्रम";
             white-space: pre-line;
             font-size: 18px;
             font-weight: bold;
