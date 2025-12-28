@@ -262,7 +262,7 @@ export function TaskManagement() {
     const handleEscalation = async () => {
         const taskId = selectedTask?.id;
         const serviceId = selectedTask?.serviceId || selectedCommunityService?.id;
-        
+
         if ((!selectedTask && !selectedCommunityService) || !escalationReason.trim()) {
             toast({
                 type: 'error',
@@ -530,7 +530,7 @@ export function TaskManagement() {
                                                 <div className="flex-1">
                                                     <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
                                                         <h3 className="text-lg font-semibold">
-                                                            {task.taskType.replace('service_request', '').trim() || t('taskManagement.serviceRequest')}
+                                                            {task.service?.serviceName}
                                                         </h3>
                                                         <div className="flex gap-2">
                                                             <Badge className={getStatusColor(task.status)}>
@@ -545,13 +545,10 @@ export function TaskManagement() {
                                                         </div>
                                                     </div>
 
-                                                    {task.description && (
-                                                        <p className="text-muted-foreground mb-2">{task.description}</p>
-                                                    )}
 
                                                     {task.service && (
                                                         <div className="text-sm text-muted-foreground mb-2">
-                                                            <strong>{t('taskManagement.service')}</strong> {task.service.serviceName}
+                                                            <strong>{t('taskManagement.service')}</strong> {task.service?.description}
                                                             <Badge variant="outline" className="ml-2">
                                                                 {task.service.serviceType === 'community' ? 'Community' : 'Individual'}
                                                             </Badge>

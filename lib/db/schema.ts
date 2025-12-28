@@ -230,6 +230,7 @@ export const Voters = pgTable('Voter', {
   houseNumber: varchar('house_number', { length: 127 }),
   religion: varchar('religion', { length: 50 }),
   age: integer('age'),
+  dob: date('dob', { mode: 'string' }),
   gender: varchar('gender', { length: 10 }),
   isVoted2024: boolean('is_voted_2024').default(false),
   mobileNoPrimary: varchar('mobile_no_primary', { length: 15 }),
