@@ -302,6 +302,13 @@
       "when": 1766958805577,
       "tag": "0042_little_giant_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1768000000000,
+      "tag": "0047_sync_service_status_from_tasks",
+      "breakpoints": true
     }
   ]
 }
