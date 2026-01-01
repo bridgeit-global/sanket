@@ -11,6 +11,7 @@ export const codeDocumentHandler = createDocumentHandler<'code'>({
 
     const { fullStream } = streamObject({
       model: myProvider.languageModel('artifact-model'),
+      maxRetries: 2, // Retry on transient failures
       system: 'Generate code based on the user request. Provide clean, well-commented code.',
       prompt: title,
       schema: z.object({
@@ -44,6 +45,7 @@ export const codeDocumentHandler = createDocumentHandler<'code'>({
 
     const { fullStream } = streamObject({
       model: myProvider.languageModel('artifact-model'),
+      maxRetries: 2, // Retry on transient failures
       system: `Update the existing code based on the user's description. Current code:\n\n${document.content}\n\nProvide updated code that incorporates the requested changes.`,
       prompt: description,
       schema: z.object({

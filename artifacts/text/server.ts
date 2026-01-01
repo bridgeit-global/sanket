@@ -10,6 +10,7 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
 
     const { fullStream } = streamText({
       model: myProvider.languageModel('artifact-model'),
+      maxRetries: 2, // Retry on transient failures
       system:
         'Write about the given topic. Markdown is supported. Use headings wherever appropriate.',
       experimental_transform: smoothStream({ chunking: 'word' }),
@@ -39,6 +40,7 @@ export const textDocumentHandler = createDocumentHandler<'text'>({
 
     const { fullStream } = streamText({
       model: myProvider.languageModel('artifact-model'),
+      maxRetries: 2, // Retry on transient failures
       system: `Update the existing text based on the user's description. Current text:\n\n${document.content}\n\nProvide updated text that incorporates the requested changes.`,
       experimental_transform: smoothStream({ chunking: 'word' }),
       prompt: description,

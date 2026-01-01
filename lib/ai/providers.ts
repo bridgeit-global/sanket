@@ -1,10 +1,5 @@
-import {
-  customProvider,
-  extractReasoningMiddleware,
-  generateText,
-  wrapLanguageModel,
-} from 'ai';
-import { createGroq } from '@ai-sdk/groq';
+import { customProvider } from 'ai';
+import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import {
   artifactModel,
   chatModel,
@@ -13,11 +8,33 @@ import {
 } from './models.test';
 import { isTestEnvironment } from '../constants';
 
+// 5 minute timeout for API calls
+const API_TIMEOUT_MS = 5 * 60 * 1000;
 
-const moonshot = createGroq({
-  baseURL: 'https://api.moonshot.ai/v1',
-  apiKey: process.env.MOONSHOT_API_KEY
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+  // Custom fetch with timeout to prevent hanging requests
+  fetch: async (url, options) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      return response;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  },
 });
+
+// Gemini 2.5 Flash Lite model for all use cases
+const GEMINI_MODEL = 'gemini-2.5-flash-lite';
+
+// Create Gemini model instances
+const geminiModel = google(GEMINI_MODEL);
 
 export const myProvider = isTestEnvironment
   ? customProvider({
@@ -30,12 +47,14 @@ export const myProvider = isTestEnvironment
   })
   : customProvider({
     languageModels: {
-      'chat-model': moonshot('kimi-k2-thinking'),
-      'chat-model-reasoning': wrapLanguageModel({
-        model: moonshot('kimi-k2-0711-preview'),
-        middleware: extractReasoningMiddleware({ tagName: 'think' }),
-      }),
-      'title-model': moonshot('kimi-k2-0711-preview'),
-      'artifact-model': moonshot('kimi-k2-0711-preview'),
+      // Gemini doesn't use <think> tags, so both models use the same base
+      // @ts-expect-error - Type compatibility between AI SDK versions
+      'chat-model': geminiModel,
+      // @ts-expect-error - Type compatibility between AI SDK versions
+      'chat-model-reasoning': geminiModel,
+      // @ts-expect-error - Type compatibility between AI SDK versions
+      'title-model': geminiModel,
+      // @ts-expect-error - Type compatibility between AI SDK versions
+      'artifact-model': geminiModel,
     },
   });

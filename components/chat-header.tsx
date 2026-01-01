@@ -48,7 +48,7 @@ function PureChatHeader({
                 variant="outline"
                 className="order-2 md:order-1 size-8 sm:size-9 px-0 ml-auto md:ml-0 shrink-0"
                 onClick={() => {
-                  router.push('/');
+                  router.push('/modules/chat');
                   router.refresh();
                 }}
               >

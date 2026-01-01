@@ -11,6 +11,7 @@ export const sheetDocumentHandler = createDocumentHandler<'sheet'>({
 
     const { fullStream } = streamObject({
       model: myProvider.languageModel('artifact-model'),
+      maxRetries: 2, // Retry on transient failures
       system: 'Generate CSV data based on the user request. Provide clean, well-formatted CSV data.',
       prompt: title,
       schema: z.object({
@@ -50,6 +51,7 @@ export const sheetDocumentHandler = createDocumentHandler<'sheet'>({
 
     const { fullStream } = streamObject({
       model: myProvider.languageModel('artifact-model'),
+      maxRetries: 2, // Retry on transient failures
       system: `Update the existing CSV data based on the user's description. Current CSV:\n\n${document.content}\n\nProvide updated CSV that incorporates the requested changes.`,
       prompt: description,
       schema: z.object({

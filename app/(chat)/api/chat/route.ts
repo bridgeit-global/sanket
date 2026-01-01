@@ -172,6 +172,7 @@ export async function POST(request: Request) {
           model: myProvider.languageModel(selectedChatModel),
           system: generalPrompt,
           messages: convertToModelMessages(uiMessages),
+          maxRetries: 2, // Retry on transient failures
           stopWhen: stepCountIs(10),
           experimental_transform: smoothStream({ chunking: 'word' }),
           tools: activeTools,
@@ -181,9 +182,11 @@ export async function POST(request: Request) {
           },
         });
         result.consumeStream();
+        // Only send reasoning for reasoning model (Gemini doesn't use think tags for regular chat)
+        const isReasoningModel = selectedChatModel === 'chat-model-reasoning';
         dataStream.merge(
           result.toUIMessageStream({
-            sendReasoning: true,
+            sendReasoning: isReasoningModel,
           }),
         );
       },
