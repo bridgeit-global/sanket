@@ -1,19 +1,19 @@
--- VoterMobileNumber Table for storing multiple mobile numbers per voter with sort order
--- This table allows up to 5 mobile numbers per voter (epic_number)
--- Data is migrated from existing mobileNoPrimary and mobileNoSecondary columns
-
 CREATE TABLE IF NOT EXISTS "VoterMobileNumber" (
-  "epic_number" varchar(20) NOT NULL REFERENCES "Voter"("epic_number") ON DELETE CASCADE,
-  "mobile_number" varchar(15) NOT NULL,
-  "sort_order" integer NOT NULL,
-  "created_at" timestamp NOT NULL DEFAULT now(),
-  "updated_at" timestamp NOT NULL DEFAULT now(),
-  PRIMARY KEY ("epic_number", "mobile_number")
+	"epic_number" varchar(20) NOT NULL,
+	"mobile_number" varchar(15) NOT NULL,
+	"sort_order" integer NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "VoterMobileNumber_epic_number_mobile_number_pk" PRIMARY KEY("epic_number","mobile_number"),
+	CONSTRAINT "VoterMobileNumber_epic_number_sort_order_unique" UNIQUE("epic_number","sort_order")
 );
+--> statement-breakpoint
+DO $$ BEGIN
+ ALTER TABLE "VoterMobileNumber" ADD CONSTRAINT "VoterMobileNumber_epic_number_Voter_epic_number_fk" FOREIGN KEY ("epic_number") REFERENCES "public"."Voter"("epic_number") ON DELETE cascade ON UPDATE no action;
+EXCEPTION
+ WHEN duplicate_object THEN null;
+END $$;
 
--- Unique constraint to ensure one mobile number per sort order per voter
-CREATE UNIQUE INDEX IF NOT EXISTS "voter_mobile_number_epic_sort_order_idx" 
-  ON "VoterMobileNumber"("epic_number", "sort_order");
 
 -- Check constraint to ensure sort_order is between 1 and 5
 ALTER TABLE "VoterMobileNumber" 
