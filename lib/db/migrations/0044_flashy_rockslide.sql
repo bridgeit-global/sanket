@@ -13,17 +13,20 @@ DO $$ BEGIN
 EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
-
-
--- Check constraint to ensure sort_order is between 1 and 5
-ALTER TABLE "VoterMobileNumber" 
-  ADD CONSTRAINT "voter_mobile_number_sort_order_check" 
-  CHECK ("sort_order" >= 1 AND "sort_order" <= 5);
-
+--> statement-breakpoint
+-- Check constraint to ensure sort_order is between 1 and 5 (idempotent)
+DO $$ BEGIN
+  ALTER TABLE "VoterMobileNumber" 
+    ADD CONSTRAINT "voter_mobile_number_sort_order_check" 
+    CHECK ("sort_order" >= 1 AND "sort_order" <= 5);
+EXCEPTION
+  WHEN duplicate_object THEN null;
+END $$;
+--> statement-breakpoint
 -- Index for querying mobile numbers by epic_number
 CREATE INDEX IF NOT EXISTS "voter_mobile_number_epic_number_idx" 
   ON "VoterMobileNumber"("epic_number");
-
+--> statement-breakpoint
 -- Migrate existing mobileNoPrimary data (sort_order = 1)
 INSERT INTO "VoterMobileNumber" ("epic_number", "mobile_number", "sort_order", "created_at", "updated_at")
 SELECT 
@@ -35,7 +38,7 @@ SELECT
 FROM "Voter"
 WHERE "mobile_no_primary" IS NOT NULL AND "mobile_no_primary" != ''
 ON CONFLICT ("epic_number", "mobile_number") DO NOTHING;
-
+--> statement-breakpoint
 -- Migrate existing mobileNoSecondary data (sort_order = 2)
 INSERT INTO "VoterMobileNumber" ("epic_number", "mobile_number", "sort_order", "created_at", "updated_at")
 SELECT 
@@ -48,4 +51,3 @@ FROM "Voter"
 WHERE "mobile_no_secondary" IS NOT NULL AND "mobile_no_secondary" != ''
   AND "mobile_no_secondary" != "mobile_no_primary" -- Avoid duplicate if same as primary
 ON CONFLICT ("epic_number", "mobile_number") DO NOTHING;
-
