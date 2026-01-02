@@ -250,6 +250,25 @@ export type VoterWithPartNo = Voter & {
   englishBoothAddress?: string | null;
 };
 
+export const voterMobileNumber = pgTable(
+  'VoterMobileNumber',
+  {
+    epicNumber: varchar('epic_number', { length: 20 })
+      .notNull()
+      .references(() => Voters.epicNumber, { onDelete: 'cascade' }),
+    mobileNumber: varchar('mobile_number', { length: 15 }).notNull(),
+    sortOrder: integer('sort_order').notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.epicNumber, table.mobileNumber] }),
+    uniqueEpicSortOrder: unique().on(table.epicNumber, table.sortOrder),
+  }),
+);
+
+export type VoterMobileNumber = InferSelectModel<typeof voterMobileNumber>;
+
 export const beneficiaryServices = pgTable('BeneficiaryService', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   serviceType: varchar('service_type', { enum: ['individual', 'community'] }).notNull(),
