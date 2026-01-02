@@ -45,7 +45,7 @@ export async function middleware(request: NextRequest) {
   const defaultLandingModule = token.defaultLandingModule as string | undefined;
 
   // Root path - redirect to default landing module or first available module
-  if (pathname === '/' || pathname.startsWith('/chat')) {
+  if (pathname === '/') {
     if (modules.length > 0) {
       // Check if default landing module exists and is accessible
       if (defaultLandingModule && modules.includes(defaultLandingModule)) {
@@ -59,6 +59,13 @@ export async function middleware(request: NextRequest) {
     }
     return NextResponse.redirect(new URL('/unauthorized', request.url));
   }
+
+  // Base /chat path without ID - redirect to modules/chat
+  if (pathname === '/chat') {
+    return NextResponse.redirect(new URL('/modules/chat', request.url));
+  }
+
+  // /chat/{id} paths - allow through (handled by Next.js route)
 
   // Module routes - simple token-based check
   if (pathname.startsWith('/modules/')) {
