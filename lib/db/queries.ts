@@ -64,6 +64,8 @@ import {
   type ExportJob,
   phoneUpdateHistory,
   type PhoneUpdateHistory,
+  voterMobileNumber,
+  type VoterMobileNumber,
 } from './schema';
 import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
@@ -4214,5 +4216,47 @@ export async function getVotersCountForExport(filters?: {
     return result[0]?.count || 0;
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to count voters for export');
+  }
+}
+
+// Mobile number with sort order type
+export type MobileNumberWithSortOrder = {
+  mobileNumber: string;
+  sortOrder: number;
+};
+
+// Get all mobile numbers from VoterMobileNumber table grouped by epic number
+export async function getVoterMobileNumbersByEpicNumbers(
+  epicNumbers: string[]
+): Promise<Map<string, MobileNumberWithSortOrder[]>> {
+  try {
+    if (epicNumbers.length === 0) {
+      return new Map();
+    }
+
+    const mobileNumbers = await db
+      .select({
+        epicNumber: voterMobileNumber.epicNumber,
+        mobileNumber: voterMobileNumber.mobileNumber,
+        sortOrder: voterMobileNumber.sortOrder,
+      })
+      .from(voterMobileNumber)
+      .where(inArray(voterMobileNumber.epicNumber, epicNumbers))
+      .orderBy(asc(voterMobileNumber.epicNumber), asc(voterMobileNumber.sortOrder));
+
+    // Group mobile numbers by epic number with sort order
+    const result = new Map<string, MobileNumberWithSortOrder[]>();
+    for (const row of mobileNumbers) {
+      const existing = result.get(row.epicNumber) || [];
+      existing.push({
+        mobileNumber: row.mobileNumber,
+        sortOrder: row.sortOrder,
+      });
+      result.set(row.epicNumber, existing);
+    }
+
+    return result;
+  } catch (error) {
+    throw new ChatSDKError('bad_request:database', 'Failed to get voter mobile numbers');
   }
 }

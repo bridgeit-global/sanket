@@ -9,6 +9,7 @@ import {
   getVotersForExport,
   getVotersCountForExport,
   hasModuleAccess,
+  getVoterMobileNumbersByEpicNumbers,
 } from '@/lib/db/queries';
 import { format } from 'date-fns';
 
@@ -119,6 +120,55 @@ async function processExport(
     const voters = await getVotersForExport(filters as any);
     await updateExportJobProgress({
       id: jobId,
+      progress: 20,
+      processedRecords: 0,
+    });
+
+    // Fetch all mobile numbers from VoterMobileNumber table
+    const epicNumbers = voters.map(v => v.epicNumber);
+    const mobileNumbersMap = await getVoterMobileNumbersByEpicNumbers(epicNumbers);
+
+    // Check if mobile columns are selected
+    const selectedColumns = (filters?.selectedColumns as string[]) || [];
+    const hasMobileColumn = selectedColumns.length === 0 ||
+      selectedColumns.includes('mobileNumber') ||
+      selectedColumns.includes('mobileSortOrder');
+
+    // Expand rows for each phone number if mobile columns are selected
+    let exportData: any[];
+    if (hasMobileColumn) {
+      exportData = [];
+      for (const voter of voters) {
+        const mobileNumbers = mobileNumbersMap.get(voter.epicNumber) || [];
+        if (mobileNumbers.length === 0) {
+          // No phone numbers - add single row with empty mobile fields
+          exportData.push({
+            ...voter,
+            mobileNumber: '',
+            mobileSortOrder: null,
+          });
+        } else {
+          // Add one row per phone number
+          for (const mobile of mobileNumbers) {
+            exportData.push({
+              ...voter,
+              mobileNumber: mobile.mobileNumber,
+              mobileSortOrder: mobile.sortOrder,
+            });
+          }
+        }
+      }
+    } else {
+      // No mobile columns selected - keep original data
+      exportData = voters.map(voter => ({
+        ...voter,
+        mobileNumber: '',
+        mobileSortOrder: null,
+      }));
+    }
+
+    await updateExportJobProgress({
+      id: jobId,
       progress: 30,
       processedRecords: 0,
     });
@@ -129,23 +179,24 @@ async function processExport(
 
     const timestamp = format(new Date(), 'yyyy-MM-dd_HH-mm');
 
-    const selectedColumns = (filters?.selectedColumns as string[]) || undefined;
+    // Use selectedColumns already defined above, convert empty array to undefined for default behavior
+    const columnsToExport = selectedColumns.length > 0 ? selectedColumns : undefined;
 
     if (exportFormat === 'csv') {
       // Generate CSV
-      fileContent = generateCSV(voters, selectedColumns);
+      fileContent = generateCSV(exportData, columnsToExport);
       fileName = `voters_export_${timestamp}.csv`;
       contentType = 'text/csv';
     } else if (exportFormat === 'excel') {
       // Generate Excel-compatible CSV (with BOM for UTF-8)
-      const csvContent = generateCSV(voters, selectedColumns);
+      const csvContent = generateCSV(exportData, columnsToExport);
       // Add BOM for Excel UTF-8 compatibility
       fileContent = `\ufeff${csvContent}`;
       fileName = `voters_export_${timestamp}.csv`;
       contentType = 'text/csv; charset=utf-8';
     } else {
       // Generate HTML for PDF-like export
-      fileContent = generateHTMLReport(voters, filters, selectedColumns);
+      fileContent = generateHTMLReport(exportData, filters, columnsToExport);
       fileName = `voters_export_${timestamp}.html`;
       contentType = 'text/html';
     }
@@ -153,7 +204,7 @@ async function processExport(
     await updateExportJobProgress({
       id: jobId,
       progress: 70,
-      processedRecords: voters.length,
+      processedRecords: exportData.length,
     });
 
     // Upload to Vercel Blob
@@ -173,7 +224,7 @@ async function processExport(
       id: jobId,
       status: 'completed',
       progress: 100,
-      processedRecords: voters.length,
+      processedRecords: exportData.length,
       fileUrl: blob.url,
       fileName,
       fileSizeKb,
@@ -196,8 +247,8 @@ const COLUMN_MAP: Record<string, { header: string; getValue: (voter: any) => str
   relationName: { header: 'Relation Name', getValue: (v) => v.relationName || '' },
   age: { header: 'Age', getValue: (v) => v.age?.toString() || '' },
   gender: { header: 'Gender', getValue: (v) => v.gender || '' },
-  mobileNoPrimary: { header: 'Mobile (Primary)', getValue: (v) => v.mobileNoPrimary || '' },
-  mobileNoSecondary: { header: 'Mobile (Secondary)', getValue: (v) => v.mobileNoSecondary || '' },
+  mobileNumber: { header: 'Mobile Number', getValue: (v) => v.mobileNumber || '' },
+  mobileSortOrder: { header: 'Mobile Sort Order', getValue: (v) => v.mobileSortOrder?.toString() || '' },
   houseNumber: { header: 'House Number', getValue: (v) => v.houseNumber || '' },
   address: { header: 'Address', getValue: (v) => v.address || '' },
   pincode: { header: 'Pincode', getValue: (v) => v.pincode || '' },
@@ -213,12 +264,12 @@ const COLUMN_MAP: Record<string, { header: string; getValue: (voter: any) => str
 const DEFAULT_COLUMNS = Object.keys(COLUMN_MAP);
 
 function generateCSV(voters: any[], selectedColumns?: string[]): string {
-  const columnsToExport = selectedColumns && selectedColumns.length > 0 
+  const columnsToExport = selectedColumns && selectedColumns.length > 0
     ? selectedColumns.filter(col => COLUMN_MAP[col])
     : DEFAULT_COLUMNS;
 
   const headers = columnsToExport.map(col => COLUMN_MAP[col].header);
-  const rows = voters.map((voter) => 
+  const rows = voters.map((voter) =>
     columnsToExport.map(col => COLUMN_MAP[col].getValue(voter))
   );
 
@@ -349,7 +400,7 @@ function generateHTMLReport(voters: any[], filters?: Record<string, unknown>, se
       </div>
       <div class="summary-card">
         <div class="label">With Phone</div>
-        <div class="value">${voters.filter(v => v.mobileNoPrimary || v.mobileNoSecondary).length.toLocaleString()}</div>
+        <div class="value">${voters.filter(v => v.mobileNumber).length.toLocaleString()}</div>
       </div>
     </div>
 
@@ -358,40 +409,40 @@ function generateHTMLReport(voters: any[], filters?: Record<string, unknown>, se
         <tr>
           <th>#</th>
           ${(() => {
-            const columnsToExport = selectedColumns && selectedColumns.length > 0 
-              ? selectedColumns.filter(col => COLUMN_MAP[col])
-              : DEFAULT_COLUMNS;
-            return columnsToExport.map(col => `<th>${COLUMN_MAP[col].header}</th>`).join('');
-          })()}
+      const columnsToExport = selectedColumns && selectedColumns.length > 0
+        ? selectedColumns.filter(col => COLUMN_MAP[col])
+        : DEFAULT_COLUMNS;
+      return columnsToExport.map(col => `<th>${COLUMN_MAP[col].header}</th>`).join('');
+    })()}
         </tr>
       </thead>
       <tbody>
         ${voters.map((voter, idx) => {
-          const columnsToExport = selectedColumns && selectedColumns.length > 0 
-            ? selectedColumns.filter(col => COLUMN_MAP[col])
-            : DEFAULT_COLUMNS;
-          
-          const cells = columnsToExport.map(col => {
-            const value = COLUMN_MAP[col].getValue(voter);
-            // Format special columns
-            if (col === 'epicNumber') {
-              return `<td><code>${value || '-'}</code></td>`;
-            }
-            if (col === 'fullName') {
-              return `<td><strong>${value || '-'}</strong></td>`;
-            }
-            if (col === 'gender') {
-              return `<td><span class="badge badge-${(value || '').toLowerCase()}">${value || '-'}</span></td>`;
-            }
-            if (col === 'isVoted2024') {
-              const isVoted = voter.isVoted2024;
-              return `<td><span class="badge ${isVoted ? 'badge-voted' : 'badge-not-voted'}">${isVoted ? 'Yes' : 'No'}</span></td>`;
-            }
-            return `<td>${value || '-'}</td>`;
-          }).join('');
-          
-          return `<tr><td>${idx + 1}</td>${cells}</tr>`;
-        }).join('')}
+      const columnsToExport = selectedColumns && selectedColumns.length > 0
+        ? selectedColumns.filter(col => COLUMN_MAP[col])
+        : DEFAULT_COLUMNS;
+
+      const cells = columnsToExport.map(col => {
+        const value = COLUMN_MAP[col].getValue(voter);
+        // Format special columns
+        if (col === 'epicNumber') {
+          return `<td><code>${value || '-'}</code></td>`;
+        }
+        if (col === 'fullName') {
+          return `<td><strong>${value || '-'}</strong></td>`;
+        }
+        if (col === 'gender') {
+          return `<td><span class="badge badge-${(value || '').toLowerCase()}">${value || '-'}</span></td>`;
+        }
+        if (col === 'isVoted2024') {
+          const isVoted = voter.isVoted2024;
+          return `<td><span class="badge ${isVoted ? 'badge-voted' : 'badge-not-voted'}">${isVoted ? 'Yes' : 'No'}</span></td>`;
+        }
+        return `<td>${value || '-'}</td>`;
+      }).join('');
+
+      return `<tr><td>${idx + 1}</td>${cells}</tr>`;
+    }).join('')}
       </tbody>
     </table>
   </div>

@@ -226,15 +226,17 @@ export function MultiCombobox({
                       <div key={ward.value} className="space-y-1">
                         <div
                           className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-accent"
-                          onClick={() => onWardToggle(ward.value, !isWardSelected)}
+                          onClick={(e) => {
+                            // Only toggle if clicking on the row itself, not the checkbox
+                            if ((e.target as HTMLElement).closest('label')) return;
+                            onWardToggle(ward.value, !isWardSelected);
+                          }}
                         >
                           <Checkbox
                             checked={isWardSelected}
                             onChange={(e) => {
-                              e.stopPropagation();
                               onWardToggle(ward.value, e.target.checked);
                             }}
-                            onClick={(e) => e.stopPropagation()}
                           />
                           <span className="text-sm font-medium">Ward {ward.value}</span>
                           {wardParts.length > 0 && (
@@ -253,15 +255,17 @@ export function MultiCombobox({
                                 <div
                                   key={partNo}
                                   className="flex items-center space-x-2 cursor-pointer p-1.5 rounded hover:bg-accent/50"
-                                  onClick={() => onPartToggle(partNo, !isPartSelected)}
+                                  onClick={(e) => {
+                                    // Only toggle if clicking on the row itself, not the checkbox
+                                    if ((e.target as HTMLElement).closest('label')) return;
+                                    onPartToggle(partNo, !isPartSelected);
+                                  }}
                                 >
                                   <Checkbox
                                     checked={isPartSelected}
                                     onChange={(e) => {
-                                      e.stopPropagation();
                                       onPartToggle(partNo, e.target.checked);
                                     }}
-                                    onClick={(e) => e.stopPropagation()}
                                   />
                                   <span className="text-xs">Part {partNo}</span>
                                 </div>
@@ -291,15 +295,17 @@ export function MultiCombobox({
                       <div
                         key={part.value}
                         className="flex items-center space-x-2 cursor-pointer p-2 rounded hover:bg-accent"
-                        onClick={() => onPartToggle(part.value, !isPartSelected)}
+                        onClick={(e) => {
+                          // Only toggle if clicking on the row itself, not the checkbox
+                          if ((e.target as HTMLElement).closest('label')) return;
+                          onPartToggle(part.value, !isPartSelected);
+                        }}
                       >
                         <Checkbox
                           checked={isPartSelected}
                           onChange={(e) => {
-                            e.stopPropagation();
                             onPartToggle(part.value, e.target.checked);
                           }}
-                          onClick={(e) => e.stopPropagation()}
                         />
                         <span className="text-sm">Part {part.value}</span>
                         {part.wardForPart && (

@@ -76,8 +76,8 @@ const AVAILABLE_COLUMNS = [
   { key: 'relationName', label: 'Relation Name' },
   { key: 'age', label: 'Age' },
   { key: 'gender', label: 'Gender' },
-  { key: 'mobileNoPrimary', label: 'Mobile (Primary)' },
-  { key: 'mobileNoSecondary', label: 'Mobile (Secondary)' },
+  { key: 'mobileNumber', label: 'Mobile Number' },
+  { key: 'mobileSortOrder', label: 'Mobile Sort Order' },
   { key: 'houseNumber', label: 'House Number' },
   { key: 'address', label: 'Address' },
   { key: 'pincode', label: 'Pincode' },
@@ -166,7 +166,7 @@ export function DataExport() {
 
   const handlePartToggle = (partValue: string, checked: boolean) => {
     const currentParts = filters.partNo || [];
-    
+
     // Find which ward this part belongs to (if any)
     const wardForPart = Object.keys(partsByWard).find(ward =>
       partsByWard[ward]?.includes(partValue)
@@ -179,12 +179,12 @@ export function DataExport() {
       }));
     } else {
       const newParts = currentParts.filter(p => p !== partValue);
-      
+
       // If unchecking a part, also uncheck the ward if all parts are now unchecked
       if (wardForPart) {
         const wardParts = partsByWard[wardForPart] || [];
         const remainingWardParts = wardParts.filter(p => newParts.includes(p));
-        
+
         setFilters(prev => ({
           ...prev,
           partNo: newParts,
