@@ -22,8 +22,8 @@ export function BackOfficeWorkflow() {
     const [searchResults, setSearchResults] = useState<VoterWithPartNo[]>([]);
     const [selectedVoter, setSelectedVoter] = useState<VoterWithPartNo | null>(null);
     const [isSearching, setIsSearching] = useState(false);
-    const [searchType, setSearchType] = useState<'voterId' | 'details'>('details');
-    const [lastSearchType, setLastSearchType] = useState<'voterId' | 'details' | null>(null);
+    const [searchType, setSearchType] = useState<'voterId' | 'details' | 'mobileNumber'>('details');
+    const [lastSearchType, setLastSearchType] = useState<'voterId' | 'details' | 'mobileNumber' | null>(null);
     const [hasSearched, setHasSearched] = useState(false);
     const [showPhoneUpdate, setShowPhoneUpdate] = useState(false);
     const [relatedVoters, setRelatedVoters] = useState<VoterWithPartNo[]>([]);
@@ -35,7 +35,7 @@ export function BackOfficeWorkflow() {
     const [age, setAge] = useState<number>(25);
     const [ageRange, setAgeRange] = useState<number>(5);
 
-    const handleSearchTypeChange = (newSearchType: 'voterId' | 'details') => {
+    const handleSearchTypeChange = (newSearchType: 'voterId' | 'details' | 'mobileNumber') => {
         setSearchType(newSearchType);
         setSearchTerm('');
         setName('');
@@ -56,6 +56,14 @@ export function BackOfficeWorkflow() {
                 toast({
                     type: 'error',
                     description: t('backOffice.pleaseProvideCriteria'),
+                });
+                return;
+            }
+        } else if (searchType === 'mobileNumber') {
+            if (!searchTerm.trim()) {
+                toast({
+                    type: 'error',
+                    description: t('backOffice.pleaseEnterMobileNumber'),
                 });
                 return;
             }
@@ -98,7 +106,8 @@ export function BackOfficeWorkflow() {
             if ((data.voters || []).length === 0) {
                 toast({ type: 'error', description: t('backOffice.noVotersFound') });
             } else {
-                const searchTypeText = (data.searchType || searchType) === 'voterId' ? t('backOffice.voterIdType') : t('backOffice.detailsType');
+                const actualType = data.searchType || searchType;
+                const searchTypeText = actualType === 'voterId' ? t('backOffice.voterIdType') : actualType === 'mobileNumber' ? t('backOffice.mobileNumberType') : t('backOffice.detailsType');
                 toast({ type: 'success', description: `${data.voters.length} ${t('backOffice.foundBy', { type: searchTypeText })}` });
             }
         } catch (_error) {
@@ -202,14 +211,18 @@ export function BackOfficeWorkflow() {
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-4">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                             <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                                <input type="radio" id="details" name="searchType" value="details" checked={searchType === 'details'} onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'details')} className="size-4" />
+                                <input type="radio" id="details" name="searchType" value="details" checked={searchType === 'details'} onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'details' | 'mobileNumber')} className="size-4" />
                                 <Label htmlFor="details" className="text-sm font-medium cursor-pointer flex-1">{t('backOffice.detailedSearch')}</Label>
                             </div>
                             <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
-                                <input type="radio" id="voterId" name="searchType" value="voterId" checked={searchType === 'voterId'} onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'details')} className="size-4" />
+                                <input type="radio" id="voterId" name="searchType" value="voterId" checked={searchType === 'voterId'} onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'details' | 'mobileNumber')} className="size-4" />
                                 <Label htmlFor="voterId" className="text-sm font-medium cursor-pointer flex-1">{t('backOffice.voterId')}</Label>
+                            </div>
+                            <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
+                                <input type="radio" id="mobileNumber" name="searchType" value="mobileNumber" checked={searchType === 'mobileNumber'} onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'details' | 'mobileNumber')} className="size-4" />
+                                <Label htmlFor="mobileNumber" className="text-sm font-medium cursor-pointer flex-1">{t('backOffice.mobileNumber')}</Label>
                             </div>
                         </div>
 
@@ -296,6 +309,29 @@ export function BackOfficeWorkflow() {
                                     </Button>
                                 </div>
                             </div>
+                        ) : searchType === 'mobileNumber' ? (
+                            <div className="space-y-4">
+                                <div>
+                                    <Label htmlFor="mobileSearch">{t('backOffice.mobileNumberLabel')}</Label>
+                                    <div className="relative">
+                                        <Input id="mobileSearch" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t('backOffice.enterMobileNumber')} type={'tel'} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} className="pr-10" />
+                                        {searchTerm && (
+                                            <button type="button" onClick={() => { setSearchTerm(''); setSearchResults([]); setLastSearchType(null); setHasSearched(false); setIsSearching(false); }} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" aria-label="Clear search">
+                                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                                    <path d="M18 6 6 18" />
+                                                    <path d="m6 6 12 12" />
+                                                </svg>
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <Button onClick={handleSearch} disabled={isSearching} className="flex-1">{isSearching ? t('backOffice.searching') : t('common.search')}</Button>
+                                    {searchTerm && (
+                                        <Button variant="outline" onClick={() => { setSearchTerm(''); setSearchResults([]); setLastSearchType(null); setHasSearched(false); setIsSearching(false); }} className="px-4">{t('backOffice.clear')}</Button>
+                                    )}
+                                </div>
+                            </div>
                         ) : (
                             <div className="space-y-4">
                                 <div>
@@ -326,7 +362,7 @@ export function BackOfficeWorkflow() {
                                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
                                     <h3 className="text-lg font-semibold">{t('backOffice.searchResults')}</h3>
                                     {lastSearchType && (
-                                        <span className="text-sm text-muted-foreground">{t('backOffice.foundBy', { type: lastSearchType === 'voterId' ? t('backOffice.voterIdType') : t('backOffice.nameType') })}</span>
+                                        <span className="text-sm text-muted-foreground">{t('backOffice.foundBy', { type: lastSearchType === 'voterId' ? t('backOffice.voterIdType') : lastSearchType === 'mobileNumber' ? t('backOffice.mobileNumberType') : t('backOffice.nameType') })}</span>
                                     )}
                                 </div>
                                 <div className="space-y-2">

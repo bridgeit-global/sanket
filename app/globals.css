@@ -1072,6 +1072,36 @@
         padding: 20px;
         background: white;
         color: #000;
+        page: service-receipt;
+    }
+
+    /* Named page for beneficiary service receipt - different header than daily programme */
+    @page service-receipt {
+        size: A4;
+        margin: 1.5cm;
+        margin-top: 3.5cm;
+        margin-bottom: 2cm;
+
+        @top-center {
+            content: "मा. आमदार श्रीमती सना मलिक शेख \A लाभार्थी सेवा पावती";
+            white-space: pre-line;
+            font-size: 18px;
+            font-weight: bold;
+            color: #000;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #000;
+            margin-bottom: 0;
+            vertical-align: bottom;
+        }
+
+        @bottom-center {
+            content: "Page " counter(page) " of " counter(pages);
+            font-size: 10px;
+            color: #333;
+            font-family: Arial, sans-serif;
+        }
     }
 
     .service-completion-print * {

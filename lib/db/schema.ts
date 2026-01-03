@@ -365,6 +365,20 @@ export const dailyProgramme = pgTable('DailyProgramme', {
 
 export type DailyProgramme = InferSelectModel<typeof dailyProgramme>;
 
+// Daily Programme Attachments Table
+export const dailyProgrammeAttachment = pgTable('DailyProgrammeAttachment', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  programmeId: uuid('programme_id')
+    .notNull()
+    .references(() => dailyProgramme.id, { onDelete: 'cascade' }),
+  fileName: varchar('file_name', { length: 255 }).notNull(),
+  fileSizeKb: integer('file_size_kb').notNull(),
+  fileUrl: text('file_url'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export type DailyProgrammeAttachment = InferSelectModel<typeof dailyProgrammeAttachment>;
+
 // MLA Projects Table
 export const mlaProject = pgTable('MlaProject', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),

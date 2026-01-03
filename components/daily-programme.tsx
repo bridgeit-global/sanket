@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Calendar, Pencil, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Printer, Calendar, Pencil, CheckCircle2, XCircle, Clock, Paperclip } from 'lucide-react';
 import { format, addDays, parseISO, startOfToday } from 'date-fns';
 import { enIN } from 'date-fns/locale';
 import {
@@ -40,6 +40,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { DailyProgrammeAttachmentDialog } from '@/components/daily-programme-attachment-dialog';
+
+interface Attachment {
+  id: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl: string | null;
+  createdAt: string;
+}
 
 interface ProgrammeItem {
   id: string;
@@ -278,6 +287,12 @@ export function DailyProgramme({
   const [voterEpicNumber, setVoterEpicNumber] = useState('');
   const [voterName, setVoterName] = useState('');
   const [isCreatingTask, setIsCreatingTask] = useState(false);
+
+  // Attachment dialog
+  const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
+  const [selectedProgrammeForAttachment, setSelectedProgrammeForAttachment] = useState<ProgrammeItem | null>(null);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
 
   // Group items by date
   const itemsByDate = useMemo(() => {
@@ -693,6 +708,66 @@ export function DailyProgramme({
     }
   };
 
+  // Fetch attachment count for all items
+  const fetchAttachmentCounts = useCallback(async (items: ProgrammeItem[]) => {
+    const counts: Record<string, number> = {};
+    for (const item of items) {
+      try {
+        const response = await fetch(`/api/daily-programme/${item.id}/attachments`);
+        if (response.ok) {
+          const data = await response.json();
+          counts[item.id] = data.length;
+        }
+      } catch (error) {
+        console.error('Error fetching attachment count for item:', item.id, error);
+      }
+    }
+    setAttachmentCounts(counts);
+  }, []);
+
+  // Load attachment counts when items change
+  useEffect(() => {
+    if (allItems.length > 0) {
+      fetchAttachmentCounts(allItems);
+    }
+  }, [allItems, fetchAttachmentCounts]);
+
+  const handleOpenAttachmentDialog = async (item: ProgrammeItem) => {
+    setSelectedProgrammeForAttachment(item);
+    try {
+      const response = await fetch(`/api/daily-programme/${item.id}/attachments`);
+      if (response.ok) {
+        const data = await response.json();
+        setAttachments(data);
+      } else {
+        setAttachments([]);
+      }
+    } catch (error) {
+      console.error('Error fetching attachments:', error);
+      setAttachments([]);
+    }
+    setAttachmentDialogOpen(true);
+  };
+
+  const handleAttachmentsChange = async () => {
+    if (selectedProgrammeForAttachment) {
+      try {
+        const response = await fetch(`/api/daily-programme/${selectedProgrammeForAttachment.id}/attachments`);
+        if (response.ok) {
+          const data = await response.json();
+          setAttachments(data);
+          // Update attachment count
+          setAttachmentCounts((prev) => ({
+            ...prev,
+            [selectedProgrammeForAttachment.id]: data.length,
+          }));
+        }
+      } catch (error) {
+        console.error('Error refreshing attachments:', error);
+      }
+    }
+  };
+
   return (
     <div className="flex flex-col gap-6">
       <ModulePageHeader
@@ -902,6 +977,7 @@ export function DailyProgramme({
                                   <col className="print-col-4" />
                                   <col className="no-print" />
                                   <col className="no-print" />
+                                  <col className="no-print" />
                                 </colgroup>
                                 <TableHeader>
                                   {/* Column headers row */}
@@ -910,6 +986,7 @@ export function DailyProgramme({
                                     <TableHead className="w-[150px]">{t('dailyProgramme.time')}</TableHead>
                                     <TableHead className="w-[400px]">{t('dailyProgramme.programmeNatureAndPlace')}</TableHead>
                                     <TableHead className="w-[300px]">{t('dailyProgramme.reference')}</TableHead>
+                                    <TableHead className="w-[80px] no-print text-center">Docs</TableHead>
                                     <TableHead className="w-[150px] no-print">{t('dailyProgramme.attendance')}</TableHead>
                                     <TableHead className="w-[100px] no-print">{t('dailyProgramme.actions')}</TableHead>
                                   </TableRow>
@@ -994,6 +1071,22 @@ export function DailyProgramme({
                                                 <span className="ml-2">Updated by: {item.updatedByUserId}</span>
                                               )}
                                             </div>
+                                          </TableCell>
+                                          <TableCell className="w-[80px] no-print text-center">
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="h-8 px-2"
+                                              onClick={() => handleOpenAttachmentDialog(item)}
+                                              title="Manage reference documents"
+                                            >
+                                              <Paperclip className="h-4 w-4" />
+                                              {attachmentCounts[item.id] > 0 && (
+                                                <span className="ml-1 text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 min-w-[1.25rem]">
+                                                  {attachmentCounts[item.id]}
+                                                </span>
+                                              )}
+                                            </Button>
                                           </TableCell>
                                           <TableCell className="w-[150px] no-print">
                                             <Select
@@ -1156,6 +1249,24 @@ export function DailyProgramme({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Attachment Dialog */}
+      {selectedProgrammeForAttachment && (
+        <DailyProgrammeAttachmentDialog
+          open={attachmentDialogOpen}
+          onOpenChange={(open) => {
+            setAttachmentDialogOpen(open);
+            if (!open) {
+              setSelectedProgrammeForAttachment(null);
+              setAttachments([]);
+            }
+          }}
+          programmeId={selectedProgrammeForAttachment.id}
+          programmeTitle={selectedProgrammeForAttachment.title}
+          attachments={attachments}
+          onAttachmentsChange={handleAttachmentsChange}
+        />
+      )}
     </div>
   );
 }

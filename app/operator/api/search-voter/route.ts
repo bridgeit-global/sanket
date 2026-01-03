@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { searchVoterByEpicNumber, searchVoterByName, searchVoterByPhoneNumber, searchVoterByDetails } from '@/lib/db/queries';
+import { searchVoterByEpicNumber, searchVoterByName, searchVoterByPhoneNumber, searchVoterByDetails, searchVoterByMobileNumberTable } from '@/lib/db/queries';
 
 export async function POST(request: NextRequest) {
     try {
@@ -37,7 +37,11 @@ export async function POST(request: NextRequest) {
             const isVoterId = /^[A-Z]{3}[0-9]{7}$/.test(trimmedTerm);
             const isPhoneNumber = /^[\d\s\-\(\)]{7,15}$/.test(trimmedTerm);
 
-            if (searchType === 'phone' || (isPhoneNumber && searchType !== 'voterId' && searchType !== 'name')) {
+            if (searchType === 'mobileNumber') {
+                // Mobile number search using voterMobileNumber table
+                voters = await searchVoterByMobileNumberTable(trimmedTerm);
+                actualSearchType = 'mobileNumber';
+            } else if (searchType === 'phone' || (isPhoneNumber && searchType !== 'voterId' && searchType !== 'name')) {
                 // Phone number search
                 voters = await searchVoterByPhoneNumber(trimmedTerm);
                 actualSearchType = 'phone';

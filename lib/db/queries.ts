@@ -48,6 +48,8 @@ import {
   type UserModulePermission,
   dailyProgramme,
   type DailyProgramme,
+  dailyProgrammeAttachment,
+  type DailyProgrammeAttachment,
   mlaProject,
   type MlaProject,
   registerEntry,
@@ -894,6 +896,66 @@ export async function searchVoterByPhoneNumber(phoneNumber: string): Promise<Arr
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to search voters by phone number',
+    );
+  }
+}
+
+export async function searchVoterByMobileNumberTable(mobileNumber: string): Promise<Array<VoterWithPartNo>> {
+  try {
+    // Clean the mobile number (remove spaces, dashes, etc.)
+    const cleanMobile = mobileNumber.replace(/[\s\-\(\)]/g, '');
+
+    // First get epic numbers from voterMobileNumber table that match the mobile number
+    const matchingEpicNumbers = await db
+      .selectDistinct({
+        epicNumber: voterMobileNumber.epicNumber,
+      })
+      .from(voterMobileNumber)
+      .where(sql`${voterMobileNumber.mobileNumber} LIKE ${`%${cleanMobile}%`}`);
+
+    if (matchingEpicNumbers.length === 0) {
+      return [];
+    }
+
+    const epicNumbers = matchingEpicNumbers.map((row) => row.epicNumber);
+
+    // Now get full voter details for those epic numbers
+    const results = await db
+      .select({
+        epicNumber: Voters.epicNumber,
+        fullName: Voters.fullName,
+        relationType: Voters.relationType,
+        relationName: Voters.relationName,
+        familyGrouping: Voters.familyGrouping,
+        acNo: Voters.acNo,
+        partNo: Voters.partNo,
+        srNo: Voters.srNo,
+        houseNumber: Voters.houseNumber,
+        religion: Voters.religion,
+        age: Voters.age,
+        dob: Voters.dob,
+        gender: Voters.gender,
+        isVoted2024: Voters.isVoted2024,
+        mobileNoPrimary: Voters.mobileNoPrimary,
+        mobileNoSecondary: Voters.mobileNoSecondary,
+        address: Voters.address,
+        pincode: Voters.pincode,
+        createdAt: Voters.createdAt,
+        updatedAt: Voters.updatedAt,
+        wardNo: PartNo.wardNo,
+        boothName: PartNo.boothName,
+        englishBoothAddress: PartNo.englishBoothAddress,
+      })
+      .from(Voters)
+      .leftJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
+      .where(inArray(Voters.epicNumber, epicNumbers))
+      .orderBy(asc(Voters.fullName));
+
+    return results as Array<VoterWithPartNo>;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to search voters by mobile number table',
     );
   }
 }
@@ -3024,6 +3086,81 @@ export async function deleteDailyProgrammeItem(id: string): Promise<void> {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to delete daily programme item',
+    );
+  }
+}
+
+// Daily Programme Attachment Queries
+export async function getDailyProgrammeAttachments(programmeId: string): Promise<Array<DailyProgrammeAttachment>> {
+  try {
+    return await db
+      .select()
+      .from(dailyProgrammeAttachment)
+      .where(eq(dailyProgrammeAttachment.programmeId, programmeId))
+      .orderBy(asc(dailyProgrammeAttachment.createdAt));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get daily programme attachments',
+    );
+  }
+}
+
+export async function createDailyProgrammeAttachment({
+  programmeId,
+  fileName,
+  fileSizeKb,
+  fileUrl,
+}: {
+  programmeId: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl?: string;
+}): Promise<DailyProgrammeAttachment> {
+  try {
+    const [attachment] = await db
+      .insert(dailyProgrammeAttachment)
+      .values({
+        programmeId,
+        fileName,
+        fileSizeKb,
+        fileUrl: fileUrl || null,
+        createdAt: new Date(),
+      })
+      .returning();
+
+    return attachment;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create daily programme attachment',
+    );
+  }
+}
+
+export async function deleteDailyProgrammeAttachment(id: string): Promise<void> {
+  try {
+    await db.delete(dailyProgrammeAttachment).where(eq(dailyProgrammeAttachment.id, id));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete daily programme attachment',
+    );
+  }
+}
+
+export async function getDailyProgrammeAttachmentById(id: string): Promise<DailyProgrammeAttachment | null> {
+  try {
+    const [attachment] = await db
+      .select()
+      .from(dailyProgrammeAttachment)
+      .where(eq(dailyProgrammeAttachment.id, id))
+      .limit(1);
+    return attachment || null;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get daily programme attachment',
     );
   }
 }
