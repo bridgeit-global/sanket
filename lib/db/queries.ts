@@ -2719,7 +2719,24 @@ export async function updateUserModulePermissions(
 
 export async function hasModuleAccess(userId: string, moduleKey: string): Promise<boolean> {
   try {
-    // Get user record
+    const moduleKeysToCheck =
+      moduleKey === 'daily-programme' || moduleKey === 'calendar'
+        ? ['daily-programme', 'calendar']
+        : [moduleKey];
+
+    // Optimized: Check both user and role permissions in parallel using Promise.all
+    // This is faster than sequential checks and simpler than complex UNION queries
+    const moduleKeyCondition =
+      moduleKeysToCheck.length === 1
+        ? eq(userModulePermissions.moduleKey, moduleKeysToCheck[0]!)
+        : inArray(userModulePermissions.moduleKey, moduleKeysToCheck);
+
+    const roleModuleKeyCondition =
+      moduleKeysToCheck.length === 1
+        ? eq(roleModulePermissions.moduleKey, moduleKeysToCheck[0]!)
+        : inArray(roleModulePermissions.moduleKey, moduleKeysToCheck);
+
+    // Get user with role in a single query, then check permissions in parallel
     const [userRecord] = await db
       .select()
       .from(user)
@@ -2730,56 +2747,41 @@ export async function hasModuleAccess(userId: string, moduleKey: string): Promis
       return false;
     }
 
-    const moduleKeysToCheck =
-      moduleKey === 'daily-programme' || moduleKey === 'calendar'
-        ? ['daily-programme', 'calendar']
-        : [moduleKey];
-
-    console.log(moduleKeysToCheck, userRecord.roleId)
-
-    // First check role-based permissions if user has a roleId
-    if (userRecord.roleId) {
-      const moduleKeyCondition =
-        moduleKeysToCheck.length === 1
-          ? eq(roleModulePermissions.moduleKey, moduleKeysToCheck[0]!)
-          : inArray(roleModulePermissions.moduleKey, moduleKeysToCheck);
-
-      const [rolePermission] = await db
+    // Check both user-specific and role-based permissions in parallel
+    const [userPermission, rolePermission] = await Promise.all([
+      // Check user-specific permissions
+      db
         .select()
-        .from(roleModulePermissions)
+        .from(userModulePermissions)
         .where(
           and(
-            eq(roleModulePermissions.roleId, userRecord.roleId),
-            eq(roleModulePermissions.hasAccess, true),
+            eq(userModulePermissions.userId, userId),
+            eq(userModulePermissions.hasAccess, true),
             moduleKeyCondition,
           ),
         )
-        .limit(1);
-      console.log('rolePermission', rolePermission.hasAccess)
-      if (rolePermission.hasAccess) {
-        return true;
-      }
-    }
+        .limit(1),
+      // Check role-based permissions (only if user has a role)
+      userRecord.roleId
+        ? db
+            .select()
+            .from(roleModulePermissions)
+            .where(
+              and(
+                eq(roleModulePermissions.roleId, userRecord.roleId),
+                eq(roleModulePermissions.hasAccess, true),
+                roleModuleKeyCondition,
+              ),
+            )
+            .limit(1)
+        : Promise.resolve([]),
+    ]);
 
-    // Then check user-specific permissions (for overrides)
-    const moduleKeyCondition =
-      moduleKeysToCheck.length === 1
-        ? eq(userModulePermissions.moduleKey, moduleKeysToCheck[0]!)
-        : inArray(userModulePermissions.moduleKey, moduleKeysToCheck);
-
-    const [permission] = await db
-      .select()
-      .from(userModulePermissions)
-      .where(
-        and(
-          eq(userModulePermissions.userId, userId),
-          eq(userModulePermissions.hasAccess, true),
-          moduleKeyCondition,
-        ),
-      )
-      .limit(1);
-
-    return permission !== undefined;
+    // Return true if either permission check found access
+    return (
+      userPermission.length > 0 ||
+      (rolePermission.length > 0 && rolePermission[0]?.hasAccess === true)
+    );
   } catch (error) {
     console.error('Error checking module access:', error);
     // If table doesn't exist or there's a schema issue, return false instead of throwing

@@ -58,6 +58,8 @@ interface ProgrammeItem {
 
 interface DailyProgrammeProps {
   userRole: string;
+  initialItems?: ProgrammeItem[];
+  initialDateRange?: { start: string; end: string };
 }
 
 // Generate duration options in minutes with localization
@@ -231,7 +233,11 @@ function formatDateWithLocale(date: Date, formatStr: string, locale: 'en' | 'mr'
   }
 }
 
-export function DailyProgramme({ userRole }: DailyProgrammeProps) {
+export function DailyProgramme({
+  userRole,
+  initialItems = [],
+  initialDateRange,
+}: DailyProgrammeProps) {
   const { t, locale } = useTranslations();
 
   // Generate duration options with localization
@@ -247,10 +253,10 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
     [t],
   ) || [];
 
-  const [allItems, setAllItems] = useState<ProgrammeItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [allItems, setAllItems] = useState<ProgrammeItem[]>(initialItems);
+  const [loading, setLoading] = useState(initialItems.length === 0);
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() =>
-    getDefaultDateRange(),
+    initialDateRange || getDefaultDateRange(),
   );
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
@@ -387,8 +393,13 @@ export function DailyProgramme({ userRole }: DailyProgrammeProps) {
   }, [dateRange.start, dateRange.end, locale]);
 
   useEffect(() => {
-    loadItems();
-  }, [loadItems]);
+    // Only load if we don't have initial items or if date range changed from initial
+    if (initialItems.length === 0 || 
+        (initialDateRange && 
+         (dateRange.start !== initialDateRange.start || dateRange.end !== initialDateRange.end))) {
+      loadItems();
+    }
+  }, [loadItems, initialItems.length, initialDateRange, dateRange.start, dateRange.end]);
 
   // Debug: Log when allItems changes
   useEffect(() => {
