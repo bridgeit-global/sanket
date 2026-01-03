@@ -129,8 +129,16 @@ export async function getDashboardData(): Promise<DashboardData> {
     beneficiaryServices: {
       servicesCreatedToday: beneficiaryServiceStats.servicesCreatedToday,
       totalServices: beneficiaryServiceStats.totalServices,
-      byStatus: beneficiaryServiceStats.byStatus,
-      byType: beneficiaryServiceStats.byType,
+      byStatus: {
+        pending: beneficiaryServiceStats.byStatus.pending || 0,
+        in_progress: beneficiaryServiceStats.byStatus.in_progress || 0,
+        completed: beneficiaryServiceStats.byStatus.completed || 0,
+        cancelled: beneficiaryServiceStats.byStatus.cancelled || 0,
+      },
+      byType: {
+        individual: beneficiaryServiceStats.byType.individual || 0,
+        community: beneficiaryServiceStats.byType.community || 0,
+      },
     },
     upcoming: programmeItems.slice(0, 3).map((item) => ({
       id: item.id,
