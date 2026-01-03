@@ -137,9 +137,10 @@ function formatTimeTo12Hour(time24: string, locale: 'en' | 'mr'): string {
 
 function getDefaultDateRange() {
   const today = startOfToday();
+  const todayFormatted = format(today, 'yyyy-MM-dd');
   return {
-    start: format(today, 'yyyy-MM-dd'),
-    end: format(addDays(today, 1), 'yyyy-MM-dd'),
+    start: todayFormatted,
+    end: todayFormatted,
   };
 }
 

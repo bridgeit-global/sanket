@@ -422,6 +422,9 @@
         margin: 0;
         margin-top: 0;
         page-break-inside: auto;
+        /* Standard print font size - 12pt is the standard for printed documents */
+        font-size: 12pt !important;
+        line-height: 1.4 !important;
     }
 
     /* Ensure table headers repeat on each page when tables break */
@@ -589,6 +592,14 @@
         word-wrap: break-word;
         overflow-wrap: break-word;
         hyphens: auto;
+        /* Standard print font size for table content */
+        font-size: 11pt !important;
+        line-height: 1.4 !important;
+    }
+
+    /* Table header cells - slightly larger and bolder */
+    .print-schedule th {
+        font-size: 12pt !important;
     }
 
     /* Allow cells to break if they contain very long content */
@@ -653,7 +664,46 @@
 
     /* Ensure consistent font size in Programme Nature & Place column */
     .print-schedule td:nth-child(3)>div>div {
-        font-size: inherit !important;
+        font-size: 11pt !important;
+        line-height: 1.4 !important;
+    }
+
+    /* Title text in Programme Nature column */
+    .print-schedule td:nth-child(3) .font-medium {
+        font-size: 11pt !important;
+        font-weight: 600 !important;
+    }
+
+    /* Location text with pin icon */
+    .print-schedule td:nth-child(3) .text-muted-foreground {
+        font-size: 10pt !important;
+    }
+
+    /* Time column - font for time display */
+    .print-schedule td:nth-child(2) .font-mono {
+        font-size: 11pt !important;
+    }
+
+    /* Duration label in time column */
+    .print-schedule td:nth-child(2) .text-xs {
+        font-size: 9pt !important;
+    }
+
+    /* Reference column text */
+    .print-schedule td:nth-child(4) .text-sm {
+        font-size: 11pt !important;
+    }
+
+    /* Serial number column */
+    .print-schedule td:first-child {
+        font-size: 11pt !important;
+    }
+
+    /* Ensure all nested spans and divs in cells inherit proper sizing */
+    .print-schedule td span,
+    .print-schedule td div {
+        font-size: inherit;
+        line-height: inherit;
     }
 
     /* Reference column width for print */
@@ -678,6 +728,16 @@
         break-inside: auto;
         margin-bottom: 16px;
         padding-bottom: 8px;
+    }
+
+    /* Date section header (e.g., "रविवार, ०४ जाने, २०२६") - 13pt for clear date identification */
+    .print-date-section > div:first-child {
+        font-size: 13pt !important;
+        line-height: 1.3 !important;
+    }
+
+    .print-date-section > div:first-child .font-semibold {
+        font-size: 13pt !important;
     }
 
     /* Allow page breaks between date groups */
@@ -723,7 +783,7 @@
     .print-schedule .print-date-header-row th {
         background-color: #f9fafb !important;
         font-weight: 700;
-        font-size: 14px;
+        font-size: 13pt !important;
         padding: 20px 10px 8px 10px !important;
         padding-top: 20px !important;
         -webkit-print-color-adjust: exact;
