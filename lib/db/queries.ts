@@ -1304,6 +1304,9 @@ export async function updateVoterMobileNumber(
       });
     }
 
+    // Sync with VoterMobileNumber table
+    await syncVoterMobileNumberTable(epicNumber, newMobileNoPrimary, newMobileNoSecondary);
+
     return updatedVoter;
   } catch (error) {
     throw new ChatSDKError(
@@ -1336,6 +1339,13 @@ export async function updateVoterMobileNumbers(
 
       if (updatedVoter) {
         results.push(updatedVoter);
+        
+        // Sync with VoterMobileNumber table
+        await syncVoterMobileNumberTable(
+          update.epicNumber,
+          updatedVoter.mobileNoPrimary || null,
+          updatedVoter.mobileNoSecondary || null
+        );
       }
     }
 
@@ -1448,6 +1458,9 @@ export async function updateVoter(
           updatedBy,
           sourceModule,
         });
+
+        // Sync with VoterMobileNumber table
+        await syncVoterMobileNumberTable(epicNumber, newMobileNoPrimary, newMobileNoSecondary);
       }
     }
 
@@ -4363,6 +4376,50 @@ export type MobileNumberWithSortOrder = {
   mobileNumber: string;
   sortOrder: number;
 };
+
+// Helper function to sync VoterMobileNumber table when mobile numbers are updated
+export async function syncVoterMobileNumberTable(
+  epicNumber: string,
+  mobileNoPrimary: string | null,
+  mobileNoSecondary: string | null
+): Promise<void> {
+  try {
+    // Delete existing mobile numbers for this voter
+    await db
+      .delete(voterMobileNumber)
+      .where(eq(voterMobileNumber.epicNumber, epicNumber));
+
+    // Insert new mobile numbers
+    const mobileNumbersToInsert: Array<{
+      epicNumber: string;
+      mobileNumber: string;
+      sortOrder: number;
+    }> = [];
+
+    if (mobileNoPrimary && mobileNoPrimary.trim()) {
+      mobileNumbersToInsert.push({
+        epicNumber,
+        mobileNumber: mobileNoPrimary.trim(),
+        sortOrder: 1,
+      });
+    }
+
+    if (mobileNoSecondary && mobileNoSecondary.trim()) {
+      mobileNumbersToInsert.push({
+        epicNumber,
+        mobileNumber: mobileNoSecondary.trim(),
+        sortOrder: 2,
+      });
+    }
+
+    if (mobileNumbersToInsert.length > 0) {
+      await db.insert(voterMobileNumber).values(mobileNumbersToInsert);
+    }
+  } catch (error) {
+    console.error('Error syncing VoterMobileNumber table:', error);
+    // Don't throw - this is a secondary operation, the primary Voter update already succeeded
+  }
+}
 
 // Get all mobile numbers from VoterMobileNumber table grouped by epic number
 export async function getVoterMobileNumbersByEpicNumbers(

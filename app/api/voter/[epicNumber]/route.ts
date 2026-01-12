@@ -7,6 +7,7 @@ import {
   getVoterBeneficiaryServices,
   getVoterDailyProgrammeEvents,
   getRelatedVotersServicesAndEvents,
+  getVoterMobileNumbersByEpicNumbers,
 } from '@/lib/db/queries';
 
 export async function GET(
@@ -38,19 +39,57 @@ export async function GET(
     // Get beneficiary services for the voter
     const beneficiaryServices = await getVoterBeneficiaryServices(voter.epicNumber);
 
+    // Get mobile numbers from VoterMobileNumber table
+    const allEpicNumbers = [voter.epicNumber, ...relatedVoters.map(rv => rv.epicNumber)];
+    const mobileNumbersMap = await getVoterMobileNumbersByEpicNumbers(allEpicNumbers);
+    let voterMobileNumbers = mobileNumbersMap.get(voter.epicNumber) || [];
+
+    // Fallback to Voter table's mobile numbers if VoterMobileNumber table is empty
+    if (voterMobileNumbers.length === 0) {
+      const fallbackNumbers: Array<{ mobileNumber: string; sortOrder: number }> = [];
+      if (voter.mobileNoPrimary && voter.mobileNoPrimary.trim()) {
+        fallbackNumbers.push({ mobileNumber: voter.mobileNoPrimary.trim(), sortOrder: 1 });
+      }
+      if (voter.mobileNoSecondary && voter.mobileNoSecondary.trim()) {
+        fallbackNumbers.push({ mobileNumber: voter.mobileNoSecondary.trim(), sortOrder: 2 });
+      }
+      voterMobileNumbers = fallbackNumbers;
+    }
+
     // Get daily programme events for the voter (by contact numbers)
-    const contactNumbers: string[] = [];
-    if (voter.mobileNoPrimary) contactNumbers.push(voter.mobileNoPrimary);
-    if (voter.mobileNoSecondary) contactNumbers.push(voter.mobileNoSecondary);
+    const contactNumbers = voterMobileNumbers.map(mn => mn.mobileNumber);
     const dailyProgrammeEvents = await getVoterDailyProgrammeEvents(contactNumbers);
 
     // Get services and events for related voters
     const relatedVotersData = await getRelatedVotersServicesAndEvents(relatedVoters);
 
+    // Add mobile numbers to related voters data (with fallback to Voter table)
+    const relatedVotersWithMobileNumbers = relatedVoters.map(rv => {
+      let mobileNumbers = mobileNumbersMap.get(rv.epicNumber) || [];
+      
+      // Fallback to Voter table's mobile numbers if VoterMobileNumber table is empty
+      if (mobileNumbers.length === 0) {
+        const fallbackNumbers: Array<{ mobileNumber: string; sortOrder: number }> = [];
+        if (rv.mobileNoPrimary && rv.mobileNoPrimary.trim()) {
+          fallbackNumbers.push({ mobileNumber: rv.mobileNoPrimary.trim(), sortOrder: 1 });
+        }
+        if (rv.mobileNoSecondary && rv.mobileNoSecondary.trim()) {
+          fallbackNumbers.push({ mobileNumber: rv.mobileNoSecondary.trim(), sortOrder: 2 });
+        }
+        mobileNumbers = fallbackNumbers;
+      }
+      
+      return {
+        ...rv,
+        mobileNumbers,
+      };
+    });
+
     return NextResponse.json({
       success: true,
       voter,
-      relatedVoters,
+      voterMobileNumbers,
+      relatedVoters: relatedVotersWithMobileNumbers,
       beneficiaryServices,
       dailyProgrammeEvents,
       relatedVotersData,

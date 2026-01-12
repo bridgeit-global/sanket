@@ -15,6 +15,11 @@ interface VoterProfileProps {
   epicNumber: string;
 }
 
+interface MobileNumberWithSortOrder {
+  mobileNumber: string;
+  sortOrder: number;
+}
+
 interface BeneficiaryServicesData {
   individual: BeneficiaryService[];
   community: BeneficiaryService[];
@@ -22,6 +27,10 @@ interface BeneficiaryServicesData {
 
 interface DailyProgrammeEvent extends DailyProgramme {
   visitorName: string;
+}
+
+interface RelatedVoterWithMobileNumbers extends VoterWithPartNo {
+  mobileNumbers: MobileNumberWithSortOrder[];
 }
 
 interface RelatedVoterData {
@@ -34,7 +43,8 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
   const router = useRouter();
   const { t } = useTranslations();
   const [voter, setVoter] = useState<VoterWithPartNo | null>(null);
-  const [relatedVoters, setRelatedVoters] = useState<VoterWithPartNo[]>([]);
+  const [voterMobileNumbers, setVoterMobileNumbers] = useState<MobileNumberWithSortOrder[]>([]);
+  const [relatedVoters, setRelatedVoters] = useState<RelatedVoterWithMobileNumbers[]>([]);
   const [beneficiaryServices, setBeneficiaryServices] = useState<BeneficiaryServicesData>({ individual: [], community: [] });
   const [dailyProgrammeEvents, setDailyProgrammeEvents] = useState<DailyProgrammeEvent[]>([]);
   const [relatedVotersData, setRelatedVotersData] = useState<RelatedVoterData[]>([]);
@@ -68,6 +78,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
         const data = await response.json();
         if (data.success) {
           setVoter(data.voter);
+          setVoterMobileNumbers(data.voterMobileNumbers || []);
           setRelatedVoters(data.relatedVoters || []);
           setBeneficiaryServices(data.beneficiaryServices || { individual: [], community: [] });
           setDailyProgrammeEvents(data.dailyProgrammeEvents || []);
@@ -214,14 +225,21 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
               Contact Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Primary Mobile</label>
-                <p className="text-base">{voter.mobileNoPrimary || 'Not set'}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Secondary Mobile</label>
-                <p className="text-base">{voter.mobileNoSecondary || 'Not set'}</p>
-              </div>
+              {voterMobileNumbers.length > 0 ? (
+                voterMobileNumbers.map((mobile, index) => (
+                  <div key={mobile.mobileNumber}>
+                    <label className="text-sm font-medium text-muted-foreground">
+                      {index === 0 ? 'Primary Mobile' : index === 1 ? 'Secondary Mobile' : `Mobile ${index + 1}`}
+                    </label>
+                    <p className="text-base">{mobile.mobileNumber}</p>
+                  </div>
+                ))
+              ) : (
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground">Mobile</label>
+                  <p className="text-base text-muted-foreground">Not set</p>
+                </div>
+              )}
             </div>
           </div>
 
@@ -361,7 +379,11 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                     <div className="text-right ml-4">
                       <div className="text-sm">
                         <span className="font-medium text-muted-foreground">Primary:</span>
-                        <p className="text-sm">{relatedVoter.mobileNoPrimary || 'Not set'}</p>
+                        <p className="text-sm">
+                          {relatedVoter.mobileNumbers && relatedVoter.mobileNumbers.length > 0 
+                            ? relatedVoter.mobileNumbers[0].mobileNumber 
+                            : 'Not set'}
+                        </p>
                       </div>
                     </div>
                   </div>
