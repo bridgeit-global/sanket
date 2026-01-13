@@ -13,7 +13,7 @@ import type { VoterWithPartNo } from '@/lib/db/schema';
 
 export function SingleVoterMark() {
   const [epicNumber, setEpicNumber] = useState('');
-  const [electionId, setElectionId] = useState('GE2024');
+  const [electionId, setElectionId] = useState('LS2024');
   const [hasVoted, setHasVoted] = useState<boolean | null>(null);
   const [notes, setNotes] = useState('');
   const [voter, setVoter] = useState<VoterWithPartNo | null>(null);
@@ -132,7 +132,7 @@ export function SingleVoterMark() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="GE2024">General Election 2024</SelectItem>
+                <SelectItem value="LS2024">Lok Sabha 2024</SelectItem>
                 <SelectItem value="AE2024">Assembly Election 2024</SelectItem>
                 <SelectItem value="LE2024">Local Election 2024</SelectItem>
               </SelectContent>

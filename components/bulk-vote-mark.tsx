@@ -11,7 +11,7 @@ import { toast } from '@/components/toast';
 import { Upload, FileText } from 'lucide-react';
 
 export function BulkVoteMark() {
-  const [electionId, setElectionId] = useState('GE2024');
+  const [electionId, setElectionId] = useState('LS2024');
   const [csvData, setCsvData] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -38,7 +38,7 @@ export function BulkVoteMark() {
       // Parse CSV data
       const lines = csvData.trim().split('\n');
       const headers = lines[0].split(',').map(h => h.trim());
-      
+
       const epicIndex = headers.findIndex(h => h.toLowerCase().includes('epic'));
       const electionIndex = headers.findIndex(h => h.toLowerCase().includes('election'));
       const votedIndex = headers.findIndex(h => h.toLowerCase().includes('voted') || h.toLowerCase().includes('has_voted'));
@@ -101,7 +101,7 @@ export function BulkVoteMark() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="GE2024">General Election 2024</SelectItem>
+              <SelectItem value="LS2024">Lok Sabha 2024</SelectItem>
               <SelectItem value="AE2024">Assembly Election 2024</SelectItem>
               <SelectItem value="LE2024">Local Election 2024</SelectItem>
             </SelectContent>
@@ -128,7 +128,7 @@ export function BulkVoteMark() {
             id="csvData"
             value={csvData}
             onChange={(e) => setCsvData(e.target.value)}
-            placeholder="epicNumber,electionId,hasVoted&#10;ABC123,GE2024,true&#10;XYZ789,GE2024,false"
+            placeholder="epicNumber,electionId,hasVoted&#10;ABC123,LS2024,true&#10;XYZ789,LS2024,false"
             rows={10}
             className="font-mono text-sm"
           />
@@ -146,8 +146,8 @@ export function BulkVoteMark() {
           <p className="text-sm font-semibold mb-2">CSV Format:</p>
           <pre className="text-xs font-mono">
             {`epicNumber,electionId,hasVoted
-ABC123,GE2024,true
-XYZ789,GE2024,false`}
+ABC123,LS2024,true
+XYZ789,LS2024,false`}
           </pre>
         </div>
       </CardContent>

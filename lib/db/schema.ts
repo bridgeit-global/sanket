@@ -228,6 +228,7 @@ export const VoterMaster = pgTable('VoterMaster', {
   familyGrouping: varchar('family_grouping', { length: 100 }),
   houseNumber: varchar('house_number', { length: 127 }),
   religion: varchar('religion', { length: 50 }),
+  caste: varchar('caste', { length: 50 }),
   age: integer('age'),
   dob: date('dob', { mode: 'string' }),
   gender: varchar('gender', { length: 10 }),
@@ -247,7 +248,7 @@ export const ElectionMapping = pgTable('ElectionMapping', {
   epicNumber: varchar('epic_number', { length: 20 })
     .notNull()
     .references(() => VoterMaster.epicNumber, { onDelete: 'cascade' }),
-  electionId: varchar('election_id', { length: 50 }).notNull(), // e.g., 'GE2024', 'AE2024', 'LE2024'
+  electionId: varchar('election_id', { length: 50 }).notNull(), // e.g., 'LS2024', 'AE2024', 'LE2024'
   electionType: varchar('election_type', { length: 50 }).notNull(), // 'General', 'Assembly', 'Local'
   year: integer('year').notNull(),
   acNo: varchar('ac_no', { length: 10 }),

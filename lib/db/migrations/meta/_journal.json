@@ -337,6 +337,13 @@
       "when": 1768304068766,
       "tag": "0047_tough_lake",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1768334122535,
+      "tag": "0048_quiet_boom_boom",
+      "breakpoints": true
     }
   ]
 }

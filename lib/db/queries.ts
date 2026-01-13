@@ -624,11 +624,11 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
 }
 
 // Helper function to get current/active election ID
-// Defaults to 'GE2024' but can be configured via environment variable or settings
+// Defaults to 'LS2024' but can be configured via environment variable or settings
 export async function getCurrentElectionId(): Promise<string> {
   // In the future, this could query a settings table
-  // For now, default to GE2024 (General Election 2024)
-  return process.env.CURRENT_ELECTION_ID || 'GE2024';
+  // For now, default to LS2024 (Lok Sabha 2024 DOM)
+  return process.env.CURRENT_ELECTION_ID || 'LS2024';
 }
 
 // Extended type that includes election mapping and voting history
