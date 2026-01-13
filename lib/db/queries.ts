@@ -676,7 +676,6 @@ async function getVoterWithCurrentElection(
         acNo: ElectionMapping.acNo,
         wardNo: ElectionMapping.wardNo,
         boothNo: ElectionMapping.boothNo,
-        partNo: ElectionMapping.partNo,
         srNo: ElectionMapping.srNo,
         boothName: ElectionMapping.boothName,
         boothAddress: ElectionMapping.boothAddress,
@@ -717,7 +716,7 @@ async function getVoterWithCurrentElection(
         eq(VotingHistory.electionId, currentElectionId)
       )
     )
-    .leftJoin(PartNo, eq(ElectionMapping.partNo, PartNo.partNo))
+    .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
     .where(eq(VoterMaster.epicNumber, epicNumber))
     .limit(1);
 
@@ -746,7 +745,7 @@ export async function getVoterByEpicNumber(epicNumber: string, electionId?: stri
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
         acNo: ElectionMapping.acNo,
-        partNo: ElectionMapping.partNo,
+        boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
         religion: VoterMaster.religion,
@@ -778,10 +777,10 @@ export async function getVoterByEpicNumber(epicNumber: string, electionId?: stri
           eq(VotingHistory.electionId, currentElectionId)
         )
       )
-      .leftJoin(PartNo, eq(ElectionMapping.partNo, PartNo.partNo))
+      .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
       .where(eq(VoterMaster.epicNumber, epicNumber));
 
-    return results as Array<VoterWithPartNo>;
+    return results as unknown as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -802,7 +801,7 @@ export async function getAllVoter(electionId?: string): Promise<Array<Voter>> {
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
         acNo: ElectionMapping.acNo,
-        partNo: ElectionMapping.partNo,
+        boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
         religion: VoterMaster.religion,
@@ -834,7 +833,7 @@ export async function getAllVoter(electionId?: string): Promise<Array<Voter>> {
       )
       .orderBy(asc(VoterMaster.fullName));
 
-    return results as Array<Voter>;
+    return results as unknown as Array<Voter>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -855,7 +854,7 @@ export async function getVoterByAC(acNo: string, electionId?: string): Promise<A
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
         acNo: ElectionMapping.acNo,
-        partNo: ElectionMapping.partNo,
+        boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
         religion: VoterMaster.religion,
@@ -888,7 +887,7 @@ export async function getVoterByAC(acNo: string, electionId?: string): Promise<A
       )
       .orderBy(asc(VoterMaster.fullName));
 
-    return results as Array<Voter>;
+    return results as unknown as Array<Voter>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -909,7 +908,7 @@ export async function getVoterByWard(wardNo: string, electionId?: string): Promi
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
         acNo: ElectionMapping.acNo,
-        partNo: ElectionMapping.partNo,
+        boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
         religion: VoterMaster.religion,
@@ -942,8 +941,8 @@ export async function getVoterByWard(wardNo: string, electionId?: string): Promi
           eq(VotingHistory.electionId, currentElectionId)
         )
       )
-      .leftJoin(PartNo, eq(ElectionMapping.partNo, PartNo.partNo))
-      .orderBy(asc(VoterMaster.fullName)) as Array<VoterWithPartNo>;
+      .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
+      .orderBy(asc(VoterMaster.fullName)) as unknown as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -964,7 +963,7 @@ export async function getVoterByPart(partNo: string, electionId?: string): Promi
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
         acNo: ElectionMapping.acNo,
-        partNo: ElectionMapping.partNo,
+        boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
         religion: VoterMaster.religion,
@@ -985,7 +984,7 @@ export async function getVoterByPart(partNo: string, electionId?: string): Promi
         and(
           eq(VoterMaster.epicNumber, ElectionMapping.epicNumber),
           eq(ElectionMapping.electionId, currentElectionId),
-          eq(ElectionMapping.partNo, partNo)
+          eq(ElectionMapping.boothNo, partNo)
         )
       )
       .leftJoin(
@@ -997,7 +996,7 @@ export async function getVoterByPart(partNo: string, electionId?: string): Promi
       )
       .orderBy(asc(VoterMaster.fullName));
 
-    return results as Array<Voter>;
+    return results as unknown as Array<Voter>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1018,7 +1017,7 @@ export async function getVoterByBooth(boothName: string, electionId?: string): P
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
         acNo: ElectionMapping.acNo,
-        partNo: ElectionMapping.partNo,
+        boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
         religion: VoterMaster.religion,
@@ -1051,8 +1050,8 @@ export async function getVoterByBooth(boothName: string, electionId?: string): P
           eq(VotingHistory.electionId, currentElectionId)
         )
       )
-      .leftJoin(PartNo, eq(ElectionMapping.partNo, PartNo.partNo))
-      .orderBy(asc(VoterMaster.fullName)) as Array<VoterWithPartNo>;
+      .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
+      .orderBy(asc(VoterMaster.fullName)) as unknown as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1073,7 +1072,7 @@ export async function searchVoterByEpicNumber(epicNumber: string, electionId?: s
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
         acNo: ElectionMapping.acNo,
-        partNo: ElectionMapping.partNo,
+        boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
         religion: VoterMaster.religion,
@@ -1106,11 +1105,11 @@ export async function searchVoterByEpicNumber(epicNumber: string, electionId?: s
           eq(VotingHistory.electionId, currentElectionId)
         )
       )
-      .leftJoin(PartNo, eq(ElectionMapping.partNo, PartNo.partNo))
+      .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
       .where(sql`LOWER(${VoterMaster.epicNumber}) LIKE LOWER(${`%${epicNumber}%`})`)
       .orderBy(asc(VoterMaster.epicNumber));
 
-    return results;
+    return results as unknown as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1131,7 +1130,7 @@ export async function searchVoterByName(name: string, electionId?: string): Prom
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
         acNo: ElectionMapping.acNo,
-        partNo: ElectionMapping.partNo,
+        boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
         religion: VoterMaster.religion,
@@ -1164,11 +1163,11 @@ export async function searchVoterByName(name: string, electionId?: string): Prom
           eq(VotingHistory.electionId, currentElectionId)
         )
       )
-      .leftJoin(PartNo, eq(ElectionMapping.partNo, PartNo.partNo))
+      .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
       .where(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${name}%`})`)
       .orderBy(asc(VoterMaster.fullName));
 
-    return results as Array<VoterWithPartNo>;
+    return results as unknown as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1215,7 +1214,7 @@ export async function searchVoterByPhoneNumber(phoneNumber: string): Promise<Arr
       )
       .orderBy(asc(Voters.fullName));
 
-    return results as Array<VoterWithPartNo>;
+    return results as unknown as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1275,7 +1274,7 @@ export async function searchVoterByMobileNumberTable(mobileNumber: string): Prom
       .where(inArray(Voters.epicNumber, epicNumbers))
       .orderBy(asc(Voters.fullName));
 
-    return results as Array<VoterWithPartNo>;
+    return results as unknown as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1403,7 +1402,7 @@ export async function searchVoterByDetails(params: {
       .where(sql`${sql.join(conditions, sql` AND `)}`)
       .orderBy(asc(Voters.fullName));
 
-    return results as Array<VoterWithPartNo>;
+    return results as unknown as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -4534,16 +4533,47 @@ export async function getVoterElectionMappings(
   }
 }
 
+// Get voting history for a voter with election mapping (booth info)
+export type VotingHistoryWithBooth = VotingHistoryType & {
+  boothName: string | null;
+  boothAddress: string | null;
+  boothNo: string | null;
+  srNo: string | null;
+};
+
 // Get voting history for a voter
 export async function getVoterVotingHistory(
   epicNumber: string,
   electionId?: string
-): Promise<Array<VotingHistoryType>> {
+): Promise<Array<VotingHistoryWithBooth>> {
   try {
+    const baseQuery = db
+      .select({
+        id: VotingHistory.id,
+        epicNumber: VotingHistory.epicNumber,
+        electionId: VotingHistory.electionId,
+        hasVoted: VotingHistory.hasVoted,
+        markedBy: VotingHistory.markedBy,
+        markedAt: VotingHistory.markedAt,
+        notes: VotingHistory.notes,
+        createdAt: VotingHistory.createdAt,
+        updatedAt: VotingHistory.updatedAt,
+        boothName: ElectionMapping.boothName,
+        boothAddress: ElectionMapping.boothAddress,
+        boothNo: ElectionMapping.boothNo,
+        srNo: ElectionMapping.srNo,
+      })
+      .from(VotingHistory)
+      .leftJoin(
+        ElectionMapping,
+        and(
+          eq(VotingHistory.epicNumber, ElectionMapping.epicNumber),
+          eq(VotingHistory.electionId, ElectionMapping.electionId)
+        )
+      );
+
     if (electionId) {
-      return await db
-        .select()
-        .from(VotingHistory)
+      return await baseQuery
         .where(
           and(
             eq(VotingHistory.epicNumber, epicNumber),
@@ -4553,9 +4583,7 @@ export async function getVoterVotingHistory(
         .orderBy(desc(VotingHistory.markedAt));
     }
 
-    return await db
-      .select()
-      .from(VotingHistory)
+    return await baseQuery
       .where(eq(VotingHistory.epicNumber, epicNumber))
       .orderBy(desc(VotingHistory.markedAt));
   } catch (error) {
@@ -4671,7 +4699,7 @@ export async function getVotingStatistics(
       filterConditions.push(eq(ElectionMapping.wardNo, filters.wardNo));
     }
     if (filters?.partNo) {
-      filterConditions.push(eq(ElectionMapping.partNo, filters.partNo));
+      filterConditions.push(eq(ElectionMapping.boothNo, filters.partNo));
     }
 
     // Build query with conditional where clause

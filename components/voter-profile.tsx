@@ -4,12 +4,16 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, User, Phone, MapPin, Calendar, FileText, Users, Edit, Briefcase, Clock } from 'lucide-react';
+import { ArrowLeft, User, Users, Edit, Briefcase, Clock } from 'lucide-react';
 import type { VoterWithPartNo, BeneficiaryService, DailyProgramme } from '@/lib/db/schema';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useTranslations } from '@/hooks/use-translations';
+import { PersonalInformation } from '@/components/voter-profile/personal-information';
+import { ContactInformation } from '@/components/voter-profile/contact-information';
+import { LocationInformation } from '@/components/voter-profile/location-information';
+import { VotingInformation } from '@/components/voter-profile/voting-information';
 
 interface VoterProfileProps {
   epicNumber: string;
@@ -164,162 +168,10 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Basic Information */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <FileText className="h-4 w-4" />
-              Basic Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Full Name</label>
-                <p className="text-base font-medium">{voter.fullName}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">EPIC Number</label>
-                <p className="text-base font-medium">{voter.epicNumber}</p>
-              </div>
-              {voter.age && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Age</label>
-                  <p className="text-base">{voter.age}</p>
-                </div>
-              )}
-              {voter.gender && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Gender</label>
-                  <p className="text-base">{voter.gender}</p>
-                </div>
-              )}
-              {voter.relationType && voter.relationName && (
-                <>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Relation Type</label>
-                    <p className="text-base">{voter.relationType}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Relation Name</label>
-                    <p className="text-base">{voter.relationName}</p>
-                  </div>
-                </>
-              )}
-              {voter.familyGrouping && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Family Grouping</label>
-                  <p className="text-base">{voter.familyGrouping}</p>
-                </div>
-              )}
-              {voter.religion && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Religion</label>
-                  <p className="text-base">{voter.religion}</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Contact Information */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Phone className="h-4 w-4" />
-              Contact Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {voterMobileNumbers.length > 0 ? (
-                voterMobileNumbers.map((mobile, index) => (
-                  <div key={mobile.mobileNumber}>
-                    <label className="text-sm font-medium text-muted-foreground">
-                      {index === 0 ? 'Primary Mobile' : index === 1 ? 'Secondary Mobile' : `Mobile ${index + 1}`}
-                    </label>
-                    <p className="text-base">{mobile.mobileNumber}</p>
-                  </div>
-                ))
-              ) : (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Mobile</label>
-                  <p className="text-base text-muted-foreground">Not set</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Location Information */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              Location Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {voter.acNo && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">AC Number</label>
-                  <p className="text-base">{voter.acNo}</p>
-                </div>
-              )}
-              {voter.wardNo && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Ward Number</label>
-                  <p className="text-base">{voter.wardNo}</p>
-                </div>
-              )}
-              {voter.partNo && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Part Number</label>
-                  <p className="text-base">{voter.partNo}</p>
-                </div>
-              )}
-              {voter.srNo && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Serial Number</label>
-                  <p className="text-base">{voter.srNo}</p>
-                </div>
-              )}
-              {voter.houseNumber && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">House Number</label>
-                  <p className="text-base">{voter.houseNumber}</p>
-                </div>
-              )}
-              {voter.pincode && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Pincode</label>
-                  <p className="text-base">{voter.pincode}</p>
-                </div>
-              )}
-              {voter.address && (
-                <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-muted-foreground">Address</label>
-                  <p className="text-base">{voter.address}</p>
-                </div>
-              )}
-              {voter.boothName && (
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Booth Name</label>
-                  <p className="text-base">{voter.boothName}</p>
-                </div>
-              )}
-              {voter.englishBoothAddress && (
-                <div className="md:col-span-2">
-                  <label className="text-sm font-medium text-muted-foreground">Booth Address</label>
-                  <p className="text-base">{voter.englishBoothAddress}</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Voting Information */}
-          <div>
-            <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Voting Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-muted-foreground">Voted in 2024</label>
-                <p className="text-base">{voter.isVoted2024 ? 'Yes' : 'No'}</p>
-              </div>
-            </div>
-          </div>
+          <PersonalInformation voter={voter} />
+          <ContactInformation mobileNumbers={voterMobileNumbers} />
+          <LocationInformation voter={voter} />
+          <VotingInformation epicNumber={epicNumber} />
         </CardContent>
       </Card>
 

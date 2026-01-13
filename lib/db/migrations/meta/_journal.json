@@ -330,6 +330,13 @@
       "when": 1768245259828,
       "tag": "0046_flowery_kang",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1768304068766,
+      "tag": "0047_tough_lake",
+      "breakpoints": true
     }
   ]
 }

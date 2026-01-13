@@ -252,8 +252,7 @@ export const ElectionMapping = pgTable('ElectionMapping', {
   year: integer('year').notNull(),
   acNo: varchar('ac_no', { length: 10 }),
   wardNo: varchar('ward_no', { length: 10 }),
-  boothNo: varchar('booth_no', { length: 10 }), // Alternative to partNo
-  partNo: varchar('part_no', { length: 10 }), // Keep for backward compatibility
+  boothNo: varchar('booth_no', { length: 10 }),
   srNo: varchar('sr_no', { length: 10 }),
   boothName: varchar('booth_name', { length: 255 }),
   boothAddress: text('booth_address'),
