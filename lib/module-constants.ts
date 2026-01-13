@@ -123,6 +123,15 @@ export const ALL_MODULES: ModuleDefinition[] = [
     category: 'mla-office',
     defaultRoles: ['admin', 'operator', 'back-office'],
   },
+  {
+    key: 'voting-participation',
+    label: 'Voting Participation',
+    description: 'Mark and track voting participation for elections',
+    route: '/modules/voting-participation',
+    icon: 'Vote',
+    category: 'operations',
+    defaultRoles: ['admin', 'operator', 'back-office'],
+  },
 ];
 
 // Get module by key
@@ -156,5 +165,6 @@ export const MODULE_KEYS = {
   OUTWARD: 'outward',
   PROJECTS: 'projects',
   VISITOR_MANAGEMENT: 'visitor-management',
+  VOTING_PARTICIPATION: 'voting-participation',
 } as const;
 

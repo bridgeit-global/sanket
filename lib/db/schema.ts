@@ -12,6 +12,7 @@ import {
   boolean,
   integer,
   unique,
+  index,
 } from 'drizzle-orm/pg-core';
 
 // Role Table (defined before User to allow forward reference)
@@ -218,6 +219,78 @@ export const PartNo = pgTable('PartNo', {
 
 export type PartNoType = InferSelectModel<typeof PartNo>;
 
+// VoterMaster Table - Personal information + EPIC number (immutable voter identity)
+export const VoterMaster = pgTable('VoterMaster', {
+  epicNumber: varchar('epic_number', { length: 20 }).primaryKey().notNull(),
+  fullName: varchar('full_name', { length: 255 }).notNull(),
+  relationType: varchar('relation_type', { length: 50 }),
+  relationName: varchar('relation_name', { length: 255 }),
+  familyGrouping: varchar('family_grouping', { length: 100 }),
+  houseNumber: varchar('house_number', { length: 127 }),
+  religion: varchar('religion', { length: 50 }),
+  age: integer('age'),
+  dob: date('dob', { mode: 'string' }),
+  gender: varchar('gender', { length: 10 }),
+  mobileNoPrimary: varchar('mobile_no_primary', { length: 15 }),
+  mobileNoSecondary: varchar('mobile_no_secondary', { length: 15 }),
+  address: text('address'),
+  pincode: varchar('pincode', { length: 10 }),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type VoterMaster = InferSelectModel<typeof VoterMaster>;
+
+// ElectionMapping Table - Election-specific location data with delimitation versioning
+export const ElectionMapping = pgTable('ElectionMapping', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  epicNumber: varchar('epic_number', { length: 20 })
+    .notNull()
+    .references(() => VoterMaster.epicNumber, { onDelete: 'cascade' }),
+  electionId: varchar('election_id', { length: 50 }).notNull(), // e.g., 'GE2024', 'AE2024', 'LE2024'
+  electionType: varchar('election_type', { length: 50 }).notNull(), // 'General', 'Assembly', 'Local'
+  year: integer('year').notNull(),
+  acNo: varchar('ac_no', { length: 10 }),
+  wardNo: varchar('ward_no', { length: 10 }),
+  boothNo: varchar('booth_no', { length: 10 }), // Alternative to partNo
+  partNo: varchar('part_no', { length: 10 }), // Keep for backward compatibility
+  srNo: varchar('sr_no', { length: 10 }),
+  boothName: varchar('booth_name', { length: 255 }),
+  boothAddress: text('booth_address'),
+  delimitationVersion: varchar('delimitation_version', { length: 50 }), // e.g., '2023', '2019'
+  dataSource: varchar('data_source', { length: 100 }), // 'ECI', 'Manual', 'Import'
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqueEpicElection: unique().on(table.epicNumber, table.electionId),
+  idxElectionId: index('idx_election_mapping_election_id').on(table.electionId),
+  idxEpicNumber: index('idx_election_mapping_epic_number').on(table.epicNumber),
+}));
+
+export type ElectionMapping = InferSelectModel<typeof ElectionMapping>;
+
+// VotingHistory Table - Voting participation records per election
+export const VotingHistory = pgTable('VotingHistory', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  epicNumber: varchar('epic_number', { length: 20 })
+    .notNull()
+    .references(() => VoterMaster.epicNumber, { onDelete: 'cascade' }),
+  electionId: varchar('election_id', { length: 50 }).notNull(),
+  hasVoted: boolean('has_voted').notNull().default(false),
+  markedBy: uuid('marked_by').references(() => user.id),
+  markedAt: timestamp('marked_at').notNull().defaultNow(),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  uniqueEpicElection: unique().on(table.epicNumber, table.electionId),
+  idxElectionId: index('idx_voting_history_election_id').on(table.electionId),
+  idxEpicNumber: index('idx_voting_history_epic_number').on(table.epicNumber),
+}));
+
+export type VotingHistory = InferSelectModel<typeof VotingHistory>;
+
+// Legacy Voter table - kept for backward compatibility during migration
 export const Voters = pgTable('Voter', {
   epicNumber: varchar('epic_number', { length: 20 }).primaryKey().notNull(),
   fullName: varchar('full_name', { length: 255 }).notNull(),
@@ -255,7 +328,7 @@ export const voterMobileNumber = pgTable(
   {
     epicNumber: varchar('epic_number', { length: 20 })
       .notNull()
-      .references(() => Voters.epicNumber, { onDelete: 'cascade' }),
+      .references(() => VoterMaster.epicNumber, { onDelete: 'cascade' }),
     mobileNumber: varchar('mobile_number', { length: 15 }).notNull(),
     sortOrder: integer('sort_order').notNull(),
     createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -278,7 +351,7 @@ export const beneficiaryServices = pgTable('BeneficiaryService', {
   priority: varchar('priority', { enum: ['low', 'medium', 'high', 'urgent'] }).notNull().default('medium'),
   requestedBy: uuid('requested_by').notNull().references(() => user.id),
   assignedTo: uuid('assigned_to').references(() => user.id),
-  voterId: varchar('voter_id', { length: 20 }).references(() => Voters.epicNumber),
+  voterId: varchar('voter_id', { length: 20 }).references(() => VoterMaster.epicNumber),
   token: varchar('token', { length: 20 }).notNull(),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
@@ -291,7 +364,7 @@ export type BeneficiaryService = InferSelectModel<typeof beneficiaryServices>;
 export const voterTasks = pgTable('VoterTask', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   serviceId: uuid('service_id').notNull().references(() => beneficiaryServices.id),
-  voterId: varchar('voter_id', { length: 20 }).notNull().references(() => Voters.epicNumber),
+  voterId: varchar('voter_id', { length: 20 }).notNull().references(() => VoterMaster.epicNumber),
   taskType: varchar('task_type', { length: 100 }).notNull(),
   description: text('description'),
   status: varchar('status', { enum: ['pending', 'in_progress', 'completed', 'cancelled'] }).notNull().default('pending'),
@@ -497,7 +570,7 @@ export const phoneUpdateHistory = pgTable('PhoneUpdateHistory', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   epicNumber: varchar('epic_number', { length: 20 })
     .notNull()
-    .references(() => Voters.epicNumber, { onDelete: 'cascade' }),
+    .references(() => VoterMaster.epicNumber, { onDelete: 'cascade' }),
   oldMobileNoPrimary: varchar('old_mobile_no_primary', { length: 15 }),
   newMobileNoPrimary: varchar('new_mobile_no_primary', { length: 15 }),
   oldMobileNoSecondary: varchar('old_mobile_no_secondary', { length: 15 }),
