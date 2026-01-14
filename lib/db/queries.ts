@@ -626,11 +626,11 @@ export async function getStreamIdsByChatId({ chatId }: { chatId: string }) {
 }
 
 // Helper function to get current/active election ID
-// Defaults to 'LS2024' but can be configured via environment variable or settings
+// Defaults to '172LS2024' but can be configured via environment variable or settings
 export async function getCurrentElectionId(): Promise<string> {
   // In the future, this could query a settings table
-  // For now, default to LS2024 (Lok Sabha 2024 DOM)
-  return process.env.CURRENT_ELECTION_ID || 'LS2024';
+  // For now, default to 172LS2024 (Lok Sabha 2024 DOM)
+  return process.env.CURRENT_ELECTION_ID || '172LS2024';
 }
 
 // Extended type that includes election mapping and voting history
@@ -676,8 +676,6 @@ async function getVoterWithCurrentElection(
         electionId: ElectionMapping.electionId,
         boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
-        createdAt: ElectionMapping.createdAt,
-        updatedAt: ElectionMapping.updatedAt,
       },
       // ElectionMaster fields (from join)
       electionType: ElectionMaster.electionType,
@@ -4531,14 +4529,14 @@ export async function getVoterElectionMappings(
             eq(ElectionMapping.electionId, electionId)
           )
         )
-        .orderBy(desc(ElectionMapping.createdAt));
+        .orderBy(desc(ElectionMapping.electionId));
     }
 
     return await db
       .select()
       .from(ElectionMapping)
       .where(eq(ElectionMapping.epicNumber, epicNumber))
-      .orderBy(desc(ElectionMapping.createdAt));
+      .orderBy(desc(ElectionMapping.electionId));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -4548,7 +4546,7 @@ export async function getVoterElectionMappings(
 }
 
 // Get voting history for a voter with election mapping (booth info)
-export type VotingHistoryWithBooth = Pick<ElectionMappingType, 'epicNumber' | 'electionId' | 'hasVoted' | 'createdAt' | 'updatedAt'> & {
+export type VotingHistoryWithBooth = Pick<ElectionMappingType, 'epicNumber' | 'electionId' | 'hasVoted'> & {
   boothName: string | null;
   boothAddress: string | null;
   boothNo: string | null;
@@ -4566,8 +4564,6 @@ export async function getVoterVotingHistory(
         epicNumber: ElectionMapping.epicNumber,
         electionId: ElectionMapping.electionId,
         hasVoted: ElectionMapping.hasVoted,
-        createdAt: ElectionMapping.createdAt,
-        updatedAt: ElectionMapping.updatedAt,
         boothName: BoothMaster.boothName,
         boothAddress: BoothMaster.boothAddress,
         boothNo: ElectionMapping.boothNo,
@@ -4590,12 +4586,12 @@ export async function getVoterVotingHistory(
             eq(ElectionMapping.electionId, electionId)
           )
         )
-        .orderBy(desc(ElectionMapping.updatedAt));
+        .orderBy(desc(ElectionMapping.electionId));
     }
 
     return await baseQuery
       .where(eq(ElectionMapping.epicNumber, epicNumber))
-      .orderBy(desc(ElectionMapping.updatedAt));
+      .orderBy(desc(ElectionMapping.electionId));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -4622,7 +4618,6 @@ export async function markVoterVote(
         target: [ElectionMapping.epicNumber, ElectionMapping.electionId],
         set: {
           hasVoted,
-          updatedAt: new Date(),
         },
       })
       .returning();

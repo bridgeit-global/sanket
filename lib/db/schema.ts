@@ -246,7 +246,7 @@ export type VoterMaster = InferSelectModel<typeof VoterMaster>;
 
 // ElectionMaster Table - Election-level metadata
 export const ElectionMaster = pgTable('ElectionMaster', {
-  electionId: varchar('election_id', { length: 50 }).primaryKey().notNull(), // e.g., 'LS2024', 'AE2024', 'LE2024'
+  electionId: varchar('election_id', { length: 50 }).primaryKey().notNull(), // e.g., '172LS2024', 'AE2024', 'LE2024'
   electionType: varchar('election_type', { length: 50 }).notNull(), // 'General', 'Assembly', 'Local'
   year: integer('year').notNull(),
   delimitationVersion: varchar('delimitation_version', { length: 50 }), // e.g., '2023', '2019'
@@ -292,8 +292,6 @@ export const ElectionMapping = pgTable('ElectionMapping', {
   boothNo: varchar('booth_no', { length: 10 }), // Can be null if booth not assigned
   srNo: varchar('sr_no', { length: 10 }),
   hasVoted: boolean('has_voted').default(false),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
   pk: primaryKey({ columns: [table.epicNumber, table.electionId] }),
   idxElectionId: index('idx_election_mapping_election_id').on(table.electionId),
