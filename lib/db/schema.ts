@@ -242,28 +242,60 @@ export const VoterMaster = pgTable('VoterMaster', {
 
 export type VoterMaster = InferSelectModel<typeof VoterMaster>;
 
-// ElectionMapping Table - Election-specific location data with delimitation versioning
+// ElectionMaster Table - Election-level metadata
+export const ElectionMaster = pgTable('ElectionMaster', {
+  electionId: varchar('election_id', { length: 50 }).primaryKey().notNull(), // e.g., 'LS2024', 'AE2024', 'LE2024'
+  electionType: varchar('election_type', { length: 50 }).notNull(), // 'General', 'Assembly', 'Local'
+  year: integer('year').notNull(),
+  delimitationVersion: varchar('delimitation_version', { length: 50 }), // e.g., '2023', '2019'
+  dataSource: varchar('data_source', { length: 100 }), // 'ECI', 'Manual', 'Import'
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type ElectionMaster = InferSelectModel<typeof ElectionMaster>;
+
+// BoothMaster Table - Booth-level information with constituency identification
+export const BoothMaster = pgTable('BoothMaster', {
+  electionId: varchar('election_id', { length: 50 })
+    .notNull()
+    .references(() => ElectionMaster.electionId, { onDelete: 'cascade' }),
+  boothNo: varchar('booth_no', { length: 10 }).notNull(),
+  acNo: varchar('ac_no', { length: 10 }),
+  wardNo: varchar('ward_no', { length: 10 }),
+  constituencyType: varchar('constituency_type', { enum: ['ward', 'assembly', 'parliament'] }),
+  constituencyId: varchar('constituency_id', { length: 50 }), // ward number, AC number, or parliament constituency number
+  boothName: varchar('booth_name', { length: 255 }),
+  boothAddress: text('booth_address'),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.electionId, table.boothNo] }),
+  idxElectionId: index('idx_booth_master_election_id').on(table.electionId),
+  idxConstituencyId: index('idx_booth_master_constituency_id').on(table.constituencyId),
+}));
+
+export type BoothMaster = InferSelectModel<typeof BoothMaster>;
+
+// ElectionMapping Table - Voter-to-election mapping with constituency identification
 export const ElectionMapping = pgTable('ElectionMapping', {
   epicNumber: varchar('epic_number', { length: 20 })
     .notNull()
     .references(() => VoterMaster.epicNumber, { onDelete: 'cascade' }),
-  electionId: varchar('election_id', { length: 50 }).notNull(), // e.g., 'LS2024', 'AE2024', 'LE2024'
-  electionType: varchar('election_type', { length: 50 }).notNull(), // 'General', 'Assembly', 'Local'
-  year: integer('year').notNull(),
-  acNo: varchar('ac_no', { length: 10 }),
-  wardNo: varchar('ward_no', { length: 10 }),
-  boothNo: varchar('booth_no', { length: 10 }),
+  electionId: varchar('election_id', { length: 50 })
+    .notNull()
+    .references(() => ElectionMaster.electionId, { onDelete: 'cascade' }), // FK to ElectionMaster
+  boothNo: varchar('booth_no', { length: 10 }), // Can be null if booth not assigned
   srNo: varchar('sr_no', { length: 10 }),
-  boothName: varchar('booth_name', { length: 255 }),
-  boothAddress: text('booth_address'),
-  delimitationVersion: varchar('delimitation_version', { length: 50 }), // e.g., '2023', '2019'
-  dataSource: varchar('data_source', { length: 100 }), // 'ECI', 'Manual', 'Import'
+  constituencyType: varchar('constituency_type', { enum: ['ward', 'assembly', 'parliament'] }),
+  constituencyId: varchar('constituency_id', { length: 50 }), // ward number, AC number, or parliament constituency number
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
   pk: primaryKey({ columns: [table.epicNumber, table.electionId] }),
   idxElectionId: index('idx_election_mapping_election_id').on(table.electionId),
   idxEpicNumber: index('idx_election_mapping_epic_number').on(table.epicNumber),
+  idxConstituencyId: index('idx_election_mapping_constituency_id').on(table.constituencyId),
 }));
 
 export type ElectionMapping = InferSelectModel<typeof ElectionMapping>;
