@@ -365,6 +365,13 @@
       "when": 1768414434342,
       "tag": "0051_uneven_frog_thor",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1768428019748,
+      "tag": "0052_fuzzy_smasher",
+      "breakpoints": true
     }
   ]
 }

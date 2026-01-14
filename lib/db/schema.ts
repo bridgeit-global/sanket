@@ -227,6 +227,8 @@ export const VoterMaster = pgTable('VoterMaster', {
   relationName: varchar('relation_name', { length: 255 }),
   familyGrouping: varchar('family_grouping', { length: 100 }),
   houseNumber: varchar('house_number', { length: 127 }),
+  localityStreet: varchar('locality_street', { length: 255 }),
+  townVillage: varchar('town_village', { length: 255 }),
   religion: varchar('religion', { length: 50 }),
   caste: varchar('caste', { length: 50 }),
   age: integer('age'),
