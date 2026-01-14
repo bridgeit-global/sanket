@@ -676,8 +676,6 @@ async function getVoterWithCurrentElection(
         electionId: ElectionMapping.electionId,
         boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
-        constituencyType: ElectionMapping.constituencyType,
-        constituencyId: ElectionMapping.constituencyId,
         createdAt: ElectionMapping.createdAt,
         updatedAt: ElectionMapping.updatedAt,
       },
@@ -686,6 +684,8 @@ async function getVoterWithCurrentElection(
       year: ElectionMaster.year,
       delimitationVersion: ElectionMaster.delimitationVersion,
       dataSource: ElectionMaster.dataSource,
+      constituencyType: ElectionMaster.constituencyType,
+      constituencyId: ElectionMaster.constituencyId,
       // BoothMaster fields (from join)
       acNo: BoothMaster.acNo,
       wardNo: BoothMaster.wardNo,

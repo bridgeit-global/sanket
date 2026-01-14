@@ -372,6 +372,13 @@
       "when": 1768428019748,
       "tag": "0052_fuzzy_smasher",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1768429420380,
+      "tag": "0053_condemned_charles_xavier",
+      "breakpoints": true
     }
   ]
 }
