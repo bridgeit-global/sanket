@@ -289,6 +289,7 @@ export const ElectionMapping = pgTable('ElectionMapping', {
   srNo: varchar('sr_no', { length: 10 }),
   constituencyType: varchar('constituency_type', { enum: ['ward', 'assembly', 'parliament'] }),
   constituencyId: varchar('constituency_id', { length: 50 }), // ward number, AC number, or parliament constituency number
+  hasVoted: boolean('has_voted').default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
@@ -299,26 +300,6 @@ export const ElectionMapping = pgTable('ElectionMapping', {
 }));
 
 export type ElectionMapping = InferSelectModel<typeof ElectionMapping>;
-
-// VotingHistory Table - Voting participation records per election
-export const VotingHistory = pgTable('VotingHistory', {
-  epicNumber: varchar('epic_number', { length: 20 })
-    .notNull()
-    .references(() => VoterMaster.epicNumber, { onDelete: 'cascade' }),
-  electionId: varchar('election_id', { length: 50 }).notNull(),
-  hasVoted: boolean('has_voted').notNull().default(false),
-  markedBy: uuid('marked_by').references(() => user.id),
-  markedAt: timestamp('marked_at').notNull().defaultNow(),
-  notes: text('notes'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-}, (table) => ({
-  pk: primaryKey({ columns: [table.epicNumber, table.electionId] }),
-  idxElectionId: index('idx_voting_history_election_id').on(table.electionId),
-  idxEpicNumber: index('idx_voting_history_epic_number').on(table.epicNumber),
-}));
-
-export type VotingHistory = InferSelectModel<typeof VotingHistory>;
 
 // Legacy Voter table - kept for backward compatibility during migration
 export const Voters = pgTable('Voter', {

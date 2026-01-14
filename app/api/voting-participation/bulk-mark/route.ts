@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const results = await bulkMarkVoterVotes(votes, session.user.id);
+    const results = await bulkMarkVoterVotes(votes);
 
     return NextResponse.json({
       success: true,

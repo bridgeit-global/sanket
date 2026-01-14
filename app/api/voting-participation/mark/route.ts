@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { epicNumber, electionId, hasVoted, notes } = body;
+    const { epicNumber, electionId, hasVoted } = body;
 
     if (!epicNumber || typeof epicNumber !== 'string') {
       return NextResponse.json(
@@ -39,17 +39,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const votingHistory = await markVoterVote(
+    const electionMapping = await markVoterVote(
       epicNumber,
       electionId,
-      hasVoted,
-      session.user.id,
-      notes
+      hasVoted
     );
 
     return NextResponse.json({
       success: true,
-      votingHistory,
+      electionMapping,
     });
   } catch (error) {
     console.error('Error marking voter vote:', error);

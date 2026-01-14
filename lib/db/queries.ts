@@ -42,8 +42,6 @@ import {
   type BoothMaster as BoothMasterType,
   ElectionMapping,
   type ElectionMapping as ElectionMappingType,
-  VotingHistory,
-  type VotingHistory as VotingHistoryType,
   PartNo,
   type PartNoType,
   beneficiaryServices,
@@ -638,7 +636,6 @@ export async function getCurrentElectionId(): Promise<string> {
 // Extended type that includes election mapping and voting history
 export type VoterWithElectionData = VoterMasterType & {
   electionMapping?: ElectionMappingType | null;
-  votingHistory?: VotingHistoryType | null;
   wardNo?: string | null;
   boothName?: string | null;
   englishBoothAddress?: string | null;
@@ -696,17 +693,8 @@ async function getVoterWithCurrentElection(
       partNoWardNo: PartNo.wardNo,
       partNoBoothName: PartNo.boothName,
       englishBoothAddress: PartNo.englishBoothAddress,
-      // VotingHistory fields
-      votingHistory: {
-        epicNumber: VotingHistory.epicNumber,
-        electionId: VotingHistory.electionId,
-        hasVoted: VotingHistory.hasVoted,
-        markedBy: VotingHistory.markedBy,
-        markedAt: VotingHistory.markedAt,
-        notes: VotingHistory.notes,
-        createdAt: VotingHistory.createdAt,
-        updatedAt: VotingHistory.updatedAt,
-      },
+      // hasVoted from ElectionMapping
+      hasVoted: ElectionMapping.hasVoted,
     })
     .from(VoterMaster)
     .leftJoin(
@@ -727,13 +715,6 @@ async function getVoterWithCurrentElection(
         eq(ElectionMapping.boothNo, BoothMaster.boothNo)
       )
     )
-    .leftJoin(
-      VotingHistory,
-      and(
-        eq(VoterMaster.epicNumber, VotingHistory.epicNumber),
-        eq(VotingHistory.electionId, currentElectionId)
-      )
-    )
     .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
     .where(eq(VoterMaster.epicNumber, epicNumber))
     .limit(1);
@@ -746,7 +727,6 @@ async function getVoterWithCurrentElection(
   return {
     ...result,
     electionMapping: result.electionMapping?.epicNumber ? result.electionMapping : null,
-    votingHistory: result.votingHistory?.epicNumber ? result.votingHistory : null,
   } as VoterWithElectionData;
 }
 
@@ -769,7 +749,7 @@ export async function getVoterByEpicNumber(epicNumber: string, electionId?: stri
         religion: VoterMaster.religion,
         age: VoterMaster.age,
         gender: VoterMaster.gender,
-        isVoted2024: VotingHistory.hasVoted, // Map from VotingHistory
+        isVoted2024: ElectionMapping.hasVoted, // Map from ElectionMapping
         mobileNoPrimary: VoterMaster.mobileNoPrimary,
         mobileNoSecondary: VoterMaster.mobileNoSecondary,
         address: VoterMaster.address,
@@ -793,13 +773,6 @@ export async function getVoterByEpicNumber(epicNumber: string, electionId?: stri
         and(
           eq(ElectionMapping.electionId, BoothMaster.electionId),
           eq(ElectionMapping.boothNo, BoothMaster.boothNo)
-        )
-      )
-      .leftJoin(
-        VotingHistory,
-        and(
-          eq(VoterMaster.epicNumber, VotingHistory.epicNumber),
-          eq(VotingHistory.electionId, currentElectionId)
         )
       )
       .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
@@ -833,7 +806,7 @@ export async function getAllVoter(electionId?: string): Promise<Array<Voter>> {
         age: VoterMaster.age,
         dob: VoterMaster.dob,
         gender: VoterMaster.gender,
-        isVoted2024: VotingHistory.hasVoted,
+        isVoted2024: ElectionMapping.hasVoted,
         mobileNoPrimary: VoterMaster.mobileNoPrimary,
         mobileNoSecondary: VoterMaster.mobileNoSecondary,
         address: VoterMaster.address,
@@ -854,13 +827,6 @@ export async function getAllVoter(electionId?: string): Promise<Array<Voter>> {
         and(
           eq(ElectionMapping.electionId, BoothMaster.electionId),
           eq(ElectionMapping.boothNo, BoothMaster.boothNo)
-        )
-      )
-      .leftJoin(
-        VotingHistory,
-        and(
-          eq(VoterMaster.epicNumber, VotingHistory.epicNumber),
-          eq(VotingHistory.electionId, currentElectionId)
         )
       )
       .orderBy(asc(VoterMaster.fullName));
@@ -893,7 +859,7 @@ export async function getVoterByAC(acNo: string, electionId?: string): Promise<A
         age: VoterMaster.age,
         dob: VoterMaster.dob,
         gender: VoterMaster.gender,
-        isVoted2024: VotingHistory.hasVoted,
+        isVoted2024: ElectionMapping.hasVoted,
         mobileNoPrimary: VoterMaster.mobileNoPrimary,
         mobileNoSecondary: VoterMaster.mobileNoSecondary,
         address: VoterMaster.address,
@@ -915,13 +881,6 @@ export async function getVoterByAC(acNo: string, electionId?: string): Promise<A
           eq(ElectionMapping.electionId, BoothMaster.electionId),
           eq(ElectionMapping.boothNo, BoothMaster.boothNo),
           eq(BoothMaster.acNo, acNo)
-        )
-      )
-      .leftJoin(
-        VotingHistory,
-        and(
-          eq(VoterMaster.epicNumber, VotingHistory.epicNumber),
-          eq(VotingHistory.electionId, currentElectionId)
         )
       )
       .orderBy(asc(VoterMaster.fullName));
@@ -953,7 +912,7 @@ export async function getVoterByWard(wardNo: string, electionId?: string): Promi
         religion: VoterMaster.religion,
         age: VoterMaster.age,
         gender: VoterMaster.gender,
-        isVoted2024: VotingHistory.hasVoted,
+        isVoted2024: ElectionMapping.hasVoted,
         mobileNoPrimary: VoterMaster.mobileNoPrimary,
         mobileNoSecondary: VoterMaster.mobileNoSecondary,
         address: VoterMaster.address,
@@ -978,13 +937,6 @@ export async function getVoterByWard(wardNo: string, electionId?: string): Promi
           eq(ElectionMapping.electionId, BoothMaster.electionId),
           eq(ElectionMapping.boothNo, BoothMaster.boothNo),
           eq(BoothMaster.wardNo, wardNo)
-        )
-      )
-      .leftJoin(
-        VotingHistory,
-        and(
-          eq(VoterMaster.epicNumber, VotingHistory.epicNumber),
-          eq(VotingHistory.electionId, currentElectionId)
         )
       )
       .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
@@ -1016,7 +968,7 @@ export async function getVoterByPart(partNo: string, electionId?: string): Promi
         age: VoterMaster.age,
         dob: VoterMaster.dob,
         gender: VoterMaster.gender,
-        isVoted2024: VotingHistory.hasVoted,
+        isVoted2024: ElectionMapping.hasVoted,
         mobileNoPrimary: VoterMaster.mobileNoPrimary,
         mobileNoSecondary: VoterMaster.mobileNoSecondary,
         address: VoterMaster.address,
@@ -1038,13 +990,6 @@ export async function getVoterByPart(partNo: string, electionId?: string): Promi
         and(
           eq(ElectionMapping.electionId, BoothMaster.electionId),
           eq(ElectionMapping.boothNo, BoothMaster.boothNo)
-        )
-      )
-      .leftJoin(
-        VotingHistory,
-        and(
-          eq(VoterMaster.epicNumber, VotingHistory.epicNumber),
-          eq(VotingHistory.electionId, currentElectionId)
         )
       )
       .orderBy(asc(VoterMaster.fullName));
@@ -1076,7 +1021,7 @@ export async function getVoterByBooth(boothName: string, electionId?: string): P
         religion: VoterMaster.religion,
         age: VoterMaster.age,
         gender: VoterMaster.gender,
-        isVoted2024: VotingHistory.hasVoted,
+        isVoted2024: ElectionMapping.hasVoted,
         mobileNoPrimary: VoterMaster.mobileNoPrimary,
         mobileNoSecondary: VoterMaster.mobileNoSecondary,
         address: VoterMaster.address,
@@ -1101,13 +1046,6 @@ export async function getVoterByBooth(boothName: string, electionId?: string): P
           eq(ElectionMapping.electionId, BoothMaster.electionId),
           eq(ElectionMapping.boothNo, BoothMaster.boothNo),
           eq(BoothMaster.boothName, boothName)
-        )
-      )
-      .leftJoin(
-        VotingHistory,
-        and(
-          eq(VoterMaster.epicNumber, VotingHistory.epicNumber),
-          eq(VotingHistory.electionId, currentElectionId)
         )
       )
       .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
@@ -1139,7 +1077,7 @@ export async function searchVoterByEpicNumber(epicNumber: string, electionId?: s
         age: VoterMaster.age,
         dob: VoterMaster.dob,
         gender: VoterMaster.gender,
-        isVoted2024: VotingHistory.hasVoted,
+        isVoted2024: ElectionMapping.hasVoted,
         mobileNoPrimary: VoterMaster.mobileNoPrimary,
         mobileNoSecondary: VoterMaster.mobileNoSecondary,
         address: VoterMaster.address,
@@ -1163,13 +1101,6 @@ export async function searchVoterByEpicNumber(epicNumber: string, electionId?: s
         and(
           eq(ElectionMapping.electionId, BoothMaster.electionId),
           eq(ElectionMapping.boothNo, BoothMaster.boothNo)
-        )
-      )
-      .leftJoin(
-        VotingHistory,
-        and(
-          eq(VoterMaster.epicNumber, VotingHistory.epicNumber),
-          eq(VotingHistory.electionId, currentElectionId)
         )
       )
       .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
@@ -1204,7 +1135,7 @@ export async function searchVoterByName(name: string, electionId?: string): Prom
         age: VoterMaster.age,
         dob: VoterMaster.dob,
         gender: VoterMaster.gender,
-        isVoted2024: VotingHistory.hasVoted,
+        isVoted2024: ElectionMapping.hasVoted,
         mobileNoPrimary: VoterMaster.mobileNoPrimary,
         mobileNoSecondary: VoterMaster.mobileNoSecondary,
         address: VoterMaster.address,
@@ -1228,13 +1159,6 @@ export async function searchVoterByName(name: string, electionId?: string): Prom
         and(
           eq(ElectionMapping.electionId, BoothMaster.electionId),
           eq(ElectionMapping.boothNo, BoothMaster.boothNo)
-        )
-      )
-      .leftJoin(
-        VotingHistory,
-        and(
-          eq(VoterMaster.epicNumber, VotingHistory.epicNumber),
-          eq(VotingHistory.electionId, currentElectionId)
         )
       )
       .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
@@ -1837,15 +1761,13 @@ export async function updateVoter(
       return null;
     }
 
-    // Update VotingHistory if isVoted2024 is provided
+    // Update ElectionMapping.hasVoted if isVoted2024 is provided
     if (isVoted2024 !== undefined && isVoted2024 !== null) {
       const currentElectionId = await getCurrentElectionId();
       await markVoterVote(
         epicNumber,
         currentElectionId,
-        isVoted2024,
-        updatedBy,
-        `Updated via ${sourceModule || 'profile_update'}`
+        isVoted2024
       );
     }
 
@@ -4608,7 +4530,7 @@ export async function getVoterElectionMappings(
 }
 
 // Get voting history for a voter with election mapping (booth info)
-export type VotingHistoryWithBooth = VotingHistoryType & {
+export type VotingHistoryWithBooth = Pick<ElectionMappingType, 'epicNumber' | 'electionId' | 'hasVoted' | 'createdAt' | 'updatedAt'> & {
   boothName: string | null;
   boothAddress: string | null;
   boothNo: string | null;
@@ -4623,27 +4545,17 @@ export async function getVoterVotingHistory(
   try {
     const baseQuery = db
       .select({
-        epicNumber: VotingHistory.epicNumber,
-        electionId: VotingHistory.electionId,
-        hasVoted: VotingHistory.hasVoted,
-        markedBy: VotingHistory.markedBy,
-        markedAt: VotingHistory.markedAt,
-        notes: VotingHistory.notes,
-        createdAt: VotingHistory.createdAt,
-        updatedAt: VotingHistory.updatedAt,
+        epicNumber: ElectionMapping.epicNumber,
+        electionId: ElectionMapping.electionId,
+        hasVoted: ElectionMapping.hasVoted,
+        createdAt: ElectionMapping.createdAt,
+        updatedAt: ElectionMapping.updatedAt,
         boothName: BoothMaster.boothName,
         boothAddress: BoothMaster.boothAddress,
         boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
       })
-      .from(VotingHistory)
-      .leftJoin(
-        ElectionMapping,
-        and(
-          eq(VotingHistory.epicNumber, ElectionMapping.epicNumber),
-          eq(VotingHistory.electionId, ElectionMapping.electionId)
-        )
-      )
+      .from(ElectionMapping)
       .leftJoin(
         BoothMaster,
         and(
@@ -4656,16 +4568,16 @@ export async function getVoterVotingHistory(
       return await baseQuery
         .where(
           and(
-            eq(VotingHistory.epicNumber, epicNumber),
-            eq(VotingHistory.electionId, electionId)
+            eq(ElectionMapping.epicNumber, epicNumber),
+            eq(ElectionMapping.electionId, electionId)
           )
         )
-        .orderBy(desc(VotingHistory.markedAt));
+        .orderBy(desc(ElectionMapping.updatedAt));
     }
 
     return await baseQuery
-      .where(eq(VotingHistory.epicNumber, epicNumber))
-      .orderBy(desc(VotingHistory.markedAt));
+      .where(eq(ElectionMapping.epicNumber, epicNumber))
+      .orderBy(desc(ElectionMapping.updatedAt));
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -4674,32 +4586,24 @@ export async function getVoterVotingHistory(
   }
 }
 
-// Mark voter vote (create or update voting history)
+// Mark voter vote (create or update election mapping)
 export async function markVoterVote(
   epicNumber: string,
   electionId: string,
-  hasVoted: boolean,
-  markedBy?: string,
-  notes?: string
-): Promise<VotingHistoryType> {
+  hasVoted: boolean
+): Promise<ElectionMappingType> {
   try {
     const [result] = await db
-      .insert(VotingHistory)
+      .insert(ElectionMapping)
       .values({
         epicNumber,
         electionId,
         hasVoted,
-        markedBy: markedBy || null,
-        notes: notes || null,
-        markedAt: new Date(),
       })
       .onConflictDoUpdate({
-        target: [VotingHistory.epicNumber, VotingHistory.electionId],
+        target: [ElectionMapping.epicNumber, ElectionMapping.electionId],
         set: {
           hasVoted,
-          markedBy: markedBy || null,
-          notes: notes || null,
-          markedAt: new Date(),
           updatedAt: new Date(),
         },
       })
@@ -4716,9 +4620,8 @@ export async function markVoterVote(
 
 // Bulk mark voter votes
 export async function bulkMarkVoterVotes(
-  votes: Array<{ epicNumber: string; electionId: string; hasVoted: boolean }>,
-  markedBy?: string
-): Promise<Array<VotingHistoryType>> {
+  votes: Array<{ epicNumber: string; electionId: string; hasVoted: boolean }>
+): Promise<Array<ElectionMappingType>> {
   try {
     if (votes.length === 0) {
       return [];
@@ -4728,19 +4631,15 @@ export async function bulkMarkVoterVotes(
       epicNumber: vote.epicNumber,
       electionId: vote.electionId,
       hasVoted: vote.hasVoted,
-      markedBy: markedBy || null,
-      markedAt: new Date(),
     }));
 
     const results = await db
-      .insert(VotingHistory)
+      .insert(ElectionMapping)
       .values(values)
       .onConflictDoUpdate({
-        target: [VotingHistory.epicNumber, VotingHistory.electionId],
+        target: [ElectionMapping.epicNumber, ElectionMapping.electionId],
         set: {
           hasVoted: sql`EXCLUDED.has_voted`,
-          markedBy: sql`EXCLUDED.marked_by`,
-          markedAt: sql`EXCLUDED.marked_at`,
           updatedAt: new Date(),
         },
       })
@@ -4786,8 +4685,8 @@ export async function getVotingStatistics(
     const queryBuilder = db
       .select({
         total: count(VoterMaster.epicNumber),
-        voted: sql<number>`COUNT(CASE WHEN ${VotingHistory.hasVoted} = true THEN 1 END)`,
-        notVoted: sql<number>`COUNT(CASE WHEN ${VotingHistory.hasVoted} = false OR ${VotingHistory.hasVoted} IS NULL THEN 1 END)`,
+        voted: sql<number>`COUNT(CASE WHEN ${ElectionMapping.hasVoted} = true THEN 1 END)`,
+        notVoted: sql<number>`COUNT(CASE WHEN ${ElectionMapping.hasVoted} = false OR ${ElectionMapping.hasVoted} IS NULL THEN 1 END)`,
       })
       .from(VoterMaster)
       .innerJoin(
@@ -4802,13 +4701,6 @@ export async function getVotingStatistics(
         and(
           eq(ElectionMapping.electionId, BoothMaster.electionId),
           eq(ElectionMapping.boothNo, BoothMaster.boothNo)
-        )
-      )
-      .leftJoin(
-        VotingHistory,
-        and(
-          eq(VoterMaster.epicNumber, VotingHistory.epicNumber),
-          eq(VotingHistory.electionId, electionId)
         )
       );
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Calendar } from 'lucide-react';
-import type { VotingHistory } from '@/lib/db/schema';
+import type { ElectionMapping } from '@/lib/db/schema';
 import { Badge } from '@/components/ui/badge';
 import {
   Accordion,
@@ -11,7 +11,7 @@ import {
   AccordionContent,
 } from '@/components/ui/accordion';
 
-interface VotingHistoryWithBooth extends VotingHistory {
+interface VotingHistoryWithBooth extends Pick<ElectionMapping, 'epicNumber' | 'electionId' | 'hasVoted' | 'createdAt' | 'updatedAt'> {
   boothName: string | null;
   boothAddress: string | null;
   boothNo: string | null;
@@ -79,9 +79,6 @@ export function VotingInformation({ epicNumber }: VotingInformationProps) {
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-4">
-                  {record.notes && (
-                    <p className="text-sm text-muted-foreground">{record.notes}</p>
-                  )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                     {record.boothNo && (
                       <div>
