@@ -244,7 +244,6 @@ export type VoterMaster = InferSelectModel<typeof VoterMaster>;
 
 // ElectionMapping Table - Election-specific location data with delimitation versioning
 export const ElectionMapping = pgTable('ElectionMapping', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
   epicNumber: varchar('epic_number', { length: 20 })
     .notNull()
     .references(() => VoterMaster.epicNumber, { onDelete: 'cascade' }),
@@ -262,7 +261,7 @@ export const ElectionMapping = pgTable('ElectionMapping', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
-  uniqueEpicElection: unique().on(table.epicNumber, table.electionId),
+  pk: primaryKey({ columns: [table.epicNumber, table.electionId] }),
   idxElectionId: index('idx_election_mapping_election_id').on(table.electionId),
   idxEpicNumber: index('idx_election_mapping_epic_number').on(table.epicNumber),
 }));
@@ -271,7 +270,6 @@ export type ElectionMapping = InferSelectModel<typeof ElectionMapping>;
 
 // VotingHistory Table - Voting participation records per election
 export const VotingHistory = pgTable('VotingHistory', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
   epicNumber: varchar('epic_number', { length: 20 })
     .notNull()
     .references(() => VoterMaster.epicNumber, { onDelete: 'cascade' }),
@@ -283,7 +281,7 @@ export const VotingHistory = pgTable('VotingHistory', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 }, (table) => ({
-  uniqueEpicElection: unique().on(table.epicNumber, table.electionId),
+  pk: primaryKey({ columns: [table.epicNumber, table.electionId] }),
   idxElectionId: index('idx_voting_history_election_id').on(table.electionId),
   idxEpicNumber: index('idx_voting_history_epic_number').on(table.epicNumber),
 }));

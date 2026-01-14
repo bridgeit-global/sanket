@@ -68,7 +68,7 @@ export function VotingInformation({ epicNumber }: VotingInformationProps) {
       ) : votingHistory.length > 0 ? (
         <Accordion type="multiple">
           {votingHistory.map((record) => (
-            <AccordionItem key={record.id} value={String(record.id)}>
+            <AccordionItem key={`${record.epicNumber}-${record.electionId}`} value={`${record.epicNumber}-${record.electionId}`}>
               <AccordionTrigger>
                 <div className="flex items-center gap-2">
                   <span className="font-medium">Election: {record.electionId}</span>

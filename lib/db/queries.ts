@@ -668,7 +668,6 @@ async function getVoterWithCurrentElection(
       updatedAt: VoterMaster.updatedAt,
       // ElectionMapping fields
       electionMapping: {
-        id: ElectionMapping.id,
         epicNumber: ElectionMapping.epicNumber,
         electionId: ElectionMapping.electionId,
         electionType: ElectionMapping.electionType,
@@ -690,7 +689,6 @@ async function getVoterWithCurrentElection(
       englishBoothAddress: PartNo.englishBoothAddress,
       // VotingHistory fields
       votingHistory: {
-        id: VotingHistory.id,
         epicNumber: VotingHistory.epicNumber,
         electionId: VotingHistory.electionId,
         hasVoted: VotingHistory.hasVoted,
@@ -727,8 +725,8 @@ async function getVoterWithCurrentElection(
   const result = results[0];
   return {
     ...result,
-    electionMapping: result.electionMapping?.id ? result.electionMapping : null,
-    votingHistory: result.votingHistory?.id ? result.votingHistory : null,
+    electionMapping: result.electionMapping?.epicNumber ? result.electionMapping : null,
+    votingHistory: result.votingHistory?.epicNumber ? result.votingHistory : null,
   } as VoterWithElectionData;
 }
 
@@ -4549,7 +4547,6 @@ export async function getVoterVotingHistory(
   try {
     const baseQuery = db
       .select({
-        id: VotingHistory.id,
         epicNumber: VotingHistory.epicNumber,
         electionId: VotingHistory.electionId,
         hasVoted: VotingHistory.hasVoted,
