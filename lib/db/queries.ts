@@ -4653,7 +4653,6 @@ export async function bulkMarkVoterVotes(
         target: [ElectionMapping.epicNumber, ElectionMapping.electionId],
         set: {
           hasVoted: sql`EXCLUDED.has_voted`,
-          updatedAt: new Date(),
         },
       })
       .returning();

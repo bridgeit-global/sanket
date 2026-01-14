@@ -11,7 +11,7 @@ import {
   AccordionContent,
 } from '@/components/ui/accordion';
 
-interface VotingHistoryWithBooth extends Pick<ElectionMapping, 'epicNumber' | 'electionId' | 'hasVoted' | 'createdAt' | 'updatedAt'> {
+interface VotingHistoryWithBooth extends Pick<ElectionMapping, 'epicNumber' | 'electionId' | 'hasVoted'> {
   boothName: string | null;
   boothAddress: string | null;
   boothNo: string | null;
