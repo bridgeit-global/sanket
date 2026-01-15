@@ -685,12 +685,10 @@ async function getVoterWithCurrentElection(
       constituencyType: ElectionMaster.constituencyType,
       constituencyId: ElectionMaster.constituencyId,
       // BoothMaster fields (from join)
-      acNo: BoothMaster.acNo,
-      wardNo: BoothMaster.wardNo,
       boothName: BoothMaster.boothName,
       boothAddress: BoothMaster.boothAddress,
       // PartNo fields (from join with PartNo table if partNo exists) - fallback if booth not in BoothMaster
-      partNoWardNo: PartNo.wardNo,
+      wardNo: PartNo.wardNo,
       partNoBoothName: PartNo.boothName,
       englishBoothAddress: PartNo.englishBoothAddress,
       // hasVoted from ElectionMapping
@@ -742,7 +740,6 @@ export async function getVoterByEpicNumber(epicNumber: string, electionId?: stri
         relationType: VoterMaster.relationType,
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
-        acNo: BoothMaster.acNo,
         boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
@@ -758,7 +755,7 @@ export async function getVoterByEpicNumber(epicNumber: string, electionId?: stri
         pincode: VoterMaster.pincode,
         createdAt: VoterMaster.createdAt,
         updatedAt: VoterMaster.updatedAt,
-        wardNo: BoothMaster.wardNo,
+        wardNo: PartNo.wardNo,
         boothName: BoothMaster.boothName,
         englishBoothAddress: BoothMaster.boothAddress,
       })
@@ -800,7 +797,6 @@ export async function getAllVoter(electionId?: string): Promise<Array<Voter>> {
         relationType: VoterMaster.relationType,
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
-        acNo: BoothMaster.acNo,
         boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
@@ -855,7 +851,6 @@ export async function getVoterByAC(acNo: string, electionId?: string): Promise<A
         relationType: VoterMaster.relationType,
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
-        acNo: BoothMaster.acNo,
         boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
@@ -882,11 +877,11 @@ export async function getVoterByAC(acNo: string, electionId?: string): Promise<A
         )
       )
       .innerJoin(
-        BoothMaster,
+        ElectionMaster,
         and(
-          eq(ElectionMapping.electionId, BoothMaster.electionId),
-          eq(ElectionMapping.boothNo, BoothMaster.boothNo),
-          eq(BoothMaster.acNo, acNo)
+          eq(ElectionMapping.electionId, ElectionMaster.electionId),
+          eq(ElectionMaster.constituencyType, 'assembly'),
+          eq(ElectionMaster.constituencyId, acNo)
         )
       )
       .orderBy(asc(VoterMaster.fullName));
@@ -911,7 +906,6 @@ export async function getVoterByWard(wardNo: string, electionId?: string): Promi
         relationType: VoterMaster.relationType,
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
-        acNo: BoothMaster.acNo,
         boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
@@ -927,7 +921,7 @@ export async function getVoterByWard(wardNo: string, electionId?: string): Promi
         pincode: VoterMaster.pincode,
         createdAt: VoterMaster.createdAt,
         updatedAt: VoterMaster.updatedAt,
-        wardNo: BoothMaster.wardNo,
+        wardNo: PartNo.wardNo,
         boothName: BoothMaster.boothName,
         englishBoothAddress: BoothMaster.boothAddress,
       })
@@ -943,11 +937,11 @@ export async function getVoterByWard(wardNo: string, electionId?: string): Promi
         BoothMaster,
         and(
           eq(ElectionMapping.electionId, BoothMaster.electionId),
-          eq(ElectionMapping.boothNo, BoothMaster.boothNo),
-          eq(BoothMaster.wardNo, wardNo)
+          eq(ElectionMapping.boothNo, BoothMaster.boothNo)
         )
       )
-      .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
+      .innerJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
+      .where(eq(PartNo.wardNo, wardNo))
       .orderBy(asc(VoterMaster.fullName)) as unknown as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
@@ -968,7 +962,6 @@ export async function getVoterByPart(partNo: string, electionId?: string): Promi
         relationType: VoterMaster.relationType,
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
-        acNo: BoothMaster.acNo,
         boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
@@ -1024,7 +1017,6 @@ export async function getVoterByBooth(boothName: string, electionId?: string): P
         relationType: VoterMaster.relationType,
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
-        acNo: BoothMaster.acNo,
         boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
@@ -1040,7 +1032,7 @@ export async function getVoterByBooth(boothName: string, electionId?: string): P
         pincode: VoterMaster.pincode,
         createdAt: VoterMaster.createdAt,
         updatedAt: VoterMaster.updatedAt,
-        wardNo: BoothMaster.wardNo,
+        wardNo: PartNo.wardNo,
         boothName: BoothMaster.boothName,
         englishBoothAddress: BoothMaster.boothAddress,
       })
@@ -1081,7 +1073,6 @@ export async function searchVoterByEpicNumber(epicNumber: string, electionId?: s
         relationType: VoterMaster.relationType,
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
-        acNo: BoothMaster.acNo,
         boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
@@ -1098,7 +1089,7 @@ export async function searchVoterByEpicNumber(epicNumber: string, electionId?: s
         pincode: VoterMaster.pincode,
         createdAt: VoterMaster.createdAt,
         updatedAt: VoterMaster.updatedAt,
-        wardNo: BoothMaster.wardNo,
+        wardNo: PartNo.wardNo,
         boothName: BoothMaster.boothName,
         englishBoothAddress: BoothMaster.boothAddress,
       })
@@ -1141,7 +1132,6 @@ export async function searchVoterByName(name: string, electionId?: string): Prom
         relationType: VoterMaster.relationType,
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
-        acNo: BoothMaster.acNo,
         boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
@@ -1158,7 +1148,7 @@ export async function searchVoterByName(name: string, electionId?: string): Prom
         pincode: VoterMaster.pincode,
         createdAt: VoterMaster.createdAt,
         updatedAt: VoterMaster.updatedAt,
-        wardNo: BoothMaster.wardNo,
+        wardNo: PartNo.wardNo,
         boothName: BoothMaster.boothName,
         englishBoothAddress: BoothMaster.boothAddress,
       })
@@ -4684,10 +4674,11 @@ export async function getVotingStatistics(
     // Build filter conditions
     const filterConditions: SQL[] = [];
     if (filters?.acNo) {
-      filterConditions.push(eq(BoothMaster.acNo, filters.acNo));
+      filterConditions.push(eq(ElectionMaster.constituencyType, 'assembly'));
+      filterConditions.push(eq(ElectionMaster.constituencyId, filters.acNo));
     }
     if (filters?.wardNo) {
-      filterConditions.push(eq(BoothMaster.wardNo, filters.wardNo));
+      filterConditions.push(eq(PartNo.wardNo, filters.wardNo));
     }
     if (filters?.partNo) {
       filterConditions.push(eq(ElectionMapping.boothNo, filters.partNo));
@@ -4709,12 +4700,17 @@ export async function getVotingStatistics(
         )
       )
       .leftJoin(
+        ElectionMaster,
+        eq(ElectionMapping.electionId, ElectionMaster.electionId)
+      )
+      .leftJoin(
         BoothMaster,
         and(
           eq(ElectionMapping.electionId, BoothMaster.electionId),
           eq(ElectionMapping.boothNo, BoothMaster.boothNo)
         )
-      );
+      )
+      .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo));
 
     // Apply filters if any, otherwise use a condition that's always true
     const query = filterConditions.length > 0

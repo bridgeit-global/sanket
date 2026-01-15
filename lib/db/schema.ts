@@ -265,10 +265,6 @@ export const BoothMaster = pgTable('BoothMaster', {
     .notNull()
     .references(() => ElectionMaster.electionId, { onDelete: 'cascade' }),
   boothNo: varchar('booth_no', { length: 10 }).notNull(),
-  acNo: varchar('ac_no', { length: 10 }),
-  wardNo: varchar('ward_no', { length: 10 }),
-  constituencyType: varchar('constituency_type', { enum: ['ward', 'assembly', 'parliament'] }),
-  constituencyId: varchar('constituency_id', { length: 50 }), // ward number, AC number, or parliament constituency number
   boothName: varchar('booth_name', { length: 255 }),
   boothAddress: text('booth_address'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -276,7 +272,6 @@ export const BoothMaster = pgTable('BoothMaster', {
 }, (table) => ({
   pk: primaryKey({ columns: [table.electionId, table.boothNo] }),
   idxElectionId: index('idx_booth_master_election_id').on(table.electionId),
-  idxConstituencyId: index('idx_booth_master_constituency_id').on(table.constituencyId),
 }));
 
 export type BoothMaster = InferSelectModel<typeof BoothMaster>;
