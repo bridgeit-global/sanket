@@ -633,6 +633,37 @@ export async function getCurrentElectionId(): Promise<string> {
   return process.env.CURRENT_ELECTION_ID || '172LS2024';
 }
 
+export type ElectionMasterOption = Pick<
+  ElectionMasterType,
+  'electionId' | 'electionType' | 'year' | 'delimitationVersion' | 'constituencyType' | 'constituencyId'
+>;
+
+export async function getElectionMasters(): Promise<Array<ElectionMasterOption>> {
+  try {
+    return await db
+      .select({
+        electionId: ElectionMaster.electionId,
+        electionType: ElectionMaster.electionType,
+        year: ElectionMaster.year,
+        delimitationVersion: ElectionMaster.delimitationVersion,
+        constituencyType: ElectionMaster.constituencyType,
+        constituencyId: ElectionMaster.constituencyId,
+      })
+      .from(ElectionMaster)
+      .orderBy(
+        desc(ElectionMaster.year),
+        asc(ElectionMaster.constituencyType),
+        asc(ElectionMaster.constituencyId),
+        asc(ElectionMaster.electionId),
+      );
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get elections',
+    );
+  }
+}
+
 // Extended type that includes election mapping and voting history
 export type VoterWithElectionData = VoterMasterType & {
   electionMapping?: ElectionMappingType | null;
@@ -4672,50 +4703,35 @@ export async function getVotingStatistics(
 }> {
   try {
     // Build filter conditions
-    const filterConditions: SQL[] = [];
+    const boothNoText = sql<string>`CAST(${ElectionMapping.boothNo} AS text)`;
+    const partNoText = sql<string>`CAST(${PartNo.partNo} AS text)`;
+    const wardNoText = sql<string>`CAST(${PartNo.wardNo} AS text)`;
+    const filterConditions: SQL[] = [eq(ElectionMapping.electionId, electionId)];
     if (filters?.acNo) {
       filterConditions.push(eq(ElectionMaster.constituencyType, 'assembly'));
       filterConditions.push(eq(ElectionMaster.constituencyId, filters.acNo));
     }
     if (filters?.wardNo) {
-      filterConditions.push(eq(PartNo.wardNo, filters.wardNo));
+      filterConditions.push(eq(wardNoText, filters.wardNo));
     }
     if (filters?.partNo) {
-      filterConditions.push(eq(ElectionMapping.boothNo, filters.partNo));
+      filterConditions.push(eq(boothNoText, filters.partNo));
     }
 
-    // Build query with conditional where clause
     const queryBuilder = db
       .select({
-        total: count(VoterMaster.epicNumber),
+        total: count(ElectionMapping.epicNumber),
         voted: sql<number>`COUNT(CASE WHEN ${ElectionMapping.hasVoted} = true THEN 1 END)`,
         notVoted: sql<number>`COUNT(CASE WHEN ${ElectionMapping.hasVoted} = false OR ${ElectionMapping.hasVoted} IS NULL THEN 1 END)`,
       })
-      .from(VoterMaster)
-      .innerJoin(
-        ElectionMapping,
-        and(
-          eq(VoterMaster.epicNumber, ElectionMapping.epicNumber),
-          eq(ElectionMapping.electionId, electionId)
-        )
-      )
+      .from(ElectionMapping)
       .leftJoin(
         ElectionMaster,
         eq(ElectionMapping.electionId, ElectionMaster.electionId)
       )
-      .leftJoin(
-        BoothMaster,
-        and(
-          eq(ElectionMapping.electionId, BoothMaster.electionId),
-          eq(ElectionMapping.boothNo, BoothMaster.boothNo)
-        )
-      )
-      .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo));
+      .leftJoin(PartNo, eq(boothNoText, partNoText));
 
-    // Apply filters if any, otherwise use a condition that's always true
-    const query = filterConditions.length > 0
-      ? queryBuilder.where(and(...filterConditions))
-      : queryBuilder.where(sql`1=1`);
+    const query = queryBuilder.where(and(...filterConditions));
 
     const [result] = await query;
 
@@ -4731,6 +4747,7 @@ export async function getVotingStatistics(
       votingPercentage: Math.round(votingPercentage * 100) / 100,
     };
   } catch (error) {
+    console.error('Failed to get voting statistics query:', error);
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get voting statistics',
@@ -5031,5 +5048,247 @@ export async function getVoterMobileNumbersByEpicNumbers(
     return result;
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to get voter mobile numbers');
+  }
+}
+
+// Get voting patterns for EPIC numbers from previous elections
+export async function getVotingPatterns(
+  electionId: string,
+  filters?: {
+    partNo?: string;
+  }
+): Promise<{
+  byElection: Array<{
+    electionId: string;
+    year: number;
+    electionType: string;
+    totalVoters: number;
+    voted: number;
+    turnout: number;
+  }>;
+  byReligion: Array<{
+    religion: string | null;
+    totalVoters: number;
+    avgTurnout: number;
+    totalElections: number;
+  }>;
+  byCaste: Array<{
+    caste: string | null;
+    totalVoters: number;
+    avgTurnout: number;
+    totalElections: number;
+  }>;
+  repeatVoters: {
+    totalVoters: number;
+    alwaysVoted: number;
+    neverVoted: number;
+    sometimesVoted: number;
+  };
+}> {
+  try {
+    // First, get all EPIC numbers for the current election
+    const boothNoText = sql<string>`CAST(${ElectionMapping.boothNo} AS text)`;
+    const filterConditions: SQL[] = [eq(ElectionMapping.electionId, electionId)];
+
+    if (filters?.partNo) {
+      filterConditions.push(eq(boothNoText, filters.partNo));
+    }
+
+    const currentElectionVoters = await db
+      .select({
+        epicNumber: ElectionMapping.epicNumber,
+      })
+      .from(ElectionMapping)
+      .where(and(...filterConditions));
+
+    const epicNumbers = currentElectionVoters.map((v) => v.epicNumber).filter(Boolean);
+
+    if (epicNumbers.length === 0) {
+      return {
+        byElection: [],
+        byReligion: [],
+        byCaste: [],
+        repeatVoters: {
+          totalVoters: 0,
+          alwaysVoted: 0,
+          neverVoted: 0,
+          sometimesVoted: 0,
+        },
+      };
+    }
+
+    // Get voting history for these EPIC numbers across all elections (excluding current)
+    const votingHistory = await db
+      .select({
+        epicNumber: ElectionMapping.epicNumber,
+        electionId: ElectionMapping.electionId,
+        hasVoted: ElectionMapping.hasVoted,
+        year: ElectionMaster.year,
+        electionType: ElectionMaster.electionType,
+        religion: VoterMaster.religion,
+        caste: VoterMaster.caste,
+      })
+      .from(ElectionMapping)
+      .innerJoin(ElectionMaster, eq(ElectionMapping.electionId, ElectionMaster.electionId))
+      .innerJoin(VoterMaster, eq(ElectionMapping.epicNumber, VoterMaster.epicNumber))
+      .where(
+        and(
+          inArray(ElectionMapping.epicNumber, epicNumbers),
+          ne(ElectionMapping.electionId, electionId)
+        )
+      )
+      .orderBy(asc(ElectionMaster.year), asc(ElectionMapping.epicNumber));
+
+    // Aggregate by election
+    const electionMap = new Map<
+      string,
+      { year: number; electionType: string; voters: Set<string>; voted: Set<string> }
+    >();
+
+    for (const record of votingHistory) {
+      if (!record.electionId) continue;
+      const existing = electionMap.get(record.electionId) || {
+        year: record.year || 0,
+        electionType: record.electionType || '',
+        voters: new Set<string>(),
+        voted: new Set<string>(),
+      };
+      existing.voters.add(record.epicNumber);
+      if (record.hasVoted) {
+        existing.voted.add(record.epicNumber);
+      }
+      electionMap.set(record.electionId, existing);
+    }
+
+    const byElection = Array.from(electionMap.entries())
+      .map(([electionId, data]) => ({
+        electionId,
+        year: data.year,
+        electionType: data.electionType,
+        totalVoters: data.voters.size,
+        voted: data.voted.size,
+        turnout: data.voters.size > 0 ? (data.voted.size / data.voters.size) * 100 : 0,
+      }))
+      .sort((a, b) => a.year - b.year);
+
+    // Aggregate by religion
+    const religionMap = new Map<
+      string,
+      { elections: Map<string, { total: number; voted: number }> }
+    >();
+
+    for (const record of votingHistory) {
+      const religion = record.religion || 'Unknown';
+      if (!religionMap.has(religion)) {
+        religionMap.set(religion, { elections: new Map() });
+      }
+      const religionData = religionMap.get(religion);
+      if (!religionData) continue;
+      if (!record.electionId) continue;
+
+      const electionData = religionData.elections.get(record.electionId) || { total: 0, voted: 0 };
+      electionData.total++;
+      if (record.hasVoted) {
+        electionData.voted++;
+      }
+      religionData.elections.set(record.electionId, electionData);
+    }
+
+    const byReligion = Array.from(religionMap.entries()).map(([religion, data]) => {
+      const elections = Array.from(data.elections.values());
+      const totalVoters = Math.max(...elections.map((e) => e.total), 0);
+      const totalTurnout = elections.reduce((sum, e) => sum + (e.total > 0 ? (e.voted / e.total) * 100 : 0), 0);
+      const avgTurnout = elections.length > 0 ? totalTurnout / elections.length : 0;
+
+      return {
+        religion: religion === 'Unknown' ? null : religion,
+        totalVoters,
+        avgTurnout: Math.round(avgTurnout * 100) / 100,
+        totalElections: elections.length,
+      };
+    }).sort((a, b) => b.totalVoters - a.totalVoters);
+
+    // Aggregate by caste
+    const casteMap = new Map<
+      string,
+      { elections: Map<string, { total: number; voted: number }> }
+    >();
+
+    for (const record of votingHistory) {
+      const caste = record.caste || 'Unknown';
+      if (!casteMap.has(caste)) {
+        casteMap.set(caste, { elections: new Map() });
+      }
+      const casteData = casteMap.get(caste);
+      if (!casteData) continue;
+      if (!record.electionId) continue;
+
+      const electionData = casteData.elections.get(record.electionId) || { total: 0, voted: 0 };
+      electionData.total++;
+      if (record.hasVoted) {
+        electionData.voted++;
+      }
+      casteData.elections.set(record.electionId, electionData);
+    }
+
+    const byCaste = Array.from(casteMap.entries()).map(([caste, data]) => {
+      const elections = Array.from(data.elections.values());
+      const totalVoters = Math.max(...elections.map((e) => e.total), 0);
+      const totalTurnout = elections.reduce((sum, e) => sum + (e.total > 0 ? (e.voted / e.total) * 100 : 0), 0);
+      const avgTurnout = elections.length > 0 ? totalTurnout / elections.length : 0;
+
+      return {
+        caste: caste === 'Unknown' ? null : caste,
+        totalVoters,
+        avgTurnout: Math.round(avgTurnout * 100) / 100,
+        totalElections: elections.length,
+      };
+    }).sort((a, b) => b.totalVoters - a.totalVoters);
+
+    // Calculate repeat voters
+    const voterParticipation = new Map<string, { total: number; voted: number }>();
+
+    for (const record of votingHistory) {
+      const existing = voterParticipation.get(record.epicNumber) || { total: 0, voted: 0 };
+      existing.total++;
+      if (record.hasVoted) {
+        existing.voted++;
+      }
+      voterParticipation.set(record.epicNumber, existing);
+    }
+
+    let alwaysVoted = 0;
+    let neverVoted = 0;
+    let sometimesVoted = 0;
+
+    for (const [epicNumber, participation] of voterParticipation.entries()) {
+      if (participation.total === 0) continue;
+      const turnoutRate = participation.voted / participation.total;
+      if (turnoutRate === 1) {
+        alwaysVoted++;
+      } else if (turnoutRate === 0) {
+        neverVoted++;
+      } else {
+        sometimesVoted++;
+      }
+    }
+
+    return {
+      byElection,
+      byReligion: byReligion.filter((r) => r.religion !== null),
+      byCaste: byCaste.filter((c) => c.caste !== null),
+      repeatVoters: {
+        totalVoters: voterParticipation.size,
+        alwaysVoted,
+        neverVoted,
+        sometimesVoted,
+      },
+    };
+  } catch (error) {
+    console.error('Failed to get voting patterns:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voting patterns',
+    );
   }
 }

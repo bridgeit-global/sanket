@@ -5,10 +5,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ElectionSelect } from '@/components/election-select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/components/toast';
-import { Upload, FileText } from 'lucide-react';
+import { Upload } from 'lucide-react';
 
 export function BulkVoteMark() {
   const [electionId, setElectionId] = useState('172LS2024');
@@ -96,16 +96,7 @@ export function BulkVoteMark() {
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="electionId">Default Election</Label>
-          <Select value={electionId} onValueChange={setElectionId}>
-            <SelectTrigger id="electionId">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="172LS2024">Lok Sabha 2024</SelectItem>
-              <SelectItem value="AE2024">Assembly Election 2024</SelectItem>
-              <SelectItem value="LE2024">Local Election 2024</SelectItem>
-            </SelectContent>
-          </Select>
+          <ElectionSelect id="electionId" value={electionId} onValueChange={setElectionId} />
         </div>
 
         <div className="space-y-2">
