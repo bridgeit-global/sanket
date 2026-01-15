@@ -27,66 +27,94 @@ ALTER TABLE "ElectionMapping" ADD COLUMN IF NOT EXISTS "constituency_id" varchar
 --> statement-breakpoint
 
 
--- Migrate election data to ElectionMaster
-INSERT INTO "ElectionMaster" ("election_id", "election_type", "year", "delimitation_version", "data_source", "created_at", "updated_at")
-SELECT DISTINCT 
-	"election_id",
-	"election_type",
-	"year",
-	"delimitation_version",
-	"data_source",
-	MIN("created_at") as "created_at",
-	MAX("updated_at") as "updated_at"
-FROM "ElectionMapping"
-GROUP BY "election_id", "election_type", "year", "delimitation_version", "data_source"
-ON CONFLICT ("election_id") DO NOTHING;
---> statement-breakpoint
+-- Migrate election + booth data, handling older schemas without election_type
+DO $$
+BEGIN
+	IF EXISTS (
+		SELECT 1
+		FROM information_schema.columns
+		WHERE table_schema = 'public'
+			AND table_name = 'ElectionMapping'
+			AND column_name = 'election_type'
+	) THEN
+		INSERT INTO "ElectionMaster" ("election_id", "election_type", "year", "delimitation_version", "data_source", "created_at", "updated_at")
+		SELECT DISTINCT 
+			"election_id",
+			"election_type",
+			"year",
+			"delimitation_version",
+			"data_source",
+			MIN("created_at") as "created_at",
+			MAX("updated_at") as "updated_at"
+		FROM "ElectionMapping"
+		GROUP BY "election_id", "election_type", "year", "delimitation_version", "data_source"
+		ON CONFLICT ("election_id") DO NOTHING;
 
--- Migrate booth data to BoothMaster
-INSERT INTO "BoothMaster" ("election_id", "booth_no", "ac_no", "ward_no", "constituency_type", "constituency_id", "booth_name", "booth_address", "created_at", "updated_at")
-SELECT DISTINCT
-	em."election_id",
-	em."booth_no",
-	em."ac_no",
-	em."ward_no",
-	CASE 
-		WHEN em."election_type" = 'Local' THEN 'ward'
-		WHEN em."election_type" = 'Assembly' THEN 'assembly'
-		WHEN em."election_type" = 'General' THEN 'parliament'
-		ELSE NULL
-	END as "constituency_type",
-	CASE 
-		WHEN em."election_type" = 'Local' THEN em."ward_no"
-		WHEN em."election_type" = 'Assembly' THEN em."ac_no"
-		WHEN em."election_type" = 'General' THEN em."ac_no"
-		ELSE NULL
-	END as "constituency_id",
-	em."booth_name",
-	em."booth_address",
-	MIN(em."created_at") as "created_at",
-	MAX(em."updated_at") as "updated_at"
-FROM "ElectionMapping" em
-WHERE em."booth_no" IS NOT NULL
-GROUP BY em."election_id", em."booth_no", em."ac_no", em."ward_no", em."booth_name", em."booth_address", em."election_type"
-ON CONFLICT ("election_id", "booth_no") DO NOTHING;
---> statement-breakpoint
+		INSERT INTO "BoothMaster" ("election_id", "booth_no", "ac_no", "ward_no", "constituency_type", "constituency_id", "booth_name", "booth_address", "created_at", "updated_at")
+		SELECT DISTINCT
+			em."election_id",
+			em."booth_no",
+			em."ac_no",
+			em."ward_no",
+			CASE 
+				WHEN em."election_type" = 'Local' THEN 'ward'
+				WHEN em."election_type" = 'Assembly' THEN 'assembly'
+				WHEN em."election_type" = 'General' THEN 'parliament'
+				ELSE NULL
+			END as "constituency_type",
+			CASE 
+				WHEN em."election_type" = 'Local' THEN em."ward_no"
+				WHEN em."election_type" = 'Assembly' THEN em."ac_no"
+				WHEN em."election_type" = 'General' THEN em."ac_no"
+				ELSE NULL
+			END as "constituency_id",
+			em."booth_name",
+			em."booth_address",
+			MIN(em."created_at") as "created_at",
+			MAX(em."updated_at") as "updated_at"
+		FROM "ElectionMapping" em
+		WHERE em."booth_no" IS NOT NULL
+		GROUP BY em."election_id", em."booth_no", em."ac_no", em."ward_no", em."booth_name", em."booth_address", em."election_type"
+		ON CONFLICT ("election_id", "booth_no") DO NOTHING;
 
--- Populate constituency fields in ElectionMapping
-UPDATE "ElectionMapping" em
-SET 
-	"constituency_type" = CASE 
-		WHEN em."election_type" = 'Local' THEN 'ward'
-		WHEN em."election_type" = 'Assembly' THEN 'assembly'
-		WHEN em."election_type" = 'General' THEN 'parliament'
-		ELSE NULL
-	END,
-	"constituency_id" = CASE 
-		WHEN em."election_type" = 'Local' THEN em."ward_no"
-		WHEN em."election_type" = 'Assembly' THEN em."ac_no"
-		WHEN em."election_type" = 'General' THEN em."ac_no"
-		ELSE NULL
-	END;
---> statement-breakpoint
+		UPDATE "ElectionMapping" em
+		SET 
+			"constituency_type" = CASE 
+				WHEN em."election_type" = 'Local' THEN 'ward'
+				WHEN em."election_type" = 'Assembly' THEN 'assembly'
+				WHEN em."election_type" = 'General' THEN 'parliament'
+				ELSE NULL
+			END,
+			"constituency_id" = CASE 
+				WHEN em."election_type" = 'Local' THEN em."ward_no"
+				WHEN em."election_type" = 'Assembly' THEN em."ac_no"
+				WHEN em."election_type" = 'General' THEN em."ac_no"
+				ELSE NULL
+			END;
+	ELSE
+		INSERT INTO "ElectionMaster" ("election_id", "election_type", "year", "delimitation_version", "data_source", "created_at", "updated_at")
+		SELECT DISTINCT
+			em."election_id",
+			'General' as "election_type",
+			COALESCE(NULLIF(substring(em."election_id" from '\\d{4}'), '')::int, EXTRACT(YEAR FROM now())::int) as "year",
+			NULL as "delimitation_version",
+			NULL as "data_source",
+			now() as "created_at",
+			now() as "updated_at"
+		FROM "ElectionMapping" em
+		ON CONFLICT ("election_id") DO NOTHING;
+
+		INSERT INTO "BoothMaster" ("election_id", "booth_no", "created_at", "updated_at")
+		SELECT DISTINCT
+			em."election_id",
+			em."booth_no",
+			now() as "created_at",
+			now() as "updated_at"
+		FROM "ElectionMapping" em
+		WHERE em."booth_no" IS NOT NULL
+		ON CONFLICT ("election_id", "booth_no") DO NOTHING;
+	END IF;
+END $$;
 
 -- Create indexes for BoothMaster
 CREATE INDEX IF NOT EXISTS "idx_booth_master_election_id" ON "BoothMaster"("election_id");

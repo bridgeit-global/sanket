@@ -11,4 +11,3 @@ WHERE "election_id" = 'GE2024';
 
 
 ALTER TABLE "VoterMaster" ADD COLUMN "caste" varchar(50);
-ALTER TABLE "VoterMaster" ADD COLUMN IF NOT EXISTS "family_grouping" varchar(100);

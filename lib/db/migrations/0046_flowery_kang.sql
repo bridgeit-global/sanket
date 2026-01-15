@@ -106,12 +106,8 @@ INSERT INTO "VoterMaster" (
   "age",
   "dob",
   "gender",
-  "mobile_no_primary",
-  "mobile_no_secondary",
   "address",
-  "pincode",
-  "created_at",
-  "updated_at"
+  "pincode"
 )
 SELECT 
   "epic_number",
@@ -124,54 +120,63 @@ SELECT
   "age",
   "dob",
   "gender",
-  "mobile_no_primary",
-  "mobile_no_secondary",
   "address",
-  "pincode",
-  "created_at",
-  "updated_at"
+  "pincode"
 FROM "Voter"
 ON CONFLICT ("epic_number") DO NOTHING;
 
 -- Step 5: Migrate election data to ElectionMapping
 -- Default election ID: GE2024 (General Election 2024) - adjust as needed
-INSERT INTO "ElectionMapping" (
-  "epic_number",
-  "election_id",
-  "election_type",
-  "year",
-  "ac_no",
-  "ward_no",
-  "booth_no",
-  "part_no",
-  "sr_no",
-  "booth_name",
-  "booth_address",
-  "delimitation_version",
-  "data_source",
-  "created_at",
-  "updated_at"
-)
-SELECT 
-  v."epic_number",
-  'GE2024' as "election_id",
-  'General' as "election_type",
-  2024 as "year",
-  v."ac_no",
-  p."ward_no",
-  NULL as "booth_no", -- booth_no not in original table
-  v."part_no",
-  v."sr_no",
-  p."booth_name",
-  p."english_booth_address" as "booth_address",
-  NULL as "delimitation_version", -- Set manually if known
-  'Migration' as "data_source",
-  v."created_at",
-  v."updated_at"
-FROM "Voter" v
-LEFT JOIN "PartNo" p ON v."part_no" = p."part_no"
-WHERE v."epic_number" IS NOT NULL
-ON CONFLICT ("epic_number", "election_id") DO NOTHING;
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'Voter'
+      AND column_name = 'part_no'
+  ) THEN
+    INSERT INTO "ElectionMapping" (
+      "epic_number",
+      "election_id",
+      "booth_no",
+      "sr_no"
+    )
+    SELECT
+      v."epic_number",
+      'GE2024' as "election_id",
+      v."part_no"::int as "booth_no", -- booth_no not in original table
+      v."sr_no"::bigint
+    FROM "Voter" v
+    WHERE v."epic_number" IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1
+        FROM "ElectionMapping" em
+        WHERE em."epic_number" = v."epic_number"
+          AND em."election_id" = 'GE2024'
+      );
+  ELSE
+    INSERT INTO "ElectionMapping" (
+      "epic_number",
+      "election_id",
+      "booth_no",
+      "sr_no"
+    )
+    SELECT
+      v."epic_number",
+      'GE2024' as "election_id",
+      NULL::int as "booth_no",
+      v."sr_no"::bigint
+    FROM "Voter" v
+    WHERE v."epic_number" IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1
+        FROM "ElectionMapping" em
+        WHERE em."epic_number" = v."epic_number"
+          AND em."election_id" = 'GE2024'
+      );
+  END IF;
+END $$;
 
 -- Step 6: Migrate voting status to VotingHistory
 INSERT INTO "VotingHistory" (
@@ -191,9 +196,21 @@ SELECT
   "updated_at"
 FROM "Voter"
 WHERE "is_voted_2024" IS NOT NULL
-ON CONFLICT ("epic_number", "election_id") DO UPDATE
-SET "has_voted" = EXCLUDED."has_voted",
-    "updated_at" = EXCLUDED."updated_at";
+  AND NOT EXISTS (
+    SELECT 1
+    FROM "VotingHistory" vh
+    WHERE vh."epic_number" = "Voter"."epic_number"
+      AND vh."election_id" = 'GE2024'
+  );
+
+UPDATE "VotingHistory" vh
+SET "has_voted" = COALESCE(v."is_voted_2024", false),
+    "marked_at" = v."updated_at",
+    "updated_at" = v."updated_at"
+FROM "Voter" v
+WHERE v."is_voted_2024" IS NOT NULL
+  AND vh."epic_number" = v."epic_number"
+  AND vh."election_id" = 'GE2024';
 
 
 -- Step 7: Update foreign key constraints in dependent tables
