@@ -222,7 +222,7 @@ export function VotingPatternsInfographics({
                 <XAxis dataKey="year" />
                 <YAxis domain={[0, 100]} />
                 <Tooltip
-                  formatter={(value: number) => `${value.toFixed(2)}%`}
+                  formatter={(value: number | undefined) => value !== undefined ? `${value.toFixed(2)}%` : '0%'}
                   labelFormatter={(label) => `Year: ${label}`}
                 />
                 <Legend />
@@ -255,7 +255,7 @@ export function VotingPatternsInfographics({
                   <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
                   <YAxis domain={[0, 100]} />
                   <Tooltip
-                    formatter={(value: number) => `${value.toFixed(2)}%`}
+                    formatter={(value: number | undefined) => value !== undefined ? `${value.toFixed(2)}%` : '0%'}
                   />
                   <Legend />
                   <Bar dataKey="turnout" fill="#8884d8" name="Avg Turnout %" />
@@ -279,7 +279,7 @@ export function VotingPatternsInfographics({
                   <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
                   <YAxis domain={[0, 100]} />
                   <Tooltip
-                    formatter={(value: number) => `${value.toFixed(2)}%`}
+                    formatter={(value: number | undefined) => value !== undefined ? `${value.toFixed(2)}%` : '0%'}
                   />
                   <Legend />
                   <Bar dataKey="turnout" fill="#82ca9d" name="Avg Turnout %" />
@@ -309,7 +309,7 @@ export function VotingPatternsInfographics({
                     cy="50%"
                     labelLine={false}
                     label={({ name, percent }) =>
-                      `${name}: ${(percent * 100).toFixed(0)}%`
+                      `${name}: ${percent !== undefined ? (percent * 100).toFixed(0) : 0}%`
                     }
                     outerRadius={100}
                     fill="#8884d8"
