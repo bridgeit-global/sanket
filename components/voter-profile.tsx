@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, User, Users, Edit, Briefcase, Clock } from 'lucide-react';
-import type { VoterWithPartNo, BeneficiaryService, DailyProgramme } from '@/lib/db/schema';
+import type { VoterWithPartNo, BeneficiaryService, DailyProgramme, VoterMaster } from '@/lib/db/schema';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
@@ -38,7 +38,7 @@ interface RelatedVoterWithMobileNumbers extends VoterWithPartNo {
 }
 
 interface RelatedVoterData {
-  voter: VoterWithPartNo;
+  voter: VoterMaster;
   services: BeneficiaryServicesData;
   events: DailyProgrammeEvent[];
 }
@@ -46,7 +46,7 @@ interface RelatedVoterData {
 export function VoterProfile({ epicNumber }: VoterProfileProps) {
   const router = useRouter();
   const { t } = useTranslations();
-  const [voter, setVoter] = useState<VoterWithPartNo | null>(null);
+  const [voter, setVoter] = useState<VoterMaster | null>(null);
   const [voterMobileNumbers, setVoterMobileNumbers] = useState<MobileNumberWithSortOrder[]>([]);
   const [relatedVoters, setRelatedVoters] = useState<RelatedVoterWithMobileNumbers[]>([]);
   const [beneficiaryServices, setBeneficiaryServices] = useState<BeneficiaryServicesData>({ individual: [], community: [] });

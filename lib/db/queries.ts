@@ -4680,6 +4680,8 @@ export type VotingHistoryWithBooth = Pick<ElectionMappingType, 'epicNumber' | 'e
   boothAddress: string | null;
   boothNo: string | null;
   srNo: string | null;
+  electionYear: number | null;
+  electionType: string | null;
 };
 
 // Get voting history for a voter
@@ -4697,8 +4699,14 @@ export async function getVoterVotingHistory(
         boothAddress: BoothMaster.boothAddress,
         boothNo: ElectionMapping.boothNo,
         srNo: ElectionMapping.srNo,
+        electionYear: ElectionMaster.year,
+        electionType: ElectionMaster.electionType,
       })
       .from(ElectionMapping)
+      .leftJoin(
+        ElectionMaster,
+        eq(ElectionMapping.electionId, ElectionMaster.electionId)
+      )
       .leftJoin(
         BoothMaster,
         and(

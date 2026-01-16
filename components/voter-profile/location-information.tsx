@@ -1,10 +1,10 @@
 'use client';
 
 import { MapPin } from 'lucide-react';
-import type { VoterWithPartNo } from '@/lib/db/schema';
+import type { VoterMaster } from '@/lib/db/schema';
 
 interface LocationInformationProps {
-  voter: VoterWithPartNo;
+  voter: VoterMaster;
 }
 
 export function LocationInformation({ voter }: LocationInformationProps) {
@@ -21,16 +21,16 @@ export function LocationInformation({ voter }: LocationInformationProps) {
             <p className="text-base">{voter.houseNumber}</p>
           </div>
         )}
-        {voter.pincode && (
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Pincode</label>
-            <p className="text-base">{voter.pincode}</p>
-          </div>
-        )}
         {voter.address && (
           <div className="md:col-span-2">
             <label className="text-sm font-medium text-muted-foreground">Address</label>
             <p className="text-base">{voter.address}</p>
+          </div>
+        )}
+        {voter.pincode && (
+          <div>
+            <label className="text-sm font-medium text-muted-foreground">Pincode</label>
+            <p className="text-base">{voter.pincode}</p>
           </div>
         )}
       </div>

@@ -36,8 +36,16 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
     pincode: '',
     relationType: '',
     relationName: '',
-    isVoted2024: false,
   });
+
+  // Voting history state - map electionId to voting record
+  interface VotingRecord {
+    electionId: string;
+    hasVoted: boolean;
+    electionYear: number | null;
+    electionType: string | null;
+  }
+  const [votingHistory, setVotingHistory] = useState<VotingRecord[]>([]);
 
   useEffect(() => {
     const fetchVoterProfile = async () => {
@@ -91,8 +99,32 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
             pincode: voterData.pincode || '',
             relationType: voterData.relationType || '',
             relationName: voterData.relationName || '',
-            isVoted2024: voterData.isVoted2024 || false,
           });
+
+          // Fetch voting history separately
+          try {
+            const votingResponse = await fetch(`/api/voting-participation/history/${encodeURIComponent(epicNumber)}`);
+            if (votingResponse.ok) {
+              const votingData = await votingResponse.json();
+              if (votingData.success && Array.isArray(votingData.history)) {
+                const votingRecords: VotingRecord[] = votingData.history.map((record: { 
+                  electionId: string; 
+                  hasVoted: boolean;
+                  electionYear?: number | null;
+                  electionType?: string | null;
+                }) => ({
+                  electionId: record.electionId,
+                  hasVoted: record.hasVoted || false,
+                  electionYear: record.electionYear || null,
+                  electionType: record.electionType || null,
+                }));
+                setVotingHistory(votingRecords);
+              }
+            }
+          } catch (votingErr) {
+            console.error('Error fetching voting history:', votingErr);
+            // Don't fail the whole form load if voting history fails
+          }
         } else {
           setError('Failed to load voter profile');
         }
@@ -163,7 +195,6 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
           pincode: formData.pincode.trim() || undefined,
           relationType: formData.relationType.trim() || undefined,
           relationName: formData.relationName.trim() || undefined,
-          isVoted2024: formData.isVoted2024,
         }),
       });
 
@@ -174,6 +205,27 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
 
       const data = await response.json();
       if (data.success) {
+        // Update voting history for all elections
+        const votingUpdates = votingHistory.map((record) =>
+          fetch('/api/voting-participation/mark', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              epicNumber,
+              electionId: record.electionId,
+              hasVoted: record.hasVoted,
+            }),
+          })
+        );
+
+        // Wait for all voting updates to complete
+        await Promise.all(votingUpdates).catch((err) => {
+          console.error('Error updating voting history:', err);
+          // Don't fail the whole operation if voting updates fail
+        });
+
         toast({
           type: 'success',
           description: 'Voter profile updated successfully',
@@ -476,23 +528,45 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
                 <Calendar className="h-4 w-4" />
                 Voting Information
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="isVoted2024">Voted in 2024</Label>
-                  <Select
-                    value={formData.isVoted2024 ? 'yes' : 'no'}
-                    onValueChange={(value) => setFormData({ ...formData, isVoted2024: value === 'yes' })}
-                  >
-                    <SelectTrigger id="isVoted2024">
-                      <SelectValue placeholder="Select voting status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="yes">Yes</SelectItem>
-                      <SelectItem value="no">No</SelectItem>
-                    </SelectContent>
-                  </Select>
+              {votingHistory.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {votingHistory.map((record) => {
+                    const electionLabel = record.electionType && record.electionYear
+                      ? `${record.electionType} Election ${record.electionYear}`
+                      : record.electionId.includes('2024') 
+                        ? `Voted in 2024`
+                        : `Voted in ${record.electionId}`;
+                    return (
+                      <div className="space-y-2" key={record.electionId}>
+                        <Label htmlFor={`voted-${record.electionId}`}>
+                          {electionLabel}
+                        </Label>
+                        <Select
+                          value={record.hasVoted ? 'yes' : 'no'}
+                          onValueChange={(value) => {
+                            const newVotingHistory = votingHistory.map((r) =>
+                              r.electionId === record.electionId
+                                ? { ...r, hasVoted: value === 'yes' }
+                                : r
+                            );
+                            setVotingHistory(newVotingHistory);
+                          }}
+                        >
+                          <SelectTrigger id={`voted-${record.electionId}`}>
+                            <SelectValue placeholder="Select voting status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="yes">Yes</SelectItem>
+                            <SelectItem value="no">No</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    );
+                  })}
                 </div>
-              </div>
+              ) : (
+                <div className="text-sm text-muted-foreground">No voting history available</div>
+              )}
             </div>
 
             {/* Form Actions */}

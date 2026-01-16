@@ -16,6 +16,8 @@ interface VotingHistoryWithBooth extends Pick<ElectionMapping, 'epicNumber' | 'e
   boothAddress: string | null;
   boothNo: string | null;
   srNo: string | null;
+  electionYear: number | null;
+  electionType: string | null;
 }
 
 interface VotingInformationProps {
@@ -71,7 +73,11 @@ export function VotingInformation({ epicNumber }: VotingInformationProps) {
             <AccordionItem key={`${record.epicNumber}-${record.electionId}`} value={`${record.epicNumber}-${record.electionId}`}>
               <AccordionTrigger>
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">Election: {record.electionId}</span>
+                  <span className="font-medium">
+                    {record.electionType && record.electionYear
+                      ? `${record.electionType} Election ${record.electionYear}`
+                      : `Election: ${record.electionId}`}
+                  </span>
                   <Badge variant={record.hasVoted ? 'default' : 'secondary'}>
                     {record.hasVoted ? 'Voted' : 'Not Voted'}
                   </Badge>
