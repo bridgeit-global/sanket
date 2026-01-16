@@ -49,6 +49,9 @@ export const {
   signOut,
 } = NextAuth({
   ...authConfig,
+  session: {
+    maxAge: 8 * 60 * 60, // 8 hours in seconds
+  },
   providers: [
     Credentials({
       credentials: {},
