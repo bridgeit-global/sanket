@@ -69,7 +69,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
       try {
         setLoading(true);
         const response = await fetch(`/api/voter/${encodeURIComponent(epicNumber)}`);
-
+        console.log('fetchVoterProfile', response)
         if (!response.ok) {
           if (response.status === 404) {
             setError('Voter not found');
@@ -232,8 +232,8 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                       <div className="text-sm">
                         <span className="font-medium text-muted-foreground">Primary:</span>
                         <p className="text-sm">
-                          {relatedVoter.mobileNumbers && relatedVoter.mobileNumbers.length > 0 
-                            ? relatedVoter.mobileNumbers[0].mobileNumber 
+                          {relatedVoter.mobileNumbers && relatedVoter.mobileNumbers.length > 0
+                            ? relatedVoter.mobileNumbers[0].mobileNumber
                             : 'Not set'}
                         </p>
                       </div>

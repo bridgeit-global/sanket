@@ -29,8 +29,8 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
     gender: '',
     familyGrouping: '',
     religion: '',
-    mobileNoPrimary: '',
-    mobileNoSecondary: '',
+    caste: '',
+    mobileNumbers: Array.from({ length: 5 }, () => ''),
     houseNumber: '',
     address: '',
     pincode: '',
@@ -58,14 +58,34 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
         if (data.success) {
           const voterData = data.voter;
           setVoter(voterData);
+          const mobileNumbersFromTable = Array.isArray(data.voterMobileNumbers)
+            ? [...data.voterMobileNumbers]
+                .sort((a, b) => a.sortOrder - b.sortOrder)
+                .map((mobile) => mobile.mobileNumber)
+                .filter((number) => number && number.trim())
+            : [];
+          const fallbackNumbers = mobileNumbersFromTable.length > 0
+            ? mobileNumbersFromTable
+            : [voterData.mobileNoPrimary, voterData.mobileNoSecondary].filter(
+                (number) => number && number.trim()
+              ) as string[];
+          const limitedFallbackNumbers = fallbackNumbers.slice(0, 5);
+          const filledMobileNumbers = [
+            ...limitedFallbackNumbers,
+            ...Array.from(
+              { length: Math.max(0, 5 - limitedFallbackNumbers.length) },
+              () => ''
+            ),
+          ];
+
           setFormData({
             fullName: voterData.fullName || '',
             age: voterData.age?.toString() || '',
             gender: voterData.gender || '',
             familyGrouping: voterData.familyGrouping || '',
             religion: voterData.religion || '',
-            mobileNoPrimary: voterData.mobileNoPrimary || '',
-            mobileNoSecondary: voterData.mobileNoSecondary || '',
+            caste: voterData.caste || '',
+            mobileNumbers: filledMobileNumbers,
             houseNumber: voterData.houseNumber || '',
             address: voterData.address || '',
             pincode: voterData.pincode || '',
@@ -100,20 +120,27 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
 
     // Validate phone number format if provided
     const phoneRegex = /^[\d\s\-\(\)]{7,15}$/;
-    if (formData.mobileNoPrimary && !phoneRegex.test(formData.mobileNoPrimary.trim())) {
-      toast({
-        type: 'error',
-        description: 'Invalid primary mobile number format',
-      });
-      return;
-    }
+    const trimmedMobileNumbers = formData.mobileNumbers
+      .map((number) => number.trim())
+      .filter((number) => number.length > 0);
+    const uniqueMobileNumbers = new Set<string>();
 
-    if (formData.mobileNoSecondary && !phoneRegex.test(formData.mobileNoSecondary.trim())) {
-      toast({
-        type: 'error',
-        description: 'Invalid secondary mobile number format',
-      });
-      return;
+    for (const number of trimmedMobileNumbers) {
+      if (!phoneRegex.test(number)) {
+        toast({
+          type: 'error',
+          description: `Invalid mobile number format: ${number}`,
+        });
+        return;
+      }
+      if (uniqueMobileNumbers.has(number)) {
+        toast({
+          type: 'error',
+          description: 'Duplicate mobile numbers are not allowed',
+        });
+        return;
+      }
+      uniqueMobileNumbers.add(number);
     }
 
     setSaving(true);
@@ -129,8 +156,8 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
           gender: formData.gender || undefined,
           familyGrouping: formData.familyGrouping.trim() || undefined,
           religion: formData.religion.trim() || undefined,
-          mobileNoPrimary: formData.mobileNoPrimary.trim() || undefined,
-          mobileNoSecondary: formData.mobileNoSecondary.trim() || undefined,
+          caste: formData.caste.trim() || undefined,
+          mobileNumbers: trimmedMobileNumbers,
           houseNumber: formData.houseNumber.trim() || undefined,
           address: formData.address.trim() || undefined,
           pincode: formData.pincode.trim() || undefined,
@@ -295,6 +322,16 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
                     placeholder="Enter religion"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="caste">Caste</Label>
+                  <Input
+                    id="caste"
+                    type="text"
+                    value={formData.caste}
+                    onChange={(e) => setFormData({ ...formData, caste: e.target.value })}
+                    placeholder="Enter caste"
+                  />
+                </div>
               </div>
             </div>
 
@@ -305,29 +342,24 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
                 Contact Information
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="mobileNoPrimary">
-                    Primary Mobile <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="mobileNoPrimary"
-                    type="tel"
-                    value={formData.mobileNoPrimary}
-                    onChange={(e) => setFormData({ ...formData, mobileNoPrimary: e.target.value })}
-                    placeholder="Enter primary mobile number"
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="mobileNoSecondary">Secondary Mobile</Label>
-                  <Input
-                    id="mobileNoSecondary"
-                    type="tel"
-                    value={formData.mobileNoSecondary}
-                    onChange={(e) => setFormData({ ...formData, mobileNoSecondary: e.target.value })}
-                    placeholder="Enter secondary mobile number"
-                  />
-                </div>
+                {formData.mobileNumbers.map((mobileNumber, index) => (
+                  <div className="space-y-2" key={`mobile-number-${index}`}>
+                    <Label htmlFor={`mobile-number-${index}`}>
+                      {index === 0 ? 'Primary Mobile' : index === 1 ? 'Secondary Mobile' : `Mobile ${index + 1}`}
+                    </Label>
+                    <Input
+                      id={`mobile-number-${index}`}
+                      type="tel"
+                      value={mobileNumber}
+                      onChange={(e) => {
+                        const updatedMobileNumbers = [...formData.mobileNumbers];
+                        updatedMobileNumbers[index] = e.target.value;
+                        setFormData({ ...formData, mobileNumbers: updatedMobileNumbers });
+                      }}
+                      placeholder="Enter mobile number"
+                    />
+                  </div>
+                ))}
               </div>
             </div>
 

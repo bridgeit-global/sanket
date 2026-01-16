@@ -326,6 +326,7 @@ export type VoterWithPartNo = Voter & {
   wardNo?: string | null;
   boothName?: string | null;
   englishBoothAddress?: string | null;
+  caste?: string | null;
 };
 
 export const voterMobileNumber = pgTable(

@@ -1,10 +1,10 @@
 'use client';
 
 import { FileText } from 'lucide-react';
-import type { VoterWithPartNo } from '@/lib/db/schema';
+import type { VoterMaster } from '@/lib/db/schema';
 
 interface PersonalInformationProps {
-    voter: VoterWithPartNo;
+    voter: VoterMaster;
 }
 
 export function PersonalInformation({ voter }: PersonalInformationProps) {
@@ -57,6 +57,12 @@ export function PersonalInformation({ voter }: PersonalInformationProps) {
                     <div>
                         <label className="text-sm font-medium text-muted-foreground">Religion</label>
                         <p className="text-base">{voter.religion}</p>
+                    </div>
+                )}
+                {voter.caste && (
+                    <div>
+                        <label className="text-sm font-medium text-muted-foreground">Caste</label>
+                        <p className="text-base">{voter.caste}</p>
                     </div>
                 )}
             </div>

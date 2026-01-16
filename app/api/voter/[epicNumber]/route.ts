@@ -130,6 +130,8 @@ export async function PUT(
       gender,
       familyGrouping,
       religion,
+      caste,
+      mobileNumbers,
       mobileNoPrimary,
       mobileNoSecondary,
       houseNumber,
@@ -150,18 +152,58 @@ export async function PUT(
 
     // Validate phone number format if provided
     const phoneRegex = /^[\d\s\-\(\)]{7,15}$/;
-    if (mobileNoPrimary && !phoneRegex.test(mobileNoPrimary.trim())) {
-      return NextResponse.json(
-        { error: 'Invalid primary mobile number format' },
-        { status: 400 }
-      );
-    }
+    const hasMobileNumbers = Array.isArray(mobileNumbers);
+    let normalizedMobileNumbers: string[] | undefined;
 
-    if (mobileNoSecondary && !phoneRegex.test(mobileNoSecondary.trim())) {
-      return NextResponse.json(
-        { error: 'Invalid secondary mobile number format' },
-        { status: 400 }
-      );
+    if (hasMobileNumbers) {
+      if (!mobileNumbers.every((number) => typeof number === 'string')) {
+        return NextResponse.json(
+          { error: 'Mobile numbers must be strings' },
+          { status: 400 }
+        );
+      }
+      const trimmedNumbers = mobileNumbers
+        .map((number) => number.trim())
+        .filter((number) => number.length > 0);
+
+      if (trimmedNumbers.length > 5) {
+        return NextResponse.json(
+          { error: 'A maximum of 5 mobile numbers is allowed' },
+          { status: 400 }
+        );
+      }
+
+      const uniqueNumbers = new Set<string>();
+      for (const number of trimmedNumbers) {
+        if (!phoneRegex.test(number)) {
+          return NextResponse.json(
+            { error: `Invalid mobile number format: ${number}` },
+            { status: 400 }
+          );
+        }
+        if (uniqueNumbers.has(number)) {
+          return NextResponse.json(
+            { error: 'Duplicate mobile numbers are not allowed' },
+            { status: 400 }
+          );
+        }
+        uniqueNumbers.add(number);
+      }
+      normalizedMobileNumbers = trimmedNumbers;
+    } else {
+      if (mobileNoPrimary && !phoneRegex.test(mobileNoPrimary.trim())) {
+        return NextResponse.json(
+          { error: 'Invalid primary mobile number format' },
+          { status: 400 }
+        );
+      }
+
+      if (mobileNoSecondary && !phoneRegex.test(mobileNoSecondary.trim())) {
+        return NextResponse.json(
+          { error: 'Invalid secondary mobile number format' },
+          { status: 400 }
+        );
+      }
     }
 
     // Update voter with tracking parameters
@@ -173,8 +215,10 @@ export async function PUT(
         gender: gender?.trim() || undefined,
         familyGrouping: familyGrouping?.trim() || undefined,
         religion: religion?.trim() || undefined,
-        mobileNoPrimary: mobileNoPrimary?.trim() || undefined,
-        mobileNoSecondary: mobileNoSecondary?.trim() || undefined,
+        caste: caste?.trim() || undefined,
+        mobileNumbers: hasMobileNumbers ? normalizedMobileNumbers : undefined,
+        mobileNoPrimary: hasMobileNumbers ? undefined : mobileNoPrimary?.trim() || undefined,
+        mobileNoSecondary: hasMobileNumbers ? undefined : mobileNoSecondary?.trim() || undefined,
         houseNumber: houseNumber?.trim() || undefined,
         address: address?.trim() || undefined,
         pincode: pincode?.trim() || undefined,

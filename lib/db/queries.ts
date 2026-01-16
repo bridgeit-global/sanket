@@ -90,6 +90,41 @@ import { ChatSDKError } from '../errors';
 const client = postgres(process.env.POSTGRES_URL!);
 export const db = drizzle(client);
 
+let voterMasterHasCasteColumn: boolean | null = null;
+
+async function supportsVoterMasterCasteColumn(): Promise<boolean> {
+  if (voterMasterHasCasteColumn !== null) {
+    return voterMasterHasCasteColumn;
+  }
+  try {
+    const result = await db.execute(
+      sql`
+        SELECT 1
+        FROM information_schema.columns
+        WHERE lower(table_name) = lower('VoterMaster')
+          AND lower(column_name) = lower('caste')
+        LIMIT 1;
+      `,
+    );
+    voterMasterHasCasteColumn = result.length > 0;
+  } catch (error) {
+    console.warn('Failed to check VoterMaster caste column:', error);
+    voterMasterHasCasteColumn = false;
+  }
+  return voterMasterHasCasteColumn;
+}
+
+function isMissingColumnError(error: unknown, columnName: string): boolean {
+  const errorCode = typeof error === 'object' && error !== null && 'code' in error
+    ? (error as { code?: string }).code
+    : undefined;
+  if (errorCode === '42703') {
+    return true;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes(`column "${columnName}"`) && message.includes('does not exist');
+}
+
 export async function getUser(userIdValue: string): Promise<Array<User>> {
   try {
     return await db.select().from(user).where(eq(user.userId, userIdValue));
@@ -763,53 +798,74 @@ async function getVoterWithCurrentElection(
 export async function getVoterByEpicNumber(epicNumber: string, electionId?: string): Promise<Array<VoterWithPartNo>> {
   try {
     const currentElectionId = electionId || await getCurrentElectionId();
+    const supportsCaste = await supportsVoterMasterCasteColumn();
+    const baseSelectFields = {
+      epicNumber: VoterMaster.epicNumber,
+      fullName: VoterMaster.fullName,
+      relationType: VoterMaster.relationType,
+      relationName: VoterMaster.relationName,
+      familyGrouping: VoterMaster.familyGrouping,
+      boothNo: ElectionMapping.boothNo,
+      srNo: ElectionMapping.srNo,
+      houseNumber: VoterMaster.houseNumber,
+      religion: VoterMaster.religion,
+      age: VoterMaster.age,
+      gender: VoterMaster.gender,
+      isVoted2024: ElectionMapping.hasVoted, // Map from ElectionMapping
+      address: VoterMaster.address,
+      localityStreet: VoterMaster.localityStreet,
+      townVillage: VoterMaster.townVillage,
+      pincode: VoterMaster.pincode
+    };
+    const selectFields = supportsCaste
+      ? { ...baseSelectFields, caste: VoterMaster.caste }
+      : baseSelectFields;
 
-    const results = await db
-      .select({
-        epicNumber: VoterMaster.epicNumber,
-        fullName: VoterMaster.fullName,
-        relationType: VoterMaster.relationType,
-        relationName: VoterMaster.relationName,
-        familyGrouping: VoterMaster.familyGrouping,
-        boothNo: ElectionMapping.boothNo,
-        srNo: ElectionMapping.srNo,
-        houseNumber: VoterMaster.houseNumber,
-        religion: VoterMaster.religion,
-        age: VoterMaster.age,
-        gender: VoterMaster.gender,
-        isVoted2024: ElectionMapping.hasVoted, // Map from ElectionMapping
-        mobileNoPrimary: VoterMaster.mobileNoPrimary,
-        mobileNoSecondary: VoterMaster.mobileNoSecondary,
-        address: VoterMaster.address,
-        localityStreet: VoterMaster.localityStreet,
-        townVillage: VoterMaster.townVillage,
-        pincode: VoterMaster.pincode,
-        createdAt: VoterMaster.createdAt,
-        updatedAt: VoterMaster.updatedAt,
-        wardNo: PartNo.wardNo,
-        boothName: BoothMaster.boothName,
-        englishBoothAddress: BoothMaster.boothAddress,
-      })
-      .from(VoterMaster)
-      .leftJoin(
-        ElectionMapping,
-        and(
-          eq(VoterMaster.epicNumber, ElectionMapping.epicNumber),
-          eq(ElectionMapping.electionId, currentElectionId)
+    const runQuery = async (fields: typeof baseSelectFields | (typeof baseSelectFields & { caste: typeof VoterMaster.caste })) =>
+      db
+        .select(fields)
+        .from(VoterMaster)
+        .leftJoin(
+          ElectionMapping,
+          and(
+            eq(VoterMaster.epicNumber, ElectionMapping.epicNumber),
+            eq(ElectionMapping.electionId, currentElectionId)
+          )
         )
-      )
-      .leftJoin(
-        BoothMaster,
-        and(
-          eq(ElectionMapping.electionId, BoothMaster.electionId),
-          eq(ElectionMapping.boothNo, BoothMaster.boothNo)
+        .leftJoin(
+          BoothMaster,
+          and(
+            eq(ElectionMapping.electionId, BoothMaster.electionId),
+            eq(
+              sql`CAST(${ElectionMapping.boothNo} AS TEXT)`,
+              sql`CAST(${BoothMaster.boothNo} AS TEXT)`
+            )
+          )
         )
-      )
-      .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
-      .where(eq(VoterMaster.epicNumber, epicNumber));
+        .leftJoin(
+          PartNo,
+          eq(
+            sql`CAST(${ElectionMapping.boothNo} AS TEXT)`,
+            sql`CAST(${PartNo.partNo} AS TEXT)`
+          )
+        )
+        .where(eq(VoterMaster.epicNumber, epicNumber));
 
-    return results as unknown as Array<VoterWithPartNo>;
+    let results: Array<VoterWithPartNo>;
+    try {
+      results = await runQuery(selectFields) as unknown as Array<VoterWithPartNo>;
+    } catch (error) {
+      if (supportsCaste && isMissingColumnError(error, 'caste')) {
+        voterMasterHasCasteColumn = false;
+        results = await runQuery(baseSelectFields) as unknown as Array<VoterWithPartNo>;
+      } else {
+        throw error;
+      }
+    }
+
+    return results;
   } catch (error) {
+    console.error('Error getting voter by EPIC number:', error);
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get voter by EPIC number',
@@ -1718,13 +1774,18 @@ export async function updateVoterMobileNumbers(
 
 export async function updateVoter(
   epicNumber: string,
-  updateData: Partial<Pick<Voter, 'fullName' | 'age' | 'gender' | 'familyGrouping' | 'religion' | 'mobileNoPrimary' | 'mobileNoSecondary' | 'houseNumber' | 'address' | 'pincode' | 'relationType' | 'relationName' | 'isVoted2024'>>,
+  updateData: Partial<Pick<VoterMasterType, 'fullName' | 'age' | 'gender' | 'familyGrouping' | 'religion' | 'caste' | 'mobileNoPrimary' | 'mobileNoSecondary' | 'houseNumber' | 'address' | 'pincode' | 'relationType' | 'relationName'>> & {
+    isVoted2024?: boolean;
+    mobileNumbers?: string[];
+  },
   updatedBy?: string,
   sourceModule?: string
 ): Promise<Voter | null> {
   try {
+    const supportsCaste = await supportsVoterMasterCasteColumn();
+
     // Check if phone numbers are being updated
-    const isUpdatingPhone = updateData.mobileNoPrimary !== undefined || updateData.mobileNoSecondary !== undefined;
+    const isUpdatingPhone = updateData.mobileNumbers !== undefined || updateData.mobileNoPrimary !== undefined || updateData.mobileNoSecondary !== undefined;
 
     // Fetch current phone numbers before update if tracking phone changes
     let oldMobileNoPrimary: string | null = null;
@@ -1747,7 +1808,7 @@ export async function updateVoter(
     }
 
     // Separate isVoted2024 from other updates (it goes to VotingHistory)
-    const { isVoted2024, ...voterMasterData } = updateData;
+    const { isVoted2024, mobileNumbers, ...voterMasterData } = updateData;
     const dataToUpdate: Partial<VoterMasterType> = { updatedAt: new Date() };
 
     if (voterMasterData.fullName !== undefined) {
@@ -1765,11 +1826,33 @@ export async function updateVoter(
     if (voterMasterData.religion !== undefined) {
       dataToUpdate.religion = voterMasterData.religion;
     }
-    if (voterMasterData.mobileNoPrimary !== undefined) {
-      dataToUpdate.mobileNoPrimary = voterMasterData.mobileNoPrimary;
+    if (supportsCaste && voterMasterData.caste !== undefined) {
+      dataToUpdate.caste = voterMasterData.caste;
     }
-    if (voterMasterData.mobileNoSecondary !== undefined) {
-      dataToUpdate.mobileNoSecondary = voterMasterData.mobileNoSecondary;
+    let normalizedMobileNumbers: string[] | null = null;
+    if (mobileNumbers !== undefined) {
+      const seen = new Set<string>();
+      normalizedMobileNumbers = [];
+      for (const number of mobileNumbers) {
+        const trimmed = number?.trim();
+        if (!trimmed) {
+          continue;
+        }
+        if (!seen.has(trimmed)) {
+          normalizedMobileNumbers.push(trimmed);
+          seen.add(trimmed);
+        }
+      }
+      normalizedMobileNumbers = normalizedMobileNumbers.slice(0, 5);
+      dataToUpdate.mobileNoPrimary = normalizedMobileNumbers[0] ?? null;
+      dataToUpdate.mobileNoSecondary = normalizedMobileNumbers[1] ?? null;
+    } else {
+      if (voterMasterData.mobileNoPrimary !== undefined) {
+        dataToUpdate.mobileNoPrimary = voterMasterData.mobileNoPrimary;
+      }
+      if (voterMasterData.mobileNoSecondary !== undefined) {
+        dataToUpdate.mobileNoSecondary = voterMasterData.mobileNoSecondary;
+      }
     }
     if (voterMasterData.houseNumber !== undefined) {
       dataToUpdate.houseNumber = voterMasterData.houseNumber;
@@ -1788,11 +1871,28 @@ export async function updateVoter(
     }
 
     // Update VoterMaster
-    const [updatedVoterMaster] = await db
-      .update(VoterMaster)
-      .set(dataToUpdate)
-      .where(eq(VoterMaster.epicNumber, epicNumber))
-      .returning();
+    let updatedVoterMaster: VoterMasterType | undefined;
+    try {
+      [updatedVoterMaster] = await db
+        .update(VoterMaster)
+        .set(dataToUpdate)
+        .where(eq(VoterMaster.epicNumber, epicNumber))
+        .returning();
+    } catch (error) {
+      if (supportsCaste && 'caste' in dataToUpdate && isMissingColumnError(error, 'caste')) {
+        voterMasterHasCasteColumn = false;
+        const dataToUpdateWithoutCaste = Object.fromEntries(
+          Object.entries(dataToUpdate).filter(([key]) => key !== 'caste')
+        ) as Partial<VoterMasterType>;
+        [updatedVoterMaster] = await db
+          .update(VoterMaster)
+          .set(dataToUpdateWithoutCaste)
+          .where(eq(VoterMaster.epicNumber, epicNumber))
+          .returning();
+      } else {
+        throw error;
+      }
+    }
 
     if (!updatedVoterMaster) {
       return null;
@@ -1826,10 +1926,18 @@ export async function updateVoter(
           updatedBy,
           sourceModule,
         });
-
-        // Sync with VoterMobileNumber table
-        await syncVoterMobileNumberTable(epicNumber, newMobileNoPrimary, newMobileNoSecondary);
       }
+    }
+    if (isUpdatingPhone) {
+      const newMobileNoPrimary = updatedVoterMaster.mobileNoPrimary || null;
+      const newMobileNoSecondary = updatedVoterMaster.mobileNoSecondary || null;
+      const fallbackMobileNumbers = [newMobileNoPrimary, newMobileNoSecondary].filter(
+        (number): number is string => Boolean(number)
+      );
+      await syncVoterMobileNumberTable(
+        epicNumber,
+        normalizedMobileNumbers ?? fallbackMobileNumbers
+      );
     }
 
     // Return voter in the old format for backward compatibility
@@ -4595,7 +4703,10 @@ export async function getVoterVotingHistory(
         BoothMaster,
         and(
           eq(ElectionMapping.electionId, BoothMaster.electionId),
-          eq(ElectionMapping.boothNo, BoothMaster.boothNo)
+          eq(
+            sql`CAST(${ElectionMapping.boothNo} AS TEXT)`,
+            sql`CAST(${BoothMaster.boothNo} AS TEXT)`
+          )
         )
       );
 
@@ -4974,8 +5085,8 @@ export type MobileNumberWithSortOrder = {
 // Helper function to sync VoterMobileNumber table when mobile numbers are updated
 export async function syncVoterMobileNumberTable(
   epicNumber: string,
-  mobileNoPrimary: string | null,
-  mobileNoSecondary: string | null
+  mobileNoPrimaryOrList: string | null | string[],
+  mobileNoSecondary?: string | null
 ): Promise<void> {
   try {
     // Delete existing mobile numbers for this voter
@@ -4984,27 +5095,32 @@ export async function syncVoterMobileNumberTable(
       .where(eq(voterMobileNumber.epicNumber, epicNumber));
 
     // Insert new mobile numbers
+    const rawNumbers = Array.isArray(mobileNoPrimaryOrList)
+      ? mobileNoPrimaryOrList
+      : [mobileNoPrimaryOrList, mobileNoSecondary].filter(Boolean);
+    const seen = new Set<string>();
+    const normalizedNumbers: string[] = [];
+    for (const number of rawNumbers) {
+      const trimmed = number?.trim();
+      if (!trimmed) {
+        continue;
+      }
+      if (!seen.has(trimmed)) {
+        normalizedNumbers.push(trimmed);
+        seen.add(trimmed);
+      }
+    }
+    const limitedNumbers = normalizedNumbers.slice(0, 5);
+
     const mobileNumbersToInsert: Array<{
       epicNumber: string;
       mobileNumber: string;
       sortOrder: number;
-    }> = [];
-
-    if (mobileNoPrimary && mobileNoPrimary.trim()) {
-      mobileNumbersToInsert.push({
-        epicNumber,
-        mobileNumber: mobileNoPrimary.trim(),
-        sortOrder: 1,
-      });
-    }
-
-    if (mobileNoSecondary && mobileNoSecondary.trim()) {
-      mobileNumbersToInsert.push({
-        epicNumber,
-        mobileNumber: mobileNoSecondary.trim(),
-        sortOrder: 2,
-      });
-    }
+    }> = limitedNumbers.map((mobileNumber, index) => ({
+      epicNumber,
+      mobileNumber,
+      sortOrder: index + 1,
+    }));
 
     if (mobileNumbersToInsert.length > 0) {
       await db.insert(voterMobileNumber).values(mobileNumbersToInsert);
