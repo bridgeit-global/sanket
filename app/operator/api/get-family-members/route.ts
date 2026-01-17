@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
         const voter = voters[0];
 
         // Get all family members with the same familyGrouping and part number
-        const familyMembers = await getVotersByFamilyGrouping(voter.familyGrouping, voter.partNo);
+        const familyMembers = await getVotersByFamilyGrouping(voter.familyGrouping);
 
         // Filter out the primary voter from family members
         const relatedVoters = familyMembers.filter(f => f.epicNumber !== epicNumber);
