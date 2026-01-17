@@ -795,7 +795,7 @@ async function getVoterWithCurrentElection(
 }
 
 // Voter-related queries
-export async function getVoterByEpicNumber(epicNumber: string, electionId?: string): Promise<Array<VoterWithPartNo>> {
+export async function getVoterByEpicNumber(epicNumber: string, electionId?: string): Promise<Array<VoterMasterType>> {
   try {
     const currentElectionId = electionId || await getCurrentElectionId();
     const supportsCaste = await supportsVoterMasterCasteColumn();
@@ -805,13 +805,10 @@ export async function getVoterByEpicNumber(epicNumber: string, electionId?: stri
       relationType: VoterMaster.relationType,
       relationName: VoterMaster.relationName,
       familyGrouping: VoterMaster.familyGrouping,
-      boothNo: ElectionMapping.boothNo,
-      srNo: ElectionMapping.srNo,
       houseNumber: VoterMaster.houseNumber,
       religion: VoterMaster.religion,
       age: VoterMaster.age,
       gender: VoterMaster.gender,
-      isVoted2024: ElectionMapping.hasVoted, // Map from ElectionMapping
       address: VoterMaster.address,
       localityStreet: VoterMaster.localityStreet,
       townVillage: VoterMaster.townVillage,
@@ -825,39 +822,15 @@ export async function getVoterByEpicNumber(epicNumber: string, electionId?: stri
       db
         .select(fields)
         .from(VoterMaster)
-        .leftJoin(
-          ElectionMapping,
-          and(
-            eq(VoterMaster.epicNumber, ElectionMapping.epicNumber),
-            eq(ElectionMapping.electionId, currentElectionId)
-          )
-        )
-        .leftJoin(
-          BoothMaster,
-          and(
-            eq(ElectionMapping.electionId, BoothMaster.electionId),
-            eq(
-              sql`CAST(${ElectionMapping.boothNo} AS TEXT)`,
-              sql`CAST(${BoothMaster.boothNo} AS TEXT)`
-            )
-          )
-        )
-        .leftJoin(
-          PartNo,
-          eq(
-            sql`CAST(${ElectionMapping.boothNo} AS TEXT)`,
-            sql`CAST(${PartNo.partNo} AS TEXT)`
-          )
-        )
         .where(eq(VoterMaster.epicNumber, epicNumber));
 
-    let results: Array<VoterWithPartNo>;
+    let results: Array<VoterMasterType>;
     try {
-      results = await runQuery(selectFields) as unknown as Array<VoterWithPartNo>;
+      results = await runQuery(selectFields) as unknown as Array<VoterMasterType>;
     } catch (error) {
       if (supportsCaste && isMissingColumnError(error, 'caste')) {
         voterMasterHasCasteColumn = false;
-        results = await runQuery(baseSelectFields) as unknown as Array<VoterWithPartNo>;
+        results = await runQuery(baseSelectFields) as unknown as Array<VoterMasterType>;
       } else {
         throw error;
       }

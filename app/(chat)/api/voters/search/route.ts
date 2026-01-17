@@ -1,7 +1,7 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { getVoterByEpicNumber, searchVoterByName } from '@/lib/db/queries';
 import { auth } from '@/app/(auth)/auth';
-import type { Voter } from '@/lib/db/schema';
+import type { VoterMaster } from '@/lib/db/schema';
 
 export async function GET(request: NextRequest) {
     try {
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        let results: Voter[] = [];
+        let results: VoterMaster[] = [];
 
         if (voterId) {
             // Search by Voter ID (EPIC Number)
