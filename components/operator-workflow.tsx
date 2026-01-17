@@ -903,7 +903,7 @@ export function BeneficiaryManagement() {
                                                     className="w-full p-4 border rounded-lg hover:bg-muted cursor-pointer text-left transition-colors"
                                                     onClick={() => handleSelectVoter(voter)}
                                                 >
-                                                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
+                                                    <div className="flex flex-col gap-2">
                                                         <div className="flex-1">
                                                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
                                                                 <div className="flex flex-col">
@@ -929,10 +929,6 @@ export function BeneficiaryManagement() {
                                                                     <span className="font-medium text-muted-foreground">{t('backOffice.gender')}:</span>
                                                                     <span>{voter.gender || 'N/A'}</span>
                                                                 </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="font-medium text-muted-foreground">Part:</span>
-                                                                    <span>{voter.partNo || 'N/A'}</span>
-                                                                </div>
                                                             </div>
 
                                                             {/* Additional Info */}
@@ -943,23 +939,6 @@ export function BeneficiaryManagement() {
                                                             </div>
                                                         </div>
 
-                                                        {/* Mobile Numbers */}
-                                                        <div className="text-right ml-4">
-                                                            <div className="text-sm">
-                                                                <span className="font-medium text-muted-foreground">{t('backOffice.primary')}:</span>
-                                                                <p className="text-sm">
-                                                                    {voter.mobileNoPrimary || t('backOffice.notSet')}
-                                                                </p>
-                                                            </div>
-                                                            {voter.mobileNoSecondary && (
-                                                                <div className="text-sm mt-1">
-                                                                    <span className="font-medium text-muted-foreground">{t('backOffice.secondary')}:</span>
-                                                                    <p className="text-sm text-muted-foreground">
-                                                                        {voter.mobileNoSecondary}
-                                                                    </p>
-                                                                </div>
-                                                            )}
-                                                        </div>
                                                     </div>
                                                 </button>
                                             ))}

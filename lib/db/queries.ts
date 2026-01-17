@@ -1149,7 +1149,7 @@ export async function getVoterByBooth(boothName: string, electionId?: string): P
   }
 }
 
-export async function searchVoterByEpicNumber(epicNumber: string, electionId?: string): Promise<Array<VoterWithPartNo>> {
+export async function searchVoterByEpicNumber(epicNumber: string, electionId?: string): Promise<Array<VoterMasterType>> {
   try {
     const currentElectionId = electionId || await getCurrentElectionId();
 
@@ -1160,46 +1160,21 @@ export async function searchVoterByEpicNumber(epicNumber: string, electionId?: s
         relationType: VoterMaster.relationType,
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
-        boothNo: ElectionMapping.boothNo,
-        srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
         religion: VoterMaster.religion,
         age: VoterMaster.age,
         dob: VoterMaster.dob,
         gender: VoterMaster.gender,
-        isVoted2024: ElectionMapping.hasVoted,
-        mobileNoPrimary: VoterMaster.mobileNoPrimary,
-        mobileNoSecondary: VoterMaster.mobileNoSecondary,
         address: VoterMaster.address,
         localityStreet: VoterMaster.localityStreet,
         townVillage: VoterMaster.townVillage,
         pincode: VoterMaster.pincode,
-        createdAt: VoterMaster.createdAt,
-        updatedAt: VoterMaster.updatedAt,
-        wardNo: PartNo.wardNo,
-        boothName: BoothMaster.boothName,
-        englishBoothAddress: BoothMaster.boothAddress,
       })
       .from(VoterMaster)
-      .leftJoin(
-        ElectionMapping,
-        and(
-          eq(VoterMaster.epicNumber, ElectionMapping.epicNumber),
-          eq(ElectionMapping.electionId, currentElectionId)
-        )
-      )
-      .leftJoin(
-        BoothMaster,
-        and(
-          eq(ElectionMapping.electionId, BoothMaster.electionId),
-          eq(ElectionMapping.boothNo, BoothMaster.boothNo)
-        )
-      )
-      .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
       .where(sql`LOWER(${VoterMaster.epicNumber}) LIKE LOWER(${`%${epicNumber}%`})`)
       .orderBy(asc(VoterMaster.epicNumber));
 
-    return results as unknown as Array<VoterWithPartNo>;
+    return results as unknown as Array<VoterMasterType>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1208,7 +1183,7 @@ export async function searchVoterByEpicNumber(epicNumber: string, electionId?: s
   }
 }
 
-export async function searchVoterByName(name: string, electionId?: string): Promise<Array<VoterWithPartNo>> {
+export async function searchVoterByName(name: string, electionId?: string): Promise<Array<VoterMasterType>> {
   try {
     const currentElectionId = electionId || await getCurrentElectionId();
 
@@ -1219,46 +1194,21 @@ export async function searchVoterByName(name: string, electionId?: string): Prom
         relationType: VoterMaster.relationType,
         relationName: VoterMaster.relationName,
         familyGrouping: VoterMaster.familyGrouping,
-        boothNo: ElectionMapping.boothNo,
-        srNo: ElectionMapping.srNo,
         houseNumber: VoterMaster.houseNumber,
         religion: VoterMaster.religion,
         age: VoterMaster.age,
         dob: VoterMaster.dob,
         gender: VoterMaster.gender,
-        isVoted2024: ElectionMapping.hasVoted,
-        mobileNoPrimary: VoterMaster.mobileNoPrimary,
-        mobileNoSecondary: VoterMaster.mobileNoSecondary,
         address: VoterMaster.address,
         localityStreet: VoterMaster.localityStreet,
         townVillage: VoterMaster.townVillage,
         pincode: VoterMaster.pincode,
-        createdAt: VoterMaster.createdAt,
-        updatedAt: VoterMaster.updatedAt,
-        wardNo: PartNo.wardNo,
-        boothName: BoothMaster.boothName,
-        englishBoothAddress: BoothMaster.boothAddress,
       })
       .from(VoterMaster)
-      .leftJoin(
-        ElectionMapping,
-        and(
-          eq(VoterMaster.epicNumber, ElectionMapping.epicNumber),
-          eq(ElectionMapping.electionId, currentElectionId)
-        )
-      )
-      .leftJoin(
-        BoothMaster,
-        and(
-          eq(ElectionMapping.electionId, BoothMaster.electionId),
-          eq(ElectionMapping.boothNo, BoothMaster.boothNo)
-        )
-      )
-      .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
       .where(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${name}%`})`)
       .orderBy(asc(VoterMaster.fullName));
 
-    return results as unknown as Array<VoterWithPartNo>;
+    return results as unknown as Array<VoterMasterType>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1267,45 +1217,33 @@ export async function searchVoterByName(name: string, electionId?: string): Prom
   }
 }
 
-export async function searchVoterByPhoneNumber(phoneNumber: string): Promise<Array<VoterWithPartNo>> {
+export async function searchVoterByPhoneNumber(phoneNumber: string): Promise<Array<VoterMasterType>> {
   try {
     // Clean the phone number (remove spaces, dashes, etc.)
     const cleanPhone = phoneNumber.replace(/[\s\-\(\)]/g, '');
 
     const results = await db
       .select({
-        epicNumber: Voters.epicNumber,
-        fullName: Voters.fullName,
-        relationType: Voters.relationType,
-        relationName: Voters.relationName,
-        familyGrouping: Voters.familyGrouping,
-        acNo: Voters.acNo,
-        partNo: Voters.partNo,
-        srNo: Voters.srNo,
-        houseNumber: Voters.houseNumber,
-        religion: Voters.religion,
-        age: Voters.age,
-        dob: Voters.dob,
-        gender: Voters.gender,
-        isVoted2024: Voters.isVoted2024,
-        mobileNoPrimary: Voters.mobileNoPrimary,
-        mobileNoSecondary: Voters.mobileNoSecondary,
-        address: Voters.address,
-        pincode: Voters.pincode,
-        createdAt: Voters.createdAt,
-        updatedAt: Voters.updatedAt,
-        wardNo: PartNo.wardNo,
-        boothName: PartNo.boothName,
-        englishBoothAddress: PartNo.englishBoothAddress,
+        epicNumber: VoterMaster.epicNumber,
+        fullName: VoterMaster.fullName,
+        relationType: VoterMaster.relationType,
+        relationName: VoterMaster.relationName,
+        familyGrouping: VoterMaster.familyGrouping,
+        houseNumber: VoterMaster.houseNumber,
+        religion: VoterMaster.religion,
+        age: VoterMaster.age,
+        dob: VoterMaster.dob,
+        gender: VoterMaster.gender,
+        address: VoterMaster.address,
+        pincode: VoterMaster.pincode,
       })
       .from(Voters)
-      .leftJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
       .where(
         sql`(${Voters.mobileNoPrimary} LIKE ${`%${cleanPhone}%`} OR ${Voters.mobileNoSecondary} LIKE ${`%${cleanPhone}%`})`
       )
       .orderBy(asc(Voters.fullName));
 
-    return results as unknown as Array<VoterWithPartNo>;
+    return results as unknown as Array<VoterMasterType>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1314,7 +1252,7 @@ export async function searchVoterByPhoneNumber(phoneNumber: string): Promise<Arr
   }
 }
 
-export async function searchVoterByMobileNumberTable(mobileNumber: string): Promise<Array<VoterWithPartNo>> {
+export async function searchVoterByMobileNumberTable(mobileNumber: string): Promise<Array<VoterMasterType>> {
   try {
     // Clean the mobile number (remove spaces, dashes, etc.)
     const cleanMobile = mobileNumber.replace(/[\s\-\(\)]/g, '');
@@ -1336,36 +1274,24 @@ export async function searchVoterByMobileNumberTable(mobileNumber: string): Prom
     // Now get full voter details for those epic numbers
     const results = await db
       .select({
-        epicNumber: Voters.epicNumber,
-        fullName: Voters.fullName,
-        relationType: Voters.relationType,
-        relationName: Voters.relationName,
-        familyGrouping: Voters.familyGrouping,
-        acNo: Voters.acNo,
-        partNo: Voters.partNo,
-        srNo: Voters.srNo,
-        houseNumber: Voters.houseNumber,
-        religion: Voters.religion,
-        age: Voters.age,
-        dob: Voters.dob,
-        gender: Voters.gender,
-        isVoted2024: Voters.isVoted2024,
-        mobileNoPrimary: Voters.mobileNoPrimary,
-        mobileNoSecondary: Voters.mobileNoSecondary,
-        address: Voters.address,
-        pincode: Voters.pincode,
-        createdAt: Voters.createdAt,
-        updatedAt: Voters.updatedAt,
-        wardNo: PartNo.wardNo,
-        boothName: PartNo.boothName,
-        englishBoothAddress: PartNo.englishBoothAddress,
+        epicNumber: VoterMaster.epicNumber,
+        fullName: VoterMaster.fullName,
+        relationType: VoterMaster.relationType,
+        relationName: VoterMaster.relationName,
+        familyGrouping: VoterMaster.familyGrouping,
+        houseNumber: VoterMaster.houseNumber,
+        religion: VoterMaster.religion,
+        age: VoterMaster.age,
+        dob: VoterMaster.dob,
+        gender: VoterMaster.gender,
+        address: VoterMaster.address,
+        pincode: VoterMaster.pincode,
       })
-      .from(Voters)
-      .leftJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
-      .where(inArray(Voters.epicNumber, epicNumbers))
-      .orderBy(asc(Voters.fullName));
+      .from(VoterMaster)
+      .where(inArray(VoterMaster.epicNumber, epicNumbers))
+      .orderBy(asc(VoterMaster.fullName));
 
-    return results as unknown as Array<VoterWithPartNo>;
+    return results as unknown as Array<VoterMasterType>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1436,18 +1362,18 @@ export async function searchVoterByDetails(params: {
   gender?: string;
   age?: number;
   ageRange?: number;
-}): Promise<Array<VoterWithPartNo>> {
+}): Promise<Array<VoterMasterType>> {
   try {
     const conditions: any[] = [];
 
     // Name search
     if (params.name?.trim()) {
-      conditions.push(sql`LOWER(${Voters.fullName}) LIKE LOWER(${`%${params.name.trim()}%`})`);
+      conditions.push(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${params.name.trim()}%`})`);
     }
 
     // Gender search
     if (params.gender && params.gender !== '') {
-      conditions.push(eq(Voters.gender, params.gender));
+      conditions.push(eq(VoterMaster.gender, params.gender));
     }
 
     // Age search with range
@@ -1455,7 +1381,7 @@ export async function searchVoterByDetails(params: {
       const ageRange = params.ageRange || 0;
       const minAge = Math.max(0, params.age - ageRange);
       const maxAge = params.age + ageRange;
-      conditions.push(sql`${Voters.age} >= ${minAge} AND ${Voters.age} <= ${maxAge}`);
+      conditions.push(sql`${VoterMaster.age} >= ${minAge} AND ${VoterMaster.age} <= ${maxAge}`);
     }
 
     // If no conditions, return empty array
@@ -1463,37 +1389,30 @@ export async function searchVoterByDetails(params: {
       return [];
     }
 
+    const currentElectionId = await getCurrentElectionId();
+
     const results = await db
       .select({
-        epicNumber: Voters.epicNumber,
-        fullName: Voters.fullName,
-        relationType: Voters.relationType,
-        relationName: Voters.relationName,
-        familyGrouping: Voters.familyGrouping,
-        acNo: Voters.acNo,
-        partNo: Voters.partNo,
-        srNo: Voters.srNo,
-        houseNumber: Voters.houseNumber,
-        religion: Voters.religion,
-        age: Voters.age,
-        gender: Voters.gender,
-        isVoted2024: Voters.isVoted2024,
-        mobileNoPrimary: Voters.mobileNoPrimary,
-        mobileNoSecondary: Voters.mobileNoSecondary,
-        address: Voters.address,
-        pincode: Voters.pincode,
-        createdAt: Voters.createdAt,
-        updatedAt: Voters.updatedAt,
-        wardNo: PartNo.wardNo,
-        boothName: PartNo.boothName,
-        englishBoothAddress: PartNo.englishBoothAddress,
+        epicNumber: VoterMaster.epicNumber,
+        fullName: VoterMaster.fullName,
+        relationType: VoterMaster.relationType,
+        relationName: VoterMaster.relationName,
+        familyGrouping: VoterMaster.familyGrouping,
+        houseNumber: VoterMaster.houseNumber,
+        religion: VoterMaster.religion,
+        age: VoterMaster.age,
+        dob: VoterMaster.dob,
+        gender: VoterMaster.gender,
+        address: VoterMaster.address,
+        localityStreet: VoterMaster.localityStreet,
+        townVillage: VoterMaster.townVillage,
+        pincode: VoterMaster.pincode,
       })
-      .from(Voters)
-      .leftJoin(PartNo, eq(Voters.partNo, PartNo.partNo))
+      .from(VoterMaster)
       .where(sql`${sql.join(conditions, sql` AND `)}`)
-      .orderBy(asc(Voters.fullName));
+      .orderBy(asc(VoterMaster.fullName));
 
-    return results as unknown as Array<VoterWithPartNo>;
+    return results as unknown as Array<VoterMasterType>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1590,7 +1509,7 @@ export async function getVoterDemographics(): Promise<{
 export async function getVotersByFamilyGrouping(
   familyGrouping: string | null,
   partNo: string | null,
-): Promise<Array<Voter>> {
+): Promise<Array<VoterMasterType>> {
   try {
     if (!familyGrouping || !partNo) {
       return [];
@@ -1598,8 +1517,8 @@ export async function getVotersByFamilyGrouping(
 
     return await db
       .select()
-      .from(Voters)
-      .where(and(eq(Voters.familyGrouping, familyGrouping), eq(Voters.partNo, partNo)))
+      .from(VoterMaster)
+      .where(and(eq(VoterMaster.familyGrouping, familyGrouping)))
       .orderBy(asc(Voters.fullName));
   } catch (error) {
     throw new ChatSDKError(

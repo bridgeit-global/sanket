@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { searchVoterByEpicNumber, searchVoterByName, searchVoterByPhoneNumber, searchVoterByDetails, searchVoterByMobileNumberTable } from '@/lib/db/queries';
+import { searchVoterByEpicNumber, searchVoterByName, searchVoterByDetails, searchVoterByMobileNumberTable } from '@/lib/db/queries';
 
 export async function POST(request: NextRequest) {
     try {
@@ -42,19 +42,19 @@ export async function POST(request: NextRequest) {
                 voters = await searchVoterByMobileNumberTable(trimmedTerm);
                 actualSearchType = 'mobileNumber';
             } else if (searchType === 'phone' || (isPhoneNumber && searchType !== 'voterId' && searchType !== 'name')) {
-                // Phone number search
-                voters = await searchVoterByPhoneNumber(trimmedTerm);
+                // Phone number search using voterMobileNumber table
+                voters = await searchVoterByMobileNumberTable(trimmedTerm);
                 actualSearchType = 'phone';
             } else if (searchType === 'voterId' || isVoterId) {
                 // VoterId search
                 voters = await searchVoterByEpicNumber(trimmedTerm);
                 actualSearchType = 'voterId';
 
-                // If no results found with VoterId, fall back to name search
-                if (voters.length === 0 && searchType !== 'voterId') {
-                    voters = await searchVoterByName(trimmedTerm);
-                    actualSearchType = 'name';
-                }
+                // // If no results found with VoterId, fall back to name search
+                // if (voters.length === 0 && searchType !== 'voterId') {
+                //     voters = await searchVoterByName(trimmedTerm);
+                //     actualSearchType = 'name';
+                // }
             } else {
                 // Default to name search
                 voters = await searchVoterByName(trimmedTerm);
