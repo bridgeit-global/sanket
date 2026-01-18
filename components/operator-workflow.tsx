@@ -235,7 +235,7 @@ export function BeneficiaryManagement() {
             }
 
             const updatedVoter = await response.json();
-            setSelectedVoter(updatedVoter);
+            setSelectedVoter((prev) => (prev ? { ...prev, ...updatedVoter } : updatedVoter));
             const updatedMobileNumbers: MobileNumberEntry[] = [
                 {
                     mobileNumber: phoneData.mobileNoPrimary.trim(),

@@ -1796,61 +1796,82 @@ export async function updateVoterMobileNumber(
   sourceModule?: string
 ): Promise<VoterMasterType | null> {
   try {
-    // Fetch current phone numbers before update
-    const [currentVoter] = await db
+    // Ensure voter exists
+    const [existingVoter] = await db
       .select({
-        mobileNoPrimary: VoterMaster.mobileNoPrimary,
-        mobileNoSecondary: VoterMaster.mobileNoSecondary,
+        epicNumber: VoterMaster.epicNumber,
+        fullName: VoterMaster.fullName,
+        relationType: VoterMaster.relationType,
+        relationName: VoterMaster.relationName,
+        familyGrouping: VoterMaster.familyGrouping,
+        houseNumber: VoterMaster.houseNumber,
+        localityStreet: VoterMaster.localityStreet,
+        townVillage: VoterMaster.townVillage,
+        religion: VoterMaster.religion,
+        caste: VoterMaster.caste,
+        age: VoterMaster.age,
+        dob: VoterMaster.dob,
+        gender: VoterMaster.gender,
+        address: VoterMaster.address,
+        pincode: VoterMaster.pincode
       })
       .from(VoterMaster)
       .where(eq(VoterMaster.epicNumber, epicNumber))
       .limit(1);
 
-    if (!currentVoter) {
+    if (!existingVoter) {
       return null;
     }
 
-    const oldMobileNoPrimary = currentVoter.mobileNoPrimary || null;
-    const oldMobileNoSecondary = currentVoter.mobileNoSecondary || null;
+    // Fetch current phone numbers before update
+    const currentVoterMobileNumbers = await db
+      .select({
+        mobileNumber: voterMobileNumber.mobileNumber,
+        sortOrder: voterMobileNumber.sortOrder,
+      })
+      .from(voterMobileNumber)
+      .where(eq(voterMobileNumber.epicNumber, epicNumber))
+      .orderBy(asc(voterMobileNumber.sortOrder));
+    const oldMobileNoPrimary =
+      currentVoterMobileNumbers.find((entry) => entry.sortOrder === 1)?.mobileNumber || null;
+    const oldMobileNoSecondary =
+      currentVoterMobileNumbers.find((entry) => entry.sortOrder === 2)?.mobileNumber || null;
 
-    const updateData: Partial<VoterMasterType> = { updatedAt: new Date() };
-    if (mobileNoPrimary !== undefined) updateData.mobileNoPrimary = mobileNoPrimary;
-    if (mobileNoSecondary !== undefined) updateData.mobileNoSecondary = mobileNoSecondary;
-
-    const [updatedVoter] = await db
-      .update(VoterMaster)
-      .set(updateData)
-      .where(eq(VoterMaster.epicNumber, epicNumber))
-      .returning();
-
-    if (!updatedVoter) {
-      return null;
-    }
+    const newMobileNoPrimary = mobileNoPrimary?.trim() || null;
+    const newMobileNoSecondary = mobileNoSecondary?.trim() || null;
 
     // Track phone number changes if they actually changed and tracking parameters are provided
-    const newMobileNoPrimary = updatedVoter.mobileNoPrimary || null;
-    const newMobileNoSecondary = updatedVoter.mobileNoSecondary || null;
-
     const primaryChanged = oldMobileNoPrimary !== newMobileNoPrimary;
     const secondaryChanged = oldMobileNoSecondary !== newMobileNoSecondary;
-
     if ((primaryChanged || secondaryChanged) && updatedBy && sourceModule) {
-      await db.insert(phoneUpdateHistory).values({
-        epicNumber,
-        oldMobileNoPrimary,
-        newMobileNoPrimary,
-        oldMobileNoSecondary,
-        newMobileNoSecondary,
-        updatedBy,
-        sourceModule,
-      });
+      try {
+        await db.insert(phoneUpdateHistory).values({
+          epicNumber,
+          oldMobileNoPrimary,
+          newMobileNoPrimary,
+          oldMobileNoSecondary,
+          newMobileNoSecondary,
+          updatedBy,
+          sourceModule,
+        });
+      } catch (error) {
+        console.error('Error recording phone update history:', error);
+      }
     }
-
     // Sync with VoterMobileNumber table
-    await syncVoterMobileNumberTable(epicNumber, newMobileNoPrimary, newMobileNoSecondary);
-
-    return updatedVoter;
+    await syncVoterMobileNumberTable(
+      epicNumber,
+      newMobileNoPrimary,
+      newMobileNoSecondary,
+      { throwOnError: true }
+    );
+    return {
+      ...existingVoter,
+      mobileNoPrimary: null,
+      mobileNoSecondary: null,
+    };
   } catch (error) {
+    console.error('Error updating voter mobile number:', error);
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to update voter mobile number',
@@ -5293,7 +5314,8 @@ export type MobileNumberWithSortOrder = {
 export async function syncVoterMobileNumberTable(
   epicNumber: string,
   mobileNoPrimaryOrList: string | null | string[],
-  mobileNoSecondary?: string | null
+  mobileNoSecondary?: string | null,
+  options?: { throwOnError?: boolean }
 ): Promise<void> {
   try {
     // Delete existing mobile numbers for this voter
@@ -5334,7 +5356,9 @@ export async function syncVoterMobileNumberTable(
     }
   } catch (error) {
     console.error('Error syncing VoterMobileNumber table:', error);
-    // Don't throw - this is a secondary operation, the primary Voter update already succeeded
+    if (options?.throwOnError) {
+      throw error;
+    }
   }
 }
 
