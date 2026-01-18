@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,18 +8,35 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useTranslations } from '@/hooks/use-translations';
 import type { Voter } from '@/lib/db/schema';
 
+export interface MobileNumberEntry {
+    mobileNumber: string;
+    sortOrder: number;
+}
+
 interface PhoneUpdateFormProps {
     voter: Voter;
+    mobileNumbers?: MobileNumberEntry[];
     onPhoneUpdate: (phoneData: { mobileNoPrimary: string; mobileNoSecondary?: string }) => void;
     onSkip: () => void;
     onCancel: () => void;
 }
 
-export function PhoneUpdateForm({ voter, onPhoneUpdate, onSkip, onCancel }: PhoneUpdateFormProps) {
+export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, onCancel }: PhoneUpdateFormProps) {
     const { t } = useTranslations();
-    const [mobileNoPrimary, setMobileNoPrimary] = useState(voter.mobileNoPrimary || '');
-    const [mobileNoSecondary, setMobileNoSecondary] = useState(voter.mobileNoSecondary || '');
+    const [mobileNoPrimary, setMobileNoPrimary] = useState('');
+    const [mobileNoSecondary, setMobileNoSecondary] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    useEffect(() => {
+        const orderedNumbers = (mobileNumbers || [])
+            .slice()
+            .sort((a, b) => a.sortOrder - b.sortOrder)
+            .map((entry) => entry.mobileNumber)
+            .filter((number) => number && number.trim());
+
+        setMobileNoPrimary(orderedNumbers[0] || '');
+        setMobileNoSecondary(orderedNumbers[1] || '');
+    }, [mobileNumbers]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();

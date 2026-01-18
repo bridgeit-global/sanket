@@ -12,7 +12,7 @@ import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/components/toast';
 import { BeneficiaryServiceForm } from '@/components/beneficiary-service-form';
-import { PhoneUpdateForm } from '@/components/phone-update-form';
+import { PhoneUpdateForm, type MobileNumberEntry } from '@/components/phone-update-form';
 import { TaskManagement } from '@/components/task-management';
 import { useTranslations } from '@/hooks/use-translations';
 import { Printer } from 'lucide-react';
@@ -25,6 +25,7 @@ export function BeneficiaryManagement() {
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<VoterWithPartNo[]>([]);
     const [selectedVoter, setSelectedVoter] = useState<VoterWithPartNo | null>(null);
+    const [selectedVoterMobileNumbers, setSelectedVoterMobileNumbers] = useState<MobileNumberEntry[]>([]);
     const [isSearching, setIsSearching] = useState(false);
     const [searchType, setSearchType] = useState<'voterId' | 'phone' | 'details'>('details');
     const [lastSearchType, setLastSearchType] = useState<'voterId' | 'phone' | 'details' | null>(null);
@@ -42,7 +43,7 @@ export function BeneficiaryManagement() {
     const [createdService, setCreatedService] = useState<BeneficiaryService | null>(null);
     const [workflowStep, setWorkflowStep] = useState<'search' | 'phoneUpdate' | 'service' | 'confirmation' | 'completed' | 'tasks'>('search');
     const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create');
-    
+
     // Visitor form state
     const [showVisitorForm, setShowVisitorForm] = useState(false);
     const [visitorFormData, setVisitorFormData] = useState({
@@ -114,6 +115,7 @@ export function BeneficiaryManagement() {
         setIsSearching(false);
         setLastSearchType(null);
         setSelectedVoter(null);
+        setSelectedVoterMobileNumbers([]);
     };
 
     const handleSearch = async () => {
@@ -188,6 +190,7 @@ export function BeneficiaryManagement() {
 
     const handleSelectVoter = (voter: VoterWithPartNo) => {
         setSelectedVoter(voter);
+        setSelectedVoterMobileNumbers([]);
         setSearchResults([]);
         setSearchTerm('');
 
@@ -195,6 +198,21 @@ export function BeneficiaryManagement() {
         setShowPhoneUpdate(true);
         clearSearchStateIfNeeded();
         setWorkflowStep('phoneUpdate');
+
+        fetch(`/api/voter/${encodeURIComponent(voter.epicNumber)}/mobile-numbers`)
+            .then(async (response) => {
+                if (!response.ok) {
+                    throw new Error('Failed to load voter contact numbers');
+                }
+                const data = await response.json();
+                if (data?.success && Array.isArray(data.voterMobileNumbers)) {
+                    console.log(data)
+                    setSelectedVoterMobileNumbers(data.voterMobileNumbers);
+                }
+            })
+            .catch((error) => {
+                console.error('Error loading voter contact numbers:', error);
+            });
     };
 
     const handlePhoneUpdate = async (phoneData: { mobileNoPrimary: string; mobileNoSecondary?: string }) => {
@@ -218,6 +236,19 @@ export function BeneficiaryManagement() {
 
             const updatedVoter = await response.json();
             setSelectedVoter(updatedVoter);
+            const updatedMobileNumbers: MobileNumberEntry[] = [
+                {
+                    mobileNumber: phoneData.mobileNoPrimary.trim(),
+                    sortOrder: 1,
+                },
+            ];
+            if (phoneData.mobileNoSecondary?.trim()) {
+                updatedMobileNumbers.push({
+                    mobileNumber: phoneData.mobileNoSecondary.trim(),
+                    sortOrder: 2,
+                });
+            }
+            setSelectedVoterMobileNumbers(updatedMobileNumbers);
             setShowPhoneUpdate(false);
             setShowBeneficiaryService(true);
             setWorkflowStep('service');
@@ -294,6 +325,7 @@ export function BeneficiaryManagement() {
 
     const handleStartNew = () => {
         setSelectedVoter(null);
+        setSelectedVoterMobileNumbers([]);
         setSearchResults([]);
         setSearchTerm('');
         setHasSearched(false);
@@ -321,7 +353,7 @@ export function BeneficiaryManagement() {
 
     const handleVisitorFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        
+
         if (!visitorFormData.name.trim() || !visitorFormData.contactNumber.trim() || !visitorFormData.aadharNumber.trim() || !visitorFormData.purpose.trim()) {
             toast({
                 type: 'error',
@@ -392,6 +424,7 @@ export function BeneficiaryManagement() {
         setShowConfirmation(false);
         setShowPhoneUpdate(false);
         setServiceData(null);
+        setSelectedVoterMobileNumbers([]);
         setWorkflowStep('search');
     };
 
@@ -507,6 +540,7 @@ export function BeneficiaryManagement() {
                     {showPhoneUpdate && selectedVoter && (
                         <PhoneUpdateForm
                             voter={selectedVoter}
+                            mobileNumbers={selectedVoterMobileNumbers}
                             onPhoneUpdate={handlePhoneUpdate}
                             onSkip={handleSkipPhoneUpdate}
                             onCancel={handleCancel}
@@ -547,11 +581,17 @@ export function BeneficiaryManagement() {
                                         </div>
                                         <div>
                                             <Label className="text-sm font-medium">Mobile Primary</Label>
-                                            <p>{selectedVoter.mobileNoPrimary || 'Not set'}</p>
+                                            <p>
+                                                {selectedVoterMobileNumbers.find((entry) => entry.sortOrder === 1)?.mobileNumber ||
+                                                    'Not set'}
+                                            </p>
                                         </div>
                                         <div>
                                             <Label className="text-sm font-medium">Mobile Secondary</Label>
-                                            <p>{selectedVoter.mobileNoSecondary || 'Not set'}</p>
+                                            <p>
+                                                {selectedVoterMobileNumbers.find((entry) => entry.sortOrder === 2)?.mobileNumber ||
+                                                    'Not set'}
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -890,8 +930,10 @@ export function BeneficiaryManagement() {
                                             <h3 className="text-lg font-semibold">{t('backOffice.searchResults')}</h3>
                                             {lastSearchType && (
                                                 <span className="text-sm text-muted-foreground">
-                                                    {t('operator.search.foundBy', { type: lastSearchType === 'voterId' ? t('backOffice.voterIdType') :
-                                                        lastSearchType === 'phone' ? t('operator.search.types.phone') : t('backOffice.detailsType') })}
+                                                    {t('operator.search.foundBy', {
+                                                        type: lastSearchType === 'voterId' ? t('backOffice.voterIdType') :
+                                                            lastSearchType === 'phone' ? t('operator.search.types.phone') : t('backOffice.detailsType')
+                                                    })}
                                                 </span>
                                             )}
                                         </div>
@@ -1076,7 +1118,7 @@ export function BeneficiaryManagement() {
                                                                 const selectedEventId = value === 'none' ? '' : value;
                                                                 const selectedEvent = programmeEvents.find(e => e.id === selectedEventId);
                                                                 const updatedForm = { ...visitorFormData, programmeEventId: selectedEventId };
-                                                                
+
                                                                 // Auto-fill date and time from event if selected
                                                                 if (selectedEvent?.date && selectedEvent?.startTime) {
                                                                     const eventDate = typeof selectedEvent.date === 'string'
