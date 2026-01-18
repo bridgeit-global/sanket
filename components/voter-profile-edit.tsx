@@ -72,16 +72,11 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
                 .map((mobile) => mobile.mobileNumber)
                 .filter((number) => number && number.trim())
             : [];
-          const fallbackNumbers = mobileNumbersFromTable.length > 0
-            ? mobileNumbersFromTable
-            : [voterData.mobileNoPrimary, voterData.mobileNoSecondary].filter(
-                (number) => number && number.trim()
-              ) as string[];
-          const limitedFallbackNumbers = fallbackNumbers.slice(0, 5);
+          const limitedMobileNumbers = mobileNumbersFromTable.slice(0, 5);
           const filledMobileNumbers = [
-            ...limitedFallbackNumbers,
+            ...limitedMobileNumbers,
             ...Array.from(
-              { length: Math.max(0, 5 - limitedFallbackNumbers.length) },
+              { length: Math.max(0, 5 - limitedMobileNumbers.length) },
               () => ''
             ),
           ];
