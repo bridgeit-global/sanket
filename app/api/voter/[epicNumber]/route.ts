@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { 
-  getVoterByEpicNumber, 
-  getRelatedVoters, 
+import {
+  getVoterByEpicNumber,
+  getRelatedVoters,
   updateVoter,
   getVoterBeneficiaryServices,
   getVoterDailyProgrammeEvents,
@@ -54,7 +54,7 @@ export async function GET(
     // Add mobile numbers to related voters data
     const relatedVotersWithMobileNumbers = relatedVoters.map(rv => {
       const mobileNumbers = mobileNumbersMap.get(rv.epicNumber) || [];
-      
+
       return {
         ...rv,
         mobileNumbers,
@@ -182,6 +182,12 @@ export async function PUT(
       }
     }
 
+    const fallbackMobileNumbers = hasMobileNumbers
+      ? undefined
+      : [mobileNoPrimary, mobileNoSecondary]
+        .map((number) => number?.trim())
+        .filter((number): number is string => Boolean(number));
+
     // Update voter with tracking parameters
     const updatedVoter = await updateVoter(
       decodedEpicNumber,
@@ -192,9 +198,11 @@ export async function PUT(
         familyGrouping: familyGrouping?.trim() || undefined,
         religion: religion?.trim() || undefined,
         caste: caste?.trim() || undefined,
-        mobileNumbers: hasMobileNumbers ? normalizedMobileNumbers : undefined,
-        mobileNoPrimary: hasMobileNumbers ? undefined : mobileNoPrimary?.trim() || undefined,
-        mobileNoSecondary: hasMobileNumbers ? undefined : mobileNoSecondary?.trim() || undefined,
+        mobileNumbers: hasMobileNumbers
+          ? normalizedMobileNumbers
+          : fallbackMobileNumbers?.length
+            ? fallbackMobileNumbers
+            : undefined,
         houseNumber: houseNumber?.trim() || undefined,
         address: address?.trim() || undefined,
         pincode: pincode?.trim() || undefined,
