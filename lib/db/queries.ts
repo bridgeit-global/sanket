@@ -1865,11 +1865,7 @@ export async function updateVoterMobileNumber(
       newMobileNoSecondary,
       { throwOnError: true }
     );
-    return {
-      ...existingVoter,
-      mobileNoPrimary: null,
-      mobileNoSecondary: null,
-    };
+    return existingVoter;
   } catch (error) {
     console.error('Error updating voter mobile number:', error);
     throw new ChatSDKError(

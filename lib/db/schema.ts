@@ -234,12 +234,8 @@ export const VoterMaster = pgTable('VoterMaster', {
   age: integer('age'),
   dob: date('dob', { mode: 'string' }),
   gender: varchar('gender', { length: 10 }),
-  mobileNoPrimary: varchar('mobile_no_primary', { length: 15 }),
-  mobileNoSecondary: varchar('mobile_no_secondary', { length: 15 }),
   address: text('address'),
-  pincode: varchar('pincode', { length: 10 }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  pincode: varchar('pincode', { length: 10 })
 });
 
 export type VoterMaster = InferSelectModel<typeof VoterMaster>;
