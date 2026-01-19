@@ -523,24 +523,6 @@ export const registerAttachment = pgTable('RegisterAttachment', {
 
 export type RegisterAttachment = InferSelectModel<typeof registerAttachment>;
 
-// Visitor Table (for programme event visitor management)
-export const visitor = pgTable('Visitor', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  name: varchar('name', { length: 255 }).notNull(),
-  contactNumber: varchar('contact_number', { length: 20 }).notNull(),
-  aadharNumber: varchar('aadhar_number', { length: 12 }).notNull(),
-  purpose: text('purpose').notNull(),
-  programmeEventId: uuid('programme_event_id').references(() => dailyProgramme.id, { onDelete: 'set null' }),
-  visitDate: timestamp('visit_date').notNull(),
-  createdBy: uuid('created_by')
-    .notNull()
-    .references(() => user.id),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
-
-export type Visitor = InferSelectModel<typeof visitor>;
-
 // Export Jobs Table (for tracking long-running export tasks)
 export const exportJob = pgTable('ExportJob', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),

@@ -67,7 +67,7 @@
     },
     "operator": {
       "label": "लाभार्थी व्यवस्थापन",
-      "description": "लाभार्थी सेवा आणि भेट देणार्यांची नोंदणी व्यवस्थापित करा"
+      "description": "लाभार्थी सेवा व्यवस्थापित करा"
     },
     "dataExport": {
       "label": "डेटा एक्सपोर्ट",
@@ -84,10 +84,6 @@
     "outward": {
       "label": "बाह्य नोंद",
       "description": "बाह्य पत्रव्यवहार आणि दस्तऐवज व्यवस्थापित करा"
-    },
-    "visitorManagement": {
-      "label": "भेट देणार्यांचे व्यवस्थापन",
-      "description": "कार्यक्रम इव्हेंटसाठी भेट देणार्यांना ट्रॅक आणि व्यवस्थापित करा"
     },
     "votingParticipation": {
       "label": "मतदान सहभाग",
@@ -394,39 +390,6 @@
     "failedToAddProject": "प्रकल्प जोडण्यात अयशस्वी",
     "failedToUpdateProject": "प्रकल्प अपडेट करण्यात अयशस्वी",
     "failedToDeleteProject": "प्रकल्प हटवण्यात अयशस्वी"
-  },
-  "visitorManagement": {
-    "title": "भेट देणार्यांचे व्यवस्थापन",
-    "description": "कार्यक्रम नोंद इव्हेंटसाठी भेट देणार्यांना ट्रॅक आणि व्यवस्थापित करा",
-    "addVisitor": "भेट देणारा जोडा",
-    "viewVisitors": "भेट देणारे पहा",
-    "visitorHistory": "भेट देणार्यांचा इतिहास",
-    "editVisitor": "भेट देणारा संपादित करा",
-    "addNewVisitor": "नवीन भेट देणारा जोडा",
-    "name": "नाव",
-    "contactNumber": "संपर्क क्रमांक",
-    "purposeOfVisit": "भेटीचा उद्देश",
-    "linkToProgrammeEvent": "कार्यक्रम इव्हेंटशी लिंक करा (ऐच्छिक)",
-    "visitDate": "भेटीची तारीख आणि वेळ",
-    "enterVisitorName": "भेट देणार्याचे नाव प्रविष्ट करा",
-    "enterContactNumber": "संपर्क क्रमांक प्रविष्ट करा",
-    "enterPurposeOfVisit": "भेटीचा उद्देश प्रविष्ट करा",
-    "selectProgrammeEvent": "कार्यक्रम इव्हेंट निवडा",
-    "noEventSelected": "कोणतेही इव्हेंट निवडले नाही",
-    "submit": "सबमिट करा",
-    "cancel": "रद्द करा",
-    "update": "अपडेट करा",
-    "visitorAddedSuccess": "भेट देणारा यशस्वीरित्या जोडला",
-    "visitorUpdatedSuccess": "भेट देणारा यशस्वीरित्या अपडेट केला",
-    "visitorDeletedSuccess": "भेट देणारा यशस्वीरित्या हटवला",
-    "failedToAddVisitor": "भेट देणारा जोडण्यात अयशस्वी",
-    "failedToUpdateVisitor": "भेट देणारा अपडेट करण्यात अयशस्वी",
-    "failedToDeleteVisitor": "भेट देणारा हटवण्यात अयशस्वी",
-    "searchVisitors": "भेट देणारे शोधा...",
-    "noVisitorsFound": "कोणतेही भेट देणारे आढळले नाहीत",
-    "deleteVisitor": "भेट देणारा हटवा",
-    "deleteVisitorDescription": "आपण खात्री आहे की आपण हा भेट देणारा हटवू इच्छिता? ही क्रिया पूर्ववत केली जाऊ शकत नाही.",
-    "delete": "हटवा"
   },
   "dataExport": {
     "title": "डेटा एक्सपोर्ट",

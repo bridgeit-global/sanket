@@ -44,7 +44,7 @@ export const ALL_MODULES: ModuleDefinition[] = [
   {
     key: 'operator',
     label: 'Beneficiary Management',
-    description: 'Manage beneficiary services and visitor registration',
+    description: 'Manage beneficiary services',
     route: '/modules/operator',
     icon: 'Briefcase',
     category: 'operations',
@@ -115,15 +115,6 @@ export const ALL_MODULES: ModuleDefinition[] = [
     defaultRoles: [],
   },
   {
-    key: 'visitor-management',
-    label: 'Visitor Management',
-    description: 'Track and manage visitors for programme events',
-    route: '/modules/visitor-management',
-    icon: 'UserCheck',
-    category: 'mla-office',
-    defaultRoles: ['admin', 'operator', 'back-office'],
-  },
-  {
     key: 'voting-participation',
     label: 'Voting Participation',
     description: 'Mark and track voting participation for elections',
@@ -164,7 +155,6 @@ export const MODULE_KEYS = {
   INWARD: 'inward',
   OUTWARD: 'outward',
   PROJECTS: 'projects',
-  VISITOR_MANAGEMENT: 'visitor-management',
   VOTING_PARTICIPATION: 'voting-participation',
 } as const;
 

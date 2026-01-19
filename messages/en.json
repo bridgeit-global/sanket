@@ -67,7 +67,7 @@
     },
     "operator": {
       "label": "Beneficiary Management",
-      "description": "Manage beneficiary services and visitor registration"
+      "description": "Manage beneficiary services"
     },
     "dataExport": {
       "label": "Data Export",
@@ -84,10 +84,6 @@
     "outward": {
       "label": "Outward Register",
       "description": "Manage outward correspondence and documents"
-    },
-    "visitorManagement": {
-      "label": "Visitor Management",
-      "description": "Track and manage visitors for programme events"
     },
     "votingParticipation": {
       "label": "Voting Participation",
@@ -394,39 +390,6 @@
     "failedToAddProject": "Failed to add project",
     "failedToUpdateProject": "Failed to update project",
     "failedToDeleteProject": "Failed to delete project"
-  },
-  "visitorManagement": {
-    "title": "Visitor Management",
-    "description": "Track and manage visitors for programme register events",
-    "addVisitor": "Add Visitor",
-    "viewVisitors": "View Visitors",
-    "visitorHistory": "Visitor History",
-    "editVisitor": "Edit Visitor",
-    "addNewVisitor": "Add New Visitor",
-    "name": "Name",
-    "contactNumber": "Contact Number",
-    "purposeOfVisit": "Purpose of Visit",
-    "linkToProgrammeEvent": "Link to Programme Event (Optional)",
-    "visitDate": "Visit Date & Time",
-    "enterVisitorName": "Enter visitor name",
-    "enterContactNumber": "Enter contact number",
-    "enterPurposeOfVisit": "Enter purpose of visit",
-    "selectProgrammeEvent": "Select programme event",
-    "noEventSelected": "No event selected",
-    "submit": "Submit",
-    "cancel": "Cancel",
-    "update": "Update",
-    "visitorAddedSuccess": "Visitor added successfully",
-    "visitorUpdatedSuccess": "Visitor updated successfully",
-    "visitorDeletedSuccess": "Visitor deleted successfully",
-    "failedToAddVisitor": "Failed to add visitor",
-    "failedToUpdateVisitor": "Failed to update visitor",
-    "failedToDeleteVisitor": "Failed to delete visitor",
-    "searchVisitors": "Search visitors...",
-    "noVisitorsFound": "No visitors found",
-    "deleteVisitor": "Delete Visitor",
-    "deleteVisitorDescription": "Are you sure you want to delete this visitor? This action cannot be undone.",
-    "delete": "Delete"
   },
   "dataExport": {
     "title": "Data Export",
