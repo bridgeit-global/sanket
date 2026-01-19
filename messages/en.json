@@ -89,6 +89,10 @@
       "label": "Visitor Management",
       "description": "Track and manage visitors for programme events"
     },
+    "votingParticipation": {
+      "label": "Voting Participation",
+      "description": "Mark and track voting participation for elections"
+    },
     "chat": {
       "label": "Chat / Analytics",
       "description": "AI-powered chat interface for voter analysis"

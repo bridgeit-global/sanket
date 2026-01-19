@@ -15,6 +15,7 @@ import {
   User as UserIcon,
   UserCheck,
   FileDown,
+  Vote,
 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { ModuleDefinition } from '@/lib/module-constants';
@@ -31,6 +32,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'inward': Inbox,
   'outward': Send,
   'visitor-management': UserCheck,
+  'voting-participation': Vote,
   'chat': MessageSquare,
   'user-management': Users,
   'profile': UserIcon,
@@ -47,6 +49,7 @@ const MODULE_ORDER = [
   'inward',
   'outward',
   'visitor-management',
+  'voting-participation',
   'chat',
   'user-management',
   'profile',
@@ -82,6 +85,7 @@ const getModuleTranslationKey = (moduleKey: string): string => {
     'inward': 'modules.inward.label',
     'outward': 'modules.outward.label',
     'visitor-management': 'modules.visitorManagement.label',
+    'voting-participation': 'modules.votingParticipation.label',
     'chat': 'modules.chat.label',
     'user-management': 'modules.userManagement.label',
     'profile': 'modules.profile.label',
