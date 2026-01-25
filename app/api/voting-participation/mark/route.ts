@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     }
 
     const modules = (session?.user?.modules as string[]) || [];
-    if (!modules.includes('voting-participation') && !modules.includes('operator') && !modules.includes('admin')) {
+    if (!modules.includes('voting-participation')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

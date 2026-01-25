@@ -21,7 +21,7 @@ export async function GET(
     const { id } = await params;
 
     const modules = (session?.user?.modules as string[]) || [];
-    if (!session?.user || (!modules.includes('user-management') && !modules.includes('admin'))) {
+    if (!session?.user || !modules.includes('user-management')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -61,7 +61,7 @@ export async function PUT(
     const { id } = await params;
 
     const modules = (session?.user?.modules as string[]) || [];
-    if (!session?.user || (!modules.includes('user-management') && !modules.includes('admin'))) {
+    if (!session?.user || !modules.includes('user-management')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -105,7 +105,7 @@ export async function DELETE(
     const { id } = await params;
 
     const modules = (session?.user?.modules as string[]) || [];
-    if (!session?.user || (!modules.includes('user-management') && !modules.includes('admin'))) {
+    if (!session?.user || !modules.includes('user-management')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

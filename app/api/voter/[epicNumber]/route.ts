@@ -92,7 +92,7 @@ export async function PUT(
 
     // Check if user has permission to update voters
     const modules = (session?.user?.modules as string[]) || [];
-    if (!modules.includes('operator')) {
+    if (!modules.includes('operator') && !modules.includes('back-office')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

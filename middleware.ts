@@ -92,9 +92,7 @@ export async function middleware(request: NextRequest) {
     }
 
     // Allow back-office users to access voter routes (for viewing voter profiles from search)
-    if (moduleKey === 'voter' && modules.includes('back-office')) {
-      return NextResponse.next();
-    }
+    // This is handled by the module check below, so this special case is not needed
 
     if (!modules.includes(moduleKey)) {
       return NextResponse.redirect(new URL('/unauthorized', request.url));
