@@ -29,6 +29,7 @@ interface Voter {
   isOurSupporter: boolean | null;
   influencerType: string | null;
   vehicleType: string | null;
+  profiledAt: string | null;
 }
 
 interface FieldProfilingFormProps {
@@ -296,8 +297,8 @@ export function FieldProfilingForm({ voter, onSave, onCancel }: FieldProfilingFo
             <Checkbox
               id="isOurSupporter"
               checked={formData.isOurSupporter}
-              onCheckedChange={(checked) => 
-                setFormData({ ...formData, isOurSupporter: checked === true })
+              onChange={(e) => 
+                setFormData({ ...formData, isOurSupporter: e.target.checked })
               }
             />
             <Label htmlFor="isOurSupporter" className="cursor-pointer">

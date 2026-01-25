@@ -250,7 +250,7 @@ export function FamilyProfilingDialog({
                   <div className="flex items-start gap-3">
                     <Checkbox
                       checked={selectedMembers.has(member.epicNumber)}
-                      onCheckedChange={() => handleMemberToggle(member.epicNumber)}
+                      onChange={() => handleMemberToggle(member.epicNumber)}
                       disabled={member.isProfiled === true}
                     />
                     <div className="flex-1 space-y-3">
@@ -345,8 +345,8 @@ export function FamilyProfilingDialog({
                             <Checkbox
                               id={`supporter-${member.epicNumber}`}
                               checked={memberProfiles[member.epicNumber]?.isOurSupporter || false}
-                              onCheckedChange={(checked) =>
-                                handleProfileChange(member.epicNumber, 'isOurSupporter', checked === true)
+                              onChange={(e) =>
+                                handleProfileChange(member.epicNumber, 'isOurSupporter', e.target.checked)
                               }
                             />
                             <Label htmlFor={`supporter-${member.epicNumber}`} className="text-xs cursor-pointer">
