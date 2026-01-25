@@ -14,7 +14,9 @@ import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
@@ -58,6 +60,8 @@ interface Election {
   electionId: string;
   electionType: string;
   year: number;
+  constituencyType: string | null;
+  constituencyId: string | null;
 }
 
 export function FieldAssignmentManager() {
@@ -288,11 +292,43 @@ export function FieldAssignmentManager() {
                   <SelectValue placeholder="Select election" />
                 </SelectTrigger>
                 <SelectContent>
-                  {elections.map((election) => (
-                    <SelectItem key={election.electionId} value={election.electionId}>
-                      {election.electionType} {election.year}
-                    </SelectItem>
-                  ))}
+                  {(() => {
+                    // Group elections by year
+                    const electionsByYear = elections.reduce((acc, election) => {
+                      const year = election.year;
+                      if (!acc[year]) {
+                        acc[year] = [];
+                      }
+                      acc[year].push(election);
+                      return acc;
+                    }, {} as Record<number, Election[]>);
+
+                    // Sort years in descending order
+                    const sortedYears = Object.keys(electionsByYear)
+                      .map(Number)
+                      .sort((a, b) => b - a);
+
+                    return sortedYears.map((year) => (
+                      <SelectGroup key={year}>
+                        <SelectLabel>{year}</SelectLabel>
+                        {electionsByYear[year].map((election) => {
+                          // Format display as "Ward 140" or "Assembly 172"
+                          const constituencyType = election.constituencyType 
+                            ? election.constituencyType.charAt(0).toUpperCase() + election.constituencyType.slice(1)
+                            : '';
+                          const displayLabel = election.constituencyType && election.constituencyId
+                            ? `${constituencyType} ${election.constituencyId}`
+                            : election.electionId;
+                          
+                          return (
+                            <SelectItem key={election.electionId} value={election.electionId}>
+                              {displayLabel}
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectGroup>
+                    ));
+                  })()}
                 </SelectContent>
               </Select>
             </div>

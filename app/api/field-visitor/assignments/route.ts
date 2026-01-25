@@ -16,23 +16,26 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const electionId = searchParams.get('electionId');
 
-    // If no electionId provided, get the latest election
+    // If no electionId provided, get the latest election that user has assignments for
     let targetElectionId = electionId;
     if (!targetElectionId) {
-      const [latestElection] = await db
-        .select({ electionId: ElectionMaster.electionId })
-        .from(ElectionMaster)
+      // First, try to get the latest election that the user has booth assignments for
+      const [userLatestElection] = await db
+        .select({ electionId: userPartAssignment.electionId })
+        .from(userPartAssignment)
+        .innerJoin(ElectionMaster, eq(userPartAssignment.electionId, ElectionMaster.electionId))
+        .where(eq(userPartAssignment.userId, session.user.id))
         .orderBy(desc(ElectionMaster.year))
         .limit(1);
-      
-      if (!latestElection) {
-        return NextResponse.json({ 
-          success: true, 
+
+      if (!userLatestElection) {
+        return NextResponse.json({
+          success: true,
           assignments: [],
           message: 'No elections found'
         });
       }
-      targetElectionId = latestElection.electionId;
+      targetElectionId = userLatestElection.electionId;
     }
 
     // Get user's assigned parts with booth details
