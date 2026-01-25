@@ -579,7 +579,10 @@ export const voterProfile = pgTable('VoterProfile', {
   occupationType: varchar('occupation_type', { enum: ['business', 'service'] }),
   occupationDetail: varchar('occupation_detail', { length: 255 }),
   region: varchar('region', { length: 100 }),
+  religion: varchar('religion', { length: 50 }),
+  caste: varchar('caste', { length: 50 }),
   isOurSupporter: boolean('is_our_supporter'),
+  feedback: text('feedback'),
   influencerType: varchar('influencer_type', { 
     enum: ['political', 'local', 'education', 'religious'] 
   }),

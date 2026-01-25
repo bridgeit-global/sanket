@@ -7,7 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Save, User, Briefcase, MapPin, Heart, Star, Car } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { ArrowLeft, Save, User, Briefcase, MapPin, Heart, Star, Car, Users, MessageSquare, CheckCircle2, Clock } from 'lucide-react';
 import { toast } from '@/components/toast';
 
 interface Voter {
@@ -26,7 +27,12 @@ interface Voter {
   isProfiled: boolean | null;
   education: string | null;
   occupationType: string | null;
+  occupationDetail?: string | null;
+  region?: string | null;
+  profileReligion?: string | null;
+  profileCaste?: string | null;
   isOurSupporter: boolean | null;
+  feedback?: string | null;
   influencerType: string | null;
   vehicleType: string | null;
   profiledAt: string | null;
@@ -80,17 +86,53 @@ const VEHICLE_TYPES = [
   { value: 'both', label: 'Both' },
 ];
 
+const REGION_OPTIONS = [
+  'Maharashtra',
+  'North Indian',
+  'Bengal',
+  'Rajasthan',
+  'Gujarat',
+  'SI',
+];
+
+const RELIGION_OPTIONS = [
+  'Hindu',
+  'Muslim',
+  'Christian',
+  'Buddhist',
+  'Jain',
+  'Sikh',
+  'Other',
+];
+
+const CASTE_OPTIONS = [
+  'General',
+  'OBC',
+  'SC',
+  'ST',
+  'NT',
+  'VJ',
+  'Other',
+];
+
 export function FieldProfilingForm({ voter, onSave, onCancel }: FieldProfilingFormProps) {
+  const isAlreadyProfiled = voter.isProfiled === true;
+  
   const [formData, setFormData] = useState({
     education: voter.education || '',
     occupationType: voter.occupationType || '',
-    occupationDetail: '',
-    region: '',
+    occupationDetail: voter.occupationDetail || '',
+    region: voter.region || '',
+    religion: voter.profileReligion || voter.religion || '',
+    caste: voter.profileCaste || voter.caste || '',
     isOurSupporter: voter.isOurSupporter || false,
+    feedback: voter.feedback || '',
     influencerType: voter.influencerType || '',
     vehicleType: voter.vehicleType || '',
   });
   const [saving, setSaving] = useState(false);
+  const [showRelatedVotersPrompt, setShowRelatedVotersPrompt] = useState(false);
+  const [relatedVoters, setRelatedVoters] = useState<Voter[]>([]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -112,7 +154,16 @@ export function FieldProfilingForm({ voter, onSave, onCancel }: FieldProfilingFo
         throw new Error('Failed to save profile');
       }
 
-      toast({ type: 'success', description: 'Profile saved successfully' });
+      toast({ 
+        type: 'success', 
+        description: isAlreadyProfiled ? 'Profile updated successfully' : 'Profile saved successfully' 
+      });
+      
+      // Fetch related voters from the same family (only for new profiles)
+      if (!isAlreadyProfiled) {
+        await fetchRelatedVoters();
+      }
+      
       onSave({ ...voter, isProfiled: true });
     } catch (error) {
       console.error('Error saving profile:', error);
@@ -122,25 +173,90 @@ export function FieldProfilingForm({ voter, onSave, onCancel }: FieldProfilingFo
     }
   };
 
+  const fetchRelatedVoters = async () => {
+    try {
+      // Fetch voters from the same family grouping who haven't been profiled
+      const response = await fetch(
+        `/api/field-visitor/related-voters?familyGrouping=${encodeURIComponent(voter.familyGrouping || '')}&epicNumber=${voter.epicNumber}`
+      );
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.voters && data.voters.length > 0) {
+          setRelatedVoters(data.voters);
+          setShowRelatedVotersPrompt(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching related voters:', error);
+    }
+  };
+
+  const handleProfileRelatedVoter = (relatedVoter: Voter) => {
+    // Pre-fill some fields from current voter
+    setFormData({
+      ...formData,
+      education: '',
+      occupationType: '',
+      occupationDetail: '',
+      isOurSupporter: false,
+      feedback: '',
+      influencerType: '',
+      vehicleType: '',
+      // Keep these fields the same
+      region: formData.region,
+      religion: formData.religion,
+      caste: formData.caste,
+    });
+    
+    setShowRelatedVotersPrompt(false);
+    setRelatedVoters([]);
+    onSave(relatedVoter); // This will load the related voter into the form
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Voter Info Card */}
       <Card>
         <CardHeader>
-          <div className="flex items-center gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                {voter.fullName}
-              </CardTitle>
-              <CardDescription>
-                EPIC: {voter.epicNumber} | Sr: {voter.srNo}
-              </CardDescription>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  {voter.fullName}
+                </CardTitle>
+                <CardDescription>
+                  EPIC: {voter.epicNumber} | Sr: {voter.srNo}
+                </CardDescription>
+              </div>
             </div>
+            {isAlreadyProfiled ? (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 text-green-600 dark:text-green-400 rounded-md border border-green-500/20">
+                <CheckCircle2 className="h-4 w-4" />
+                <span className="text-sm font-medium">Already Profiled</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-md border border-amber-500/20">
+                <Clock className="h-4 w-4" />
+                <span className="text-sm font-medium">Pending Profile</span>
+              </div>
+            )}
           </div>
+          {isAlreadyProfiled && voter.profiledAt && (
+            <div className="text-xs text-muted-foreground mt-2">
+              Last updated: {new Date(voter.profiledAt).toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -276,11 +392,75 @@ export function FieldProfilingForm({ voter, onSave, onCancel }: FieldProfilingFo
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Input
+          <Select
             value={formData.region}
-            onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-            placeholder="Enter region or locality name"
-          />
+            onValueChange={(value) => setFormData({ ...formData, region: value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select region or locality" />
+            </SelectTrigger>
+            <SelectContent>
+              {REGION_OPTIONS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {/* Religion */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Star className="h-4 w-4" />
+            Religion
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Select
+            value={formData.religion}
+            onValueChange={(value) => setFormData({ ...formData, religion: value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select religion" />
+            </SelectTrigger>
+            <SelectContent>
+              {RELIGION_OPTIONS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {/* Caste */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <User className="h-4 w-4" />
+            Caste
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Select
+            value={formData.caste}
+            onValueChange={(value) => setFormData({ ...formData, caste: value })}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select caste category" />
+            </SelectTrigger>
+            <SelectContent>
+              {CASTE_OPTIONS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </CardContent>
       </Card>
 
@@ -292,7 +472,7 @@ export function FieldProfilingForm({ voter, onSave, onCancel }: FieldProfilingFo
             Supporter Status
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
           <div className="flex items-center space-x-2">
             <Checkbox
               id="isOurSupporter"
@@ -305,6 +485,23 @@ export function FieldProfilingForm({ voter, onSave, onCancel }: FieldProfilingFo
               Is our supporter
             </Label>
           </div>
+
+          {/* Feedback field when not a supporter */}
+          {!formData.isOurSupporter && (
+            <div className="space-y-2 pt-2 border-t">
+              <Label htmlFor="feedback" className="flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" />
+                Feedback / Reason
+              </Label>
+              <Textarea
+                id="feedback"
+                value={formData.feedback}
+                onChange={(e) => setFormData({ ...formData, feedback: e.target.value })}
+                placeholder="Why are they not a supporter? Any feedback or concerns..."
+                rows={3}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -374,9 +571,58 @@ export function FieldProfilingForm({ voter, onSave, onCancel }: FieldProfilingFo
         </Button>
         <Button type="submit" disabled={saving} className="flex-1">
           <Save className="h-4 w-4 mr-2" />
-          {saving ? 'Saving...' : 'Save Profile'}
+          {saving ? (isAlreadyProfiled ? 'Updating...' : 'Saving...') : (isAlreadyProfiled ? 'Update Profile' : 'Save Profile')}
         </Button>
       </div>
+
+      {/* Related Voters Prompt */}
+      {showRelatedVotersPrompt && relatedVoters.length > 0 && (
+        <Card className="border-2 border-primary">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Profile Related Voters
+            </CardTitle>
+            <CardDescription>
+              Found {relatedVoters.length} related voter(s) from the same family who haven't been profiled yet.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {relatedVoters.map((relatedVoter) => (
+              <div
+                key={relatedVoter.epicNumber}
+                className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex-1">
+                  <p className="font-medium">{relatedVoter.fullName}</p>
+                  <p className="text-sm text-muted-foreground">
+                    EPIC: {relatedVoter.epicNumber} | {relatedVoter.relationType}: {relatedVoter.relationName}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {relatedVoter.age ? `Age: ${relatedVoter.age}` : ''} 
+                    {relatedVoter.gender ? ` | ${relatedVoter.gender === 'M' ? 'Male' : relatedVoter.gender === 'F' ? 'Female' : relatedVoter.gender}` : ''}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => handleProfileRelatedVoter(relatedVoter)}
+                  size="sm"
+                >
+                  Profile Now
+                </Button>
+              </div>
+            ))}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowRelatedVotersPrompt(false)}
+              className="w-full"
+            >
+              Skip for Now
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </form>
   );
 }
