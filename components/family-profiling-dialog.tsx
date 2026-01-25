@@ -322,16 +322,16 @@ export function FamilyProfilingDialog({
                           <div>
                             <Label className="text-xs">Vehicle</Label>
                             <Select
-                              value={memberProfiles[member.epicNumber]?.vehicleType || ''}
+                              value={memberProfiles[member.epicNumber]?.vehicleType || 'none'}
                               onValueChange={(value) =>
-                                handleProfileChange(member.epicNumber, 'vehicleType', value)
+                                handleProfileChange(member.epicNumber, 'vehicleType', value === 'none' ? '' : value)
                               }
                             >
                               <SelectTrigger className="h-8 text-xs">
                                 <SelectValue placeholder="Select" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="" className="text-xs">None</SelectItem>
+                                <SelectItem value="none" className="text-xs">None</SelectItem>
                                 {VEHICLE_TYPES.map((opt) => (
                                   <SelectItem key={opt.value} value={opt.value} className="text-xs">
                                     {opt.label}

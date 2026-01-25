@@ -321,14 +321,14 @@ export function FieldProfilingForm({ voter, onSave, onCancel }: FieldProfilingFo
         </CardHeader>
         <CardContent>
           <Select
-            value={formData.influencerType}
-            onValueChange={(value) => setFormData({ ...formData, influencerType: value })}
+            value={formData.influencerType || 'none'}
+            onValueChange={(value) => setFormData({ ...formData, influencerType: value === 'none' ? '' : value })}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select if applicable" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">Not an influencer</SelectItem>
+              <SelectItem value="none">Not an influencer</SelectItem>
               {INFLUENCER_TYPES.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
@@ -349,14 +349,14 @@ export function FieldProfilingForm({ voter, onSave, onCancel }: FieldProfilingFo
         </CardHeader>
         <CardContent>
           <Select
-            value={formData.vehicleType}
-            onValueChange={(value) => setFormData({ ...formData, vehicleType: value })}
+            value={formData.vehicleType || 'none'}
+            onValueChange={(value) => setFormData({ ...formData, vehicleType: value === 'none' ? '' : value })}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select if applicable" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">No vehicle</SelectItem>
+              <SelectItem value="none">No vehicle</SelectItem>
               {VEHICLE_TYPES.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
