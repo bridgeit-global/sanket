@@ -15,6 +15,7 @@ import {
   User as UserIcon,
   FileDown,
   Vote,
+  MapPin,
 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { ModuleDefinition } from '@/lib/module-constants';
@@ -26,6 +27,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'daily-programme': CalendarDays,
   'back-office': Building2,
   'operator': Briefcase,
+  'field-visitor': MapPin,
   'data-export': FileDown,
   'projects': FolderKanban,
   'inward': Inbox,
@@ -42,6 +44,7 @@ const MODULE_ORDER = [
   'daily-programme',
   'back-office',
   'operator',
+  'field-visitor',
   'data-export',
   'projects',
   'inward',
@@ -77,6 +80,7 @@ const getModuleTranslationKey = (moduleKey: string): string => {
     'daily-programme': 'modules.dailyProgramme.label',
     'back-office': 'modules.backOffice.label',
     'operator': 'modules.operator.label',
+    'field-visitor': 'modules.fieldVisitor.label',
     'data-export': 'modules.dataExport.label',
     'projects': 'modules.projects.label',
     'inward': 'modules.inward.label',

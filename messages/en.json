@@ -69,6 +69,10 @@
       "label": "Beneficiary Management",
       "description": "Manage beneficiary services"
     },
+    "fieldVisitor": {
+      "label": "Field Visitor",
+      "description": "Data collection and profiling by field workers"
+    },
     "dataExport": {
       "label": "Data Export",
       "description": "Export voter data in various formats"
