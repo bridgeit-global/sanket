@@ -568,3 +568,50 @@ export const phoneUpdateHistory = pgTable('PhoneUpdateHistory', {
 
 export type PhoneUpdateHistory = InferSelectModel<typeof phoneUpdateHistory>;
 
+
+// Voter Profile Table - Extended profiling data for field visitor data collection
+export const voterProfile = pgTable('VoterProfile', {
+  epicNumber: varchar('epic_number', { length: 20 })
+    .primaryKey()
+    .notNull()
+    .references(() => VoterMaster.epicNumber, { onDelete: 'cascade' }),
+  education: varchar('education', { length: 100 }),
+  occupationType: varchar('occupation_type', { enum: ['business', 'service'] }),
+  occupationDetail: varchar('occupation_detail', { length: 255 }),
+  region: varchar('region', { length: 100 }),
+  isOurSupporter: boolean('is_our_supporter'),
+  influencerType: varchar('influencer_type', { 
+    enum: ['political', 'local', 'education', 'religious'] 
+  }),
+  vehicleType: varchar('vehicle_type', { enum: ['2w', '4w', 'both'] }),
+  isProfiled: boolean('is_profiled').notNull().default(false),
+  profiledAt: timestamp('profiled_at'),
+  profiledBy: uuid('profiled_by').references(() => user.id),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type VoterProfile = InferSelectModel<typeof voterProfile>;
+
+// User Part Assignment Table - Maps users to their assigned part/booth numbers
+export const userPartAssignment = pgTable(
+  'UserPartAssignment',
+  {
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    electionId: varchar('election_id', { length: 50 })
+      .notNull()
+      .references(() => ElectionMaster.electionId, { onDelete: 'cascade' }),
+    boothNo: varchar('booth_no', { length: 10 }).notNull(),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    uniqueUserElectionBooth: unique().on(table.userId, table.electionId, table.boothNo),
+    idxUserId: index('idx_user_part_assignment_user_id').on(table.userId),
+    idxElectionId: index('idx_user_part_assignment_election_id').on(table.electionId),
+  }),
+);
+
+export type UserPartAssignment = InferSelectModel<typeof userPartAssignment>;

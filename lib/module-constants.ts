@@ -123,6 +123,15 @@ export const ALL_MODULES: ModuleDefinition[] = [
     category: 'operations',
     defaultRoles: ['admin', 'operator', 'back-office'],
   },
+  {
+    key: 'field-visitor',
+    label: 'Field Visitor',
+    description: 'Field data collection for assigned booth areas',
+    route: '/modules/field-visitor',
+    icon: 'MapPin',
+    category: 'operations',
+    defaultRoles: [],
+  },
 ];
 
 // Get module by key
@@ -156,5 +165,6 @@ export const MODULE_KEYS = {
   OUTWARD: 'outward',
   PROJECTS: 'projects',
   VOTING_PARTICIPATION: 'voting-participation',
+  FIELD_VISITOR: 'field-visitor',
 } as const;
 
