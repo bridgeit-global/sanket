@@ -38,7 +38,6 @@ export async function GET(request: NextRequest) {
         age: VoterMaster.age,
         gender: VoterMaster.gender,
         address: VoterMaster.address,
-        srNo: VoterMaster.srNo,
         isProfiled: voterProfile.isProfiled,
         education: voterProfile.education,
         occupationType: voterProfile.occupationType,

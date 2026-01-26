@@ -584,7 +584,7 @@ export function FieldProfilingForm({ voter, onSave, onCancel }: FieldProfilingFo
               Profile Related Voters
             </CardTitle>
             <CardDescription>
-              Found {relatedVoters.length} related voter(s) from the same family who haven't been profiled yet.
+              Found {relatedVoters.length} related voter(s) from the same family who haven&apos;t been profiled yet.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
