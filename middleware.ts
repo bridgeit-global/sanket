@@ -91,8 +91,14 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    // Allow back-office users to access voter routes (for viewing voter profiles from search)
-    // This is handled by the module check below, so this special case is not needed
+    // Allow back-office and operator users to access voter routes (for viewing voter profiles from search)
+    if (moduleKey === 'voter') {
+      const hasAccess = modules.includes('back-office') || modules.includes('operator') || modules.includes('user-management');
+      if (hasAccess) {
+        return NextResponse.next();
+      }
+      return NextResponse.redirect(new URL('/unauthorized', request.url));
+    }
 
     if (!modules.includes(moduleKey)) {
       return NextResponse.redirect(new URL('/unauthorized', request.url));
