@@ -61,7 +61,7 @@ export default async function DailyProgrammePage() {
   }
 
   return (
-    <div className="container mx-auto p-4 sm:py-8 max-w-7xl">
+    <div className="container mx-auto overflow-x-hidden px-3 py-4 sm:px-4 sm:py-8 max-w-7xl">
       <Suspense fallback={<div>Loading...</div>}>
         <DailyProgrammeDataLoader
           userRole={session.user.roleName || 'regular'}

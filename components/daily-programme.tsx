@@ -14,8 +14,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Calendar, Pencil, CheckCircle2, XCircle, Clock, Paperclip } from 'lucide-react';
-import { format, addDays, parseISO, startOfToday } from 'date-fns';
+import { Printer, Calendar, Pencil, CheckCircle2, XCircle, Clock, Paperclip, ChevronDown, ChevronUp } from 'lucide-react';
+import { format, parseISO, startOfToday } from 'date-fns';
 import { enIN } from 'date-fns/locale';
 import {
   Select,
@@ -287,6 +287,14 @@ export function DailyProgramme({
   const [voterEpicNumber, setVoterEpicNumber] = useState('');
   const [voterName, setVoterName] = useState('');
   const [isCreatingTask, setIsCreatingTask] = useState(false);
+
+  // Create form card collapsed state (expand when editing)
+  const [formCardOpen, setFormCardOpen] = useState(false);
+
+  // Expand form when editing an item
+  useEffect(() => {
+    if (editingId) setFormCardOpen(true);
+  }, [editingId]);
 
   // Attachment dialog
   const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
@@ -777,16 +785,41 @@ export function DailyProgramme({
 
       <div className="space-y-6">
         <Card className="no-print" id="programme-form">
-          <CardHeader>
-            <CardTitle>{editingId ? t('dailyProgramme.editProgramme') : t('dailyProgramme.createDailyProgramme')}</CardTitle>
+          <CardHeader
+            className="cursor-pointer select-none hover:bg-muted/50 transition-colors rounded-t-lg"
+            onClick={() => setFormCardOpen((open) => !open)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                setFormCardOpen((open) => !open);
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            aria-expanded={formCardOpen}
+            aria-controls="programme-form-content"
+            id="programme-form-header"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <CardTitle className="text-base sm:text-lg">
+                {editingId ? t('dailyProgramme.editProgramme') : t('dailyProgramme.createDailyProgramme')}
+              </CardTitle>
+              {formCardOpen ? (
+                <ChevronUp className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+              ) : (
+                <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+              )}
+            </div>
           </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-4">
+          {formCardOpen && (
+          <CardContent id="programme-form-content" aria-labelledby="programme-form-header">
+            <form onSubmit={handleSubmit} className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
               <div className="space-y-2">
                 <Label htmlFor="date">{t('dailyProgramme.date')}</Label>
                 <Input
                   id="date"
                   type="date"
+                  className="min-h-11"
                   value={form.date}
                   onChange={(e) => setForm({ ...form, date: e.target.value })}
                   required
@@ -800,6 +833,7 @@ export function DailyProgramme({
                   onChange={(value) => setForm({ ...form, startTime: value })}
                   placeholder={t('dailyProgramme.selectTime')}
                   required
+                  className="min-h-11"
                 />
               </div>
               <div className="space-y-2">
@@ -808,7 +842,7 @@ export function DailyProgramme({
                   value={form.duration || undefined}
                   onValueChange={(value) => setForm({ ...form, duration: value })}
                 >
-                  <SelectTrigger id="duration">
+                  <SelectTrigger id="duration" className="min-h-11">
                     <SelectValue placeholder={t('dailyProgramme.selectDuration')} />
                   </SelectTrigger>
                   <SelectContent className="max-h-[200px]">
@@ -825,22 +859,24 @@ export function DailyProgramme({
                 <Input
                   id="title"
                   placeholder={t('dailyProgramme.titlePlaceholder')}
+                  className="min-h-11"
                   value={form.title}
                   onChange={(e) => setForm({ ...form, title: e.target.value })}
                   required
                 />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2 sm:col-span-2 md:col-span-2">
                 <Label htmlFor="location">{t('dailyProgramme.location')}</Label>
                 <Input
                   id="location"
                   placeholder={t('dailyProgramme.locationPlaceholder')}
+                  className="min-h-11"
                   value={form.location}
                   onChange={(e) => setForm({ ...form, location: e.target.value })}
                   required
                 />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2 sm:col-span-2 md:col-span-2">
                 <Label htmlFor="remarks">{t('dailyProgramme.remarks')}</Label>
                 <Textarea
                   id="remarks"
@@ -850,21 +886,22 @@ export function DailyProgramme({
                   rows={2}
                 />
               </div>
-              <div className="md:col-span-4 flex justify-end gap-2">
+              <div className="sm:col-span-2 md:col-span-4 flex justify-end gap-2">
                 {editingId && (
-                  <Button type="button" variant="outline" onClick={handleCancelEdit}>
+                  <Button type="button" variant="outline" onClick={handleCancelEdit} className="min-h-11">
                     {t('dailyProgramme.cancel')}
                   </Button>
                 )}
-                <Button type="submit">{editingId ? t('dailyProgramme.updateProgramme') : t('dailyProgramme.addToProgramme')}</Button>
+                <Button type="submit" className="min-h-11">{editingId ? t('dailyProgramme.updateProgramme') : t('dailyProgramme.addToProgramme')}</Button>
               </div>
             </form>
           </CardContent>
+          )}
         </Card>
 
         <Card>
           <CardHeader className="no-print">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <CardTitle>{t('dailyProgramme.programmeRegister')}</CardTitle>
               <div className="flex items-center gap-4">
                 {loading ? (
@@ -909,9 +946,9 @@ export function DailyProgramme({
               <>
                 {/* Date Range Filter - Hidden when printing */}
                 <div className="space-y-4 mb-4 pb-4 border-b no-print">
-                  <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
                       <div>
                         <div className="font-semibold text-lg">{dateRangeLabel}</div>
                         <div className="text-xs text-muted-foreground">
@@ -923,17 +960,17 @@ export function DailyProgramme({
                         </div>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="outline" size="sm" onClick={handleResetRange}>
+                    <div className="flex flex-col gap-2 sm:flex-row w-full sm:w-auto">
+                      <Button variant="outline" size="sm" onClick={handleResetRange} className="w-full sm:w-auto min-h-11">
                         {t('dailyProgramme.resetRange')}
                       </Button>
-                      <Button variant="outline" size="sm" onClick={handlePrint}>
+                      <Button variant="outline" size="sm" onClick={handlePrint} className="w-full sm:w-auto min-h-11">
                         <Printer className="mr-2 h-4 w-4" />
                         {t('dailyProgramme.printProgramme')}
                       </Button>
                     </div>
                   </div>
-                  <div className="max-w-md">
+                  <div className="w-full max-w-md">
                     <DateRangePicker
                       startDate={dateRange.start}
                       endDate={dateRange.end}
@@ -1030,10 +1067,10 @@ export function DailyProgramme({
 
                                       return (
                                         <TableRow key={item.id}>
-                                          <TableCell className="w-[60px] text-center font-medium">
+                                          <TableCell className="w-[60px] text-center font-medium" data-label={t('dailyProgramme.serialNo')}>
                                             {serialNumber}
                                           </TableCell>
-                                          <TableCell className="w-[150px]">
+                                          <TableCell className="w-[150px]" data-label={t('dailyProgramme.time')}>
                                             <div className="font-mono font-semibold">
                                               {formatTimeTo12Hour(item.startTime, locale)}
                                               {durationLabel && (
@@ -1043,7 +1080,7 @@ export function DailyProgramme({
                                               )}
                                             </div>
                                           </TableCell>
-                                          <TableCell className="w-[400px]">
+                                          <TableCell className="w-[400px]" data-label={t('dailyProgramme.programmeNatureAndPlace')}>
                                             <div className="space-y-1">
                                               <div className="font-medium">
                                                 {item.title}
@@ -1055,7 +1092,7 @@ export function DailyProgramme({
                                               )}
                                             </div>
                                           </TableCell>
-                                          <TableCell className="w-[300px]">
+                                          <TableCell className="w-[300px]" data-label={t('dailyProgramme.reference')}>
                                             {item.remarks ? (
                                               <div className="text-sm">
                                                 {item.remarks}
@@ -1072,7 +1109,7 @@ export function DailyProgramme({
                                               )}
                                             </div>
                                           </TableCell>
-                                          <TableCell className="w-[80px] no-print text-center">
+                                          <TableCell className="w-[80px] no-print text-center" data-label="Docs">
                                             <Button
                                               variant="ghost"
                                               size="sm"
@@ -1088,7 +1125,7 @@ export function DailyProgramme({
                                               )}
                                             </Button>
                                           </TableCell>
-                                          <TableCell className="w-[150px] no-print">
+                                          <TableCell className="w-[150px] no-print" data-label={t('dailyProgramme.attendance')}>
                                             <Select
                                               value={
                                                 item.attended == null
@@ -1105,7 +1142,7 @@ export function DailyProgramme({
                                                 handleAttendanceChange(item, newValue);
                                               }}
                                             >
-                                              <SelectTrigger className="h-8 w-full">
+                                              <SelectTrigger className="h-8 w-full min-h-11 sm:min-h-8">
                                                 <SelectValue />
                                               </SelectTrigger>
                                               <SelectContent>
@@ -1130,7 +1167,7 @@ export function DailyProgramme({
                                               </SelectContent>
                                             </Select>
                                           </TableCell>
-                                          <TableCell className="w-[100px] no-print">
+                                          <TableCell className="w-[100px] no-print" data-label={t('dailyProgramme.actions')}>
                                             <div className="flex gap-1">
                                               <Button
                                                 size="sm"

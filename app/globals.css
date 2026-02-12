@@ -379,6 +379,88 @@
     @apply bg-blue-200 hover:bg-blue-300 dark:hover:bg-blue-400/50 dark:text-blue-50 dark:bg-blue-500/40;
 }
 
+/* Daily Programme: mobile card layout (screen only; print unchanged) */
+@media screen and (max-width: 768px) {
+    .print-schedule .print-table-wrapper thead {
+        display: none;
+    }
+    .print-schedule .print-table-wrapper tbody tr {
+        display: block;
+        border: 1px solid hsl(var(--border));
+        border-radius: calc(var(--radius) + 2px);
+        margin-bottom: 1rem;
+        padding: 0;
+        background: hsl(var(--card));
+        box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.08), 0 1px 2px -1px rgb(0 0 0 / 0.08);
+        overflow: hidden;
+        border-left: 4px solid hsl(var(--primary));
+    }
+    .print-schedule .print-table-wrapper tbody td {
+        display: block;
+        border: none;
+        border-bottom: 1px solid hsl(var(--border) / 0.6);
+        padding: 0.5rem 1rem;
+        width: 100%;
+    }
+    .print-schedule .print-table-wrapper tbody td:last-child {
+        border-bottom: none;
+    }
+    .print-schedule .print-table-wrapper tbody td::before {
+        content: attr(data-label);
+        font-size: 0.6875rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: hsl(var(--muted-foreground));
+        display: block;
+        margin-bottom: 0.25rem;
+    }
+    /* Serial number: compact top row */
+    .print-schedule .print-table-wrapper tbody td:first-child {
+        padding: 0.5rem 1rem 0.375rem;
+        border-bottom: 1px solid hsl(var(--border) / 0.6);
+    }
+    .print-schedule .print-table-wrapper tbody td:first-child::before {
+        margin-bottom: 0.125rem;
+    }
+    /* Time: subtle highlight */
+    .print-schedule .print-table-wrapper tbody td:nth-of-type(2) {
+        background: hsl(var(--muted) / 0.4);
+        padding: 0.5rem 1rem;
+    }
+    /* Programme & place: more breathing room */
+    .print-schedule .print-table-wrapper tbody td:nth-of-type(3) {
+        padding: 0.625rem 1rem;
+    }
+    /* Docs, Attendance, Actions: grouped action area */
+    .print-schedule .print-table-wrapper tbody td:nth-of-type(5),
+    .print-schedule .print-table-wrapper tbody td:nth-of-type(6),
+    .print-schedule .print-table-wrapper tbody td:nth-of-type(7) {
+        border-bottom: none;
+        padding-top: 0.75rem;
+        padding-bottom: 0.75rem;
+        background: hsl(var(--muted) / 0.25);
+    }
+    .print-schedule .print-table-wrapper tbody td:nth-of-type(5) {
+        border-top: 1px solid hsl(var(--border));
+        padding-top: 0.75rem;
+    }
+    /* Actions row: touch-friendly spacing and button size */
+    .print-schedule .print-table-wrapper tbody td:nth-of-type(7) {
+        padding-bottom: 0.75rem;
+    }
+    .print-schedule .print-table-wrapper tbody td:nth-of-type(7) [class*="flex"] {
+        gap: 0.5rem;
+    }
+    .print-schedule .print-table-wrapper tbody td:nth-of-type(7) button {
+        min-height: 44px;
+        min-width: 44px;
+    }
+    .print-schedule .print-table-wrapper {
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
 /* Print styles for Daily Programme */
 @media print {
 
