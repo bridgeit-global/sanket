@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Calendar, Pencil, CheckCircle2, XCircle, Clock, Paperclip, ChevronDown, ChevronUp } from 'lucide-react';
+import { Printer, Calendar, Pencil, CheckCircle2, XCircle, Clock, Paperclip, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { format, parseISO, startOfToday } from 'date-fns';
 import { enIN } from 'date-fns/locale';
 import {
@@ -301,6 +301,7 @@ export function DailyProgramme({
   const [selectedProgrammeForAttachment, setSelectedProgrammeForAttachment] = useState<ProgrammeItem | null>(null);
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
+  const [attachmentCountsLoading, setAttachmentCountsLoading] = useState(false);
 
   // Group items by date
   const itemsByDate = useMemo(() => {
@@ -718,26 +719,34 @@ export function DailyProgramme({
 
   // Fetch attachment count for all items
   const fetchAttachmentCounts = useCallback(async (items: ProgrammeItem[]) => {
-    const counts: Record<string, number> = {};
-    for (const item of items) {
-      try {
-        const response = await fetch(`/api/daily-programme/${item.id}/attachments`);
-        if (response.ok) {
-          const data = await response.json();
-          counts[item.id] = data.length;
+    if (items.length === 0) return;
+    setAttachmentCountsLoading(true);
+    try {
+      const counts: Record<string, number> = {};
+      for (const item of items) {
+        try {
+          const response = await fetch(`/api/daily-programme/${item.id}/attachments`);
+          if (response.ok) {
+            const data = await response.json();
+            counts[item.id] = data.length;
+          }
+        } catch (error) {
+          console.error('Error fetching attachment count for item:', item.id, error);
         }
-      } catch (error) {
-        console.error('Error fetching attachment count for item:', item.id, error);
       }
+      setAttachmentCounts(counts);
+    } finally {
+      setAttachmentCountsLoading(false);
     }
-    setAttachmentCounts(counts);
   }, []);
 
-  // Load attachment counts when items change
+  // Load attachment counts when items change (run after a short delay so session is ready on first load)
   useEffect(() => {
-    if (allItems.length > 0) {
+    if (allItems.length === 0) return;
+    const timer = window.setTimeout(() => {
       fetchAttachmentCounts(allItems);
-    }
+    }, 150);
+    return () => window.clearTimeout(timer);
   }, [allItems, fetchAttachmentCounts]);
 
   const handleOpenAttachmentDialog = async (item: ProgrammeItem) => {
@@ -747,8 +756,10 @@ export function DailyProgramme({
       if (response.ok) {
         const data = await response.json();
         setAttachments(data);
+        setAttachmentCounts((prev) => ({ ...prev, [item.id]: data.length }));
       } else {
         setAttachments([]);
+        setAttachmentCounts((prev) => ({ ...prev, [item.id]: 0 }));
       }
     } catch (error) {
       console.error('Error fetching attachments:', error);
@@ -1110,20 +1121,26 @@ export function DailyProgramme({
                                             </div>
                                           </TableCell>
                                           <TableCell className="w-[80px] no-print text-center" data-label="Docs">
-                                            <Button
-                                              variant="ghost"
-                                              size="sm"
-                                              className="h-8 px-2"
-                                              onClick={() => handleOpenAttachmentDialog(item)}
-                                              title="Manage reference documents"
-                                            >
-                                              <Paperclip className="h-4 w-4" />
-                                              {attachmentCounts[item.id] > 0 && (
-                                                <span className="ml-1 text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 min-w-[1.25rem]">
-                                                  {attachmentCounts[item.id]}
-                                                </span>
-                                              )}
-                                            </Button>
+                                            {attachmentCountsLoading ? (
+                                              <div className="flex items-center justify-center h-8">
+                                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
+                                              </div>
+                                            ) : (
+                                              <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-8 px-2"
+                                                onClick={() => handleOpenAttachmentDialog(item)}
+                                                title="Manage reference documents"
+                                              >
+                                                <Paperclip className="h-4 w-4" />
+                                                {attachmentCounts[item.id] > 0 && (
+                                                  <span className="ml-1 text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 min-w-[1.25rem]">
+                                                    {attachmentCounts[item.id]}
+                                                  </span>
+                                                )}
+                                              </Button>
+                                            )}
                                           </TableCell>
                                           <TableCell className="w-[150px] no-print" data-label={t('dailyProgramme.attendance')}>
                                             <Select
