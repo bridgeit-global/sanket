@@ -168,7 +168,7 @@ const PurePreviewMessage = ({
                 }
               }
 
-              if (type === 'tool-sqlQuery') {
+              if ((type as string) === 'tool-sqlQuery') {
                 const { toolCallId, state } = part as any;
 
                 if (state === 'input-available') {
