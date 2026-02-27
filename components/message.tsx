@@ -21,8 +21,6 @@ import { useDataStream } from './data-stream-provider';
 import { VoterInsights } from './voter-insights';
 import { SqlQueryResults } from './sql-query-results';
 import { BeneficiaryInsights } from './beneficiary-insights';
-import { BeneficiaryServiceFormWrapper } from './beneficiary-service-form-wrapper';
-
 // Type narrowing is handled by TypeScript's control flow analysis
 // The AI SDK provides proper discriminated unions for tool calls
 
@@ -165,6 +163,46 @@ const PurePreviewMessage = ({
                         setMessages={setMessages}
                         regenerate={regenerate}
                       />
+                    </div>
+                  );
+                }
+              }
+
+              if (type === 'tool-sqlQuery') {
+                const { toolCallId, state } = part as any;
+
+                if (state === 'input-available') {
+                  return (
+                    <div key={toolCallId} className="skeleton my-4">
+                      <div className="animate-pulse bg-gray-200 h-24 rounded-lg" />
+                    </div>
+                  );
+                }
+
+                if (state === 'output-available') {
+                  const { output } = part as any;
+
+                  const rowCount = typeof output?.rowCount === 'number' ? output.rowCount : 0;
+                  const rows = Array.isArray(output?.results) ? output.results : [];
+                  const columns =
+                    rows.length > 0 ? Object.keys(rows[0] as Record<string, unknown>) : [];
+                  const hasMore = rowCount > rows.length;
+
+                  const dataForComponent = {
+                    query: String(output?.query ?? output?.sql ?? ''),
+                    rowCount,
+                    columns,
+                    data: rows,
+                    hasMore,
+                    summary: String(output?.answer ?? output?.description ?? ''),
+                    error: output?.error ? String(output.error) : undefined,
+                    details: undefined as string | undefined,
+                    note: undefined as string | undefined,
+                  };
+
+                  return (
+                    <div key={toolCallId} className="my-4">
+                      <SqlQueryResults data={dataForComponent} />
                     </div>
                   );
                 }

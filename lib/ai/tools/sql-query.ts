@@ -1,174 +1,151 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
+import { Parser } from 'node-sql-parser/build/postgresql';
+
+const PG_OPT = { database: 'Postgresql' as const };
+
+/**
+ * Deterministic guard rail: only allow a single SELECT statement.
+ * Rejects multiple statements, non-SELECT statements, and parse errors.
+ */
+function validateSingleSelectOnly(query: string): { allowed: true } | { allowed: false; error: string } {
+    const trimmed = query.trim();
+    if (!trimmed.length) {
+        return { allowed: false, error: 'Empty query is not allowed.' };
+    }
+    try {
+        const parser = new Parser();
+        const ast = parser.astify(trimmed, PG_OPT);
+        const statements = Array.isArray(ast) ? ast : [ast];
+        if (statements.length !== 1) {
+            return {
+                allowed: false,
+                error: 'Only a single SQL statement is allowed. Multiple statements separated by semicolons are not permitted.',
+            };
+        }
+        const stmt = statements[0];
+        const type = stmt?.type ?? (stmt as { type?: string }).type;
+        if (type !== 'select') {
+            return {
+                allowed: false,
+                error: 'Only SELECT queries are allowed. Data modification (INSERT, UPDATE, DELETE) and DDL (DROP, CREATE, etc.) are not permitted.',
+            };
+        }
+        return { allowed: true };
+    } catch (err) {
+        const message = err instanceof Error ? err.message : 'Invalid SQL';
+        return {
+            allowed: false,
+            error: `Query could not be parsed: ${message}. Only a single SELECT statement is allowed.`,
+        };
+    }
+}
 
 export const sqlQueryTool = tool({
-    description: `Execute custom SQL queries on Anushakti Nagar voter database (AC 172). Only accepts SELECT queries for security.
+    description: `Execute custom SQL queries on the voter database. Only SELECT queries are accepted. Use table names in double quotes for PostgreSQL.
 
-DATABASE SCHEMA:
+DATABASE SCHEMA (primary tables for wide search):
 
-TABLE: "Voter" (Main voter information)
+TABLE: "VoterMaster" (core voter identity and personal info)
 - epic_number VARCHAR(20) PRIMARY KEY - Unique voter ID (EPIC number)
 - full_name VARCHAR(255) - Complete voter name
-- relation_type VARCHAR(50) - Relationship type (Son of, Wife of, Daughter of, etc.)
-- relation_name VARCHAR(255) - Name of the related person
-- family_grouping VARCHAR(100) - Family identifier for grouping
-- ac_no VARCHAR(10) - Assembly Constituency number (172 for Anushakti Nagar)
-- part_no VARCHAR(10) - Part number (FOREIGN KEY to PartNo table)
-- sr_no VARCHAR(10) - Serial number within part
-- house_number VARCHAR(127) - House/address number
-- religion VARCHAR(50) - Religious affiliation
-- age INTEGER - Voter's age
-- dob DATE - Date of birth
-- gender VARCHAR(10) - 'M' for Male, 'F' for Female
-- is_voted_2024 BOOLEAN - Whether voted in 2024 elections
-- mobile_no_primary VARCHAR(15) - Primary mobile number
-- mobile_no_secondary VARCHAR(15) - Secondary mobile number
-- address TEXT - Full address
-- pincode VARCHAR(10) - PIN code
-- created_at TIMESTAMP - Record creation time
-- updated_at TIMESTAMP - Record last update time
+- relation_type VARCHAR(50), relation_name VARCHAR(255), family_grouping VARCHAR(100)
+- house_number VARCHAR(127), locality_street VARCHAR(255), town_village VARCHAR(255)
+- religion VARCHAR(50), caste VARCHAR(50), age INTEGER, dob DATE, gender VARCHAR(10)
+- address TEXT, pincode VARCHAR(10)
 
-TABLE: "PartNo" (Booth and Ward mapping)
-- part_no VARCHAR(10) PRIMARY KEY - Part number (unique identifier)
-- ward_no VARCHAR(10) - Ward number
-- booth_name VARCHAR(255) - Polling booth name
-- english_booth_address TEXT - Booth address in English
-- created_at TIMESTAMP - Record creation time
-- updated_at TIMESTAMP - Record last update time
+TABLE: "VoterMobileNumber" (one voter can have multiple rows)
+- epic_number VARCHAR(20) NOT NULL - FK to VoterMaster.epic_number
+- mobile_number VARCHAR(15) NOT NULL - Phone number
+- sort_order INTEGER - Order (primary, secondary, etc.)
+- created_at, updated_at TIMESTAMP
+- PK: (epic_number, mobile_number)
 
-RELATIONSHIP:
-- Voter.part_no → PartNo.part_no (Many voters belong to one part/booth)
-- Each Part belongs to a Ward (PartNo.ward_no)
+TABLE: "ElectionMapping" (voter-to-election assignment and voting status)
+- epic_number VARCHAR(20) NOT NULL - FK to VoterMaster.epic_number
+- election_id VARCHAR(50) NOT NULL - FK to ElectionMaster.election_id
+- booth_no VARCHAR(10), sr_no VARCHAR(10), has_voted BOOLEAN
+- PK: (epic_number, election_id)
 
-IMPORTANT: To get ward-wise or booth-wise analytics, you MUST JOIN the Voter table with PartNo table.
+TABLE: "ElectionMaster" (election metadata)
+- election_id VARCHAR(50) PRIMARY KEY - e.g. '172LS2024', 'AE2024'
+- election_type VARCHAR(50), year INTEGER, delimitation_version VARCHAR(50)
+- constituency_type, constituency_id VARCHAR(50), data_source VARCHAR(100)
+- created_at, updated_at TIMESTAMP
 
-SAMPLE QUERIES:
+TABLE: "BoothMaster" (booth details per election)
+- election_id VARCHAR(50) NOT NULL - FK to ElectionMaster.election_id
+- booth_no VARCHAR(10) NOT NULL - Booth number
+- booth_name VARCHAR(255), booth_address TEXT
+- PK: (election_id, booth_no)
 
-1. Ward-wise voter count:
-SELECT p.ward_no, COUNT(*) as voter_count 
-FROM "Voter" v 
-JOIN "PartNo" p ON v.part_no = p.part_no 
-GROUP BY p.ward_no 
-ORDER BY p.ward_no
+RELATIONSHIPS (for wide search):
+- VoterMaster.epic_number = VoterMobileNumber.epic_number (voter's phones)
+- VoterMaster.epic_number = ElectionMapping.epic_number (voter's elections)
+- ElectionMapping.election_id = ElectionMaster.election_id
+- ElectionMapping.election_id + ElectionMapping.booth_no = BoothMaster.election_id + BoothMaster.booth_no
 
-2. Ward-wise voting statistics (2024):
-SELECT p.ward_no, 
-       COUNT(*) as total_voters,
-       SUM(CASE WHEN v.is_voted_2024 THEN 1 ELSE 0 END) as voted,
-       ROUND(SUM(CASE WHEN v.is_voted_2024 THEN 1 ELSE 0 END)::numeric / COUNT(*) * 100, 2) as voting_percentage
-FROM "Voter" v 
-JOIN "PartNo" p ON v.part_no = p.part_no 
-GROUP BY p.ward_no 
-ORDER BY p.ward_no
+Legacy (if still present): "Voter" and "PartNo" for backward compatibility.
 
-3. Ward-wise gender distribution:
-SELECT p.ward_no, v.gender, COUNT(*) as count
-FROM "Voter" v 
-JOIN "PartNo" p ON v.part_no = p.part_no 
-GROUP BY p.ward_no, v.gender 
-ORDER BY p.ward_no, v.gender
+SAMPLE QUERIES (wide search):
 
-4. Booth-wise voter count:
-SELECT p.part_no, p.ward_no, p.booth_name, COUNT(*) as voter_count
-FROM "Voter" v 
-JOIN "PartNo" p ON v.part_no = p.part_no 
-GROUP BY p.part_no, p.ward_no, p.booth_name 
-ORDER BY p.ward_no, p.part_no
-
-5. Part-wise age demographics:
-SELECT p.part_no, p.ward_no,
-       CASE 
-         WHEN v.age BETWEEN 18 AND 25 THEN '18-25'
-         WHEN v.age BETWEEN 26 AND 35 THEN '26-35'
-         WHEN v.age BETWEEN 36 AND 50 THEN '36-50'
-         WHEN v.age BETWEEN 51 AND 65 THEN '51-65'
-         ELSE '65+'
-       END as age_group,
-       COUNT(*) as count
-FROM "Voter" v 
-JOIN "PartNo" p ON v.part_no = p.part_no 
-GROUP BY p.part_no, p.ward_no, age_group 
-ORDER BY p.ward_no, p.part_no
-
-6. Overall demographics:
-SELECT gender, COUNT(*) as count, ROUND(AVG(age), 1) as avg_age 
-FROM "Voter" 
-GROUP BY gender
-
-7. Search voter by name:
-SELECT v.*, p.ward_no, p.booth_name 
-FROM "Voter" v 
-JOIN "PartNo" p ON v.part_no = p.part_no 
-WHERE v.full_name ILIKE '%kumar%'
-LIMIT 20
-
-8. Voters in specific ward:
-SELECT v.*, p.booth_name 
-FROM "Voter" v 
-JOIN "PartNo" p ON v.part_no = p.part_no 
-WHERE p.ward_no = '001'
+1. Voter by name with all mobile numbers:
+SELECT vm.full_name, vm.epic_number, m.mobile_number, m.sort_order
+FROM "VoterMaster" vm
+LEFT JOIN "VoterMobileNumber" m ON vm.epic_number = m.epic_number
+WHERE vm.full_name ILIKE '%kumar%'
+ORDER BY vm.epic_number, m.sort_order
 LIMIT 50
 
-9. List all wards with part counts:
-SELECT ward_no, COUNT(*) as part_count 
-FROM "PartNo" 
-GROUP BY ward_no 
-ORDER BY ward_no
+2. Voters with election and voting status for an election:
+SELECT v.full_name, v.epic_number, em.election_id, em.booth_no, em.has_voted
+FROM "VoterMaster" v
+JOIN "ElectionMapping" em ON v.epic_number = em.epic_number
+WHERE em.election_id = '172LS2024'
+LIMIT 50
 
-10. Ward summary with booth details:
-SELECT ward_no, part_no, booth_name, english_booth_address 
-FROM "PartNo" 
-ORDER BY ward_no, part_no`,
+3. Count voters by election and booth:
+SELECT em.election_id, em.booth_no, COUNT(*) as voter_count
+FROM "ElectionMapping" em
+WHERE em.booth_no IS NOT NULL
+GROUP BY em.election_id, em.booth_no
+ORDER BY em.election_id, em.booth_no
+
+4. Search across schema: voter + mobiles + election mapping:
+SELECT v.full_name, v.epic_number, v.gender, v.age,
+       (SELECT string_agg(m.mobile_number, ', ' ORDER BY m.sort_order) FROM "VoterMobileNumber" m WHERE m.epic_number = v.epic_number) as mobiles,
+       (SELECT COUNT(*) FROM "ElectionMapping" e WHERE e.epic_number = v.epic_number) as election_count
+FROM "VoterMaster" v
+WHERE v.full_name ILIKE '%search%'
+LIMIT 20`,
     inputSchema: z.object({
-        query: z.string().describe('The SQL query to execute (SELECT only). Use table names in double quotes for PostgreSQL. JOIN "Voter" with "PartNo" for ward/booth analytics.'),
+        query: z.string().describe('The SQL query to execute (single SELECT only). Use table names in double quotes. JOIN VoterMaster with VoterMobileNumber and ElectionMapping for wide search.'),
         description: z.string().optional().describe('Description of what this query is trying to find'),
     }),
     execute: async ({ query, description }) => {
         console.log('🔍 SQL Query Tool called:', { query, description });
         try {
-            // Security check - only allow SELECT queries
-            const trimmedQuery = query.trim().toLowerCase();
-            if (!trimmedQuery.startsWith('select')) {
+            const validation = validateSingleSelectOnly(query);
+            if (!validation.allowed) {
                 return {
                     query,
-                    error: 'Only SELECT queries are allowed for security reasons',
-                    answer: 'This tool only accepts SELECT queries. Please modify your query to start with SELECT.'
+                    error: validation.error,
+                    answer: validation.error,
                 };
             }
 
-            // Check for dangerous keywords
-            const dangerousKeywords = ['drop', 'delete', 'update', 'insert', 'alter', 'create', 'truncate', 'exec', 'execute'];
-            const hasDangerousKeyword = dangerousKeywords.some(keyword =>
-                trimmedQuery.includes(keyword)
-            );
-
-            if (hasDangerousKeyword) {
-                return {
-                    query,
-                    error: 'Query contains potentially dangerous keywords',
-                    answer: 'This tool only allows SELECT queries. Please remove any data modification keywords.'
-                };
-            }
-
-            // Create database connection
             const postgresUrl = process.env.POSTGRES_URL;
             if (!postgresUrl) {
                 return {
                     query,
                     error: 'Database connection not configured',
-                    answer: 'Database connection is not available.'
+                    answer: 'Database connection is not available.',
                 };
             }
 
             const client = postgres(postgresUrl);
-            const db = drizzle(client);
-
-            // Execute the query using raw SQL
             const result = await client.unsafe(query);
-
-            // Close the connection
             await client.end();
 
             const rowCount = Array.isArray(result) ? result.length : 0;
@@ -178,8 +155,8 @@ ORDER BY ward_no, part_no`,
                 description,
                 answer: `Query executed successfully. Found ${rowCount} rows.`,
                 rowCount,
-                results: result.slice(0, 50), // Limit results to first 50 rows
-                sql: query
+                results: Array.isArray(result) ? result.slice(0, 50) : [],
+                sql: query,
             };
         } catch (error) {
             console.error('🔍 SQL Query Tool error:', error);
@@ -187,7 +164,7 @@ ORDER BY ward_no, part_no`,
                 query,
                 description,
                 error: `SQL query failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-                answer: 'Error occurred while executing the SQL query. Please check your query syntax.'
+                answer: 'Error occurred while executing the SQL query. Please check your query syntax.',
             };
         }
     },
