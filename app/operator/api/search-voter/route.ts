@@ -1,6 +1,12 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { searchVoterByEpicNumber, searchVoterByName, searchVoterByDetails, searchVoterByMobileNumberTable } from '@/lib/db/queries';
+import {
+    getVoterMobileNumbersByEpicNumbers,
+    searchVoterByEpicNumber,
+    searchVoterByName,
+    searchVoterByDetails,
+    searchVoterByMobileNumberTable,
+} from '@/lib/db/queries';
 
 export async function POST(request: NextRequest) {
     try {
@@ -60,6 +66,22 @@ export async function POST(request: NextRequest) {
                 voters = await searchVoterByName(trimmedTerm);
                 actualSearchType = 'name';
             }
+        }
+
+        // Attach mobile numbers from VoterMobileNumber table (sort_order 1 = primary, 2 = secondary, etc.)
+        if (voters.length > 0) {
+            const epicNumbers = voters.map((v: { epicNumber: string }) => v.epicNumber);
+            const mobileNumbersMap = await getVoterMobileNumbersByEpicNumbers(epicNumbers);
+            voters = voters.map((voter: Record<string, unknown>) => {
+                const mobiles = mobileNumbersMap.get(voter.epicNumber as string) || [];
+                const primary = mobiles.find((m) => m.sortOrder === 1)?.mobileNumber ?? null;
+                const secondary = mobiles.find((m) => m.sortOrder === 2)?.mobileNumber ?? null;
+                return {
+                    ...voter,
+                    mobileNoPrimary: primary,
+                    mobileNoSecondary: secondary,
+                };
+            });
         }
 
         return NextResponse.json({
