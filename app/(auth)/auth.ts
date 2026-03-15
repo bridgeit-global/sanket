@@ -109,7 +109,7 @@ export const {
           .from(userModulePermissions)
           .where(
             and(
-              eq(userModulePermissions.userId, user.id),
+              eq(userModulePermissions.userId, userRecord.id),
               eq(userModulePermissions.hasAccess, true),
             ),
           );
