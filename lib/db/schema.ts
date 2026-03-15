@@ -33,6 +33,7 @@ export const user = pgTable('User', {
   password: varchar('password', { length: 64 }),
   roleId: uuid('role_id').references(() => role.id, { onDelete: 'restrict' }),
   metadata: json('metadata'), // Stores user preferences like language, theme, etc.
+  lastLogin: timestamp('last_login'),
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
