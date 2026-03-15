@@ -654,6 +654,7 @@
     "update": "Update Phone Number",
     "updating": "Updating...",
     "skip": "Skip",
+    "continueWithout": "Continue without updating",
     "messages": {
       "updatedSuccess": "Phone number updated successfully",
       "updateFailed": "Failed to update phone number. Please try again.",

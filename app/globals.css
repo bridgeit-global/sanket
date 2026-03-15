@@ -537,15 +537,13 @@
         color: #000 !important;
     }
 
-    /* Page setup for better printing - portrait orientation with page numbers */
+    /* Page setup for daily programme printing - MLA header and page numbers */
     @page {
         size: A4;
         margin: 1.5cm;
         margin-top: 3.5cm;
-        /* Extra space at top for fixed header - increased to prevent overlap */
         margin-bottom: 2cm;
 
-        /* Header in page margin - more reliable than position:fixed for repeating */
         @top-center {
             content: "मा. आमदार श्रीमती सना मलिक शेख \A दैनंदिन / साप्ताहिक कार्यक्रम";
             white-space: pre-line;
@@ -560,13 +558,18 @@
             vertical-align: bottom;
         }
 
-        /* Extra space for page numbers */
         @bottom-center {
             content: "Page " counter(page) " of " counter(pages);
             font-size: 10px;
             color: #333;
             font-family: Arial, sans-serif;
         }
+    }
+
+    /* 80mm POS thermal printer page - no margins, no header/footer */
+    @page service-receipt {
+        size: 80mm auto;
+        margin: 0;
     }
 
     /* Fallback page number footer for browsers that don't support @page margin boxes */
@@ -1171,12 +1174,6 @@
     .service-completion-print .pos-receipt,
     .service-completion-print .pos-receipt * {
         visibility: visible;
-    }
-
-    /* 80mm POS page - printable area ~72mm, 42 chars/line */
-    @page service-receipt {
-        size: 80mm auto;
-        margin: 0;
     }
 
     /* POS receipt layout - monospace for thermal alignment */

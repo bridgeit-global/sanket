@@ -32,7 +32,7 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
             .slice()
             .sort((a, b) => a.sortOrder - b.sortOrder)
             .map((entry) => entry.mobileNumber)
-            .filter((number) => number && number.trim());
+            .filter((number) => !!number?.trim());
 
         setMobileNoPrimary(orderedNumbers[0] || '');
         setMobileNoSecondary(orderedNumbers[1] || '');
@@ -130,13 +130,23 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                     </div>
 
                     {/* Action Buttons */}
-                    <div className="flex gap-4">
+                    <div className="flex flex-col sm:flex-row gap-3">
                         <Button
                             type="submit"
                             disabled={isSubmitting || !mobileNoPrimary.trim()}
                             className="flex-1"
                         >
                             {isSubmitting ? t('phoneUpdate.updating') : t('phoneUpdate.update')}
+                        </Button>
+
+                        <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={onSkip}
+                            disabled={isSubmitting}
+                            className="flex-1"
+                        >
+                            {t('phoneUpdate.continueWithout')}
                         </Button>
 
                         <Button

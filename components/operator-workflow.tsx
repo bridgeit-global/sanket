@@ -268,7 +268,7 @@ export function BeneficiaryManagement() {
                 description: t('operator.messages.serviceCreatedSuccess'),
             });
             // Auto-print POS receipt after a short delay so the receipt DOM is rendered
-            setTimeout(() => window.print(), 300);
+            setTimeout(() => printTokenReceipt(), 300);
         } catch (error) {
             console.error('Error creating service:', error);
             toast({
@@ -293,8 +293,24 @@ export function BeneficiaryManagement() {
         setWorkflowStep('search');
     };
 
-    const handlePrint = () => {
+    const printTokenReceipt = () => {
+        // Inject a style override to suppress the daily-programme @page header/footer
+        // for this print job only. Cleaned up immediately via the afterprint event.
+        const style = document.createElement('style');
+        style.id = 'token-receipt-page-override';
+        style.textContent = `@media print { @page { @top-center { content: none !important; } @bottom-center { content: none !important; } } }`;
+        document.head.appendChild(style);
+        const cleanup = () => {
+            const el = document.getElementById('token-receipt-page-override');
+            if (el) el.remove();
+            window.removeEventListener('afterprint', cleanup);
+        };
+        window.addEventListener('afterprint', cleanup);
         window.print();
+    };
+
+    const handlePrint = () => {
+        printTokenReceipt();
     };
 
     const handleCancel = () => {
