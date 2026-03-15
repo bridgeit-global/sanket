@@ -7,7 +7,7 @@ import { DUMMY_PASSWORD } from '@/lib/constants';
 import type { DefaultJWT } from 'next-auth/jwt';
 import { eq, and } from 'drizzle-orm';
 import { db } from '@/lib/db/queries';
-import { userModulePermissions } from '@/lib/db/schema';
+import { user, userModulePermissions } from '@/lib/db/schema';
 
 declare module 'next-auth' {
   interface Session extends DefaultSession {
@@ -63,16 +63,22 @@ export const {
           return null;
         }
 
-        const [user] = users;
+        const [userRecord] = users;
 
-        if (!user.password) {
+        if (!userRecord.password) {
           await compare(password, DUMMY_PASSWORD);
           return null;
         }
 
-        const passwordsMatch = await compare(password, user.password);
+        const passwordsMatch = await compare(password, userRecord.password);
 
         if (!passwordsMatch) return null;
+
+        // Update last_login timestamp on successful login
+        await db
+          .update(user)
+          .set({ lastLogin: new Date(), updatedAt: new Date() })
+          .where(eq(user.id, userRecord.id));
 
         // Get accessible modules for the user
         const accessibleModules = new Set<string>();
@@ -80,14 +86,14 @@ export const {
 
         // First, get role-based modules if user has a roleId
         let defaultLandingModule: string | undefined;
-        if (user.roleId) {
-          const roleModules = await getRoleAccessibleModules(user.roleId);
+        if (userRecord.roleId) {
+          const roleModules = await getRoleAccessibleModules(userRecord.roleId);
           for (const moduleKey of roleModules) {
             accessibleModules.add(moduleKey);
           }
           
           // Get role name and default landing module for backward compatibility with entitlements
-          const roleRecord = await getRoleById(user.roleId);
+          const roleRecord = await getRoleById(userRecord.roleId);
           if (roleRecord) {
             roleName = roleRecord.name.toLowerCase();
             // Validate that defaultLandingModule is in accessible modules
@@ -118,9 +124,9 @@ export const {
         }
 
         return {
-          id: user.id,
-          userId: user.userId,
-          roleId: user.roleId || undefined,
+          id: userRecord.id,
+          userId: userRecord.userId,
+          roleId: userRecord.roleId || undefined,
           roleName: roleName || undefined,
           modules: Array.from(accessibleModules),
           defaultLandingModule: defaultLandingModule,
