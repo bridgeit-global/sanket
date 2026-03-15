@@ -45,6 +45,11 @@ function validateSingleSelectOnly(query: string): { allowed: true } | { allowed:
 export const sqlQueryTool = tool({
     description: `Execute custom SQL queries on the voter database. Only SELECT queries are accepted. Use table names in double quotes for PostgreSQL.
 
+VOTING PATTERN / ELECTION-WIDE ANALYSIS (MANDATORY):
+- When the user asks for "voting pattern", "voting across elections", "election-wide" analysis, or comparison across elections: do NOT group by election_id.
+- ALWAYS GROUP BY election_type (and optionally constituency_type) in "ElectionMaster". Same voter base votes in LS, assembly, and ward—grouping by election_id splits them into many rows; grouping by election_type gives one row per election type (e.g. LS, Assembly, BMC).
+- Example: SELECT em.election_type, em.has_voted, COUNT(*) as voter_count FROM "ElectionMapping" em JOIN "ElectionMaster" m ON em.election_id = m.election_id GROUP BY m.election_type, em.has_voted ORDER BY m.election_type, em.has_voted;
+
 DATABASE SCHEMA (primary tables for wide search):
 
 TABLE: "VoterMaster" (core voter identity and personal info)
@@ -52,8 +57,11 @@ TABLE: "VoterMaster" (core voter identity and personal info)
 - full_name VARCHAR(255) - Complete voter name
 - relation_type VARCHAR(50), relation_name VARCHAR(255), family_grouping VARCHAR(100)
 - house_number VARCHAR(127), locality_street VARCHAR(255), town_village VARCHAR(255)
-- religion VARCHAR(50), caste VARCHAR(50), age INTEGER, dob DATE, gender VARCHAR(10)
+- religion VARCHAR(50), caste VARCHAR(50) - Stored and ready for analysis; use for demographic breakdowns
+- age INTEGER, dob DATE, gender VARCHAR(10)
 - address TEXT, pincode VARCHAR(10)
+
+RELIGION AND CASTE: Both columns exist in VoterMaster and are available for analysis. When value is NULL or empty string, treat it as a single group: use COALESCE(NULLIF(TRIM(v.religion), ''), 'Blank') AS religion_group (and same for caste) in SELECT/GROUP BY so missing data is reported as "Blank" rather than omitted.
 
 TABLE: "VoterMobileNumber" (one voter can have multiple rows)
 - epic_number VARCHAR(20) NOT NULL - FK to VoterMaster.epic_number
@@ -68,7 +76,7 @@ TABLE: "ElectionMapping" (voter-to-election assignment and voting status)
 - booth_no VARCHAR(10), sr_no VARCHAR(10), has_voted BOOLEAN
 - PK: (epic_number, election_id)
 
-TABLE: "ElectionMaster" (election metadata)
+TABLE: "ElectionMaster" (election metadata). For election-wide or voting-pattern analysis, JOIN here and GROUP BY election_type (or constituency_type), not by election_id.
 - election_id VARCHAR(50) PRIMARY KEY - e.g. '172LS2024', 'AE2024'
 - election_type VARCHAR(50), year INTEGER, delimitation_version VARCHAR(50)
 - constituency_type, constituency_id VARCHAR(50), data_source VARCHAR(100)
@@ -105,20 +113,33 @@ JOIN "ElectionMapping" em ON v.epic_number = em.epic_number
 WHERE em.election_id = '172LS2024'
 LIMIT 50
 
-3. Count voters by election and booth:
+3. Count voters by election and booth (for a single election or booth-level detail):
 SELECT em.election_id, em.booth_no, COUNT(*) as voter_count
 FROM "ElectionMapping" em
 WHERE em.booth_no IS NOT NULL
 GROUP BY em.election_id, em.booth_no
 ORDER BY em.election_id, em.booth_no
 
-4. Search across schema: voter + mobiles + election mapping:
+4. Voting pattern across elections (use this pattern when user asks for voting pattern / across elections):
+SELECT m.election_type, em.has_voted, COUNT(*) as voter_count
+FROM "ElectionMapping" em
+JOIN "ElectionMaster" m ON em.election_id = m.election_id
+GROUP BY m.election_type, em.has_voted
+ORDER BY m.election_type, em.has_voted
+
+5. Search across schema: voter + mobiles + election mapping:
 SELECT v.full_name, v.epic_number, v.gender, v.age,
        (SELECT string_agg(m.mobile_number, ', ' ORDER BY m.sort_order) FROM "VoterMobileNumber" m WHERE m.epic_number = v.epic_number) as mobiles,
        (SELECT COUNT(*) FROM "ElectionMapping" e WHERE e.epic_number = v.epic_number) as election_count
 FROM "VoterMaster" v
 WHERE v.full_name ILIKE '%search%'
-LIMIT 20`,
+LIMIT 20
+
+6. Religion/caste breakdown (treat NULL or empty as "Blank"):
+SELECT COALESCE(NULLIF(TRIM(v.religion), ''), 'Blank') AS religion_group, COALESCE(NULLIF(TRIM(v.caste), ''), 'Blank') AS caste_group, COUNT(*) AS voter_count
+FROM "VoterMaster" v
+GROUP BY COALESCE(NULLIF(TRIM(v.religion), ''), 'Blank'), COALESCE(NULLIF(TRIM(v.caste), ''), 'Blank')
+ORDER BY voter_count DESC`,
     inputSchema: z.object({
         query: z.string().describe('The SQL query to execute (single SELECT only). Use table names in double quotes. JOIN VoterMaster with VoterMobileNumber and ElectionMapping for wide search.'),
         description: z.string().optional().describe('Description of what this query is trying to find'),
