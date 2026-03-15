@@ -461,6 +461,11 @@
     }
 }
 
+/* Hide POS receipt on screen; shown only when printing */
+.print-only {
+    display: none !important;
+}
+
 /* Print styles for Daily Programme */
 @media print {
 
@@ -1140,125 +1145,92 @@
         margin: 8px 0 0 0;
     }
 
-    /* Service Completion Print Styles */
-    .service-completion-print,
-    .service-completion-print * {
-        visibility: visible;
-    }
-
+    /* Service Completion Print Styles - 80mm POS thermal printer */
     .service-completion-print {
         position: absolute;
         left: 0;
         top: 0;
         width: 100%;
-        padding: 20px;
         background: white;
         color: #000;
         page: service-receipt;
     }
 
-    /* Named page for beneficiary service receipt - different header than daily programme */
+    /* Hide on-screen content when printing receipt */
+    .service-completion-print .screen-only {
+        display: none !important;
+        visibility: hidden !important;
+    }
+
+    /* Show only the POS receipt when printing */
+    .service-completion-print .pos-receipt.print-only {
+        display: block !important;
+        visibility: visible !important;
+    }
+
+    .service-completion-print .pos-receipt,
+    .service-completion-print .pos-receipt * {
+        visibility: visible;
+    }
+
+    /* 80mm POS page - printable area ~72mm, 42 chars/line */
     @page service-receipt {
-        size: A4;
-        margin: 1.5cm;
-        margin-top: 3.5cm;
-        margin-bottom: 2cm;
-
-        @top-center {
-            content: "मा. आमदार श्रीमती सना मलिक शेख \A लाभार्थी सेवा पावती";
-            white-space: pre-line;
-            font-size: 18px;
-            font-weight: bold;
-            color: #000;
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding-bottom: 8px;
-            border-bottom: 2px solid #000;
-            margin-bottom: 0;
-            vertical-align: bottom;
-        }
-
-        @bottom-center {
-            content: "Page " counter(page) " of " counter(pages);
-            font-size: 10px;
-            color: #333;
-            font-family: Arial, sans-serif;
-        }
+        size: 80mm auto;
+        margin: 0;
     }
 
-    .service-completion-print * {
-        color: #000 !important;
+    /* POS receipt layout - monospace for thermal alignment */
+    .service-completion-print .pos-receipt {
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 12px;
+        width: 72mm;
+        max-width: 72mm;
+        margin: 0 auto;
+        padding: 4mm;
+        color: #000;
+        line-height: 1.3;
     }
 
-    .service-completion-print .print-header {
+    .service-completion-print .pos-receipt-sep {
         text-align: center;
-        margin-bottom: 24px;
-        padding-bottom: 16px;
-        border-bottom: 2px solid #000;
+        margin: 2px 0;
+        font-size: 11px;
     }
 
-    .service-completion-print .print-header h1 {
+    .service-completion-print .pos-receipt-header {
+        text-align: center;
+        font-weight: bold;
+        margin: 4px 0;
+        font-size: 11px;
+    }
+
+    .service-completion-print .pos-receipt-token-label {
+        text-align: center;
+        margin: 4px 0;
+        font-size: 11px;
+    }
+
+    .service-completion-print .pos-receipt-token-value {
+        text-align: center;
         font-size: 24px;
         font-weight: bold;
-        margin: 0 0 8px 0;
-        color: #000 !important;
-    }
-
-    .service-completion-print .print-header p {
-        font-size: 14px;
-        color: #333 !important;
-        margin: 0;
-    }
-
-    .service-completion-print .token-display {
-        text-align: center;
-        margin: 24px 0;
-        padding: 20px;
-        border: 2px solid #000;
-        background: #f9fafb;
-    }
-
-    .service-completion-print .token-display p {
-        font-size: 32px;
-        font-weight: bold;
-        color: #000 !important;
         margin: 8px 0;
+        letter-spacing: 2px;
     }
 
-    .service-completion-print .service-summary {
-        margin-top: 24px;
+    .service-completion-print .pos-receipt-body {
+        margin: 4px 0;
+        text-align: left;
+        font-size: 11px;
     }
 
-    .service-completion-print .service-summary h3 {
-        font-size: 18px;
-        font-weight: 700;
-        margin: 0 0 16px 0;
-        padding-bottom: 8px;
-        border-bottom: 1px solid #000;
-        color: #000 !important;
+    .service-completion-print .pos-receipt-body strong {
+        font-weight: bold;
     }
 
-    .service-completion-print .summary-grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-        margin-bottom: 16px;
-    }
-
-    .service-completion-print .summary-item {
-        padding: 8px 0;
-        border-bottom: 1px solid #ddd;
-    }
-
-    .service-completion-print .summary-item label {
-        font-weight: 600;
-        display: block;
-        margin-bottom: 4px;
-        color: #000 !important;
-    }
-
-    .service-completion-print .summary-item p {
-        color: #333 !important;
-        margin: 0;
+    .service-completion-print .pos-receipt-footer {
+        text-align: center;
+        margin: 6px 0;
+        font-size: 11px;
     }
 }

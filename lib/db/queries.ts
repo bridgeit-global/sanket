@@ -8,6 +8,7 @@ import {
   eq,
   gt,
   gte,
+  ilike,
   inArray,
   lt,
   lte,
@@ -2016,11 +2017,24 @@ export async function createVoter(voterData: Partial<Voter>): Promise<VoterMaste
 }
 
 // Beneficiary Service queries
-// Generate a unique token for beneficiary service
-function generateServiceToken(): string {
-  const timestamp = Date.now().toString(36);
-  const random = Math.random().toString(36).substring(2, 8);
-  return `BS${timestamp}${random}`.toUpperCase();
+// Generate a unique token for beneficiary service: DDMMYY-NNNN (date-embedded, daily sequential)
+async function generateServiceToken(): Promise<string> {
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yy = String(now.getFullYear()).slice(-2);
+  const datePrefix = `${dd}${mm}${yy}`;
+
+  const [result] = await db
+    .select({ count: count() })
+    .from(beneficiaryServices)
+    .where(gte(beneficiaryServices.createdAt, todayStart));
+
+  const nextNumber = (result?.count || 0) + 1;
+  return `${datePrefix}-${String(nextNumber).padStart(4, '0')}`;
 }
 
 export async function createBeneficiaryService({
@@ -2043,7 +2057,7 @@ export async function createBeneficiaryService({
   notes?: string;
 }): Promise<BeneficiaryService> {
   try {
-    const token = generateServiceToken();
+    const token = await generateServiceToken();
 
     const [service] = await db
       .insert(beneficiaryServices)
@@ -2412,7 +2426,7 @@ export async function getTasksWithFilters({
       }
 
       if (token) {
-        whereConditions.push(eq(beneficiaryServices.token, token));
+        whereConditions.push(ilike(beneficiaryServices.token, `%${token}%`));
       }
 
       // DEBUG: Log where conditions for individual services
@@ -2576,7 +2590,7 @@ export async function getTasksWithFilters({
     const finalWhereConditions = [...whereConditions];
 
     if (token) {
-      finalWhereConditions.push(eq(beneficiaryServices.token, token));
+      finalWhereConditions.push(ilike(beneficiaryServices.token, `%${token}%`));
     }
 
     if (serviceType === 'community') {
@@ -2931,7 +2945,7 @@ export async function getCommunityServicesWithAreas({
     }
 
     if (token) {
-      whereConditions.push(eq(beneficiaryServices.token, token));
+      whereConditions.push(ilike(beneficiaryServices.token, `%${token}%`));
     }
 
     // Get total count for pagination

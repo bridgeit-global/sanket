@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -266,6 +267,8 @@ export function BeneficiaryManagement() {
                 type: 'success',
                 description: t('operator.messages.serviceCreatedSuccess'),
             });
+            // Auto-print POS receipt after a short delay so the receipt DOM is rendered
+            setTimeout(() => window.print(), 300);
         } catch (error) {
             console.error('Error creating service:', error);
             toast({
@@ -516,15 +519,16 @@ export function BeneficiaryManagement() {
                     )}
 
                     {/* Completion Step */}
-                    {workflowStep === 'completed' && createdService && (
+                    {workflowStep === 'completed' && createdService && selectedVoter && (
                         <Card className="service-completion-print">
-                            <CardHeader>
+                            {/* On-screen completion UI (hidden when printing) */}
+                            <CardHeader className="screen-only">
                                 <CardTitle className="text-green-600">{t('operator.completion.title')}</CardTitle>
                                 <CardDescription>
                                     {t('operator.completion.description')}
                                 </CardDescription>
                             </CardHeader>
-                            <CardContent className="space-y-6">
+                            <CardContent className="space-y-6 screen-only">
                                 {/* Token Display */}
                                 <div className="text-center space-y-4 token-display">
                                     <div className="p-6 bg-green-50 border-2 border-green-200 rounded-lg">
@@ -582,6 +586,42 @@ export function BeneficiaryManagement() {
                                     </Button>
                                 </div>
                             </CardContent>
+
+                            {/* Hidden POS receipt (visible only when printing, 80mm thermal) */}
+                            <div className="pos-receipt print-only" aria-hidden="true">
+                                <div className="pos-receipt-sep">--------------------------------</div>
+                                <div className="pos-receipt-header">
+                                    <div>मा. आमदार सना मलिक शेख</div>
+                                    <div>अणुशक्ती नगर विधानसभा मतदारसंघ</div>
+                                    <div>Hon. MLA Sana Malik Shaikh</div>
+                                    <div>Anushakti Nagar Constituency</div>
+                                </div>
+                                <div className="pos-receipt-sep">--------------------------------</div>
+                                <div className="pos-receipt-token-label">टोकन क्र. / TOKEN NO</div>
+                                <div className="pos-receipt-token-value">
+                                    {createdService.token.includes('-') ? createdService.token.split('-')[1] : createdService.token}
+                                </div>
+                                <div className="pos-receipt-sep">--------------------------------</div>
+                                <div className="pos-receipt-body">
+                                    <div>दिनांक / Date : {format(new Date(createdService.createdAt), 'dd-MM-yyyy')}</div>
+                                    <div>वेळ / Time   : {format(new Date(createdService.createdAt), 'hh:mm a').toUpperCase()}</div>
+                                </div>
+                                <div className="pos-receipt-sep">--------------------------------</div>
+                                <div className="pos-receipt-body">
+                                    <div>नाव / Name : {selectedVoter.fullName}</div>
+                                    <div>मोबाईल / Mobile : {selectedVoterMobileNumbers[0]?.mobileNumber ?? 'xxxxxxxxxx'}</div>
+                                </div>
+                                <div className="pos-receipt-sep">--------------------------------</div>
+                                <div className="pos-receipt-body">
+                                    <div>सेवा / Service : <strong>{createdService.serviceName}</strong></div>
+                                </div>
+                                <div className="pos-receipt-sep">--------------------------------</div>
+                                <div className="pos-receipt-footer">
+                                    <div>कृपया आपल्या क्रमांकाची प्रतीक्षा करावी</div>
+                                    <div>Please wait for your turn</div>
+                                </div>
+                                <div className="pos-receipt-sep">--------------------------------</div>
+                            </div>
                         </Card>
                     )}
 
