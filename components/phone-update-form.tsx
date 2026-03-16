@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslations } from '@/hooks/use-translations';
-import type { Voter } from '@/lib/db/schema';
+import type { VoterWithPartNo } from '@/lib/db/schema';
 
 export interface MobileNumberEntry {
     mobileNumber: string;
@@ -14,7 +14,7 @@ export interface MobileNumberEntry {
 }
 
 interface PhoneUpdateFormProps {
-    voter: Voter;
+    voter: VoterWithPartNo;
     mobileNumbers?: MobileNumberEntry[];
     onPhoneUpdate: (phoneData: { mobileNoPrimary: string; mobileNoSecondary?: string }) => void;
     onSkip: () => void;
