@@ -12,12 +12,22 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { toast } from '@/components/toast';
 import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
 import { useTranslations } from '@/hooks/use-translations';
-import type { VoterTask, BeneficiaryService, VoterMaster, CommunityServiceArea } from '@/lib/db/schema';
+import type { VoterTask, BeneficiaryService, CommunityServiceArea } from '@/lib/db/schema';
 import { TablePagination } from '@/components/table-pagination';
+
+interface TaskVoter {
+    epicNumber: string;
+    fullName: string | null;
+    mobileNoPrimary: string | null;
+    mobileNoSecondary: string | null;
+    age: number | null;
+    gender: string | null;
+    relationName: string | null;
+}
 
 interface TaskWithService extends VoterTask {
     service?: BeneficiaryService;
-    voter?: VoterMaster;
+    voter?: TaskVoter;
 }
 
 interface TaskResponse {

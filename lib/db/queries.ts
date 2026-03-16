@@ -834,7 +834,27 @@ export async function getVoterByEpicNumber(epicNumber: string, electionId?: stri
   }
 }
 
-export async function getAllVoter(electionId?: string): Promise<Array<VoterMasterType>> {
+type BasicVoterWithBooth = {
+  epicNumber: string;
+  fullName: string;
+  relationType: string | null;
+  relationName: string | null;
+  familyGrouping: string | null;
+  boothNo: string | null;
+  srNo: string | null;
+  houseNumber: string | null;
+  religion: string | null;
+  age: number | null;
+  dob: string | null;
+  gender: string | null;
+  isVoted2024: boolean | null;
+  address: string | null;
+  localityStreet: string | null;
+  townVillage: string | null;
+  pincode: string | null;
+};
+
+export async function getAllVoter(electionId?: string): Promise<Array<BasicVoterWithBooth>> {
   try {
     const currentElectionId = electionId || await getCurrentElectionId();
 
@@ -882,7 +902,7 @@ export async function getAllVoter(electionId?: string): Promise<Array<VoterMaste
   }
 }
 
-export async function getVoterByAC(acNo: string, electionId?: string): Promise<Array<VoterMasterType>> {
+export async function getVoterByAC(acNo: string, electionId?: string): Promise<Array<BasicVoterWithBooth>> {
   try {
     const currentElectionId = electionId || await getCurrentElectionId();
 
@@ -983,7 +1003,7 @@ export async function getVoterByWard(wardNo: string, electionId?: string): Promi
   }
 }
 
-export async function getVoterByPart(partNo: string, electionId?: string): Promise<Array<VoterMasterType>> {
+export async function getVoterByPart(partNo: string, electionId?: string): Promise<Array<BasicVoterWithBooth>> {
   try {
     const currentElectionId = electionId || await getCurrentElectionId();
 
@@ -1886,7 +1906,15 @@ export async function getBeneficiaryServiceStats() {
   }
 }
 
-export async function createVoter(voterData: Partial<Voter>): Promise<VoterMasterType> {
+export async function createVoter(
+  voterData: Partial<VoterMasterType> & {
+    partNo?: string | null;
+    srNo?: string | null;
+    isVoted2024?: boolean;
+    mobileNoPrimary?: string | null;
+    mobileNoSecondary?: string | null;
+  }
+): Promise<VoterMasterType> {
   try {
     if (!voterData.epicNumber || !voterData.fullName) {
       throw new ChatSDKError(
@@ -4578,6 +4606,8 @@ export async function getVotersForExport(filters?: {
         )`,
         address: VoterMaster.address,
         pincode: VoterMaster.pincode,
+        localityStreet: VoterMaster.localityStreet,
+        townVillage: VoterMaster.townVillage,
         createdAt: sql<Date>`now()`,
         updatedAt: sql<Date>`now()`,
         boothNo: ElectionMapping.boothNo,
