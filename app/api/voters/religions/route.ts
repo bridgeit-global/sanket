@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { Voters } from '@/lib/db/schema';
+import { VoterMaster } from '@/lib/db/schema';
 import { auth } from '@/app/(auth)/auth';
 import { db } from '@/lib/db/queries';
 import { asc, isNotNull } from 'drizzle-orm';
@@ -11,13 +11,13 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Get distinct religions from Voters table
+        // Get distinct religions from VoterMaster table
         const religions = await db
-            .select({ religion: Voters.religion })
-            .from(Voters)
-            .where(isNotNull(Voters.religion))
-            .groupBy(Voters.religion)
-            .orderBy(asc(Voters.religion));
+            .select({ religion: VoterMaster.religion })
+            .from(VoterMaster)
+            .where(isNotNull(VoterMaster.religion))
+            .groupBy(VoterMaster.religion)
+            .orderBy(asc(VoterMaster.religion));
 
         const religionList = religions
             .map((r: { religion: string | null }) => r.religion)

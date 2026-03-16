@@ -8,12 +8,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/toast';
-import type { Voter } from '@/lib/db/schema';
+import type { VoterMaster } from '@/lib/db/schema';
 
 interface VoterProfilingFormProps {
-    onVoterCreated: (voter: Voter) => void;
+    onVoterCreated: (voter: VoterMaster) => void;
     onCancel: () => void;
-    onMobileUpdateRequired?: (voter: Voter) => void;
+    onMobileUpdateRequired?: (voter: VoterMaster) => void;
 }
 
 export function VoterProfilingForm({ onVoterCreated, onCancel, onMobileUpdateRequired }: VoterProfilingFormProps) {

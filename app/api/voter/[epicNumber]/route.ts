@@ -103,6 +103,7 @@ export async function PUT(
     const {
       fullName,
       age,
+      dob,
       gender,
       familyGrouping,
       religion,
@@ -194,6 +195,7 @@ export async function PUT(
       {
         fullName: fullName.trim(),
         age: age !== undefined ? Number(age) : undefined,
+        dob: dob || undefined,
         gender: gender?.trim() || undefined,
         familyGrouping: familyGrouping?.trim() || undefined,
         religion: religion?.trim() || undefined,

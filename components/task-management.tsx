@@ -12,12 +12,12 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { toast } from '@/components/toast';
 import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
 import { useTranslations } from '@/hooks/use-translations';
-import type { VoterTask, BeneficiaryService, Voter, CommunityServiceArea } from '@/lib/db/schema';
+import type { VoterTask, BeneficiaryService, VoterMaster, CommunityServiceArea } from '@/lib/db/schema';
 import { TablePagination } from '@/components/table-pagination';
 
 interface TaskWithService extends VoterTask {
     service?: BeneficiaryService;
-    voter?: Voter;
+    voter?: VoterMaster;
 }
 
 interface TaskResponse {

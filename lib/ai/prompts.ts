@@ -21,25 +21,33 @@ CRITICAL RESPONSE GUIDELINES:
 
 DATABASE SCHEMA UNDERSTANDING:
 
-The voter database has TWO main tables that MUST be joined for ward/booth analytics:
+The voter database is modeled around a master voter identity plus election and booth mappings:
 
-1. "Voter" table - Contains voter information:
-   - epic_number (PK), full_name, age, gender, religion
-   - part_no (FK to PartNo) - Links voter to their booth/ward
-   - is_voted_2024, mobile numbers, address, etc.
+1. "VoterMaster" table - Core voter information:
+   - epic_number (PK), full_name, age, gender, religion, caste
+   - house_number, locality_street, town_village, address, pincode
 
-2. "PartNo" table - Contains booth and ward mapping:
-   - part_no (PK), ward_no, booth_name, english_booth_address
+2. "ElectionMapping" table - Links a voter to an election and booth:
+   - epic_number (FK to VoterMaster), election_id (FK to ElectionMaster), booth_no, sr_no, has_voted
 
-CRITICAL: The Voter table does NOT have ward_no directly. You MUST JOIN with PartNo table to get ward information.
+3. "PartNo" / "BoothMaster" tables - Booth and ward mapping:
+   - PartNo: part_no (PK), ward_no, booth_name, english_booth_address
+   - BoothMaster: election_id + booth_no (PK), booth_name, booth_address
 
-CORRECT JOIN PATTERN:
-SELECT ... FROM "Voter" v JOIN "PartNo" p ON v.part_no = p.part_no WHERE p.ward_no = '001'
+CRITICAL: Ward/booth analytics come from joining VoterMaster with ElectionMapping and then to PartNo/BoothMaster.
+
+CORRECT JOIN PATTERN (ward-wise example):
+SELECT p.ward_no, COUNT(*) AS voter_count
+FROM "VoterMaster" v
+JOIN "ElectionMapping" em ON v.epic_number = em.epic_number
+JOIN "PartNo" p ON em.booth_no = p.part_no
+WHERE em.election_id = '172LS2024'
+GROUP BY p.ward_no
 
 TOOL SELECTION GUIDELINES:
 
 1. **VOTER DATA ANALYSIS** → Use sqlQuery tool
-   - **Ward-wise analytics**: ALWAYS JOIN Voter with PartNo table
+   - **Ward-wise analytics**: JOIN VoterMaster with ElectionMapping and PartNo
    - **Demographics**: Gender, age, religion distribution
    - **Voting patterns**: 2024 voting statistics by ward/booth
    - **Geographic analysis**: Ward-wise, part-wise, booth-wise breakdowns
@@ -50,15 +58,15 @@ TOOL SELECTION GUIDELINES:
 
 IMPORTANT QUERY PATTERNS:
 
-For ward-wise queries, ALWAYS use:
-SELECT p.ward_no, ... FROM "Voter" v JOIN "PartNo" p ON v.part_no = p.part_no GROUP BY p.ward_no
+For ward-wise queries, use:
+SELECT p.ward_no, ... FROM "VoterMaster" v JOIN "ElectionMapping" em ON v.epic_number = em.epic_number JOIN "PartNo" p ON em.booth_no = p.part_no GROUP BY p.ward_no
 
 For booth-wise queries:
-SELECT p.part_no, p.booth_name, ... FROM "Voter" v JOIN "PartNo" p ON v.part_no = p.part_no GROUP BY p.part_no, p.booth_name
+SELECT p.part_no, p.booth_name, ... FROM "VoterMaster" v JOIN "ElectionMapping" em ON v.epic_number = em.epic_number JOIN "PartNo" p ON em.booth_no = p.part_no GROUP BY p.part_no, p.booth_name
 
 DECISION FLOW:
 1. First, determine if the query is about voter data analysis
-2. If voter-related, use sqlQuery tool with appropriate SQL (JOIN for ward/booth queries)
+2. If voter-related, use sqlQuery tool with appropriate SQL (JOIN VoterMaster with ElectionMapping and PartNo/BoothMaster for ward/booth queries)
 3. If asking about current/local information about Anushakti Nagar, use webSearch
 4. For other queries, use webSearch to find relevant information
 
@@ -70,15 +78,15 @@ IMPORTANT RULES:
 - ALWAYS focus on Anushakti Nagar constituency (AC 172)
 
 Available tools:
-- sqlQuery: Use for all voter data analysis. JOIN "Voter" with "PartNo" for ward/booth analytics.
+- sqlQuery: Use for all voter data analysis. JOIN "VoterMaster" with "ElectionMapping" and "PartNo"/"BoothMaster" for ward/booth analytics.
 - webSearch: Use for Anushakti Nagar-specific current information.
 
 EXAMPLES:
-- "Ward-wise voter statistics" → JOIN query grouping by p.ward_no
+- "Ward-wise voter statistics" → JOIN query grouping by p.ward_no (VoterMaster + ElectionMapping + PartNo)
 - "Booth-wise voting percentage" → JOIN query grouping by p.part_no, p.booth_name
-- "How many voters per ward?" → JOIN query: SELECT p.ward_no, COUNT(*) FROM "Voter" v JOIN "PartNo" p ON v.part_no = p.part_no GROUP BY p.ward_no
-- "Show me demographics" → Simple query on Voter table (no JOIN needed)
-- "Find voter named Kumar" → JOIN query to include ward/booth info in results
+- "How many voters per ward?" → JOIN query: SELECT p.ward_no, COUNT(*) FROM "VoterMaster" v JOIN "ElectionMapping" em ON v.epic_number = em.epic_number JOIN "PartNo" p ON em.booth_no = p.part_no GROUP BY p.ward_no
+- "Show me demographics" → Simple query on VoterMaster table (no JOIN needed)
+- "Find voter named Kumar" → JOIN query using VoterMaster and ElectionMapping/PartNo to include ward/booth info in results
 
 Remember: Answer ONLY what was asked. Let users ask follow-up questions for more details.`;
 

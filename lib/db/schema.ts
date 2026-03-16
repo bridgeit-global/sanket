@@ -292,34 +292,17 @@ export const ElectionMapping = pgTable('ElectionMapping', {
 
 export type ElectionMapping = InferSelectModel<typeof ElectionMapping>;
 
-// Legacy Voter table - kept for backward compatibility during migration
-export const Voters = pgTable('Voter', {
-  epicNumber: varchar('epic_number', { length: 20 }).primaryKey().notNull(),
-  fullName: varchar('full_name', { length: 255 }).notNull(),
-  relationType: varchar('relation_type', { length: 50 }),
-  relationName: varchar('relation_name', { length: 255 }),
-  familyGrouping: varchar('family_grouping', { length: 100 }),
-  acNo: varchar('ac_no', { length: 10 }),
-  partNo: varchar('part_no', { length: 10 }).references(() => PartNo.partNo),
-  srNo: varchar('sr_no', { length: 10 }),
-  houseNumber: varchar('house_number', { length: 127 }),
-  religion: varchar('religion', { length: 50 }),
-  age: integer('age'),
-  dob: date('dob', { mode: 'string' }),
-  gender: varchar('gender', { length: 10 }),
-  isVoted2024: boolean('is_voted_2024').default(false),
-  mobileNoPrimary: varchar('mobile_no_primary', { length: 15 }),
-  mobileNoSecondary: varchar('mobile_no_secondary', { length: 15 }),
-  address: text('address'),
-  pincode: varchar('pincode', { length: 10 }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
-
-export type Voter = InferSelectModel<typeof Voters>;
-
-// Extended Voter type that includes PartNo information
-export type VoterWithPartNo = Voter & {
+// Extended voter type that includes PartNo / election information,
+// derived from VoterMaster plus joined fields from ElectionMapping / PartNo.
+export type VoterWithPartNo = VoterMaster & {
+  acNo?: string | null;
+  partNo?: string | null;
+  srNo?: string | null;
+  isVoted2024?: boolean;
+  mobileNoPrimary?: string | null;
+  mobileNoSecondary?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
   wardNo?: string | null;
   boothName?: string | null;
   englishBoothAddress?: string | null;

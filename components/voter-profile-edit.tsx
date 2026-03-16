@@ -26,6 +26,7 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
   const [formData, setFormData] = useState({
     fullName: '',
     age: '',
+    dob: '',
     gender: '',
     familyGrouping: '',
     religion: '',
@@ -84,6 +85,7 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
           setFormData({
             fullName: voterData.fullName || '',
             age: voterData.age?.toString() || '',
+            dob: voterData.dob || '',
             gender: voterData.gender || '',
             familyGrouping: voterData.familyGrouping || '',
             religion: voterData.religion || '',
@@ -331,6 +333,15 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
                     value={formData.age}
                     onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                     placeholder="Enter age"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dob">Date of Birth</Label>
+                  <Input
+                    id="dob"
+                    type="date"
+                    value={formData.dob}
+                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
                   />
                 </div>
                 <div className="space-y-2">

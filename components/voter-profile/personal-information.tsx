@@ -29,6 +29,18 @@ export function PersonalInformation({ voter }: PersonalInformationProps) {
                         <p className="text-base">{voter.age}</p>
                     </div>
                 )}
+                {voter.dob && (
+                    <div>
+                        <label className="text-sm font-medium text-muted-foreground">Date of Birth</label>
+                        <p className="text-base">
+                            {new Date(voter.dob).toLocaleDateString(undefined, {
+                                year: 'numeric',
+                                month: 'short',
+                                day: '2-digit',
+                            })}
+                        </p>
+                    </div>
+                )}
                 {voter.gender && (
                     <div>
                         <label className="text-sm font-medium text-muted-foreground">Gender</label>

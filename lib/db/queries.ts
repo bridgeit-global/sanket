@@ -32,7 +32,6 @@ import {
   type DBMessage,
   type Chat,
   stream,
-  type Voter,
   type VoterWithPartNo,
   VoterMaster,
   type VoterMaster as VoterMasterType,
@@ -660,61 +659,6 @@ export async function getCurrentElectionId(): Promise<string> {
   return process.env.CURRENT_ELECTION_ID || '172LS2024';
 }
 
-type VoterLegacyRow = {
-  epicNumber: string;
-  fullName: string;
-  relationType: string | null;
-  relationName: string | null;
-  familyGrouping: string | null;
-  houseNumber: string | null;
-  religion: string | null;
-  age: number | null;
-  dob: string | null;
-  gender: string | null;
-  mobileNoPrimary: string | null;
-  mobileNoSecondary: string | null;
-  address: string | null;
-  pincode: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  boothNo: string | null;
-  srNo: string | null;
-  hasVoted: boolean | null;
-  constituencyType: string | null;
-  constituencyId: string | null;
-  wardNo?: string | null;
-  boothName?: string | null;
-  englishBoothAddress?: string | null;
-};
-
-function mapLegacyVoterRow(row: VoterLegacyRow): VoterWithPartNo {
-  return {
-    epicNumber: row.epicNumber,
-    fullName: row.fullName,
-    relationType: row.relationType,
-    relationName: row.relationName,
-    familyGrouping: row.familyGrouping,
-    acNo: row.constituencyType === 'assembly' ? row.constituencyId : null,
-    partNo: row.boothNo,
-    srNo: row.srNo,
-    houseNumber: row.houseNumber,
-    religion: row.religion,
-    age: row.age,
-    dob: row.dob,
-    gender: row.gender,
-    isVoted2024: row.hasVoted ?? false,
-    mobileNoPrimary: row.mobileNoPrimary,
-    mobileNoSecondary: row.mobileNoSecondary,
-    address: row.address,
-    pincode: row.pincode,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    wardNo: row.wardNo ?? null,
-    boothName: row.boothName ?? null,
-    englishBoothAddress: row.englishBoothAddress ?? null,
-  };
-}
-
 export type ElectionMasterOption = Pick<
   ElectionMasterType,
   'electionId' | 'electionType' | 'year' | 'delimitationVersion' | 'constituencyType' | 'constituencyId'
@@ -850,6 +794,7 @@ export async function getVoterByEpicNumber(epicNumber: string, electionId?: stri
       familyGrouping: VoterMaster.familyGrouping,
       houseNumber: VoterMaster.houseNumber,
       religion: VoterMaster.religion,
+      dob: VoterMaster.dob,
       age: VoterMaster.age,
       gender: VoterMaster.gender,
       address: VoterMaster.address,
@@ -889,11 +834,11 @@ export async function getVoterByEpicNumber(epicNumber: string, electionId?: stri
   }
 }
 
-export async function getAllVoter(electionId?: string): Promise<Array<Voter>> {
+export async function getAllVoter(electionId?: string): Promise<Array<VoterMasterType>> {
   try {
     const currentElectionId = electionId || await getCurrentElectionId();
 
-    const results = await db
+    return await db
       .select({
         epicNumber: VoterMaster.epicNumber,
         fullName: VoterMaster.fullName,
@@ -929,8 +874,6 @@ export async function getAllVoter(electionId?: string): Promise<Array<Voter>> {
         )
       )
       .orderBy(asc(VoterMaster.fullName));
-
-    return results as unknown as Array<Voter>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -939,11 +882,11 @@ export async function getAllVoter(electionId?: string): Promise<Array<Voter>> {
   }
 }
 
-export async function getVoterByAC(acNo: string, electionId?: string): Promise<Array<Voter>> {
+export async function getVoterByAC(acNo: string, electionId?: string): Promise<Array<VoterMasterType>> {
   try {
     const currentElectionId = electionId || await getCurrentElectionId();
 
-    const results = await db
+    return await db
       .select({
         epicNumber: VoterMaster.epicNumber,
         fullName: VoterMaster.fullName,
@@ -980,8 +923,6 @@ export async function getVoterByAC(acNo: string, electionId?: string): Promise<A
         )
       )
       .orderBy(asc(VoterMaster.fullName));
-
-    return results as unknown as Array<Voter>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1042,11 +983,11 @@ export async function getVoterByWard(wardNo: string, electionId?: string): Promi
   }
 }
 
-export async function getVoterByPart(partNo: string, electionId?: string): Promise<Array<Voter>> {
+export async function getVoterByPart(partNo: string, electionId?: string): Promise<Array<VoterMasterType>> {
   try {
     const currentElectionId = electionId || await getCurrentElectionId();
 
-    const results = await db
+    return await db
       .select({
         epicNumber: VoterMaster.epicNumber,
         fullName: VoterMaster.fullName,
@@ -1083,8 +1024,6 @@ export async function getVoterByPart(partNo: string, electionId?: string): Promi
         )
       )
       .orderBy(asc(VoterMaster.fullName));
-
-    return results as unknown as Array<Voter>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -1605,7 +1544,7 @@ export async function updateVoterMobileNumber(
 
 export async function updateVoter(
   epicNumber: string,
-  updateData: Partial<Pick<VoterMasterType, 'fullName' | 'age' | 'gender' | 'familyGrouping' | 'religion' | 'caste' | 'houseNumber' | 'address' | 'pincode' | 'relationType' | 'relationName'>> & {
+  updateData: Partial<Pick<VoterMasterType, 'fullName' | 'age' | 'dob' | 'gender' | 'familyGrouping' | 'religion' | 'caste' | 'houseNumber' | 'address' | 'pincode' | 'relationType' | 'relationName'>> & {
     isVoted2024?: boolean;
     mobileNumbers?: string[];
   },
@@ -1648,6 +1587,9 @@ export async function updateVoter(
     }
     if (voterMasterData.age !== undefined) {
       dataToUpdate.age = voterMasterData.age;
+    }
+    if (voterMasterData.dob !== undefined) {
+      dataToUpdate.dob = voterMasterData.dob as string;
     }
     if (voterMasterData.gender !== undefined) {
       dataToUpdate.gender = voterMasterData.gender;
@@ -4549,7 +4491,7 @@ export async function getVotersForExport(filters?: {
   hasPhone?: boolean;
   religion?: string;
   isVoted2024?: boolean;
-}): Promise<Voter[]> {
+}): Promise<VoterWithPartNo[]> {
   try {
     const currentElectionId = await getCurrentElectionId();
     const conditions: SQL<unknown>[] = [];
@@ -4660,7 +4602,34 @@ export async function getVotersForExport(filters?: {
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(asc(VoterMaster.fullName));
 
-    return results.map(mapLegacyVoterRow) as Array<Voter>;
+    return results.map((row) => ({
+      epicNumber: row.epicNumber,
+      fullName: row.fullName,
+      relationType: row.relationType,
+      relationName: row.relationName,
+      familyGrouping: row.familyGrouping,
+      houseNumber: row.houseNumber,
+      religion: row.religion,
+      age: row.age,
+      dob: row.dob,
+      gender: row.gender,
+      address: row.address,
+      pincode: row.pincode,
+      acNo: row.constituencyType === 'assembly' ? row.constituencyId : null,
+      partNo: row.boothNo,
+      srNo: row.srNo,
+      isVoted2024: row.hasVoted ?? false,
+      mobileNoPrimary: row.mobileNoPrimary,
+      mobileNoSecondary: row.mobileNoSecondary,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      wardNo: row.wardNo ?? null,
+      boothName: row.boothName ?? null,
+      englishBoothAddress: row.englishBoothAddress ?? null,
+      caste: null,
+      localityStreet: row.localityStreet ?? null,
+      townVillage: row.townVillage ?? null,
+    })) as VoterWithPartNo[];
   } catch (error) {
     throw new ChatSDKError('bad_request:database', 'Failed to get voters for export');
   }

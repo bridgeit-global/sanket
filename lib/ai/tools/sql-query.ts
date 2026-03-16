@@ -94,8 +94,6 @@ RELATIONSHIPS (for wide search):
 - ElectionMapping.election_id = ElectionMaster.election_id
 - ElectionMapping.election_id + ElectionMapping.booth_no = BoothMaster.election_id + BoothMaster.booth_no
 
-Legacy (if still present): "Voter" and "PartNo" for backward compatibility.
-
 SAMPLE QUERIES (wide search):
 
 1. Voter by name with all mobile numbers:
