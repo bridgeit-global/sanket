@@ -182,6 +182,7 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
         body: JSON.stringify({
           fullName: formData.fullName.trim(),
           age: formData.age ? Number.parseInt(formData.age, 10) : undefined,
+          dob: formData.dob || undefined,
           gender: formData.gender || undefined,
           familyGrouping: formData.familyGrouping.trim() || undefined,
           religion: formData.religion.trim() || undefined,
