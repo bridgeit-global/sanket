@@ -474,6 +474,28 @@
         visibility: hidden;
     }
 
+    /* Reset ancestor overflow/height constraints to prevent clipping across page breaks */
+    html,
+    body {
+        overflow: visible !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+    }
+
+    /* Remove overflow clipping on page containers that would prevent multi-page content */
+    .container {
+        overflow: visible !important;
+    }
+
+    /* Reset sidebar layout constraints for print - flex/min-height can constrain pagination */
+    main.relative {
+        overflow: visible !important;
+        min-height: 0 !important;
+        height: auto !important;
+        display: block !important;
+    }
+
     /* Show only the printable schedule section */
     .print-schedule,
     .print-schedule * {
