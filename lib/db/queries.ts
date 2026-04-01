@@ -4524,23 +4524,45 @@ export async function getVotersForExport(filters?: {
     const currentElectionId = await getCurrentElectionId();
     const conditions: SQL<unknown>[] = [];
 
+    // Some DB columns that we treat as "numbers" may be stored as bigint in Postgres.
+    // Filters arrive as strings from the UI. Casting both sides to text avoids bigint/varchar operator errors.
+    const electionBoothNoText = sql<string>`${ElectionMapping.boothNo}::text`;
+    const partNoText = sql<string>`${PartNo.partNo}::text`;
+    const partWardNoText = sql<string>`${PartNo.wardNo}::text`;
+    const electionConstituencyIdText = sql<string>`${ElectionMaster.constituencyId}::text`;
+    const voterEpicNumberText = sql<string>`${VoterMaster.epicNumber}::text`;
+    const electionMappingEpicNumberText = sql<string>`${ElectionMapping.epicNumber}::text`;
+    const electionMappingElectionIdText = sql<string>`${ElectionMapping.electionId}::text`;
+    const electionMasterElectionIdText = sql<string>`${ElectionMaster.electionId}::text`;
+    const voterMobileEpicNumberText = sql<string>`${voterMobileNumber.epicNumber}::text`;
+
     if (filters?.partNo) {
       if (Array.isArray(filters.partNo) && filters.partNo.length > 0) {
-        conditions.push(inArray(ElectionMapping.boothNo, filters.partNo));
+        conditions.push(
+          inArray(
+            electionBoothNoText,
+            filters.partNo.map((p) => String(p)),
+          ),
+        );
       } else if (typeof filters.partNo === 'string') {
-        conditions.push(eq(ElectionMapping.boothNo, filters.partNo));
+        conditions.push(eq(electionBoothNoText, String(filters.partNo)));
       }
     }
     if (filters?.wardNo) {
       if (Array.isArray(filters.wardNo) && filters.wardNo.length > 0) {
-        conditions.push(inArray(PartNo.wardNo, filters.wardNo));
+        conditions.push(
+          inArray(
+            partWardNoText,
+            filters.wardNo.map((w) => String(w)),
+          ),
+        );
       } else if (typeof filters.wardNo === 'string') {
-        conditions.push(eq(PartNo.wardNo, filters.wardNo));
+        conditions.push(eq(partWardNoText, String(filters.wardNo)));
       }
     }
     if (filters?.acNo) {
       conditions.push(eq(ElectionMaster.constituencyType, 'assembly'));
-      conditions.push(eq(ElectionMaster.constituencyId, filters.acNo));
+      conditions.push(eq(electionConstituencyIdText, String(filters.acNo)));
     }
     if (filters?.gender) {
       conditions.push(eq(VoterMaster.gender, filters.gender));
@@ -4553,12 +4575,12 @@ export async function getVotersForExport(filters?: {
     }
     if (filters?.hasPhone === true) {
       conditions.push(
-        sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${VoterMaster.epicNumber})`
+        sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileEpicNumberText} = ${voterEpicNumberText})`
       );
     }
     if (filters?.hasPhone === false) {
       conditions.push(
-        sql`not exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${VoterMaster.epicNumber})`
+        sql`not exists (select 1 from ${voterMobileNumber} where ${voterMobileEpicNumberText} = ${voterEpicNumberText})`
       );
     }
     if (filters?.religion) {
@@ -4578,7 +4600,7 @@ export async function getVotersForExport(filters?: {
       }
     }
 
-    const results = await db
+    const baseQuery = db
       .select({
         epicNumber: VoterMaster.epicNumber,
         fullName: VoterMaster.fullName,
@@ -4593,14 +4615,14 @@ export async function getVotersForExport(filters?: {
         mobileNoPrimary: sql<string | null>`(
           select ${voterMobileNumber.mobileNumber}
           from ${voterMobileNumber}
-          where ${voterMobileNumber.epicNumber} = ${VoterMaster.epicNumber}
+          where ${voterMobileEpicNumberText} = ${voterEpicNumberText}
             and ${voterMobileNumber.sortOrder} = 1
           limit 1
         )`,
         mobileNoSecondary: sql<string | null>`(
           select ${voterMobileNumber.mobileNumber}
           from ${voterMobileNumber}
-          where ${voterMobileNumber.epicNumber} = ${VoterMaster.epicNumber}
+          where ${voterMobileEpicNumberText} = ${voterEpicNumberText}
             and ${voterMobileNumber.sortOrder} = 2
           limit 1
         )`,
@@ -4623,14 +4645,19 @@ export async function getVotersForExport(filters?: {
       .leftJoin(
         ElectionMapping,
         and(
-          eq(VoterMaster.epicNumber, ElectionMapping.epicNumber),
-          eq(ElectionMapping.electionId, currentElectionId),
+          eq(voterEpicNumberText, electionMappingEpicNumberText),
+          eq(electionMappingElectionIdText, String(currentElectionId)),
         ),
       )
-      .leftJoin(ElectionMaster, eq(ElectionMapping.electionId, ElectionMaster.electionId))
-      .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(asc(VoterMaster.fullName));
+      .leftJoin(
+        ElectionMaster,
+        eq(electionMappingElectionIdText, electionMasterElectionIdText),
+      )
+      .leftJoin(PartNo, eq(electionBoothNoText, partNoText));
+
+    const results = await (
+      conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery
+    ).orderBy(asc(VoterMaster.fullName));
 
     return results.map((row) => ({
       epicNumber: row.epicNumber,
@@ -4661,7 +4688,12 @@ export async function getVotersForExport(filters?: {
       townVillage: row.townVillage ?? null,
     })) as VoterWithPartNo[];
   } catch (error) {
-    throw new ChatSDKError('bad_request:database', 'Failed to get voters for export');
+    const cause = error instanceof Error ? error.message : String(error);
+    console.error('getVotersForExport failed:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      `Failed to get voters for export: ${cause}`,
+    );
   }
 }
 
@@ -4680,23 +4712,44 @@ export async function getVotersCountForExport(filters?: {
     const currentElectionId = await getCurrentElectionId();
     const conditions: SQL<unknown>[] = [];
 
+    // Same casting strategy as `getVotersForExport` to avoid bigint/varchar operator errors.
+    const electionBoothNoText = sql<string>`${ElectionMapping.boothNo}::text`;
+    const partNoText = sql<string>`${PartNo.partNo}::text`;
+    const partWardNoText = sql<string>`${PartNo.wardNo}::text`;
+    const electionConstituencyIdText = sql<string>`${ElectionMaster.constituencyId}::text`;
+    const voterEpicNumberText = sql<string>`${VoterMaster.epicNumber}::text`;
+    const electionMappingEpicNumberText = sql<string>`${ElectionMapping.epicNumber}::text`;
+    const electionMappingElectionIdText = sql<string>`${ElectionMapping.electionId}::text`;
+    const electionMasterElectionIdText = sql<string>`${ElectionMaster.electionId}::text`;
+    const voterMobileEpicNumberText = sql<string>`${voterMobileNumber.epicNumber}::text`;
+
     if (filters?.partNo) {
       if (Array.isArray(filters.partNo) && filters.partNo.length > 0) {
-        conditions.push(inArray(ElectionMapping.boothNo, filters.partNo));
+        conditions.push(
+          inArray(
+            electionBoothNoText,
+            filters.partNo.map((p) => String(p)),
+          ),
+        );
       } else if (typeof filters.partNo === 'string') {
-        conditions.push(eq(ElectionMapping.boothNo, filters.partNo));
+        conditions.push(eq(electionBoothNoText, String(filters.partNo)));
       }
     }
     if (filters?.wardNo) {
       if (Array.isArray(filters.wardNo) && filters.wardNo.length > 0) {
-        conditions.push(inArray(PartNo.wardNo, filters.wardNo));
+        conditions.push(
+          inArray(
+            partWardNoText,
+            filters.wardNo.map((w) => String(w)),
+          ),
+        );
       } else if (typeof filters.wardNo === 'string') {
-        conditions.push(eq(PartNo.wardNo, filters.wardNo));
+        conditions.push(eq(partWardNoText, String(filters.wardNo)));
       }
     }
     if (filters?.acNo) {
       conditions.push(eq(ElectionMaster.constituencyType, 'assembly'));
-      conditions.push(eq(ElectionMaster.constituencyId, filters.acNo));
+      conditions.push(eq(electionConstituencyIdText, String(filters.acNo)));
     }
     if (filters?.gender) {
       conditions.push(eq(VoterMaster.gender, filters.gender));
@@ -4709,12 +4762,12 @@ export async function getVotersCountForExport(filters?: {
     }
     if (filters?.hasPhone === true) {
       conditions.push(
-        sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${VoterMaster.epicNumber})`
+        sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileEpicNumberText} = ${voterEpicNumberText})`
       );
     }
     if (filters?.hasPhone === false) {
       conditions.push(
-        sql`not exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${VoterMaster.epicNumber})`
+        sql`not exists (select 1 from ${voterMobileNumber} where ${voterMobileEpicNumberText} = ${voterEpicNumberText})`
       );
     }
     if (filters?.religion) {
@@ -4734,23 +4787,32 @@ export async function getVotersCountForExport(filters?: {
       }
     }
 
-    const result = await db
+    const baseQuery = db
       .select({ count: count() })
       .from(VoterMaster)
       .leftJoin(
         ElectionMapping,
         and(
-          eq(VoterMaster.epicNumber, ElectionMapping.epicNumber),
-          eq(ElectionMapping.electionId, currentElectionId),
+          eq(voterEpicNumberText, electionMappingEpicNumberText),
+          eq(electionMappingElectionIdText, String(currentElectionId)),
         ),
       )
-      .leftJoin(ElectionMaster, eq(ElectionMapping.electionId, ElectionMaster.electionId))
-      .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
-      .where(conditions.length > 0 ? and(...conditions) : undefined);
+      .leftJoin(
+        ElectionMaster,
+        eq(electionMappingElectionIdText, electionMasterElectionIdText),
+      )
+      .leftJoin(PartNo, eq(electionBoothNoText, partNoText));
+
+    const result = await (conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery);
 
     return result[0]?.count || 0;
   } catch (error) {
-    throw new ChatSDKError('bad_request:database', 'Failed to count voters for export');
+    const cause = error instanceof Error ? error.message : String(error);
+    console.error('getVotersCountForExport failed:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      `Failed to count voters for export: ${cause}`,
+    );
   }
 }
 
@@ -4821,15 +4883,18 @@ export async function getVoterMobileNumbersByEpicNumbers(
       return new Map();
     }
 
+    // Cast to text to avoid bigint/varchar operator errors when epicNumbers come from JS.
+    const voterMobileEpicNumberText = sql<string>`${voterMobileNumber.epicNumber}::text`;
+
     const mobileNumbers = await db
       .select({
-        epicNumber: voterMobileNumber.epicNumber,
+        epicNumber: voterMobileEpicNumberText,
         mobileNumber: voterMobileNumber.mobileNumber,
         sortOrder: voterMobileNumber.sortOrder,
       })
       .from(voterMobileNumber)
-      .where(inArray(voterMobileNumber.epicNumber, epicNumbers))
-      .orderBy(asc(voterMobileNumber.epicNumber), asc(voterMobileNumber.sortOrder));
+      .where(inArray(voterMobileEpicNumberText, epicNumbers.map((e) => String(e))))
+      .orderBy(asc(voterMobileEpicNumberText), asc(voterMobileNumber.sortOrder));
 
     // Group mobile numbers by epic number with sort order
     const result = new Map<string, MobileNumberWithSortOrder[]>();

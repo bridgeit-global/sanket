@@ -108,16 +108,36 @@ async function processExport(
       progress: 0,
     });
 
+    let totalRecords: number | null = null;
+
     // Get total count for progress tracking
-    const totalRecords = await getVotersCountForExport(filters as any);
-    await updateExportJobProgress({
-      id: jobId,
-      totalRecords,
-      progress: 5,
-    });
+    try {
+      totalRecords = await getVotersCountForExport(filters as any);
+      await updateExportJobProgress({
+        id: jobId,
+        totalRecords,
+        progress: 5,
+      });
+    } catch (error) {
+      // Counting is used only for progress UX; export should still proceed.
+      console.error('Export count failed, continuing export:', error);
+      await updateExportJobProgress({
+        id: jobId,
+        progress: 5,
+      });
+    }
 
     // Fetch data
     const voters = await getVotersForExport(filters as any);
+
+    if (totalRecords === null) {
+      totalRecords = voters.length;
+      await updateExportJobProgress({
+        id: jobId,
+        totalRecords,
+      });
+    }
+
     await updateExportJobProgress({
       id: jobId,
       progress: 20,
@@ -231,10 +251,14 @@ async function processExport(
     });
   } catch (error) {
     console.error('Export processing failed:', error);
+    const cause = typeof error === 'object' && error !== null && 'cause' in error
+      ? String((error as any).cause)
+      : undefined;
+    const fallbackMessage = error instanceof Error ? error.message : 'Unknown error';
     await updateExportJobProgress({
       id: jobId,
       status: 'failed',
-      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      errorMessage: cause || fallbackMessage,
     });
   }
 }
