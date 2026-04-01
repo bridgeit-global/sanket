@@ -14,6 +14,8 @@ import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
 import { useTranslations } from '@/hooks/use-translations';
 import type { VoterTask, BeneficiaryService, CommunityServiceArea } from '@/lib/db/schema';
 import { TablePagination } from '@/components/table-pagination';
+import { Share2 } from 'lucide-react';
+import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
 
 interface TaskVoter {
     epicNumber: string;
@@ -367,6 +369,35 @@ export function TaskManagement() {
         }
     };
 
+    const shareExistingTicket = async (params: {
+        token: string;
+        createdAt: Date | string;
+        serviceName: string;
+        name?: string | null;
+        mobile?: string | null;
+    }) => {
+        const receiptText = buildThermalTicketText({
+            token: params.token,
+            createdAt: params.createdAt,
+            name: params.name || 'Beneficiary',
+            mobile: params.mobile,
+            serviceName: params.serviceName,
+            width: 22,
+        });
+
+        const outcome = await shareThermalTicketPdf(
+            receiptText,
+            `thermal-ticket-${params.token.toLowerCase()}`
+        );
+
+        if (outcome === 'downloaded') {
+            toast({
+                type: 'success',
+                description: 'Ticket PDF downloaded. Share it to your thermal printer app.',
+            });
+        }
+    };
+
 
     return (
         <div className="space-y-6">
@@ -604,6 +635,30 @@ export function TaskManagement() {
                                                 </div>
 
                                                 <div className="flex flex-col sm:flex-row gap-2 lg:ml-4">
+                                                    {(() => {
+                                                        const service = task.service;
+                                                        if (!service?.token) return null;
+
+                                                        return (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() =>
+                                                                    shareExistingTicket({
+                                                                        token: service.token,
+                                                                        createdAt: service.createdAt,
+                                                                        serviceName: service.serviceName,
+                                                                        name: task.voter?.fullName,
+                                                                        mobile: task.voter?.mobileNoPrimary,
+                                                                    })
+                                                                }
+                                                                className="flex-1 sm:flex-none"
+                                                            >
+                                                                <Share2 className="mr-2 h-4 w-4" />
+                                                                Reprint Thermal
+                                                            </Button>
+                                                        );
+                                                    })()}
                                                     <Button
                                                         variant="outline"
                                                         size="sm"
@@ -740,6 +795,24 @@ export function TaskManagement() {
                                                     </div>
 
                                                     <div className="flex flex-col sm:flex-row gap-2 lg:ml-4">
+                                                        {service.token && (
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                onClick={() =>
+                                                                    shareExistingTicket({
+                                                                        token: service.token,
+                                                                        createdAt: service.createdAt,
+                                                                        serviceName: service.serviceName,
+                                                                        name: 'Community Service',
+                                                                    })
+                                                                }
+                                                                className="flex-1 sm:flex-none"
+                                                            >
+                                                                <Share2 className="mr-2 h-4 w-4" />
+                                                                Reprint Thermal
+                                                            </Button>
+                                                        )}
                                                         <Button
                                                             variant="outline"
                                                             size="sm"

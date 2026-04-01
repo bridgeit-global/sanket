@@ -15,8 +15,9 @@ import { BeneficiaryServiceForm } from '@/components/beneficiary-service-form';
 import { PhoneUpdateForm, type MobileNumberEntry } from '@/components/phone-update-form';
 import { TaskManagement } from '@/components/task-management';
 import { useTranslations } from '@/hooks/use-translations';
-import { Printer } from 'lucide-react';
+import { Printer, Share2 } from 'lucide-react';
 import type { VoterWithPartNo, BeneficiaryService } from '@/lib/db/schema';
+import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
 
 export function BeneficiaryManagement() {
     const { t } = useTranslations();
@@ -313,6 +314,31 @@ export function BeneficiaryManagement() {
         printTokenReceipt();
     };
 
+    const handleShareThermalTicket = async () => {
+        if (!createdService || !selectedVoter) return;
+
+        const receiptText = buildThermalTicketText({
+            token: createdService.token,
+            createdAt: createdService.createdAt,
+            name: selectedVoter.fullName ?? 'Beneficiary',
+            mobile: selectedVoterMobileNumbers[0]?.mobileNumber ?? null,
+            serviceName: createdService.serviceName,
+            width: 22,
+        });
+
+        const outcome = await shareThermalTicketPdf(
+            receiptText,
+            `thermal-ticket-${createdService.token.toLowerCase()}`
+        );
+
+        if (outcome === 'downloaded') {
+            toast({
+                type: 'success',
+                description: 'Ticket PDF downloaded. Share it to your thermal printer app.',
+            });
+        }
+    };
+
     const handleCancel = () => {
         setShowBeneficiaryService(false);
         setShowConfirmation(false);
@@ -595,6 +621,10 @@ export function BeneficiaryManagement() {
                                 <div className="flex gap-4 no-print">
                                     <Button onClick={handleStartNew} className="flex-1">
                                         {t('operator.completion.createAnother')}
+                                    </Button>
+                                    <Button onClick={handleShareThermalTicket} className="flex-1">
+                                        <Share2 className="mr-2 h-4 w-4" />
+                                        Share Thermal Ticket
                                     </Button>
                                     <Button onClick={handlePrint} variant="outline" className="flex-1">
                                         <Printer className="mr-2 h-4 w-4" />
