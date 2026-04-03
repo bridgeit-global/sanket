@@ -78,7 +78,7 @@ import { ChatSDKError } from '../errors';
 // https://authjs.dev/reference/adapter/drizzle
 
 // biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(process.env.POSTGRES_URL!);
+const client = postgres(process.env.SUPABASE_DB_URL!);
 export const db = drizzle(client);
 
 let voterMasterHasCasteColumn: boolean | null = null;

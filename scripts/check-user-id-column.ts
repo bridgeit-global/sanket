@@ -6,15 +6,15 @@ config({
 });
 
 const checkColumn = async () => {
-    if (!process.env.POSTGRES_URL) {
-        throw new Error('POSTGRES_URL is not defined');
+    if (!process.env.SUPABASE_DB_URL) {
+        throw new Error('SUPABASE_DB_URL is not defined');
     }
 
-    const connection = postgres(process.env.POSTGRES_URL, { max: 1 });
+    const connection = postgres(process.env.SUPABASE_DB_URL, { max: 1 });
 
     try {
         console.log('🔍 Checking user_id column...');
-        
+
         const result = await connection`
             SELECT 
                 column_name, 
@@ -25,14 +25,14 @@ const checkColumn = async () => {
             WHERE table_name = 'User' 
             AND column_name = 'user_id'
         `;
-        
+
         if (result.length === 0) {
             console.log('❌ user_id column does NOT exist!');
         } else {
             console.log('✅ user_id column exists:');
             console.log(JSON.stringify(result[0], null, 2));
         }
-        
+
         // Also check all columns in User table
         const allColumns = await connection`
             SELECT column_name, data_type, is_nullable
@@ -40,12 +40,12 @@ const checkColumn = async () => {
             WHERE table_name = 'User'
             ORDER BY ordinal_position
         `;
-        
+
         console.log('\n📋 All columns in User table:');
         allColumns.forEach(col => {
             console.log(`  - ${col.column_name} (${col.data_type}, nullable: ${col.is_nullable})`);
         });
-        
+
     } catch (error) {
         console.error('❌ Error checking column:');
         console.error(error);

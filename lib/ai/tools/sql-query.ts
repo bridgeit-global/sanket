@@ -154,7 +154,7 @@ ORDER BY voter_count DESC`,
                 };
             }
 
-            const postgresUrl = process.env.POSTGRES_URL;
+            const postgresUrl = process.env.SUPABASE_DB_URL;
             if (!postgresUrl) {
                 return {
                     query,
