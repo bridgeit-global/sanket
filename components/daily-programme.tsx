@@ -662,7 +662,11 @@ export function DailyProgramme({
   };
 
   const handleResetRange = () => {
-    setDateRange(getDefaultDateRange());
+    const next = getDefaultDateRange();
+    setDateRange(next);
+    // Always refetch: the load effect skips when range matches initialDateRange with SSR items,
+    // but allItems may still reflect a previously selected range.
+    void loadItems(next.start, next.end);
   };
 
   const handleDateRangeChange = (start: string, end: string) => {
