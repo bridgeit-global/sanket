@@ -163,7 +163,7 @@ ORDER BY voter_count DESC`,
                 };
             }
 
-            const client = postgres(postgresUrl);
+            const client = postgres(postgresUrl, { max: 1 });
             const result = await client.unsafe(query);
             await client.end();
 

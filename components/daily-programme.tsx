@@ -276,6 +276,8 @@ export function DailyProgramme({
     location: '',
     remarks: '',
   });
+  /** Remount duration Select when clearing the form — Radix Select can keep the old label after value resets to empty. */
+  const [durationSelectKey, setDurationSelectKey] = useState(0);
 
   // Delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -416,11 +418,22 @@ export function DailyProgramme({
     return 'All scheduled dates';
   }, [dateRange.start, dateRange.end, locale]);
 
+  const isProgrammeFormComplete = useMemo(
+    () =>
+      Boolean(
+        form.date &&
+        form.startTime.trim() &&
+        form.title.trim() &&
+        form.location.trim(),
+      ),
+    [form.date, form.startTime, form.title, form.location],
+  );
+
   useEffect(() => {
     // Only load if we don't have initial items or if date range changed from initial
-    if (initialItems.length === 0 || 
-        (initialDateRange && 
-         (dateRange.start !== initialDateRange.start || dateRange.end !== initialDateRange.end))) {
+    if (initialItems.length === 0 ||
+      (initialDateRange &&
+        (dateRange.start !== initialDateRange.start || dateRange.end !== initialDateRange.end))) {
       loadItems();
     }
   }, [loadItems, initialItems.length, initialDateRange, dateRange.start, dateRange.end]);
@@ -473,6 +486,7 @@ export function DailyProgramme({
             location: '',
             remarks: '',
           });
+          setDurationSelectKey((k) => k + 1);
         } else {
           toast.error(t('dailyProgramme.failedToUpdateProgrammeItem'));
         }
@@ -503,6 +517,7 @@ export function DailyProgramme({
             location: '',
             remarks: '',
           });
+          setDurationSelectKey((k) => k + 1);
         } else {
           toast.error(t('dailyProgramme.failedToAddProgrammeItem'));
         }
@@ -542,6 +557,7 @@ export function DailyProgramme({
       location: '',
       remarks: '',
     });
+    setDurationSelectKey((k) => k + 1);
   };
 
   const handleDelete = (id: string) => {
@@ -823,90 +839,97 @@ export function DailyProgramme({
             </div>
           </CardHeader>
           {formCardOpen && (
-          <CardContent id="programme-form-content" aria-labelledby="programme-form-header">
-            <form onSubmit={handleSubmit} className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
-              <div className="space-y-2">
-                <Label htmlFor="date">{t('dailyProgramme.date')}</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  className="min-h-11"
-                  value={form.date}
-                  onChange={(e) => setForm({ ...form, date: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="startTime">{t('dailyProgramme.startTime')}</Label>
-                <TimePicker
-                  id="startTime"
-                  value={form.startTime || undefined}
-                  onChange={(value) => setForm({ ...form, startTime: value })}
-                  placeholder={t('dailyProgramme.selectTime')}
-                  required
-                  className="min-h-11"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="duration">{t('dailyProgramme.duration')}</Label>
-                <Select
-                  value={form.duration || undefined}
-                  onValueChange={(value) => setForm({ ...form, duration: value })}
-                >
-                  <SelectTrigger id="duration" className="min-h-11">
-                    <SelectValue placeholder={t('dailyProgramme.selectDuration')} />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-[200px]">
-                    {DURATION_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2 md:col-span-1">
-                <Label htmlFor="title">{t('dailyProgramme.programmeTitle')}</Label>
-                <Input
-                  id="title"
-                  placeholder={t('dailyProgramme.titlePlaceholder')}
-                  className="min-h-11"
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2 md:col-span-2">
-                <Label htmlFor="location">{t('dailyProgramme.location')}</Label>
-                <Input
-                  id="location"
-                  placeholder={t('dailyProgramme.locationPlaceholder')}
-                  className="min-h-11"
-                  value={form.location}
-                  onChange={(e) => setForm({ ...form, location: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2 md:col-span-2">
-                <Label htmlFor="remarks">{t('dailyProgramme.remarks')}</Label>
-                <Textarea
-                  id="remarks"
-                  placeholder={t('dailyProgramme.remarksPlaceholder')}
-                  value={form.remarks}
-                  onChange={(e) => setForm({ ...form, remarks: e.target.value })}
-                  rows={2}
-                />
-              </div>
-              <div className="sm:col-span-2 md:col-span-4 flex justify-end gap-2">
-                {editingId && (
-                  <Button type="button" variant="outline" onClick={handleCancelEdit} className="min-h-11">
-                    {t('dailyProgramme.cancel')}
+            <CardContent id="programme-form-content" aria-labelledby="programme-form-header">
+              <form onSubmit={handleSubmit} className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+                <div className="space-y-2">
+                  <Label htmlFor="date">{t('dailyProgramme.date')}</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    className="min-h-11"
+                    value={form.date}
+                    onChange={(e) => setForm({ ...form, date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="startTime">{t('dailyProgramme.startTime')}</Label>
+                  <TimePicker
+                    id="startTime"
+                    value={form.startTime || undefined}
+                    onChange={(value) => setForm({ ...form, startTime: value })}
+                    placeholder={t('dailyProgramme.selectTime')}
+                    required
+                    className="min-h-11"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="duration">{t('dailyProgramme.duration')}</Label>
+                  <Select
+                    key={durationSelectKey}
+                    value={form.duration || undefined}
+                    onValueChange={(value) => setForm({ ...form, duration: value })}
+                  >
+                    <SelectTrigger id="duration" className="min-h-11">
+                      <SelectValue placeholder={t('dailyProgramme.selectDuration')} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[200px]">
+                      {DURATION_OPTIONS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 md:col-span-1">
+                  <Label htmlFor="title">{t('dailyProgramme.programmeTitle')}</Label>
+                  <Input
+                    id="title"
+                    placeholder={t('dailyProgramme.titlePlaceholder')}
+                    className="min-h-11"
+                    value={form.title}
+                    onChange={(e) => setForm({ ...form, title: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2 md:col-span-2">
+                  <Label htmlFor="location">{t('dailyProgramme.location')}</Label>
+                  <Input
+                    id="location"
+                    placeholder={t('dailyProgramme.locationPlaceholder')}
+                    className="min-h-11"
+                    value={form.location}
+                    onChange={(e) => setForm({ ...form, location: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2 sm:col-span-2 md:col-span-2">
+                  <Label htmlFor="remarks">{t('dailyProgramme.remarks')}</Label>
+                  <Textarea
+                    id="remarks"
+                    placeholder={t('dailyProgramme.remarksPlaceholder')}
+                    value={form.remarks}
+                    onChange={(e) => setForm({ ...form, remarks: e.target.value })}
+                    rows={2}
+                  />
+                </div>
+                <div className="sm:col-span-2 md:col-span-4 flex justify-end gap-2">
+                  {editingId && (
+                    <Button type="button" variant="outline" onClick={handleCancelEdit} className="min-h-11">
+                      {t('dailyProgramme.cancel')}
+                    </Button>
+                  )}
+                  <Button
+                    type="submit"
+                    className="min-h-11"
+                    disabled={!isProgrammeFormComplete}
+                  >
+                    {editingId ? t('dailyProgramme.updateProgramme') : t('dailyProgramme.addToProgramme')}
                   </Button>
-                )}
-                <Button type="submit" className="min-h-11">{editingId ? t('dailyProgramme.updateProgramme') : t('dailyProgramme.addToProgramme')}</Button>
-              </div>
-            </form>
-          </CardContent>
+                </div>
+              </form>
+            </CardContent>
           )}
         </Card>
 

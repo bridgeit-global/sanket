@@ -56,9 +56,7 @@ export interface DashboardData {
 export async function getDashboardData(): Promise<DashboardData> {
   // Calculate date range for today
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
   const todayStr = today.toISOString().split('T')[0];
-
   // Run all queries in parallel
   const [
     programmeItems,
