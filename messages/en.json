@@ -477,6 +477,8 @@
       },
       "scrollForMore": "Scroll to load more results.",
       "loadingMore": "Loading more…",
+      "totalCountOnly": "{count, plural, one {# voter total} other {# voters total}}",
+      "showingOfTotal": "Showing {loaded} of {total}",
       "namePlaceholder": "Enter voter name...",
       "phonePlaceholder": "Enter phone number (e.g., 9876543210)...",
       "voterIdPlaceholder": "Enter VoterId (e.g., ABC1234567)...",

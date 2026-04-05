@@ -1156,6 +1156,21 @@ export async function searchVoterByEpicNumber(
   }
 }
 
+export async function countSearchVoterByEpicNumber(epicNumber: string): Promise<number> {
+  try {
+    const result = await db
+      .select({ c: count() })
+      .from(VoterMaster)
+      .where(sql`LOWER(${VoterMaster.epicNumber}) LIKE LOWER(${`%${epicNumber}%`})`);
+    return Number(result[0]?.c ?? 0);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to count voters by EPIC number',
+    );
+  }
+}
+
 export async function searchVoterByName(
   name: string,
   electionId?: string,
@@ -1199,6 +1214,21 @@ export async function searchVoterByName(
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to search voters by name',
+    );
+  }
+}
+
+export async function countSearchVoterByName(name: string): Promise<number> {
+  try {
+    const result = await db
+      .select({ c: count() })
+      .from(VoterMaster)
+      .where(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${name}%`})`);
+    return Number(result[0]?.c ?? 0);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to count voters by name',
     );
   }
 }
@@ -1291,6 +1321,30 @@ export async function searchVoterByMobileNumberTable(
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to search voters by mobile number table',
+    );
+  }
+}
+
+export async function countSearchVoterByMobileNumberTable(mobileNumber: string): Promise<number> {
+  try {
+    const cleanMobile = mobileNumber.replace(/[\s\-\(\)]/g, '');
+
+    const mobileMatch = db
+      .selectDistinct({ epicNumber: voterMobileNumber.epicNumber })
+      .from(voterMobileNumber)
+      .where(sql`${voterMobileNumber.mobileNumber} LIKE ${`%${cleanMobile}%`}`)
+      .as('mobile_match');
+
+    const result = await db
+      .select({ c: count() })
+      .from(VoterMaster)
+      .innerJoin(mobileMatch, eq(VoterMaster.epicNumber, mobileMatch.epicNumber));
+
+    return Number(result[0]?.c ?? 0);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to count voters by mobile number table',
     );
   }
 }
@@ -1453,6 +1507,48 @@ export async function searchVoterByDetails(params: {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to search voters by details',
+    );
+  }
+}
+
+export async function countSearchVoterByDetails(params: {
+  name?: string;
+  gender?: string;
+  age?: number;
+  ageRange?: number;
+}): Promise<number> {
+  try {
+    const conditions: any[] = [];
+
+    if (params.name?.trim()) {
+      conditions.push(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${params.name.trim()}%`})`);
+    }
+
+    if (params.gender && params.gender !== '') {
+      conditions.push(eq(VoterMaster.gender, params.gender));
+    }
+
+    if (params.age !== undefined && params.age !== null) {
+      const ageRange = params.ageRange || 0;
+      const minAge = Math.max(0, params.age - ageRange);
+      const maxAge = params.age + ageRange;
+      conditions.push(sql`${VoterMaster.age} >= ${minAge} AND ${VoterMaster.age} <= ${maxAge}`);
+    }
+
+    if (conditions.length === 0) {
+      return 0;
+    }
+
+    const result = await db
+      .select({ c: count() })
+      .from(VoterMaster)
+      .where(sql`${sql.join(conditions, sql` AND `)}`);
+
+    return Number(result[0]?.c ?? 0);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to count voters by details',
     );
   }
 }

@@ -6,6 +6,10 @@ import {
     searchVoterByName,
     searchVoterByDetails,
     searchVoterByMobileNumberTable,
+    countSearchVoterByEpicNumber,
+    countSearchVoterByName,
+    countSearchVoterByDetails,
+    countSearchVoterByMobileNumberTable,
 } from '@/lib/db/queries';
 
 const DEFAULT_PAGE_SIZE = 50;
@@ -38,18 +42,26 @@ export async function POST(request: NextRequest) {
 
         let voters: Array<any>;
         let actualSearchType: string;
+        let totalCount: number;
 
         // Check if this is a detailed search
         if (name !== undefined || gender !== undefined || age !== undefined) {
-            // Detailed search with name, gender, age, and age range
-            voters = await searchVoterByDetails({
+            const detailFilter = {
                 name: name || searchTerm,
                 gender,
                 age,
                 ageRange,
-                limit,
-                offset,
-            });
+            };
+            const [votersResult, countResult] = await Promise.all([
+                searchVoterByDetails({
+                    ...detailFilter,
+                    limit,
+                    offset,
+                }),
+                countSearchVoterByDetails(detailFilter),
+            ]);
+            voters = votersResult;
+            totalCount = countResult;
             actualSearchType = 'details';
         } else {
             // Legacy search functionality
@@ -63,26 +75,36 @@ export async function POST(request: NextRequest) {
             const isPhoneNumber = /^[\d\s\-\(\)]{7,15}$/.test(trimmedTerm);
 
             if (searchType === 'mobileNumber') {
-                // Mobile number search using voterMobileNumber table
-                voters = await searchVoterByMobileNumberTable(trimmedTerm, page);
+                const [votersResult, countResult] = await Promise.all([
+                    searchVoterByMobileNumberTable(trimmedTerm, page),
+                    countSearchVoterByMobileNumberTable(trimmedTerm),
+                ]);
+                voters = votersResult;
+                totalCount = countResult;
                 actualSearchType = 'mobileNumber';
             } else if (searchType === 'phone' || (isPhoneNumber && searchType !== 'voterId' && searchType !== 'name')) {
-                // Phone number search using voterMobileNumber table
-                voters = await searchVoterByMobileNumberTable(trimmedTerm, page);
+                const [votersResult, countResult] = await Promise.all([
+                    searchVoterByMobileNumberTable(trimmedTerm, page),
+                    countSearchVoterByMobileNumberTable(trimmedTerm),
+                ]);
+                voters = votersResult;
+                totalCount = countResult;
                 actualSearchType = 'phone';
             } else if (searchType === 'voterId' || isVoterId) {
-                // VoterId search
-                voters = await searchVoterByEpicNumber(trimmedTerm, undefined, page);
+                const [votersResult, countResult] = await Promise.all([
+                    searchVoterByEpicNumber(trimmedTerm, undefined, page),
+                    countSearchVoterByEpicNumber(trimmedTerm),
+                ]);
+                voters = votersResult;
+                totalCount = countResult;
                 actualSearchType = 'voterId';
-
-                // // If no results found with VoterId, fall back to name search
-                // if (voters.length === 0 && searchType !== 'voterId') {
-                //     voters = await searchVoterByName(trimmedTerm);
-                //     actualSearchType = 'name';
-                // }
             } else {
-                // Default to name search
-                voters = await searchVoterByName(trimmedTerm, undefined, page);
+                const [votersResult, countResult] = await Promise.all([
+                    searchVoterByName(trimmedTerm, undefined, page),
+                    countSearchVoterByName(trimmedTerm),
+                ]);
+                voters = votersResult;
+                totalCount = countResult;
                 actualSearchType = 'name';
             }
         }
@@ -109,6 +131,7 @@ export async function POST(request: NextRequest) {
             voters,
             searchType: actualSearchType,
             hasMore,
+            totalCount,
             limit,
             offset,
         });

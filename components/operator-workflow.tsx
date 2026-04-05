@@ -25,6 +25,7 @@ const ESTIMATED_VOTER_ROW_PX = 144;
 
 type VoterSearchResultsVirtualListProps = {
     voters: VoterWithPartNo[];
+    totalCount: number;
     lastSearchType: string | null;
     hasMore: boolean;
     isLoadingMore: boolean;
@@ -35,6 +36,7 @@ type VoterSearchResultsVirtualListProps = {
 
 function VoterSearchResultsVirtualList({
     voters,
+    totalCount,
     lastSearchType,
     hasMore,
     isLoadingMore,
@@ -73,19 +75,29 @@ function VoterSearchResultsVirtualList({
 
     return (
         <div className="mt-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-                <h3 className="text-lg font-semibold">{t('backOffice.searchResults')}</h3>
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3 mb-2">
+                <div className="flex flex-col gap-0.5">
+                    <h3 className="text-lg font-semibold">{t('backOffice.searchResults')}</h3>
+                    <p className="text-sm text-muted-foreground tabular-nums">
+                        {voters.length >= totalCount
+                            ? t('operator.search.totalCountOnly', { count: totalCount })
+                            : t('operator.search.showingOfTotal', {
+                                loaded: voters.length,
+                                total: totalCount,
+                            })}
+                    </p>
+                </div>
                 {lastSearchType && (
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-sm text-muted-foreground sm:text-right">
                         {t('operator.search.foundBy', {
                             type:
                                 lastSearchType === 'voterId'
                                     ? t('backOffice.voterIdType')
                                     : lastSearchType === 'phone' || lastSearchType === 'mobileNumber'
-                                      ? t('operator.search.types.phone')
-                                      : lastSearchType === 'name'
-                                        ? t('operator.search.types.name')
-                                        : t('backOffice.detailsType'),
+                                        ? t('operator.search.types.phone')
+                                        : lastSearchType === 'name'
+                                            ? t('operator.search.types.name')
+                                            : t('backOffice.detailsType'),
                         })}
                     </span>
                 )}
@@ -95,7 +107,7 @@ function VoterSearchResultsVirtualList({
             )}
             <div
                 ref={scrollParentRef}
-                className="max-h-[min(60vh,520px)] overflow-auto rounded-md border border-border p-2"
+                className="max-h-[min(60vh,520px)] overflow-auto rounded-md p-2"
             >
                 <div
                     style={{
@@ -188,6 +200,7 @@ export function BeneficiaryManagement() {
     const [isSearching, setIsSearching] = useState(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [hasMoreSearchResults, setHasMoreSearchResults] = useState(false);
+    const [searchTotalCount, setSearchTotalCount] = useState(0);
     const loadMoreInFlightRef = useRef(false);
     const [searchType, setSearchType] = useState<'voterId' | 'phone' | 'details'>('details');
     const [lastSearchType, setLastSearchType] = useState<string | null>(null);
@@ -216,6 +229,7 @@ export function BeneficiaryManagement() {
             setHasMoreSearchResults(false);
             setIsLoadingMore(false);
             loadMoreInFlightRef.current = false;
+            setSearchTotalCount(0);
             setLastSearchType(null);
         }
     };
@@ -235,6 +249,7 @@ export function BeneficiaryManagement() {
         setHasMoreSearchResults(false);
         setIsLoadingMore(false);
         loadMoreInFlightRef.current = false;
+        setSearchTotalCount(0);
         setLastSearchType(null);
         setSelectedVoter(null);
         setSelectedVoterMobileNumbers([]);
@@ -278,6 +293,9 @@ export function BeneficiaryManagement() {
             const next = (data.voters || []) as VoterWithPartNo[];
             setSearchResults((prev) => [...prev, ...next]);
             setHasMoreSearchResults(!!data.hasMore);
+            if (typeof data.totalCount === 'number') {
+                setSearchTotalCount(data.totalCount);
+            }
         } catch {
             toast({
                 type: 'error',
@@ -348,6 +366,9 @@ export function BeneficiaryManagement() {
             const data = await response.json();
             setSearchResults(data.voters || []);
             setHasMoreSearchResults(!!data.hasMore);
+            const total =
+                typeof data.totalCount === 'number' ? data.totalCount : (data.voters || []).length;
+            setSearchTotalCount(total);
             setLastSearchType(data.searchType || searchType);
 
             if (data.voters.length === 0) {
@@ -362,7 +383,7 @@ export function BeneficiaryManagement() {
                     data.searchType === 'phone' ? t('operator.search.types.phone') : t('backOffice.detailsType');
                 toast({
                     type: 'success',
-                    description: t('operator.messages.votersFound', { count: data.voters.length, type: searchTypeText }),
+                    description: t('operator.messages.votersFound', { count: total, type: searchTypeText }),
                 });
             }
         } catch (error) {
@@ -379,6 +400,7 @@ export function BeneficiaryManagement() {
         setSelectedVoter(voter);
         setSelectedVoterMobileNumbers([]);
         setSearchResults([]);
+        setSearchTotalCount(0);
         setSearchTerm('');
 
         // Always show phone update form to allow updating phone numbers even if they exist
@@ -516,6 +538,7 @@ export function BeneficiaryManagement() {
         setSelectedVoter(null);
         setSelectedVoterMobileNumbers([]);
         setSearchResults([]);
+        setSearchTotalCount(0);
         setHasMoreSearchResults(false);
         setIsLoadingMore(false);
         loadMoreInFlightRef.current = false;
@@ -1036,6 +1059,7 @@ export function BeneficiaryManagement() {
                                                         setAge(25);
                                                         setAgeRange(5);
                                                         setSearchResults([]);
+                                                        setSearchTotalCount(0);
                                                         setHasMoreSearchResults(false);
                                                         setIsLoadingMore(false);
                                                         loadMoreInFlightRef.current = false;
@@ -1075,6 +1099,7 @@ export function BeneficiaryManagement() {
                                                             onClick={() => {
                                                                 setSearchTerm('');
                                                                 setSearchResults([]);
+                                                                setSearchTotalCount(0);
                                                                 setHasMoreSearchResults(false);
                                                                 setIsLoadingMore(false);
                                                                 loadMoreInFlightRef.current = false;
@@ -1112,6 +1137,7 @@ export function BeneficiaryManagement() {
                                                         onClick={() => {
                                                             setSearchTerm('');
                                                             setSearchResults([]);
+                                                            setSearchTotalCount(0);
                                                             setHasMoreSearchResults(false);
                                                             setIsLoadingMore(false);
                                                             loadMoreInFlightRef.current = false;
@@ -1133,6 +1159,7 @@ export function BeneficiaryManagement() {
                                 {searchResults.length > 0 && (
                                     <VoterSearchResultsVirtualList
                                         voters={searchResults}
+                                        totalCount={searchTotalCount}
                                         lastSearchType={lastSearchType}
                                         hasMore={hasMoreSearchResults}
                                         isLoadingMore={isLoadingMore}
