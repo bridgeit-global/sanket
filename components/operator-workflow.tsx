@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,176 @@ import { Printer, Share2 } from 'lucide-react';
 import type { VoterWithPartNo, BeneficiaryService } from '@/lib/db/schema';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
 
+const VOTER_SEARCH_PAGE_SIZE = 50;
+const ESTIMATED_VOTER_ROW_PX = 144;
+
+type VoterSearchResultsVirtualListProps = {
+    voters: VoterWithPartNo[];
+    totalCount: number;
+    lastSearchType: string | null;
+    hasMore: boolean;
+    isLoadingMore: boolean;
+    isSearching: boolean;
+    onSelectVoter: (voter: VoterWithPartNo) => void;
+    onLoadMore: () => void;
+};
+
+function VoterSearchResultsVirtualList({
+    voters,
+    totalCount,
+    lastSearchType,
+    hasMore,
+    isLoadingMore,
+    isSearching,
+    onSelectVoter,
+    onLoadMore,
+}: VoterSearchResultsVirtualListProps) {
+    const { t } = useTranslations();
+    const scrollParentRef = useRef<HTMLDivElement>(null);
+    const sentinelRef = useRef<HTMLDivElement>(null);
+
+    const rowVirtualizer = useVirtualizer({
+        count: voters.length,
+        getScrollElement: () => scrollParentRef.current,
+        estimateSize: () => ESTIMATED_VOTER_ROW_PX,
+        overscan: 6,
+    });
+
+    useEffect(() => {
+        const root = scrollParentRef.current;
+        const target = sentinelRef.current;
+        if (!root || !target || !hasMore || isLoadingMore || isSearching) {
+            return;
+        }
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) {
+                    onLoadMore();
+                }
+            },
+            { root, rootMargin: '240px', threshold: 0 },
+        );
+        observer.observe(target);
+        return () => observer.disconnect();
+    }, [hasMore, isLoadingMore, isSearching, onLoadMore, voters.length]);
+
+    return (
+        <div className="mt-4">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3 mb-2">
+                <div className="flex flex-col gap-0.5">
+                    <h3 className="text-lg font-semibold">{t('backOffice.searchResults')}</h3>
+                    <p className="text-sm text-muted-foreground tabular-nums">
+                        {voters.length >= totalCount
+                            ? t('operator.search.totalCountOnly', { count: totalCount })
+                            : t('operator.search.showingOfTotal', {
+                                loaded: voters.length,
+                                total: totalCount,
+                            })}
+                    </p>
+                </div>
+                {lastSearchType && (
+                    <span className="text-sm text-muted-foreground sm:text-right">
+                        {t('operator.search.foundBy', {
+                            type:
+                                lastSearchType === 'voterId'
+                                    ? t('backOffice.voterIdType')
+                                    : lastSearchType === 'phone' || lastSearchType === 'mobileNumber'
+                                        ? t('operator.search.types.phone')
+                                        : lastSearchType === 'name'
+                                            ? t('operator.search.types.name')
+                                            : t('backOffice.detailsType'),
+                        })}
+                    </span>
+                )}
+            </div>
+            {hasMore && voters.length > 0 && (
+                <p className="text-xs text-muted-foreground mb-2">{t('operator.search.scrollForMore')}</p>
+            )}
+            <div
+                ref={scrollParentRef}
+                className="max-h-[min(60vh,520px)] overflow-auto rounded-md p-2"
+            >
+                <div
+                    style={{
+                        height: `${rowVirtualizer.getTotalSize()}px`,
+                        position: 'relative',
+                        width: '100%',
+                    }}
+                >
+                    {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                        const voter = voters[virtualRow.index];
+                        return (
+                            <div
+                                key={virtualRow.key}
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    transform: `translateY(${virtualRow.start}px)`,
+                                }}
+                            >
+                                <button
+                                    type="button"
+                                    className="w-full p-4 border rounded-lg hover:bg-muted cursor-pointer text-left transition-colors bg-background"
+                                    onClick={() => onSelectVoter(voter)}
+                                >
+                                    <div className="flex flex-col gap-2">
+                                        <div className="flex-1">
+                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
+                                                <div className="flex flex-col">
+                                                    <p className="font-medium text-lg">{voter.fullName}</p>
+                                                    {voter.relationName && voter.relationType && (
+                                                        <p className="text-sm text-muted-foreground">
+                                                            {voter.relationType}: {voter.relationName}
+                                                        </p>
+                                                    )}
+                                                </div>
+                                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded w-fit">
+                                                    {voter.epicNumber}
+                                                </span>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm mb-2">
+                                                <div className="flex items-center gap-1">
+                                                    <span className="font-medium text-muted-foreground">{t('backOffice.age')}:</span>
+                                                    <span>{voter.age || 'N/A'}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <span className="font-medium text-muted-foreground">{t('backOffice.gender')}:</span>
+                                                    <span>{voter.gender || 'N/A'}</span>
+                                                </div>
+                                            </div>
+                                            <div className="text-xs text-muted-foreground">
+                                                {voter.acNo && `AC: ${voter.acNo}`}
+                                                {voter.wardNo && ` | Ward: ${voter.wardNo}`}
+                                                {voter.boothName && ` | Booth: ${voter.boothName}`}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
+                        );
+                    })}
+                </div>
+                {hasMore ? (
+                    <div
+                        ref={sentinelRef}
+                        className="flex min-h-10 items-center justify-center py-2 text-xs text-muted-foreground"
+                        aria-hidden
+                    >
+                        {isLoadingMore ? (
+                            <span className="inline-flex items-center gap-2">
+                                <span className="animate-spin rounded-full size-4 border-b-2 border-primary" />
+                                {t('operator.search.loadingMore')}
+                            </span>
+                        ) : null}
+                    </div>
+                ) : null}
+            </div>
+        </div>
+    );
+}
+
 export function BeneficiaryManagement() {
     const { t } = useTranslations();
     const router = useRouter();
@@ -27,8 +198,12 @@ export function BeneficiaryManagement() {
     const [selectedVoter, setSelectedVoter] = useState<VoterWithPartNo | null>(null);
     const [selectedVoterMobileNumbers, setSelectedVoterMobileNumbers] = useState<MobileNumberEntry[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [hasMoreSearchResults, setHasMoreSearchResults] = useState(false);
+    const [searchTotalCount, setSearchTotalCount] = useState(0);
+    const loadMoreInFlightRef = useRef(false);
     const [searchType, setSearchType] = useState<'voterId' | 'phone' | 'details'>('details');
-    const [lastSearchType, setLastSearchType] = useState<'voterId' | 'phone' | 'details' | null>(null);
+    const [lastSearchType, setLastSearchType] = useState<string | null>(null);
     const [hasSearched, setHasSearched] = useState(false);
 
     // Detailed search parameters
@@ -51,6 +226,10 @@ export function BeneficiaryManagement() {
             setSearchResults([]);
             setHasSearched(false);
             setIsSearching(false);
+            setHasMoreSearchResults(false);
+            setIsLoadingMore(false);
+            loadMoreInFlightRef.current = false;
+            setSearchTotalCount(0);
             setLastSearchType(null);
         }
     };
@@ -67,10 +246,78 @@ export function BeneficiaryManagement() {
         setSearchResults([]);
         setHasSearched(false);
         setIsSearching(false);
+        setHasMoreSearchResults(false);
+        setIsLoadingMore(false);
+        loadMoreInFlightRef.current = false;
+        setSearchTotalCount(0);
         setLastSearchType(null);
         setSelectedVoter(null);
         setSelectedVoterMobileNumbers([]);
     };
+
+    const loadMoreSearchResults = useCallback(async () => {
+        if (
+            !hasMoreSearchResults ||
+            isLoadingMore ||
+            isSearching ||
+            loadMoreInFlightRef.current
+        ) {
+            return;
+        }
+        loadMoreInFlightRef.current = true;
+        setIsLoadingMore(true);
+        try {
+            const offset = searchResults.length;
+            const response = await fetch('/operator/api/search-voter', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    searchTerm: searchTerm.trim(),
+                    searchType: searchType,
+                    name: searchType === 'details' ? name.trim() : undefined,
+                    gender: searchType === 'details' ? (gender === 'any' ? undefined : gender) : undefined,
+                    age: searchType === 'details' ? age : undefined,
+                    ageRange: searchType === 'details' ? ageRange : undefined,
+                    limit: VOTER_SEARCH_PAGE_SIZE,
+                    offset,
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to load more voters');
+            }
+
+            const data = await response.json();
+            const next = (data.voters || []) as VoterWithPartNo[];
+            setSearchResults((prev) => [...prev, ...next]);
+            setHasMoreSearchResults(!!data.hasMore);
+            if (typeof data.totalCount === 'number') {
+                setSearchTotalCount(data.totalCount);
+            }
+        } catch {
+            toast({
+                type: 'error',
+                description: t('operator.messages.failedToSearch'),
+            });
+        } finally {
+            setIsLoadingMore(false);
+            loadMoreInFlightRef.current = false;
+        }
+    }, [
+        age,
+        ageRange,
+        gender,
+        hasMoreSearchResults,
+        isLoadingMore,
+        isSearching,
+        name,
+        searchResults.length,
+        searchTerm,
+        searchType,
+        t,
+    ]);
 
     const handleSearch = async () => {
         if (searchType === 'details') {
@@ -93,6 +340,7 @@ export function BeneficiaryManagement() {
 
         setIsSearching(true);
         setHasSearched(true);
+        setHasMoreSearchResults(false);
         try {
             const response = await fetch('/operator/api/search-voter', {
                 method: 'POST',
@@ -106,6 +354,8 @@ export function BeneficiaryManagement() {
                     gender: searchType === 'details' ? (gender === 'any' ? undefined : gender) : undefined,
                     age: searchType === 'details' ? age : undefined,
                     ageRange: searchType === 'details' ? ageRange : undefined,
+                    limit: VOTER_SEARCH_PAGE_SIZE,
+                    offset: 0,
                 }),
             });
 
@@ -115,6 +365,10 @@ export function BeneficiaryManagement() {
 
             const data = await response.json();
             setSearchResults(data.voters || []);
+            setHasMoreSearchResults(!!data.hasMore);
+            const total =
+                typeof data.totalCount === 'number' ? data.totalCount : (data.voters || []).length;
+            setSearchTotalCount(total);
             setLastSearchType(data.searchType || searchType);
 
             if (data.voters.length === 0) {
@@ -129,7 +383,7 @@ export function BeneficiaryManagement() {
                     data.searchType === 'phone' ? t('operator.search.types.phone') : t('backOffice.detailsType');
                 toast({
                     type: 'success',
-                    description: t('operator.messages.votersFound', { count: data.voters.length, type: searchTypeText }),
+                    description: t('operator.messages.votersFound', { count: total, type: searchTypeText }),
                 });
             }
         } catch (error) {
@@ -146,6 +400,7 @@ export function BeneficiaryManagement() {
         setSelectedVoter(voter);
         setSelectedVoterMobileNumbers([]);
         setSearchResults([]);
+        setSearchTotalCount(0);
         setSearchTerm('');
 
         // Always show phone update form to allow updating phone numbers even if they exist
@@ -283,6 +538,10 @@ export function BeneficiaryManagement() {
         setSelectedVoter(null);
         setSelectedVoterMobileNumbers([]);
         setSearchResults([]);
+        setSearchTotalCount(0);
+        setHasMoreSearchResults(false);
+        setIsLoadingMore(false);
+        loadMoreInFlightRef.current = false;
         setSearchTerm('');
         setHasSearched(false);
         setIsSearching(false);
@@ -800,6 +1059,10 @@ export function BeneficiaryManagement() {
                                                         setAge(25);
                                                         setAgeRange(5);
                                                         setSearchResults([]);
+                                                        setSearchTotalCount(0);
+                                                        setHasMoreSearchResults(false);
+                                                        setIsLoadingMore(false);
+                                                        loadMoreInFlightRef.current = false;
                                                         setLastSearchType(null);
                                                         setHasSearched(false);
                                                         setIsSearching(false);
@@ -836,6 +1099,10 @@ export function BeneficiaryManagement() {
                                                             onClick={() => {
                                                                 setSearchTerm('');
                                                                 setSearchResults([]);
+                                                                setSearchTotalCount(0);
+                                                                setHasMoreSearchResults(false);
+                                                                setIsLoadingMore(false);
+                                                                loadMoreInFlightRef.current = false;
                                                                 setLastSearchType(null);
                                                                 setHasSearched(false);
                                                                 setIsSearching(false);
@@ -870,6 +1137,10 @@ export function BeneficiaryManagement() {
                                                         onClick={() => {
                                                             setSearchTerm('');
                                                             setSearchResults([]);
+                                                            setSearchTotalCount(0);
+                                                            setHasMoreSearchResults(false);
+                                                            setIsLoadingMore(false);
+                                                            loadMoreInFlightRef.current = false;
                                                             setLastSearchType(null);
                                                             setHasSearched(false);
                                                             setIsSearching(false);
@@ -886,67 +1157,16 @@ export function BeneficiaryManagement() {
 
                                 {/* Search Results */}
                                 {searchResults.length > 0 && (
-                                    <div className="mt-4">
-                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
-                                            <h3 className="text-lg font-semibold">{t('backOffice.searchResults')}</h3>
-                                            {lastSearchType && (
-                                                <span className="text-sm text-muted-foreground">
-                                                    {t('operator.search.foundBy', {
-                                                        type: lastSearchType === 'voterId' ? t('backOffice.voterIdType') :
-                                                            lastSearchType === 'phone' ? t('operator.search.types.phone') : t('backOffice.detailsType')
-                                                    })}
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="space-y-2">
-                                            {searchResults.map((voter) => (
-                                                <button
-                                                    key={voter.epicNumber}
-                                                    type="button"
-                                                    className="w-full p-4 border rounded-lg hover:bg-muted cursor-pointer text-left transition-colors"
-                                                    onClick={() => handleSelectVoter(voter)}
-                                                >
-                                                    <div className="flex flex-col gap-2">
-                                                        <div className="flex-1">
-                                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                                                                <div className="flex flex-col">
-                                                                    <p className="font-medium text-lg">{voter.fullName}</p>
-                                                                    {voter.relationName && voter.relationType && (
-                                                                        <p className="text-sm text-muted-foreground">
-                                                                            {voter.relationType}: {voter.relationName}
-                                                                        </p>
-                                                                    )}
-                                                                </div>
-                                                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded w-fit">
-                                                                    {voter.epicNumber}
-                                                                </span>
-                                                            </div>
-
-                                                            {/* Key Details */}
-                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm mb-2">
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="font-medium text-muted-foreground">{t('backOffice.age')}:</span>
-                                                                    <span>{voter.age || 'N/A'}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="font-medium text-muted-foreground">{t('backOffice.gender')}:</span>
-                                                                    <span>{voter.gender || 'N/A'}</span>
-                                                                </div>
-                                                            </div>
-
-                                                            {/* Additional Info */}
-                                                            <div className="text-xs text-muted-foreground">
-                                                                {voter.acNo && `AC: ${voter.acNo}`}
-                                                                {voter.wardNo && ` | Ward: ${voter.wardNo}`}
-                                                                {voter.boothName && ` | Booth: ${voter.boothName}`}
-                                                            </div>
-                                                        </div>
-
-                                                    </div>
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
+                                    <VoterSearchResultsVirtualList
+                                        voters={searchResults}
+                                        totalCount={searchTotalCount}
+                                        lastSearchType={lastSearchType}
+                                        hasMore={hasMoreSearchResults}
+                                        isLoadingMore={isLoadingMore}
+                                        isSearching={isSearching}
+                                        onSelectVoter={handleSelectVoter}
+                                        onLoadMore={loadMoreSearchResults}
+                                    />
                                 )}
 
                                 {/* Loading State */}

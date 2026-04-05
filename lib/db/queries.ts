@@ -78,7 +78,7 @@ import { ChatSDKError } from '../errors';
 // https://authjs.dev/reference/adapter/drizzle
 
 // biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(process.env.SUPABASE_DB_URL!);
+const client = postgres(process.env.SUPABASE_DB_URL!, { max: 1 });
 export const db = drizzle(client);
 
 let voterMasterHasCasteColumn: boolean | null = null;
@@ -1104,11 +1104,20 @@ export async function getVoterByBooth(boothName: string, electionId?: string): P
   }
 }
 
-export async function searchVoterByEpicNumber(epicNumber: string, electionId?: string): Promise<Array<VoterMasterType>> {
+export type VoterSearchPagination = {
+  limit?: number;
+  offset?: number;
+};
+
+export async function searchVoterByEpicNumber(
+  epicNumber: string,
+  electionId?: string,
+  pagination?: VoterSearchPagination,
+): Promise<Array<VoterMasterType>> {
   try {
     const currentElectionId = electionId || await getCurrentElectionId();
 
-    const results = await db
+    let q = db
       .select({
         epicNumber: VoterMaster.epicNumber,
         fullName: VoterMaster.fullName,
@@ -1129,6 +1138,15 @@ export async function searchVoterByEpicNumber(epicNumber: string, electionId?: s
       .where(sql`LOWER(${VoterMaster.epicNumber}) LIKE LOWER(${`%${epicNumber}%`})`)
       .orderBy(asc(VoterMaster.epicNumber));
 
+    if (pagination?.limit != null) {
+      q = q.limit(pagination.limit) as typeof q;
+    }
+    if (pagination?.offset != null) {
+      q = q.offset(pagination.offset) as typeof q;
+    }
+
+    const results = await q;
+
     return results as unknown as Array<VoterMasterType>;
   } catch (error) {
     throw new ChatSDKError(
@@ -1138,11 +1156,30 @@ export async function searchVoterByEpicNumber(epicNumber: string, electionId?: s
   }
 }
 
-export async function searchVoterByName(name: string, electionId?: string): Promise<Array<VoterMasterType>> {
+export async function countSearchVoterByEpicNumber(epicNumber: string): Promise<number> {
+  try {
+    const result = await db
+      .select({ c: count() })
+      .from(VoterMaster)
+      .where(sql`LOWER(${VoterMaster.epicNumber}) LIKE LOWER(${`%${epicNumber}%`})`);
+    return Number(result[0]?.c ?? 0);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to count voters by EPIC number',
+    );
+  }
+}
+
+export async function searchVoterByName(
+  name: string,
+  electionId?: string,
+  pagination?: VoterSearchPagination,
+): Promise<Array<VoterMasterType>> {
   try {
     const currentElectionId = electionId || await getCurrentElectionId();
 
-    const results = await db
+    let q = db
       .select({
         epicNumber: VoterMaster.epicNumber,
         fullName: VoterMaster.fullName,
@@ -1163,11 +1200,35 @@ export async function searchVoterByName(name: string, electionId?: string): Prom
       .where(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${name}%`})`)
       .orderBy(asc(VoterMaster.fullName));
 
+    if (pagination?.limit != null) {
+      q = q.limit(pagination.limit) as typeof q;
+    }
+    if (pagination?.offset != null) {
+      q = q.offset(pagination.offset) as typeof q;
+    }
+
+    const results = await q;
+
     return results as unknown as Array<VoterMasterType>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to search voters by name',
+    );
+  }
+}
+
+export async function countSearchVoterByName(name: string): Promise<number> {
+  try {
+    const result = await db
+      .select({ c: count() })
+      .from(VoterMaster)
+      .where(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${name}%`})`);
+    return Number(result[0]?.c ?? 0);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to count voters by name',
     );
   }
 }
@@ -1214,27 +1275,20 @@ export async function searchVoterByPhoneNumber(phoneNumber: string): Promise<Arr
   }
 }
 
-export async function searchVoterByMobileNumberTable(mobileNumber: string): Promise<Array<VoterMasterType>> {
+export async function searchVoterByMobileNumberTable(
+  mobileNumber: string,
+  pagination?: VoterSearchPagination,
+): Promise<Array<VoterMasterType>> {
   try {
-    // Clean the mobile number (remove spaces, dashes, etc.)
     const cleanMobile = mobileNumber.replace(/[\s\-\(\)]/g, '');
 
-    // First get epic numbers from voterMobileNumber table that match the mobile number
-    const matchingEpicNumbers = await db
-      .selectDistinct({
-        epicNumber: voterMobileNumber.epicNumber,
-      })
+    const mobileMatch = db
+      .selectDistinct({ epicNumber: voterMobileNumber.epicNumber })
       .from(voterMobileNumber)
-      .where(sql`${voterMobileNumber.mobileNumber} LIKE ${`%${cleanMobile}%`}`);
+      .where(sql`${voterMobileNumber.mobileNumber} LIKE ${`%${cleanMobile}%`}`)
+      .as('mobile_match');
 
-    if (matchingEpicNumbers.length === 0) {
-      return [];
-    }
-
-    const epicNumbers = matchingEpicNumbers.map((row) => row.epicNumber);
-
-    // Now get full voter details for those epic numbers
-    const results = await db
+    let q = db
       .select({
         epicNumber: VoterMaster.epicNumber,
         fullName: VoterMaster.fullName,
@@ -1250,14 +1304,47 @@ export async function searchVoterByMobileNumberTable(mobileNumber: string): Prom
         pincode: VoterMaster.pincode,
       })
       .from(VoterMaster)
-      .where(inArray(VoterMaster.epicNumber, epicNumbers))
+      .innerJoin(mobileMatch, eq(VoterMaster.epicNumber, mobileMatch.epicNumber))
       .orderBy(asc(VoterMaster.fullName));
+
+    if (pagination?.limit != null) {
+      q = q.limit(pagination.limit) as typeof q;
+    }
+    if (pagination?.offset != null) {
+      q = q.offset(pagination.offset) as typeof q;
+    }
+
+    const results = await q;
 
     return results as unknown as Array<VoterMasterType>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to search voters by mobile number table',
+    );
+  }
+}
+
+export async function countSearchVoterByMobileNumberTable(mobileNumber: string): Promise<number> {
+  try {
+    const cleanMobile = mobileNumber.replace(/[\s\-\(\)]/g, '');
+
+    const mobileMatch = db
+      .selectDistinct({ epicNumber: voterMobileNumber.epicNumber })
+      .from(voterMobileNumber)
+      .where(sql`${voterMobileNumber.mobileNumber} LIKE ${`%${cleanMobile}%`}`)
+      .as('mobile_match');
+
+    const result = await db
+      .select({ c: count() })
+      .from(VoterMaster)
+      .innerJoin(mobileMatch, eq(VoterMaster.epicNumber, mobileMatch.epicNumber));
+
+    return Number(result[0]?.c ?? 0);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to count voters by mobile number table',
     );
   }
 }
@@ -1354,6 +1441,8 @@ export async function searchVoterByDetails(params: {
   gender?: string;
   age?: number;
   ageRange?: number;
+  limit?: number;
+  offset?: number;
 }): Promise<Array<VoterMasterType>> {
   try {
     const conditions: any[] = [];
@@ -1383,7 +1472,7 @@ export async function searchVoterByDetails(params: {
 
     const currentElectionId = await getCurrentElectionId();
 
-    const results = await db
+    let q = db
       .select({
         epicNumber: VoterMaster.epicNumber,
         fullName: VoterMaster.fullName,
@@ -1404,11 +1493,62 @@ export async function searchVoterByDetails(params: {
       .where(sql`${sql.join(conditions, sql` AND `)}`)
       .orderBy(asc(VoterMaster.fullName));
 
+    if (params.limit != null) {
+      q = q.limit(params.limit) as typeof q;
+    }
+    if (params.offset != null) {
+      q = q.offset(params.offset) as typeof q;
+    }
+
+    const results = await q;
+
     return results as unknown as Array<VoterMasterType>;
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to search voters by details',
+    );
+  }
+}
+
+export async function countSearchVoterByDetails(params: {
+  name?: string;
+  gender?: string;
+  age?: number;
+  ageRange?: number;
+}): Promise<number> {
+  try {
+    const conditions: any[] = [];
+
+    if (params.name?.trim()) {
+      conditions.push(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${params.name.trim()}%`})`);
+    }
+
+    if (params.gender && params.gender !== '') {
+      conditions.push(eq(VoterMaster.gender, params.gender));
+    }
+
+    if (params.age !== undefined && params.age !== null) {
+      const ageRange = params.ageRange || 0;
+      const minAge = Math.max(0, params.age - ageRange);
+      const maxAge = params.age + ageRange;
+      conditions.push(sql`${VoterMaster.age} >= ${minAge} AND ${VoterMaster.age} <= ${maxAge}`);
+    }
+
+    if (conditions.length === 0) {
+      return 0;
+    }
+
+    const result = await db
+      .select({ c: count() })
+      .from(VoterMaster)
+      .where(sql`${sql.join(conditions, sql` AND `)}`);
+
+    return Number(result[0]?.c ?? 0);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to count voters by details',
     );
   }
 }

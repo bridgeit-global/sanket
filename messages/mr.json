@@ -228,6 +228,8 @@
     "createNewUser": "प्रारंभिक परवानग्यांसह नवीन वापरकर्ता खाते तयार करा",
     "userId": "वापरकर्ता आयडी",
     "password": "पासवर्ड",
+    "passwordMinLength": "पासवर्ड किमान {min} वर्णांचा असावा",
+    "passwordMinLengthHint": "किमान {min} वर्णे",
     "role": "भूमिका",
     "selectRole": "भूमिका निवडा",
     "createUser": "वापरकर्ता तयार करा",
@@ -470,8 +472,13 @@
       "types": {
         "detailed": "तपशीलवार शोध",
         "phone": "फोन नंबर",
-        "voterId": "मतदार आयडी (EPIC)"
+        "voterId": "मतदार आयडी (EPIC)",
+        "name": "नाव"
       },
+      "scrollForMore": "अधिक निकाल लोड करण्यासाठी स्क्रोल करा.",
+      "loadingMore": "अधिक लोड होत आहे…",
+      "totalCountOnly": "एकूण {count} मतदार",
+      "showingOfTotal": "{total} पैकी {loaded} दाखवत आहे",
       "namePlaceholder": "मतदाराचे नाव प्रविष्ट करा...",
       "phonePlaceholder": "फोन नंबर प्रविष्ट करा (उदा., 9876543210)...",
       "voterIdPlaceholder": "मतदार आयडी प्रविष्ट करा (उदा., ABC1234567)...",
