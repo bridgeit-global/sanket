@@ -19,7 +19,10 @@ const { services } = {
 };
 
 // Database connection
-const connectionString = process.env.DATABASE_URL || 'postgresql://localhost:5432/sanket';
+const connectionString = process.env.SUPABASE_DB_URL;
+if (!connectionString) {
+  throw new Error('SUPABASE_DB_URL is not defined');
+}
 const client = postgres(connectionString);
 const db = drizzle(client);
 
