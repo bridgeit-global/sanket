@@ -6,7 +6,25 @@ import {
     searchVoterByName,
     searchVoterByDetails,
     searchVoterByMobileNumberTable,
+    countSearchVoterByEpicNumber,
+    countSearchVoterByName,
+    countSearchVoterByDetails,
+    countSearchVoterByMobileNumberTable,
 } from '@/lib/db/queries';
+
+const DEFAULT_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 100;
+
+function clampSearchPagination(rawLimit: unknown, rawOffset: unknown): { limit: number; offset: number } {
+    const parsedLimit = Number(rawLimit);
+    const parsedOffset = Number(rawOffset);
+    const limit = Math.min(
+        Math.max(Number.isFinite(parsedLimit) ? Math.trunc(parsedLimit) : DEFAULT_PAGE_SIZE, 1),
+        MAX_PAGE_SIZE,
+    );
+    const offset = Math.max(Number.isFinite(parsedOffset) ? Math.trunc(parsedOffset) : 0, 0);
+    return { limit, offset };
+}
 
 export async function POST(request: NextRequest) {
     try {
@@ -17,20 +35,33 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { searchTerm, searchType, name, gender, age, ageRange } = await request.json();
+        const body = await request.json();
+        const { searchTerm, searchType, name, gender, age, ageRange, limit: rawLimit, offset: rawOffset } = body;
+        const { limit, offset } = clampSearchPagination(rawLimit, rawOffset);
+        const page = { limit, offset };
 
         let voters: Array<any>;
         let actualSearchType: string;
+        let totalCount: number;
 
         // Check if this is a detailed search
         if (name !== undefined || gender !== undefined || age !== undefined) {
-            // Detailed search with name, gender, age, and age range
-            voters = await searchVoterByDetails({
+            const detailFilter = {
                 name: name || searchTerm,
                 gender,
                 age,
-                ageRange
-            });
+                ageRange,
+            };
+            const [votersResult, countResult] = await Promise.all([
+                searchVoterByDetails({
+                    ...detailFilter,
+                    limit,
+                    offset,
+                }),
+                countSearchVoterByDetails(detailFilter),
+            ]);
+            voters = votersResult;
+            totalCount = countResult;
             actualSearchType = 'details';
         } else {
             // Legacy search functionality
@@ -44,26 +75,36 @@ export async function POST(request: NextRequest) {
             const isPhoneNumber = /^[\d\s\-\(\)]{7,15}$/.test(trimmedTerm);
 
             if (searchType === 'mobileNumber') {
-                // Mobile number search using voterMobileNumber table
-                voters = await searchVoterByMobileNumberTable(trimmedTerm);
+                const [votersResult, countResult] = await Promise.all([
+                    searchVoterByMobileNumberTable(trimmedTerm, page),
+                    countSearchVoterByMobileNumberTable(trimmedTerm),
+                ]);
+                voters = votersResult;
+                totalCount = countResult;
                 actualSearchType = 'mobileNumber';
             } else if (searchType === 'phone' || (isPhoneNumber && searchType !== 'voterId' && searchType !== 'name')) {
-                // Phone number search using voterMobileNumber table
-                voters = await searchVoterByMobileNumberTable(trimmedTerm);
+                const [votersResult, countResult] = await Promise.all([
+                    searchVoterByMobileNumberTable(trimmedTerm, page),
+                    countSearchVoterByMobileNumberTable(trimmedTerm),
+                ]);
+                voters = votersResult;
+                totalCount = countResult;
                 actualSearchType = 'phone';
             } else if (searchType === 'voterId' || isVoterId) {
-                // VoterId search
-                voters = await searchVoterByEpicNumber(trimmedTerm);
+                const [votersResult, countResult] = await Promise.all([
+                    searchVoterByEpicNumber(trimmedTerm, undefined, page),
+                    countSearchVoterByEpicNumber(trimmedTerm),
+                ]);
+                voters = votersResult;
+                totalCount = countResult;
                 actualSearchType = 'voterId';
-
-                // // If no results found with VoterId, fall back to name search
-                // if (voters.length === 0 && searchType !== 'voterId') {
-                //     voters = await searchVoterByName(trimmedTerm);
-                //     actualSearchType = 'name';
-                // }
             } else {
-                // Default to name search
-                voters = await searchVoterByName(trimmedTerm);
+                const [votersResult, countResult] = await Promise.all([
+                    searchVoterByName(trimmedTerm, undefined, page),
+                    countSearchVoterByName(trimmedTerm),
+                ]);
+                voters = votersResult;
+                totalCount = countResult;
                 actualSearchType = 'name';
             }
         }
@@ -84,9 +125,15 @@ export async function POST(request: NextRequest) {
             });
         }
 
+        const hasMore = voters.length === limit;
+
         return NextResponse.json({
             voters,
-            searchType: actualSearchType
+            searchType: actualSearchType,
+            hasMore,
+            totalCount,
+            limit,
+            offset,
         });
     } catch (error) {
         console.error('Error searching voters:', error);
