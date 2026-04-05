@@ -228,6 +228,8 @@
     "createNewUser": "Create a new user account with initial permissions",
     "userId": "User ID",
     "password": "Password",
+    "passwordMinLength": "Password must be at least {min} characters",
+    "passwordMinLengthHint": "At least {min} characters",
     "role": "Role",
     "selectRole": "Select a role",
     "createUser": "Create User",
@@ -470,8 +472,11 @@
       "types": {
         "detailed": "Detailed Search",
         "phone": "Phone Number",
-        "voterId": "VoterId (EPIC)"
+        "voterId": "VoterId (EPIC)",
+        "name": "Name"
       },
+      "scrollForMore": "Scroll to load more results.",
+      "loadingMore": "Loading more…",
       "namePlaceholder": "Enter voter name...",
       "phonePlaceholder": "Enter phone number (e.g., 9876543210)...",
       "voterIdPlaceholder": "Enter VoterId (e.g., ABC1234567)...",

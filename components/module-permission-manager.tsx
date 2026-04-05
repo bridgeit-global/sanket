@@ -39,6 +39,9 @@ import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { TableSkeleton } from '@/components/module-skeleton';
 import { useTranslations } from '@/hooks/use-translations';
+import { cn } from '@/lib/utils';
+
+const PASSWORD_MIN_LENGTH = 6;
 
 interface UserWithPermissions extends User {
   permissions: Record<string, boolean>;
@@ -139,6 +142,13 @@ export function ModulePermissionManager() {
   const handleAddUser = async () => {
     if (!newUser.userId || !newUser.password) {
       toast.error(t('userManagement.userIdPasswordRequired'));
+      return;
+    }
+
+    if (newUser.password.length < PASSWORD_MIN_LENGTH) {
+      toast.error(
+        t('userManagement.passwordMinLength', { min: PASSWORD_MIN_LENGTH }),
+      );
       return;
     }
 
@@ -258,10 +268,29 @@ export function ModulePermissionManager() {
                       id="password"
                       type="password"
                       value={newUser.password}
+                      minLength={PASSWORD_MIN_LENGTH}
+                      aria-invalid={
+                        newUser.password.length > 0 &&
+                        newUser.password.length < PASSWORD_MIN_LENGTH
+                      }
+                      aria-describedby="new-user-password-hint"
+                      className={cn(
+                        newUser.password.length > 0 &&
+                          newUser.password.length < PASSWORD_MIN_LENGTH &&
+                          'border-destructive focus-visible:ring-destructive',
+                      )}
                       onChange={(e) =>
                         setNewUser({ ...newUser, password: e.target.value })
                       }
                     />
+                    <p
+                      id="new-user-password-hint"
+                      className="text-xs text-muted-foreground"
+                    >
+                      {t('userManagement.passwordMinLengthHint', {
+                        min: PASSWORD_MIN_LENGTH,
+                      })}
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="role">{t('userManagement.role')} *</Label>
@@ -284,7 +313,16 @@ export function ModulePermissionManager() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button onClick={handleAddUser} className="w-full">
+                  <Button
+                    onClick={handleAddUser}
+                    className="w-full"
+                    disabled={
+                      !newUser.userId ||
+                      !newUser.password ||
+                      newUser.password.length < PASSWORD_MIN_LENGTH ||
+                      !newUser.roleId
+                    }
+                  >
                     {t('userManagement.createUser')}
                   </Button>
                 </div>
@@ -398,8 +436,8 @@ export function ModulePermissionManager() {
                                   <div
                                     key={module.key}
                                     className={`flex items-center space-x-2 p-2 rounded-md border ${hasAccess
-                                        ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'
-                                        : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 opacity-50'
+                                      ? 'bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800'
+                                      : 'bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-800 opacity-50'
                                       }`}
                                   >
                                     <span className="text-sm font-normal">

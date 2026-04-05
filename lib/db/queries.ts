@@ -1104,11 +1104,20 @@ export async function getVoterByBooth(boothName: string, electionId?: string): P
   }
 }
 
-export async function searchVoterByEpicNumber(epicNumber: string, electionId?: string): Promise<Array<VoterMasterType>> {
+export type VoterSearchPagination = {
+  limit?: number;
+  offset?: number;
+};
+
+export async function searchVoterByEpicNumber(
+  epicNumber: string,
+  electionId?: string,
+  pagination?: VoterSearchPagination,
+): Promise<Array<VoterMasterType>> {
   try {
     const currentElectionId = electionId || await getCurrentElectionId();
 
-    const results = await db
+    let q = db
       .select({
         epicNumber: VoterMaster.epicNumber,
         fullName: VoterMaster.fullName,
@@ -1129,6 +1138,15 @@ export async function searchVoterByEpicNumber(epicNumber: string, electionId?: s
       .where(sql`LOWER(${VoterMaster.epicNumber}) LIKE LOWER(${`%${epicNumber}%`})`)
       .orderBy(asc(VoterMaster.epicNumber));
 
+    if (pagination?.limit != null) {
+      q = q.limit(pagination.limit) as typeof q;
+    }
+    if (pagination?.offset != null) {
+      q = q.offset(pagination.offset) as typeof q;
+    }
+
+    const results = await q;
+
     return results as unknown as Array<VoterMasterType>;
   } catch (error) {
     throw new ChatSDKError(
@@ -1138,11 +1156,15 @@ export async function searchVoterByEpicNumber(epicNumber: string, electionId?: s
   }
 }
 
-export async function searchVoterByName(name: string, electionId?: string): Promise<Array<VoterMasterType>> {
+export async function searchVoterByName(
+  name: string,
+  electionId?: string,
+  pagination?: VoterSearchPagination,
+): Promise<Array<VoterMasterType>> {
   try {
     const currentElectionId = electionId || await getCurrentElectionId();
 
-    const results = await db
+    let q = db
       .select({
         epicNumber: VoterMaster.epicNumber,
         fullName: VoterMaster.fullName,
@@ -1162,6 +1184,15 @@ export async function searchVoterByName(name: string, electionId?: string): Prom
       .from(VoterMaster)
       .where(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${name}%`})`)
       .orderBy(asc(VoterMaster.fullName));
+
+    if (pagination?.limit != null) {
+      q = q.limit(pagination.limit) as typeof q;
+    }
+    if (pagination?.offset != null) {
+      q = q.offset(pagination.offset) as typeof q;
+    }
+
+    const results = await q;
 
     return results as unknown as Array<VoterMasterType>;
   } catch (error) {
@@ -1214,27 +1245,20 @@ export async function searchVoterByPhoneNumber(phoneNumber: string): Promise<Arr
   }
 }
 
-export async function searchVoterByMobileNumberTable(mobileNumber: string): Promise<Array<VoterMasterType>> {
+export async function searchVoterByMobileNumberTable(
+  mobileNumber: string,
+  pagination?: VoterSearchPagination,
+): Promise<Array<VoterMasterType>> {
   try {
-    // Clean the mobile number (remove spaces, dashes, etc.)
     const cleanMobile = mobileNumber.replace(/[\s\-\(\)]/g, '');
 
-    // First get epic numbers from voterMobileNumber table that match the mobile number
-    const matchingEpicNumbers = await db
-      .selectDistinct({
-        epicNumber: voterMobileNumber.epicNumber,
-      })
+    const mobileMatch = db
+      .selectDistinct({ epicNumber: voterMobileNumber.epicNumber })
       .from(voterMobileNumber)
-      .where(sql`${voterMobileNumber.mobileNumber} LIKE ${`%${cleanMobile}%`}`);
+      .where(sql`${voterMobileNumber.mobileNumber} LIKE ${`%${cleanMobile}%`}`)
+      .as('mobile_match');
 
-    if (matchingEpicNumbers.length === 0) {
-      return [];
-    }
-
-    const epicNumbers = matchingEpicNumbers.map((row) => row.epicNumber);
-
-    // Now get full voter details for those epic numbers
-    const results = await db
+    let q = db
       .select({
         epicNumber: VoterMaster.epicNumber,
         fullName: VoterMaster.fullName,
@@ -1250,8 +1274,17 @@ export async function searchVoterByMobileNumberTable(mobileNumber: string): Prom
         pincode: VoterMaster.pincode,
       })
       .from(VoterMaster)
-      .where(inArray(VoterMaster.epicNumber, epicNumbers))
+      .innerJoin(mobileMatch, eq(VoterMaster.epicNumber, mobileMatch.epicNumber))
       .orderBy(asc(VoterMaster.fullName));
+
+    if (pagination?.limit != null) {
+      q = q.limit(pagination.limit) as typeof q;
+    }
+    if (pagination?.offset != null) {
+      q = q.offset(pagination.offset) as typeof q;
+    }
+
+    const results = await q;
 
     return results as unknown as Array<VoterMasterType>;
   } catch (error) {
@@ -1354,6 +1387,8 @@ export async function searchVoterByDetails(params: {
   gender?: string;
   age?: number;
   ageRange?: number;
+  limit?: number;
+  offset?: number;
 }): Promise<Array<VoterMasterType>> {
   try {
     const conditions: any[] = [];
@@ -1383,7 +1418,7 @@ export async function searchVoterByDetails(params: {
 
     const currentElectionId = await getCurrentElectionId();
 
-    const results = await db
+    let q = db
       .select({
         epicNumber: VoterMaster.epicNumber,
         fullName: VoterMaster.fullName,
@@ -1403,6 +1438,15 @@ export async function searchVoterByDetails(params: {
       .from(VoterMaster)
       .where(sql`${sql.join(conditions, sql` AND `)}`)
       .orderBy(asc(VoterMaster.fullName));
+
+    if (params.limit != null) {
+      q = q.limit(params.limit) as typeof q;
+    }
+    if (params.offset != null) {
+      q = q.offset(params.offset) as typeof q;
+    }
+
+    const results = await q;
 
     return results as unknown as Array<VoterMasterType>;
   } catch (error) {
