@@ -2418,29 +2418,67 @@ export async function getRelatedVotersServicesAndEvents(relatedVoters: Array<Vot
       return [];
     }
 
-    const results = await Promise.all(
-      relatedVoters.map(async (voter) => {
-        // Get services for this voter
-        const services = await getVoterBeneficiaryServices(voter.epicNumber);
+    const epicNumbers = relatedVoters.map((voter) => voter.epicNumber);
 
-        // Get events for this voter (using their contact numbers)
-        const contactNumbers: string[] = [];
-        const voterMobileNumbers = await getVoterMobileNumbersByEpicNumbers([voter.epicNumber]);
-        const mobileNumbers = voterMobileNumbers.get(voter.epicNumber) || [];
-        for (const mobileNumber of mobileNumbers) {
-          contactNumbers.push(mobileNumber.mobileNumber);
-        }
-        const events = await getVoterDailyProgrammeEvents(contactNumbers);
+    const [individualServices, communityServiceRows, mobileNumbersMap] = await Promise.all([
+      db
+        .select()
+        .from(beneficiaryServices)
+        .where(
+          and(
+            inArray(beneficiaryServices.voterId, epicNumbers),
+            eq(beneficiaryServices.serviceType, 'individual')
+          )
+        )
+        .orderBy(desc(beneficiaryServices.createdAt)),
+      db
+        .select({
+          voterId: voterTasks.voterId,
+          service: beneficiaryServices,
+        })
+        .from(voterTasks)
+        .innerJoin(beneficiaryServices, eq(voterTasks.serviceId, beneficiaryServices.id))
+        .where(
+          and(
+            inArray(voterTasks.voterId, epicNumbers),
+            eq(beneficiaryServices.serviceType, 'community')
+          )
+        )
+        .orderBy(desc(beneficiaryServices.createdAt)),
+      getVoterMobileNumbersByEpicNumbers(epicNumbers),
+    ]);
 
-        return {
-          voter,
-          services,
-          events,
-        };
-      })
-    );
+    const individualServicesMap = new Map<string, Array<BeneficiaryService>>();
+    for (const service of individualServices) {
+      const voterId = service.voterId;
+      if (!voterId) continue;
+      const existing = individualServicesMap.get(voterId) || [];
+      existing.push(service);
+      individualServicesMap.set(voterId, existing);
+    }
 
-    return results;
+    const communityServicesMap = new Map<string, Array<BeneficiaryService>>();
+    for (const row of communityServiceRows) {
+      const existing = communityServicesMap.get(row.voterId) || [];
+      existing.push(row.service);
+      communityServicesMap.set(row.voterId, existing);
+    }
+
+    // Visitor management is currently disabled; keep event payload shape stable.
+    return relatedVoters.map((voter) => {
+      const mobileNumbers = mobileNumbersMap.get(voter.epicNumber) || [];
+      const contactNumbers = mobileNumbers.map((mobile) => mobile.mobileNumber);
+      void contactNumbers;
+
+      return {
+        voter,
+        services: {
+          individual: individualServicesMap.get(voter.epicNumber) || [],
+          community: communityServicesMap.get(voter.epicNumber) || [],
+        },
+        events: [],
+      };
+    });
   } catch (error) {
     throw new ChatSDKError(
       'bad_request:database',
@@ -5023,18 +5061,23 @@ export async function getVoterMobileNumbersByEpicNumbers(
       return new Map();
     }
 
-    // Cast to text to avoid bigint/varchar operator errors when epicNumbers come from JS.
-    const voterMobileEpicNumberText = sql<string>`${voterMobileNumber.epicNumber}::text`;
+    const normalizedEpicNumbers = epicNumbers
+      .map((epicNumber) => epicNumber?.trim())
+      .filter((epicNumber): epicNumber is string => Boolean(epicNumber));
+
+    if (normalizedEpicNumbers.length === 0) {
+      return new Map();
+    }
 
     const mobileNumbers = await db
       .select({
-        epicNumber: voterMobileEpicNumberText,
+        epicNumber: voterMobileNumber.epicNumber,
         mobileNumber: voterMobileNumber.mobileNumber,
         sortOrder: voterMobileNumber.sortOrder,
       })
       .from(voterMobileNumber)
-      .where(inArray(voterMobileEpicNumberText, epicNumbers.map((e) => String(e))))
-      .orderBy(asc(voterMobileEpicNumberText), asc(voterMobileNumber.sortOrder));
+      .where(inArray(voterMobileNumber.epicNumber, normalizedEpicNumbers))
+      .orderBy(asc(voterMobileNumber.epicNumber), asc(voterMobileNumber.sortOrder));
 
     // Group mobile numbers by epic number with sort order
     const result = new Map<string, MobileNumberWithSortOrder[]>();
