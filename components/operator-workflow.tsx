@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useRouter } from 'next/navigation';
-import { format } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,7 +15,7 @@ import { BeneficiaryServiceForm } from '@/components/beneficiary-service-form';
 import { PhoneUpdateForm, type MobileNumberEntry } from '@/components/phone-update-form';
 import { TaskManagement } from '@/components/task-management';
 import { useTranslations } from '@/hooks/use-translations';
-import { Printer, Share2 } from 'lucide-react';
+import { Share2 } from 'lucide-react';
 import type { VoterWithPartNo, BeneficiaryService } from '@/lib/db/schema';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
 
@@ -523,8 +522,6 @@ export function BeneficiaryManagement() {
                 type: 'success',
                 description: t('operator.messages.serviceCreatedSuccess'),
             });
-            // Auto-print POS receipt after a short delay so the receipt DOM is rendered
-            setTimeout(() => printTokenReceipt(), 300);
         } catch (error) {
             console.error('Error creating service:', error);
             toast({
@@ -553,26 +550,6 @@ export function BeneficiaryManagement() {
         setWorkflowStep('search');
     };
 
-    const printTokenReceipt = () => {
-        // Inject a style override to suppress the daily-programme @page header/footer
-        // for this print job only. Cleaned up immediately via the afterprint event.
-        const style = document.createElement('style');
-        style.id = 'token-receipt-page-override';
-        style.textContent = `@media print { @page { @top-center { content: none !important; } @bottom-center { content: none !important; } } }`;
-        document.head.appendChild(style);
-        const cleanup = () => {
-            const el = document.getElementById('token-receipt-page-override');
-            if (el) el.remove();
-            window.removeEventListener('afterprint', cleanup);
-        };
-        window.addEventListener('afterprint', cleanup);
-        window.print();
-    };
-
-    const handlePrint = () => {
-        printTokenReceipt();
-    };
-
     const handleShareThermalTicket = async () => {
         if (!createdService || !selectedVoter) return;
 
@@ -587,7 +564,8 @@ export function BeneficiaryManagement() {
 
         const outcome = await shareThermalTicketPdf(
             receiptText,
-            `thermal-ticket-${createdService.token.toLowerCase()}`
+            `thermal-ticket-${createdService.token.toLowerCase()}`,
+            { headerImageUrl: '/images/ncp_election_symbol.png' }
         );
 
         if (outcome === 'downloaded') {
@@ -885,48 +863,8 @@ export function BeneficiaryManagement() {
                                         <Share2 className="mr-2 h-4 w-4" />
                                         Share Thermal Ticket
                                     </Button>
-                                    <Button onClick={handlePrint} variant="outline" className="flex-1">
-                                        <Printer className="mr-2 h-4 w-4" />
-                                        {t('operator.completion.print')}
-                                    </Button>
                                 </div>
                             </CardContent>
-
-                            {/* Hidden POS receipt (visible only when printing, 80mm thermal) */}
-                            <div className="pos-receipt print-only" aria-hidden="true">
-                                <div className="pos-receipt-sep">--------------------------------</div>
-                                <div className="pos-receipt-header">
-                                    <div>मा. आमदार सना मलिक शेख</div>
-                                    <div>अणुशक्ती नगर विधानसभा मतदारसंघ</div>
-                                    <div>Hon. MLA Sana Malik Shaikh</div>
-                                    <div>Anushakti Nagar Constituency</div>
-                                </div>
-                                <div className="pos-receipt-sep">--------------------------------</div>
-                                <div className="pos-receipt-token-label">टोकन क्र. / TOKEN NO</div>
-                                <div className="pos-receipt-token-value">
-                                    {createdService.token.includes('-') ? createdService.token.split('-')[1] : createdService.token}
-                                </div>
-                                <div className="pos-receipt-sep">--------------------------------</div>
-                                <div className="pos-receipt-body">
-                                    <div>दिनांक / Date : {format(new Date(createdService.createdAt), 'dd-MM-yyyy')}</div>
-                                    <div>वेळ / Time   : {format(new Date(createdService.createdAt), 'hh:mm a').toUpperCase()}</div>
-                                </div>
-                                <div className="pos-receipt-sep">--------------------------------</div>
-                                <div className="pos-receipt-body">
-                                    <div>नाव / Name : {selectedVoter.fullName}</div>
-                                    <div>मोबाईल / Mobile : {selectedVoterMobileNumbers[0]?.mobileNumber ?? 'xxxxxxxxxx'}</div>
-                                </div>
-                                <div className="pos-receipt-sep">--------------------------------</div>
-                                <div className="pos-receipt-body">
-                                    <div>सेवा / Service : <strong>{createdService.serviceName}</strong></div>
-                                </div>
-                                <div className="pos-receipt-sep">--------------------------------</div>
-                                <div className="pos-receipt-footer">
-                                    <div>कृपया आपल्या क्रमांकाची प्रतीक्षा करावी</div>
-                                    <div>Please wait for your turn</div>
-                                </div>
-                                <div className="pos-receipt-sep">--------------------------------</div>
-                            </div>
                         </Card>
                     )}
 

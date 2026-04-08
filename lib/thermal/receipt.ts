@@ -17,9 +17,12 @@ type LoadedImage = {
   dataUrl: string;
   width: number;
   height: number;
+  visualCenterOffsetXPx: number;
 };
 
 const DEFAULT_WIDTH = 22;
+const PDF_PAGE_WIDTH_MM = 58;
+const RECEIPT_TEXT_X_MM = 2;
 
 function sanitizeForThermal(value: string): string {
   return value
@@ -201,10 +204,27 @@ async function loadImageAsDataUrl(imageUrl: string): Promise<LoadedImage | null>
           return;
         }
         context.drawImage(image, 0, 0);
+        const { width, height } = canvas;
+        const imageData = context.getImageData(0, 0, width, height);
+        const pixels = imageData.data;
+        let minX = width;
+        let maxX = -1;
+        for (let i = 0; i < pixels.length; i += 4) {
+          const alpha = pixels[i + 3];
+          if (alpha === 0) continue;
+          const pixelIndex = i / 4;
+          const x = pixelIndex % width;
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+        }
+        const visualCenterOffsetXPx = maxX >= minX
+          ? ((minX + maxX + 1) / 2) - width / 2
+          : 0;
         resolve({
           dataUrl: canvas.toDataURL('image/png'),
-          width: canvas.width,
-          height: canvas.height,
+          width,
+          height,
+          visualCenterOffsetXPx,
         });
       } catch {
         resolve(null);
@@ -219,38 +239,41 @@ async function buildThermalPdfBlob(content: string, options?: ThermalPdfOptions)
   const lines = content.split('\n');
   const mmPerLine = 4.8;
   const topBottomPadding = 6;
-  const logoAreaHeight = options?.headerImageUrl ? 18 : 0;
+  const logoAreaHeight = options?.headerImageUrl ? 34 : 0;
   const pageHeight = Math.max(60, topBottomPadding * 2 + logoAreaHeight + lines.length * mmPerLine);
 
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
     // 58mm roll width produces larger, more readable thermal output.
-    format: [58, pageHeight],
+    format: [PDF_PAGE_WIDTH_MM, pageHeight],
     compress: true,
   });
 
   doc.setFont('courier', 'normal');
   doc.setFontSize(11);
+  const textBlockWidth = doc.getTextWidth('-'.repeat(DEFAULT_WIDTH));
+  const textBlockCenterX = RECEIPT_TEXT_X_MM + (textBlockWidth / 2);
 
   let y = topBottomPadding;
 
   if (options?.headerImageUrl) {
     const imageData = await loadImageAsDataUrl(options.headerImageUrl);
     if (imageData && imageData.width > 0 && imageData.height > 0) {
-      const maxImageWidth = 20;
-      const maxImageHeight = 16;
+      const maxImageWidth = 32;
+      const maxImageHeight = 32;
       const scale = Math.min(maxImageWidth / imageData.width, maxImageHeight / imageData.height);
       const imageWidth = imageData.width * scale;
       const imageHeight = imageData.height * scale;
-      const x = (58 - imageWidth) / 2;
+      const visualOffsetMm = imageData.visualCenterOffsetXPx * scale;
+      const x = textBlockCenterX - (imageWidth / 2) - visualOffsetMm;
       doc.addImage(imageData.dataUrl, 'PNG', x, y, imageWidth, imageHeight, undefined, 'FAST');
       y += imageHeight + 2;
     }
   }
 
   for (const line of lines) {
-    doc.text(line, 2, y, { baseline: 'top' });
+    doc.text(line, RECEIPT_TEXT_X_MM, y, { baseline: 'top' });
     y += mmPerLine;
   }
 
