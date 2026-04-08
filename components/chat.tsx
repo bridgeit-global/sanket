@@ -53,7 +53,6 @@ export function Chat({
 
 
   const searchParams = useSearchParams();
-  console.log('searchParams', searchParams);
   const query = searchParams.get('query');
 
   const [hasAppendedQuery, setHasAppendedQuery] = useState(false);
@@ -82,7 +81,6 @@ export function Chat({
           selectedVisibilityType: visibilityType,
           ...body,
         };
-        console.log('Full request body:', requestBody);
         return {
           body: requestBody,
         };

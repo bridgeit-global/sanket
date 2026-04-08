@@ -417,7 +417,6 @@ export function BeneficiaryManagement() {
                 }
                 const data = await response.json();
                 if (data?.success && Array.isArray(data.voterMobileNumbers)) {
-                    console.log(data)
                     setSelectedVoterMobileNumbers(data.voterMobileNumbers);
                 }
             })

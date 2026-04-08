@@ -143,7 +143,6 @@ ORDER BY voter_count DESC`,
         description: z.string().optional().describe('Description of what this query is trying to find'),
     }),
     execute: async ({ query, description }) => {
-        console.log('🔍 SQL Query Tool called:', { query, description });
         try {
             const validation = validateSingleSelectOnly(query);
             if (!validation.allowed) {

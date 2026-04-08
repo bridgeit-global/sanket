@@ -10,7 +10,6 @@ interface BeneficiaryInsightsProps {
 }
 
 export function BeneficiaryInsights({ toolName, data }: BeneficiaryInsightsProps) {
-  console.log('BeneficiaryInsights called with:', { toolName, data });
 
   if (!data || typeof data !== 'object') {
     return (

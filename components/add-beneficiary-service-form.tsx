@@ -155,11 +155,6 @@ export function AddBeneficiaryServiceForm({
         fetchParts();
     }, []);
 
-    // Debug: Monitor showServiceCreation state changes
-    useEffect(() => {
-        console.log('showServiceCreation state changed to:', showServiceCreation);
-    }, [showServiceCreation]);
-
     const handleVoterIdSubmit = async () => {
         if (!voterId.trim()) {
             toast({ type: 'error', description: 'Please enter a Voter ID' });
@@ -242,8 +237,6 @@ export function AddBeneficiaryServiceForm({
     };
 
     const handleCreateNewService = async () => {
-        console.log('Creating new service:', newService);
-
         if (!newService.name.trim() || !newService.category.trim()) {
             toast({ type: 'error', description: 'Please fill in service name and category' });
             return;
@@ -251,7 +244,6 @@ export function AddBeneficiaryServiceForm({
 
         setIsCreatingService(true);
         try {
-            console.log('Sending request to /api/services/create');
             const response = await fetch('/api/services/create', {
                 method: 'POST',
                 headers: {
@@ -260,14 +252,11 @@ export function AddBeneficiaryServiceForm({
                 body: JSON.stringify(newService),
             });
 
-            console.log('Response status:', response.status);
             const result = await response.json();
-            console.log('Response result:', result);
 
             if (result.success) {
                 // Add the new service to the services list
                 const createdService = result.data;
-                console.log('Created service:', createdService);
                 setServices(prev => [...prev, createdService]);
 
                 // Select the newly created service
@@ -319,10 +308,6 @@ export function AddBeneficiaryServiceForm({
             toast({ type: 'error', description: 'Please select at least one part number for one-to-many service' });
             return;
         }
-
-        // Debug logging
-        console.log('Submitting service details:', serviceDetails);
-        console.log('Priority before confirmation:', serviceDetails.priority);
 
         setCurrentStep('confirmation');
     };
@@ -414,7 +399,6 @@ export function AddBeneficiaryServiceForm({
                                     value={newService.name}
                                     onChange={(e) => {
                                         e.preventDefault();
-                                        console.log('Service name changed to:', e.target.value);
                                         setNewService(prev => ({ ...prev, name: e.target.value }));
                                     }}
                                     onKeyDown={(e) => {
@@ -432,7 +416,6 @@ export function AddBeneficiaryServiceForm({
                                     value={newService.category}
                                     onChange={(e) => {
                                         e.preventDefault();
-                                        console.log('Service category changed to:', e.target.value);
                                         setNewService(prev => ({ ...prev, category: e.target.value }));
                                     }}
                                     onKeyDown={(e) => {
@@ -463,7 +446,6 @@ export function AddBeneficiaryServiceForm({
                                         value="one-to-one"
                                         checked={newService.type === 'one-to-one'}
                                         onChange={(e) => {
-                                            console.log('Service type changed to:', e.target.value);
                                             setNewService(prev => ({ ...prev, type: e.target.value as 'one-to-one' | 'one-to-many' }));
                                         }}
                                         className="rounded"
@@ -477,7 +459,6 @@ export function AddBeneficiaryServiceForm({
                                         value="one-to-many"
                                         checked={newService.type === 'one-to-many'}
                                         onChange={(e) => {
-                                            console.log('Service type changed to:', e.target.value);
                                             setNewService(prev => ({ ...prev, type: e.target.value as 'one-to-one' | 'one-to-many' }));
                                         }}
                                         className="rounded"
@@ -489,8 +470,6 @@ export function AddBeneficiaryServiceForm({
                         <div className="flex gap-2">
                             <Button
                                 onClick={() => {
-                                    console.log('Create Service button clicked');
-                                    console.log('Current newService state:', newService);
                                     handleCreateNewService();
                                 }}
                                 disabled={isCreatingService || !newService.name.trim() || !newService.category.trim()}
@@ -554,7 +533,6 @@ export function AddBeneficiaryServiceForm({
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    console.log('Add New Service button clicked');
                                     setShowServiceCreation(true);
                                 }}
                             >
@@ -929,7 +907,6 @@ export function AddBeneficiaryServiceForm({
                             className="w-full p-2 border rounded-md bg-background"
                             value={serviceDetails.priority || 'medium'}
                             onChange={(e) => {
-                                console.log('Priority changed to:', e.target.value);
                                 setServiceDetails(prev => ({ ...prev, priority: e.target.value as any }));
                             }}
                         >
@@ -968,9 +945,6 @@ export function AddBeneficiaryServiceForm({
     );
 
     const renderConfirmation = () => {
-        // Debug logging
-        console.log('Service Details in Confirmation:', serviceDetails);
-        console.log('Priority value:', serviceDetails.priority);
 
         return (
             <Card className="w-full max-w-2xl mx-auto">
@@ -1064,7 +1038,6 @@ export function AddBeneficiaryServiceForm({
             className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
             onClick={(e) => {
                 if (e.target === e.currentTarget) {
-                    console.log('Background clicked, closing form');
                     onClose();
                 }
             }}
