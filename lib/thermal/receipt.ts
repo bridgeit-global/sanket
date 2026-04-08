@@ -10,6 +10,14 @@ export type ThermalReceiptData = {
 };
 
 type ShareOutcome = 'shared' | 'copied' | 'downloaded' | 'cancelled';
+type ThermalPdfOptions = {
+  headerImageUrl?: string;
+};
+type LoadedImage = {
+  dataUrl: string;
+  width: number;
+  height: number;
+};
 
 const DEFAULT_WIDTH = 22;
 
@@ -178,11 +186,41 @@ export async function shareThermalTicket(content: string, fileName: string): Pro
   return 'downloaded';
 }
 
-function buildThermalPdfBlob(content: string): Blob {
+async function loadImageAsDataUrl(imageUrl: string): Promise<LoadedImage | null> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.crossOrigin = 'anonymous';
+    image.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = image.naturalWidth || image.width;
+        canvas.height = image.naturalHeight || image.height;
+        const context = canvas.getContext('2d');
+        if (!context) {
+          resolve(null);
+          return;
+        }
+        context.drawImage(image, 0, 0);
+        resolve({
+          dataUrl: canvas.toDataURL('image/png'),
+          width: canvas.width,
+          height: canvas.height,
+        });
+      } catch {
+        resolve(null);
+      }
+    };
+    image.onerror = () => resolve(null);
+    image.src = imageUrl;
+  });
+}
+
+async function buildThermalPdfBlob(content: string, options?: ThermalPdfOptions): Promise<Blob> {
   const lines = content.split('\n');
   const mmPerLine = 4.8;
   const topBottomPadding = 6;
-  const pageHeight = Math.max(60, topBottomPadding * 2 + lines.length * mmPerLine);
+  const logoAreaHeight = options?.headerImageUrl ? 18 : 0;
+  const pageHeight = Math.max(60, topBottomPadding * 2 + logoAreaHeight + lines.length * mmPerLine);
 
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -196,6 +234,21 @@ function buildThermalPdfBlob(content: string): Blob {
   doc.setFontSize(11);
 
   let y = topBottomPadding;
+
+  if (options?.headerImageUrl) {
+    const imageData = await loadImageAsDataUrl(options.headerImageUrl);
+    if (imageData && imageData.width > 0 && imageData.height > 0) {
+      const maxImageWidth = 20;
+      const maxImageHeight = 16;
+      const scale = Math.min(maxImageWidth / imageData.width, maxImageHeight / imageData.height);
+      const imageWidth = imageData.width * scale;
+      const imageHeight = imageData.height * scale;
+      const x = (58 - imageWidth) / 2;
+      doc.addImage(imageData.dataUrl, 'PNG', x, y, imageWidth, imageHeight, undefined, 'FAST');
+      y += imageHeight + 2;
+    }
+  }
+
   for (const line of lines) {
     doc.text(line, 2, y, { baseline: 'top' });
     y += mmPerLine;
@@ -204,8 +257,8 @@ function buildThermalPdfBlob(content: string): Blob {
   return doc.output('blob');
 }
 
-function triggerPdfDownload(content: string, fileName: string): void {
-  const blob = buildThermalPdfBlob(content);
+async function triggerPdfDownload(content: string, fileName: string, options?: ThermalPdfOptions): Promise<void> {
+  const blob = await buildThermalPdfBlob(content, options);
   const objectUrl = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = objectUrl;
@@ -216,8 +269,12 @@ function triggerPdfDownload(content: string, fileName: string): void {
   URL.revokeObjectURL(objectUrl);
 }
 
-export async function shareThermalTicketPdf(content: string, fileName: string): Promise<ShareOutcome> {
-  const pdfBlob = buildThermalPdfBlob(content);
+export async function shareThermalTicketPdf(
+  content: string,
+  fileName: string,
+  options?: ThermalPdfOptions
+): Promise<ShareOutcome> {
+  const pdfBlob = await buildThermalPdfBlob(content, options);
   const pdfFile = new File([pdfBlob], `${fileName}.pdf`, { type: 'application/pdf' });
 
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
@@ -237,6 +294,6 @@ export async function shareThermalTicketPdf(content: string, fileName: string): 
     }
   }
 
-  triggerPdfDownload(content, fileName);
+  await triggerPdfDownload(content, fileName, options);
   return 'downloaded';
 }

@@ -387,7 +387,8 @@ export function TaskManagement() {
 
         const outcome = await shareThermalTicketPdf(
             receiptText,
-            `thermal-ticket-${params.token.toLowerCase()}`
+            `thermal-ticket-${params.token.toLowerCase()}`,
+            { headerImageUrl: '/images/ncp_election_symbol.png' }
         );
 
         if (outcome === 'downloaded') {
