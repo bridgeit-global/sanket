@@ -131,9 +131,7 @@ export async function createUser(userIdValue: string, password: string, roleId?:
   const hashedPassword = generateHashedPassword(password);
 
   try {
-    console.log('Creating user with:', { userId: userIdValue, roleId });
     const result = await db.insert(user).values({ userId: userIdValue, password: hashedPassword, roleId: roleId || null });
-    console.log('User created successfully:', result);
     return result;
   } catch (error) {
     console.error('Create user error:', error);
@@ -2538,18 +2536,7 @@ export async function getTasksWithFilters({
 }> {
   try {
     const offset = (page - 1) * limit;
-    // DEBUG: Log incoming filter parameters
-    console.log("[getTasksWithFilters] Called with filters:", {
-      status,
-      priority,
-      token,
-      mobileNo,
-      voterId,
-      page,
-      limit,
-      assignedTo,
-      serviceType,
-    });
+
 
     // For individual services, query BeneficiaryService directly
     // For community services or when serviceType is not specified, use legacy VoterTask approach
@@ -2577,8 +2564,6 @@ export async function getTasksWithFilters({
         whereConditions.push(ilike(beneficiaryServices.token, `%${token}%`));
       }
 
-      // DEBUG: Log where conditions for individual services
-      console.log("[getTasksWithFilters] Individual whereConditions:", whereConditions);
 
       // Get total count (mobile filter uses VoterMobileNumber)
       const totalCountQuery = db
@@ -2597,14 +2582,8 @@ export async function getTasksWithFilters({
               : sql`1=1`
         );
 
-      // DEBUG: Log about to run totalCountQuery for individual
-      console.log("[getTasksWithFilters] About to run totalCountQuery for individual services");
 
       const totalCountResult = await totalCountQuery;
-
-      // DEBUG: Log totalCountResult for individual
-      console.log("[getTasksWithFilters] totalCountResult (individual):", totalCountResult);
-
       const totalCount = totalCountResult[0]?.count || 0;
       const totalPages = Math.ceil(totalCount / limit);
 
@@ -2653,13 +2632,7 @@ export async function getTasksWithFilters({
         .limit(limit)
         .offset(offset);
 
-      // DEBUG: Log constructed servicesQuery for individual
-      console.log("[getTasksWithFilters] servicesQuery constructed for individual services");
-
       const results = await servicesQuery;
-
-      // DEBUG: Log results before mapping for individual
-      console.log("[getTasksWithFilters] Results before mapping (individual):", results);
 
       // Transform results to match expected structure (using service data as primary)
       const tasks = results.map(row => ({
@@ -2701,9 +2674,6 @@ export async function getTasksWithFilters({
         } : undefined,
       }));
 
-      // DEBUG: Log mapped tasks for individual
-      console.log("[getTasksWithFilters] Mapped tasks (individual):", tasks);
-
       return {
         tasks,
         totalCount,
@@ -2732,8 +2702,6 @@ export async function getTasksWithFilters({
       whereConditions.push(eq(voterTasks.voterId, voterId));
     }
 
-    // DEBUG: Log base where conditions for legacy/community
-    console.log("[getTasksWithFilters] Legacy/community base whereConditions:", whereConditions);
 
     const finalWhereConditions = [...whereConditions];
 
@@ -2751,13 +2719,9 @@ export async function getTasksWithFilters({
       );
     }
 
-    // DEBUG: Log final where conditions for legacy/community
-    console.log("[getTasksWithFilters] Legacy/community finalWhereConditions:", finalWhereConditions);
 
     const needsJoins = !!(token || serviceType || mobileNo);
 
-    // DEBUG: Log if joins will be needed in legacy/community block
-    console.log("[getTasksWithFilters] NeedsJoins in legacy/community:", needsJoins);
 
     const totalCountResult = needsJoins
       ? await db
@@ -2771,8 +2735,6 @@ export async function getTasksWithFilters({
         .from(voterTasks)
         .where(finalWhereConditions.length > 0 ? and(...finalWhereConditions) : sql`1=1`);
 
-    // DEBUG: Log totalCountResult for legacy/community
-    console.log("[getTasksWithFilters] totalCountResult (legacy/community):", totalCountResult);
 
     const totalCount = totalCountResult[0]?.count || 0;
     const totalPages = Math.ceil(totalCount / limit);
@@ -2835,14 +2797,8 @@ export async function getTasksWithFilters({
       .limit(limit)
       .offset(offset);
 
-    // DEBUG: Log that we are about to run the main query for legacy/community
-    console.log("[getTasksWithFilters] About to run query (legacy/community).");
 
     const results = await query;
-
-    // DEBUG: Log query results before mapping
-    console.log("[getTasksWithFilters] Results before mapping (legacy/community):", results);
-
     const tasks = results.map(row => ({
       id: row.id,
       serviceId: row.serviceId,
@@ -2882,8 +2838,6 @@ export async function getTasksWithFilters({
       } : undefined,
     }));
 
-    // DEBUG: Log mapped tasks for legacy/community
-    console.log("[getTasksWithFilters] Mapped tasks (legacy/community):", tasks);
 
     return {
       tasks,

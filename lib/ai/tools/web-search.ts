@@ -29,7 +29,6 @@ export const webSearchTool = () => ({
             });
 
             const url = `https://api.search.brave.com/res/v1/web/search?${searchParams}`;
-            console.log('Brave Search API request:', { url, query, count });
 
             const response = await fetch(url, {
                 method: 'GET',

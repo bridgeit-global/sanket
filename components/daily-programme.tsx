@@ -321,7 +321,6 @@ export function DailyProgramme({
         }
       }
     });
-    console.log('Items grouped by date:', grouped);
     return grouped;
   }, [allItems]);
 
@@ -365,8 +364,7 @@ export function DailyProgramme({
           return;
         }
         const data = await response.json();
-        console.log('Loaded items from API:', data);
-        console.log('Number of items:', data?.length || 0);
+
 
         // Filter out items with null or undefined dates
         const validItems = data.filter((item: ProgrammeItem) => {
@@ -376,8 +374,6 @@ export function DailyProgramme({
           }
           return hasDate;
         });
-        console.log('Valid items after filtering:', validItems);
-        console.log('Number of valid items:', validItems.length);
         setAllItems(validItems);
       } catch (error) {
         console.error('Error loading programme items:', error);
@@ -437,16 +433,6 @@ export function DailyProgramme({
       loadItems();
     }
   }, [loadItems, initialItems.length, initialDateRange, dateRange.start, dateRange.end]);
-
-  // Debug: Log when allItems changes
-  useEffect(() => {
-    console.log('allItems changed:', allItems);
-    console.log('Number of items:', allItems.length);
-    if (allItems.length > 0) {
-      console.log('First item date:', allItems[0].date, 'Type:', typeof allItems[0].date);
-      console.log('Normalized first item date:', normalizeDate(allItems[0].date));
-    }
-  }, [allItems]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

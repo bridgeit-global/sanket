@@ -9,7 +9,6 @@ export default async function VotingParticipationPage() {
     redirect('/');
   }
   const modules = (session?.user?.modules as string[]) || [];
-  console.log(modules)
   // if (!modules.includes('voting-participation') && !modules.includes('operator') && !modules.includes('admin')) {
   //   redirect('/unauthorized');
   // }

@@ -69,7 +69,6 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
       try {
         setLoading(true);
         const response = await fetch(`/api/voter/${encodeURIComponent(epicNumber)}`);
-        console.log('fetchVoterProfile', response)
         if (!response.ok) {
           if (response.status === 404) {
             setError('Voter not found');

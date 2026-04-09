@@ -70,7 +70,6 @@ export async function POST(request: Request) {
     return new ChatSDKError('bad_request:api').toResponse();
   }
 
-  console.log('Request body:', JSON.stringify(requestBody, null, 2));
 
   try {
     const {
@@ -161,9 +160,6 @@ export async function POST(request: Request) {
           webSearch: webSearchTool(),
           sqlQuery: sqlQueryTool,
         };
-
-        // Debug logging
-        console.log(`Available tools:`, Object.keys(activeTools));
 
         // Add a small delay to prevent concurrency issues
         await new Promise(resolve => setTimeout(resolve, 100));
