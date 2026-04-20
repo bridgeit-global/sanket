@@ -626,9 +626,9 @@ export function DailyProgramme({
 
     // Set new title with date range
     if (dateRangeString) {
-      document.title = `Daily Programme - ${dateRangeString}`;
+      document.title = `${t('dailyProgramme.title')} - ${dateRangeString}`;
     } else {
-      document.title = 'Daily Programme';
+      document.title = t('dailyProgramme.title');
     }
 
     // Estimate total pages for fallback (for browsers that don't support CSS counter(pages))
@@ -740,8 +740,44 @@ export function DailyProgramme({
       // Allow the DOM to apply the temporary export styles before capture.
       await new Promise((resolve) => window.setTimeout(resolve, 50));
 
-      // Build an export-only wrapper that includes the same header as print-to-PDF.
-      // We keep it offscreen so it doesn't affect the UI.
+      // Render a header image once, then stamp it on every PDF page.
+      // This ensures Marathi + English render correctly (as pixels) on each page.
+      const exportHeader = document.createElement('div');
+      exportHeader.style.textAlign = 'center';
+      exportHeader.style.fontFamily = 'Arial, sans-serif';
+      exportHeader.style.fontWeight = '700';
+      exportHeader.style.fontSize = '18px';
+      exportHeader.style.lineHeight = '1.2';
+      exportHeader.style.paddingBottom = '8px';
+      exportHeader.style.borderBottom = '2px solid #000';
+      exportHeader.style.whiteSpace = 'pre-line';
+      exportHeader.textContent = `${t('dailyProgramme.mlaName')}\n${t('dailyProgramme.printHeaderTitle')}`;
+
+      const exportHeaderWrapper = document.createElement('div');
+      exportHeaderWrapper.setAttribute('data-daily-programme-export-header-wrapper', 'true');
+      exportHeaderWrapper.style.position = 'fixed';
+      exportHeaderWrapper.style.left = '-100000px';
+      exportHeaderWrapper.style.top = '0';
+      exportHeaderWrapper.style.background = '#ffffff';
+      exportHeaderWrapper.style.color = '#000000';
+      exportHeaderWrapper.style.width = '1200px';
+      exportHeaderWrapper.appendChild(exportHeader);
+      document.body.appendChild(exportHeaderWrapper);
+
+      const headerCanvas = await html2canvas(exportHeaderWrapper, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: exportHeaderWrapper.scrollWidth,
+        windowHeight: exportHeaderWrapper.scrollHeight,
+      });
+      const headerImgData = headerCanvas.toDataURL('image/png');
+      exportHeaderWrapper.remove();
+
+      // Capture only the schedule body (no header), so the header can be repeated per page.
+      // Keep it offscreen so it doesn't affect the UI.
       const exportWrapper = document.createElement('div');
       exportWrapper.setAttribute('data-daily-programme-export-wrapper', 'true');
       exportWrapper.style.position = 'fixed';
@@ -752,22 +788,9 @@ export function DailyProgramme({
       // Force a wide "screen" width so responsive (mobile) styles don't switch to card view.
       exportWrapper.style.width = `${Math.max(1200, printScheduleElement.scrollWidth)}px`;
 
-      const exportHeader = document.createElement('div');
-      exportHeader.style.textAlign = 'center';
-      exportHeader.style.fontFamily = 'Arial, sans-serif';
-      exportHeader.style.fontWeight = '700';
-      exportHeader.style.fontSize = '18px';
-      exportHeader.style.lineHeight = '1.2';
-      exportHeader.style.paddingBottom = '8px';
-      exportHeader.style.borderBottom = '2px solid #000';
-      exportHeader.style.marginBottom = '12px';
-      exportHeader.style.whiteSpace = 'pre-line';
-      exportHeader.textContent = 'मा. आमदार श्रीमती सना मलिक शेख\nदैनंदिन / साप्ताहिक कार्यक्रम';
-
       const exportBody = printScheduleElement.cloneNode(true) as HTMLElement;
       exportBody.querySelectorAll('.no-print').forEach((el) => el.remove());
 
-      exportWrapper.appendChild(exportHeader);
       exportWrapper.appendChild(exportBody);
       document.body.appendChild(exportWrapper);
 
@@ -833,6 +856,26 @@ export function DailyProgramme({
         if (pageIndex > 0) {
           pdf.addPage();
         }
+
+        // Header (Marathi + English) on every page
+        {
+          // Fit within the reserved top margin area.
+          const maxHeaderHeightMm = Math.max(0, marginTop - 6);
+          const desiredHeaderWidthMm = contentWidth;
+          const desiredHeaderHeightMm = (headerCanvas.height * desiredHeaderWidthMm) / headerCanvas.width;
+
+          let headerWidthMm = desiredHeaderWidthMm;
+          let headerHeightMm = desiredHeaderHeightMm;
+          if (maxHeaderHeightMm > 0 && desiredHeaderHeightMm > maxHeaderHeightMm) {
+            headerHeightMm = maxHeaderHeightMm;
+            headerWidthMm = (headerCanvas.width * headerHeightMm) / headerCanvas.height;
+          }
+
+          const headerX = marginX + (contentWidth - headerWidthMm) / 2;
+          const headerY = 4;
+          pdf.addImage(headerImgData, 'PNG', headerX, headerY, headerWidthMm, headerHeightMm, undefined, 'FAST');
+        }
+
         pdf.addImage(imgData, 'PNG', marginX, marginTop, contentWidth, imgHeightMm, undefined, 'FAST');
 
         // Footer: Page X of Y (similar to print-to-PDF)
@@ -1207,10 +1250,10 @@ export function DailyProgramme({
                       <Button variant="outline" size="sm" onClick={handleResetRange} className="w-full sm:w-auto min-h-11">
                         {t('dailyProgramme.resetRange')}
                       </Button>
-                      <Button variant="outline" size="sm" onClick={handlePrint} className="w-full sm:w-auto min-h-11">
+                      {/* <Button variant="outline" size="sm" onClick={handlePrint} className="w-full sm:w-auto min-h-11">
                         <Printer className="mr-2 h-4 w-4" />
                         {t('dailyProgramme.printProgramme')}
-                      </Button>
+                      </Button> */}
                       <Button variant="outline" size="sm" onClick={handleExport} className="w-full sm:w-auto min-h-11">
                         <FileDown className="mr-2 h-4 w-4" />
                         {t('dailyProgramme.exportProgramme')}
