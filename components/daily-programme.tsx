@@ -1250,14 +1250,14 @@ export function DailyProgramme({
                       <Button variant="outline" size="sm" onClick={handleResetRange} className="w-full sm:w-auto min-h-11">
                         {t('dailyProgramme.resetRange')}
                       </Button>
-                      {/* <Button variant="outline" size="sm" onClick={handlePrint} className="w-full sm:w-auto min-h-11">
+                      <Button variant="outline" size="sm" onClick={handlePrint} className="w-full sm:w-auto min-h-11">
                         <Printer className="mr-2 h-4 w-4" />
-                        {t('dailyProgramme.printProgramme')}
-                      </Button> */}
-                      <Button variant="outline" size="sm" onClick={handleExport} className="w-full sm:w-auto min-h-11">
-                        <FileDown className="mr-2 h-4 w-4" />
                         {t('dailyProgramme.exportProgramme')}
                       </Button>
+                      {/* <Button variant="outline" size="sm" onClick={handleExport} className="w-full sm:w-auto min-h-11">
+                        <FileDown className="mr-2 h-4 w-4" />
+                        {t('dailyProgramme.exportProgramme')}
+                      </Button> */}
                     </div>
                   </div>
                   <div className="w-full max-w-md">
