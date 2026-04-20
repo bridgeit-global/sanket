@@ -348,6 +348,7 @@
     "showingEvents": "{count} इव्हेंट{plural} {dateCount} तारखा{datePlural} मध्ये दर्शवत आहे",
     "noProgrammes": "निवडलेल्या तारीख श्रेणीसाठी कोणतेही कार्यक्रम इव्हेंट नाहीत.",
     "printProgramme": "कार्यक्रम प्रिंट करा",
+    "exportProgramme": "कार्यक्रम निर्यात करा",
     "resetRange": "श्रेणी रीसेट करा",
     "allProgrammes": "सर्व कार्यक्रम",
     "serialNo": "अनु. क्र.",

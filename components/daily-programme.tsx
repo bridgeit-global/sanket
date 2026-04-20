@@ -14,9 +14,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Calendar, Pencil, CheckCircle2, XCircle, Clock, Paperclip, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Printer, Calendar, Pencil, CheckCircle2, XCircle, Clock, Paperclip, ChevronDown, ChevronUp, Loader2, FileDown } from 'lucide-react';
 import { format, parseISO, startOfToday } from 'date-fns';
 import { enIN } from 'date-fns/locale';
+import { jsPDF } from 'jspdf';
+import html2canvas from 'html2canvas';
 import {
   Select,
   SelectContent,
@@ -661,6 +663,207 @@ export function DailyProgramme({
     window.print();
   };
 
+  const handleExport = async () => {
+    // Format date range for filename
+    const formatDateForFilename = (dateStr?: string) => {
+      if (!dateStr) return '';
+      try {
+        const date = parseISO(dateStr);
+        return format(date, 'dd-MMM-yyyy');
+      } catch {
+        return dateStr;
+      }
+    };
+
+    const startFormatted = formatDateForFilename(dateRange.start);
+    const endFormatted = formatDateForFilename(dateRange.end);
+
+    let dateRangeString = '';
+    if (startFormatted && endFormatted) {
+      if (dateRange.start === dateRange.end) {
+        dateRangeString = startFormatted;
+      } else {
+        dateRangeString = `${startFormatted} to ${endFormatted}`;
+      }
+    } else if (startFormatted) {
+      dateRangeString = `from ${startFormatted}`;
+    } else if (endFormatted) {
+      dateRangeString = `until ${endFormatted}`;
+    }
+
+    // Store original title
+    const originalTitle = document.title;
+
+    // Set new title with date range
+    if (dateRangeString) {
+      document.title = `Daily Programme - ${dateRangeString}`;
+    } else {
+      document.title = 'Daily Programme';
+    }
+
+    // Get printable schedule element
+    const printScheduleElement = document.querySelector('.print-schedule') as HTMLElement | null;
+    if (!printScheduleElement) {
+      toast.error('Failed to export programme');
+      document.title = originalTitle;
+      return;
+    }
+
+    // Apply export-only styles
+    const exportStyle = document.createElement('style');
+    exportStyle.setAttribute('data-daily-programme-export', 'true');
+    exportStyle.textContent = `
+      body.exporting-daily-programme-pdf .no-print { display: none !important; }
+      body.exporting-daily-programme-pdf .print-schedule { background: #ffffff !important; color: #000000 !important; }
+      body.exporting-daily-programme-pdf .print-schedule * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+      /* Force table layout for export (avoid mobile card layout from screen media rules) */
+      body.exporting-daily-programme-pdf .print-schedule .print-table-wrapper { overflow: visible !important; }
+      body.exporting-daily-programme-pdf .print-schedule .print-table-wrapper thead { display: table-header-group !important; }
+      body.exporting-daily-programme-pdf .print-schedule .print-table-wrapper tbody { display: table-row-group !important; }
+      body.exporting-daily-programme-pdf .print-schedule .print-table-wrapper tbody tr { display: table-row !important; }
+      body.exporting-daily-programme-pdf .print-schedule .print-table-wrapper tbody td { display: table-cell !important; width: auto !important; }
+    `;
+
+    document.head.appendChild(exportStyle);
+    document.body.classList.add('exporting-daily-programme-pdf');
+
+    // Restore state on completion (and as a fallback if something hangs)
+    const restore = () => {
+      document.title = originalTitle;
+      document.body.classList.remove('exporting-daily-programme-pdf');
+      exportStyle.remove();
+    };
+    const restoreTimeout = window.setTimeout(restore, 5000);
+
+    try {
+      // Allow the DOM to apply the temporary export styles before capture.
+      await new Promise((resolve) => window.setTimeout(resolve, 50));
+
+      // Build an export-only wrapper that includes the same header as print-to-PDF.
+      // We keep it offscreen so it doesn't affect the UI.
+      const exportWrapper = document.createElement('div');
+      exportWrapper.setAttribute('data-daily-programme-export-wrapper', 'true');
+      exportWrapper.style.position = 'fixed';
+      exportWrapper.style.left = '-100000px';
+      exportWrapper.style.top = '0';
+      exportWrapper.style.background = '#ffffff';
+      exportWrapper.style.color = '#000000';
+      // Force a wide "screen" width so responsive (mobile) styles don't switch to card view.
+      exportWrapper.style.width = `${Math.max(1200, printScheduleElement.scrollWidth)}px`;
+
+      const exportHeader = document.createElement('div');
+      exportHeader.style.textAlign = 'center';
+      exportHeader.style.fontFamily = 'Arial, sans-serif';
+      exportHeader.style.fontWeight = '700';
+      exportHeader.style.fontSize = '18px';
+      exportHeader.style.lineHeight = '1.2';
+      exportHeader.style.paddingBottom = '8px';
+      exportHeader.style.borderBottom = '2px solid #000';
+      exportHeader.style.marginBottom = '12px';
+      exportHeader.style.whiteSpace = 'pre-line';
+      exportHeader.textContent = 'मा. आमदार श्रीमती सना मलिक शेख\nदैनंदिन / साप्ताहिक कार्यक्रम';
+
+      const exportBody = printScheduleElement.cloneNode(true) as HTMLElement;
+      exportBody.querySelectorAll('.no-print').forEach((el) => el.remove());
+
+      exportWrapper.appendChild(exportHeader);
+      exportWrapper.appendChild(exportBody);
+      document.body.appendChild(exportWrapper);
+
+      const canvas = await html2canvas(exportWrapper, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: exportWrapper.scrollWidth,
+        windowHeight: exportWrapper.scrollHeight,
+      });
+      exportWrapper.remove();
+
+      // Create PDF
+      const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4', compress: true });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      // Match the print CSS page box as closely as possible.
+      // @page { margin: 1.5cm; margin-top: 3.5cm; margin-bottom: 2cm; }
+      const marginX = 15; // mm
+      const marginTop = 35; // mm
+      const marginBottom = 20; // mm
+      const contentWidth = pageWidth - marginX * 2;
+      const contentHeight = pageHeight - marginTop - marginBottom;
+
+      const pageHeightPx = Math.floor((canvas.width * contentHeight) / contentWidth);
+      let renderedHeightPx = 0;
+      let pageIndex = 0;
+
+      const pageCanvas = document.createElement('canvas');
+      const pageCtx = pageCanvas.getContext('2d');
+      if (!pageCtx) {
+        throw new Error('Failed to create 2D context for PDF rendering');
+      }
+
+      pageCanvas.width = canvas.width;
+
+      const totalPages = Math.max(1, Math.ceil(canvas.height / pageHeightPx));
+
+      while (renderedHeightPx < canvas.height) {
+        const remainingPx = canvas.height - renderedHeightPx;
+        const sliceHeightPx = Math.min(pageHeightPx, remainingPx);
+        pageCanvas.height = sliceHeightPx;
+
+        pageCtx.clearRect(0, 0, pageCanvas.width, pageCanvas.height);
+        pageCtx.drawImage(
+          canvas,
+          0,
+          renderedHeightPx,
+          canvas.width,
+          sliceHeightPx,
+          0,
+          0,
+          canvas.width,
+          sliceHeightPx,
+        );
+
+        const imgData = pageCanvas.toDataURL('image/png');
+        const imgHeightMm = (sliceHeightPx * contentWidth) / canvas.width;
+
+        if (pageIndex > 0) {
+          pdf.addPage();
+        }
+        pdf.addImage(imgData, 'PNG', marginX, marginTop, contentWidth, imgHeightMm, undefined, 'FAST');
+
+        // Footer: Page X of Y (similar to print-to-PDF)
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(10);
+        pdf.setTextColor(51, 51, 51);
+        pdf.text(
+          `Page ${pageIndex + 1} of ${totalPages}`,
+          pageWidth / 2,
+          pageHeight - 10,
+          { align: 'center' },
+        );
+
+        renderedHeightPx += sliceHeightPx;
+        pageIndex += 1;
+      }
+
+      // Save
+      const safeSuffix = dateRangeString
+        ? ` - ${dateRangeString}`.replace(/[\\/:*?"<>|]+/g, '-')
+        : '';
+      pdf.save(`Daily Programme${safeSuffix}.pdf`);
+    } catch (error) {
+      console.error('Error exporting daily programme PDF:', error);
+      toast.error('Failed to export programme');
+    } finally {
+      window.clearTimeout(restoreTimeout);
+      restore();
+    }
+  };
+
   const handleResetRange = () => {
     const next = getDefaultDateRange();
     setDateRange(next);
@@ -806,6 +1009,8 @@ export function DailyProgramme({
       }
     }
   };
+
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -1005,6 +1210,10 @@ export function DailyProgramme({
                       <Button variant="outline" size="sm" onClick={handlePrint} className="w-full sm:w-auto min-h-11">
                         <Printer className="mr-2 h-4 w-4" />
                         {t('dailyProgramme.printProgramme')}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={handleExport} className="w-full sm:w-auto min-h-11">
+                        <FileDown className="mr-2 h-4 w-4" />
+                        {t('dailyProgramme.exportProgramme')}
                       </Button>
                     </div>
                   </div>
