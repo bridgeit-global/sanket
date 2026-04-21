@@ -551,7 +551,7 @@
         width: 100%;
         padding: 0;
         /* When the box breaks across pages, repeat top padding on each fragment (Chrome/Safari) */
-        padding-top: 5mm;
+        padding-top: 9mm;
         -webkit-box-decoration-break: clone;
         box-decoration-break: clone;
         background: white;
@@ -562,6 +562,13 @@
         /* Standard print font size - 12pt is the standard for printed documents */
         font-size: 12pt !important;
         line-height: 1.4 !important;
+    }
+
+    /* Workaround for browsers that ignore @page :first:
+       Pull only the first printed section up so page 1 has less gap,
+       while the repeated .print-schedule padding-top keeps pages 2+ lower. */
+    .print-schedule .print-date-section:first-of-type {
+        margin-top: -6mm !important;
     }
 
     /* Ensure table headers repeat on each page when tables break */
@@ -592,7 +599,8 @@
         size: A4;
         margin: 1cm;
         /* Room for @top-center text, rule, and margin-bottom gap on every page */
-        margin-top: 3.6cm;
+        /* Pages 2+ (default): larger top margin */
+        margin-top: 3.9cm;
         margin-bottom: 1.5cm;
 
         @top-center {
@@ -616,6 +624,11 @@
             color: #333;
             font-family: Arial, sans-serif;
         }
+    }
+
+    /* Page 1 only: keep smaller top margin */
+    @page :first {
+        margin-top: 3.6cm;
     }
 
     /* 80mm POS thermal printer page - no margins, no header/footer */
