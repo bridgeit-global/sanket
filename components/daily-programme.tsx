@@ -811,7 +811,7 @@ export function DailyProgramme({
       const pageHeight = pdf.internal.pageSize.getHeight();
 
       // Match the print CSS page box as closely as possible.
-      // @page { margin: 1.5cm; margin-top: 3.5cm; margin-bottom: 2cm; }
+      // @page { margin: 1cm; margin-top: 3.6cm; margin-bottom: 1.5cm; } (+ @top-center margin-bottom in globals.css)
       const marginX = 15; // mm
       const marginTop = 35; // mm
       const marginBottom = 20; // mm
