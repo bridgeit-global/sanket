@@ -1461,70 +1461,110 @@ export function DailyProgramme({
                                       return orderA - orderB;
                                     });
 
-                                    const groups = new Map<string, ProgrammeItem[]>();
-                                    for (const it of sorted) {
-                                      const key = it.startTime || '00:00';
-                                      const list = groups.get(key) ?? [];
-                                      list.push(it);
-                                      groups.set(key, list);
-                                    }
+                                    const itemsByProgrammeType: Array<{
+                                      programmeType: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
+                                      items: ProgrammeItem[];
+                                    }> = [
+                                        {
+                                          programmeType: 'CONSTITUENCY',
+                                          items: sorted.filter((it) => (it.programmeType ?? 'CONSTITUENCY') === 'CONSTITUENCY'),
+                                        },
+                                        {
+                                          programmeType: 'OUTSIDE_CONSTITUENCY',
+                                          items: sorted.filter((it) => (it.programmeType ?? 'CONSTITUENCY') === 'OUTSIDE_CONSTITUENCY'),
+                                        },
+                                      ];
 
-                                    const groupKeys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+                                    const showProgrammeTypeHeader =
+                                      programmeTypeFilter === 'ALL' &&
+                                      itemsByProgrammeType.some((g) => g.items.length > 0);
 
-                                    return groupKeys.map((startTimeKey) => {
-                                      const group = groups.get(startTimeKey) ?? [];
-                                      const canReorder = group.length > 1;
-                                      const ids = group.map((it) => it.id);
+                                    const renderProgrammeTypeGroup = (
+                                      programmeType: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY',
+                                      groupItems: ProgrammeItem[],
+                                    ) => {
+                                      if (groupItems.length === 0) return null;
 
-                                      const onDragEnd = async (event: DragEndEvent) => {
-                                        const { active, over } = event;
-                                        if (!over || active.id === over.id) return;
-                                        const oldIndex = ids.indexOf(String(active.id));
-                                        const newIndex = ids.indexOf(String(over.id));
-                                        if (oldIndex < 0 || newIndex < 0) return;
-                                        const next = arrayMove(group, oldIndex, newIndex);
+                                      const groups = new Map<string, ProgrammeItem[]>();
+                                      for (const it of groupItems) {
+                                        const key = it.startTime || '00:00';
+                                        const list = groups.get(key) ?? [];
+                                        list.push(it);
+                                        groups.set(key, list);
+                                      }
 
-                                        // Update local state sort order
-                                        setAllItems((prev) =>
-                                          prev.map((p) => {
-                                            const idx = next.findIndex((n) => n.id === p.id);
-                                            if (idx === -1) return p;
-                                            return { ...p, sortOrder: idx + 1 };
-                                          }),
-                                        );
-
-                                        await persistReorder(next);
-                                      };
+                                      const groupKeys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
 
                                       return (
-                                        <DndContext
-                                          key={startTimeKey}
-                                          sensors={sensors}
-                                          collisionDetection={closestCenter}
-                                          onDragEnd={onDragEnd}
-                                        >
-                                          <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-                                            {group.map((item, index) => (
-                                              <SortableProgrammeRow
-                                                key={item.id}
-                                                item={item}
-                                                index={sorted.findIndex((s) => s.id === item.id)}
-                                                locale={locale}
-                                                t={t}
-                                                DURATION_OPTIONS={DURATION_OPTIONS}
-                                                attachmentCountsLoading={attachmentCountsLoading}
-                                                attachmentCounts={attachmentCounts}
-                                                onOpenAttachmentDialog={handleOpenAttachmentDialog}
-                                                onAttendanceChange={handleAttendanceChange}
-                                                onEdit={handleEdit}
-                                                onDelete={handleDelete}
-                                                enableReorder={canReorder}
-                                              />
-                                            ))}
-                                          </SortableContext>
-                                        </DndContext>
+                                        <>
+                                          {showProgrammeTypeHeader && (
+                                            <TableRow className="bg-muted/40">
+                                              <TableCell colSpan={7} className="py-2 font-semibold">
+                                                {getProgrammeTypeLabel(programmeType, t)}
+                                              </TableCell>
+                                            </TableRow>
+                                          )}
+                                          {groupKeys.map((startTimeKey) => {
+                                            const group = groups.get(startTimeKey) ?? [];
+                                            const canReorder = group.length > 1;
+                                            const ids = group.map((it) => it.id);
+
+                                            const onDragEnd = async (event: DragEndEvent) => {
+                                              const { active, over } = event;
+                                              if (!over || active.id === over.id) return;
+                                              const oldIndex = ids.indexOf(String(active.id));
+                                              const newIndex = ids.indexOf(String(over.id));
+                                              if (oldIndex < 0 || newIndex < 0) return;
+                                              const next = arrayMove(group, oldIndex, newIndex);
+
+                                              // Update local state sort order
+                                              setAllItems((prev) =>
+                                                prev.map((p) => {
+                                                  const idx = next.findIndex((n) => n.id === p.id);
+                                                  if (idx === -1) return p;
+                                                  return { ...p, sortOrder: idx + 1 };
+                                                }),
+                                              );
+
+                                              await persistReorder(next);
+                                            };
+
+                                            return (
+                                              <DndContext
+                                                key={`${programmeType}:${startTimeKey}`}
+                                                sensors={sensors}
+                                                collisionDetection={closestCenter}
+                                                onDragEnd={onDragEnd}
+                                              >
+                                                <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+                                                  {group.map((item) => (
+                                                    <SortableProgrammeRow
+                                                      key={item.id}
+                                                      item={item}
+                                                      index={sorted.findIndex((s) => s.id === item.id)}
+                                                      locale={locale}
+                                                      t={t}
+                                                      DURATION_OPTIONS={DURATION_OPTIONS}
+                                                      attachmentCountsLoading={attachmentCountsLoading}
+                                                      attachmentCounts={attachmentCounts}
+                                                      onOpenAttachmentDialog={handleOpenAttachmentDialog}
+                                                      onAttendanceChange={handleAttendanceChange}
+                                                      onEdit={handleEdit}
+                                                      onDelete={handleDelete}
+                                                      enableReorder={canReorder}
+                                                    />
+                                                  ))}
+                                                </SortableContext>
+                                              </DndContext>
+                                            );
+                                          })}
+                                        </>
                                       );
-                                    });
+                                    };
+
+                                    return itemsByProgrammeType.map((g) =>
+                                      renderProgrammeTypeGroup(g.programmeType, g.items),
+                                    );
                                   })()}
                                 </TableBody>
                               </Table>
