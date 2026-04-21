@@ -229,12 +229,11 @@ function normalizeDate(dateValue: string | Date | null | undefined): string | nu
 
 function getProgrammeTypeLabel(
   value: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY',
-  locale: 'en' | 'mr',
+  t: (key: string) => string,
 ) {
-  if (locale === 'mr') {
-    return value === 'CONSTITUENCY' ? 'मतदारसंघ' : 'मतदारसंघाबाहेर';
-  }
-  return value === 'CONSTITUENCY' ? 'Constituency' : 'Outside Constituency';
+  return value === 'CONSTITUENCY'
+    ? t('dailyProgramme.constituency')
+    : t('dailyProgramme.outsideConstituency');
 }
 
 function eachDateInclusive(start: string, end: string): string[] {
@@ -365,7 +364,7 @@ function SortableProgrammeRow({
         </div>
         {item.programmeType && (
           <div className="text-xs text-muted-foreground mt-1">
-            {getProgrammeTypeLabel(item.programmeType, locale)}
+            {getProgrammeTypeLabel(item.programmeType, t)}
           </div>
         )}
       </TableCell>
@@ -375,7 +374,7 @@ function SortableProgrammeRow({
             {enableReorder && (
               <span
                 className="no-print inline-flex items-center justify-center rounded border px-1.5 py-1 text-muted-foreground cursor-grab active:cursor-grabbing"
-                title="Drag to reorder"
+                title={t('dailyProgramme.dragToReorder')}
                 {...attributes}
                 {...listeners}
               >
@@ -401,14 +400,14 @@ function SortableProgrammeRow({
         )}
         <div className="text-xs text-muted-foreground mt-1 no-print">
           {item.createdByUserId && (
-            <span>Created by: {item.createdByUserId}</span>
+            <span>{t('dailyProgramme.createdBy')}: {item.createdByUserId}</span>
           )}
           {item.updatedByUserId && item.updatedByUserId !== item.createdByUserId && (
-            <span className="ml-2">Updated by: {item.updatedByUserId}</span>
+            <span className="ml-2">{t('dailyProgramme.updatedBy')}: {item.updatedByUserId}</span>
           )}
         </div>
       </TableCell>
-      <TableCell className="w-[80px] no-print text-center" data-label="Docs">
+      <TableCell className="w-[80px] no-print text-center" data-label={t('dailyProgramme.docs')}>
         {attachmentCountsLoading ? (
           <div className="flex items-center justify-center h-8">
             <Loader2 className="size-4 animate-spin text-muted-foreground" aria-hidden />
@@ -419,7 +418,7 @@ function SortableProgrammeRow({
             size="sm"
             className="h-8 px-2"
             onClick={() => onOpenAttachmentDialog(item)}
-            title="Manage reference documents"
+            title={t('dailyProgramme.manageReferenceDocuments')}
           >
             <Paperclip className="size-4" />
             {attachmentCounts[item.id] > 0 && (
@@ -454,19 +453,19 @@ function SortableProgrammeRow({
             <SelectItem value="not_set">
               <div className="flex items-center gap-2">
                 <Clock className="size-4 text-muted-foreground" />
-                <span>Not Set</span>
+                <span>{t('dailyProgramme.attendanceNotSet')}</span>
               </div>
             </SelectItem>
             <SelectItem value="attended">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="size-4 text-green-600" />
-                <span>Attended</span>
+                <span>{t('dailyProgramme.attendanceAttended')}</span>
               </div>
             </SelectItem>
             <SelectItem value="not_attended">
               <div className="flex items-center gap-2">
                 <XCircle className="size-4 text-red-600" />
-                <span>Not Attended</span>
+                <span>{t('dailyProgramme.attendanceNotAttended')}</span>
               </div>
             </SelectItem>
           </SelectContent>
@@ -688,13 +687,13 @@ export function DailyProgramme({
       return `${startLabel} – ${endLabel}`;
     }
     if (startLabel) {
-      return `From ${startLabel}`;
+      return t('dailyProgramme.fromDate').replace('{date}', startLabel);
     }
     if (endLabel) {
-      return `Until ${endLabel}`;
+      return t('dailyProgramme.untilDate').replace('{date}', endLabel);
     }
-    return 'All scheduled dates';
-  }, [dateRange.start, dateRange.end, locale]);
+    return t('dailyProgramme.allScheduledDates');
+  }, [dateRange.start, dateRange.end, locale, t]);
 
   const isProgrammeFormComplete = useMemo(
     () =>
@@ -884,11 +883,11 @@ export function DailyProgramme({
         if (!res.ok) throw new Error('Failed');
       } catch (e) {
         console.error('Failed persisting reorder', e);
-        toast.error('Failed to reorder');
+        toast.error(t('dailyProgramme.failedToReorder'));
         await loadItems();
       }
     },
-    [loadItems],
+    [loadItems, t],
   );
 
   const handleDelete = (id: string) => {
@@ -1032,7 +1031,7 @@ export function DailyProgramme({
 
   const handleCreateBeneficiaryTask = async () => {
     if (!programmeItemForTask || !voterEpicNumber.trim()) {
-      toast.error('Please enter voter EPIC number');
+      toast.error(t('dailyProgramme.pleaseEnterVoterEpicNumber'));
       return;
     }
 
@@ -1051,18 +1050,18 @@ export function DailyProgramme({
       });
 
       if (response.ok) {
-        toast.success('Beneficiary task for token of gratitude created successfully');
+        toast.success(t('dailyProgramme.beneficiaryTaskCreatedSuccess'));
         setBeneficiaryTaskDialogOpen(false);
         setProgrammeItemForTask(null);
         setVoterEpicNumber('');
         setVoterName('');
       } else {
         const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || 'Failed to create beneficiary task');
+        toast.error(errorData.error || t('dailyProgramme.failedToCreateBeneficiaryTask'));
       }
     } catch (error) {
       console.error('Error creating beneficiary task:', error);
-      toast.error('Failed to create beneficiary task');
+      toast.error(t('dailyProgramme.failedToCreateBeneficiaryTask'));
     } finally {
       setIsCreatingTask(false);
     }
@@ -1179,7 +1178,7 @@ export function DailyProgramme({
             <CardContent id="programme-form-content" aria-labelledby="programme-form-header">
               <form onSubmit={handleSubmit} className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
                 <div className="space-y-2">
-                  <Label htmlFor="startDate">Start date</Label>
+                  <Label htmlFor="startDate">{t('dailyProgramme.startDate')}</Label>
                   <Input
                     id="startDate"
                     type="date"
@@ -1190,7 +1189,7 @@ export function DailyProgramme({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="endDate">End date</Label>
+                  <Label htmlFor="endDate">{t('dailyProgramme.endDate')}</Label>
                   <Input
                     id="endDate"
                     type="date"
@@ -1231,7 +1230,7 @@ export function DailyProgramme({
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="programmeType">Programme type</Label>
+                  <Label htmlFor="programmeType">{t('dailyProgramme.programmeType')}</Label>
                   <Select
                     value={form.programmeType}
                     onValueChange={(value) => setForm({ ...form, programmeType: value as 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY' })}
@@ -1240,8 +1239,8 @@ export function DailyProgramme({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="CONSTITUENCY">Constituency</SelectItem>
-                      <SelectItem value="OUTSIDE_CONSTITUENCY">Outside Constituency</SelectItem>
+                      <SelectItem value="CONSTITUENCY">{t('dailyProgramme.constituency')}</SelectItem>
+                      <SelectItem value="OUTSIDE_CONSTITUENCY">{t('dailyProgramme.outsideConstituency')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -1373,7 +1372,7 @@ export function DailyProgramme({
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2 w-full max-w-2xl">
                     <div className="w-full">
-                      <Label htmlFor="dateRange">Date Range</Label>
+                      <Label htmlFor="dateRange">{t('dailyProgramme.dateRange')}</Label>
                       <DateRangePicker
 
                         startDate={dateRange.start}
@@ -1382,7 +1381,7 @@ export function DailyProgramme({
                       />
                     </div>
                     <div className="w-full">
-                      <Label htmlFor="programmeTypeFilter">Programme filter</Label>
+                      <Label htmlFor="programmeTypeFilter">{t('dailyProgramme.programmeFilter')}</Label>
                       <Select
                         value={programmeTypeFilter}
                         onValueChange={(value) =>
@@ -1392,9 +1391,9 @@ export function DailyProgramme({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="ALL">All</SelectItem>
-                          <SelectItem value="CONSTITUENCY">Constituency</SelectItem>
-                          <SelectItem value="OUTSIDE_CONSTITUENCY">Outside Constituency</SelectItem>
+                          <SelectItem value="ALL">{t('dailyProgramme.all')}</SelectItem>
+                          <SelectItem value="CONSTITUENCY">{t('dailyProgramme.constituency')}</SelectItem>
+                          <SelectItem value="OUTSIDE_CONSTITUENCY">{t('dailyProgramme.outsideConstituency')}</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -1445,7 +1444,7 @@ export function DailyProgramme({
                                     <TableHead className="w-[150px]">{t('dailyProgramme.time')}</TableHead>
                                     <TableHead className="w-[400px]">{t('dailyProgramme.programmeNatureAndPlace')}</TableHead>
                                     <TableHead className="w-[300px]">{t('dailyProgramme.reference')}</TableHead>
-                                    <TableHead className="w-[80px] no-print text-center">Docs</TableHead>
+                                    <TableHead className="w-[80px] no-print text-center">{t('dailyProgramme.docs')}</TableHead>
                                     <TableHead className="w-[150px] no-print">{t('dailyProgramme.attendance')}</TableHead>
                                     <TableHead className="w-[100px] no-print">{t('dailyProgramme.actions')}</TableHead>
                                   </TableRow>
@@ -1559,42 +1558,44 @@ export function DailyProgramme({
       <Dialog open={beneficiaryTaskDialogOpen} onOpenChange={setBeneficiaryTaskDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Beneficiary Task - Token of Gratitude</DialogTitle>
+            <DialogTitle>{t('dailyProgramme.beneficiaryDialogTitle')}</DialogTitle>
             <DialogDescription>
-              The programme item &quot;{programmeItemForTask?.title}&quot; was marked as not attended.
-              Please provide voter details to create a beneficiary task for token of gratitude.
+              {t('dailyProgramme.beneficiaryDialogDescription')
+                .replace('{title}', programmeItemForTask?.title ?? '')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="voterEpicNumber">Voter EPIC Number *</Label>
+              <Label htmlFor="voterEpicNumber">{t('dailyProgramme.voterEpicNumberRequired')}</Label>
               <Input
                 id="voterEpicNumber"
-                placeholder="Enter EPIC number"
+                placeholder={t('dailyProgramme.enterEpicNumber')}
                 value={voterEpicNumber}
                 onChange={(e) => setVoterEpicNumber(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="voterName">Voter Name (Optional)</Label>
+              <Label htmlFor="voterName">{t('dailyProgramme.voterNameOptional')}</Label>
               <Input
                 id="voterName"
-                placeholder="Enter voter name"
+                placeholder={t('dailyProgramme.enterVoterName')}
                 value={voterName}
                 onChange={(e) => setVoterName(e.target.value)}
               />
             </div>
             {programmeItemForTask && (
               <div className="rounded-lg bg-muted p-3 text-sm">
-                <div className="font-medium">Programme Details:</div>
+                <div className="font-medium">{t('dailyProgramme.programmeDetails')}</div>
                 <div className="mt-1 text-muted-foreground">
-                  <div>Title: {programmeItemForTask.title}</div>
-                  <div>Date: {(() => {
+                  <div>{t('dailyProgramme.programmeDetailsTitle')}: {programmeItemForTask.title}</div>
+                  <div>{t('dailyProgramme.programmeDetailsDate')}: {(() => {
                     const normalizedDate = programmeItemForTask.date ? normalizeDate(programmeItemForTask.date) : null;
-                    return normalizedDate ? format(parseISO(normalizedDate), 'dd MMM yyyy') : 'N/A';
+                    return normalizedDate
+                      ? formatDateWithLocale(parseISO(normalizedDate), 'dd MMM yyyy', locale)
+                      : t('dailyProgramme.na');
                   })()}</div>
-                  <div>Location: {programmeItemForTask.location}</div>
+                  <div>{t('dailyProgramme.programmeDetailsLocation')}: {programmeItemForTask.location}</div>
                 </div>
               </div>
             )}
@@ -1611,14 +1612,14 @@ export function DailyProgramme({
               }}
               disabled={isCreatingTask}
             >
-              Cancel
+              {t('dailyProgramme.cancel')}
             </Button>
             <Button
               type="button"
               onClick={handleCreateBeneficiaryTask}
               disabled={isCreatingTask || !voterEpicNumber.trim()}
             >
-              {isCreatingTask ? 'Creating...' : 'Create Task'}
+              {isCreatingTask ? t('dailyProgramme.creating') : t('dailyProgramme.createTask')}
             </Button>
           </DialogFooter>
         </DialogContent>
