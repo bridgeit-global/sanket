@@ -1,7 +1,4 @@
 'use client';
-
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { SingleVoterMark } from '@/components/single-voter-mark';
 import { BulkVoteMark } from '@/components/bulk-vote-mark';

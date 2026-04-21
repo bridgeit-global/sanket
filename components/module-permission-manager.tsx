@@ -192,7 +192,7 @@ export function ModulePermissionManager() {
     if (!userToDelete) return;
 
     try {
-      const response = await fetch('/api/admin/users/' + userToDelete, {
+      const response = await fetch(`/api/admin/users/${userToDelete}`, {
         method: 'DELETE',
       });
 

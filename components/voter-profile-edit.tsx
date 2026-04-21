@@ -71,7 +71,7 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
             ? [...data.voterMobileNumbers]
                 .sort((a, b) => a.sortOrder - b.sortOrder)
                 .map((mobile) => mobile.mobileNumber)
-                .filter((number) => number && number.trim())
+                .filter((number) => number?.trim())
             : [];
           const limitedMobileNumbers = mobileNumbersFromTable.slice(0, 5);
           const filledMobileNumbers = [
