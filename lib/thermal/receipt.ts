@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import QRCode from 'qrcode';
 
 export type ThermalReceiptData = {
   token: string;
@@ -12,6 +13,11 @@ export type ThermalReceiptData = {
 type ShareOutcome = 'shared' | 'copied' | 'downloaded' | 'cancelled';
 type ThermalPdfOptions = {
   headerImageUrl?: string;
+  /**
+   * Optional QR content (token/URL/etc). When provided, a QR code is rendered
+   * at the top of the PDF ticket for easy scanning.
+   */
+  qrValue?: string;
 };
 type LoadedImage = {
   dataUrl: string;
@@ -239,8 +245,12 @@ async function buildThermalPdfBlob(content: string, options?: ThermalPdfOptions)
   const lines = content.split('\n');
   const mmPerLine = 4.8;
   const topBottomPadding = 6;
+  const qrAreaHeight = options?.qrValue ? 36 : 0;
   const logoAreaHeight = options?.headerImageUrl ? 34 : 0;
-  const pageHeight = Math.max(60, topBottomPadding * 2 + logoAreaHeight + lines.length * mmPerLine);
+  const pageHeight = Math.max(
+    60,
+    topBottomPadding * 2 + qrAreaHeight + logoAreaHeight + lines.length * mmPerLine
+  );
 
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -261,6 +271,22 @@ async function buildThermalPdfBlob(content: string, options?: ThermalPdfOptions)
   const textBlockCenterX = RECEIPT_TEXT_X_MM + (textBlockWidth / 2);
 
   let y = topBottomPadding;
+
+  if (options?.qrValue) {
+    try {
+      const qrDataUrl = await QRCode.toDataURL(options.qrValue, {
+        margin: 0,
+        errorCorrectionLevel: 'M',
+        width: 256,
+      });
+      const qrSizeMm = 30;
+      const qrX = (PDF_PAGE_WIDTH_MM - qrSizeMm) / 2;
+      doc.addImage(qrDataUrl, 'PNG', qrX, y, qrSizeMm, qrSizeMm, undefined, 'FAST');
+      y += qrSizeMm + 2;
+    } catch {
+      // If QR generation fails, render the rest of the ticket without it.
+    }
+  }
 
   if (options?.headerImageUrl) {
     const imageData = await loadImageAsDataUrl(options.headerImageUrl);
