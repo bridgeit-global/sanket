@@ -1435,8 +1435,18 @@ export function DailyProgramme({
                     </div>
                   ) : (
                     <div className="space-y-6">
-                      {programmeTypeSections.map((section) => (
-                        <div key={section.programmeType} className="space-y-4 print-programme-type-section">
+                      {programmeTypeSections.map((section) => {
+                        const printOutsideOnNewPage =
+                          section.programmeType === 'OUTSIDE_CONSTITUENCY' &&
+                          programmeTypeSections.some((s) => s.programmeType === 'CONSTITUENCY');
+                        return (
+                        <div
+                          key={section.programmeType}
+                          className={
+                            'space-y-4 print-programme-type-section' +
+                            (printOutsideOnNewPage ? ' print-programme-outside-new-page' : '')
+                          }
+                        >
                           <div className="flex items-center justify-between gap-2">
                             <div className="text-base font-semibold">
                               {getProgrammeTypeLabel(section.programmeType, t)}
@@ -1567,7 +1577,8 @@ export function DailyProgramme({
                             );
                           })}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>

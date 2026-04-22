@@ -657,6 +657,12 @@
         break-inside: auto;
     }
 
+    /* Outside Constituency block starts on a new sheet when it follows Constituency */
+    .print-programme-outside-new-page {
+        break-before: page;
+        page-break-before: always;
+    }
+
     /* Date header should stay with the table when section breaks */
     .print-date-section>div:first-child {
         page-break-after: avoid;
