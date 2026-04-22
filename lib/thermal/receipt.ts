@@ -250,8 +250,13 @@ async function buildThermalPdfBlob(content: string, options?: ThermalPdfOptions)
     compress: true,
   });
 
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(11);
+  const baseFontFamily = 'courier';
+  const baseFontSize = 11;
+  const tokenLabelFontSize = 12;
+  const tokenFontSize = 18;
+
+  doc.setFont(baseFontFamily, 'normal');
+  doc.setFontSize(baseFontSize);
   const textBlockWidth = doc.getTextWidth('-'.repeat(DEFAULT_WIDTH));
   const textBlockCenterX = RECEIPT_TEXT_X_MM + (textBlockWidth / 2);
 
@@ -272,7 +277,34 @@ async function buildThermalPdfBlob(content: string, options?: ThermalPdfOptions)
     }
   }
 
+  let nextLineIsToken = false;
   for (const line of lines) {
+    if (nextLineIsToken) {
+      nextLineIsToken = false;
+      doc.setFont(baseFontFamily, 'bold');
+      doc.setFontSize(tokenFontSize);
+
+      const tokenTextWidth = doc.getTextWidth(line);
+      const tokenX = textBlockCenterX - tokenTextWidth / 2;
+      doc.text(line, tokenX, y, { baseline: 'top' });
+
+      y += mmPerLine * (tokenFontSize / baseFontSize);
+      doc.setFont(baseFontFamily, 'normal');
+      doc.setFontSize(baseFontSize);
+      continue;
+    }
+
+    if (line === 'TOKEN NO') {
+      doc.setFont(baseFontFamily, 'bold');
+      doc.setFontSize(tokenLabelFontSize);
+      doc.text(line, RECEIPT_TEXT_X_MM, y, { baseline: 'top' });
+      y += mmPerLine * (tokenLabelFontSize / baseFontSize);
+      doc.setFont(baseFontFamily, 'normal');
+      doc.setFontSize(baseFontSize);
+      nextLineIsToken = true;
+      continue;
+    }
+
     doc.text(line, RECEIPT_TEXT_X_MM, y, { baseline: 'top' });
     y += mmPerLine;
   }
