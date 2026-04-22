@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,7 @@ import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
 import { useTranslations } from '@/hooks/use-translations';
 import type { VoterTask, BeneficiaryService, CommunityServiceArea } from '@/lib/db/schema';
 import { TablePagination } from '@/components/table-pagination';
-import { Share2 } from 'lucide-react';
+import { QrCode, Share2 } from 'lucide-react';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
 
 interface TaskVoter {
@@ -50,6 +50,183 @@ interface CommunityServicesResponse {
     currentPage: number;
 }
 
+function extractTokenFromQrPayload(payload: string): string | null {
+    const raw = (payload ?? '').trim();
+    if (!raw) return null;
+
+    try {
+        const url = new URL(raw);
+        const tokenParam =
+            url.searchParams.get('token') ??
+            url.searchParams.get('tokenNo') ??
+            url.searchParams.get('token_no') ??
+            url.searchParams.get('tokenNumber') ??
+            url.searchParams.get('token_number');
+        if (tokenParam?.trim()) return tokenParam.trim();
+    } catch {
+        // Not a URL.
+    }
+
+    if (/^[A-Za-z0-9-]{2,}$/.test(raw)) return raw;
+
+    return (
+        raw.match(/\b[A-Za-z]{1,10}-\d{1,10}\b/)?.[0] ??
+        raw.match(/\b\d{1,10}\b/)?.[0] ??
+        null
+    );
+}
+
+function QrTokenScannerDialog({
+    open,
+    onOpenChange,
+    onTokenDetected,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    onTokenDetected: (token: string) => void;
+}) {
+    const videoRef = useRef<HTMLVideoElement | null>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+    const rafRef = useRef<number | null>(null);
+    const runningRef = useRef(false);
+    const zxingControlsRef = useRef<{ stop: () => void } | null>(null);
+
+    useEffect(() => {
+        const stop = () => {
+            runningRef.current = false;
+            if (rafRef.current != null) {
+                cancelAnimationFrame(rafRef.current);
+                rafRef.current = null;
+            }
+            zxingControlsRef.current?.stop();
+            zxingControlsRef.current = null;
+            const stream = streamRef.current;
+            if (stream) {
+                for (const track of stream.getTracks()) track.stop();
+            }
+            streamRef.current = null;
+            const video = videoRef.current;
+            if (video) video.srcObject = null;
+        };
+
+        const start = async () => {
+            if (!open) return;
+            if (typeof window === 'undefined') return;
+            if (!window.isSecureContext) {
+                toast({
+                    type: 'error',
+                    description:
+                        'Camera requires HTTPS on mobile. Open this page over HTTPS (or use localhost on the same device).',
+                });
+                return;
+            }
+            if (!navigator.mediaDevices?.getUserMedia) {
+                toast({ type: 'error', description: 'Camera is not available on this device.' });
+                return;
+            }
+
+            try {
+                const video = videoRef.current;
+                if (!video) return;
+
+                // Prefer native BarcodeDetector when available; fall back to ZXing for iOS/older browsers.
+                if ('BarcodeDetector' in window) {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: { ideal: 'environment' } },
+                        audio: false,
+                    });
+                    streamRef.current = stream;
+                    video.srcObject = stream;
+                    await video.play();
+
+                    const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+                    runningRef.current = true;
+
+                    const tick = async () => {
+                        if (!runningRef.current) return;
+                        const v = videoRef.current;
+                        if (!v || v.readyState < 2) {
+                            rafRef.current = requestAnimationFrame(() => void tick());
+                            return;
+                        }
+                        try {
+                            const bitmap = await createImageBitmap(v);
+                            const codes = await detector.detect(bitmap);
+                            bitmap.close?.();
+                            const rawValue = codes?.[0]?.rawValue as string | undefined;
+                            if (rawValue) {
+                                const token = extractTokenFromQrPayload(rawValue);
+                                if (token) {
+                                    onTokenDetected(token);
+                                    onOpenChange(false);
+                                    stop();
+                                    return;
+                                }
+                            }
+                        } catch {
+                            // keep scanning
+                        }
+                        rafRef.current = requestAnimationFrame(() => void tick());
+                    };
+
+                    rafRef.current = requestAnimationFrame(() => void tick());
+                } else {
+                    const { BrowserQRCodeReader } = await import('@zxing/browser');
+                    const reader = new BrowserQRCodeReader();
+                    const controls = await reader.decodeFromVideoDevice(
+                        undefined,
+                        video,
+                        (result, error, c) => {
+                            zxingControlsRef.current = c ?? zxingControlsRef.current;
+                            const text = result?.getText?.() ?? '';
+                            const token = text ? extractTokenFromQrPayload(text) : null;
+                            if (token) {
+                                onTokenDetected(token);
+                                onOpenChange(false);
+                                stop();
+                            } else if (error) {
+                                // ignore not-found / transient errors while scanning
+                            }
+                        },
+                    );
+                    zxingControlsRef.current = controls;
+                }
+            } catch (error) {
+                console.error('QR scanner error:', error);
+                toast({ type: 'error', description: 'Could not access camera. Please allow camera permission.' });
+            }
+        };
+
+        if (open) void start();
+        else stop();
+
+        return () => stop();
+    }, [open, onOpenChange, onTokenDetected]);
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>Scan QR code</DialogTitle>
+                    <DialogDescription>
+                        Point your camera at the QR code on the token slip. The token number will be auto-filled.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="overflow-hidden rounded-lg border bg-black">
+                    <video ref={videoRef} className="w-full h-[320px] object-cover" playsInline muted />
+                </div>
+
+                <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => onOpenChange(false)}>
+                        Close
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export function TaskManagement() {
     const { t } = useTranslations();
     const [tasks, setTasks] = useState<TaskWithService[]>([]);
@@ -67,6 +244,7 @@ export function TaskManagement() {
     const [filterToken, setFilterToken] = useState<string>('');
     const [filterMobile, setFilterMobile] = useState<string>('');
     const [filterVoterId, setFilterVoterId] = useState<string>('');
+    const [showQrScanner, setShowQrScanner] = useState(false);
     const [newNote, setNewNote] = useState('');
     const [newStatus, setNewStatus] = useState<string>('');
 
@@ -388,7 +566,7 @@ export function TaskManagement() {
         const outcome = await shareThermalTicketPdf(
             receiptText,
             `thermal-ticket-${params.token.toLowerCase()}`,
-            { headerImageUrl: '/images/ncp_election_symbol.png' }
+            { headerImageUrl: '/images/ncp_election_symbol.png', qrValue: params.token }
         );
 
         if (outcome === 'downloaded') {
@@ -401,7 +579,17 @@ export function TaskManagement() {
 
 
     return (
-        <div className="space-y-6 px-2 sm:px-0">
+        <div className="space-y-6">
+            <QrTokenScannerDialog
+                open={showQrScanner}
+                onOpenChange={setShowQrScanner}
+                onTokenDetected={(token) => {
+                    setFilterToken(token);
+                    setCurrentPage(1);
+                    fetchTasks();
+                }}
+            />
+
             {/* Header */}
             <div>
                 <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">{t('taskManagement.title')}</h1>
@@ -463,12 +651,23 @@ export function TaskManagement() {
 
                             <div>
                                 <Label htmlFor="token-filter">{t('taskManagement.filters.serviceToken')}</Label>
-                                <Input
-                                    id="token-filter"
-                                    placeholder={t('taskManagement.filters.enterToken')}
-                                    value={filterToken}
-                                    onChange={(e) => setFilterToken(e.target.value)}
-                                />
+                                <div className="flex gap-2">
+                                    <Input
+                                        id="token-filter"
+                                        placeholder={t('taskManagement.filters.enterToken')}
+                                        value={filterToken}
+                                        onChange={(e) => setFilterToken(e.target.value)}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setShowQrScanner(true)}
+                                        className="shrink-0"
+                                        title="Scan QR"
+                                    >
+                                        <QrCode className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
 
                             <div>

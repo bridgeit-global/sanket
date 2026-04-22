@@ -566,7 +566,7 @@ export function BeneficiaryManagement() {
         const outcome = await shareThermalTicketPdf(
             receiptText,
             `thermal-ticket-${createdService.token.toLowerCase()}`,
-            { headerImageUrl: '/images/ncp_election_symbol.png' }
+            { headerImageUrl: '/images/ncp_election_symbol.png', qrValue: createdService.token }
         );
 
         if (outcome === 'downloaded') {
