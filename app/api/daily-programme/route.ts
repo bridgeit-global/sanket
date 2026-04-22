@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import {
-  getDailyProgrammeItems,
+  getDailyProgrammeItemsWithAttachments,
   createDailyProgrammeItem,
 } from '@/lib/db/queries';
 import { hasModuleAccess } from '@/lib/db/queries';
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const startDate = startDateParam ? new Date(startDateParam) : undefined;
     const endDate = endDateParam ? new Date(endDateParam) : undefined;
 
-    const items = await getDailyProgrammeItems({
+    const items = await getDailyProgrammeItemsWithAttachments({
       startDate,
       endDate,
     });

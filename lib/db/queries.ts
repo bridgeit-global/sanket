@@ -3556,6 +3556,50 @@ export async function getDailyProgrammeItems({
   }
 }
 
+/** Programme rows plus attachments in two queries (avoids N+1 from the client). */
+export async function getDailyProgrammeItemsWithAttachments(
+  args: Parameters<typeof getDailyProgrammeItems>[0] = {},
+): Promise<
+  Array<
+    DailyProgramme & {
+      createdByUserId?: string | null;
+      updatedByUserId?: string | null;
+      attachments: DailyProgrammeAttachment[];
+    }
+  >
+> {
+  try {
+    const items = await getDailyProgrammeItems(args);
+    if (items.length === 0) {
+      return [];
+    }
+
+    const programmeIds = items.map((i) => i.id);
+    const attachmentRows = await db
+      .select()
+      .from(dailyProgrammeAttachment)
+      .where(inArray(dailyProgrammeAttachment.programmeId, programmeIds))
+      .orderBy(asc(dailyProgrammeAttachment.createdAt));
+
+    const byProgrammeId = new Map<string, DailyProgrammeAttachment[]>();
+    for (const row of attachmentRows) {
+      const list = byProgrammeId.get(row.programmeId) ?? [];
+      list.push(row);
+      byProgrammeId.set(row.programmeId, list);
+    }
+
+    return items.map((item) => ({
+      ...item,
+      attachments: byProgrammeId.get(item.id) ?? [],
+    }));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get daily programme items with attachments',
+    );
+  }
+}
+
 export async function getDailyProgrammeItemById(id: string): Promise<DailyProgramme | null> {
   try {
     const [item] = await db

@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Calendar, Pencil, CheckCircle2, XCircle, Clock, Paperclip, ChevronDown, ChevronUp, Loader2, } from 'lucide-react';
+import { Printer, Calendar, Pencil, CheckCircle2, XCircle, Clock, Paperclip, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, parseISO, startOfToday } from 'date-fns';
 import { enIN } from 'date-fns/locale';
 import {
@@ -58,14 +58,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { DailyProgrammeAttachmentDialog } from '@/components/daily-programme-attachment-dialog';
-
-interface Attachment {
-  id: string;
-  fileName: string;
-  fileSizeKb: number;
-  fileUrl: string | null;
-  createdAt: string;
-}
+import type { DailyProgrammeAttachment } from '@/components/daily-programme-attachment-dialog';
 
 interface ProgrammeItem {
   id: string;
@@ -84,6 +77,8 @@ interface ProgrammeItem {
   updatedBy?: string | null;
   createdByUserId?: string | null;
   updatedByUserId?: string | null;
+  /** Filled by list API / SSR; refreshed after attachment uploads or deletes. */
+  attachments?: DailyProgrammeAttachment[];
 }
 
 interface DailyProgrammeProps {
@@ -291,8 +286,6 @@ function SortableProgrammeRow({
   locale,
   t,
   DURATION_OPTIONS,
-  attachmentCountsLoading,
-  attachmentCounts,
   onOpenAttachmentDialog,
   onAttendanceChange,
   onEdit,
@@ -304,8 +297,6 @@ function SortableProgrammeRow({
   locale: 'en' | 'mr';
   t: (key: string) => string;
   DURATION_OPTIONS: Array<{ value: string; label: string }>;
-  attachmentCountsLoading: boolean;
-  attachmentCounts: Record<string, number>;
   onOpenAttachmentDialog: (item: ProgrammeItem) => void;
   onAttendanceChange: (item: ProgrammeItem, attended: boolean | null) => void;
   onEdit: (item: ProgrammeItem) => void;
@@ -408,26 +399,20 @@ function SortableProgrammeRow({
         </div>
       </TableCell>
       <TableCell className="w-[80px] no-print text-center" data-label={t('dailyProgramme.docs')}>
-        {attachmentCountsLoading ? (
-          <div className="flex items-center justify-center h-8">
-            <Loader2 className="size-4 animate-spin text-muted-foreground" aria-hidden />
-          </div>
-        ) : (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 px-2"
-            onClick={() => onOpenAttachmentDialog(item)}
-            title={t('dailyProgramme.manageReferenceDocuments')}
-          >
-            <Paperclip className="size-4" />
-            {attachmentCounts[item.id] > 0 && (
-              <span className="ml-1 text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 min-w-5">
-                {attachmentCounts[item.id]}
-              </span>
-            )}
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2"
+          onClick={() => onOpenAttachmentDialog(item)}
+          title={t('dailyProgramme.manageReferenceDocuments')}
+        >
+          <Paperclip className="size-4" />
+          {(item.attachments?.length ?? 0) > 0 && (
+            <span className="ml-1 text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 min-w-5">
+              {item.attachments!.length}
+            </span>
+          )}
+        </Button>
       </TableCell>
       <TableCell className="w-[150px] no-print" data-label={t('dailyProgramme.attendance')}>
         <Select
@@ -556,9 +541,7 @@ export function DailyProgramme({
   // Attachment dialog
   const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
   const [selectedProgrammeForAttachment, setSelectedProgrammeForAttachment] = useState<ProgrammeItem | null>(null);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
-  const [attachmentCountsLoading, setAttachmentCountsLoading] = useState(false);
+  const [attachments, setAttachments] = useState<DailyProgrammeAttachment[]>([]);
 
   const [programmeTypeFilter, setProgrammeTypeFilter] = useState<
     'ALL' | 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY'
@@ -676,13 +659,18 @@ export function DailyProgramme({
         console.log('Number of items:', data?.length || 0);
 
         // Filter out items with null or undefined dates
-        const validItems = data.filter((item: ProgrammeItem) => {
-          const hasDate = item.date != null;
-          if (!hasDate) {
-            console.warn('Item missing date:', item);
-          }
-          return hasDate;
-        });
+        const validItems = data
+          .filter((item: ProgrammeItem) => {
+            const hasDate = item.date != null;
+            if (!hasDate) {
+              console.warn('Item missing date:', item);
+            }
+            return hasDate;
+          })
+          .map((item: ProgrammeItem & { attachments?: DailyProgrammeAttachment[] }) => ({
+            ...item,
+            attachments: Array.isArray(item.attachments) ? item.attachments : [],
+          }));
         console.log('Valid items after filtering:', validItems);
         console.log('Number of valid items:', validItems.length);
         setAllItems(validItems);
@@ -1101,73 +1089,26 @@ export function DailyProgramme({
     }
   };
 
-  // Fetch attachment count for all items
-  const fetchAttachmentCounts = useCallback(async (items: ProgrammeItem[]) => {
-    if (items.length === 0) return;
-    setAttachmentCountsLoading(true);
-    try {
-      const counts: Record<string, number> = {};
-      for (const item of items) {
-        try {
-          const response = await fetch(`/api/daily-programme/${item.id}/attachments`);
-          if (response.ok) {
-            const data = await response.json();
-            counts[item.id] = data.length;
-          }
-        } catch (error) {
-          console.error('Error fetching attachment count for item:', item.id, error);
-        }
-      }
-      setAttachmentCounts(counts);
-    } finally {
-      setAttachmentCountsLoading(false);
-    }
-  }, []);
-
-  // Load attachment counts when items change (run after a short delay so session is ready on first load)
-  useEffect(() => {
-    if (allItems.length === 0) return;
-    const timer = window.setTimeout(() => {
-      fetchAttachmentCounts(allItems);
-    }, 150);
-    return () => window.clearTimeout(timer);
-  }, [allItems, fetchAttachmentCounts]);
-
-  const handleOpenAttachmentDialog = async (item: ProgrammeItem) => {
+  const handleOpenAttachmentDialog = (item: ProgrammeItem) => {
     setSelectedProgrammeForAttachment(item);
-    try {
-      const response = await fetch(`/api/daily-programme/${item.id}/attachments`);
-      if (response.ok) {
-        const data = await response.json();
-        setAttachments(data);
-        setAttachmentCounts((prev) => ({ ...prev, [item.id]: data.length }));
-      } else {
-        setAttachments([]);
-        setAttachmentCounts((prev) => ({ ...prev, [item.id]: 0 }));
-      }
-    } catch (error) {
-      console.error('Error fetching attachments:', error);
-      setAttachments([]);
-    }
+    setAttachments(item.attachments ?? []);
     setAttachmentDialogOpen(true);
   };
 
   const handleAttachmentsChange = async () => {
-    if (selectedProgrammeForAttachment) {
-      try {
-        const response = await fetch(`/api/daily-programme/${selectedProgrammeForAttachment.id}/attachments`);
-        if (response.ok) {
-          const data = await response.json();
-          setAttachments(data);
-          // Update attachment count
-          setAttachmentCounts((prev) => ({
-            ...prev,
-            [selectedProgrammeForAttachment.id]: data.length,
-          }));
-        }
-      } catch (error) {
-        console.error('Error refreshing attachments:', error);
+    if (!selectedProgrammeForAttachment) return;
+    const programmeId = selectedProgrammeForAttachment.id;
+    try {
+      const response = await fetch(`/api/daily-programme/${programmeId}/attachments`);
+      if (response.ok) {
+        const data: DailyProgrammeAttachment[] = await response.json();
+        setAttachments(data);
+        setAllItems((prev) =>
+          prev.map((it) => (it.id === programmeId ? { ...it, attachments: data } : it)),
+        );
       }
+    } catch (error) {
+      console.error('Error refreshing attachments:', error);
     }
   };
 
@@ -1557,8 +1498,6 @@ export function DailyProgramme({
                                                       locale={locale}
                                                       t={t}
                                                       DURATION_OPTIONS={DURATION_OPTIONS}
-                                                      attachmentCountsLoading={attachmentCountsLoading}
-                                                      attachmentCounts={attachmentCounts}
                                                       onOpenAttachmentDialog={handleOpenAttachmentDialog}
                                                       onAttendanceChange={handleAttendanceChange}
                                                       onEdit={handleEdit}
