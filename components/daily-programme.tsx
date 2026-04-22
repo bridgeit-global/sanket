@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, type CSSProperties } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,7 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Calendar, Pencil, CheckCircle2, XCircle, Clock, Paperclip, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Printer, Calendar, Pencil, CheckCircle2, XCircle, Clock, Paperclip, ChevronDown, ChevronUp } from 'lucide-react';
 import { format, parseISO, startOfToday } from 'date-fns';
 import { enIN } from 'date-fns/locale';
 import {
@@ -33,6 +33,23 @@ import { DateRangePicker } from '@/components/date-range-picker';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslations } from '@/hooks/use-translations';
 import {
+  closestCenter,
+  DndContext,
+  type DragEndEvent,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -41,28 +58,27 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { DailyProgrammeAttachmentDialog } from '@/components/daily-programme-attachment-dialog';
-
-interface Attachment {
-  id: string;
-  fileName: string;
-  fileSizeKb: number;
-  fileUrl: string | null;
-  createdAt: string;
-}
+import type { DailyProgrammeAttachment } from '@/components/daily-programme-attachment-dialog';
 
 interface ProgrammeItem {
   id: string;
   date: string | Date | null;
+  startDate?: string | Date | null;
+  endDate?: string | Date | null;
   startTime: string;
   endTime?: string | null;
   title: string;
   location: string;
   remarks?: string | null;
   attended?: boolean | null;
+  programmeType?: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY' | null;
+  sortOrder?: number | null;
   createdBy?: string | null;
   updatedBy?: string | null;
   createdByUserId?: string | null;
   updatedByUserId?: string | null;
+  /** Filled by list API / SSR; refreshed after attachment uploads or deletes. */
+  attachments?: DailyProgrammeAttachment[];
 }
 
 interface DailyProgrammeProps {
@@ -98,32 +114,32 @@ function generateDurationOptions(
   return options;
 }
 
-// Calculate end time from start time and duration (in minutes)
-function calculateEndTime(startTime: string, durationMinutes: number): string {
-  if (!startTime) return '';
-
-  const [hours, minutes] = startTime.split(':').map(Number);
-  const startTotalMinutes = hours * 60 + minutes;
-  const endTotalMinutes = startTotalMinutes + durationMinutes;
-
-  const endHours = Math.floor(endTotalMinutes / 60) % 24;
-  const endMins = endTotalMinutes % 60;
-
-  return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
+function parseTimeToMinutes(time?: string | null): number | null {
+  if (!time) return null;
+  const match = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  if (hours < 0 || hours > 23) return null;
+  if (minutes < 0 || minutes > 59) return null;
+  return hours * 60 + minutes;
 }
 
-// Calculate duration in minutes from start and end time
+// Calculate duration in minutes from start and end time (same clock time = full 24 hours)
 function calculateDuration(
   startTime?: string | null,
   endTime?: string | null,
 ): number | null {
   if (!startTime || !endTime) return null;
 
-  const [startHours, startMins] = startTime.split(':').map(Number);
-  const [endHours, endMins] = endTime.split(':').map(Number);
+  const startTotalMinutes = parseTimeToMinutes(startTime);
+  const endTotalMinutes = parseTimeToMinutes(endTime);
+  if (startTotalMinutes === null || endTotalMinutes === null) return null;
 
-  const startTotalMinutes = startHours * 60 + startMins;
-  const endTotalMinutes = endHours * 60 + endMins;
+  if (startTotalMinutes === endTotalMinutes) {
+    return 24 * 60;
+  }
 
   return endTotalMinutes - startTotalMinutes;
 }
@@ -206,6 +222,28 @@ function normalizeDate(dateValue: string | Date | null | undefined): string | nu
   return null;
 }
 
+function getProgrammeTypeLabel(
+  value: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY',
+  t: (key: string) => string,
+) {
+  return value === 'CONSTITUENCY'
+    ? t('dailyProgramme.constituency')
+    : t('dailyProgramme.outsideConstituency');
+}
+
+function eachDateInclusive(start: string, end: string): string[] {
+  const result: string[] = [];
+  const s = parseISO(start);
+  const e = parseISO(end);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return result;
+  const cur = new Date(s);
+  while (cur.getTime() <= e.getTime()) {
+    result.push(format(cur, 'yyyy-MM-dd'));
+    cur.setDate(cur.getDate() + 1);
+  }
+  return result;
+}
+
 // DURATION_OPTIONS will be generated inside component with access to translations
 
 // Helper function to format dates with locale support
@@ -242,6 +280,207 @@ function formatDateWithLocale(date: Date, formatStr: string, locale: 'en' | 'mr'
   }
 }
 
+function SortableProgrammeRow({
+  item,
+  index,
+  locale,
+  t,
+  DURATION_OPTIONS,
+  onOpenAttachmentDialog,
+  onAttendanceChange,
+  onEdit,
+  onDelete,
+  enableReorder,
+}: {
+  item: ProgrammeItem;
+  index: number;
+  locale: 'en' | 'mr';
+  t: (key: string) => string;
+  DURATION_OPTIONS: Array<{ value: string; label: string }>;
+  onOpenAttachmentDialog: (item: ProgrammeItem) => void;
+  onAttendanceChange: (item: ProgrammeItem, attended: boolean | null) => void;
+  onEdit: (item: ProgrammeItem) => void;
+  onDelete: (id: string) => void;
+  enableReorder: boolean;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: item.id,
+    disabled: !enableReorder,
+  });
+
+  const style: CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.75 : undefined,
+  };
+
+  const duration = calculateDuration(item.startTime, item.endTime);
+  let durationLabel: string | null = null;
+  if (duration !== null && duration > 0) {
+    const foundOption = DURATION_OPTIONS.find(
+      (opt) => Number.parseInt(opt.value, 10) === duration,
+    );
+    if (foundOption) {
+      durationLabel = foundOption.label;
+    } else {
+      const hours = Math.floor(duration / 60);
+      const mins = duration % 60;
+      if (hours === 0) {
+        durationLabel = `${duration} ${t('dailyProgramme.min')}`;
+      } else if (mins === 0) {
+        durationLabel = hours === 1
+          ? `1 ${t('dailyProgramme.hour')}`
+          : `${hours} ${t('dailyProgramme.hours')}`;
+      } else {
+        durationLabel = `${hours}${t('dailyProgramme.hourShort')} ${mins}${t('dailyProgramme.minShort')}`;
+      }
+    }
+  }
+
+  const serialNumber = (index + 1).toLocaleString(locale === 'mr' ? 'mr-IN' : 'en-IN');
+
+  return (
+    <TableRow ref={setNodeRef} style={style}>
+      <TableCell className="w-[60px] text-center font-medium" data-label={t('dailyProgramme.serialNo')}>
+        {serialNumber}
+      </TableCell>
+      <TableCell className="w-[150px]" data-label={t('dailyProgramme.time')}>
+        <div className="font-mono font-semibold">
+          {formatTimeTo12Hour(item.startTime, locale)}
+          {durationLabel && (
+            <span className="text-xs font-normal text-muted-foreground ml-1">
+              ({durationLabel})
+            </span>
+          )}
+        </div>
+        {item.programmeType && (
+          <div className="text-xs text-muted-foreground mt-1">
+            {getProgrammeTypeLabel(item.programmeType, t)}
+          </div>
+        )}
+      </TableCell>
+      <TableCell className="w-[400px]" data-label={t('dailyProgramme.programmeNatureAndPlace')}>
+        <div className="space-y-1">
+          <div className="font-medium flex items-start gap-2">
+            {enableReorder && (
+              <span
+                className="no-print inline-flex items-center justify-center rounded border px-1.5 py-1 text-muted-foreground cursor-grab active:cursor-grabbing"
+                title={t('dailyProgramme.dragToReorder')}
+                {...attributes}
+                {...listeners}
+              >
+                ≡
+              </span>
+            )}
+            <span>{item.title}</span>
+          </div>
+          {item.location && (
+            <div className="text-muted-foreground">
+              📍 {item.location}
+            </div>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="w-[300px]" data-label={t('dailyProgramme.reference')}>
+        {item.remarks ? (
+          <div className="text-sm">
+            {item.remarks}
+          </div>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )}
+        <div className="text-xs text-muted-foreground mt-1 no-print">
+          {item.createdByUserId && (
+            <span>{t('dailyProgramme.createdBy')}: {item.createdByUserId}</span>
+          )}
+          {item.updatedByUserId && item.updatedByUserId !== item.createdByUserId && (
+            <span className="ml-2">{t('dailyProgramme.updatedBy')}: {item.updatedByUserId}</span>
+          )}
+        </div>
+      </TableCell>
+      <TableCell className="w-[80px] no-print text-center" data-label={t('dailyProgramme.docs')}>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 px-2"
+          onClick={() => onOpenAttachmentDialog(item)}
+          title={t('dailyProgramme.manageReferenceDocuments')}
+        >
+          <Paperclip className="size-4" />
+          {(item.attachments?.length ?? 0) > 0 && (
+            <span className="ml-1 text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 min-w-5">
+              {item.attachments!.length}
+            </span>
+          )}
+        </Button>
+      </TableCell>
+      <TableCell className="w-[150px] no-print" data-label={t('dailyProgramme.attendance')}>
+        <Select
+
+          value={
+            item.attended == null
+              ? 'not_set'
+              : item.attended
+                ? 'attended'
+                : 'not_attended'
+          }
+          onValueChange={(value) => {
+            const newValue =
+              value === 'not_set'
+                ? null
+                : value === 'attended';
+            onAttendanceChange(item, newValue);
+          }}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="not_set">
+              <div className="flex items-center gap-2">
+                <Clock className="size-4 text-muted-foreground" />
+                <span>{t('dailyProgramme.attendanceNotSet')}</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="attended">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="size-4 text-green-600" />
+                <span>{t('dailyProgramme.attendanceAttended')}</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="not_attended">
+              <div className="flex items-center gap-2">
+                <XCircle className="size-4 text-red-600" />
+                <span>{t('dailyProgramme.attendanceNotAttended')}</span>
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </TableCell>
+      <TableCell className="w-[100px] no-print" data-label={t('dailyProgramme.actions')}>
+        <div className="flex gap-1">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onEdit(item)}
+            className="h-8 px-2"
+          >
+            <Pencil className="size-3" />
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onDelete(item.id)}
+            className="h-8 px-2 text-destructive hover:text-destructive"
+          >
+            ×
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+}
+
 export function DailyProgramme({
   userRole,
   initialItems = [],
@@ -270,14 +509,15 @@ export function DailyProgramme({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
+    startDate: format(new Date(), 'yyyy-MM-dd'),
+    endDate: format(new Date(), 'yyyy-MM-dd'),
     startTime: '',
-    duration: '',
+    endTime: '',
     title: '',
     location: '',
     remarks: '',
+    programmeType: 'CONSTITUENCY' as 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY',
   });
-  /** Remount duration Select when clearing the form — Radix Select can keep the old label after value resets to empty. */
-  const [durationSelectKey, setDurationSelectKey] = useState(0);
 
   // Delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -301,28 +541,48 @@ export function DailyProgramme({
   // Attachment dialog
   const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
   const [selectedProgrammeForAttachment, setSelectedProgrammeForAttachment] = useState<ProgrammeItem | null>(null);
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [attachmentCounts, setAttachmentCounts] = useState<Record<string, number>>({});
-  const [attachmentCountsLoading, setAttachmentCountsLoading] = useState(false);
+  const [attachments, setAttachments] = useState<DailyProgrammeAttachment[]>([]);
 
-  // Group items by date
+  const [programmeTypeFilter, setProgrammeTypeFilter] = useState<
+    'ALL' | 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY'
+  >('ALL');
+
+  const expandedItems = useMemo(() => {
+    const result: ProgrammeItem[] = [];
+    for (const item of allItems) {
+      const programmeType = item.programmeType ?? 'CONSTITUENCY';
+      const start = normalizeDate(item.startDate ?? null);
+      const end = normalizeDate(item.endDate ?? null);
+      if (start && end && start <= end) {
+        for (const d of eachDateInclusive(start, end)) {
+          result.push({ ...item, programmeType, date: d });
+        }
+      } else {
+        result.push({ ...item, programmeType });
+      }
+    }
+    return result;
+  }, [allItems]);
+
+  // Group items by date (after expanding date ranges + programme type filtering)
   const itemsByDate = useMemo(() => {
     const grouped: Record<string, ProgrammeItem[]> = {};
-    allItems.forEach((item) => {
-      if (item.date) {
-        const dateKey = normalizeDate(item.date);
-        if (dateKey) {
-          if (!grouped[dateKey]) {
-            grouped[dateKey] = [];
+    expandedItems
+      .filter((item) => {
+        if (programmeTypeFilter === 'ALL') return true;
+        return (item.programmeType ?? 'CONSTITUENCY') === programmeTypeFilter;
+      })
+      .forEach((item) => {
+        if (item.date) {
+          const dateKey = normalizeDate(item.date);
+          if (dateKey) {
+            if (!grouped[dateKey]) grouped[dateKey] = [];
+            grouped[dateKey].push(item);
           }
-          grouped[dateKey].push(item);
-        } else {
-          console.error('Could not normalize date for item:', item.id, item.date);
         }
-      }
-    });
+      });
     return grouped;
-  }, [allItems]);
+  }, [expandedItems, programmeTypeFilter]);
 
   const filteredDateEntries = useMemo(() => {
     return Object.entries(itemsByDate)
@@ -337,6 +597,37 @@ export function DailyProgramme({
       })
       .sort(([dateA], [dateB]) => dateA.localeCompare(dateB));
   }, [itemsByDate, dateRange.start, dateRange.end]);
+
+  const programmeTypeSections = useMemo(() => {
+    const result: Array<{
+      programmeType: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
+      dates: Array<[string, ProgrammeItem[]]>;
+    }> = [];
+
+    const byType: Record<'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY', Array<[string, ProgrammeItem[]]>> = {
+      CONSTITUENCY: [],
+      OUTSIDE_CONSTITUENCY: [],
+    };
+
+    for (const [dateKey, items] of filteredDateEntries) {
+      const constituency = items.filter((it) => (it.programmeType ?? 'CONSTITUENCY') === 'CONSTITUENCY');
+      const outside = items.filter((it) => (it.programmeType ?? 'CONSTITUENCY') === 'OUTSIDE_CONSTITUENCY');
+      if (constituency.length > 0) byType.CONSTITUENCY.push([dateKey, constituency]);
+      if (outside.length > 0) byType.OUTSIDE_CONSTITUENCY.push([dateKey, outside]);
+    }
+
+    const order: Array<'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY'> =
+      programmeTypeFilter === 'ALL'
+        ? ['CONSTITUENCY', 'OUTSIDE_CONSTITUENCY']
+        : [programmeTypeFilter];
+
+    for (const programmeType of order) {
+      const dates = byType[programmeType];
+      if (dates.length > 0) result.push({ programmeType, dates });
+    }
+
+    return result;
+  }, [filteredDateEntries, programmeTypeFilter]);
 
   const loadItems = useCallback(
     async (startDate?: string, endDate?: string) => {
@@ -367,13 +658,20 @@ export function DailyProgramme({
 
 
         // Filter out items with null or undefined dates
-        const validItems = data.filter((item: ProgrammeItem) => {
-          const hasDate = item.date != null;
-          if (!hasDate) {
-            console.warn('Item missing date:', item);
-          }
-          return hasDate;
-        });
+        const validItems = data
+          .filter((item: ProgrammeItem) => {
+            const hasDate = item.date != null;
+            if (!hasDate) {
+              console.warn('Item missing date:', item);
+            }
+            return hasDate;
+          })
+          .map((item: ProgrammeItem & { attachments?: DailyProgrammeAttachment[] }) => ({
+            ...item,
+            attachments: Array.isArray(item.attachments) ? item.attachments : [],
+          }));
+        console.log('Valid items after filtering:', validItems);
+        console.log('Number of valid items:', validItems.length);
         setAllItems(validItems);
       } catch (error) {
         console.error('Error loading programme items:', error);
@@ -406,23 +704,25 @@ export function DailyProgramme({
       return `${startLabel} – ${endLabel}`;
     }
     if (startLabel) {
-      return `From ${startLabel}`;
+      return t('dailyProgramme.fromDate').replace('{date}', startLabel);
     }
     if (endLabel) {
-      return `Until ${endLabel}`;
+      return t('dailyProgramme.untilDate').replace('{date}', endLabel);
     }
-    return 'All scheduled dates';
-  }, [dateRange.start, dateRange.end, locale]);
+    return t('dailyProgramme.allScheduledDates');
+  }, [dateRange.start, dateRange.end, locale, t]);
 
   const isProgrammeFormComplete = useMemo(
     () =>
       Boolean(
-        form.date &&
+        form.startDate &&
+        form.endDate &&
         form.startTime.trim() &&
+        form.endTime.trim() &&
         form.title.trim() &&
         form.location.trim(),
       ),
-    [form.date, form.startTime, form.title, form.location],
+    [form.endDate, form.startDate, form.startTime, form.endTime, form.title, form.location],
   );
 
   useEffect(() => {
@@ -436,14 +736,22 @@ export function DailyProgramme({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.date || !form.startTime || !form.title || !form.location) return;
+    const effectiveDate = form.startDate;
+    if (!effectiveDate || !form.startTime || !form.endTime || !form.title || !form.location) return;
+
+    const startMinutes = parseTimeToMinutes(form.startTime);
+    const endMinutes = parseTimeToMinutes(form.endTime);
+    if (startMinutes === null || endMinutes === null) {
+      toast.error(t('dailyProgramme.invalidTime'));
+      return;
+    }
+    if (endMinutes < startMinutes) {
+      toast.error(t('dailyProgramme.endTimeMustBeAfterStartTime'));
+      return;
+    }
 
     try {
-      // Calculate endTime from startTime and duration
-      const durationMinutes = form.duration ? Number.parseInt(form.duration, 10) : 0;
-      const endTime = durationMinutes > 0
-        ? calculateEndTime(form.startTime, durationMinutes)
-        : undefined;
+      const endTime = form.endTime.trim() ? form.endTime : undefined;
 
       if (editingId) {
         // Update existing item
@@ -451,12 +759,15 @@ export function DailyProgramme({
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            date: form.date,
+            date: effectiveDate,
             startTime: form.startTime,
             endTime,
             title: form.title,
             location: form.location,
             remarks: form.remarks,
+            programmeType: form.programmeType,
+            startDate: form.startDate,
+            endDate: form.endDate,
           }),
         });
 
@@ -466,13 +777,15 @@ export function DailyProgramme({
           setEditingId(null);
           setForm({
             date: format(new Date(), 'yyyy-MM-dd'),
+            startDate: format(new Date(), 'yyyy-MM-dd'),
+            endDate: format(new Date(), 'yyyy-MM-dd'),
             startTime: '',
-            duration: '',
+            endTime: '',
             title: '',
             location: '',
             remarks: '',
+            programmeType: 'CONSTITUENCY',
           });
-          setDurationSelectKey((k) => k + 1);
         } else {
           toast.error(t('dailyProgramme.failedToUpdateProgrammeItem'));
         }
@@ -482,12 +795,15 @@ export function DailyProgramme({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            date: form.date,
+            date: effectiveDate,
             startTime: form.startTime,
             endTime,
             title: form.title,
             location: form.location,
             remarks: form.remarks,
+            programmeType: form.programmeType,
+            startDate: form.startDate,
+            endDate: form.endDate,
           }),
         });
 
@@ -497,13 +813,15 @@ export function DailyProgramme({
 
           setForm({
             date: format(new Date(), 'yyyy-MM-dd'),
+            startDate: format(new Date(), 'yyyy-MM-dd'),
+            endDate: format(new Date(), 'yyyy-MM-dd'),
             startTime: '',
-            duration: '',
+            endTime: '',
             title: '',
             location: '',
             remarks: '',
+            programmeType: 'CONSTITUENCY',
           });
-          setDurationSelectKey((k) => k + 1);
         } else {
           toast.error(t('dailyProgramme.failedToAddProgrammeItem'));
         }
@@ -515,15 +833,26 @@ export function DailyProgramme({
   };
 
   const handleEdit = (item: ProgrammeItem) => {
-    const duration = calculateDuration(item.startTime, item.endTime);
     setEditingId(item.id);
+    const normalizedDate = normalizeDate(item.date) || format(new Date(), 'yyyy-MM-dd');
+    const normalizedStartDate = normalizeDate(item.startDate ?? null);
+    const normalizedEndDate = normalizeDate(item.endDate ?? null);
+    const isRange = Boolean(
+      normalizedStartDate &&
+      normalizedEndDate &&
+      normalizedStartDate <= normalizedEndDate &&
+      (normalizedStartDate !== normalizedEndDate),
+    );
     setForm({
-      date: normalizeDate(item.date) || format(new Date(), 'yyyy-MM-dd'),
+      date: normalizedDate,
+      startDate: normalizedStartDate || normalizedDate,
+      endDate: normalizedEndDate || normalizedDate,
       startTime: item.startTime,
-      duration: duration ? duration.toString() : '',
+      endTime: item.endTime ?? '',
       title: item.title,
       location: item.location,
       remarks: item.remarks || '',
+      programmeType: (item.programmeType ?? 'CONSTITUENCY') as 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY',
     });
 
     // Scroll to form
@@ -537,14 +866,40 @@ export function DailyProgramme({
     setEditingId(null);
     setForm({
       date: format(new Date(), 'yyyy-MM-dd'),
+      startDate: format(new Date(), 'yyyy-MM-dd'),
+      endDate: format(new Date(), 'yyyy-MM-dd'),
       startTime: '',
-      duration: '',
+      endTime: '',
       title: '',
       location: '',
       remarks: '',
+      programmeType: 'CONSTITUENCY',
     });
-    setDurationSelectKey((k) => k + 1);
   };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const persistReorder = useCallback(
+    async (items: ProgrammeItem[]) => {
+      const payload = items.map((it, idx) => ({ id: it.id, sortOrder: idx + 1 }));
+      try {
+        const res = await fetch('/api/daily-programme/reorder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ items: payload }),
+        });
+        if (!res.ok) throw new Error('Failed');
+      } catch (e) {
+        console.error('Failed persisting reorder', e);
+        toast.error(t('dailyProgramme.failedToReorder'));
+        await loadItems();
+      }
+    },
+    [loadItems, t],
+  );
 
   const handleDelete = (id: string) => {
     setItemToDelete(id);
@@ -610,9 +965,9 @@ export function DailyProgramme({
 
     // Set new title with date range
     if (dateRangeString) {
-      document.title = `Daily Programme - ${dateRangeString}`;
+      document.title = `${t('dailyProgramme.title')} - ${dateRangeString}`;
     } else {
-      document.title = 'Daily Programme';
+      document.title = t('dailyProgramme.title');
     }
 
     // Estimate total pages for fallback (for browsers that don't support CSS counter(pages))
@@ -687,7 +1042,7 @@ export function DailyProgramme({
 
   const handleCreateBeneficiaryTask = async () => {
     if (!programmeItemForTask || !voterEpicNumber.trim()) {
-      toast.error('Please enter voter EPIC number');
+      toast.error(t('dailyProgramme.pleaseEnterVoterEpicNumber'));
       return;
     }
 
@@ -706,92 +1061,47 @@ export function DailyProgramme({
       });
 
       if (response.ok) {
-        toast.success('Beneficiary task for token of gratitude created successfully');
+        toast.success(t('dailyProgramme.beneficiaryTaskCreatedSuccess'));
         setBeneficiaryTaskDialogOpen(false);
         setProgrammeItemForTask(null);
         setVoterEpicNumber('');
         setVoterName('');
       } else {
         const errorData = await response.json().catch(() => ({}));
-        toast.error(errorData.error || 'Failed to create beneficiary task');
+        toast.error(errorData.error || t('dailyProgramme.failedToCreateBeneficiaryTask'));
       }
     } catch (error) {
       console.error('Error creating beneficiary task:', error);
-      toast.error('Failed to create beneficiary task');
+      toast.error(t('dailyProgramme.failedToCreateBeneficiaryTask'));
     } finally {
       setIsCreatingTask(false);
     }
   };
 
-  // Fetch attachment count for all items
-  const fetchAttachmentCounts = useCallback(async (items: ProgrammeItem[]) => {
-    if (items.length === 0) return;
-    setAttachmentCountsLoading(true);
-    try {
-      const counts: Record<string, number> = {};
-      for (const item of items) {
-        try {
-          const response = await fetch(`/api/daily-programme/${item.id}/attachments`);
-          if (response.ok) {
-            const data = await response.json();
-            counts[item.id] = data.length;
-          }
-        } catch (error) {
-          console.error('Error fetching attachment count for item:', item.id, error);
-        }
-      }
-      setAttachmentCounts(counts);
-    } finally {
-      setAttachmentCountsLoading(false);
-    }
-  }, []);
-
-  // Load attachment counts when items change (run after a short delay so session is ready on first load)
-  useEffect(() => {
-    if (allItems.length === 0) return;
-    const timer = window.setTimeout(() => {
-      fetchAttachmentCounts(allItems);
-    }, 150);
-    return () => window.clearTimeout(timer);
-  }, [allItems, fetchAttachmentCounts]);
-
-  const handleOpenAttachmentDialog = async (item: ProgrammeItem) => {
+  const handleOpenAttachmentDialog = (item: ProgrammeItem) => {
     setSelectedProgrammeForAttachment(item);
-    try {
-      const response = await fetch(`/api/daily-programme/${item.id}/attachments`);
-      if (response.ok) {
-        const data = await response.json();
-        setAttachments(data);
-        setAttachmentCounts((prev) => ({ ...prev, [item.id]: data.length }));
-      } else {
-        setAttachments([]);
-        setAttachmentCounts((prev) => ({ ...prev, [item.id]: 0 }));
-      }
-    } catch (error) {
-      console.error('Error fetching attachments:', error);
-      setAttachments([]);
-    }
+    setAttachments(item.attachments ?? []);
     setAttachmentDialogOpen(true);
   };
 
   const handleAttachmentsChange = async () => {
-    if (selectedProgrammeForAttachment) {
-      try {
-        const response = await fetch(`/api/daily-programme/${selectedProgrammeForAttachment.id}/attachments`);
-        if (response.ok) {
-          const data = await response.json();
-          setAttachments(data);
-          // Update attachment count
-          setAttachmentCounts((prev) => ({
-            ...prev,
-            [selectedProgrammeForAttachment.id]: data.length,
-          }));
-        }
-      } catch (error) {
-        console.error('Error refreshing attachments:', error);
+    if (!selectedProgrammeForAttachment) return;
+    const programmeId = selectedProgrammeForAttachment.id;
+    try {
+      const response = await fetch(`/api/daily-programme/${programmeId}/attachments`);
+      if (response.ok) {
+        const data: DailyProgrammeAttachment[] = await response.json();
+        setAttachments(data);
+        setAllItems((prev) =>
+          prev.map((it) => (it.id === programmeId ? { ...it, attachments: data } : it)),
+        );
       }
+    } catch (error) {
+      console.error('Error refreshing attachments:', error);
     }
   };
+
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -822,9 +1132,9 @@ export function DailyProgramme({
                 {editingId ? t('dailyProgramme.editProgramme') : t('dailyProgramme.createDailyProgramme')}
               </CardTitle>
               {formCardOpen ? (
-                <ChevronUp className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+                <ChevronUp className="size-5 shrink-0 text-muted-foreground" aria-hidden />
               ) : (
-                <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+                <ChevronDown className="size-5 shrink-0 text-muted-foreground" aria-hidden />
               )}
             </div>
           </CardHeader>
@@ -832,13 +1142,24 @@ export function DailyProgramme({
             <CardContent id="programme-form-content" aria-labelledby="programme-form-header">
               <form onSubmit={handleSubmit} className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
                 <div className="space-y-2">
-                  <Label htmlFor="date">{t('dailyProgramme.date')}</Label>
+                  <Label htmlFor="startDate">{t('dailyProgramme.startDate')}</Label>
                   <Input
-                    id="date"
+                    id="startDate"
                     type="date"
                     className="min-h-11"
-                    value={form.date}
-                    onChange={(e) => setForm({ ...form, date: e.target.value })}
+                    value={form.startDate}
+                    onChange={(e) => setForm({ ...form, startDate: e.target.value, date: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endDate">{t('dailyProgramme.endDate')}</Label>
+                  <Input
+                    id="endDate"
+                    type="date"
+                    className="min-h-11"
+                    value={form.endDate}
+                    onChange={(e) => setForm({ ...form, endDate: e.target.value })}
                     required
                   />
                 </div>
@@ -854,21 +1175,28 @@ export function DailyProgramme({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="duration">{t('dailyProgramme.duration')}</Label>
+                  <Label htmlFor="endTime">{t('dailyProgramme.endTime')}</Label>
+                  <TimePicker
+                    id="endTime"
+                    value={form.endTime || undefined}
+                    onChange={(value) => setForm({ ...form, endTime: value })}
+                    placeholder={t('dailyProgramme.selectTime')}
+                    required
+                    className="min-h-11"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="programmeType">{t('dailyProgramme.programmeType')}</Label>
                   <Select
-                    key={durationSelectKey}
-                    value={form.duration || undefined}
-                    onValueChange={(value) => setForm({ ...form, duration: value })}
+                    value={form.programmeType}
+                    onValueChange={(value) => setForm({ ...form, programmeType: value as 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY' })}
                   >
-                    <SelectTrigger id="duration" className="min-h-11">
-                      <SelectValue placeholder={t('dailyProgramme.selectDuration')} />
+                    <SelectTrigger id="programmeType" className="min-h-11">
+                      <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="max-h-[200px]">
-                      {DURATION_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
+                    <SelectContent>
+                      <SelectItem value="CONSTITUENCY">{t('dailyProgramme.constituency')}</SelectItem>
+                      <SelectItem value="OUTSIDE_CONSTITUENCY">{t('dailyProgramme.outsideConstituency')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -972,7 +1300,7 @@ export function DailyProgramme({
                 <div className="space-y-4 mb-4 pb-4 border-b no-print">
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
-                      <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <Calendar className="size-4 text-muted-foreground shrink-0" />
                       <div>
                         <div className="font-semibold text-lg">{dateRangeLabel}</div>
                         <div className="text-xs text-muted-foreground">
@@ -989,17 +1317,42 @@ export function DailyProgramme({
                         {t('dailyProgramme.resetRange')}
                       </Button>
                       <Button variant="outline" size="sm" onClick={handlePrint} className="w-full sm:w-auto min-h-11">
-                        <Printer className="mr-2 h-4 w-4" />
-                        {t('dailyProgramme.printProgramme')}
+                        <Printer className="mr-2 size-4" />
+                        {t('dailyProgramme.exportProgramme')}
                       </Button>
+                      {/* <Button variant="outline" size="sm" onClick={handleExport} className="w-full sm:w-auto min-h-11">
+                        <FileDown className="mr-2 size-4" />
+                        {t('dailyProgramme.exportProgramme')}
+                      </Button> */}
                     </div>
                   </div>
-                  <div className="w-full max-w-md">
-                    <DateRangePicker
-                      startDate={dateRange.start}
-                      endDate={dateRange.end}
-                      onDateRangeChange={handleDateRangeChange}
-                    />
+                  <div className="grid gap-3 sm:grid-cols-2 w-full max-w-2xl">
+                    <div className="w-full">
+                      <Label htmlFor="dateRange">{t('dailyProgramme.dateRange')}</Label>
+                      <DateRangePicker
+
+                        startDate={dateRange.start}
+                        endDate={dateRange.end}
+                        onDateRangeChange={handleDateRangeChange}
+                      />
+                    </div>
+                    <div className="w-full">
+                      <Label htmlFor="programmeTypeFilter">{t('dailyProgramme.programmeFilter')}</Label>
+                      <Select
+                        value={programmeTypeFilter}
+                        onValueChange={(value) =>
+                          setProgrammeTypeFilter(value as 'ALL' | 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY')}
+                      >
+                        <SelectTrigger id="programmeTypeFilter">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="ALL">{t('dailyProgramme.all')}</SelectItem>
+                          <SelectItem value="CONSTITUENCY">{t('dailyProgramme.constituency')}</SelectItem>
+                          <SelectItem value="OUTSIDE_CONSTITUENCY">{t('dailyProgramme.outsideConstituency')}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                 </div>
 
@@ -1008,221 +1361,150 @@ export function DailyProgramme({
 
                   {filteredDateEntries.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
-                      <Calendar className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <Calendar className="size-12 mx-auto mb-2 opacity-50" />
                       <p>{t('dailyProgramme.noProgrammes')}</p>
                     </div>
                   ) : (
                     <div className="space-y-6">
-                      {filteredDateEntries.map(([dateKey, items]) => {
-                        const date = parseISO(dateKey);
-                        // Format date based on locale
-                        const formattedDate = formatDateWithLocale(date, 'EEEE, dd MMM yyyy', locale);
+                      {programmeTypeSections.map((section) => {
+                        const printOutsideOnNewPage =
+                          section.programmeType === 'OUTSIDE_CONSTITUENCY' &&
+                          programmeTypeSections.some((s) => s.programmeType === 'CONSTITUENCY');
                         return (
-                          <div key={dateKey} className="space-y-3 print-date-section">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 font-semibold">
-                                <Calendar className="h-4 w-4" />
-                                {formattedDate}
+                          <div
+                            key={section.programmeType}
+                            className={
+                              'space-y-4 print-programme-type-section' +
+                              (printOutsideOnNewPage ? ' print-programme-outside-new-page' : '')
+                            }
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-base font-semibold">
+                                {getProgrammeTypeLabel(section.programmeType, t)}
                               </div>
                               <span className="text-xs text-muted-foreground">
-                                {items.length} {items.length !== 1 ? t('dailyProgramme.events') : t('dailyProgramme.event')}
+                                {section.dates.length}{' '}
+                                {section.dates.length !== 1 ? t('dailyProgramme.dates') : t('dailyProgramme.date')}
                               </span>
                             </div>
-                            <div className="overflow-x-auto print-table-wrapper">
-                              <Table>
-                                {/* Explicit column width definitions for print - ensures proper width distribution */}
-                                <colgroup>
-                                  <col className="print-col-1" />
-                                  <col className="print-col-2" />
-                                  <col className="print-col-3" />
-                                  <col className="print-col-4" />
-                                  <col className="no-print" />
-                                  <col className="no-print" />
-                                  <col className="no-print" />
-                                </colgroup>
-                                <TableHeader>
-                                  {/* Column headers row */}
-                                  <TableRow>
-                                    <TableHead className="w-[60px] text-center">{t('dailyProgramme.serialNo')}</TableHead>
-                                    <TableHead className="w-[150px]">{t('dailyProgramme.time')}</TableHead>
-                                    <TableHead className="w-[400px]">{t('dailyProgramme.programmeNatureAndPlace')}</TableHead>
-                                    <TableHead className="w-[300px]">{t('dailyProgramme.reference')}</TableHead>
-                                    <TableHead className="w-[80px] no-print text-center">Docs</TableHead>
-                                    <TableHead className="w-[150px] no-print">{t('dailyProgramme.attendance')}</TableHead>
-                                    <TableHead className="w-[100px] no-print">{t('dailyProgramme.actions')}</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {items
-                                    .sort((a, b) => {
-                                      // Sort by start time
-                                      const timeA = a.startTime || '00:00';
-                                      const timeB = b.startTime || '00:00';
-                                      return timeA.localeCompare(timeB);
-                                    })
-                                    .map((item, index) => {
-                                      const duration = calculateDuration(item.startTime, item.endTime);
-                                      let durationLabel: string | null = null;
-                                      if (duration !== null && duration > 0) {
-                                        // First, try to find in predefined options
-                                        const foundOption = DURATION_OPTIONS.find(
-                                          (opt) => Number.parseInt(opt.value, 10) === duration,
-                                        );
-                                        if (foundOption) {
-                                          durationLabel = foundOption.label;
-                                        } else {
-                                          // Generate label using same logic as generateDurationOptions
-                                          const hours = Math.floor(duration / 60);
-                                          const mins = duration % 60;
-                                          if (hours === 0) {
-                                            durationLabel = `${duration} ${t('dailyProgramme.min')}`;
-                                          } else if (mins === 0) {
-                                            durationLabel = hours === 1
-                                              ? `1 ${t('dailyProgramme.hour')}`
-                                              : `${hours} ${t('dailyProgramme.hours')}`;
-                                          } else {
-                                            durationLabel = `${hours}${t('dailyProgramme.hourShort')} ${mins}${t('dailyProgramme.minShort')}`;
-                                          }
-                                        }
-                                      }
 
-                                      // Format serial number based on locale
-                                      const serialNumber = (index + 1).toLocaleString(locale === 'mr' ? 'mr-IN' : 'en-IN');
-
-                                      return (
-                                        <TableRow key={item.id}>
-                                          <TableCell className="w-[60px] text-center font-medium" data-label={t('dailyProgramme.serialNo')}>
-                                            {serialNumber}
-                                          </TableCell>
-                                          <TableCell className="w-[150px]" data-label={t('dailyProgramme.time')}>
-                                            <div className="font-mono font-semibold">
-                                              {formatTimeTo12Hour(item.startTime, locale)}
-                                              {durationLabel && (
-                                                <span className="text-xs font-normal text-muted-foreground ml-1">
-                                                  ({durationLabel})
-                                                </span>
-                                              )}
-                                            </div>
-                                          </TableCell>
-                                          <TableCell className="w-[400px]" data-label={t('dailyProgramme.programmeNatureAndPlace')}>
-                                            <div className="space-y-1">
-                                              <div className="font-medium">
-                                                {item.title}
-                                              </div>
-                                              {item.location && (
-                                                <div className="text-muted-foreground">
-                                                  📍 {item.location}
-                                                </div>
-                                              )}
-                                            </div>
-                                          </TableCell>
-                                          <TableCell className="w-[300px]" data-label={t('dailyProgramme.reference')}>
-                                            {item.remarks ? (
-                                              <div className="text-sm">
-                                                {item.remarks}
-                                              </div>
-                                            ) : (
-                                              <span className="text-muted-foreground">—</span>
-                                            )}
-                                            <div className="text-xs text-muted-foreground mt-1 no-print">
-                                              {item.createdByUserId && (
-                                                <span>Created by: {item.createdByUserId}</span>
-                                              )}
-                                              {item.updatedByUserId && item.updatedByUserId !== item.createdByUserId && (
-                                                <span className="ml-2">Updated by: {item.updatedByUserId}</span>
-                                              )}
-                                            </div>
-                                          </TableCell>
-                                          <TableCell className="w-[80px] no-print text-center" data-label="Docs">
-                                            {attachmentCountsLoading ? (
-                                              <div className="flex items-center justify-center h-8">
-                                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />
-                                              </div>
-                                            ) : (
-                                              <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                className="h-8 px-2"
-                                                onClick={() => handleOpenAttachmentDialog(item)}
-                                                title="Manage reference documents"
-                                              >
-                                                <Paperclip className="h-4 w-4" />
-                                                {attachmentCounts[item.id] > 0 && (
-                                                  <span className="ml-1 text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 min-w-[1.25rem]">
-                                                    {attachmentCounts[item.id]}
-                                                  </span>
-                                                )}
-                                              </Button>
-                                            )}
-                                          </TableCell>
-                                          <TableCell className="w-[150px] no-print" data-label={t('dailyProgramme.attendance')}>
-                                            <Select
-                                              value={
-                                                item.attended == null
-                                                  ? 'not_set'
-                                                  : item.attended
-                                                    ? 'attended'
-                                                    : 'not_attended'
-                                              }
-                                              onValueChange={(value) => {
-                                                const newValue =
-                                                  value === 'not_set'
-                                                    ? null
-                                                    : value === 'attended';
-                                                handleAttendanceChange(item, newValue);
-                                              }}
-                                            >
-                                              <SelectTrigger className="h-8 w-full min-h-11 sm:min-h-8">
-                                                <SelectValue />
-                                              </SelectTrigger>
-                                              <SelectContent>
-                                                <SelectItem value="not_set">
-                                                  <div className="flex items-center gap-2">
-                                                    <Clock className="h-4 w-4 text-muted-foreground" />
-                                                    <span>Not Set</span>
-                                                  </div>
-                                                </SelectItem>
-                                                <SelectItem value="attended">
-                                                  <div className="flex items-center gap-2">
-                                                    <CheckCircle2 className="h-4 w-4 text-green-600" />
-                                                    <span>Attended</span>
-                                                  </div>
-                                                </SelectItem>
-                                                <SelectItem value="not_attended">
-                                                  <div className="flex items-center gap-2">
-                                                    <XCircle className="h-4 w-4 text-red-600" />
-                                                    <span>Not Attended</span>
-                                                  </div>
-                                                </SelectItem>
-                                              </SelectContent>
-                                            </Select>
-                                          </TableCell>
-                                          <TableCell className="w-[100px] no-print" data-label={t('dailyProgramme.actions')}>
-                                            <div className="flex gap-1">
-                                              <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => handleEdit(item)}
-                                                className="h-8 px-2"
-                                              >
-                                                <Pencil className="h-3 w-3" />
-                                              </Button>
-                                              <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() => handleDelete(item.id)}
-                                                className="h-8 px-2 text-destructive hover:text-destructive"
-                                              >
-                                                ×
-                                              </Button>
-                                            </div>
-                                          </TableCell>
+                            {section.dates.map(([dateKey, items]) => {
+                              const date = parseISO(dateKey);
+                              const formattedDate = formatDateWithLocale(date, 'EEEE, dd MMM yyyy', locale);
+                              return (
+                                <div key={`${section.programmeType}:${dateKey}`} className="space-y-3 print-date-section">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 font-semibold">
+                                      <Calendar className="size-4" />
+                                      {formattedDate}
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">
+                                      {items.length}{' '}
+                                      {items.length !== 1 ? t('dailyProgramme.events') : t('dailyProgramme.event')}
+                                    </span>
+                                  </div>
+                                  <div className="overflow-x-auto print-table-wrapper">
+                                    <Table>
+                                      <colgroup>
+                                        <col className="print-col-1" />
+                                        <col className="print-col-2" />
+                                        <col className="print-col-3" />
+                                        <col className="print-col-4" />
+                                        <col className="no-print" />
+                                        <col className="no-print" />
+                                        <col className="no-print" />
+                                      </colgroup>
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead className="w-[60px] text-center">{t('dailyProgramme.serialNo')}</TableHead>
+                                          <TableHead className="w-[150px]">{t('dailyProgramme.time')}</TableHead>
+                                          <TableHead className="w-[400px]">{t('dailyProgramme.programmeNatureAndPlace')}</TableHead>
+                                          <TableHead className="w-[300px]">{t('dailyProgramme.reference')}</TableHead>
+                                          <TableHead className="w-[80px] no-print text-center">{t('dailyProgramme.docs')}</TableHead>
+                                          <TableHead className="w-[150px] no-print">{t('dailyProgramme.attendance')}</TableHead>
+                                          <TableHead className="w-[100px] no-print">{t('dailyProgramme.actions')}</TableHead>
                                         </TableRow>
-                                      );
-                                    })}
-                                </TableBody>
-                              </Table>
-                            </div>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {(() => {
+                                          const sorted = [...items].sort((a, b) => {
+                                            const timeA = a.startTime || '00:00';
+                                            const timeB = b.startTime || '00:00';
+                                            const byTime = timeA.localeCompare(timeB);
+                                            if (byTime !== 0) return byTime;
+                                            const orderA = a.sortOrder ?? 1;
+                                            const orderB = b.sortOrder ?? 1;
+                                            return orderA - orderB;
+                                          });
+
+                                          const groups = new Map<string, ProgrammeItem[]>();
+                                          for (const it of sorted) {
+                                            const key = it.startTime || '00:00';
+                                            const list = groups.get(key) ?? [];
+                                            list.push(it);
+                                            groups.set(key, list);
+                                          }
+
+                                          const groupKeys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+
+                                          return groupKeys.map((startTimeKey) => {
+                                            const group = groups.get(startTimeKey) ?? [];
+                                            const canReorder = group.length > 1;
+                                            const ids = group.map((it) => it.id);
+
+                                            const onDragEnd = async (event: DragEndEvent) => {
+                                              const { active, over } = event;
+                                              if (!over || active.id === over.id) return;
+                                              const oldIndex = ids.indexOf(String(active.id));
+                                              const newIndex = ids.indexOf(String(over.id));
+                                              if (oldIndex < 0 || newIndex < 0) return;
+                                              const next = arrayMove(group, oldIndex, newIndex);
+
+                                              setAllItems((prev) =>
+                                                prev.map((p) => {
+                                                  const idx = next.findIndex((n) => n.id === p.id);
+                                                  if (idx === -1) return p;
+                                                  return { ...p, sortOrder: idx + 1 };
+                                                }),
+                                              );
+
+                                              await persistReorder(next);
+                                            };
+
+                                            return (
+                                              <DndContext
+                                                key={startTimeKey}
+                                                sensors={sensors}
+                                                collisionDetection={closestCenter}
+                                                onDragEnd={onDragEnd}
+                                              >
+                                                <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+                                                  {group.map((item) => (
+                                                    <SortableProgrammeRow
+                                                      key={item.id}
+                                                      item={item}
+                                                      index={sorted.findIndex((s) => s.id === item.id)}
+                                                      locale={locale}
+                                                      t={t}
+                                                      DURATION_OPTIONS={DURATION_OPTIONS}
+                                                      onOpenAttachmentDialog={handleOpenAttachmentDialog}
+                                                      onAttendanceChange={handleAttendanceChange}
+                                                      onEdit={handleEdit}
+                                                      onDelete={handleDelete}
+                                                      enableReorder={canReorder}
+                                                    />
+                                                  ))}
+                                                </SortableContext>
+                                              </DndContext>
+                                            );
+                                          });
+                                        })()}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         );
                       })}
@@ -1252,42 +1534,44 @@ export function DailyProgramme({
       <Dialog open={beneficiaryTaskDialogOpen} onOpenChange={setBeneficiaryTaskDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Beneficiary Task - Token of Gratitude</DialogTitle>
+            <DialogTitle>{t('dailyProgramme.beneficiaryDialogTitle')}</DialogTitle>
             <DialogDescription>
-              The programme item &quot;{programmeItemForTask?.title}&quot; was marked as not attended.
-              Please provide voter details to create a beneficiary task for token of gratitude.
+              {t('dailyProgramme.beneficiaryDialogDescription')
+                .replace('{title}', programmeItemForTask?.title ?? '')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="voterEpicNumber">Voter EPIC Number *</Label>
+              <Label htmlFor="voterEpicNumber">{t('dailyProgramme.voterEpicNumberRequired')}</Label>
               <Input
                 id="voterEpicNumber"
-                placeholder="Enter EPIC number"
+                placeholder={t('dailyProgramme.enterEpicNumber')}
                 value={voterEpicNumber}
                 onChange={(e) => setVoterEpicNumber(e.target.value)}
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="voterName">Voter Name (Optional)</Label>
+              <Label htmlFor="voterName">{t('dailyProgramme.voterNameOptional')}</Label>
               <Input
                 id="voterName"
-                placeholder="Enter voter name"
+                placeholder={t('dailyProgramme.enterVoterName')}
                 value={voterName}
                 onChange={(e) => setVoterName(e.target.value)}
               />
             </div>
             {programmeItemForTask && (
               <div className="rounded-lg bg-muted p-3 text-sm">
-                <div className="font-medium">Programme Details:</div>
+                <div className="font-medium">{t('dailyProgramme.programmeDetails')}</div>
                 <div className="mt-1 text-muted-foreground">
-                  <div>Title: {programmeItemForTask.title}</div>
-                  <div>Date: {(() => {
+                  <div>{t('dailyProgramme.programmeDetailsTitle')}: {programmeItemForTask.title}</div>
+                  <div>{t('dailyProgramme.programmeDetailsDate')}: {(() => {
                     const normalizedDate = programmeItemForTask.date ? normalizeDate(programmeItemForTask.date) : null;
-                    return normalizedDate ? format(parseISO(normalizedDate), 'dd MMM yyyy') : 'N/A';
+                    return normalizedDate
+                      ? formatDateWithLocale(parseISO(normalizedDate), 'dd MMM yyyy', locale)
+                      : t('dailyProgramme.na');
                   })()}</div>
-                  <div>Location: {programmeItemForTask.location}</div>
+                  <div>{t('dailyProgramme.programmeDetailsLocation')}: {programmeItemForTask.location}</div>
                 </div>
               </div>
             )}
@@ -1304,14 +1588,14 @@ export function DailyProgramme({
               }}
               disabled={isCreatingTask}
             >
-              Cancel
+              {t('dailyProgramme.cancel')}
             </Button>
             <Button
               type="button"
               onClick={handleCreateBeneficiaryTask}
               disabled={isCreatingTask || !voterEpicNumber.trim()}
             >
-              {isCreatingTask ? 'Creating...' : 'Create Task'}
+              {isCreatingTask ? t('dailyProgramme.creating') : t('dailyProgramme.createTask')}
             </Button>
           </DialogFooter>
         </DialogContent>

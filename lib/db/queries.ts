@@ -3404,6 +3404,10 @@ export async function createDailyProgrammeItem({
   title,
   location,
   remarks,
+  programmeType,
+  sortOrder,
+  startDate,
+  endDate,
   createdBy,
 }: {
   date: Date | string;
@@ -3412,6 +3416,10 @@ export async function createDailyProgrammeItem({
   title: string;
   location: string;
   remarks?: string;
+  programmeType?: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
+  sortOrder?: number;
+  startDate?: Date | string | null;
+  endDate?: Date | string | null;
   createdBy: string;
 }): Promise<DailyProgramme> {
   try {
@@ -3424,6 +3432,10 @@ export async function createDailyProgrammeItem({
         title,
         location,
         remarks: remarks || null,
+        programmeType: programmeType ?? 'CONSTITUENCY',
+        sortOrder: sortOrder ?? 1,
+        startDate: startDate ? formatDateToString(startDate) : null,
+        endDate: endDate ? formatDateToString(endDate) : null,
         createdBy,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -3471,6 +3483,10 @@ export async function getDailyProgrammeItems({
         location: dailyProgramme.location,
         remarks: dailyProgramme.remarks,
         attended: dailyProgramme.attended,
+        programmeType: dailyProgramme.programmeType,
+        sortOrder: dailyProgramme.sortOrder,
+        startDate: dailyProgramme.startDate,
+        endDate: dailyProgramme.endDate,
         createdBy: dailyProgramme.createdBy,
         updatedBy: dailyProgramme.updatedBy,
         createdAt: dailyProgramme.createdAt,
@@ -3482,7 +3498,7 @@ export async function getDailyProgrammeItems({
       .leftJoin(sql`${user} AS created_by_user`, sql`${dailyProgramme.createdBy} = created_by_user.id`)
       .leftJoin(sql`${user} AS updated_by_user`, sql`${dailyProgramme.updatedBy} = updated_by_user.id`)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(asc(dailyProgramme.date), asc(dailyProgramme.startTime))
+      .orderBy(asc(dailyProgramme.date), asc(dailyProgramme.startTime), asc(dailyProgramme.sortOrder))
       .limit(limit);
 
     return results;
@@ -3490,6 +3506,50 @@ export async function getDailyProgrammeItems({
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get daily programme items',
+    );
+  }
+}
+
+/** Programme rows plus attachments in two queries (avoids N+1 from the client). */
+export async function getDailyProgrammeItemsWithAttachments(
+  args: Parameters<typeof getDailyProgrammeItems>[0] = {},
+): Promise<
+  Array<
+    DailyProgramme & {
+      createdByUserId?: string | null;
+      updatedByUserId?: string | null;
+      attachments: DailyProgrammeAttachment[];
+    }
+  >
+> {
+  try {
+    const items = await getDailyProgrammeItems(args);
+    if (items.length === 0) {
+      return [];
+    }
+
+    const programmeIds = items.map((i) => i.id);
+    const attachmentRows = await db
+      .select()
+      .from(dailyProgrammeAttachment)
+      .where(inArray(dailyProgrammeAttachment.programmeId, programmeIds))
+      .orderBy(asc(dailyProgrammeAttachment.createdAt));
+
+    const byProgrammeId = new Map<string, DailyProgrammeAttachment[]>();
+    for (const row of attachmentRows) {
+      const list = byProgrammeId.get(row.programmeId) ?? [];
+      list.push(row);
+      byProgrammeId.set(row.programmeId, list);
+    }
+
+    return items.map((item) => ({
+      ...item,
+      attachments: byProgrammeId.get(item.id) ?? [],
+    }));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get daily programme items with attachments',
     );
   }
 }
@@ -3522,6 +3582,12 @@ export async function updateDailyProgrammeItem(
     if (updateData.date && updateData.date instanceof Date) {
       updateData.date = formatDateToString(updateData.date);
     }
+    if (updateData.startDate && updateData.startDate instanceof Date) {
+      updateData.startDate = formatDateToString(updateData.startDate);
+    }
+    if (updateData.endDate && updateData.endDate instanceof Date) {
+      updateData.endDate = formatDateToString(updateData.endDate);
+    }
 
     // Normalize empty strings to null for nullable fields
     if (updateData.endTime === '') {
@@ -3529,6 +3595,12 @@ export async function updateDailyProgrammeItem(
     }
     if (updateData.remarks === '') {
       updateData.remarks = null;
+    }
+    if (updateData.startDate === '') {
+      updateData.startDate = null;
+    }
+    if (updateData.endDate === '') {
+      updateData.endDate = null;
     }
 
     if (updatedBy) {
@@ -3548,6 +3620,34 @@ export async function updateDailyProgrammeItem(
     throw new ChatSDKError(
       'bad_request:database',
       errorMessage,
+    );
+  }
+}
+
+export async function updateDailyProgrammeSortOrders(
+  items: Array<{ id: string; sortOrder: number }>,
+  updatedBy?: string,
+): Promise<void> {
+  if (items.length === 0) return;
+  try {
+    await db.transaction(async (tx) => {
+      for (const item of items) {
+        const updateData: any = {
+          sortOrder: item.sortOrder,
+          updatedAt: new Date(),
+        };
+        if (updatedBy) updateData.updatedBy = updatedBy;
+        await tx
+          .update(dailyProgramme)
+          .set(updateData)
+          .where(eq(dailyProgramme.id, item.id));
+      }
+    });
+  } catch (error) {
+    console.error('Database error updating daily programme sort order:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update daily programme sort order',
     );
   }
 }

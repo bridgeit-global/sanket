@@ -2,7 +2,7 @@ import 'server-only';
 
 import { eq, and } from 'drizzle-orm';
 import { db } from './db/queries';
-import { userModulePermissions, user, roleModulePermissions, role } from './db/schema';
+import { userModulePermissions, user, roleModulePermissions, } from './db/schema';
 import { ALL_MODULES, type ModuleDefinition } from './module-constants';
 
 // Re-export hasModuleAccess from queries for convenience

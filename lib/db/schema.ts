@@ -414,6 +414,15 @@ export const dailyProgramme = pgTable('DailyProgramme', {
   location: varchar('location', { length: 255 }).notNull(),
   remarks: text('remarks'),
   attended: boolean('attended'), // null = not set, true = attended, false = not attended
+  programmeType: varchar('programme_type', {
+    length: 30,
+    enum: ['CONSTITUENCY', 'OUTSIDE_CONSTITUENCY'],
+  })
+    .notNull()
+    .default('CONSTITUENCY'),
+  sortOrder: integer('sort_order').notNull().default(1),
+  startDate: date('start_date', { mode: 'string' }),
+  endDate: date('end_date', { mode: 'string' }),
   createdBy: uuid('created_by')
     .notNull()
     .references(() => user.id),
