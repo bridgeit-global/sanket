@@ -431,6 +431,7 @@ function SortableProgrammeRow({
       </TableCell>
       <TableCell className="w-[150px] no-print" data-label={t('dailyProgramme.attendance')}>
         <Select
+
           value={
             item.attended == null
               ? 'not_set'
@@ -446,7 +447,7 @@ function SortableProgrammeRow({
             onAttendanceChange(item, newValue);
           }}
         >
-          <SelectTrigger className="h-8 w-full min-h-11 sm:min-h-8">
+          <SelectTrigger className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1440,143 +1441,143 @@ export function DailyProgramme({
                           section.programmeType === 'OUTSIDE_CONSTITUENCY' &&
                           programmeTypeSections.some((s) => s.programmeType === 'CONSTITUENCY');
                         return (
-                        <div
-                          key={section.programmeType}
-                          className={
-                            'space-y-4 print-programme-type-section' +
-                            (printOutsideOnNewPage ? ' print-programme-outside-new-page' : '')
-                          }
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="text-base font-semibold">
-                              {getProgrammeTypeLabel(section.programmeType, t)}
-                            </div>
-                            <span className="text-xs text-muted-foreground">
-                              {section.dates.length}{' '}
-                              {section.dates.length !== 1 ? t('dailyProgramme.dates') : t('dailyProgramme.date')}
-                            </span>
-                          </div>
-
-                          {section.dates.map(([dateKey, items]) => {
-                            const date = parseISO(dateKey);
-                            const formattedDate = formatDateWithLocale(date, 'EEEE, dd MMM yyyy', locale);
-                            return (
-                              <div key={`${section.programmeType}:${dateKey}`} className="space-y-3 print-date-section">
-                                <div className="flex flex-wrap items-center justify-between gap-2">
-                                  <div className="flex items-center gap-2 font-semibold">
-                                    <Calendar className="size-4" />
-                                    {formattedDate}
-                                  </div>
-                                  <span className="text-xs text-muted-foreground">
-                                    {items.length}{' '}
-                                    {items.length !== 1 ? t('dailyProgramme.events') : t('dailyProgramme.event')}
-                                  </span>
-                                </div>
-                                <div className="overflow-x-auto print-table-wrapper">
-                                  <Table>
-                                    <colgroup>
-                                      <col className="print-col-1" />
-                                      <col className="print-col-2" />
-                                      <col className="print-col-3" />
-                                      <col className="print-col-4" />
-                                      <col className="no-print" />
-                                      <col className="no-print" />
-                                      <col className="no-print" />
-                                    </colgroup>
-                                    <TableHeader>
-                                      <TableRow>
-                                        <TableHead className="w-[60px] text-center">{t('dailyProgramme.serialNo')}</TableHead>
-                                        <TableHead className="w-[150px]">{t('dailyProgramme.time')}</TableHead>
-                                        <TableHead className="w-[400px]">{t('dailyProgramme.programmeNatureAndPlace')}</TableHead>
-                                        <TableHead className="w-[300px]">{t('dailyProgramme.reference')}</TableHead>
-                                        <TableHead className="w-[80px] no-print text-center">{t('dailyProgramme.docs')}</TableHead>
-                                        <TableHead className="w-[150px] no-print">{t('dailyProgramme.attendance')}</TableHead>
-                                        <TableHead className="w-[100px] no-print">{t('dailyProgramme.actions')}</TableHead>
-                                      </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                      {(() => {
-                                        const sorted = [...items].sort((a, b) => {
-                                          const timeA = a.startTime || '00:00';
-                                          const timeB = b.startTime || '00:00';
-                                          const byTime = timeA.localeCompare(timeB);
-                                          if (byTime !== 0) return byTime;
-                                          const orderA = a.sortOrder ?? 1;
-                                          const orderB = b.sortOrder ?? 1;
-                                          return orderA - orderB;
-                                        });
-
-                                        const groups = new Map<string, ProgrammeItem[]>();
-                                        for (const it of sorted) {
-                                          const key = it.startTime || '00:00';
-                                          const list = groups.get(key) ?? [];
-                                          list.push(it);
-                                          groups.set(key, list);
-                                        }
-
-                                        const groupKeys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
-
-                                        return groupKeys.map((startTimeKey) => {
-                                          const group = groups.get(startTimeKey) ?? [];
-                                          const canReorder = group.length > 1;
-                                          const ids = group.map((it) => it.id);
-
-                                          const onDragEnd = async (event: DragEndEvent) => {
-                                            const { active, over } = event;
-                                            if (!over || active.id === over.id) return;
-                                            const oldIndex = ids.indexOf(String(active.id));
-                                            const newIndex = ids.indexOf(String(over.id));
-                                            if (oldIndex < 0 || newIndex < 0) return;
-                                            const next = arrayMove(group, oldIndex, newIndex);
-
-                                            setAllItems((prev) =>
-                                              prev.map((p) => {
-                                                const idx = next.findIndex((n) => n.id === p.id);
-                                                if (idx === -1) return p;
-                                                return { ...p, sortOrder: idx + 1 };
-                                              }),
-                                            );
-
-                                            await persistReorder(next);
-                                          };
-
-                                          return (
-                                            <DndContext
-                                              key={startTimeKey}
-                                              sensors={sensors}
-                                              collisionDetection={closestCenter}
-                                              onDragEnd={onDragEnd}
-                                            >
-                                              <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-                                                {group.map((item) => (
-                                                  <SortableProgrammeRow
-                                                    key={item.id}
-                                                    item={item}
-                                                    index={sorted.findIndex((s) => s.id === item.id)}
-                                                    locale={locale}
-                                                    t={t}
-                                                    DURATION_OPTIONS={DURATION_OPTIONS}
-                                                    attachmentCountsLoading={attachmentCountsLoading}
-                                                    attachmentCounts={attachmentCounts}
-                                                    onOpenAttachmentDialog={handleOpenAttachmentDialog}
-                                                    onAttendanceChange={handleAttendanceChange}
-                                                    onEdit={handleEdit}
-                                                    onDelete={handleDelete}
-                                                    enableReorder={canReorder}
-                                                  />
-                                                ))}
-                                              </SortableContext>
-                                            </DndContext>
-                                          );
-                                        });
-                                      })()}
-                                    </TableBody>
-                                  </Table>
-                                </div>
+                          <div
+                            key={section.programmeType}
+                            className={
+                              'space-y-4 print-programme-type-section' +
+                              (printOutsideOnNewPage ? ' print-programme-outside-new-page' : '')
+                            }
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-base font-semibold">
+                                {getProgrammeTypeLabel(section.programmeType, t)}
                               </div>
-                            );
-                          })}
-                        </div>
+                              <span className="text-xs text-muted-foreground">
+                                {section.dates.length}{' '}
+                                {section.dates.length !== 1 ? t('dailyProgramme.dates') : t('dailyProgramme.date')}
+                              </span>
+                            </div>
+
+                            {section.dates.map(([dateKey, items]) => {
+                              const date = parseISO(dateKey);
+                              const formattedDate = formatDateWithLocale(date, 'EEEE, dd MMM yyyy', locale);
+                              return (
+                                <div key={`${section.programmeType}:${dateKey}`} className="space-y-3 print-date-section">
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 font-semibold">
+                                      <Calendar className="size-4" />
+                                      {formattedDate}
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">
+                                      {items.length}{' '}
+                                      {items.length !== 1 ? t('dailyProgramme.events') : t('dailyProgramme.event')}
+                                    </span>
+                                  </div>
+                                  <div className="overflow-x-auto print-table-wrapper">
+                                    <Table>
+                                      <colgroup>
+                                        <col className="print-col-1" />
+                                        <col className="print-col-2" />
+                                        <col className="print-col-3" />
+                                        <col className="print-col-4" />
+                                        <col className="no-print" />
+                                        <col className="no-print" />
+                                        <col className="no-print" />
+                                      </colgroup>
+                                      <TableHeader>
+                                        <TableRow>
+                                          <TableHead className="w-[60px] text-center">{t('dailyProgramme.serialNo')}</TableHead>
+                                          <TableHead className="w-[150px]">{t('dailyProgramme.time')}</TableHead>
+                                          <TableHead className="w-[400px]">{t('dailyProgramme.programmeNatureAndPlace')}</TableHead>
+                                          <TableHead className="w-[300px]">{t('dailyProgramme.reference')}</TableHead>
+                                          <TableHead className="w-[80px] no-print text-center">{t('dailyProgramme.docs')}</TableHead>
+                                          <TableHead className="w-[150px] no-print">{t('dailyProgramme.attendance')}</TableHead>
+                                          <TableHead className="w-[100px] no-print">{t('dailyProgramme.actions')}</TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {(() => {
+                                          const sorted = [...items].sort((a, b) => {
+                                            const timeA = a.startTime || '00:00';
+                                            const timeB = b.startTime || '00:00';
+                                            const byTime = timeA.localeCompare(timeB);
+                                            if (byTime !== 0) return byTime;
+                                            const orderA = a.sortOrder ?? 1;
+                                            const orderB = b.sortOrder ?? 1;
+                                            return orderA - orderB;
+                                          });
+
+                                          const groups = new Map<string, ProgrammeItem[]>();
+                                          for (const it of sorted) {
+                                            const key = it.startTime || '00:00';
+                                            const list = groups.get(key) ?? [];
+                                            list.push(it);
+                                            groups.set(key, list);
+                                          }
+
+                                          const groupKeys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+
+                                          return groupKeys.map((startTimeKey) => {
+                                            const group = groups.get(startTimeKey) ?? [];
+                                            const canReorder = group.length > 1;
+                                            const ids = group.map((it) => it.id);
+
+                                            const onDragEnd = async (event: DragEndEvent) => {
+                                              const { active, over } = event;
+                                              if (!over || active.id === over.id) return;
+                                              const oldIndex = ids.indexOf(String(active.id));
+                                              const newIndex = ids.indexOf(String(over.id));
+                                              if (oldIndex < 0 || newIndex < 0) return;
+                                              const next = arrayMove(group, oldIndex, newIndex);
+
+                                              setAllItems((prev) =>
+                                                prev.map((p) => {
+                                                  const idx = next.findIndex((n) => n.id === p.id);
+                                                  if (idx === -1) return p;
+                                                  return { ...p, sortOrder: idx + 1 };
+                                                }),
+                                              );
+
+                                              await persistReorder(next);
+                                            };
+
+                                            return (
+                                              <DndContext
+                                                key={startTimeKey}
+                                                sensors={sensors}
+                                                collisionDetection={closestCenter}
+                                                onDragEnd={onDragEnd}
+                                              >
+                                                <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+                                                  {group.map((item) => (
+                                                    <SortableProgrammeRow
+                                                      key={item.id}
+                                                      item={item}
+                                                      index={sorted.findIndex((s) => s.id === item.id)}
+                                                      locale={locale}
+                                                      t={t}
+                                                      DURATION_OPTIONS={DURATION_OPTIONS}
+                                                      attachmentCountsLoading={attachmentCountsLoading}
+                                                      attachmentCounts={attachmentCounts}
+                                                      onOpenAttachmentDialog={handleOpenAttachmentDialog}
+                                                      onAttendanceChange={handleAttendanceChange}
+                                                      onEdit={handleEdit}
+                                                      onDelete={handleDelete}
+                                                      enableReorder={canReorder}
+                                                    />
+                                                  ))}
+                                                </SortableContext>
+                                              </DndContext>
+                                            );
+                                          });
+                                        })()}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
                         );
                       })}
                     </div>
