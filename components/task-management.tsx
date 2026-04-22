@@ -89,6 +89,7 @@ function QrTokenScannerDialog({
     const streamRef = useRef<MediaStream | null>(null);
     const rafRef = useRef<number | null>(null);
     const runningRef = useRef(false);
+    const zxingControlsRef = useRef<{ stop: () => void } | null>(null);
 
     useEffect(() => {
         const stop = () => {
@@ -97,6 +98,8 @@ function QrTokenScannerDialog({
                 cancelAnimationFrame(rafRef.current);
                 rafRef.current = null;
             }
+            zxingControlsRef.current?.stop();
+            zxingControlsRef.current = null;
             const stream = streamRef.current;
             if (stream) {
                 for (const track of stream.getTracks()) track.stop();
@@ -109,63 +112,88 @@ function QrTokenScannerDialog({
         const start = async () => {
             if (!open) return;
             if (typeof window === 'undefined') return;
-            if (!navigator.mediaDevices?.getUserMedia) {
-                toast({ type: 'error', description: 'Camera is not available on this device.' });
-                onOpenChange(false);
+            if (!window.isSecureContext) {
+                toast({
+                    type: 'error',
+                    description:
+                        'Camera requires HTTPS on mobile. Open this page over HTTPS (or use localhost on the same device).',
+                });
                 return;
             }
-            if (!('BarcodeDetector' in window)) {
-                toast({ type: 'error', description: 'QR scanning is not supported in this browser.' });
-                onOpenChange(false);
+            if (!navigator.mediaDevices?.getUserMedia) {
+                toast({ type: 'error', description: 'Camera is not available on this device.' });
                 return;
             }
 
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: { ideal: 'environment' } },
-                    audio: false,
-                });
-                streamRef.current = stream;
                 const video = videoRef.current;
                 if (!video) return;
-                video.srcObject = stream;
-                await video.play();
 
-                const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
-                runningRef.current = true;
+                // Prefer native BarcodeDetector when available; fall back to ZXing for iOS/older browsers.
+                if ('BarcodeDetector' in window) {
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: { ideal: 'environment' } },
+                        audio: false,
+                    });
+                    streamRef.current = stream;
+                    video.srcObject = stream;
+                    await video.play();
 
-                const tick = async () => {
-                    if (!runningRef.current) return;
-                    const v = videoRef.current;
-                    if (!v || v.readyState < 2) {
+                    const detector = new (window as any).BarcodeDetector({ formats: ['qr_code'] });
+                    runningRef.current = true;
+
+                    const tick = async () => {
+                        if (!runningRef.current) return;
+                        const v = videoRef.current;
+                        if (!v || v.readyState < 2) {
+                            rafRef.current = requestAnimationFrame(() => void tick());
+                            return;
+                        }
+                        try {
+                            const bitmap = await createImageBitmap(v);
+                            const codes = await detector.detect(bitmap);
+                            bitmap.close?.();
+                            const rawValue = codes?.[0]?.rawValue as string | undefined;
+                            if (rawValue) {
+                                const token = extractTokenFromQrPayload(rawValue);
+                                if (token) {
+                                    onTokenDetected(token);
+                                    onOpenChange(false);
+                                    stop();
+                                    return;
+                                }
+                            }
+                        } catch {
+                            // keep scanning
+                        }
                         rafRef.current = requestAnimationFrame(() => void tick());
-                        return;
-                    }
-                    try {
-                        const bitmap = await createImageBitmap(v);
-                        const codes = await detector.detect(bitmap);
-                        bitmap.close?.();
-                        const rawValue = codes?.[0]?.rawValue as string | undefined;
-                        if (rawValue) {
-                            const token = extractTokenFromQrPayload(rawValue);
+                    };
+
+                    rafRef.current = requestAnimationFrame(() => void tick());
+                } else {
+                    const { BrowserQRCodeReader } = await import('@zxing/browser');
+                    const reader = new BrowserQRCodeReader();
+                    const controls = await reader.decodeFromVideoDevice(
+                        undefined,
+                        video,
+                        (result, error, c) => {
+                            zxingControlsRef.current = c ?? zxingControlsRef.current;
+                            const text = result?.getText?.() ?? '';
+                            const token = text ? extractTokenFromQrPayload(text) : null;
                             if (token) {
                                 onTokenDetected(token);
                                 onOpenChange(false);
                                 stop();
-                                return;
+                            } else if (error) {
+                                // ignore not-found / transient errors while scanning
                             }
-                        }
-                    } catch {
-                        // keep scanning
-                    }
-                    rafRef.current = requestAnimationFrame(() => void tick());
-                };
-
-                rafRef.current = requestAnimationFrame(() => void tick());
+                        },
+                    );
+                    zxingControlsRef.current = controls;
+                }
             } catch (error) {
                 console.error('QR scanner error:', error);
                 toast({ type: 'error', description: 'Could not access camera. Please allow camera permission.' });
-                onOpenChange(false);
             }
         };
 
