@@ -5,7 +5,6 @@ import { UserManagementTabs } from '@/components/user-management-tabs';
 import { UserManagementHeader } from '@/components/user-management-header';
 
 export default async function UserManagementPage() {
-  console.log('user-management')
   const session = await auth();
 
   if (!session?.user) {
@@ -13,7 +12,6 @@ export default async function UserManagementPage() {
   }
 
   const hasAccess = await hasModuleAccess(session.user.id, 'user-management');
-  console.log('hasAccess', hasAccess)
 
   if (!hasAccess) {
     redirect('/unauthorized');
