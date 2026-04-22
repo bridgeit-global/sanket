@@ -119,32 +119,32 @@ function generateDurationOptions(
   return options;
 }
 
-// Calculate end time from start time and duration (in minutes)
-function calculateEndTime(startTime: string, durationMinutes: number): string {
-  if (!startTime) return '';
-
-  const [hours, minutes] = startTime.split(':').map(Number);
-  const startTotalMinutes = hours * 60 + minutes;
-  const endTotalMinutes = startTotalMinutes + durationMinutes;
-
-  const endHours = Math.floor(endTotalMinutes / 60) % 24;
-  const endMins = endTotalMinutes % 60;
-
-  return `${endHours.toString().padStart(2, '0')}:${endMins.toString().padStart(2, '0')}`;
+function parseTimeToMinutes(time?: string | null): number | null {
+  if (!time) return null;
+  const match = /^(\d{2}):(\d{2})$/.exec(time);
+  if (!match) return null;
+  const hours = Number(match[1]);
+  const minutes = Number(match[2]);
+  if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return null;
+  if (hours < 0 || hours > 23) return null;
+  if (minutes < 0 || minutes > 59) return null;
+  return hours * 60 + minutes;
 }
 
-// Calculate duration in minutes from start and end time
+// Calculate duration in minutes from start and end time (same clock time = full 24 hours)
 function calculateDuration(
   startTime?: string | null,
   endTime?: string | null,
 ): number | null {
   if (!startTime || !endTime) return null;
 
-  const [startHours, startMins] = startTime.split(':').map(Number);
-  const [endHours, endMins] = endTime.split(':').map(Number);
+  const startTotalMinutes = parseTimeToMinutes(startTime);
+  const endTotalMinutes = parseTimeToMinutes(endTime);
+  if (startTotalMinutes === null || endTotalMinutes === null) return null;
 
-  const startTotalMinutes = startHours * 60 + startMins;
-  const endTotalMinutes = endHours * 60 + endMins;
+  if (startTotalMinutes === endTotalMinutes) {
+    return 24 * 60;
+  }
 
   return endTotalMinutes - startTotalMinutes;
 }
@@ -526,14 +526,12 @@ export function DailyProgramme({
     startDate: format(new Date(), 'yyyy-MM-dd'),
     endDate: format(new Date(), 'yyyy-MM-dd'),
     startTime: '',
-    duration: '',
+    endTime: '',
     title: '',
     location: '',
     remarks: '',
     programmeType: 'CONSTITUENCY' as 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY',
   });
-  /** Remount duration Select when clearing the form — Radix Select can keep the old label after value resets to empty. */
-  const [durationSelectKey, setDurationSelectKey] = useState(0);
 
   // Delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -701,10 +699,11 @@ export function DailyProgramme({
         form.startDate &&
         form.endDate &&
         form.startTime.trim() &&
+        form.endTime.trim() &&
         form.title.trim() &&
         form.location.trim(),
       ),
-    [form.endDate, form.startDate, form.startTime, form.title, form.location],
+    [form.endDate, form.startDate, form.startTime, form.endTime, form.title, form.location],
   );
 
   useEffect(() => {
@@ -729,14 +728,21 @@ export function DailyProgramme({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const effectiveDate = form.startDate;
-    if (!effectiveDate || !form.startTime || !form.title || !form.location) return;
+    if (!effectiveDate || !form.startTime || !form.endTime || !form.title || !form.location) return;
+
+    const startMinutes = parseTimeToMinutes(form.startTime);
+    const endMinutes = parseTimeToMinutes(form.endTime);
+    if (startMinutes === null || endMinutes === null) {
+      toast.error(t('dailyProgramme.invalidTime'));
+      return;
+    }
+    if (endMinutes < startMinutes) {
+      toast.error(t('dailyProgramme.endTimeMustBeAfterStartTime'));
+      return;
+    }
 
     try {
-      // Calculate endTime from startTime and duration
-      const durationMinutes = form.duration ? Number.parseInt(form.duration, 10) : 0;
-      const endTime = durationMinutes > 0
-        ? calculateEndTime(form.startTime, durationMinutes)
-        : undefined;
+      const endTime = form.endTime.trim() ? form.endTime : undefined;
 
       if (editingId) {
         // Update existing item
@@ -765,13 +771,12 @@ export function DailyProgramme({
             startDate: format(new Date(), 'yyyy-MM-dd'),
             endDate: format(new Date(), 'yyyy-MM-dd'),
             startTime: '',
-            duration: '',
+            endTime: '',
             title: '',
             location: '',
             remarks: '',
             programmeType: 'CONSTITUENCY',
           });
-          setDurationSelectKey((k) => k + 1);
         } else {
           toast.error(t('dailyProgramme.failedToUpdateProgrammeItem'));
         }
@@ -802,13 +807,12 @@ export function DailyProgramme({
             startDate: format(new Date(), 'yyyy-MM-dd'),
             endDate: format(new Date(), 'yyyy-MM-dd'),
             startTime: '',
-            duration: '',
+            endTime: '',
             title: '',
             location: '',
             remarks: '',
             programmeType: 'CONSTITUENCY',
           });
-          setDurationSelectKey((k) => k + 1);
         } else {
           toast.error(t('dailyProgramme.failedToAddProgrammeItem'));
         }
@@ -820,7 +824,6 @@ export function DailyProgramme({
   };
 
   const handleEdit = (item: ProgrammeItem) => {
-    const duration = calculateDuration(item.startTime, item.endTime);
     setEditingId(item.id);
     const normalizedDate = normalizeDate(item.date) || format(new Date(), 'yyyy-MM-dd');
     const normalizedStartDate = normalizeDate(item.startDate ?? null);
@@ -836,7 +839,7 @@ export function DailyProgramme({
       startDate: normalizedStartDate || normalizedDate,
       endDate: normalizedEndDate || normalizedDate,
       startTime: item.startTime,
-      duration: duration ? duration.toString() : '',
+      endTime: item.endTime ?? '',
       title: item.title,
       location: item.location,
       remarks: item.remarks || '',
@@ -857,13 +860,12 @@ export function DailyProgramme({
       startDate: format(new Date(), 'yyyy-MM-dd'),
       endDate: format(new Date(), 'yyyy-MM-dd'),
       startTime: '',
-      duration: '',
+      endTime: '',
       title: '',
       location: '',
       remarks: '',
       programmeType: 'CONSTITUENCY',
     });
-    setDurationSelectKey((k) => k + 1);
   };
 
   const sensors = useSensors(
@@ -1211,23 +1213,15 @@ export function DailyProgramme({
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="duration">{t('dailyProgramme.duration')}</Label>
-                  <Select
-                    key={durationSelectKey}
-                    value={form.duration || undefined}
-                    onValueChange={(value) => setForm({ ...form, duration: value })}
-                  >
-                    <SelectTrigger id="duration" className="min-h-11">
-                      <SelectValue placeholder={t('dailyProgramme.selectDuration')} />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[200px]">
-                      {DURATION_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="endTime">{t('dailyProgramme.endTime')}</Label>
+                  <TimePicker
+                    id="endTime"
+                    value={form.endTime || undefined}
+                    onChange={(value) => setForm({ ...form, endTime: value })}
+                    placeholder={t('dailyProgramme.selectTime')}
+                    required
+                    className="min-h-11"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="programmeType">{t('dailyProgramme.programmeType')}</Label>
