@@ -90,13 +90,20 @@ function QrTokenScannerDialog({
     const rafRef = useRef<number | null>(null);
     const runningRef = useRef(false);
     const zxingControlsRef = useRef<{ stop: () => void } | null>(null);
+    const startSeqRef = useRef(0);
+    const retryTimeoutRef = useRef<number | null>(null);
 
     useEffect(() => {
         const stop = () => {
+            startSeqRef.current += 1;
             runningRef.current = false;
             if (rafRef.current != null) {
                 cancelAnimationFrame(rafRef.current);
                 rafRef.current = null;
+            }
+            if (retryTimeoutRef.current != null) {
+                window.clearTimeout(retryTimeoutRef.current);
+                retryTimeoutRef.current = null;
             }
             zxingControlsRef.current?.stop();
             zxingControlsRef.current = null;
@@ -106,12 +113,16 @@ function QrTokenScannerDialog({
             }
             streamRef.current = null;
             const video = videoRef.current;
-            if (video) video.srcObject = null;
+            if (video) {
+                video.pause?.();
+                video.srcObject = null;
+            }
         };
 
         const start = async () => {
             if (!open) return;
             if (typeof window === 'undefined') return;
+            const mySeq = startSeqRef.current;
             if (!window.isSecureContext) {
                 toast({
                     type: 'error',
@@ -128,6 +139,14 @@ function QrTokenScannerDialog({
             try {
                 const video = videoRef.current;
                 if (!video) return;
+                if (!open || mySeq !== startSeqRef.current) return;
+                // iOS/Safari: make autoplay + inline playback more reliable.
+                video.muted = true;
+                video.autoplay = true;
+                video.playsInline = true;
+                video.setAttribute('muted', '');
+                video.setAttribute('autoplay', '');
+                video.setAttribute('playsinline', '');
 
                 // Prefer native BarcodeDetector when available; fall back to ZXing for iOS/older browsers.
                 if ('BarcodeDetector' in window) {
@@ -135,6 +154,10 @@ function QrTokenScannerDialog({
                         video: { facingMode: { ideal: 'environment' } },
                         audio: false,
                     });
+                    if (!open || mySeq !== startSeqRef.current) {
+                        for (const track of stream.getTracks()) track.stop();
+                        return;
+                    }
                     streamRef.current = stream;
                     video.srcObject = stream;
                     await video.play();
@@ -190,10 +213,29 @@ function QrTokenScannerDialog({
                         },
                     );
                     zxingControlsRef.current = controls;
+                    await video.play().catch(() => {
+                        // Some browsers require a user gesture; ZXing may still decode even if preview can't autoplay.
+                    });
                 }
             } catch (error) {
                 console.error('QR scanner error:', error);
-                toast({ type: 'error', description: 'Could not access camera. Please allow camera permission.' });
+                const err = error as { name?: string; message?: string } | null;
+                const name = err?.name ? ` (${err.name})` : '';
+                if (err?.name === 'AbortError' && open) {
+                    if (retryTimeoutRef.current == null) {
+                        retryTimeoutRef.current = window.setTimeout(() => {
+                            retryTimeoutRef.current = null;
+                            void start();
+                        }, 300);
+                    }
+                    return;
+                }
+                toast({
+                    type: 'error',
+                    description:
+                        `Could not access camera${name}. ` +
+                        'Please allow camera permission and close any other app/tab using the camera.',
+                });
             }
         };
 
@@ -214,7 +256,7 @@ function QrTokenScannerDialog({
                 </DialogHeader>
 
                 <div className="overflow-hidden rounded-lg border bg-black">
-                    <video ref={videoRef} className="w-full h-[320px] object-cover" playsInline muted />
+                    <video ref={videoRef} className="w-full h-[320px] object-cover" playsInline muted autoPlay />
                 </div>
 
                 <div className="flex justify-end gap-2">
