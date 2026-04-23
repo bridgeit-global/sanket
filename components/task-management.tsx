@@ -661,7 +661,7 @@ export function TaskManagement() {
                 onTokenDetected={(token) => {
                     setFilterToken(token);
                     setCurrentPage(1);
-                    fetchTasks();
+                    setCommunityServicesPage(1);
                 }}
             />
 
