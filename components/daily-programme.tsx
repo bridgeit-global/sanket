@@ -154,7 +154,7 @@ function formatTimeTo12Hour(time24: string, locale: 'en' | 'mr'): string {
 
   // Use Intl.DateTimeFormat to get localized time format
   const formatter = new Intl.DateTimeFormat(locale === 'mr' ? 'mr-IN' : 'en-IN', {
-    hour: 'numeric',
+    hour: '2-digit',
     minute: '2-digit',
     hour12: true,
   });
@@ -314,29 +314,6 @@ function SortableProgrammeRow({
     opacity: isDragging ? 0.75 : undefined,
   };
 
-  const duration = calculateDuration(item.startTime, item.endTime);
-  let durationLabel: string | null = null;
-  if (duration !== null && duration > 0) {
-    const foundOption = DURATION_OPTIONS.find(
-      (opt) => Number.parseInt(opt.value, 10) === duration,
-    );
-    if (foundOption) {
-      durationLabel = foundOption.label;
-    } else {
-      const hours = Math.floor(duration / 60);
-      const mins = duration % 60;
-      if (hours === 0) {
-        durationLabel = `${duration} ${t('dailyProgramme.min')}`;
-      } else if (mins === 0) {
-        durationLabel = hours === 1
-          ? `1 ${t('dailyProgramme.hour')}`
-          : `${hours} ${t('dailyProgramme.hours')}`;
-      } else {
-        durationLabel = `${hours}${t('dailyProgramme.hourShort')} ${mins}${t('dailyProgramme.minShort')}`;
-      }
-    }
-  }
-
   const serialNumber = (index + 1).toLocaleString(locale === 'mr' ? 'mr-IN' : 'en-IN');
 
   return (
@@ -347,11 +324,9 @@ function SortableProgrammeRow({
       <TableCell className="w-[150px]" data-label={t('dailyProgramme.time')}>
         <div className="font-mono font-semibold">
           {formatTimeTo12Hour(item.startTime, locale)}
-          {durationLabel && (
-            <span className="text-xs font-normal text-muted-foreground ml-1">
-              ({durationLabel})
-            </span>
-          )}
+          {item.endTime
+            ? ` – ${formatTimeTo12Hour(item.endTime, locale)}`
+            : null}
         </div>
         {item.programmeType && (
           <div className="text-xs text-muted-foreground mt-1">
@@ -718,11 +693,10 @@ export function DailyProgramme({
         form.startDate &&
         form.endDate &&
         form.startTime.trim() &&
-        form.endTime.trim() &&
         form.title.trim() &&
         form.location.trim(),
       ),
-    [form.endDate, form.startDate, form.startTime, form.endTime, form.title, form.location],
+    [form.endDate, form.startDate, form.startTime, form.title, form.location],
   );
 
   useEffect(() => {
@@ -737,21 +711,22 @@ export function DailyProgramme({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const effectiveDate = form.startDate;
-    if (!effectiveDate || !form.startTime || !form.endTime || !form.title || !form.location) return;
+    if (!effectiveDate || !form.startTime || !form.title || !form.location) return;
 
     const startMinutes = parseTimeToMinutes(form.startTime);
-    const endMinutes = parseTimeToMinutes(form.endTime);
-    if (startMinutes === null || endMinutes === null) {
+    const trimmedEnd = form.endTime.trim();
+    const endMinutes = trimmedEnd ? parseTimeToMinutes(trimmedEnd) : null;
+    if (startMinutes === null || (trimmedEnd && endMinutes === null)) {
       toast.error(t('dailyProgramme.invalidTime'));
       return;
     }
-    if (endMinutes < startMinutes) {
+    if (endMinutes !== null && endMinutes < startMinutes) {
       toast.error(t('dailyProgramme.endTimeMustBeAfterStartTime'));
       return;
     }
 
     try {
-      const endTime = form.endTime.trim() ? form.endTime : undefined;
+      const endTime = trimmedEnd ? trimmedEnd : undefined;
 
       if (editingId) {
         // Update existing item
@@ -1181,7 +1156,6 @@ export function DailyProgramme({
                     value={form.endTime || undefined}
                     onChange={(value) => setForm({ ...form, endTime: value })}
                     placeholder={t('dailyProgramme.selectTime')}
-                    required
                     className="min-h-11"
                   />
                 </div>
