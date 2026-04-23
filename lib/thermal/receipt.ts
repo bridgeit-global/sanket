@@ -14,6 +14,11 @@ type ShareOutcome = 'shared' | 'copied' | 'downloaded' | 'cancelled';
 type ThermalPdfOptions = {
   headerImageUrl?: string;
   /**
+   * Thermal roll paper width in millimeters.
+   * Common sizes: 58mm, 80mm, 88mm.
+   */
+  paperWidthMm?: number;
+  /**
    * Optional QR content (token/URL/etc). When provided, a QR code is rendered
    * at the bottom of the PDF ticket for easy scanning.
    */
@@ -26,9 +31,9 @@ type LoadedImage = {
   visualCenterOffsetXPx: number;
 };
 
-const DEFAULT_WIDTH = 22;
-const PDF_PAGE_WIDTH_MM = 58;
-const RECEIPT_TEXT_X_MM = 2;
+const DEFAULT_WIDTH = 32;
+const DEFAULT_PAPER_WIDTH_MM = 88;
+const RECEIPT_TEXT_X_MM = 4;
 
 function sanitizeForThermal(value: string): string {
   return value
@@ -134,7 +139,6 @@ export function buildThermalTicketText(data: ThermalReceiptData): string {
     ...formatLabelValue('Time', timeString, width),
     separator,
     ...formatLabelValue('Name', data.name, width),
-    ...formatLabelValue('Mobile', data.mobile || 'xxxxxxxxxx', width),
     separator,
     ...formatLabelValue('Service', data.serviceName, width),
     separator,
@@ -243,10 +247,11 @@ async function loadImageAsDataUrl(imageUrl: string): Promise<LoadedImage | null>
 
 async function buildThermalPdfBlob(content: string, options?: ThermalPdfOptions): Promise<Blob> {
   const lines = content.split('\n');
-  const mmPerLine = 4.8;
+  const mmPerLine = 5.6;
   const topBottomPadding = 6;
   const qrSizeMm = 30;
   const qrBottomGapMm = 16;
+  const paperWidthMm = Math.max(40, Math.min(120, options?.paperWidthMm ?? DEFAULT_PAPER_WIDTH_MM));
   const qrAreaHeight = options?.qrValue ? qrSizeMm + qrBottomGapMm + 6 : 0;
   const logoAreaHeight = options?.headerImageUrl ? 34 : 0;
   const pageHeight = Math.max(
@@ -257,33 +262,31 @@ async function buildThermalPdfBlob(content: string, options?: ThermalPdfOptions)
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',
-    // 58mm roll width produces larger, more readable thermal output.
-    format: [PDF_PAGE_WIDTH_MM, pageHeight],
+    format: [paperWidthMm, pageHeight],
     compress: true,
   });
 
   const baseFontFamily = 'courier';
-  const baseFontSize = 11;
-  const tokenLabelFontSize = 12;
-  const tokenFontSize = 18;
+  const baseFontSize = 13;
+  const tokenLabelFontSize = 15;
+  const tokenFontSize = 24;
 
   doc.setFont(baseFontFamily, 'normal');
   doc.setFontSize(baseFontSize);
-  const textBlockWidth = doc.getTextWidth('-'.repeat(DEFAULT_WIDTH));
-  const textBlockCenterX = RECEIPT_TEXT_X_MM + (textBlockWidth / 2);
+  const pageCenterX = paperWidthMm / 2;
 
   let y = topBottomPadding;
 
   if (options?.headerImageUrl) {
     const imageData = await loadImageAsDataUrl(options.headerImageUrl);
     if (imageData && imageData.width > 0 && imageData.height > 0) {
-      const maxImageWidth = 32;
+      const maxImageWidth = Math.min(42, Math.max(24, paperWidthMm - 16));
       const maxImageHeight = 32;
       const scale = Math.min(maxImageWidth / imageData.width, maxImageHeight / imageData.height);
       const imageWidth = imageData.width * scale;
       const imageHeight = imageData.height * scale;
       const visualOffsetMm = imageData.visualCenterOffsetXPx * scale;
-      const x = textBlockCenterX - (imageWidth / 2) - visualOffsetMm;
+      const x = Math.max(0, pageCenterX - imageWidth / 2 - visualOffsetMm);
       doc.addImage(imageData.dataUrl, 'PNG', x, y, imageWidth, imageHeight, undefined, 'FAST');
       y += imageHeight + 2;
     }
@@ -297,7 +300,7 @@ async function buildThermalPdfBlob(content: string, options?: ThermalPdfOptions)
       doc.setFontSize(tokenFontSize);
 
       const tokenTextWidth = doc.getTextWidth(line);
-      const tokenX = textBlockCenterX - tokenTextWidth / 2;
+      const tokenX = pageCenterX - tokenTextWidth / 2;
       doc.text(line, tokenX, y, { baseline: 'top' });
 
       y += mmPerLine * (tokenFontSize / baseFontSize);
@@ -328,7 +331,7 @@ async function buildThermalPdfBlob(content: string, options?: ThermalPdfOptions)
         errorCorrectionLevel: 'M',
         width: 256,
       });
-      const qrX = (PDF_PAGE_WIDTH_MM - qrSizeMm) / 2;
+      const qrX = (paperWidthMm - qrSizeMm) / 2;
       const qrY = Math.max(y + 2, pageHeight - topBottomPadding - qrBottomGapMm - qrSizeMm);
       doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSizeMm, qrSizeMm, undefined, 'FAST');
     } catch {

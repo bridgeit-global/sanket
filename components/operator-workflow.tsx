@@ -560,13 +560,13 @@ export function BeneficiaryManagement() {
             name: selectedVoter.fullName ?? 'Beneficiary',
             mobile: selectedVoterMobileNumbers[0]?.mobileNumber ?? null,
             serviceName: createdService.serviceName,
-            width: 22,
+            width: 32,
         });
 
         const outcome = await shareThermalTicketPdf(
             receiptText,
             `thermal-ticket-${createdService.token.toLowerCase()}`,
-            { headerImageUrl: '/images/ncp_election_symbol.png', qrValue: createdService.token }
+            { headerImageUrl: '/images/ncp_election_symbol.png', qrValue: createdService.token, paperWidthMm: 88 }
         );
 
         if (outcome === 'downloaded') {

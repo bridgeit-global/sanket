@@ -635,13 +635,13 @@ export function TaskManagement() {
             name: params.name || 'Beneficiary',
             mobile: params.mobile,
             serviceName: params.serviceName,
-            width: 22,
+            width: 32,
         });
 
         const outcome = await shareThermalTicketPdf(
             receiptText,
             `thermal-ticket-${params.token.toLowerCase()}`,
-            { headerImageUrl: '/images/ncp_election_symbol.png', qrValue: params.token }
+            { headerImageUrl: '/images/ncp_election_symbol.png', qrValue: params.token, paperWidthMm: 88 }
         );
 
         if (outcome === 'downloaded') {
