@@ -92,36 +92,63 @@ function QrTokenScannerDialog({
     const zxingControlsRef = useRef<{ stop: () => void } | null>(null);
     const startSeqRef = useRef(0);
     const retryTimeoutRef = useRef<number | null>(null);
+    const stopPromiseRef = useRef<Promise<void> | null>(null);
 
     useEffect(() => {
-        const stop = () => {
-            startSeqRef.current += 1;
-            runningRef.current = false;
-            if (rafRef.current != null) {
-                cancelAnimationFrame(rafRef.current);
-                rafRef.current = null;
-            }
-            if (retryTimeoutRef.current != null) {
-                window.clearTimeout(retryTimeoutRef.current);
-                retryTimeoutRef.current = null;
-            }
-            zxingControlsRef.current?.stop();
-            zxingControlsRef.current = null;
-            const stream = streamRef.current;
+        const stopMedia = () => {
+            const video = videoRef.current;
+            const videoStream = video?.srcObject instanceof MediaStream ? video.srcObject : null;
+
+            const stream = streamRef.current ?? videoStream;
             if (stream) {
                 for (const track of stream.getTracks()) track.stop();
             }
             streamRef.current = null;
-            const video = videoRef.current;
+
             if (video) {
                 video.pause?.();
                 video.srcObject = null;
+                // Helps some browsers fully release the camera between modal opens.
+                video.load?.();
             }
+        };
+
+        const stop = () => {
+            const p = (async () => {
+                startSeqRef.current += 1;
+                runningRef.current = false;
+                if (rafRef.current != null) {
+                    cancelAnimationFrame(rafRef.current);
+                    rafRef.current = null;
+                }
+                if (retryTimeoutRef.current != null) {
+                    window.clearTimeout(retryTimeoutRef.current);
+                    retryTimeoutRef.current = null;
+                }
+
+                const controls = zxingControlsRef.current;
+                zxingControlsRef.current = null;
+                try {
+                    // ZXing controls.stop() may be async (torch path), ensure it fully releases the camera.
+                    await Promise.resolve(controls?.stop());
+                } catch {
+                    // ignore
+                }
+
+                stopMedia();
+            })();
+
+            stopPromiseRef.current = p;
+            return p;
         };
 
         const start = async () => {
             if (!open) return;
             if (typeof window === 'undefined') return;
+            if (stopPromiseRef.current) {
+                await stopPromiseRef.current;
+            }
+
             const mySeq = startSeqRef.current;
             if (!window.isSecureContext) {
                 toast({
@@ -213,6 +240,10 @@ function QrTokenScannerDialog({
                         },
                     );
                     zxingControlsRef.current = controls;
+                    // ZXing attaches the MediaStream to the video element; capture it so our stop() reliably releases it.
+                    if (video.srcObject instanceof MediaStream) {
+                        streamRef.current = video.srcObject;
+                    }
                     await video.play().catch(() => {
                         // Some browsers require a user gesture; ZXing may still decode even if preview can't autoplay.
                     });
@@ -240,9 +271,11 @@ function QrTokenScannerDialog({
         };
 
         if (open) void start();
-        else stop();
+        else void stop();
 
-        return () => stop();
+        return () => {
+            void stop();
+        };
     }, [open, onOpenChange, onTokenDetected]);
 
     return (
