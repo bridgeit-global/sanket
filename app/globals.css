@@ -775,15 +775,15 @@
     }
 
     .print-schedule colgroup col.print-col-2 {
-        width: 15% !important;
+        width: 17% !important;
     }
 
     .print-schedule colgroup col.print-col-3 {
-        width: 46% !important;
+        width: 44% !important;
     }
 
     .print-schedule colgroup col.print-col-4 {
-        width: 32% !important;
+        width: 31% !important;
     }
 
     .print-schedule colgroup col.no-print {
@@ -807,9 +807,11 @@
     .print-schedule thead tr:last-child th:nth-child(2),
     .print-schedule tbody td:nth-child(2),
     .print-schedule th.w-\[150px\],
-    .print-schedule td.w-\[150px\] {
-        width: 15% !important;
-        min-width: 110px !important;
+    .print-schedule td.w-\[150px\],
+    .print-schedule th.w-\[200px\],
+    .print-schedule td.w-\[200px\] {
+        width: 17% !important;
+        min-width: 125px !important;
         max-width: none !important;
         /* Keep TH/TD padding consistent so text doesn't overflow */
         padding: 4px 6px !important;
