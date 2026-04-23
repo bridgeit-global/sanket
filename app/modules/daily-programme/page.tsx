@@ -2,7 +2,7 @@ import { Suspense } from 'react';
 import dynamic from 'next/dynamic';
 import { auth } from '@/app/(auth)/auth';
 import { redirect } from 'next/navigation';
-import { hasModuleAccess, getDailyProgrammeItems } from '@/lib/db/queries';
+import { hasModuleAccess, getDailyProgrammeItemsWithAttachments } from '@/lib/db/queries';
 import { startOfToday } from 'date-fns';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,7 +31,7 @@ async function DailyProgrammeDataLoader({
   const today = startOfToday();
   const todayStr = format(today, 'yyyy-MM-dd');
   
-  const initialItems = await getDailyProgrammeItems({
+  const initialItems = await getDailyProgrammeItemsWithAttachments({
     startDate: todayStr,
     endDate: todayStr,
   });

@@ -41,7 +41,7 @@ export function TablePagination({
           value={pageSize.toString()}
           onValueChange={(value) => onPageSizeChange(Number(value))}
         >
-          <SelectTrigger className="h-8 w-[70px]">
+          <SelectTrigger className="h-10 w-[70px]">
             <SelectValue placeholder={pageSize.toString()} />
           </SelectTrigger>
           <SelectContent side="top">
@@ -60,20 +60,20 @@ export function TablePagination({
       <div className="flex items-center gap-1">
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
-          className="h-8 w-8 p-0"
+          className="p-0"
         >
           <span className="sr-only">Go to first page</span>
           <ChevronsLeft className="h-4 w-4" />
         </Button>
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="h-8 w-8 p-0"
+          className="p-0"
         >
           <span className="sr-only">Go to previous page</span>
           <ChevronLeft className="h-4 w-4" />
@@ -85,20 +85,20 @@ export function TablePagination({
         </span>
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages}
-          className="h-8 w-8 p-0"
+          className="p-0"
         >
           <span className="sr-only">Go to next page</span>
           <ChevronRight className="h-4 w-4" />
         </Button>
         <Button
           variant="outline"
-          size="sm"
+          size="icon"
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage >= totalPages}
-          className="h-8 w-8 p-0"
+          className="p-0"
         >
           <span className="sr-only">Go to last page</span>
           <ChevronsRight className="h-4 w-4" />

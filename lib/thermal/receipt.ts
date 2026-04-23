@@ -1,4 +1,5 @@
 import { jsPDF } from 'jspdf';
+import QRCode from 'qrcode';
 
 export type ThermalReceiptData = {
   token: string;
@@ -12,6 +13,11 @@ export type ThermalReceiptData = {
 type ShareOutcome = 'shared' | 'copied' | 'downloaded' | 'cancelled';
 type ThermalPdfOptions = {
   headerImageUrl?: string;
+  /**
+   * Optional QR content (token/URL/etc). When provided, a QR code is rendered
+   * at the bottom of the PDF ticket for easy scanning.
+   */
+  qrValue?: string;
 };
 type LoadedImage = {
   dataUrl: string;
@@ -239,8 +245,14 @@ async function buildThermalPdfBlob(content: string, options?: ThermalPdfOptions)
   const lines = content.split('\n');
   const mmPerLine = 4.8;
   const topBottomPadding = 6;
+  const qrSizeMm = 30;
+  const qrBottomGapMm = 16;
+  const qrAreaHeight = options?.qrValue ? qrSizeMm + qrBottomGapMm + 6 : 0;
   const logoAreaHeight = options?.headerImageUrl ? 34 : 0;
-  const pageHeight = Math.max(60, topBottomPadding * 2 + logoAreaHeight + lines.length * mmPerLine);
+  const pageHeight = Math.max(
+    60,
+    topBottomPadding * 2 + qrAreaHeight + logoAreaHeight + lines.length * mmPerLine
+  );
 
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -250,8 +262,13 @@ async function buildThermalPdfBlob(content: string, options?: ThermalPdfOptions)
     compress: true,
   });
 
-  doc.setFont('courier', 'normal');
-  doc.setFontSize(11);
+  const baseFontFamily = 'courier';
+  const baseFontSize = 11;
+  const tokenLabelFontSize = 12;
+  const tokenFontSize = 18;
+
+  doc.setFont(baseFontFamily, 'normal');
+  doc.setFontSize(baseFontSize);
   const textBlockWidth = doc.getTextWidth('-'.repeat(DEFAULT_WIDTH));
   const textBlockCenterX = RECEIPT_TEXT_X_MM + (textBlockWidth / 2);
 
@@ -272,9 +289,51 @@ async function buildThermalPdfBlob(content: string, options?: ThermalPdfOptions)
     }
   }
 
+  let nextLineIsToken = false;
   for (const line of lines) {
+    if (nextLineIsToken) {
+      nextLineIsToken = false;
+      doc.setFont(baseFontFamily, 'bold');
+      doc.setFontSize(tokenFontSize);
+
+      const tokenTextWidth = doc.getTextWidth(line);
+      const tokenX = textBlockCenterX - tokenTextWidth / 2;
+      doc.text(line, tokenX, y, { baseline: 'top' });
+
+      y += mmPerLine * (tokenFontSize / baseFontSize);
+      doc.setFont(baseFontFamily, 'normal');
+      doc.setFontSize(baseFontSize);
+      continue;
+    }
+
+    if (line === 'TOKEN NO') {
+      doc.setFont(baseFontFamily, 'bold');
+      doc.setFontSize(tokenLabelFontSize);
+      doc.text(line, RECEIPT_TEXT_X_MM, y, { baseline: 'top' });
+      y += mmPerLine * (tokenLabelFontSize / baseFontSize);
+      doc.setFont(baseFontFamily, 'normal');
+      doc.setFontSize(baseFontSize);
+      nextLineIsToken = true;
+      continue;
+    }
+
     doc.text(line, RECEIPT_TEXT_X_MM, y, { baseline: 'top' });
     y += mmPerLine;
+  }
+
+  if (options?.qrValue) {
+    try {
+      const qrDataUrl = await QRCode.toDataURL(options.qrValue, {
+        margin: 0,
+        errorCorrectionLevel: 'M',
+        width: 256,
+      });
+      const qrX = (PDF_PAGE_WIDTH_MM - qrSizeMm) / 2;
+      const qrY = Math.max(y + 2, pageHeight - topBottomPadding - qrBottomGapMm - qrSizeMm);
+      doc.addImage(qrDataUrl, 'PNG', qrX, qrY, qrSizeMm, qrSizeMm, undefined, 'FAST');
+    } catch {
+      // If QR generation fails, render the rest of the ticket without it.
+    }
   }
 
   return doc.output('blob');

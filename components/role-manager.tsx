@@ -37,7 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ALL_MODULES, type ModuleDefinition } from '@/lib/module-constants';
+import { ALL_MODULES, } from '@/lib/module-constants';
 import { Trash2, Plus, Shield, Check } from 'lucide-react';
 import type { Role } from '@/lib/db/schema';
 import { cn } from '@/lib/utils';

@@ -33,7 +33,7 @@ export function UserProfile({ userId }: { userId: string }) {
     }
 
     try {
-      const response = await fetch('/api/admin/users/' + userId, {
+      const response = await fetch(`/api/admin/users/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: newPassword }),

@@ -2,7 +2,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import {
-  getDailyProgrammeItems,
+  getDailyProgrammeItemsWithAttachments,
   createDailyProgrammeItem,
 } from '@/lib/db/queries';
 import { hasModuleAccess } from '@/lib/db/queries';
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
     const startDate = startDateParam ? new Date(startDateParam) : undefined;
     const endDate = endDateParam ? new Date(endDateParam) : undefined;
 
-    const items = await getDailyProgrammeItems({
+    const items = await getDailyProgrammeItemsWithAttachments({
       startDate,
       endDate,
     });
@@ -64,7 +64,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { date, startTime, endTime, title, location, remarks } = body;
+    const {
+      date,
+      startTime,
+      endTime,
+      title,
+      location,
+      remarks,
+      programmeType,
+      sortOrder,
+      startDate,
+      endDate,
+    } = body;
 
     if (!date || !startTime || !title || !location) {
       return NextResponse.json(
@@ -80,6 +91,10 @@ export async function POST(request: NextRequest) {
       title,
       location,
       remarks,
+      programmeType,
+      sortOrder,
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
       createdBy: session.user.id,
     });
 

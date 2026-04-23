@@ -2,7 +2,6 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 
 interface SQLResult {
     query: string;
@@ -167,7 +166,7 @@ export function SQLStatsDisplay({ result }: { result: SQLResult }) {
         Object.keys(row).forEach(key => {
             if (typeof row[key] === 'number') {
                 if (!acc[key]) {
-                    acc[key] = { sum: 0, count: 0, min: Infinity, max: -Infinity };
+                    acc[key] = { sum: 0, count: 0, min: Number.POSITIVE_INFINITY, max: Number.NEGATIVE_INFINITY };
                 }
                 acc[key].sum += row[key];
                 acc[key].count += 1;

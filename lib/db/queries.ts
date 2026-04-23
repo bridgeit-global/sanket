@@ -131,9 +131,7 @@ export async function createUser(userIdValue: string, password: string, roleId?:
   const hashedPassword = generateHashedPassword(password);
 
   try {
-    console.log('Creating user with:', { userId: userIdValue, roleId });
     const result = await db.insert(user).values({ userId: userIdValue, password: hashedPassword, roleId: roleId || null });
-    console.log('User created successfully:', result);
     return result;
   } catch (error) {
     console.error('Create user error:', error);
@@ -2538,18 +2536,7 @@ export async function getTasksWithFilters({
 }> {
   try {
     const offset = (page - 1) * limit;
-    // DEBUG: Log incoming filter parameters
-    console.log("[getTasksWithFilters] Called with filters:", {
-      status,
-      priority,
-      token,
-      mobileNo,
-      voterId,
-      page,
-      limit,
-      assignedTo,
-      serviceType,
-    });
+
 
     // For individual services, query BeneficiaryService directly
     // For community services or when serviceType is not specified, use legacy VoterTask approach
@@ -2577,8 +2564,6 @@ export async function getTasksWithFilters({
         whereConditions.push(ilike(beneficiaryServices.token, `%${token}%`));
       }
 
-      // DEBUG: Log where conditions for individual services
-      console.log("[getTasksWithFilters] Individual whereConditions:", whereConditions);
 
       // Get total count (mobile filter uses VoterMobileNumber)
       const totalCountQuery = db
@@ -2597,14 +2582,8 @@ export async function getTasksWithFilters({
               : sql`1=1`
         );
 
-      // DEBUG: Log about to run totalCountQuery for individual
-      console.log("[getTasksWithFilters] About to run totalCountQuery for individual services");
 
       const totalCountResult = await totalCountQuery;
-
-      // DEBUG: Log totalCountResult for individual
-      console.log("[getTasksWithFilters] totalCountResult (individual):", totalCountResult);
-
       const totalCount = totalCountResult[0]?.count || 0;
       const totalPages = Math.ceil(totalCount / limit);
 
@@ -2653,13 +2632,7 @@ export async function getTasksWithFilters({
         .limit(limit)
         .offset(offset);
 
-      // DEBUG: Log constructed servicesQuery for individual
-      console.log("[getTasksWithFilters] servicesQuery constructed for individual services");
-
       const results = await servicesQuery;
-
-      // DEBUG: Log results before mapping for individual
-      console.log("[getTasksWithFilters] Results before mapping (individual):", results);
 
       // Transform results to match expected structure (using service data as primary)
       const tasks = results.map(row => ({
@@ -2701,9 +2674,6 @@ export async function getTasksWithFilters({
         } : undefined,
       }));
 
-      // DEBUG: Log mapped tasks for individual
-      console.log("[getTasksWithFilters] Mapped tasks (individual):", tasks);
-
       return {
         tasks,
         totalCount,
@@ -2732,8 +2702,6 @@ export async function getTasksWithFilters({
       whereConditions.push(eq(voterTasks.voterId, voterId));
     }
 
-    // DEBUG: Log base where conditions for legacy/community
-    console.log("[getTasksWithFilters] Legacy/community base whereConditions:", whereConditions);
 
     const finalWhereConditions = [...whereConditions];
 
@@ -2751,13 +2719,9 @@ export async function getTasksWithFilters({
       );
     }
 
-    // DEBUG: Log final where conditions for legacy/community
-    console.log("[getTasksWithFilters] Legacy/community finalWhereConditions:", finalWhereConditions);
 
     const needsJoins = !!(token || serviceType || mobileNo);
 
-    // DEBUG: Log if joins will be needed in legacy/community block
-    console.log("[getTasksWithFilters] NeedsJoins in legacy/community:", needsJoins);
 
     const totalCountResult = needsJoins
       ? await db
@@ -2771,8 +2735,6 @@ export async function getTasksWithFilters({
         .from(voterTasks)
         .where(finalWhereConditions.length > 0 ? and(...finalWhereConditions) : sql`1=1`);
 
-    // DEBUG: Log totalCountResult for legacy/community
-    console.log("[getTasksWithFilters] totalCountResult (legacy/community):", totalCountResult);
 
     const totalCount = totalCountResult[0]?.count || 0;
     const totalPages = Math.ceil(totalCount / limit);
@@ -2835,14 +2797,8 @@ export async function getTasksWithFilters({
       .limit(limit)
       .offset(offset);
 
-    // DEBUG: Log that we are about to run the main query for legacy/community
-    console.log("[getTasksWithFilters] About to run query (legacy/community).");
 
     const results = await query;
-
-    // DEBUG: Log query results before mapping
-    console.log("[getTasksWithFilters] Results before mapping (legacy/community):", results);
-
     const tasks = results.map(row => ({
       id: row.id,
       serviceId: row.serviceId,
@@ -2882,8 +2838,6 @@ export async function getTasksWithFilters({
       } : undefined,
     }));
 
-    // DEBUG: Log mapped tasks for legacy/community
-    console.log("[getTasksWithFilters] Mapped tasks (legacy/community):", tasks);
 
     return {
       tasks,
@@ -3450,6 +3404,10 @@ export async function createDailyProgrammeItem({
   title,
   location,
   remarks,
+  programmeType,
+  sortOrder,
+  startDate,
+  endDate,
   createdBy,
 }: {
   date: Date | string;
@@ -3458,6 +3416,10 @@ export async function createDailyProgrammeItem({
   title: string;
   location: string;
   remarks?: string;
+  programmeType?: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
+  sortOrder?: number;
+  startDate?: Date | string | null;
+  endDate?: Date | string | null;
   createdBy: string;
 }): Promise<DailyProgramme> {
   try {
@@ -3470,6 +3432,10 @@ export async function createDailyProgrammeItem({
         title,
         location,
         remarks: remarks || null,
+        programmeType: programmeType ?? 'CONSTITUENCY',
+        sortOrder: sortOrder ?? 1,
+        startDate: startDate ? formatDateToString(startDate) : null,
+        endDate: endDate ? formatDateToString(endDate) : null,
         createdBy,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -3517,6 +3483,10 @@ export async function getDailyProgrammeItems({
         location: dailyProgramme.location,
         remarks: dailyProgramme.remarks,
         attended: dailyProgramme.attended,
+        programmeType: dailyProgramme.programmeType,
+        sortOrder: dailyProgramme.sortOrder,
+        startDate: dailyProgramme.startDate,
+        endDate: dailyProgramme.endDate,
         createdBy: dailyProgramme.createdBy,
         updatedBy: dailyProgramme.updatedBy,
         createdAt: dailyProgramme.createdAt,
@@ -3528,7 +3498,7 @@ export async function getDailyProgrammeItems({
       .leftJoin(sql`${user} AS created_by_user`, sql`${dailyProgramme.createdBy} = created_by_user.id`)
       .leftJoin(sql`${user} AS updated_by_user`, sql`${dailyProgramme.updatedBy} = updated_by_user.id`)
       .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(asc(dailyProgramme.date), asc(dailyProgramme.startTime))
+      .orderBy(asc(dailyProgramme.date), asc(dailyProgramme.startTime), asc(dailyProgramme.sortOrder))
       .limit(limit);
 
     return results;
@@ -3536,6 +3506,50 @@ export async function getDailyProgrammeItems({
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get daily programme items',
+    );
+  }
+}
+
+/** Programme rows plus attachments in two queries (avoids N+1 from the client). */
+export async function getDailyProgrammeItemsWithAttachments(
+  args: Parameters<typeof getDailyProgrammeItems>[0] = {},
+): Promise<
+  Array<
+    DailyProgramme & {
+      createdByUserId?: string | null;
+      updatedByUserId?: string | null;
+      attachments: DailyProgrammeAttachment[];
+    }
+  >
+> {
+  try {
+    const items = await getDailyProgrammeItems(args);
+    if (items.length === 0) {
+      return [];
+    }
+
+    const programmeIds = items.map((i) => i.id);
+    const attachmentRows = await db
+      .select()
+      .from(dailyProgrammeAttachment)
+      .where(inArray(dailyProgrammeAttachment.programmeId, programmeIds))
+      .orderBy(asc(dailyProgrammeAttachment.createdAt));
+
+    const byProgrammeId = new Map<string, DailyProgrammeAttachment[]>();
+    for (const row of attachmentRows) {
+      const list = byProgrammeId.get(row.programmeId) ?? [];
+      list.push(row);
+      byProgrammeId.set(row.programmeId, list);
+    }
+
+    return items.map((item) => ({
+      ...item,
+      attachments: byProgrammeId.get(item.id) ?? [],
+    }));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get daily programme items with attachments',
     );
   }
 }
@@ -3568,6 +3582,12 @@ export async function updateDailyProgrammeItem(
     if (updateData.date && updateData.date instanceof Date) {
       updateData.date = formatDateToString(updateData.date);
     }
+    if (updateData.startDate && updateData.startDate instanceof Date) {
+      updateData.startDate = formatDateToString(updateData.startDate);
+    }
+    if (updateData.endDate && updateData.endDate instanceof Date) {
+      updateData.endDate = formatDateToString(updateData.endDate);
+    }
 
     // Normalize empty strings to null for nullable fields
     if (updateData.endTime === '') {
@@ -3575,6 +3595,12 @@ export async function updateDailyProgrammeItem(
     }
     if (updateData.remarks === '') {
       updateData.remarks = null;
+    }
+    if (updateData.startDate === '') {
+      updateData.startDate = null;
+    }
+    if (updateData.endDate === '') {
+      updateData.endDate = null;
     }
 
     if (updatedBy) {
@@ -3594,6 +3620,34 @@ export async function updateDailyProgrammeItem(
     throw new ChatSDKError(
       'bad_request:database',
       errorMessage,
+    );
+  }
+}
+
+export async function updateDailyProgrammeSortOrders(
+  items: Array<{ id: string; sortOrder: number }>,
+  updatedBy?: string,
+): Promise<void> {
+  if (items.length === 0) return;
+  try {
+    await db.transaction(async (tx) => {
+      for (const item of items) {
+        const updateData: any = {
+          sortOrder: item.sortOrder,
+          updatedAt: new Date(),
+        };
+        if (updatedBy) updateData.updatedBy = updatedBy;
+        await tx
+          .update(dailyProgramme)
+          .set(updateData)
+          .where(eq(dailyProgramme.id, item.id));
+      }
+    });
+  } catch (error) {
+    console.error('Database error updating daily programme sort order:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update daily programme sort order',
     );
   }
 }

@@ -21,20 +21,20 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-interface Attachment {
+export type DailyProgrammeAttachment = {
   id: string;
   fileName: string;
   fileSizeKb: number;
   fileUrl: string | null;
-  createdAt: string;
-}
+  createdAt: string | Date;
+};
 
 interface DailyProgrammeAttachmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   programmeId: string;
   programmeTitle: string;
-  attachments: Attachment[];
+  attachments: DailyProgrammeAttachment[];
   onAttachmentsChange: () => void;
 }
 
@@ -150,7 +150,7 @@ export function DailyProgrammeAttachmentDialog({
     }
   };
 
-  const handleView = (attachment: Attachment) => {
+  const handleView = (attachment: DailyProgrammeAttachment) => {
     if (attachment.fileUrl) {
       window.open(attachment.fileUrl, '_blank');
     } else {
@@ -158,7 +158,7 @@ export function DailyProgrammeAttachmentDialog({
     }
   };
 
-  const handleDownload = (attachment: Attachment) => {
+  const handleDownload = (attachment: DailyProgrammeAttachment) => {
     if (attachment.fileUrl) {
       const link = document.createElement('a');
       link.href = attachment.fileUrl;

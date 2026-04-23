@@ -19,7 +19,6 @@ import {
   Printer,
   Eye,
   Loader2,
-  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 

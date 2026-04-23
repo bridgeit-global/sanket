@@ -76,7 +76,7 @@ function VoterSearchResultsVirtualList({
         <div className="mt-4">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3 mb-2">
                 <div className="flex flex-col gap-0.5">
-                    <h3 className="text-lg font-semibold">{t('backOffice.searchResults')}</h3>
+                    <h3 className="text-base sm:text-lg font-semibold">{t('backOffice.searchResults')}</h3>
                     <p className="text-sm text-muted-foreground tabular-nums">
                         {voters.length >= totalCount
                             ? t('operator.search.totalCountOnly', { count: totalCount })
@@ -87,7 +87,7 @@ function VoterSearchResultsVirtualList({
                     </p>
                 </div>
                 {lastSearchType && (
-                    <span className="text-sm text-muted-foreground sm:text-right">
+                    <span className="text-xs sm:text-sm text-muted-foreground sm:text-right">
                         {t('operator.search.foundBy', {
                             type:
                                 lastSearchType === 'voterId'
@@ -106,7 +106,7 @@ function VoterSearchResultsVirtualList({
             )}
             <div
                 ref={scrollParentRef}
-                className="max-h-[min(60vh,520px)] overflow-auto rounded-md p-2"
+                className="max-h-[min(70vh,560px)] overflow-auto rounded-lg bg-muted/10 p-2 sm:p-3"
             >
                 <div
                     style={{
@@ -130,25 +130,27 @@ function VoterSearchResultsVirtualList({
                             >
                                 <button
                                     type="button"
-                                    className="w-full p-4 border rounded-lg hover:bg-muted cursor-pointer text-left transition-colors bg-background"
+                                    className="w-full rounded-xl border bg-background p-3 sm:p-4 text-left transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                                     onClick={() => onSelectVoter(voter)}
                                 >
                                     <div className="flex flex-col gap-2">
                                         <div className="flex-1">
-                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                                                <div className="flex flex-col">
-                                                    <p className="font-medium text-lg">{voter.fullName}</p>
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-2">
+                                                <div className="flex min-w-0 flex-col gap-0.5">
+                                                    <p className="font-medium text-base sm:text-lg leading-snug break-words">
+                                                        {voter.fullName}
+                                                    </p>
                                                     {voter.relationName && voter.relationType && (
-                                                        <p className="text-sm text-muted-foreground">
+                                                        <p className="text-sm text-muted-foreground break-words">
                                                             {voter.relationType}: {voter.relationName}
                                                         </p>
                                                     )}
                                                 </div>
-                                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded w-fit">
+                                                <span className="inline-flex max-w-full items-center rounded bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 break-all">
                                                     {voter.epicNumber}
                                                 </span>
                                             </div>
-                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm mb-2">
+                                            <div className="grid grid-cols-2 sm:grid-cols-2 gap-2 text-sm mb-2">
                                                 <div className="flex items-center gap-1">
                                                     <span className="font-medium text-muted-foreground">{t('backOffice.age')}:</span>
                                                     <span>{voter.age || 'N/A'}</span>
@@ -414,7 +416,6 @@ export function BeneficiaryManagement() {
                 }
                 const data = await response.json();
                 if (data?.success && Array.isArray(data.voterMobileNumbers)) {
-                    console.log(data)
                     setSelectedVoterMobileNumbers(data.voterMobileNumbers);
                 }
             })
@@ -565,7 +566,7 @@ export function BeneficiaryManagement() {
         const outcome = await shareThermalTicketPdf(
             receiptText,
             `thermal-ticket-${createdService.token.toLowerCase()}`,
-            { headerImageUrl: '/images/ncp_election_symbol.png' }
+            { headerImageUrl: '/images/ncp_election_symbol.png', qrValue: createdService.token }
         );
 
         if (outcome === 'downloaded') {
@@ -588,12 +589,12 @@ export function BeneficiaryManagement() {
     return (
         <div className="space-y-6">
             {/* Header with Sign Out */}
-            <div className="flex justify-between items-center">
-                <div className="flex items-center gap-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-start gap-3 sm:items-center">
                     <SidebarToggle />
                     <div>
-                        <h1 className="text-3xl font-bold">{t('operator.dashboard.title')}</h1>
-                        <p className="text-muted-foreground mt-2">
+                        <h1 className="text-2xl sm:text-3xl font-bold">{t('operator.dashboard.title')}</h1>
+                        <p className="text-muted-foreground mt-1 sm:mt-2 text-sm sm:text-base">
                             {t('operator.dashboard.subtitle')}
                         </p>
                     </div>
@@ -785,11 +786,11 @@ export function BeneficiaryManagement() {
                                 </div>
 
                                 {/* Action Buttons */}
-                                <div className="flex gap-4">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
                                     <Button onClick={handleConfirmService} className="flex-1">
                                         {t('operator.confirmation.confirmButton')}
                                     </Button>
-                                    <Button variant="outline" onClick={handleCancel}>
+                                    <Button variant="outline" onClick={handleCancel} className="sm:w-auto">
                                         {t('common.cancel')}
                                     </Button>
                                 </div>
@@ -855,7 +856,7 @@ export function BeneficiaryManagement() {
                                 </div>
 
                                 {/* Action Buttons */}
-                                <div className="flex gap-4 no-print">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:gap-4 no-print">
                                     <Button onClick={handleStartNew} className="flex-1">
                                         {t('operator.completion.createAnother')}
                                     </Button>
@@ -985,7 +986,7 @@ export function BeneficiaryManagement() {
                                                 </div>
                                             </div>
 
-                                            <div className="flex gap-2">
+                                            <div className="flex flex-col gap-2 sm:flex-row">
                                                 <Button onClick={handleSearch} disabled={isSearching} className="flex-1">
                                                     {isSearching ? t('operator.search.searching') : t('common.search')}
                                                 </Button>
@@ -1005,7 +1006,7 @@ export function BeneficiaryManagement() {
                                                         setHasSearched(false);
                                                         setIsSearching(false);
                                                     }}
-                                                    className="px-4"
+                                                    className="px-4 sm:w-auto"
                                                 >
                                                     {t('backOffice.clear')}
                                                 </Button>
@@ -1065,7 +1066,7 @@ export function BeneficiaryManagement() {
                                                     )}
                                                 </div>
                                             </div>
-                                            <div className="flex gap-2">
+                                            <div className="flex flex-col gap-2 sm:flex-row">
                                                 <Button onClick={handleSearch} disabled={isSearching} className="flex-1">
                                                     {isSearching ? t('operator.search.searching') : t('common.search')}
                                                 </Button>
@@ -1083,7 +1084,7 @@ export function BeneficiaryManagement() {
                                                             setHasSearched(false);
                                                             setIsSearching(false);
                                                         }}
-                                                        className="px-4"
+                                                        className="px-4 sm:w-auto"
                                                     >
                                                         Clear
                                                     </Button>

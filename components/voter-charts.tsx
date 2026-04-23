@@ -280,11 +280,11 @@ export function VoterSearchResultsChart({ data }: { data: VoterSearchResults }) 
                   {/* Gender Breakdown */}
                   <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400">
                     <div className="flex items-center gap-1">
-                      <div className="size-3 bg-blue-600 rounded-full"></div>
+                      <div className="size-3 bg-blue-600 rounded-full" />
                       <span>Male: {counts.maleCount.toLocaleString()}</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <div className="size-3 bg-pink-600 rounded-full"></div>
+                      <div className="size-3 bg-pink-600 rounded-full" />
                       <span>Female: {counts.femaleCount.toLocaleString()}</span>
                     </div>
                   </div>

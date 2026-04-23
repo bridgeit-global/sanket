@@ -253,7 +253,7 @@ export function TimePicker({
   };
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu modal={false} open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
         <Button
           type="button"
@@ -276,7 +276,8 @@ export function TimePicker({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className="w-auto p-4"
+        collisionPadding={16}
+        className="max-h-[min(85dvh,560px)] w-auto overflow-y-auto overscroll-y-contain p-4"
         id={id ? `${id}-clock` : undefined}
       >
         <div className="space-y-4">
