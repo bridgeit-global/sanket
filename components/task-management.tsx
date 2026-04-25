@@ -320,8 +320,20 @@ export function TaskManagement() {
     const [filterMobile, setFilterMobile] = useState<string>('');
     const [filterVoterId, setFilterVoterId] = useState<string>('');
     const [showQrScanner, setShowQrScanner] = useState(false);
+    const [pendingAutoFocusToken, setPendingAutoFocusToken] = useState<string | null>(null);
+    const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
     const [newNote, setNewNote] = useState('');
     const [newStatus, setNewStatus] = useState<string>('');
+
+    const itemRefs = useRef<Map<string, HTMLElement>>(new Map());
+    const highlightTimeoutRef = useRef<number | null>(null);
+
+    const setItemRef = useCallback((id: string) => {
+        return (el: HTMLElement | null) => {
+            if (el) itemRefs.current.set(id, el);
+            else itemRefs.current.delete(id);
+        };
+    }, []);
 
     // Community services state
     const [communityServices, setCommunityServices] = useState<CommunityServiceWithAreas[]>([]);
@@ -437,6 +449,53 @@ export function TaskManagement() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filterServiceType, communityServicesPage, pageSize, filterStatus, filterPriority, filterToken]);
+
+    useEffect(() => {
+        if (!pendingAutoFocusToken) return;
+        const loading =
+            (filterServiceType === 'community' && isLoadingCommunityServices) ||
+            (filterServiceType === 'individual' && isLoading) ||
+            (filterServiceType === 'all' && (isLoading || isLoadingCommunityServices));
+        if (loading) return;
+
+        const token = pendingAutoFocusToken;
+        const matchTask = tasks.find((t) => (t.service?.token ?? '').toLowerCase() === token.toLowerCase());
+        const matchService = communityServices.find((s) => (s.token ?? '').toLowerCase() === token.toLowerCase());
+        const matchId = matchTask?.id ?? matchService?.id ?? null;
+
+        if (!matchId) {
+            toast({ type: 'error', description: `No item found for token: ${token}` });
+            setPendingAutoFocusToken(null);
+            return;
+        }
+
+        const el = itemRefs.current.get(matchId);
+        if (!el) return; // wait for refs to attach
+
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (typeof (el as any).focus === 'function') {
+            (el as any).focus({ preventScroll: true });
+        }
+
+        setHighlightedItemId(matchId);
+        if (highlightTimeoutRef.current != null) window.clearTimeout(highlightTimeoutRef.current);
+        highlightTimeoutRef.current = window.setTimeout(() => setHighlightedItemId(null), 2500);
+
+        setPendingAutoFocusToken(null);
+    }, [
+        pendingAutoFocusToken,
+        tasks,
+        communityServices,
+        isLoading,
+        isLoadingCommunityServices,
+        filterServiceType,
+    ]);
+
+    useEffect(() => {
+        return () => {
+            if (highlightTimeoutRef.current != null) window.clearTimeout(highlightTimeoutRef.current);
+        };
+    }, []);
 
     const handleSearch = () => {
         setCurrentPage(1); // Reset to first page when searching
@@ -660,6 +719,7 @@ export function TaskManagement() {
                 onOpenChange={setShowQrScanner}
                 onTokenDetected={(token) => {
                     setFilterToken(token);
+                    setPendingAutoFocusToken(token);
                     setCurrentPage(1);
                     setCommunityServicesPage(1);
                 }}
@@ -841,8 +901,19 @@ export function TaskManagement() {
                             ) : (
                                 <div className="space-y-4">
                                     {tasks.map((task) => (
-                                        <Card key={task.id} className="hover:shadow-md transition-shadow">
-                                            <CardContent className="pt-4 sm:pt-6">
+                                        <div
+                                            key={task.id}
+                                            ref={setItemRef(task.id)}
+                                            tabIndex={-1}
+                                            className="outline-none"
+                                        >
+                                            <Card
+                                                className={[
+                                                    'hover:shadow-md transition-shadow',
+                                                    highlightedItemId === task.id ? 'ring-2 ring-primary ring-offset-2' : '',
+                                                ].join(' ')}
+                                            >
+                                                <CardContent className="pt-4 sm:pt-6">
                                                 <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
                                                     <div className="flex-1">
                                                         <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
@@ -964,8 +1035,9 @@ export function TaskManagement() {
                                                         </Button>
                                                     </div>
                                                 </div>
-                                            </CardContent>
-                                        </Card>
+                                                </CardContent>
+                                            </Card>
+                                        </div>
                                     ))}
                                 </div>
                             )}
@@ -1011,8 +1083,19 @@ export function TaskManagement() {
                                     )}
                                     <div className="space-y-4">
                                         {communityServices.map((service) => (
-                                            <Card key={service.id} className="hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
-                                                <CardContent className="pt-4 sm:pt-6">
+                                            <div
+                                                key={service.id}
+                                                ref={setItemRef(service.id)}
+                                                tabIndex={-1}
+                                                className="outline-none"
+                                            >
+                                                <Card
+                                                    className={[
+                                                        'hover:shadow-md transition-shadow border-l-4 border-l-blue-500',
+                                                        highlightedItemId === service.id ? 'ring-2 ring-primary ring-offset-2' : '',
+                                                    ].join(' ')}
+                                                >
+                                                    <CardContent className="pt-4 sm:pt-6">
                                                     <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
                                                         <div className="flex-1">
                                                             <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
@@ -1123,8 +1206,9 @@ export function TaskManagement() {
                                                             </Button>
                                                         </div>
                                                     </div>
-                                                </CardContent>
-                                            </Card>
+                                                    </CardContent>
+                                                </Card>
+                                            </div>
                                         ))}
                                     </div>
                                     {/* Pagination for Community Services */}
