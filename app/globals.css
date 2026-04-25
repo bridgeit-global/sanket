@@ -16,6 +16,48 @@
     }
 }
 
+@media print {
+    html {
+        color-scheme: light !important;
+    }
+
+    :root {
+        color-scheme: light !important;
+        --foreground-rgb: 0, 0, 0;
+        --background-start-rgb: 255, 255, 255;
+        --background-end-rgb: 255, 255, 255;
+    }
+
+    /*
+     * CSS-only print force-light:
+     * Tailwind `dark:` variants are scoped under `.dark ...`. We can’t remove the `.dark`
+     * class in CSS, so we override the most important visual properties during print.
+     */
+    html.dark,
+    .dark,
+    .dark body {
+        color-scheme: light !important;
+        background: #fff !important;
+        color: #000 !important;
+    }
+
+    .dark *,
+    html.dark * {
+        color: #000 !important;
+        background-color: transparent !important;
+        border-color: #000 !important;
+        box-shadow: none !important;
+        text-shadow: none !important;
+    }
+
+    /* Keep table header shading visible in print (after the global background reset above) */
+    .print-schedule th {
+        background-color: #f3f4f6 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+
 @layer utilities {
     .text-balance {
         text-wrap: balance;
