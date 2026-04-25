@@ -573,37 +573,6 @@ export function DailyProgramme({
       .sort(([dateA], [dateB]) => dateA.localeCompare(dateB));
   }, [itemsByDate, dateRange.start, dateRange.end]);
 
-  const programmeTypeSections = useMemo(() => {
-    const result: Array<{
-      programmeType: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
-      dates: Array<[string, ProgrammeItem[]]>;
-    }> = [];
-
-    const byType: Record<'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY', Array<[string, ProgrammeItem[]]>> = {
-      CONSTITUENCY: [],
-      OUTSIDE_CONSTITUENCY: [],
-    };
-
-    for (const [dateKey, items] of filteredDateEntries) {
-      const constituency = items.filter((it) => (it.programmeType ?? 'CONSTITUENCY') === 'CONSTITUENCY');
-      const outside = items.filter((it) => (it.programmeType ?? 'CONSTITUENCY') === 'OUTSIDE_CONSTITUENCY');
-      if (constituency.length > 0) byType.CONSTITUENCY.push([dateKey, constituency]);
-      if (outside.length > 0) byType.OUTSIDE_CONSTITUENCY.push([dateKey, outside]);
-    }
-
-    const order: Array<'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY'> =
-      programmeTypeFilter === 'ALL'
-        ? ['CONSTITUENCY', 'OUTSIDE_CONSTITUENCY']
-        : [programmeTypeFilter];
-
-    for (const programmeType of order) {
-      const dates = byType[programmeType];
-      if (dates.length > 0) result.push({ programmeType, dates });
-    }
-
-    return result;
-  }, [filteredDateEntries, programmeTypeFilter]);
-
   const loadItems = useCallback(
     async (startDate?: string, endDate?: string) => {
       try {
@@ -972,6 +941,7 @@ export function DailyProgramme({
     // Fallback: restore title after 5 seconds if afterprint doesn't fire
     setTimeout(() => {
       document.title = originalTitle;
+      window.removeEventListener('afterprint', handleAfterPrint);
     }, 5000);
 
     window.print();
@@ -1340,43 +1310,52 @@ export function DailyProgramme({
                     </div>
                   ) : (
                     <div className="space-y-6">
-                      {programmeTypeSections.map((section) => {
-                        const printOutsideOnNewPage =
-                          section.programmeType === 'OUTSIDE_CONSTITUENCY' &&
-                          programmeTypeSections.some((s) => s.programmeType === 'CONSTITUENCY');
+                      {filteredDateEntries.map(([dateKey, items]) => {
+                        const date = parseISO(dateKey);
+                        const formattedDate = formatDateWithLocale(date, 'EEEE, dd MMM yyyy', locale);
+                        const constituencyItems = items.filter(
+                          (it) => (it.programmeType ?? 'CONSTITUENCY') === 'CONSTITUENCY',
+                        );
+                        const outsideItems = items.filter(
+                          (it) => (it.programmeType ?? 'CONSTITUENCY') === 'OUTSIDE_CONSTITUENCY',
+                        );
+
+                        const showConstituency =
+                          programmeTypeFilter === 'ALL' || programmeTypeFilter === 'CONSTITUENCY';
+                        const showOutside =
+                          programmeTypeFilter === 'ALL' || programmeTypeFilter === 'OUTSIDE_CONSTITUENCY';
+
+                        const sections: Array<{
+                          programmeType: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
+                          items: ProgrammeItem[];
+                        }> = [
+                          ...(showConstituency ? [{ programmeType: 'CONSTITUENCY' as const, items: constituencyItems }] : []),
+                          ...(showOutside ? [{ programmeType: 'OUTSIDE_CONSTITUENCY' as const, items: outsideItems }] : []),
+                        ].filter((s) => s.items.length > 0);
+
                         return (
-                          <div
-                            key={section.programmeType}
-                            className={
-                              'space-y-4 print-programme-type-section' +
-                              (printOutsideOnNewPage ? ' print-programme-outside-new-page' : '')
-                            }
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="text-base font-semibold">
-                                {getProgrammeTypeLabel(section.programmeType, t)}
+                          <div key={dateKey} className="space-y-3 print-date-section">
+                            <div className="flex flex-wrap items-center justify-between gap-2 print-date-header">
+                              <div className="flex items-center gap-2 font-semibold">
+                                <Calendar className="size-4" />
+                                {formattedDate}
                               </div>
                               <span className="text-xs text-muted-foreground">
-                                {section.dates.length}{' '}
-                                {section.dates.length !== 1 ? t('dailyProgramme.dates') : t('dailyProgramme.date')}
+                                {items.length}{' '}
+                                {items.length !== 1 ? t('dailyProgramme.events') : t('dailyProgramme.event')}
                               </span>
                             </div>
 
-                            {section.dates.map(([dateKey, items]) => {
-                              const date = parseISO(dateKey);
-                              const formattedDate = formatDateWithLocale(date, 'EEEE, dd MMM yyyy', locale);
-                              return (
-                                <div key={`${section.programmeType}:${dateKey}`} className="space-y-3 print-date-section">
-                                  <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 font-semibold">
-                                      <Calendar className="size-4" />
-                                      {formattedDate}
-                                    </div>
-                                    <span className="text-xs text-muted-foreground">
-                                      {items.length}{' '}
-                                      {items.length !== 1 ? t('dailyProgramme.events') : t('dailyProgramme.event')}
-                                    </span>
+                            <div className="space-y-4 print-date-sections">
+                              {sections.map((section) => (
+                                <div
+                                  key={`${dateKey}:${section.programmeType}`}
+                                  className="space-y-2 print-programme-type-section"
+                                >
+                                  <div className="text-sm font-semibold print-programme-type-heading">
+                                    {getProgrammeTypeLabel(section.programmeType, t)}
                                   </div>
+
                                   <div className="overflow-x-auto print-table-wrapper">
                                     <Table>
                                       <colgroup>
@@ -1401,7 +1380,7 @@ export function DailyProgramme({
                                       </TableHeader>
                                       <TableBody>
                                         {(() => {
-                                          const sorted = [...items].sort((a, b) => {
+                                          const sorted = [...section.items].sort((a, b) => {
                                             const timeA = a.startTime || '00:00';
                                             const timeB = b.startTime || '00:00';
                                             const byTime = timeA.localeCompare(timeB);
@@ -1477,8 +1456,8 @@ export function DailyProgramme({
                                     </Table>
                                   </div>
                                 </div>
-                              );
-                            })}
+                              ))}
+                            </div>
                           </div>
                         );
                       })}
