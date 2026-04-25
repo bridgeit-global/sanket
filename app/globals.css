@@ -706,9 +706,34 @@
     }
 
     /* Date header should stay with the table when section breaks */
-    .print-date-section>div:first-child {
+    .print-date-section>div:first-child,
+    .print-date-header {
         page-break-after: avoid;
         break-after: avoid;
+    }
+
+    /* Programme type heading (e.g. "Constituency") must stay with its table.
+       Without this, the date header + programme type heading can land at the
+       bottom of a page while the table breaks to the next page. */
+    .print-programme-type-heading {
+        page-break-after: avoid;
+        break-after: avoid;
+    }
+
+    /* Don't allow the very first programme type section of a date to start on a
+       new page on its own — it should travel with the date header above it. */
+    .print-date-sections>.print-programme-type-section:first-child {
+        page-break-before: avoid;
+        break-before: avoid;
+    }
+
+    /* Keep the first body row glued to the table head so thead never sits alone
+       at the bottom of a page (combined with thead's break-after: avoid this
+       guarantees: date header → programme type heading → thead → first row all
+       move to the next page together when there isn't room). */
+    .print-schedule .print-table-wrapper tbody tr:first-child {
+        page-break-before: avoid;
+        break-before: avoid;
     }
 
     /* Print header styles - now using @page @top-center for reliable repetition */
