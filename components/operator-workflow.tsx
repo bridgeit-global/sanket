@@ -203,8 +203,8 @@ export function BeneficiaryManagement() {
     const [hasMoreSearchResults, setHasMoreSearchResults] = useState(false);
     const [searchTotalCount, setSearchTotalCount] = useState(0);
     const loadMoreInFlightRef = useRef(false);
-    const [searchType, setSearchType] = useState<'voterId' | 'phone' | 'details'>('details');
-    const [lastSearchType, setLastSearchType] = useState<string | null>(null);
+    const [searchType, setSearchType] = useState<'voterId' | 'phone' | 'details'>('voterId');
+    const [lastSearchType, setLastSearchType] = useState<'voterId' | 'phone' | 'details' | null>(null);
     const [hasSearched, setHasSearched] = useState(false);
 
     // Detailed search parameters
@@ -269,6 +269,7 @@ export function BeneficiaryManagement() {
         setIsLoadingMore(true);
         try {
             const offset = searchResults.length;
+            const effectiveSearchType = lastSearchType ?? searchType;
             const response = await fetch('/operator/api/search-voter', {
                 method: 'POST',
                 headers: {
@@ -276,11 +277,14 @@ export function BeneficiaryManagement() {
                 },
                 body: JSON.stringify({
                     searchTerm: searchTerm.trim(),
-                    searchType: searchType,
-                    name: searchType === 'details' ? name.trim() : undefined,
-                    gender: searchType === 'details' ? (gender === 'any' ? undefined : gender) : undefined,
-                    age: searchType === 'details' ? age : undefined,
-                    ageRange: searchType === 'details' ? ageRange : undefined,
+                    searchType: effectiveSearchType,
+                    name: effectiveSearchType === 'details' ? name.trim() : undefined,
+                    gender:
+                        effectiveSearchType === 'details'
+                            ? (gender === 'any' ? undefined : gender)
+                            : undefined,
+                    age: effectiveSearchType === 'details' ? age : undefined,
+                    ageRange: effectiveSearchType === 'details' ? ageRange : undefined,
                     limit: VOTER_SEARCH_PAGE_SIZE,
                     offset,
                 }),
@@ -313,6 +317,7 @@ export function BeneficiaryManagement() {
         hasMoreSearchResults,
         isLoadingMore,
         isSearching,
+        lastSearchType,
         name,
         searchResults.length,
         searchTerm,
@@ -321,6 +326,8 @@ export function BeneficiaryManagement() {
     ]);
 
     const handleSearch = async () => {
+        const trimmedTerm = searchTerm.trim();
+
         if (searchType === 'details') {
             if (!name.trim() && (!gender || gender === 'any') && age === undefined) {
                 toast({
@@ -330,7 +337,7 @@ export function BeneficiaryManagement() {
                 return;
             }
         } else {
-            if (!searchTerm.trim()) {
+            if (!trimmedTerm) {
                 toast({
                     type: 'error',
                     description: t('operator.messages.pleaseEnterVoterId'),
@@ -339,22 +346,19 @@ export function BeneficiaryManagement() {
             }
         }
 
-        setIsSearching(true);
-        setHasSearched(true);
-        setHasMoreSearchResults(false);
-        try {
+        const runSearch = async (typeToUse: 'voterId' | 'phone' | 'details') => {
             const response = await fetch('/operator/api/search-voter', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    searchTerm: searchTerm.trim(),
-                    searchType: searchType,
-                    name: searchType === 'details' ? name.trim() : undefined,
-                    gender: searchType === 'details' ? (gender === 'any' ? undefined : gender) : undefined,
-                    age: searchType === 'details' ? age : undefined,
-                    ageRange: searchType === 'details' ? ageRange : undefined,
+                    searchTerm: typeToUse === 'details' ? '' : trimmedTerm,
+                    searchType: typeToUse,
+                    name: typeToUse === 'details' ? (searchType === 'details' ? name.trim() : trimmedTerm) : undefined,
+                    gender: typeToUse === 'details' ? (gender === 'any' ? undefined : gender) : undefined,
+                    age: typeToUse === 'details' ? age : undefined,
+                    ageRange: typeToUse === 'details' ? ageRange : undefined,
                     limit: VOTER_SEARCH_PAGE_SIZE,
                     offset: 0,
                 }),
@@ -365,29 +369,73 @@ export function BeneficiaryManagement() {
             }
 
             const data = await response.json();
-            setSearchResults(data.voters || []);
-            setHasMoreSearchResults(!!data.hasMore);
-            const total =
-                typeof data.totalCount === 'number' ? data.totalCount : (data.voters || []).length;
-            setSearchTotalCount(total);
-            setLastSearchType(data.searchType || searchType);
+            return data as {
+                voters: VoterWithPartNo[];
+                hasMore?: boolean;
+                totalCount?: number;
+                searchType?: 'voterId' | 'phone' | 'details';
+            };
+        };
 
-            if (data.voters.length === 0) {
-                const searchTypeText = data.searchType === 'voterId' ? t('operator.search.types.voterId') :
-                    data.searchType === 'phone' ? t('operator.search.types.phone') : t('backOffice.detailsType');
+        setIsSearching(true);
+        setHasSearched(true);
+        setHasMoreSearchResults(false);
+        setLastSearchType(null);
+
+        try {
+            const searchOrder: Array<'voterId' | 'phone' | 'details'> =
+                searchType === 'details' ? ['details'] : ['voterId', 'phone', 'details'];
+
+            let finalData:
+                | {
+                    voters: VoterWithPartNo[];
+                    hasMore?: boolean;
+                    totalCount?: number;
+                    searchType?: 'voterId' | 'phone' | 'details';
+                }
+                | null = null;
+            let finalType: 'voterId' | 'phone' | 'details' = searchType;
+
+            for (const typeToUse of searchOrder) {
+                // If user explicitly chose phone, don't force voterId first.
+                if (searchType === 'phone' && typeToUse === 'voterId') continue;
+                // If user explicitly chose voterId, keep the requested order.
+
+                const data = await runSearch(typeToUse);
+                finalData = data;
+                finalType = data.searchType ?? typeToUse;
+                if ((data.voters || []).length > 0 || typeToUse === 'details') {
+                    break;
+                }
+            }
+
+            const voters = finalData?.voters || [];
+            setSearchResults(voters);
+            setHasMoreSearchResults(!!finalData?.hasMore);
+            const total =
+                typeof finalData?.totalCount === 'number' ? finalData.totalCount : voters.length;
+            setSearchTotalCount(total);
+            setLastSearchType(finalType);
+
+            const searchTypeText =
+                finalType === 'voterId'
+                    ? t('operator.search.types.voterId')
+                    : finalType === 'phone'
+                        ? t('operator.search.types.phone')
+                        : t('backOffice.detailsType');
+
+            if (voters.length === 0) {
                 toast({
                     type: 'error',
                     description: t('operator.messages.noVotersFound', { type: searchTypeText }),
                 });
             } else {
-                const searchTypeText = data.searchType === 'voterId' ? t('operator.search.types.voterId') :
-                    data.searchType === 'phone' ? t('operator.search.types.phone') : t('backOffice.detailsType');
                 toast({
                     type: 'success',
                     description: t('operator.messages.votersFound', { count: total, type: searchTypeText }),
                 });
             }
-        } catch (error) {
+        } catch {
             toast({
                 type: 'error',
                 description: t('operator.messages.failedToSearch'),
@@ -885,15 +933,15 @@ export function BeneficiaryManagement() {
                                         <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                                             <input
                                                 type="radio"
-                                                id="details"
+                                                id="voterId"
                                                 name="searchType"
-                                                value="details"
-                                                checked={searchType === 'details'}
+                                                value="voterId"
+                                                checked={searchType === 'voterId'}
                                                 onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'phone' | 'details')}
                                                 className="size-4"
                                             />
-                                            <Label htmlFor="details" className="text-sm font-medium cursor-pointer flex-1">
-                                                {t('operator.search.types.detailed')}
+                                            <Label htmlFor="voterId" className="text-sm font-medium cursor-pointer flex-1">
+                                                {t('operator.search.types.voterId')}
                                             </Label>
                                         </div>
                                         <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
@@ -913,15 +961,15 @@ export function BeneficiaryManagement() {
                                         <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                                             <input
                                                 type="radio"
-                                                id="voterId"
+                                                id="details"
                                                 name="searchType"
-                                                value="voterId"
-                                                checked={searchType === 'voterId'}
+                                                value="details"
+                                                checked={searchType === 'details'}
                                                 onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'phone' | 'details')}
                                                 className="size-4"
                                             />
-                                            <Label htmlFor="voterId" className="text-sm font-medium cursor-pointer flex-1">
-                                                {t('operator.search.types.voterId')}
+                                            <Label htmlFor="details" className="text-sm font-medium cursor-pointer flex-1">
+                                                {t('operator.search.types.detailed')}
                                             </Label>
                                         </div>
                                     </div>
