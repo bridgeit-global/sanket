@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -191,9 +191,10 @@ function VoterSearchResultsVirtualList({
     );
 }
 
-export function BeneficiaryManagement() {
+export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 'create' | 'manage' }) {
     const { t } = useTranslations();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<VoterWithPartNo[]>([]);
     const [selectedVoter, setSelectedVoter] = useState<VoterWithPartNo | null>(null);
@@ -217,8 +218,10 @@ export function BeneficiaryManagement() {
     const [showPhoneUpdate, setShowPhoneUpdate] = useState(false);
     const [serviceData, setServiceData] = useState<any>(null);
     const [createdService, setCreatedService] = useState<BeneficiaryService | null>(null);
-    const [workflowStep, setWorkflowStep] = useState<'search' | 'phoneUpdate' | 'service' | 'confirmation' | 'completed' | 'tasks'>('search');
-    const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create');
+    const [workflowStep, setWorkflowStep] = useState<'search' | 'phoneUpdate' | 'service' | 'confirmation' | 'completed' | 'tasks'>(
+        initialTab === 'manage' ? 'tasks' : 'search',
+    );
+    const activeTab = (searchParams.get('tab') as 'create' | 'manage' | null) ?? initialTab;
 
     // Helper function to clear search state when switching tabs
     const clearSearchStateIfNeeded = () => {
@@ -676,8 +679,8 @@ export function BeneficiaryManagement() {
                 <Button
                     variant={activeTab === 'create' ? 'default' : 'ghost'}
                     onClick={() => {
-                        setActiveTab('create');
                         setWorkflowStep('search');
+                        router.push('?tab=create', { scroll: false });
                     }}
                     className="flex-1 text-sm sm:text-base"
                 >
@@ -687,8 +690,8 @@ export function BeneficiaryManagement() {
                 <Button
                     variant={activeTab === 'manage' ? 'default' : 'ghost'}
                     onClick={() => {
-                        setActiveTab('manage');
                         setWorkflowStep('tasks');
+                        router.push('?tab=manage', { scroll: false });
                     }}
                     className="flex-1 text-sm sm:text-base"
                 >
