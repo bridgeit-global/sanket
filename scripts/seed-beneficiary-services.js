@@ -90,66 +90,6 @@ async function seedBeneficiaryServices() {
       }
     ];
 
-    // Community Services (one-to-many)
-    const communityServices = [
-      {
-        name: 'Road Construction Projects',
-        description: 'Public work for road construction affecting multiple voters',
-        type: 'one-to-many',
-        category: 'public_works',
-        isActive: true
-      },
-      {
-        name: 'Fund Utilization Projects',
-        description: 'Track fund utilization for development projects',
-        type: 'one-to-many',
-        category: 'fund_utilization',
-        isActive: true
-      },
-      {
-        name: 'Issue Visibility Campaigns',
-        description: 'Campaigns to highlight local issues and concerns',
-        type: 'one-to-many',
-        category: 'issue_visibility',
-        isActive: true
-      },
-      {
-        name: 'Water Supply Projects',
-        description: 'Community water supply and infrastructure projects',
-        type: 'one-to-many',
-        category: 'water_supply',
-        isActive: true
-      },
-      {
-        name: 'Sanitation Projects',
-        description: 'Community sanitation and waste management projects',
-        type: 'one-to-many',
-        category: 'sanitation',
-        isActive: true
-      },
-      {
-        name: 'Street Lighting',
-        description: 'Community street lighting and electrical projects',
-        type: 'one-to-many',
-        category: 'street_lighting',
-        isActive: true
-      },
-      {
-        name: 'Public Health Campaigns',
-        description: 'Community health awareness and vaccination drives',
-        type: 'one-to-many',
-        category: 'public_health',
-        isActive: true
-      },
-      {
-        name: 'Educational Programs',
-        description: 'Community educational and skill development programs',
-        type: 'one-to-many',
-        category: 'education',
-        isActive: true
-      }
-    ];
-
     // Insert individual services
     console.log('📝 Inserting individual services...');
     for (const service of individualServices) {
@@ -157,17 +97,9 @@ async function seedBeneficiaryServices() {
       console.log(`✅ Added: ${service.name}`);
     }
 
-    // Insert community services
-    console.log('📝 Inserting community services...');
-    for (const service of communityServices) {
-      await db.insert(services).values(service);
-      console.log(`✅ Added: ${service.name}`);
-    }
-
     console.log('🎉 Successfully seeded all beneficiary services!');
-    console.log(`📊 Total services added: ${individualServices.length + communityServices.length}`);
+    console.log(`📊 Total services added: ${individualServices.length}`);
     console.log(`👤 Individual services: ${individualServices.length}`);
-    console.log(`🏘️ Community services: ${communityServices.length}`);
 
   } catch (error) {
     console.error('❌ Error seeding beneficiary services:', error);

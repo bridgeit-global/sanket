@@ -1060,16 +1060,16 @@ export function TaskManagement() {
                         </div>
                     )}
 
-                    {/* Community Services Section */}
+                    {/* Services Section */}
                     {(filterServiceType === 'all' || filterServiceType === 'community') && (
                         <div>
                             {communityServices.length === 0 && (filterServiceType === 'community' || (filterServiceType === 'all' && tasks.length === 0)) ? (
                                 <Card>
                                     <CardContent className="pt-4 sm:pt-6">
                                         <div className="text-center py-8">
-                                            <p className="text-muted-foreground">No community services found</p>
+                                            <p className="text-muted-foreground">No services found</p>
                                             <p className="text-sm text-muted-foreground mt-2">
-                                                Try adjusting your filters to find community services
+                                                Try adjusting your filters to find services
                                             </p>
                                         </div>
                                     </CardContent>
@@ -1078,7 +1078,7 @@ export function TaskManagement() {
                                 <div>
                                     {filterServiceType === 'all' && communityServices.length > 0 && (
                                         <div className="mb-4">
-                                            <h2 className="text-xl sm:text-2xl font-semibold mb-4">Community Services</h2>
+                                            <h2 className="text-xl sm:text-2xl font-semibold mb-4">Services</h2>
                                         </div>
                                     )}
                                     <div className="space-y-4">
@@ -1109,9 +1109,6 @@ export function TaskManagement() {
                                                                             {getPriorityIcon(service.priority || 'medium')}
                                                                             {service.priority || 'medium'}
                                                                         </div>
-                                                                    </Badge>
-                                                                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                                                                        Community Service
                                                                     </Badge>
                                                                 </div>
                                                             </div>
@@ -1169,7 +1166,7 @@ export function TaskManagement() {
                                                                             token: service.token,
                                                                             createdAt: service.createdAt,
                                                                             serviceName: service.serviceName,
-                                                                            name: 'Community Service',
+                                                                            name: service.serviceName,
                                                                         })
                                                                     }
                                                                     className="w-full sm:w-auto"
@@ -1211,7 +1208,7 @@ export function TaskManagement() {
                                             </div>
                                         ))}
                                     </div>
-                                    {/* Pagination for Community Services */}
+                                    {/* Pagination for Services */}
                                     {communityServices.length > 0 && (filterServiceType === 'all' || filterServiceType === 'community') && (
                                         <div className="mt-4">
                                             <TablePagination
@@ -1237,7 +1234,7 @@ export function TaskManagement() {
                         <Card>
                             <CardContent className="pt-4 sm:pt-6">
                                 <div className="text-center py-8">
-                                    <p className="text-muted-foreground">No tasks or community services found</p>
+                                    <p className="text-muted-foreground">No tasks or services found</p>
                                     <p className="text-sm text-muted-foreground mt-2">
                                         Try adjusting your filters
                                     </p>
@@ -1264,7 +1261,7 @@ export function TaskManagement() {
                             <div>
                                 <Label>{t('taskManagement.dialog.taskType')}</Label>
                                 <p className="text-sm text-muted-foreground">
-                                    {selectedTask ? selectedTask.taskType : (selectedCommunityService?.serviceName || 'Community Service')}
+                                    {selectedTask ? selectedTask.taskType : (selectedCommunityService?.serviceName || 'Service')}
                                 </p>
                             </div>
 
@@ -1340,7 +1337,7 @@ export function TaskManagement() {
                             <div>
                                 <Label>{t('taskManagement.dialog.task')}</Label>
                                 <p className="text-sm text-muted-foreground">
-                                    {selectedTask ? selectedTask.taskType : (selectedCommunityService?.serviceName || 'Community Service')}
+                                    {selectedTask ? selectedTask.taskType : (selectedCommunityService?.serviceName || 'Service')}
                                 </p>
                             </div>
 

@@ -2964,7 +2964,7 @@ export async function updateVoterTaskStatus({
   }
 }
 
-// Community Service Area queries
+// Service area queries
 export async function createCommunityServiceAreas({
   serviceId,
   areas,

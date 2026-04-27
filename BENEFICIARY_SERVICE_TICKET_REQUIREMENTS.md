@@ -42,7 +42,7 @@ When adding a beneficiary service ticket, the system MUST always ask for ALL rel
 - **Outside Voter Flag**: If beneficiary is not in voter database
 - **Notes**: Additional information or special requirements
 
-### 3. Community Services (one-to-many) - Required Details
+### 3. One-to-many Services - Required Details
 - **Part Number**: Geographic area identifier
 - **Area Details**: Specific location or ward information
 - **Target Audience**: Who will benefit from this service
@@ -72,7 +72,7 @@ When adding a beneficiary service ticket, the system MUST always ask for ALL rel
 - Verify contact information
 - Confirm service requirements
 
-### For Community Services
+### For One-to-many Services
 - Ask for part number and area details
 - Collect community impact information
 - Verify resource requirements
@@ -97,7 +97,7 @@ Address: 123 Main Street, Anushakti Nagar
 Notes: First-time voter registration
 ```
 
-### Example 2: Community Service
+### Example 2: One-to-many Service
 ```
 Service: Road Repair
 Type: one-to-many
