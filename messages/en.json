@@ -644,8 +644,7 @@
       "title": "Create Beneficiary Service",
       "description": "Create a service request for {name} ({epicNumber})",
       "types": {
-        "individual": "Individual Service",
-        "community": "Community Service"
+        "individual": "Individual Service"
       },
       "fields": {
         "serviceType": "Service Type *",
@@ -680,7 +679,6 @@
     },
     "messages": {
       "serviceNameRequired": "Service name is required",
-      "areaIdentifierRequired": "Please provide at least one area identifier (Part No, Ward No, or AC No) for community service",
       "createdSuccess": "Beneficiary service created successfully",
       "createFailed": "Failed to create beneficiary service. Please try again.",
       "serviceCreatedMessage": "Service created successfully. You can now search for another voter.",

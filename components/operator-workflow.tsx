@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -191,9 +191,10 @@ function VoterSearchResultsVirtualList({
     );
 }
 
-export function BeneficiaryManagement() {
+export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 'create' | 'manage' }) {
     const { t } = useTranslations();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [searchTerm, setSearchTerm] = useState('');
     const [searchResults, setSearchResults] = useState<VoterWithPartNo[]>([]);
     const [selectedVoter, setSelectedVoter] = useState<VoterWithPartNo | null>(null);
@@ -203,22 +204,24 @@ export function BeneficiaryManagement() {
     const [hasMoreSearchResults, setHasMoreSearchResults] = useState(false);
     const [searchTotalCount, setSearchTotalCount] = useState(0);
     const loadMoreInFlightRef = useRef(false);
-    const [searchType, setSearchType] = useState<'voterId' | 'phone' | 'details'>('details');
-    const [lastSearchType, setLastSearchType] = useState<string | null>(null);
+    const [searchType, setSearchType] = useState<'voterId' | 'phone' | 'details'>('voterId');
+    const [lastSearchType, setLastSearchType] = useState<'voterId' | 'phone' | 'details' | null>(null);
     const [hasSearched, setHasSearched] = useState(false);
 
     // Detailed search parameters
     const [name, setName] = useState('');
     const [gender, setGender] = useState('');
-    const [age, setAge] = useState<number>(25);
+    const [age, setAge] = useState<number | undefined>(undefined);
     const [ageRange, setAgeRange] = useState<number>(5);
     const [showBeneficiaryService, setShowBeneficiaryService] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [showPhoneUpdate, setShowPhoneUpdate] = useState(false);
     const [serviceData, setServiceData] = useState<any>(null);
     const [createdService, setCreatedService] = useState<BeneficiaryService | null>(null);
-    const [workflowStep, setWorkflowStep] = useState<'search' | 'phoneUpdate' | 'service' | 'confirmation' | 'completed' | 'tasks'>('search');
-    const [activeTab, setActiveTab] = useState<'create' | 'manage'>('create');
+    const [workflowStep, setWorkflowStep] = useState<'search' | 'phoneUpdate' | 'service' | 'confirmation' | 'completed' | 'tasks'>(
+        initialTab === 'manage' ? 'tasks' : 'search',
+    );
+    const activeTab = (searchParams.get('tab') as 'create' | 'manage' | null) ?? initialTab;
 
     // Helper function to clear search state when switching tabs
     const clearSearchStateIfNeeded = () => {
@@ -242,7 +245,7 @@ export function BeneficiaryManagement() {
         setSearchTerm('');
         setName('');
         setGender('');
-        setAge(25);
+        setAge(undefined);
         setAgeRange(5);
         setSearchResults([]);
         setHasSearched(false);
@@ -269,6 +272,7 @@ export function BeneficiaryManagement() {
         setIsLoadingMore(true);
         try {
             const offset = searchResults.length;
+            const effectiveSearchType = lastSearchType ?? searchType;
             const response = await fetch('/operator/api/search-voter', {
                 method: 'POST',
                 headers: {
@@ -276,11 +280,14 @@ export function BeneficiaryManagement() {
                 },
                 body: JSON.stringify({
                     searchTerm: searchTerm.trim(),
-                    searchType: searchType,
-                    name: searchType === 'details' ? name.trim() : undefined,
-                    gender: searchType === 'details' ? (gender === 'any' ? undefined : gender) : undefined,
-                    age: searchType === 'details' ? age : undefined,
-                    ageRange: searchType === 'details' ? ageRange : undefined,
+                    searchType: effectiveSearchType,
+                    name: effectiveSearchType === 'details' ? name.trim() : undefined,
+                    gender:
+                        effectiveSearchType === 'details'
+                            ? (gender === 'any' ? undefined : gender)
+                            : undefined,
+                    age: effectiveSearchType === 'details' ? age : undefined,
+                    ageRange: effectiveSearchType === 'details' ? ageRange : undefined,
                     limit: VOTER_SEARCH_PAGE_SIZE,
                     offset,
                 }),
@@ -313,6 +320,7 @@ export function BeneficiaryManagement() {
         hasMoreSearchResults,
         isLoadingMore,
         isSearching,
+        lastSearchType,
         name,
         searchResults.length,
         searchTerm,
@@ -321,6 +329,8 @@ export function BeneficiaryManagement() {
     ]);
 
     const handleSearch = async () => {
+        const trimmedTerm = searchTerm.trim();
+
         if (searchType === 'details') {
             if (!name.trim() && (!gender || gender === 'any') && age === undefined) {
                 toast({
@@ -330,7 +340,7 @@ export function BeneficiaryManagement() {
                 return;
             }
         } else {
-            if (!searchTerm.trim()) {
+            if (!trimmedTerm) {
                 toast({
                     type: 'error',
                     description: t('operator.messages.pleaseEnterVoterId'),
@@ -339,22 +349,19 @@ export function BeneficiaryManagement() {
             }
         }
 
-        setIsSearching(true);
-        setHasSearched(true);
-        setHasMoreSearchResults(false);
-        try {
+        const runSearch = async (typeToUse: 'voterId' | 'phone' | 'details') => {
             const response = await fetch('/operator/api/search-voter', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    searchTerm: searchTerm.trim(),
-                    searchType: searchType,
-                    name: searchType === 'details' ? name.trim() : undefined,
-                    gender: searchType === 'details' ? (gender === 'any' ? undefined : gender) : undefined,
-                    age: searchType === 'details' ? age : undefined,
-                    ageRange: searchType === 'details' ? ageRange : undefined,
+                    searchTerm: typeToUse === 'details' ? '' : trimmedTerm,
+                    searchType: typeToUse,
+                    name: typeToUse === 'details' ? (searchType === 'details' ? name.trim() : trimmedTerm) : undefined,
+                    gender: typeToUse === 'details' ? (gender === 'any' ? undefined : gender) : undefined,
+                    age: typeToUse === 'details' ? age : undefined,
+                    ageRange: typeToUse === 'details' ? ageRange : undefined,
                     limit: VOTER_SEARCH_PAGE_SIZE,
                     offset: 0,
                 }),
@@ -365,29 +372,73 @@ export function BeneficiaryManagement() {
             }
 
             const data = await response.json();
-            setSearchResults(data.voters || []);
-            setHasMoreSearchResults(!!data.hasMore);
-            const total =
-                typeof data.totalCount === 'number' ? data.totalCount : (data.voters || []).length;
-            setSearchTotalCount(total);
-            setLastSearchType(data.searchType || searchType);
+            return data as {
+                voters: VoterWithPartNo[];
+                hasMore?: boolean;
+                totalCount?: number;
+                searchType?: 'voterId' | 'phone' | 'details';
+            };
+        };
 
-            if (data.voters.length === 0) {
-                const searchTypeText = data.searchType === 'voterId' ? t('operator.search.types.voterId') :
-                    data.searchType === 'phone' ? t('operator.search.types.phone') : t('backOffice.detailsType');
+        setIsSearching(true);
+        setHasSearched(true);
+        setHasMoreSearchResults(false);
+        setLastSearchType(null);
+
+        try {
+            const searchOrder: Array<'voterId' | 'phone' | 'details'> =
+                searchType === 'details' ? ['details'] : ['voterId', 'phone', 'details'];
+
+            let finalData:
+                | {
+                    voters: VoterWithPartNo[];
+                    hasMore?: boolean;
+                    totalCount?: number;
+                    searchType?: 'voterId' | 'phone' | 'details';
+                }
+                | null = null;
+            let finalType: 'voterId' | 'phone' | 'details' = searchType;
+
+            for (const typeToUse of searchOrder) {
+                // If user explicitly chose phone, don't force voterId first.
+                if (searchType === 'phone' && typeToUse === 'voterId') continue;
+                // If user explicitly chose voterId, keep the requested order.
+
+                const data = await runSearch(typeToUse);
+                finalData = data;
+                finalType = data.searchType ?? typeToUse;
+                if ((data.voters || []).length > 0 || typeToUse === 'details') {
+                    break;
+                }
+            }
+
+            const voters = finalData?.voters || [];
+            setSearchResults(voters);
+            setHasMoreSearchResults(!!finalData?.hasMore);
+            const total =
+                typeof finalData?.totalCount === 'number' ? finalData.totalCount : voters.length;
+            setSearchTotalCount(total);
+            setLastSearchType(finalType);
+
+            const searchTypeText =
+                finalType === 'voterId'
+                    ? t('operator.search.types.voterId')
+                    : finalType === 'phone'
+                        ? t('operator.search.types.phone')
+                        : t('backOffice.detailsType');
+
+            if (voters.length === 0) {
                 toast({
                     type: 'error',
                     description: t('operator.messages.noVotersFound', { type: searchTypeText }),
                 });
             } else {
-                const searchTypeText = data.searchType === 'voterId' ? t('operator.search.types.voterId') :
-                    data.searchType === 'phone' ? t('operator.search.types.phone') : t('backOffice.detailsType');
                 toast({
                     type: 'success',
                     description: t('operator.messages.votersFound', { count: total, type: searchTypeText }),
                 });
             }
-        } catch (error) {
+        } catch {
             toast({
                 type: 'error',
                 description: t('operator.messages.failedToSearch'),
@@ -586,6 +637,28 @@ export function BeneficiaryManagement() {
         setWorkflowStep('search');
     };
 
+    const handlePreviousFromPhoneUpdate = () => {
+        setShowPhoneUpdate(false);
+        setShowBeneficiaryService(false);
+        setShowConfirmation(false);
+        setSelectedVoter(null);
+        setSelectedVoterMobileNumbers([]);
+        setWorkflowStep('search');
+    };
+
+    const handlePreviousFromService = () => {
+        setShowBeneficiaryService(false);
+        setShowConfirmation(false);
+        setShowPhoneUpdate(true);
+        setWorkflowStep('phoneUpdate');
+    };
+
+    const handlePreviousFromConfirmation = () => {
+        setShowConfirmation(false);
+        setShowBeneficiaryService(true);
+        setWorkflowStep('service');
+    };
+
     return (
         <div className="space-y-6">
             {/* Header with Sign Out */}
@@ -606,8 +679,8 @@ export function BeneficiaryManagement() {
                 <Button
                     variant={activeTab === 'create' ? 'default' : 'ghost'}
                     onClick={() => {
-                        setActiveTab('create');
                         setWorkflowStep('search');
+                        router.push('?tab=create', { scroll: false });
                     }}
                     className="flex-1 text-sm sm:text-base"
                 >
@@ -617,8 +690,8 @@ export function BeneficiaryManagement() {
                 <Button
                     variant={activeTab === 'manage' ? 'default' : 'ghost'}
                     onClick={() => {
-                        setActiveTab('manage');
                         setWorkflowStep('tasks');
+                        router.push('?tab=manage', { scroll: false });
                     }}
                     className="flex-1 text-sm sm:text-base"
                 >
@@ -701,6 +774,7 @@ export function BeneficiaryManagement() {
                             mobileNumbers={selectedVoterMobileNumbers}
                             onPhoneUpdate={handlePhoneUpdate}
                             onSkip={handleSkipPhoneUpdate}
+                            onPrevious={handlePreviousFromPhoneUpdate}
                             onCancel={handleCancel}
                         />
                     )}
@@ -711,7 +785,9 @@ export function BeneficiaryManagement() {
                             voter={selectedVoter}
                             onServiceCreated={() => { }} // Not used in confirmation flow
                             onServiceDataReady={handleServiceDataReady}
+                            onPrevious={handlePreviousFromService}
                             onCancel={handleCancel}
+                            initialData={serviceData ?? undefined}
                         />
                     )}
 
@@ -789,6 +865,9 @@ export function BeneficiaryManagement() {
                                 <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
                                     <Button onClick={handleConfirmService} className="flex-1">
                                         {t('operator.confirmation.confirmButton')}
+                                    </Button>
+                                    <Button variant="secondary" onClick={handlePreviousFromConfirmation} className="sm:w-auto">
+                                        {t('common.previous')}
                                     </Button>
                                     <Button variant="outline" onClick={handleCancel} className="sm:w-auto">
                                         {t('common.cancel')}
@@ -885,15 +964,15 @@ export function BeneficiaryManagement() {
                                         <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                                             <input
                                                 type="radio"
-                                                id="details"
+                                                id="voterId"
                                                 name="searchType"
-                                                value="details"
-                                                checked={searchType === 'details'}
+                                                value="voterId"
+                                                checked={searchType === 'voterId'}
                                                 onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'phone' | 'details')}
                                                 className="size-4"
                                             />
-                                            <Label htmlFor="details" className="text-sm font-medium cursor-pointer flex-1">
-                                                {t('operator.search.types.detailed')}
+                                            <Label htmlFor="voterId" className="text-sm font-medium cursor-pointer flex-1">
+                                                {t('operator.search.types.voterId')}
                                             </Label>
                                         </div>
                                         <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
@@ -913,15 +992,15 @@ export function BeneficiaryManagement() {
                                         <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
                                             <input
                                                 type="radio"
-                                                id="voterId"
+                                                id="details"
                                                 name="searchType"
-                                                value="voterId"
-                                                checked={searchType === 'voterId'}
+                                                value="details"
+                                                checked={searchType === 'details'}
                                                 onChange={(e) => handleSearchTypeChange(e.target.value as 'voterId' | 'phone' | 'details')}
                                                 className="size-4"
                                             />
-                                            <Label htmlFor="voterId" className="text-sm font-medium cursor-pointer flex-1">
-                                                {t('operator.search.types.voterId')}
+                                            <Label htmlFor="details" className="text-sm font-medium cursor-pointer flex-1">
+                                                {t('operator.search.types.detailed')}
                                             </Label>
                                         </div>
                                     </div>
@@ -961,10 +1040,25 @@ export function BeneficiaryManagement() {
                                                     <Input
                                                         id="age"
                                                         type="number"
-                                                        min={18}
-                                                        max={100}
-                                                        value={age}
-                                                        onChange={(e) => setAge(Number.parseInt(e.target.value) || 25)}
+                                                        min={1}
+                                                        max={150}
+                                                        value={age ?? ''}
+                                                        onChange={(e) => {
+                                                            const raw = e.target.value;
+                                                            if (!raw) {
+                                                                setAge(undefined);
+                                                                return;
+                                                            }
+
+                                                            const parsed = Number.parseInt(raw, 10);
+                                                            if (!Number.isFinite(parsed) || parsed <= 0) {
+                                                                setAge(undefined);
+                                                                return;
+                                                            }
+
+                                                            const clamped = Math.min(Math.max(parsed, 1), 150);
+                                                            setAge(clamped);
+                                                        }}
                                                         placeholder={t('backOffice.enterAge')}
                                                         className="w-full"
                                                     />
@@ -978,11 +1072,18 @@ export function BeneficiaryManagement() {
                                                         step={1}
                                                         value={[ageRange]}
                                                         onValueChange={(value: number[]) => setAgeRange(value[0])}
+                                                        disabled={age === undefined}
                                                         className="w-full"
                                                     />
-                                                    <p className="text-sm text-muted-foreground mt-1">
-                                                        {t('backOffice.searchRange', { min: age - ageRange, max: age + ageRange })}
-                                                    </p>
+                                                    {age === undefined ? (
+                                                        <p className="text-sm text-muted-foreground mt-1">
+                                                            {t('backOffice.enterAge')}
+                                                        </p>
+                                                    ) : (
+                                                        <p className="text-sm text-muted-foreground mt-1">
+                                                            {t('backOffice.searchRange', { min: age - ageRange, max: age + ageRange })}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -995,7 +1096,7 @@ export function BeneficiaryManagement() {
                                                     onClick={() => {
                                                         setName('');
                                                         setGender('');
-                                                        setAge(25);
+                                                        setAge(undefined);
                                                         setAgeRange(5);
                                                         setSearchResults([]);
                                                         setSearchTotalCount(0);

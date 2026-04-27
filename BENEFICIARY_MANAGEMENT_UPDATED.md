@@ -108,7 +108,7 @@ This application now includes a comprehensive beneficiary management system with
 - **Education Services**: Educational support and assistance
 - **Employment Services**: Job-related assistance and training
 
-### Community Services (One-to-Many):
+### One-to-many Services:
 - **Public Works**: Infrastructure and public works projects
 - **Infrastructure**: Development and maintenance projects
 - **Fund Utilization**: Community fund utilization projects

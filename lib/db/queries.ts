@@ -1169,6 +1169,23 @@ export async function countSearchVoterByEpicNumber(epicNumber: string): Promise<
   }
 }
 
+// Fuzzy name match: substring LIKE for short/partial input, plus pg_trgm
+// similarity for typo-tolerance. Results ordered by similarity descending.
+const FUZZY_NAME_SIMILARITY_THRESHOLD = 0.25;
+
+function fuzzyNameCondition(name: string): SQL {
+  const trimmed = name.trim();
+  return sql`(
+    LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${trimmed}%`})
+    OR similarity(LOWER(${VoterMaster.fullName}), LOWER(${trimmed})) > ${FUZZY_NAME_SIMILARITY_THRESHOLD}
+  )`;
+}
+
+function fuzzyNameOrder(name: string): SQL {
+  const trimmed = name.trim();
+  return sql`similarity(LOWER(${VoterMaster.fullName}), LOWER(${trimmed})) DESC`;
+}
+
 export async function searchVoterByName(
   name: string,
   electionId?: string,
@@ -1195,8 +1212,8 @@ export async function searchVoterByName(
         pincode: VoterMaster.pincode,
       })
       .from(VoterMaster)
-      .where(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${name}%`})`)
-      .orderBy(asc(VoterMaster.fullName));
+      .where(fuzzyNameCondition(name))
+      .orderBy(fuzzyNameOrder(name), asc(VoterMaster.fullName));
 
     if (pagination?.limit != null) {
       q = q.limit(pagination.limit) as typeof q;
@@ -1221,7 +1238,7 @@ export async function countSearchVoterByName(name: string): Promise<number> {
     const result = await db
       .select({ c: count() })
       .from(VoterMaster)
-      .where(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${name}%`})`);
+      .where(fuzzyNameCondition(name));
     return Number(result[0]?.c ?? 0);
   } catch (error) {
     throw new ChatSDKError(
@@ -1445,9 +1462,10 @@ export async function searchVoterByDetails(params: {
   try {
     const conditions: any[] = [];
 
-    // Name search
-    if (params.name?.trim()) {
-      conditions.push(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${params.name.trim()}%`})`);
+    // Name search – fuzzy match (pg_trgm similarity + substring fallback)
+    const trimmedName = params.name?.trim();
+    if (trimmedName) {
+      conditions.push(fuzzyNameCondition(trimmedName));
     }
 
     // Gender search
@@ -1470,6 +1488,11 @@ export async function searchVoterByDetails(params: {
 
     const currentElectionId = await getCurrentElectionId();
 
+    // When a name was provided, order by similarity score first for relevance
+    const orderByClauses = trimmedName
+      ? [fuzzyNameOrder(trimmedName), asc(VoterMaster.fullName)]
+      : [asc(VoterMaster.fullName)];
+
     let q = db
       .select({
         epicNumber: VoterMaster.epicNumber,
@@ -1489,7 +1512,7 @@ export async function searchVoterByDetails(params: {
       })
       .from(VoterMaster)
       .where(sql`${sql.join(conditions, sql` AND `)}`)
-      .orderBy(asc(VoterMaster.fullName));
+      .orderBy(...orderByClauses);
 
     if (params.limit != null) {
       q = q.limit(params.limit) as typeof q;
@@ -1519,7 +1542,7 @@ export async function countSearchVoterByDetails(params: {
     const conditions: any[] = [];
 
     if (params.name?.trim()) {
-      conditions.push(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${params.name.trim()}%`})`);
+      conditions.push(fuzzyNameCondition(params.name.trim()));
     }
 
     if (params.gender && params.gender !== '') {
@@ -2507,6 +2530,8 @@ export async function getTasksWithFilters({
   serviceType?: 'individual' | 'community';
 }): Promise<{
   tasks: Array<VoterTask & {
+    createdByName?: string | null;
+    updatedByName?: string | null;
     service?: {
       id: string;
       serviceType: 'individual' | 'community' | null;
@@ -2574,11 +2599,11 @@ export async function getTasksWithFilters({
             ? and(
               ...whereConditions,
               mobileNo
-                ? sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${beneficiaryServices.voterId} and ${voterMobileNumber.mobileNumber} = ${mobileNo})`
+                ? sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${beneficiaryServices.voterId} and ${voterMobileNumber.mobileNumber} ilike ${`%${mobileNo}%`})`
                 : sql`1=1`
             )
             : mobileNo
-              ? sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${beneficiaryServices.voterId} and ${voterMobileNumber.mobileNumber} = ${mobileNo})`
+              ? sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${beneficiaryServices.voterId} and ${voterMobileNumber.mobileNumber} ilike ${`%${mobileNo}%`})`
               : sql`1=1`
         );
 
@@ -2624,10 +2649,22 @@ export async function getTasksWithFilters({
           voterAge: VoterMaster.age,
           voterGender: VoterMaster.gender,
           voterRelation: VoterMaster.relationName,
+          createdByName: sql<string | null>`(select u.user_id from "User" u where u.id = ${beneficiaryServices.requestedBy} limit 1)`,
         })
         .from(beneficiaryServices)
         .leftJoin(VoterMaster, eq(beneficiaryServices.voterId, VoterMaster.epicNumber))
-        .where(whereConditions.length > 0 ? and(...whereConditions) : sql`1=1`)
+        .where(
+          whereConditions.length > 0
+            ? and(
+              ...whereConditions,
+              mobileNo
+                ? sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${beneficiaryServices.voterId} and ${voterMobileNumber.mobileNumber} ilike ${`%${mobileNo}%`})`
+                : sql`1=1`
+            )
+            : mobileNo
+              ? sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${beneficiaryServices.voterId} and ${voterMobileNumber.mobileNumber} ilike ${`%${mobileNo}%`})`
+              : sql`1=1`
+        )
         .orderBy(desc(beneficiaryServices.createdAt))
         .limit(limit)
         .offset(offset);
@@ -2646,6 +2683,8 @@ export async function getTasksWithFilters({
         assignedTo: row.serviceAssignedTo || null,
         createdBy: row.serviceRequestedBy || null,
         updatedBy: null,
+        createdByName: row.createdByName || null,
+        updatedByName: null,
         createdAt: row.serviceCreatedAt || new Date(),
         updatedAt: row.serviceUpdatedAt || new Date(),
         completedAt: row.serviceCompletedAt || null,
@@ -2715,7 +2754,7 @@ export async function getTasksWithFilters({
 
     if (mobileNo) {
       finalWhereConditions.push(
-        sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${voterTasks.voterId} and ${voterMobileNumber.mobileNumber} = ${mobileNo})`
+        sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${voterTasks.voterId} and ${voterMobileNumber.mobileNumber} ilike ${`%${mobileNo}%`})`
       );
     }
 
@@ -2765,6 +2804,8 @@ export async function getTasksWithFilters({
         serviceUpdatedAt: beneficiaryServices.updatedAt,
         serviceCompletedAt: beneficiaryServices.completedAt,
         serviceNotes: beneficiaryServices.notes,
+        createdByName: sql<string | null>`(select u.user_id from "User" u where u.id = ${voterTasks.createdBy} limit 1)`,
+        updatedByName: sql<string | null>`(select u.user_id from "User" u where u.id = ${voterTasks.updatedBy} limit 1)`,
         voterName: VoterMaster.fullName,
         voterMobilePrimary: sql<string | null>`(
           select ${voterMobileNumber.mobileNumber}
@@ -2814,6 +2855,8 @@ export async function getTasksWithFilters({
       updatedAt: row.updatedAt,
       completedAt: row.completedAt,
       notes: row.notes,
+      createdByName: row.createdByName || null,
+      updatedByName: row.updatedByName || null,
       service: row.serviceId ? {
         id: row.serviceId,
         serviceType: row.serviceType,
@@ -2964,7 +3007,7 @@ export async function updateVoterTaskStatus({
   }
 }
 
-// Community Service Area queries
+// Service area queries
 export async function createCommunityServiceAreas({
   serviceId,
   areas,
