@@ -18,10 +18,11 @@ interface PhoneUpdateFormProps {
     mobileNumbers?: MobileNumberEntry[];
     onPhoneUpdate: (phoneData: { mobileNoPrimary: string; mobileNoSecondary?: string }) => void;
     onSkip: () => void;
+    onPrevious?: () => void;
     onCancel: () => void;
 }
 
-export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, onCancel }: PhoneUpdateFormProps) {
+export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, onPrevious, onCancel }: PhoneUpdateFormProps) {
     const { t } = useTranslations();
     const [mobileNoPrimary, setMobileNoPrimary] = useState('');
     const [mobileNoSecondary, setMobileNoSecondary] = useState('');
@@ -148,6 +149,17 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                         >
                             {t('phoneUpdate.continueWithout')}
                         </Button>
+
+                        {onPrevious && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={onPrevious}
+                                disabled={isSubmitting}
+                            >
+                                {t('common.previous')}
+                            </Button>
+                        )}
 
                         <Button
                             type="button"

@@ -12,11 +12,20 @@ import { toast } from '@/components/toast';
 import { useTranslations } from '@/hooks/use-translations';
 import type { VoterWithPartNo } from '@/lib/db/schema';
 
+interface BeneficiaryServiceInitialData {
+    serviceName?: string;
+    description?: string;
+    priority?: 'low' | 'medium' | 'high' | 'urgent';
+    notes?: string;
+}
+
 interface BeneficiaryServiceFormProps {
     voter: VoterWithPartNo;
     onServiceCreated: (serviceId: string) => void;
     onServiceDataReady?: (data: any) => void;
+    onPrevious?: () => void;
     onCancel: () => void;
+    initialData?: BeneficiaryServiceInitialData;
 }
 
 const INDIVIDUAL_SERVICES = [
@@ -46,15 +55,17 @@ const INDIVIDUAL_SERVICES = [
     'Domestic Violence'
 ];
 
-export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataReady, onCancel }: BeneficiaryServiceFormProps) {
+export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataReady, onPrevious, onCancel, initialData }: BeneficiaryServiceFormProps) {
     const { t } = useTranslations();
     const serviceType = 'individual' as const;
-    const [serviceName, setServiceName] = useState('');
-    const [customServiceName, setCustomServiceName] = useState('');
-    const [isCustomService, setIsCustomService] = useState(false);
-    const [description, setDescription] = useState('');
-    const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>('medium');
-    const [notes, setNotes] = useState('');
+    const initialServiceName = initialData?.serviceName ?? '';
+    const initialIsCustom = !!initialServiceName && !INDIVIDUAL_SERVICES.includes(initialServiceName);
+    const [serviceName, setServiceName] = useState(initialIsCustom ? '' : initialServiceName);
+    const [customServiceName, setCustomServiceName] = useState(initialIsCustom ? initialServiceName : '');
+    const [isCustomService, setIsCustomService] = useState(initialIsCustom);
+    const [description, setDescription] = useState(initialData?.description ?? '');
+    const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>(initialData?.priority ?? 'medium');
+    const [notes, setNotes] = useState(initialData?.notes ?? '');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -213,6 +224,17 @@ export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataR
                         <Button type="submit" disabled={isSubmitting} className="flex-1">
                             {isSubmitting ? t('beneficiaryService.form.submitting') : t('beneficiaryService.form.submit')}
                         </Button>
+                        {onPrevious && (
+                            <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={onPrevious}
+                                disabled={isSubmitting}
+                                className="flex-1 sm:flex-none"
+                            >
+                                {t('common.previous')}
+                            </Button>
+                        )}
                         <Button type="button" variant="outline" onClick={onCancel} className="flex-1 sm:flex-none">
                             {t('common.cancel')}
                         </Button>

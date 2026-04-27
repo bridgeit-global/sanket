@@ -634,6 +634,28 @@ export function BeneficiaryManagement() {
         setWorkflowStep('search');
     };
 
+    const handlePreviousFromPhoneUpdate = () => {
+        setShowPhoneUpdate(false);
+        setShowBeneficiaryService(false);
+        setShowConfirmation(false);
+        setSelectedVoter(null);
+        setSelectedVoterMobileNumbers([]);
+        setWorkflowStep('search');
+    };
+
+    const handlePreviousFromService = () => {
+        setShowBeneficiaryService(false);
+        setShowConfirmation(false);
+        setShowPhoneUpdate(true);
+        setWorkflowStep('phoneUpdate');
+    };
+
+    const handlePreviousFromConfirmation = () => {
+        setShowConfirmation(false);
+        setShowBeneficiaryService(true);
+        setWorkflowStep('service');
+    };
+
     return (
         <div className="space-y-6">
             {/* Header with Sign Out */}
@@ -749,6 +771,7 @@ export function BeneficiaryManagement() {
                             mobileNumbers={selectedVoterMobileNumbers}
                             onPhoneUpdate={handlePhoneUpdate}
                             onSkip={handleSkipPhoneUpdate}
+                            onPrevious={handlePreviousFromPhoneUpdate}
                             onCancel={handleCancel}
                         />
                     )}
@@ -759,7 +782,9 @@ export function BeneficiaryManagement() {
                             voter={selectedVoter}
                             onServiceCreated={() => { }} // Not used in confirmation flow
                             onServiceDataReady={handleServiceDataReady}
+                            onPrevious={handlePreviousFromService}
                             onCancel={handleCancel}
+                            initialData={serviceData ?? undefined}
                         />
                     )}
 
@@ -837,6 +862,9 @@ export function BeneficiaryManagement() {
                                 <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
                                     <Button onClick={handleConfirmService} className="flex-1">
                                         {t('operator.confirmation.confirmButton')}
+                                    </Button>
+                                    <Button variant="secondary" onClick={handlePreviousFromConfirmation} className="sm:w-auto">
+                                        {t('common.previous')}
                                     </Button>
                                     <Button variant="outline" onClick={handleCancel} className="sm:w-auto">
                                         {t('common.cancel')}
