@@ -331,6 +331,9 @@ export function TaskManagement() {
     const [filterToken, setFilterToken] = useState<string>('');
     const [filterMobile, setFilterMobile] = useState<string>('');
     const [filterVoterId, setFilterVoterId] = useState<string>('');
+    const [filterTokenInput, setFilterTokenInput] = useState<string>('');
+    const [filterMobileInput, setFilterMobileInput] = useState<string>('');
+    const [filterVoterIdInput, setFilterVoterIdInput] = useState<string>('');
     const [showQrScanner, setShowQrScanner] = useState(false);
     const [pendingAutoFocusToken, setPendingAutoFocusToken] = useState<string | null>(null);
     const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
@@ -509,6 +512,28 @@ export function TaskManagement() {
         };
     }, []);
 
+    // Debounce the "typing" inputs before applying filters (prevents frequent fetches while typing).
+    useEffect(() => {
+        const handle = window.setTimeout(() => {
+            const nextToken = filterTokenInput.trim();
+            const nextMobile = filterMobileInput.trim();
+            const nextVoter = filterVoterIdInput.trim();
+
+            // Only reset pagination if a debounced filter actually changes.
+            const changed = nextToken !== filterToken || nextMobile !== filterMobile || nextVoter !== filterVoterId;
+            if (changed) {
+                setCurrentPage(1);
+                setCommunityServicesPage(1);
+            }
+
+            setFilterToken(nextToken);
+            setFilterMobile(nextMobile);
+            setFilterVoterId(nextVoter);
+        }, 400);
+
+        return () => window.clearTimeout(handle);
+    }, [filterTokenInput, filterMobileInput, filterVoterIdInput, filterToken, filterMobile, filterVoterId]);
+
     const handleSearch = () => {
         setCurrentPage(1); // Reset to first page when searching
         fetchTasks();
@@ -521,6 +546,9 @@ export function TaskManagement() {
         setFilterToken('');
         setFilterMobile('');
         setFilterVoterId('');
+        setFilterTokenInput('');
+        setFilterMobileInput('');
+        setFilterVoterIdInput('');
         setCurrentPage(1);
         setCommunityServicesPage(1);
     };
@@ -730,7 +758,7 @@ export function TaskManagement() {
                 open={showQrScanner}
                 onOpenChange={setShowQrScanner}
                 onTokenDetected={(token) => {
-                    setFilterToken(token);
+                    setFilterTokenInput(token);
                     setPendingAutoFocusToken(token);
                     setCurrentPage(1);
                     setCommunityServicesPage(1);
@@ -802,8 +830,8 @@ export function TaskManagement() {
                                     <Input
                                         id="token-filter"
                                         placeholder={t('taskManagement.filters.enterToken')}
-                                        value={filterToken}
-                                        onChange={(e) => setFilterToken(e.target.value)}
+                                        value={filterTokenInput}
+                                        onChange={(e) => setFilterTokenInput(e.target.value)}
                                     />
                                     <Button
                                         type="button"
@@ -821,9 +849,32 @@ export function TaskManagement() {
                                 <Label htmlFor="mobile-filter">{t('taskManagement.filters.mobileNumber')}</Label>
                                 <Input
                                     id="mobile-filter"
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
+                                    autoComplete="tel"
                                     placeholder={t('taskManagement.filters.enterMobile')}
-                                    value={filterMobile}
-                                    onChange={(e) => setFilterMobile(e.target.value)}
+                                    value={filterMobileInput}
+                                    onChange={(e) => setFilterMobileInput(e.target.value.replace(/\D/g, ''))}
+                                    onKeyDown={(e) => {
+                                        if (e.ctrlKey || e.metaKey || e.altKey) return;
+                                        const allowed = [
+                                            'Backspace',
+                                            'Delete',
+                                            'Tab',
+                                            'Enter',
+                                            'Escape',
+                                            'ArrowLeft',
+                                            'ArrowRight',
+                                            'ArrowUp',
+                                            'ArrowDown',
+                                            'Home',
+                                            'End',
+                                        ];
+                                        if (allowed.includes(e.key)) return;
+                                        if (/^\d$/.test(e.key)) return;
+                                        e.preventDefault();
+                                    }}
                                 />
                             </div>
 
@@ -832,8 +883,8 @@ export function TaskManagement() {
                                 <Input
                                     id="voter-filter"
                                     placeholder={t('taskManagement.filters.enterVoterId')}
-                                    value={filterVoterId}
-                                    onChange={(e) => setFilterVoterId(e.target.value)}
+                                    value={filterVoterIdInput}
+                                    onChange={(e) => setFilterVoterIdInput(e.target.value)}
                                 />
                             </div>
                         </div>
