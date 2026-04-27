@@ -210,7 +210,7 @@ export function BeneficiaryManagement() {
     // Detailed search parameters
     const [name, setName] = useState('');
     const [gender, setGender] = useState('');
-    const [age, setAge] = useState<number>(25);
+    const [age, setAge] = useState<number | undefined>(undefined);
     const [ageRange, setAgeRange] = useState<number>(5);
     const [showBeneficiaryService, setShowBeneficiaryService] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
@@ -242,7 +242,7 @@ export function BeneficiaryManagement() {
         setSearchTerm('');
         setName('');
         setGender('');
-        setAge(25);
+        setAge(undefined);
         setAgeRange(5);
         setSearchResults([]);
         setHasSearched(false);
@@ -961,10 +961,25 @@ export function BeneficiaryManagement() {
                                                     <Input
                                                         id="age"
                                                         type="number"
-                                                        min={18}
-                                                        max={100}
-                                                        value={age}
-                                                        onChange={(e) => setAge(Number.parseInt(e.target.value) || 25)}
+                                                        min={1}
+                                                        max={150}
+                                                        value={age ?? ''}
+                                                        onChange={(e) => {
+                                                            const raw = e.target.value;
+                                                            if (!raw) {
+                                                                setAge(undefined);
+                                                                return;
+                                                            }
+
+                                                            const parsed = Number.parseInt(raw, 10);
+                                                            if (!Number.isFinite(parsed) || parsed <= 0) {
+                                                                setAge(undefined);
+                                                                return;
+                                                            }
+
+                                                            const clamped = Math.min(Math.max(parsed, 1), 150);
+                                                            setAge(clamped);
+                                                        }}
                                                         placeholder={t('backOffice.enterAge')}
                                                         className="w-full"
                                                     />
@@ -978,11 +993,18 @@ export function BeneficiaryManagement() {
                                                         step={1}
                                                         value={[ageRange]}
                                                         onValueChange={(value: number[]) => setAgeRange(value[0])}
+                                                        disabled={age === undefined}
                                                         className="w-full"
                                                     />
-                                                    <p className="text-sm text-muted-foreground mt-1">
-                                                        {t('backOffice.searchRange', { min: age - ageRange, max: age + ageRange })}
-                                                    </p>
+                                                    {age === undefined ? (
+                                                        <p className="text-sm text-muted-foreground mt-1">
+                                                            {t('backOffice.enterAge')}
+                                                        </p>
+                                                    ) : (
+                                                        <p className="text-sm text-muted-foreground mt-1">
+                                                            {t('backOffice.searchRange', { min: age - ageRange, max: age + ageRange })}
+                                                        </p>
+                                                    )}
                                                 </div>
                                             </div>
 
@@ -995,7 +1017,7 @@ export function BeneficiaryManagement() {
                                                     onClick={() => {
                                                         setName('');
                                                         setGender('');
-                                                        setAge(25);
+                                                        setAge(undefined);
                                                         setAgeRange(5);
                                                         setSearchResults([]);
                                                         setSearchTotalCount(0);
