@@ -1169,6 +1169,23 @@ export async function countSearchVoterByEpicNumber(epicNumber: string): Promise<
   }
 }
 
+// Fuzzy name match: substring LIKE for short/partial input, plus pg_trgm
+// similarity for typo-tolerance. Results ordered by similarity descending.
+const FUZZY_NAME_SIMILARITY_THRESHOLD = 0.25;
+
+function fuzzyNameCondition(name: string): SQL {
+  const trimmed = name.trim();
+  return sql`(
+    LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${trimmed}%`})
+    OR similarity(LOWER(${VoterMaster.fullName}), LOWER(${trimmed})) > ${FUZZY_NAME_SIMILARITY_THRESHOLD}
+  )`;
+}
+
+function fuzzyNameOrder(name: string): SQL {
+  const trimmed = name.trim();
+  return sql`similarity(LOWER(${VoterMaster.fullName}), LOWER(${trimmed})) DESC`;
+}
+
 export async function searchVoterByName(
   name: string,
   electionId?: string,
@@ -1195,8 +1212,8 @@ export async function searchVoterByName(
         pincode: VoterMaster.pincode,
       })
       .from(VoterMaster)
-      .where(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${name}%`})`)
-      .orderBy(asc(VoterMaster.fullName));
+      .where(fuzzyNameCondition(name))
+      .orderBy(fuzzyNameOrder(name), asc(VoterMaster.fullName));
 
     if (pagination?.limit != null) {
       q = q.limit(pagination.limit) as typeof q;
@@ -1221,7 +1238,7 @@ export async function countSearchVoterByName(name: string): Promise<number> {
     const result = await db
       .select({ c: count() })
       .from(VoterMaster)
-      .where(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${name}%`})`);
+      .where(fuzzyNameCondition(name));
     return Number(result[0]?.c ?? 0);
   } catch (error) {
     throw new ChatSDKError(
@@ -1445,9 +1462,10 @@ export async function searchVoterByDetails(params: {
   try {
     const conditions: any[] = [];
 
-    // Name search
-    if (params.name?.trim()) {
-      conditions.push(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${params.name.trim()}%`})`);
+    // Name search – fuzzy match (pg_trgm similarity + substring fallback)
+    const trimmedName = params.name?.trim();
+    if (trimmedName) {
+      conditions.push(fuzzyNameCondition(trimmedName));
     }
 
     // Gender search
@@ -1470,6 +1488,11 @@ export async function searchVoterByDetails(params: {
 
     const currentElectionId = await getCurrentElectionId();
 
+    // When a name was provided, order by similarity score first for relevance
+    const orderByClauses = trimmedName
+      ? [fuzzyNameOrder(trimmedName), asc(VoterMaster.fullName)]
+      : [asc(VoterMaster.fullName)];
+
     let q = db
       .select({
         epicNumber: VoterMaster.epicNumber,
@@ -1489,7 +1512,7 @@ export async function searchVoterByDetails(params: {
       })
       .from(VoterMaster)
       .where(sql`${sql.join(conditions, sql` AND `)}`)
-      .orderBy(asc(VoterMaster.fullName));
+      .orderBy(...orderByClauses);
 
     if (params.limit != null) {
       q = q.limit(params.limit) as typeof q;
@@ -1519,7 +1542,7 @@ export async function countSearchVoterByDetails(params: {
     const conditions: any[] = [];
 
     if (params.name?.trim()) {
-      conditions.push(sql`LOWER(${VoterMaster.fullName}) LIKE LOWER(${`%${params.name.trim()}%`})`);
+      conditions.push(fuzzyNameCondition(params.name.trim()));
     }
 
     if (params.gender && params.gender !== '') {
