@@ -2507,6 +2507,8 @@ export async function getTasksWithFilters({
   serviceType?: 'individual' | 'community';
 }): Promise<{
   tasks: Array<VoterTask & {
+    createdByName?: string | null;
+    updatedByName?: string | null;
     service?: {
       id: string;
       serviceType: 'individual' | 'community' | null;
@@ -2624,6 +2626,7 @@ export async function getTasksWithFilters({
           voterAge: VoterMaster.age,
           voterGender: VoterMaster.gender,
           voterRelation: VoterMaster.relationName,
+          createdByName: sql<string | null>`(select u.user_id from "User" u where u.id = ${beneficiaryServices.requestedBy} limit 1)`,
         })
         .from(beneficiaryServices)
         .leftJoin(VoterMaster, eq(beneficiaryServices.voterId, VoterMaster.epicNumber))
@@ -2646,6 +2649,8 @@ export async function getTasksWithFilters({
         assignedTo: row.serviceAssignedTo || null,
         createdBy: row.serviceRequestedBy || null,
         updatedBy: null,
+        createdByName: row.createdByName || null,
+        updatedByName: null,
         createdAt: row.serviceCreatedAt || new Date(),
         updatedAt: row.serviceUpdatedAt || new Date(),
         completedAt: row.serviceCompletedAt || null,
@@ -2765,6 +2770,8 @@ export async function getTasksWithFilters({
         serviceUpdatedAt: beneficiaryServices.updatedAt,
         serviceCompletedAt: beneficiaryServices.completedAt,
         serviceNotes: beneficiaryServices.notes,
+        createdByName: sql<string | null>`(select u.user_id from "User" u where u.id = ${voterTasks.createdBy} limit 1)`,
+        updatedByName: sql<string | null>`(select u.user_id from "User" u where u.id = ${voterTasks.updatedBy} limit 1)`,
         voterName: VoterMaster.fullName,
         voterMobilePrimary: sql<string | null>`(
           select ${voterMobileNumber.mobileNumber}
@@ -2814,6 +2821,8 @@ export async function getTasksWithFilters({
       updatedAt: row.updatedAt,
       completedAt: row.completedAt,
       notes: row.notes,
+      createdByName: row.createdByName || null,
+      updatedByName: row.updatedByName || null,
       service: row.serviceId ? {
         id: row.serviceId,
         serviceType: row.serviceType,

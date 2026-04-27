@@ -30,6 +30,8 @@ interface TaskVoter {
 interface TaskWithService extends VoterTask {
     service?: BeneficiaryService;
     voter?: TaskVoter;
+    createdByName?: string | null;
+    updatedByName?: string | null;
 }
 
 interface TaskResponse {
@@ -975,14 +977,14 @@ export function TaskManagement() {
                                                                 <span>
                                                                     <strong>{t('taskManagement.created')}</strong> {new Date(task.createdAt).toLocaleDateString()}
                                                                 </span>
-                                                                {task.createdBy && (
-                                                                    <span><strong>Created by:</strong> {task.createdBy.substring(0, 8)}...</span>
+                                                                {(task.createdByName || task.createdBy) && (
+                                                                    <span><strong>Created by:</strong> {task.createdByName || task.createdBy}</span>
                                                                 )}
                                                                 {task.updatedAt !== task.createdAt && (
                                                                     <span><strong>{t('taskManagement.updated')}</strong> {new Date(task.updatedAt).toLocaleDateString()}</span>
                                                                 )}
-                                                                {task.updatedBy && (
-                                                                    <span><strong>Updated by:</strong> {task.updatedBy.substring(0, 8)}...</span>
+                                                                {(task.updatedByName || task.updatedBy) && (
+                                                                    <span><strong>Updated by:</strong> {task.updatedByName || task.updatedBy}</span>
                                                                 )}
                                                             </div>
 
