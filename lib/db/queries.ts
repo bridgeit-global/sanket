@@ -2599,11 +2599,11 @@ export async function getTasksWithFilters({
             ? and(
               ...whereConditions,
               mobileNo
-                ? sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${beneficiaryServices.voterId} and ${voterMobileNumber.mobileNumber} = ${mobileNo})`
+                ? sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${beneficiaryServices.voterId} and ${voterMobileNumber.mobileNumber} ilike ${`%${mobileNo}%`})`
                 : sql`1=1`
             )
             : mobileNo
-              ? sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${beneficiaryServices.voterId} and ${voterMobileNumber.mobileNumber} = ${mobileNo})`
+              ? sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${beneficiaryServices.voterId} and ${voterMobileNumber.mobileNumber} ilike ${`%${mobileNo}%`})`
               : sql`1=1`
         );
 
@@ -2653,7 +2653,18 @@ export async function getTasksWithFilters({
         })
         .from(beneficiaryServices)
         .leftJoin(VoterMaster, eq(beneficiaryServices.voterId, VoterMaster.epicNumber))
-        .where(whereConditions.length > 0 ? and(...whereConditions) : sql`1=1`)
+        .where(
+          whereConditions.length > 0
+            ? and(
+              ...whereConditions,
+              mobileNo
+                ? sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${beneficiaryServices.voterId} and ${voterMobileNumber.mobileNumber} ilike ${`%${mobileNo}%`})`
+                : sql`1=1`
+            )
+            : mobileNo
+              ? sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${beneficiaryServices.voterId} and ${voterMobileNumber.mobileNumber} ilike ${`%${mobileNo}%`})`
+              : sql`1=1`
+        )
         .orderBy(desc(beneficiaryServices.createdAt))
         .limit(limit)
         .offset(offset);
@@ -2743,7 +2754,7 @@ export async function getTasksWithFilters({
 
     if (mobileNo) {
       finalWhereConditions.push(
-        sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${voterTasks.voterId} and ${voterMobileNumber.mobileNumber} = ${mobileNo})`
+        sql`exists (select 1 from ${voterMobileNumber} where ${voterMobileNumber.epicNumber} = ${voterTasks.voterId} and ${voterMobileNumber.mobileNumber} ilike ${`%${mobileNo}%`})`
       );
     }
 
