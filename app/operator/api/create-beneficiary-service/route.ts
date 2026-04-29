@@ -25,9 +25,9 @@ export async function POST(request: NextRequest) {
         } = await request.json();
 
         // Validate required fields
-        if (!serviceType || !serviceName || !voterId) {
+        if (!serviceType || !serviceName) {
             return NextResponse.json({
-                error: 'Service type, service name, and voter ID are required'
+                error: 'Service type and service name are required'
             }, { status: 400 });
         }
 

@@ -218,10 +218,14 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
     const [showPhoneUpdate, setShowPhoneUpdate] = useState(false);
     const [serviceData, setServiceData] = useState<any>(null);
     const [createdService, setCreatedService] = useState<BeneficiaryService | null>(null);
+    const [isOutsiderTicket, setIsOutsiderTicket] = useState(false);
+    const [outsiderName, setOutsiderName] = useState('');
+    const [outsiderVoterId, setOutsiderVoterId] = useState('');
     const [workflowStep, setWorkflowStep] = useState<'search' | 'phoneUpdate' | 'service' | 'confirmation' | 'completed' | 'tasks'>(
         initialTab === 'manage' ? 'tasks' : 'search',
     );
     const activeTab = (searchParams.get('tab') as 'create' | 'manage' | null) ?? initialTab;
+    const getNormalizedVoterId = (voter: VoterWithPartNo | null | undefined) => voter?.epicNumber?.trim() ?? '';
 
     // Helper function to clear search state when switching tabs
     const clearSearchStateIfNeeded = () => {
@@ -449,11 +453,28 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
     };
 
     const handleSelectVoter = (voter: VoterWithPartNo) => {
+        const voterId = getNormalizedVoterId(voter);
+
         setSelectedVoter(voter);
+        setIsOutsiderTicket(!voterId);
+        setOutsiderName(voter.fullName ?? '');
+        setOutsiderVoterId(voterId);
         setSelectedVoterMobileNumbers([]);
         setSearchResults([]);
         setSearchTotalCount(0);
         setSearchTerm('');
+
+        if (!voterId) {
+            toast({
+                type: 'success',
+                description: 'Outsider selected. Enter outsider details and create ticket.',
+            });
+            setShowPhoneUpdate(false);
+            setShowBeneficiaryService(true);
+            clearSearchStateIfNeeded();
+            setWorkflowStep('service');
+            return;
+        }
 
         // Always show phone update form to allow updating phone numbers even if they exist
         setShowPhoneUpdate(true);
@@ -539,6 +560,23 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
         setWorkflowStep('confirmation');
     };
 
+    const handleCreateOutsiderService = () => {
+        setSelectedVoter({
+            epicNumber: '',
+            fullName: 'Outsider Beneficiary',
+        } as VoterWithPartNo);
+        setSelectedVoterMobileNumbers([]);
+        setIsOutsiderTicket(true);
+        setOutsiderName('');
+        setOutsiderVoterId('');
+        setShowPhoneUpdate(false);
+        setShowBeneficiaryService(true);
+        setShowConfirmation(false);
+        setServiceData(null);
+        clearSearchStateIfNeeded();
+        setWorkflowStep('service');
+    };
+
     const handleConfirmService = async () => {
         if (!serviceData || !selectedVoter) {
             toast({
@@ -547,6 +585,20 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
             });
             return;
         }
+        const voterId = getNormalizedVoterId(selectedVoter);
+        if (isOutsiderTicket && (!outsiderName.trim() || !outsiderVoterId.trim())) {
+            toast({
+                type: 'error',
+                description: 'Outsider name and voter ID are required',
+            });
+            return;
+        }
+        if (!isOutsiderTicket && !voterId) return;
+
+        const outsiderInfo = isOutsiderTicket
+            ? `Outsider Details - Name: ${outsiderName.trim()}, Voter ID: ${outsiderVoterId.trim()}`
+            : '';
+        const mergedDescription = [serviceData.description?.trim(), outsiderInfo].filter(Boolean).join('\n\n');
 
         try {
             const response = await fetch('/operator/api/create-beneficiary-service', {
@@ -556,7 +608,8 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                 },
                 body: JSON.stringify({
                     ...serviceData,
-                    voterId: selectedVoter.epicNumber,
+                    description: mergedDescription,
+                    voterId: isOutsiderTicket ? undefined : voterId,
                 }),
             });
 
@@ -599,6 +652,9 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
         setShowPhoneUpdate(false);
         setServiceData(null);
         setCreatedService(null);
+        setIsOutsiderTicket(false);
+        setOutsiderName('');
+        setOutsiderVoterId('');
         setWorkflowStep('search');
     };
 
@@ -633,6 +689,9 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
         setShowConfirmation(false);
         setShowPhoneUpdate(false);
         setServiceData(null);
+        setIsOutsiderTicket(false);
+        setOutsiderName('');
+        setOutsiderVoterId('');
         setSelectedVoterMobileNumbers([]);
         setWorkflowStep('search');
     };
@@ -861,6 +920,33 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                                     </div>
                                 </div>
 
+                                {isOutsiderTicket && (
+                                    <div className="space-y-4 p-4 border rounded-lg">
+                                        <h3 className="text-lg font-semibold">Outsider Details</h3>
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <Label className="text-sm font-medium">Outsider Name</Label>
+                                                <Input
+                                                    value={outsiderName}
+                                                    onChange={(e) => setOutsiderName(e.target.value)}
+                                                    placeholder="Enter outsider name"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className="text-sm font-medium">Outsider Voter ID</Label>
+                                                <Input
+                                                    value={outsiderVoterId}
+                                                    onChange={(e) => setOutsiderVoterId(e.target.value)}
+                                                    placeholder="Enter outsider voter ID"
+                                                />
+                                            </div>
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">
+                                            These values will be stored in the service description.
+                                        </p>
+                                    </div>
+                                )}
+
                                 {/* Action Buttons */}
                                 <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
                                     <Button onClick={handleConfirmService} className="flex-1">
@@ -959,6 +1045,17 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                             </CardHeader>
                             <CardContent>
                                 <div className="space-y-4">
+                                    <div className="rounded-lg border border-dashed p-3 sm:p-4 bg-muted/20">
+                                        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                            <p className="text-sm text-muted-foreground">
+                                                Voter not found or from outside? Create outsider ticket directly.
+                                            </p>
+                                            <Button type="button" variant="outline" onClick={handleCreateOutsiderService}>
+                                                Create Outsider Service
+                                            </Button>
+                                        </div>
+                                    </div>
+
                                     {/* Search Type Selection */}
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                         <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50 transition-colors">
