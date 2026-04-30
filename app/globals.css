@@ -165,15 +165,39 @@ html.pdf-export .pdf-daily-programme .pdf-programme-type {
 
 html.pdf-export .pdf-daily-programme table {
     width: 100%;
-    border-collapse: collapse;
+    /* Single-stroke grid for html2canvas (avoids bold inner lines). */
+    border-collapse: separate;
+    border-spacing: 0;
     table-layout: fixed;
+    border: 0;
 }
 
 html.pdf-export .pdf-daily-programme th,
 html.pdf-export .pdf-daily-programme td {
-    border: 2px solid #1f2937;
+    border: 0;
+    border-right: 2px solid #1f2937;
+    border-bottom: 2px solid #1f2937;
     padding: 12px 10px;
     vertical-align: top;
+}
+
+/* Outer frame for every row (works across PDF page slices). */
+html.pdf-export .pdf-daily-programme tr>*:first-child {
+    border-left: 2px solid #1f2937;
+}
+
+html.pdf-export .pdf-daily-programme tr>*:last-child {
+    border-right: 2px solid #1f2937;
+}
+
+html.pdf-export .pdf-daily-programme tbody tr:last-child>* {
+    border-bottom: 2px solid #1f2937;
+}
+
+/* Ensure table has a top border as well. */
+html.pdf-export .pdf-daily-programme thead th {
+    border-top: 2px solid #1f2937;
+    border-bottom: 2px solid #1f2937;
 }
 
 html.pdf-export .pdf-daily-programme th {

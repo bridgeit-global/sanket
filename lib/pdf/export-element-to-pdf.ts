@@ -228,6 +228,7 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
 
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+
       ctx.drawImage(
         canvas,
         0,
@@ -239,6 +240,19 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
         canvas.width,
         sliceHeightPx,
       );
+
+      // When slicing a long table across multiple pages, the next slice starts mid-table.
+      // Overlay a top rule for subsequent pages so the table doesn't look borderless at the top.
+      // Must be drawn AFTER drawImage so it remains visible.
+      if (pageIndex > 0) {
+        ctx.strokeStyle = '#1f2937';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        // For a 3px stroke, align to an integer for crispness.
+        ctx.moveTo(0, 3);
+        ctx.lineTo(pageCanvas.width, 3);
+        ctx.stroke();
+      }
 
       const imgData = pageCanvas.toDataURL('image/png');
       const sliceHeightMm = sliceHeightPx / pxPerMm;
