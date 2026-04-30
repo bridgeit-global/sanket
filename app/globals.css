@@ -111,20 +111,20 @@ html.pdf-export .pdf-daily-programme .pdf-header {
 }
 
 html.pdf-export .pdf-daily-programme .pdf-header .pdf-title-1 {
-    font-weight: 800;
+    font-weight: 700;
     font-size: 22px;
     line-height: 1.15;
 }
 
 html.pdf-export .pdf-daily-programme .pdf-header .pdf-title-2 {
-    font-weight: 800;
+    font-weight: 700;
     font-size: 20px;
     line-height: 1.15;
     margin-top: 4px;
 }
 
 html.pdf-export .pdf-daily-programme .pdf-header .pdf-title-3 {
-    font-weight: 700;
+    font-weight: 600;
     font-size: 18px;
     line-height: 1.15;
     margin-top: 10px;
@@ -143,7 +143,7 @@ html.pdf-export .pdf-daily-programme .pdf-day-header {
     justify-content: space-between;
     gap: 12px;
     margin: 14px 0 10px 0;
-    font-weight: 800;
+    font-weight: 700;
     font-size: 20px;
 }
 
@@ -154,12 +154,12 @@ html.pdf-export .pdf-daily-programme .pdf-day-header .pdf-day-left {
 }
 
 html.pdf-export .pdf-daily-programme .pdf-day-header .pdf-day-right {
-    font-weight: 700;
+    font-weight: 600;
     font-size: 14px;
 }
 
 html.pdf-export .pdf-daily-programme .pdf-programme-type {
-    font-weight: 800;
+    font-weight: 700;
     font-size: 16px;
     margin: 6px 0 6px 0;
 }
@@ -203,7 +203,7 @@ html.pdf-export .pdf-daily-programme thead th {
 
 html.pdf-export .pdf-daily-programme th {
     background: #f3f4f6 !important;
-    font-weight: 800;
+    font-weight: 700;
     font-size: 18px;
 }
 
@@ -215,7 +215,7 @@ html.pdf-export .pdf-daily-programme td {
 html.pdf-export .pdf-daily-programme .pdf-col-sr {
     width: 8%;
     text-align: center;
-    font-weight: 800;
+    font-weight: 700;
     font-size: 16px;
 }
 
@@ -232,25 +232,25 @@ html.pdf-export .pdf-daily-programme .pdf-col-ref {
 }
 
 html.pdf-export .pdf-daily-programme .pdf-time-main {
-    font-weight: 800;
+    font-weight: 700;
     font-size: 18px;
     letter-spacing: 0.5px;
 }
 
 html.pdf-export .pdf-daily-programme .pdf-time-main .pdf-time-period {
     font-size: 12px;
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: 0;
 }
 
 html.pdf-export .pdf-daily-programme .pdf-time-sub {
     margin-top: 6px;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 html.pdf-export .pdf-daily-programme .pdf-title {
-    font-weight: 800;
+    font-weight: 700;
     font-size: 16px;
     margin-bottom: 6px;
 }
