@@ -85,6 +85,17 @@ function pickSliceHeightPx(args: {
   return Math.max(minUsefulSlicePx, Math.min(adjusted, remaining));
 }
 
+async function waitForFontsReady(): Promise<void> {
+  // Safari/webfonts: html2canvas can snapshot before fonts are ready, causing fallback fonts
+  // (which can look condensed/squeezed). Waiting improves consistency.
+  const fonts = (document as unknown as { fonts?: { ready?: Promise<unknown> } }).fonts;
+  try {
+    await fonts?.ready;
+  } catch {
+    // Non-fatal
+  }
+}
+
 export async function exportElementToPdf(options: ExportElementToPdfOptions): Promise<void> {
   const {
     element,
@@ -106,81 +117,12 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
   body.classList.add('pdf-export');
 
   try {
+    await waitForFontsReady();
+
     const hasHeader = Boolean(header?.lines?.length);
     const hasFooter = Boolean(footer?.showPageNumbers);
-    const headerHeightMm = hasHeader ? Math.max(0, Math.min(50, header?.heightMm ?? 18)) : 0;
+    const headerHeightMmRequested = hasHeader ? Math.max(0, Math.min(50, header?.heightMm ?? 18)) : 0;
     const footerHeightMm = hasFooter ? Math.max(0, Math.min(30, footer?.heightMm ?? 12)) : 0;
-
-    // Build a header image via DOM -> canvas so Marathi renders correctly
-    // (jsPDF built-in fonts often don't include Devanagari glyphs).
-    let headerImageData: string | null = null;
-    if (header?.lines?.length && headerHeightMm > 0) {
-      const headerHost = document.createElement('div');
-      headerHost.style.position = 'fixed';
-      headerHost.style.left = '-10000px';
-      headerHost.style.top = '0';
-      headerHost.style.width = `${Math.ceil(element.scrollWidth)}px`;
-      headerHost.style.background = '#ffffff';
-      headerHost.style.color = '#000000';
-      headerHost.style.padding = '12px 24px 0 24px';
-
-      const headerInner = document.createElement('div');
-      headerInner.style.display = 'flex';
-      headerInner.style.flexDirection = 'column';
-      headerInner.style.alignItems = 'center';
-      headerInner.style.gap = '4px';
-
-      for (const line of header.lines.slice(0, 3)) {
-        const p = document.createElement('div');
-        p.textContent = line;
-        p.style.fontWeight = '700';
-        p.style.fontSize = '18px';
-        p.style.lineHeight = '1.15';
-        p.style.textAlign = 'center';
-        headerInner.appendChild(p);
-      }
-
-      headerHost.appendChild(headerInner);
-
-      if (header.drawRule !== false) {
-        const rule = document.createElement('div');
-        rule.style.marginTop = '10px';
-        rule.style.height = '2px';
-        rule.style.width = '100%';
-        rule.style.background = '#000';
-        headerHost.appendChild(rule);
-      }
-
-      document.body.appendChild(headerHost);
-      try {
-        const headerCanvas = await html2canvas(headerHost, {
-          backgroundColor: '#ffffff',
-          scale,
-          useCORS: true,
-          logging: false,
-          windowWidth: Math.ceil(headerHost.scrollWidth),
-          windowHeight: Math.ceil(headerHost.scrollHeight),
-          scrollX: 0,
-          scrollY: -window.scrollY,
-        });
-        headerImageData = headerCanvas.toDataURL('image/png');
-      } finally {
-        headerHost.remove();
-      }
-    }
-
-    // Render DOM -> canvas
-    const canvas = await html2canvas(element, {
-      backgroundColor: '#ffffff',
-      scale,
-      useCORS: true,
-      logging: false,
-      // Ensure we capture the full element, not just the viewport.
-      windowWidth: Math.ceil(element.scrollWidth),
-      windowHeight: Math.ceil(element.scrollHeight),
-      scrollX: 0,
-      scrollY: -window.scrollY,
-    });
 
     const doc = new jsPDF({
       orientation,
@@ -192,7 +134,82 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
     const pageWidthMm = doc.internal.pageSize.getWidth();
     const pageHeightMm = doc.internal.pageSize.getHeight();
     const contentWidthMm = Math.max(1, pageWidthMm - marginMm * 2);
+
+    // Build a header image via DOM -> canvas so Marathi renders correctly
+    // (jsPDF built-in fonts often don't include Devanagari glyphs).
+    let headerImageData: string | null = null;
+    let headerHeightMm = headerHeightMmRequested;
+    let headerImageHeightMm = headerHeightMmRequested;
+    if (header?.lines?.length && headerHeightMmRequested > 0) {
+      const headerHost = document.createElement('div');
+      headerHost.style.position = 'fixed';
+      headerHost.style.left = '-10000px';
+      headerHost.style.top = '0';
+      headerHost.style.width = `${Math.ceil(element.scrollWidth)}px`;
+      headerHost.style.background = '#ffffff';
+      headerHost.style.color = '#000000';
+      headerHost.style.padding = '12px 24px 0 24px';
+      headerHost.style.fontFamily =
+        '"Noto Sans Devanagari","Nirmala UI","Mangal",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
+
+      const headerInner = document.createElement('div');
+      headerInner.style.display = 'flex';
+      headerInner.style.flexDirection = 'column';
+      headerInner.style.alignItems = 'center';
+      headerInner.style.gap = '4px';
+
+      for (const line of header.lines.slice(0, 3)) {
+        const p = document.createElement('div');
+        p.textContent = line;
+        p.style.fontWeight = '600';
+        p.style.fontSize = '18px';
+        p.style.lineHeight = '1.15';
+        p.style.textAlign = 'center';
+        p.style.fontFamily = 'inherit';
+        headerInner.appendChild(p);
+      }
+
+      headerHost.appendChild(headerInner);
+
+      document.body.appendChild(headerHost);
+      try {
+        await waitForFontsReady();
+        const headerCanvas = await html2canvas(headerHost, {
+          backgroundColor: '#ffffff',
+          scale,
+          useCORS: true,
+          logging: false,
+          windowWidth: Math.ceil(headerHost.scrollWidth),
+          windowHeight: Math.ceil(headerHost.scrollHeight),
+          scrollX: 0,
+          scrollY: -window.scrollY,
+        });
+        headerImageData = headerCanvas.toDataURL('image/png');
+        // Natural image height at our PDF draw width (avoid squeezing by stretching).
+        headerImageHeightMm =
+          (headerCanvas.height / Math.max(1, headerCanvas.width)) * contentWidthMm;
+        // Reserve enough space (can be > image height) without stretching the image.
+        headerHeightMm = Math.max(headerHeightMmRequested, Math.min(50, headerImageHeightMm));
+      } finally {
+        headerHost.remove();
+      }
+    }
+
     const contentHeightMm = Math.max(1, pageHeightMm - marginMm * 2 - headerHeightMm - footerHeightMm);
+
+    // Render DOM -> canvas
+    await waitForFontsReady();
+    const canvas = await html2canvas(element, {
+      backgroundColor: '#ffffff',
+      scale,
+      useCORS: true,
+      logging: false,
+      // Ensure we capture the full element, not just the viewport.
+      windowWidth: Math.ceil(element.scrollWidth),
+      windowHeight: Math.ceil(element.scrollHeight),
+      scrollX: 0,
+      scrollY: -window.scrollY,
+    });
 
     // Convert pixels -> mm at the chosen width.
     const pxPerMm = canvas.width / contentWidthMm;
@@ -271,10 +288,18 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
           marginMm,
           marginMm,
           contentWidthMm,
-          headerHeightMm,
+          headerImageHeightMm,
           undefined,
           'FAST',
         );
+      }
+
+      // Header underline: draw as a real PDF line (never clipped/squeezed).
+      if (headerHeightMm > 0 && header?.drawRule !== false) {
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.6);
+        const y = marginMm + headerHeightMm + 0.8;
+        doc.line(marginMm, y, marginMm + contentWidthMm, y);
       }
 
       // Footer (page numbers)
