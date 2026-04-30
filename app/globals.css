@@ -236,6 +236,12 @@ html.pdf-export .pdf-daily-programme .pdf-time-main {
     letter-spacing: 0.5px;
 }
 
+html.pdf-export .pdf-daily-programme .pdf-time-main .pdf-time-period {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0;
+}
+
 html.pdf-export .pdf-daily-programme .pdf-time-sub {
     margin-top: 6px;
     font-size: 13px;

@@ -1594,11 +1594,11 @@ export function DailyProgramme({
                                 <td className="pdf-col-sr">{serialNumber}</td>
                                 <td className="pdf-col-time">
                                   <div className="pdf-time-main">
-                                    {start.time} {start.period}
+                                    {start.time} <span className="pdf-time-period">{start.period}</span>
                                     {end ? (
                                       <>
                                         <br />–<br />
-                                        {end.time} {end.period}
+                                        {end.time} <span className="pdf-time-period">{end.period}</span>
                                       </>
                                     ) : null}
                                   </div>
