@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, type CSSProperties } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +32,7 @@ import { ModulePageHeader } from '@/components/module-page-header';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslations } from '@/hooks/use-translations';
+import { exportElementToPdf } from '@/lib/pdf/export-element-to-pdf';
 import {
   closestCenter,
   DndContext,
@@ -280,6 +281,37 @@ function formatDateWithLocale(date: Date, formatStr: string, locale: 'en' | 'mr'
   }
 }
 
+function formatDateForPdfRange(dateStr?: string | null): string | null {
+  if (!dateStr) return null;
+  try {
+    const date = parseISO(dateStr);
+    if (Number.isNaN(date.getTime())) return null;
+    // Screenshot uses English months even with Marathi header.
+    const formatter = new Intl.DateTimeFormat('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    return formatter.format(date);
+  } catch {
+    return null;
+  }
+}
+
+function formatTimePartsForPdf(time24: string): { time: string; period: string } {
+  const [hours, minutes] = time24.split(':').map(Number);
+  const date = new Date();
+  date.setHours(hours ?? 0, minutes ?? 0, 0, 0);
+  const parts = new Intl.DateTimeFormat('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  }).formatToParts(date);
+  const time = `${parts.find((p) => p.type === 'hour')?.value ?? ''}:${parts.find((p) => p.type === 'minute')?.value ?? ''}`;
+  const period = (parts.find((p) => p.type === 'dayPeriod')?.value ?? '').toUpperCase();
+  return { time, period };
+}
+
 function SortableProgrammeRow({
   item,
   index,
@@ -384,7 +416,7 @@ function SortableProgrammeRow({
           <Paperclip className="size-4" />
           {(item.attachments?.length ?? 0) > 0 && (
             <span className="ml-1 text-xs bg-primary text-primary-foreground rounded-full px-1.5 py-0.5 min-w-5">
-              {item.attachments!.length}
+              {item.attachments?.length}
             </span>
           )}
         </Button>
@@ -462,6 +494,7 @@ export function DailyProgramme({
   initialDateRange,
 }: DailyProgrammeProps) {
   const { t, locale } = useTranslations();
+  const pdfHostRef = useRef<HTMLDivElement | null>(null);
 
   // Generate duration options with localization
   const DURATION_OPTIONS = useMemo(
@@ -521,6 +554,8 @@ export function DailyProgramme({
   const [programmeTypeFilter, setProgrammeTypeFilter] = useState<
     'ALL' | 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY'
   >('ALL');
+
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const expandedItems = useMemo(() => {
     const result: ProgrammeItem[] = [];
@@ -876,7 +911,15 @@ export function DailyProgramme({
     }
   };
 
-  const handlePrint = () => {
+  const handleExportPdf = async () => {
+    if (isExportingPdf) return;
+
+    const target = (pdfHostRef.current?.querySelector('.pdf-daily-programme') ?? null) as HTMLElement | null;
+    if (!target) {
+      toast.error('Unable to export: schedule section not found.');
+      return;
+    }
+
     // Format date range for filename
     const formatDateForFilename = (dateStr?: string) => {
       if (!dateStr) return '';
@@ -890,61 +933,39 @@ export function DailyProgramme({
 
     const startFormatted = formatDateForFilename(dateRange.start);
     const endFormatted = formatDateForFilename(dateRange.end);
-
     let dateRangeString = '';
     if (startFormatted && endFormatted) {
-      if (dateRange.start === dateRange.end) {
-        dateRangeString = startFormatted;
-      } else {
-        dateRangeString = `${startFormatted} to ${endFormatted}`;
-      }
+      dateRangeString = dateRange.start === dateRange.end
+        ? startFormatted
+        : `${startFormatted}_to_${endFormatted}`;
     } else if (startFormatted) {
-      dateRangeString = `from ${startFormatted}`;
+      dateRangeString = `from_${startFormatted}`;
     } else if (endFormatted) {
-      dateRangeString = `until ${endFormatted}`;
+      dateRangeString = `until_${endFormatted}`;
     }
 
-    // Store original title
-    const originalTitle = document.title;
+    const fileName = dateRangeString
+      ? `${t('dailyProgramme.title')}-${dateRangeString}`
+      : t('dailyProgramme.title');
 
-    // Set new title with date range
-    if (dateRangeString) {
-      document.title = `${t('dailyProgramme.title')} - ${dateRangeString}`;
-    } else {
-      document.title = t('dailyProgramme.title');
+    setIsExportingPdf(true);
+    try {
+      await exportElementToPdf({
+        element: target,
+        fileName,
+        format: 'a4',
+        orientation: 'portrait',
+        marginMm: 10,
+        footer: { heightMm: 12, showPageNumbers: true },
+        scale: 2,
+      });
+      toast.success('PDF downloaded');
+    } catch (error) {
+      console.error('Failed exporting PDF', error);
+      toast.error('Failed to export PDF. Please try a smaller date range.');
+    } finally {
+      setIsExportingPdf(false);
     }
-
-    // Estimate total pages for fallback (for browsers that don't support CSS counter(pages))
-    // Portrait A4: 29.7cm height, minus 1.5cm top and 2cm bottom margins = ~26.2cm usable height
-    // Convert to pixels: ~26.2cm * 37.8px/cm ≈ 990px per page (at 96 DPI)
-    const printScheduleElement = document.querySelector('.print-schedule');
-    let estimatedTotalPages = 1;
-    if (printScheduleElement) {
-      const contentHeight = printScheduleElement.scrollHeight;
-      const pageHeight = 990; // Approximate pixels per page in portrait A4
-      estimatedTotalPages = Math.max(1, Math.ceil(contentHeight / pageHeight));
-    }
-
-    // Update footer with estimated page count (for browsers that need JavaScript fallback)
-    const footerElement = document.querySelector('.print-page-footer .total-pages');
-    if (footerElement) {
-      footerElement.textContent = estimatedTotalPages.toString();
-    }
-
-    // Restore original title after print dialog closes
-    const handleAfterPrint = () => {
-      document.title = originalTitle;
-      window.removeEventListener('afterprint', handleAfterPrint);
-    };
-    window.addEventListener('afterprint', handleAfterPrint);
-
-    // Fallback: restore title after 5 seconds if afterprint doesn't fire
-    setTimeout(() => {
-      document.title = originalTitle;
-      window.removeEventListener('afterprint', handleAfterPrint);
-    }, 5000);
-
-    window.print();
   };
 
   const handleResetRange = () => {
@@ -1260,9 +1281,15 @@ export function DailyProgramme({
                       <Button variant="outline" size="sm" onClick={handleResetRange} className="w-full sm:w-auto min-h-11">
                         {t('dailyProgramme.resetRange')}
                       </Button>
-                      <Button variant="outline" size="sm" onClick={handlePrint} className="w-full sm:w-auto min-h-11">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleExportPdf}
+                        disabled={isExportingPdf}
+                        className="w-full sm:w-auto min-h-11"
+                      >
                         <Printer className="mr-2 size-4" />
-                        {t('dailyProgramme.exportProgramme')}
+                        {isExportingPdf ? t('dailyProgramme.exporting') : t('dailyProgramme.exportProgramme')}
                       </Button>
                       {/* <Button variant="outline" size="sm" onClick={handleExport} className="w-full sm:w-auto min-h-11">
                         <FileDown className="mr-2 size-4" />
@@ -1469,6 +1496,145 @@ export function DailyProgramme({
           </CardContent>
         </Card>
 
+      </div>
+
+      {/* Offscreen PDF layout (used for DOM->PDF capture, matches the provided screenshot) */}
+      <div
+        ref={pdfHostRef}
+        aria-hidden="true"
+        className="pointer-events-none"
+        style={{
+          position: 'fixed',
+          left: '-10000px',
+          top: 0,
+          width: '794px', // ~A4 width at 96dpi
+          background: '#fff',
+          color: '#000',
+          padding: '24px',
+        }}
+      >
+        <div className="print-schedule pdf-daily-programme">
+          <div className="pdf-header">
+            <div className="pdf-title-1">{t('dailyProgramme.mlaName')}</div>
+            <div className="pdf-title-2">{t('dailyProgramme.printHeaderTitle')}</div>
+            <div className="pdf-title-3">
+              {(() => {
+                const startLabel = formatDateForPdfRange(dateRange.start);
+                const endLabel = formatDateForPdfRange(dateRange.end);
+                if (startLabel && endLabel) return `${startLabel} – ${endLabel}`;
+                if (startLabel) return startLabel;
+                if (endLabel) return endLabel;
+                return '';
+              })()}
+            </div>
+            <div className="pdf-rule" />
+          </div>
+
+          {filteredDateEntries.map(([dateKey, items]) => {
+            const date = parseISO(dateKey);
+            const formattedDate = format(date, 'EEEE, dd MMM yyyy', { locale: enIN });
+            const sections: Array<{
+              programmeType: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
+              items: ProgrammeItem[];
+            }> = [
+              { programmeType: 'CONSTITUENCY', items: items.filter((it) => (it.programmeType ?? 'CONSTITUENCY') === 'CONSTITUENCY') },
+              { programmeType: 'OUTSIDE_CONSTITUENCY', items: items.filter((it) => (it.programmeType ?? 'CONSTITUENCY') === 'OUTSIDE_CONSTITUENCY') },
+            ].filter((s) => s.items.length > 0);
+
+            return (
+              <div key={`pdf:${dateKey}`} style={{ marginBottom: '22px' }}>
+                <div className="pdf-day-header">
+                  <div className="pdf-day-left">
+                    <span aria-hidden>📅</span>
+                    <span>{formattedDate}</span>
+                  </div>
+                  <div className="pdf-day-right">
+                    {items.length} {items.length === 1 ? t('dailyProgramme.event') : t('dailyProgramme.events')}
+                  </div>
+                </div>
+
+                {sections.map((section) => {
+                  const sorted = [...section.items].sort((a, b) => {
+                    const timeA = a.startTime || '00:00';
+                    const timeB = b.startTime || '00:00';
+                    const byTime = timeA.localeCompare(timeB);
+                    if (byTime !== 0) return byTime;
+                    const orderA = a.sortOrder ?? 1;
+                    const orderB = b.sortOrder ?? 1;
+                    return orderA - orderB;
+                  });
+
+                  return (
+                    <div key={`pdf:${dateKey}:${section.programmeType}`} style={{ marginBottom: '18px' }}>
+                      <div className="pdf-programme-type">
+                        {getProgrammeTypeLabel(section.programmeType, t)}
+                      </div>
+
+                      <table>
+                        <colgroup>
+                          <col className="pdf-col-sr" />
+                          <col className="pdf-col-time" />
+                          <col className="pdf-col-nature" />
+                          <col className="pdf-col-ref" />
+                        </colgroup>
+                        <thead>
+                          <tr>
+                            <th className="pdf-col-sr">{t('dailyProgramme.serialNo')}</th>
+                            <th className="pdf-col-time">{t('dailyProgramme.time')}</th>
+                            <th className="pdf-col-nature">{t('dailyProgramme.programmeNatureAndPlace')}</th>
+                            <th className="pdf-col-ref">{t('dailyProgramme.reference')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sorted.map((it, idx) => {
+                            const serialNumber = (idx + 1).toLocaleString(locale === 'mr' ? 'mr-IN' : 'en-IN');
+                            const start = formatTimePartsForPdf(it.startTime);
+                            const end = it.endTime ? formatTimePartsForPdf(it.endTime) : null;
+                            return (
+                              <tr key={`pdf-row:${it.id}:${idx}`}>
+                                <td className="pdf-col-sr">{serialNumber}</td>
+                                <td className="pdf-col-time">
+                                  <div className="pdf-time-main">
+                                    {start.time} {start.period}
+                                    {end ? (
+                                      <>
+                                        <br />–<br />
+                                        {end.time} {end.period}
+                                      </>
+                                    ) : null}
+                                  </div>
+                                  <div className="pdf-time-sub pdf-muted">
+                                    {getProgrammeTypeLabel((it.programmeType ?? 'CONSTITUENCY') as 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY', t)}
+                                  </div>
+                                </td>
+                                <td className="pdf-col-nature">
+                                  <div className="pdf-title">{it.title}</div>
+                                  {it.location ? (
+                                    <div className="pdf-location pdf-muted">
+                                      <span className="pdf-pin" aria-hidden>📍</span>
+                                      <span>{it.location}</span>
+                                    </div>
+                                  ) : null}
+                                </td>
+                                <td className="pdf-col-ref">
+                                  {it.remarks ? (
+                                    <div>{it.remarks}</div>
+                                  ) : (
+                                    <div className="pdf-muted">—</div>
+                                  )}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Delete Confirmation Dialog */}

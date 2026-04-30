@@ -35,7 +35,6 @@ import {
   Trash2,
   FileDown,
   ChevronDown,
-  Search
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 

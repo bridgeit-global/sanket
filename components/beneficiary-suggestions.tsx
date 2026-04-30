@@ -31,17 +31,17 @@ function PureBeneficiarySuggestions({
     },
     {
       title: t('beneficiary.addBeneficiaryToService', { service: 'voter service' }),
-      label: t('beneficiary.individual') + ' voter',
+      label: `${t('beneficiary.individual')} voter`,
       action: 'Add voter ID TEST001 to the voter registration service with notes "New voter registration assistance"',
     },
     {
       title: t('beneficiary.addBeneficiaryToService', { service: 'Aadhar service' }),
-      label: t('beneficiary.individual') + ' voter',
+      label: `${t('beneficiary.individual')} voter`,
       action: 'Add voter ID TEST002 to the Aadhar card service with notes "Aadhar card application assistance"',
     },
     {
       title: t('beneficiary.addBeneficiaryToService', { service: 'public works' }),
-      label: t('beneficiary.community') + ' voters',
+      label: `${t('beneficiary.community')} voters`,
       action: 'Add Part 5 to the road construction service with notes "Public work affecting all voters in Part 5"',
     },
     {

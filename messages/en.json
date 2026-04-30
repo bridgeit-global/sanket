@@ -352,6 +352,7 @@
     "noProgrammes": "No programme events for the selected date range.",
     "printProgramme": "Print Programme",
     "exportProgramme": "Export Programme",
+    "exporting": "Exporting…",
     "resetRange": "Reset Range",
     "allProgrammes": "All Programmes",
     "serialNo": "Sr. No.",

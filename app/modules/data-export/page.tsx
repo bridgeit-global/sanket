@@ -1,7 +1,6 @@
 import { auth } from '@/app/(auth)/auth';
 import { redirect } from 'next/navigation';
 import { DataExport } from '@/components/data-export';
-import { ModulePageHeader } from '@/components/module-page-header';
 import { hasModuleAccess } from '@/lib/db/queries';
 
 export default async function DataExportPage() {

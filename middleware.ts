@@ -40,7 +40,7 @@ export async function middleware(request: NextRequest) {
   // If AUTH_SESSION_EPOCH is set, invalidate all tokens issued before that time
   const sessionEpoch = process.env.AUTH_SESSION_EPOCH;
   if (sessionEpoch && token.iat) {
-    const epochTimestamp = parseInt(sessionEpoch, 10);
+    const epochTimestamp = Number.parseInt(sessionEpoch, 10);
     if (!Number.isNaN(epochTimestamp) && token.iat < epochTimestamp) {
       // Token was issued before the reset epoch, invalidate it
       const redirectUrl = encodeURIComponent(request.url);

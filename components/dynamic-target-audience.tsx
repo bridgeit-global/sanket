@@ -40,7 +40,7 @@ export function DynamicTargetAudience({
     const [showSuggestions, setShowSuggestions] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const fetchVoterIds = async (search: string = '') => {
+    const fetchVoterIds = async (search = '') => {
         setLoading(true);
         try {
             const params = new URLSearchParams();

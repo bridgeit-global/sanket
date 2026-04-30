@@ -1,7 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { put, del } from '@vercel/blob';
-import { z } from 'zod';
 import { auth } from '@/app/(auth)/auth';
 import {
   getRegisterEntryById,

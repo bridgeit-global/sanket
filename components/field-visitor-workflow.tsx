@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
 import { SidebarToggle } from '@/components/sidebar-toggle';
 import { FieldVoterList } from '@/components/field-voter-list';
 import { FieldProfilingForm } from '@/components/field-profiling-form';

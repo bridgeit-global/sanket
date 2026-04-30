@@ -6,7 +6,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
-import { Search, User, FileText, CheckCircle, AlertCircle, ArrowLeft, ArrowRight, Plus } from 'lucide-react';
+import { User, FileText, CheckCircle, AlertCircle, ArrowLeft, ArrowRight, Plus } from 'lucide-react';
 import { toast } from './toast';
 import { useTranslations } from '@/hooks/use-translations';
 

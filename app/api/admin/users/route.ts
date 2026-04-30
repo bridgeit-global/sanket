@@ -5,9 +5,7 @@ import {
   getAllUsersWithPermissions,
   createUserWithPermissions,
   getUser,
-  getAllRoles,
 } from '@/lib/db/queries';
-import type { User } from '@/lib/db/schema';
 
 export async function GET(request: NextRequest) {
   try {

@@ -58,6 +58,217 @@
     }
 }
 
+/*
+ * PDF export mode:
+ * html2canvas renders from screen styles (not `@media print`).
+ * During PDF export we temporarily add `pdf-export` to <html>/<body>
+ * to apply a print-like styling for `.print-schedule`.
+ */
+html.pdf-export {
+    color-scheme: light !important;
+}
+
+html.pdf-export,
+html.pdf-export body {
+    background: #fff !important;
+    color: #000 !important;
+}
+
+html.pdf-export.dark,
+html.pdf-export .dark,
+html.pdf-export .dark body {
+    color-scheme: light !important;
+    background: #fff !important;
+    color: #000 !important;
+}
+
+html.pdf-export.dark *,
+html.pdf-export .dark * {
+    color: #000 !important;
+    background-color: transparent !important;
+    border-color: #000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+}
+
+html.pdf-export .print-schedule th {
+    background-color: #f3f4f6 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* Daily Programme PDF-only layout overrides (DOM->PDF via html2canvas) */
+html.pdf-export .pdf-daily-programme.print-schedule {
+    padding-top: 0 !important;
+    font-size: 12pt !important;
+    line-height: 1.35 !important;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-header {
+    text-align: center;
+    margin: 0 0 18px 0;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-header .pdf-title-1 {
+    font-weight: 800;
+    font-size: 22px;
+    line-height: 1.15;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-header .pdf-title-2 {
+    font-weight: 800;
+    font-size: 20px;
+    line-height: 1.15;
+    margin-top: 4px;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-header .pdf-title-3 {
+    font-weight: 700;
+    font-size: 18px;
+    line-height: 1.15;
+    margin-top: 10px;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-header .pdf-rule {
+    margin-top: 18px;
+    height: 2px;
+    background: #000;
+    width: 100%;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-day-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 14px 0 10px 0;
+    font-weight: 800;
+    font-size: 20px;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-day-header .pdf-day-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-day-header .pdf-day-right {
+    font-weight: 700;
+    font-size: 14px;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-programme-type {
+    font-weight: 800;
+    font-size: 16px;
+    margin: 6px 0 6px 0;
+}
+
+html.pdf-export .pdf-daily-programme table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+html.pdf-export .pdf-daily-programme th,
+html.pdf-export .pdf-daily-programme td {
+    border: 2px solid #1f2937;
+    padding: 12px 10px;
+    vertical-align: top;
+}
+
+html.pdf-export .pdf-daily-programme th {
+    background: #f3f4f6 !important;
+    font-weight: 800;
+    font-size: 18px;
+}
+
+html.pdf-export .pdf-daily-programme td {
+    font-size: 14px;
+    line-height: 1.35;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-col-sr {
+    width: 8%;
+    text-align: center;
+    font-weight: 800;
+    font-size: 16px;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-col-time {
+    width: 17%;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-col-nature {
+    width: 44%;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-col-ref {
+    width: 31%;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-time-main {
+    font-weight: 800;
+    font-size: 18px;
+    letter-spacing: 0.5px;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-time-sub {
+    margin-top: 6px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-title {
+    font-weight: 800;
+    font-size: 16px;
+    margin-bottom: 6px;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-location {
+    font-size: 14px;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-location .pdf-pin {
+    color: #b91c1c;
+    margin-right: 6px;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-muted {
+    opacity: 0.85;
+}
+
+/* Hide non-print elements inside captured subtree */
+html.pdf-export .no-print {
+    display: none !important;
+}
+
+/* Mirror the key Daily Programme print layout for capture */
+html.pdf-export .print-schedule {
+    position: relative;
+    width: 100%;
+    padding: 0;
+    padding-top: 9mm;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    background: white;
+    color: #000;
+    margin: 0 !important;
+    font-size: 12pt !important;
+    line-height: 1.4 !important;
+}
+
+html.pdf-export .print-schedule * {
+    color: #000 !important;
+}
+
+html.pdf-export .print-schedule table {
+    page-break-inside: auto;
+}
+
+html.pdf-export .print-schedule thead {
+    display: table-header-group;
+}
+
 @layer utilities {
     .text-balance {
         text-wrap: balance;

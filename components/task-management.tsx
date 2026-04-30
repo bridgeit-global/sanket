@@ -266,8 +266,7 @@ function QrTokenScannerDialog({
                 toast({
                     type: 'error',
                     description:
-                        `Could not access camera${name}. ` +
-                        'Please allow camera permission and close any other app/tab using the camera.',
+                        `Could not access camera${name}. Please allow camera permission and close any other app/tab using the camera.`,
                 });
             }
         };
