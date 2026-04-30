@@ -154,7 +154,8 @@ function formatTimeTo12Hour(time24: string, locale: 'en' | 'mr'): string {
   date.setHours(hours, minutes, 0, 0);
 
   // Use Intl.DateTimeFormat to get localized time format
-  const formatter = new Intl.DateTimeFormat(locale === 'mr' ? 'mr-IN' : 'en-IN', {
+  // Force Devanagari digits for Marathi to keep UI consistent across browsers (notably Safari).
+  const formatter = new Intl.DateTimeFormat(locale === 'mr' ? 'mr-IN-u-nu-deva' : 'en-IN', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: true,
@@ -302,15 +303,36 @@ function formatTimePartsForPdf(time24: string, locale: 'en' | 'mr'): { time: str
   const [hours, minutes] = time24.split(':').map(Number);
   const date = new Date();
   date.setHours(hours ?? 0, minutes ?? 0, 0, 0);
-  const parts = new Intl.DateTimeFormat(locale === 'mr' ? 'mr-IN' : 'en-IN', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  }).formatToParts(date);
-  const time = `${parts.find((p) => p.type === 'hour')?.value ?? ''}:${parts.find((p) => p.type === 'minute')?.value ?? ''}`;
-  const dayPeriod = parts.find((p) => p.type === 'dayPeriod')?.value ?? '';
-  const period = locale === 'mr' ? dayPeriod : dayPeriod.toUpperCase();
-  return { time, period };
+  // Force Devanagari digits for Marathi in Safari and some OS locale configs.
+  const intlLocale = locale === 'mr' ? 'mr-IN-u-nu-deva' : 'en-IN';
+
+  try {
+    const parts = new Intl.DateTimeFormat(intlLocale, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    }).formatToParts(date);
+
+    const hour = parts.find((p) => p.type === 'hour')?.value ?? '';
+    const minute = parts.find((p) => p.type === 'minute')?.value ?? '';
+    const time = `${hour}:${minute}`;
+    const dayPeriod = parts.find((p) => p.type === 'dayPeriod')?.value ?? '';
+    const period = locale === 'mr' ? dayPeriod : dayPeriod.toUpperCase();
+    return { time, period };
+  } catch {
+    // Fallback for browsers/locale data that don't support formatToParts for mr.
+    const formatted = new Intl.DateTimeFormat(intlLocale, {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    }).format(date);
+    const parts = formatted.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      const period = locale === 'mr' ? parts.slice(1).join(' ') : parts.slice(1).join(' ').toUpperCase();
+      return { time: parts[0] ?? '', period };
+    }
+    return { time: formatted, period: '' };
+  }
 }
 
 function SortableProgrammeRow({
@@ -1586,7 +1608,9 @@ export function DailyProgramme({
                         </thead>
                         <tbody>
                           {sorted.map((it, idx) => {
-                            const serialNumber = (idx + 1).toLocaleString(locale === 'mr' ? 'mr-IN' : 'en-IN');
+                            const serialNumber = (idx + 1).toLocaleString(
+                              locale === 'mr' ? 'mr-IN-u-nu-deva' : 'en-IN',
+                            );
                             const start = formatTimePartsForPdf(it.startTime, locale);
                             const end = it.endTime ? formatTimePartsForPdf(it.endTime, locale) : null;
                             return (

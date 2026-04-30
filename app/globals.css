@@ -72,6 +72,7 @@ html.pdf-export,
 html.pdf-export body {
     background: #fff !important;
     color: #000 !important;
+    font-family: "Noto Sans Devanagari","Nirmala UI","Mangal",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif !important;
 }
 
 html.pdf-export.dark,
