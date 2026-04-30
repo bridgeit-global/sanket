@@ -148,7 +148,9 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
       headerHost.style.width = `${Math.ceil(element.scrollWidth)}px`;
       headerHost.style.background = '#ffffff';
       headerHost.style.color = '#000000';
-      headerHost.style.padding = '12px 24px 0 24px';
+      // Extra bottom padding prevents html2canvas from clipping Devanagari glyph descenders
+      // (observed in Safari where header date line can get cut).
+      headerHost.style.padding = '12px 24px 10px 24px';
       headerHost.style.fontFamily =
         '"Noto Sans Devanagari","Nirmala UI","Mangal",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
 
@@ -163,7 +165,7 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
         p.textContent = line;
         p.style.fontWeight = '600';
         p.style.fontSize = '18px';
-        p.style.lineHeight = '1.15';
+        p.style.lineHeight = '1.25';
         p.style.textAlign = 'center';
         p.style.fontFamily = 'inherit';
         headerInner.appendChild(p);
