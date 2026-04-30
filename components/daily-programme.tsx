@@ -298,17 +298,18 @@ function formatDateForPdfRange(dateStr?: string | null): string | null {
   }
 }
 
-function formatTimePartsForPdf(time24: string): { time: string; period: string } {
+function formatTimePartsForPdf(time24: string, locale: 'en' | 'mr'): { time: string; period: string } {
   const [hours, minutes] = time24.split(':').map(Number);
   const date = new Date();
   date.setHours(hours ?? 0, minutes ?? 0, 0, 0);
-  const parts = new Intl.DateTimeFormat('en-IN', {
+  const parts = new Intl.DateTimeFormat(locale === 'mr' ? 'mr-IN' : 'en-IN', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: true,
   }).formatToParts(date);
   const time = `${parts.find((p) => p.type === 'hour')?.value ?? ''}:${parts.find((p) => p.type === 'minute')?.value ?? ''}`;
-  const period = (parts.find((p) => p.type === 'dayPeriod')?.value ?? '').toUpperCase();
+  const dayPeriod = parts.find((p) => p.type === 'dayPeriod')?.value ?? '';
+  const period = locale === 'mr' ? dayPeriod : dayPeriod.toUpperCase();
   return { time, period };
 }
 
@@ -1586,8 +1587,8 @@ export function DailyProgramme({
                         <tbody>
                           {sorted.map((it, idx) => {
                             const serialNumber = (idx + 1).toLocaleString(locale === 'mr' ? 'mr-IN' : 'en-IN');
-                            const start = formatTimePartsForPdf(it.startTime);
-                            const end = it.endTime ? formatTimePartsForPdf(it.endTime) : null;
+                            const start = formatTimePartsForPdf(it.startTime, locale);
+                            const end = it.endTime ? formatTimePartsForPdf(it.endTime, locale) : null;
                             return (
                               <tr key={`pdf-row:${it.id}:${idx}`}>
                                 <td className="pdf-col-sr">{serialNumber}</td>
