@@ -221,6 +221,7 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
     const [isOutsiderTicket, setIsOutsiderTicket] = useState(false);
     const [outsiderName, setOutsiderName] = useState('');
     const [outsiderVoterId, setOutsiderVoterId] = useState('');
+    const [outsiderMobileNumber, setOutsiderMobileNumber] = useState('');
     const [workflowStep, setWorkflowStep] = useState<'search' | 'phoneUpdate' | 'service' | 'confirmation' | 'completed' | 'tasks'>(
         initialTab === 'manage' ? 'tasks' : 'search',
     );
@@ -569,6 +570,7 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
         setIsOutsiderTicket(true);
         setOutsiderName('');
         setOutsiderVoterId('');
+        setOutsiderMobileNumber('');
         setShowPhoneUpdate(false);
         setShowBeneficiaryService(true);
         setShowConfirmation(false);
@@ -586,17 +588,32 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
             return;
         }
         const voterId = getNormalizedVoterId(selectedVoter);
-        if (isOutsiderTicket && (!outsiderName.trim() || !outsiderVoterId.trim())) {
+        const trimmedOutsiderName = outsiderName.trim();
+        const trimmedOutsiderVoterId = outsiderVoterId.trim();
+        const trimmedOutsiderMobileNumber = outsiderMobileNumber.trim();
+        if (isOutsiderTicket && !trimmedOutsiderName) {
             toast({
                 type: 'error',
-                description: 'Outsider name and voter ID are required',
+                description: 'Outsider name is required',
+            });
+            return;
+        }
+        if (isOutsiderTicket && !trimmedOutsiderMobileNumber) {
+            toast({
+                type: 'error',
+                description: 'Outsider mobile number is required',
             });
             return;
         }
         if (!isOutsiderTicket && !voterId) return;
 
+        if (isOutsiderTicket) {
+            setSelectedVoterMobileNumbers([{ mobileNumber: trimmedOutsiderMobileNumber, sortOrder: 1 }]);
+        }
+
         const outsiderInfo = isOutsiderTicket
-            ? `Outsider Details - Name: ${outsiderName.trim()}, Voter ID: ${outsiderVoterId.trim()}`
+            ? `Outsider Details - Name: ${trimmedOutsiderName}, Mobile: ${trimmedOutsiderMobileNumber}${trimmedOutsiderVoterId ? `, Voter ID: ${trimmedOutsiderVoterId}` : ''
+            }`
             : '';
         const mergedDescription = [serviceData.description?.trim(), outsiderInfo].filter(Boolean).join('\n\n');
 
@@ -655,6 +672,7 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
         setIsOutsiderTicket(false);
         setOutsiderName('');
         setOutsiderVoterId('');
+        setOutsiderMobileNumber('');
         setWorkflowStep('search');
     };
 
@@ -925,11 +943,23 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                                         <h3 className="text-lg font-semibold">Outsider Details</h3>
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
-                                                <Label className="text-sm font-medium">Outsider Name</Label>
+                                                <Label className="text-sm font-medium">
+                                                    Outsider Name <span className="text-red-500">*</span>
+                                                </Label>
                                                 <Input
                                                     value={outsiderName}
                                                     onChange={(e) => setOutsiderName(e.target.value)}
                                                     placeholder="Enter outsider name"
+                                                />
+                                            </div>
+                                            <div>
+                                                <Label className="text-sm font-medium">Outsider Mobile Number <span className="text-red-500">*</span></Label>
+                                                <Input
+                                                    value={outsiderMobileNumber}
+                                                    onChange={(e) => setOutsiderMobileNumber(e.target.value)}
+                                                    placeholder="Enter outsider mobile number"
+                                                    type="tel"
+                                                    className="font-mono"
                                                 />
                                             </div>
                                             <div>
