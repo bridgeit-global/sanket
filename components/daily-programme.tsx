@@ -920,6 +920,15 @@ export function DailyProgramme({
       return;
     }
 
+    const headerDateRange = (() => {
+      const startLabel = formatDateForPdfRange(dateRange.start);
+      const endLabel = formatDateForPdfRange(dateRange.end);
+      if (startLabel && endLabel) return `${startLabel} – ${endLabel}`;
+      if (startLabel) return startLabel;
+      if (endLabel) return endLabel;
+      return '';
+    })();
+
     // Format date range for filename
     const formatDateForFilename = (dateStr?: string) => {
       if (!dateStr) return '';
@@ -956,6 +965,11 @@ export function DailyProgramme({
         format: 'a4',
         orientation: 'portrait',
         marginMm: 10,
+        header: {
+          lines: [t('dailyProgramme.mlaName'), t('dailyProgramme.printHeaderTitle'), headerDateRange].filter(Boolean),
+          heightMm: 30,
+          drawRule: true,
+        },
         footer: { heightMm: 12, showPageNumbers: true },
         scale: 2,
       });
@@ -1514,22 +1528,6 @@ export function DailyProgramme({
         }}
       >
         <div className="print-schedule pdf-daily-programme">
-          <div className="pdf-header">
-            <div className="pdf-title-1">{t('dailyProgramme.mlaName')}</div>
-            <div className="pdf-title-2">{t('dailyProgramme.printHeaderTitle')}</div>
-            <div className="pdf-title-3">
-              {(() => {
-                const startLabel = formatDateForPdfRange(dateRange.start);
-                const endLabel = formatDateForPdfRange(dateRange.end);
-                if (startLabel && endLabel) return `${startLabel} – ${endLabel}`;
-                if (startLabel) return startLabel;
-                if (endLabel) return endLabel;
-                return '';
-              })()}
-            </div>
-            <div className="pdf-rule" />
-          </div>
-
           {filteredDateEntries.map(([dateKey, items]) => {
             const date = parseISO(dateKey);
             const formattedDate = format(date, 'EEEE, dd MMM yyyy', { locale: enIN });
@@ -1537,8 +1535,8 @@ export function DailyProgramme({
               programmeType: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
               items: ProgrammeItem[];
             }> = [
-              { programmeType: 'CONSTITUENCY', items: items.filter((it) => (it.programmeType ?? 'CONSTITUENCY') === 'CONSTITUENCY') },
-              { programmeType: 'OUTSIDE_CONSTITUENCY', items: items.filter((it) => (it.programmeType ?? 'CONSTITUENCY') === 'OUTSIDE_CONSTITUENCY') },
+              { programmeType: 'CONSTITUENCY' as const, items: items.filter((it) => (it.programmeType ?? 'CONSTITUENCY') === 'CONSTITUENCY') },
+              { programmeType: 'OUTSIDE_CONSTITUENCY' as const, items: items.filter((it) => (it.programmeType ?? 'CONSTITUENCY') === 'OUTSIDE_CONSTITUENCY') },
             ].filter((s) => s.items.length > 0);
 
             return (
