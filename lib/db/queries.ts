@@ -3505,11 +3505,23 @@ export async function getDailyProgrammeItems({
 } = {}): Promise<Array<DailyProgramme & { createdByUserId?: string | null; updatedByUserId?: string | null }>> {
   try {
     const conditions: SQL[] = [];
+    // Overlap filter window [filterStart, filterEnd] with each row's calendar span.
+    // Span uses startDate/endDate when set, else `date` (LEAST/GREATEST normalizes inverted ranges).
+    const programmeSpanStart = sql`LEAST(
+      COALESCE(${dailyProgramme.startDate}, ${dailyProgramme.date}),
+      COALESCE(${dailyProgramme.endDate}, ${dailyProgramme.date})
+    )`;
+    const programmeSpanEnd = sql`GREATEST(
+      COALESCE(${dailyProgramme.startDate}, ${dailyProgramme.date}),
+      COALESCE(${dailyProgramme.endDate}, ${dailyProgramme.date})
+    )`;
     if (startDate) {
-      conditions.push(gte(dailyProgramme.date, formatDateToString(startDate)));
+      const filterStart = formatDateToString(startDate);
+      conditions.push(gte(programmeSpanEnd, filterStart));
     }
     if (endDate) {
-      conditions.push(lte(dailyProgramme.date, formatDateToString(endDate)));
+      const filterEnd = formatDateToString(endDate);
+      conditions.push(lte(programmeSpanStart, filterEnd));
     }
 
     // Use SQL aliases for joining user table twice

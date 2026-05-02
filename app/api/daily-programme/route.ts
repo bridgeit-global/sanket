@@ -7,6 +7,14 @@ import {
 } from '@/lib/db/queries';
 import { hasModuleAccess } from '@/lib/db/queries';
 
+/** Calendar day from the query string; avoid `Date` so UTC midnight is not shifted by local TZ in DB filters. */
+function dailyProgrammeQueryDate(param: string | null): Date | string | undefined {
+  if (!param) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(param)) return param;
+  const d = new Date(param);
+  return Number.isNaN(d.getTime()) ? undefined : d;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -28,8 +36,8 @@ export async function GET(request: NextRequest) {
     const startDateParam = searchParams.get('startDate');
     const endDateParam = searchParams.get('endDate');
 
-    const startDate = startDateParam ? new Date(startDateParam) : undefined;
-    const endDate = endDateParam ? new Date(endDateParam) : undefined;
+    const startDate = dailyProgrammeQueryDate(startDateParam);
+    const endDate = dailyProgrammeQueryDate(endDateParam);
 
     const items = await getDailyProgrammeItemsWithAttachments({
       startDate,
