@@ -15,6 +15,7 @@ import { useTranslations } from '@/hooks/use-translations';
 import type { VoterTask, BeneficiaryService, CommunityServiceArea } from '@/lib/db/schema';
 import { TablePagination } from '@/components/table-pagination';
 import { QrCode, Share2 } from 'lucide-react';
+import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
 
 interface TaskVoter {
@@ -341,6 +342,7 @@ export function TaskManagement() {
 
     const itemRefs = useRef<Map<string, HTMLElement>>(new Map());
     const highlightTimeoutRef = useRef<number | null>(null);
+    const invalidMobileFilterToastSentRef = useRef(false);
 
     const setItemRef = useCallback((id: string) => {
         return (el: HTMLElement | null) => {
@@ -515,23 +517,40 @@ export function TaskManagement() {
     useEffect(() => {
         const handle = window.setTimeout(() => {
             const nextToken = filterTokenInput.trim();
-            const nextMobile = filterMobileInput.trim();
+            const nextMobileRaw = filterMobileInput.trim();
             const nextVoter = filterVoterIdInput.trim();
 
+            let appliedMobile = '';
+            if (nextMobileRaw === '') {
+                invalidMobileFilterToastSentRef.current = false;
+            } else if (isValidIndianMobile(nextMobileRaw)) {
+                appliedMobile = normalizeIndianMobileDigits(nextMobileRaw);
+                invalidMobileFilterToastSentRef.current = false;
+            } else {
+                if (!invalidMobileFilterToastSentRef.current) {
+                    toast({
+                        type: 'error',
+                        description: t('operator.messages.invalidIndianMobile'),
+                    });
+                    invalidMobileFilterToastSentRef.current = true;
+                }
+            }
+
             // Only reset pagination if a debounced filter actually changes.
-            const changed = nextToken !== filterToken || nextMobile !== filterMobile || nextVoter !== filterVoterId;
+            const changed =
+                nextToken !== filterToken || appliedMobile !== filterMobile || nextVoter !== filterVoterId;
             if (changed) {
                 setCurrentPage(1);
                 setCommunityServicesPage(1);
             }
 
             setFilterToken(nextToken);
-            setFilterMobile(nextMobile);
+            setFilterMobile(appliedMobile);
             setFilterVoterId(nextVoter);
         }, 400);
 
         return () => window.clearTimeout(handle);
-    }, [filterTokenInput, filterMobileInput, filterVoterIdInput, filterToken, filterMobile, filterVoterId]);
+    }, [filterTokenInput, filterMobileInput, filterVoterIdInput, filterToken, filterMobile, filterVoterId, t]);
 
     const handleSearch = () => {
         setCurrentPage(1); // Reset to first page when searching
@@ -548,6 +567,7 @@ export function TaskManagement() {
         setFilterTokenInput('');
         setFilterMobileInput('');
         setFilterVoterIdInput('');
+        invalidMobileFilterToastSentRef.current = false;
         setCurrentPage(1);
         setCommunityServicesPage(1);
     };
@@ -852,6 +872,7 @@ export function TaskManagement() {
                                     inputMode="numeric"
                                     pattern="[0-9]*"
                                     autoComplete="tel"
+                                    maxLength={13}
                                     placeholder={t('taskManagement.filters.enterMobile')}
                                     value={filterMobileInput}
                                     onChange={(e) => setFilterMobileInput(e.target.value.replace(/\D/g, ''))}

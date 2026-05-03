@@ -5,7 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from '@/components/toast';
 import { useTranslations } from '@/hooks/use-translations';
+import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import type { VoterWithPartNo } from '@/lib/db/schema';
 
 export interface MobileNumberEntry {
@@ -46,11 +48,29 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
             return;
         }
 
+        if (!isValidIndianMobile(mobileNoPrimary)) {
+            toast({
+                type: 'error',
+                description: t('operator.messages.invalidIndianMobile'),
+            });
+            return;
+        }
+
+        if (mobileNoSecondary.trim() && !isValidIndianMobile(mobileNoSecondary)) {
+            toast({
+                type: 'error',
+                description: t('operator.messages.invalidIndianMobile'),
+            });
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             onPhoneUpdate({
-                mobileNoPrimary: mobileNoPrimary.trim(),
-                mobileNoSecondary: mobileNoSecondary.trim() || undefined,
+                mobileNoPrimary: normalizeIndianMobileDigits(mobileNoPrimary),
+                mobileNoSecondary: mobileNoSecondary.trim()
+                    ? normalizeIndianMobileDigits(mobileNoSecondary)
+                    : undefined,
             });
         } finally {
             setIsSubmitting(false);
@@ -101,6 +121,9 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                                 <Input
                                     id="mobileNoPrimary"
                                     type="tel"
+                                    inputMode="numeric"
+                                    autoComplete="tel"
+                                    maxLength={13}
                                     value={mobileNoPrimary}
                                     onChange={(e) => setMobileNoPrimary(e.target.value)}
                                     placeholder={t('phoneUpdate.primaryPlaceholder')}
@@ -118,6 +141,9 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                                 <Input
                                     id="mobileNoSecondary"
                                     type="tel"
+                                    inputMode="numeric"
+                                    autoComplete="tel"
+                                    maxLength={13}
                                     value={mobileNoSecondary}
                                     onChange={(e) => setMobileNoSecondary(e.target.value)}
                                     placeholder={t('phoneUpdate.secondaryPlaceholder')}

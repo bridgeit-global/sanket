@@ -19,10 +19,11 @@ interface BeneficiaryServiceInitialData {
     notes?: string;
 }
 
-interface BeneficiaryServiceFormProps {
+export interface BeneficiaryServiceFormProps {
     voter: VoterWithPartNo;
     onServiceCreated: (serviceId: string) => void;
     onServiceDataReady?: (data: any) => void;
+    /** When set, shows a Previous control (e.g. return to phone update in operator flow). */
     onPrevious?: () => void;
     onCancel: () => void;
     initialData?: BeneficiaryServiceInitialData;
@@ -55,7 +56,8 @@ const INDIVIDUAL_SERVICES = [
     'Domestic Violence'
 ];
 
-export function BeneficiaryServiceForm({ voter, onServiceCreated, onServiceDataReady, onPrevious, onCancel, initialData }: BeneficiaryServiceFormProps) {
+export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
+    const { voter, onServiceCreated, onServiceDataReady, onPrevious, onCancel, initialData } = props;
     const { t } = useTranslations();
     const serviceType = 'individual' as const;
     const initialServiceName = initialData?.serviceName ?? '';

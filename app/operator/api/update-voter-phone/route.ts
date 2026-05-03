@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import { updateVoterMobileNumber } from '@/lib/db/queries';
+import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 
 export async function POST(request: NextRequest) {
     try {
@@ -21,20 +22,37 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: 'Primary mobile number is required' }, { status: 400 });
         }
 
-        // Validate phone number format (basic validation)
-        const phoneRegex = /^[\d\s\-\(\)]{7,15}$/;
-        if (!phoneRegex.test(mobileNoPrimary)) {
-            return NextResponse.json({ error: 'Invalid primary mobile number format' }, { status: 400 });
+        if (!isValidIndianMobile(mobileNoPrimary)) {
+            return NextResponse.json(
+                { error: 'Enter a valid 10-digit Indian mobile number' },
+                { status: 400 },
+            );
         }
 
-        if (mobileNoSecondary && !phoneRegex.test(mobileNoSecondary)) {
-            return NextResponse.json({ error: 'Invalid secondary mobile number format' }, { status: 400 });
+        if (
+            mobileNoSecondary !== undefined &&
+            mobileNoSecondary !== null &&
+            String(mobileNoSecondary).trim() !== '' &&
+            !isValidIndianMobile(String(mobileNoSecondary))
+        ) {
+            return NextResponse.json(
+                { error: 'Enter a valid 10-digit Indian mobile number for secondary' },
+                { status: 400 },
+            );
         }
+
+        const primaryDigits = normalizeIndianMobileDigits(mobileNoPrimary);
+        const secondaryDigits =
+            mobileNoSecondary !== undefined &&
+            mobileNoSecondary !== null &&
+            String(mobileNoSecondary).trim() !== ''
+                ? normalizeIndianMobileDigits(String(mobileNoSecondary))
+                : undefined;
 
         const updatedVoter = await updateVoterMobileNumber(
             epicNumber,
-            mobileNoPrimary,
-            mobileNoSecondary,
+            primaryDigits,
+            secondaryDigits,
             session.user.id,
             'beneficiary_management'
         );

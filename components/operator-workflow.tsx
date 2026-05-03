@@ -17,6 +17,7 @@ import { TaskManagement } from '@/components/task-management';
 import { useTranslations } from '@/hooks/use-translations';
 import { Share2 } from 'lucide-react';
 import type { VoterWithPartNo, BeneficiaryService } from '@/lib/db/schema';
+import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
 
 const VOTER_SEARCH_PAGE_SIZE = 50;
@@ -352,6 +353,13 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                 });
                 return;
             }
+            if (searchType === 'phone' && !isValidIndianMobile(trimmedTerm)) {
+                toast({
+                    type: 'error',
+                    description: t('operator.messages.invalidIndianMobile'),
+                });
+                return;
+            }
         }
 
         const runSearch = async (typeToUse: 'voterId' | 'phone' | 'details') => {
@@ -500,6 +508,27 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
     const handlePhoneUpdate = async (phoneData: { mobileNoPrimary: string; mobileNoSecondary?: string }) => {
         if (!selectedVoter) return;
 
+        if (!isValidIndianMobile(phoneData.mobileNoPrimary)) {
+            toast({
+                type: 'error',
+                description: t('operator.messages.invalidIndianMobile'),
+            });
+            return;
+        }
+
+        const secondaryTrimmed = phoneData.mobileNoSecondary?.trim() ?? '';
+        if (secondaryTrimmed !== '' && !isValidIndianMobile(secondaryTrimmed)) {
+            toast({
+                type: 'error',
+                description: t('operator.messages.invalidIndianMobile'),
+            });
+            return;
+        }
+
+        const primaryDigits = normalizeIndianMobileDigits(phoneData.mobileNoPrimary);
+        const secondaryDigits =
+            secondaryTrimmed !== '' ? normalizeIndianMobileDigits(secondaryTrimmed) : undefined;
+
         try {
             const response = await fetch('/operator/api/update-voter-phone', {
                 method: 'POST',
@@ -508,7 +537,8 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                 },
                 body: JSON.stringify({
                     epicNumber: selectedVoter.epicNumber,
-                    ...phoneData,
+                    mobileNoPrimary: primaryDigits,
+                    mobileNoSecondary: secondaryDigits,
                 }),
             });
 
@@ -520,13 +550,13 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
             setSelectedVoter((prev) => (prev ? { ...prev, ...updatedVoter } : updatedVoter));
             const updatedMobileNumbers: MobileNumberEntry[] = [
                 {
-                    mobileNumber: phoneData.mobileNoPrimary.trim(),
+                    mobileNumber: primaryDigits,
                     sortOrder: 1,
                 },
             ];
-            if (phoneData.mobileNoSecondary?.trim()) {
+            if (secondaryDigits) {
                 updatedMobileNumbers.push({
-                    mobileNumber: phoneData.mobileNoSecondary.trim(),
+                    mobileNumber: secondaryDigits,
                     sortOrder: 2,
                 });
             }
@@ -594,25 +624,36 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
         if (isOutsiderTicket && !trimmedOutsiderName) {
             toast({
                 type: 'error',
-                description: 'Outsider name is required',
+                description: t('operator.messages.outsiderNameRequired'),
             });
             return;
         }
         if (isOutsiderTicket && !trimmedOutsiderMobileNumber) {
             toast({
                 type: 'error',
-                description: 'Outsider mobile number is required',
+                description: t('operator.messages.outsiderMobileRequired'),
+            });
+            return;
+        }
+        if (isOutsiderTicket && !isValidIndianMobile(trimmedOutsiderMobileNumber)) {
+            toast({
+                type: 'error',
+                description: t('operator.messages.invalidIndianMobile'),
             });
             return;
         }
         if (!isOutsiderTicket && !voterId) return;
 
+        const outsiderMobileDigits = isOutsiderTicket
+            ? normalizeIndianMobileDigits(trimmedOutsiderMobileNumber)
+            : '';
+
         if (isOutsiderTicket) {
-            setSelectedVoterMobileNumbers([{ mobileNumber: trimmedOutsiderMobileNumber, sortOrder: 1 }]);
+            setSelectedVoterMobileNumbers([{ mobileNumber: outsiderMobileDigits, sortOrder: 1 }]);
         }
 
         const outsiderInfo = isOutsiderTicket
-            ? `Outsider Details - Name: ${trimmedOutsiderName}, Mobile: ${trimmedOutsiderMobileNumber}${trimmedOutsiderVoterId ? `, Voter ID: ${trimmedOutsiderVoterId}` : ''
+            ? `Outsider Details - Name: ${trimmedOutsiderName}, Mobile: ${outsiderMobileDigits}${trimmedOutsiderVoterId ? `, Voter ID: ${trimmedOutsiderVoterId}` : ''
             }`
             : '';
         const mergedDescription = [serviceData.description?.trim(), outsiderInfo].filter(Boolean).join('\n\n');
@@ -959,6 +1000,9 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                                                     onChange={(e) => setOutsiderMobileNumber(e.target.value)}
                                                     placeholder="Enter outsider mobile number"
                                                     type="tel"
+                                                    inputMode="numeric"
+                                                    autoComplete="tel"
+                                                    maxLength={13}
                                                     className="font-mono"
                                                 />
                                             </div>
@@ -1257,6 +1301,9 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                                                                 : t('operator.search.phonePlaceholder')
                                                         }
                                                         type={searchType === 'phone' ? 'tel' : 'text'}
+                                                        inputMode={searchType === 'phone' ? 'numeric' : undefined}
+                                                        autoComplete={searchType === 'phone' ? 'tel' : undefined}
+                                                        maxLength={searchType === 'phone' ? 13 : undefined}
                                                         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                                                         className="pr-10"
                                                     />

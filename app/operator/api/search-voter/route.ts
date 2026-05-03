@@ -11,6 +11,7 @@ import {
     countSearchVoterByDetails,
     countSearchVoterByMobileNumberTable,
 } from '@/lib/db/queries';
+import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 
 const DEFAULT_PAGE_SIZE = 50;
 const MAX_PAGE_SIZE = 100;
@@ -75,17 +76,31 @@ export async function POST(request: NextRequest) {
             const isPhoneNumber = /^[\d\s\-\(\)]{7,15}$/.test(trimmedTerm);
 
             if (searchType === 'mobileNumber') {
+                if (!isValidIndianMobile(trimmedTerm)) {
+                    return NextResponse.json(
+                        { error: 'Enter a valid 10-digit Indian mobile number' },
+                        { status: 400 },
+                    );
+                }
+                const mobileQuery = normalizeIndianMobileDigits(trimmedTerm);
                 const [votersResult, countResult] = await Promise.all([
-                    searchVoterByMobileNumberTable(trimmedTerm, page),
-                    countSearchVoterByMobileNumberTable(trimmedTerm),
+                    searchVoterByMobileNumberTable(mobileQuery, page),
+                    countSearchVoterByMobileNumberTable(mobileQuery),
                 ]);
                 voters = votersResult;
                 totalCount = countResult;
                 actualSearchType = 'mobileNumber';
             } else if (searchType === 'phone' || (isPhoneNumber && searchType !== 'voterId' && searchType !== 'name')) {
+                if (!isValidIndianMobile(trimmedTerm)) {
+                    return NextResponse.json(
+                        { error: 'Enter a valid 10-digit Indian mobile number' },
+                        { status: 400 },
+                    );
+                }
+                const mobileQuery = normalizeIndianMobileDigits(trimmedTerm);
                 const [votersResult, countResult] = await Promise.all([
-                    searchVoterByMobileNumberTable(trimmedTerm, page),
-                    countSearchVoterByMobileNumberTable(trimmedTerm),
+                    searchVoterByMobileNumberTable(mobileQuery, page),
+                    countSearchVoterByMobileNumberTable(mobileQuery),
                 ]);
                 voters = votersResult;
                 totalCount = countResult;

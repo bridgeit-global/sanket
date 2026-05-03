@@ -574,7 +574,10 @@
       "serviceCreatedSuccess": "Beneficiary service created successfully!",
       "serviceCreateFailed": "Failed to create beneficiary service. Please try again.",
       "phoneUpdatedSuccess": "Phone number updated successfully",
-      "phoneUpdateFailed": "Failed to update phone number. Please try again."
+      "phoneUpdateFailed": "Failed to update phone number. Please try again.",
+      "invalidIndianMobile": "Enter a valid 10-digit Indian mobile number (starting with 6, 7, 8, or 9).",
+      "outsiderMobileRequired": "Outsider mobile number is required",
+      "outsiderNameRequired": "Outsider name is required"
     }
   },
   "auth": {
