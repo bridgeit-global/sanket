@@ -2,7 +2,8 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import {
     createBeneficiaryService,
-    createCommunityServiceAreas
+    createCommunityServiceAreas,
+    getDailyProgrammeItemById,
 } from '@/lib/db/queries';
 
 export async function POST(request: NextRequest) {
@@ -21,8 +22,16 @@ export async function POST(request: NextRequest) {
             priority,
             notes,
             voterId,
-            serviceAreas
+            serviceAreas,
+            programmeId,
         } = await request.json();
+
+        if (programmeId != null && programmeId !== '') {
+            const programme = await getDailyProgrammeItemById(String(programmeId));
+            if (!programme) {
+                return NextResponse.json({ error: 'Programme not found' }, { status: 400 });
+            }
+        }
 
         // Validate required fields
         if (!serviceType || !serviceName) {
@@ -40,6 +49,8 @@ export async function POST(request: NextRequest) {
             requestedBy: session.user.id,
             voterId: serviceType === 'individual' ? voterId : undefined,
             notes,
+            programmeId:
+                programmeId != null && programmeId !== '' ? String(programmeId) : undefined,
         });
 
         // Create community service areas for community service

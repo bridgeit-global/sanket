@@ -2177,6 +2177,7 @@ export async function createBeneficiaryService({
   assignedTo,
   voterId,
   notes,
+  programmeId,
 }: {
   serviceType: 'individual' | 'community';
   serviceName: string;
@@ -2186,6 +2187,7 @@ export async function createBeneficiaryService({
   assignedTo?: string;
   voterId?: string;
   notes?: string;
+  programmeId?: string;
 }): Promise<BeneficiaryService> {
   try {
     const token = await generateServiceToken();
@@ -2203,6 +2205,7 @@ export async function createBeneficiaryService({
         voterId: serviceType === 'individual' ? voterId : undefined,
         token,
         notes,
+        programmeId: programmeId || undefined,
         createdAt: new Date(),
         updatedAt: new Date(),
       })

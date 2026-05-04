@@ -656,7 +656,14 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
             ? `Outsider Details - Name: ${trimmedOutsiderName}, Mobile: ${outsiderMobileDigits}${trimmedOutsiderVoterId ? `, Voter ID: ${trimmedOutsiderVoterId}` : ''
             }`
             : '';
-        const mergedDescription = [serviceData.description?.trim(), outsiderInfo].filter(Boolean).join('\n\n');
+        const programmeLine =
+            serviceData.programmeId && serviceData.programmeLabel
+                ? `Linked programme: ${serviceData.programmeLabel}`
+                : '';
+        const mergedDescription = [programmeLine, serviceData.description?.trim(), outsiderInfo].filter(Boolean).join('\n\n');
+
+        const servicePayload = { ...(serviceData as Record<string, unknown>) };
+        delete servicePayload.programmeLabel;
 
         try {
             const response = await fetch('/operator/api/create-beneficiary-service', {
@@ -665,7 +672,7 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    ...serviceData,
+                    ...servicePayload,
                     description: mergedDescription,
                     voterId: isOutsiderTicket ? undefined : voterId,
                 }),
@@ -964,6 +971,12 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                                             <Label className="text-sm font-medium">{t('operator.confirmation.priority')}</Label>
                                             <p className="capitalize">{serviceData.priority || 'Medium'}</p>
                                         </div>
+                                        {serviceData.programmeLabel && (
+                                            <div className="md:col-span-2">
+                                                <Label className="text-sm font-medium">Linked Programme</Label>
+                                                <p>{serviceData.programmeLabel}</p>
+                                            </div>
+                                        )}
                                         {serviceData.description && (
                                             <div className="md:col-span-2">
                                                 <Label className="text-sm font-medium">{t('operator.confirmation.description')}</Label>
