@@ -383,11 +383,9 @@ function SortableProgrammeRow({
             ? ` – ${formatTimeTo12Hour(item.endTime, locale)}`
             : null}
         </div>
-        {item.programmeType && (
-          <div className="text-xs text-muted-foreground mt-1">
-            {getProgrammeTypeLabel(item.programmeType, t)}
-          </div>
-        )}
+        <div className="text-xs text-muted-foreground mt-1 italic underline">
+          {getProgrammeTypeLabel((item.programmeType ?? 'CONSTITUENCY') as 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY', t)}
+        </div>
       </TableCell>
       <TableCell className="w-[400px]" data-label={t('dailyProgramme.programmeNatureAndPlace')}>
         <div className="space-y-1">
@@ -1377,25 +1375,25 @@ export function DailyProgramme({
                       {filteredDateEntries.map(([dateKey, items]) => {
                         const date = parseISO(dateKey);
                         const formattedDate = formatDateWithLocale(date, 'EEEE, dd MMM yyyy', locale);
-                        const constituencyItems = items.filter(
-                          (it) => (it.programmeType ?? 'CONSTITUENCY') === 'CONSTITUENCY',
-                        );
-                        const outsideItems = items.filter(
-                          (it) => (it.programmeType ?? 'CONSTITUENCY') === 'OUTSIDE_CONSTITUENCY',
-                        );
+                        const typeOrder: Record<'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY', number> = {
+                          CONSTITUENCY: 0,
+                          OUTSIDE_CONSTITUENCY: 1,
+                        };
 
-                        const showConstituency =
-                          programmeTypeFilter === 'ALL' || programmeTypeFilter === 'CONSTITUENCY';
-                        const showOutside =
-                          programmeTypeFilter === 'ALL' || programmeTypeFilter === 'OUTSIDE_CONSTITUENCY';
-
-                        const sections: Array<{
-                          programmeType: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
-                          items: ProgrammeItem[];
-                        }> = [
-                          ...(showConstituency ? [{ programmeType: 'CONSTITUENCY' as const, items: constituencyItems }] : []),
-                          ...(showOutside ? [{ programmeType: 'OUTSIDE_CONSTITUENCY' as const, items: outsideItems }] : []),
-                        ].filter((s) => s.items.length > 0);
+                        // Single combined table: CONSTITUENCY first, OUTSIDE_CONSTITUENCY last.
+                        const sorted = [...items].sort((a, b) => {
+                          const typeA = (a.programmeType ?? 'CONSTITUENCY') as 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
+                          const typeB = (b.programmeType ?? 'CONSTITUENCY') as 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
+                          const byType = typeOrder[typeA] - typeOrder[typeB];
+                          if (byType !== 0) return byType;
+                          const timeA = a.startTime || '00:00';
+                          const timeB = b.startTime || '00:00';
+                          const byTime = timeA.localeCompare(timeB);
+                          if (byTime !== 0) return byTime;
+                          const orderA = a.sortOrder ?? 1;
+                          const orderB = b.sortOrder ?? 1;
+                          return orderA - orderB;
+                        });
 
                         return (
                           <div key={dateKey} className="space-y-3 print-date-section">
@@ -1411,116 +1409,95 @@ export function DailyProgramme({
                             </div>
 
                             <div className="space-y-4 print-date-sections">
-                              {sections.map((section) => (
-                                <div
-                                  key={`${dateKey}:${section.programmeType}`}
-                                  className="space-y-2 print-programme-type-section"
-                                >
-                                  <div className="text-sm font-semibold print-programme-type-heading">
-                                    {getProgrammeTypeLabel(section.programmeType, t)}
-                                  </div>
+                              <div className="overflow-x-auto print-table-wrapper">
+                                <Table>
+                                  <colgroup>
+                                    <col className="print-col-1" />
+                                    <col className="print-col-2" />
+                                    <col className="print-col-3" />
+                                    <col className="print-col-4" />
+                                    <col className="no-print" />
+                                    <col className="no-print" />
+                                    <col className="no-print" />
+                                  </colgroup>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead className="w-[60px] text-center">{t('dailyProgramme.serialNo')}</TableHead>
+                                      <TableHead className="w-[150px]">{t('dailyProgramme.time')}</TableHead>
+                                      <TableHead className="w-[400px]">{t('dailyProgramme.programmeNatureAndPlace')}</TableHead>
+                                      <TableHead className="w-[300px]">{t('dailyProgramme.reference')}</TableHead>
+                                      <TableHead className="w-[80px] no-print text-center">{t('dailyProgramme.docs')}</TableHead>
+                                      <TableHead className="w-[150px] no-print">{t('dailyProgramme.attendance')}</TableHead>
+                                      <TableHead className="w-[100px] no-print">{t('dailyProgramme.actions')}</TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {(() => {
+                                      const groups = new Map<string, ProgrammeItem[]>();
+                                      for (const it of sorted) {
+                                        const key = it.startTime || '00:00';
+                                        const list = groups.get(key) ?? [];
+                                        list.push(it);
+                                        groups.set(key, list);
+                                      }
 
-                                  <div className="overflow-x-auto print-table-wrapper">
-                                    <Table>
-                                      <colgroup>
-                                        <col className="print-col-1" />
-                                        <col className="print-col-2" />
-                                        <col className="print-col-3" />
-                                        <col className="print-col-4" />
-                                        <col className="no-print" />
-                                        <col className="no-print" />
-                                        <col className="no-print" />
-                                      </colgroup>
-                                      <TableHeader>
-                                        <TableRow>
-                                          <TableHead className="w-[60px] text-center">{t('dailyProgramme.serialNo')}</TableHead>
-                                          <TableHead className="w-[150px]">{t('dailyProgramme.time')}</TableHead>
-                                          <TableHead className="w-[400px]">{t('dailyProgramme.programmeNatureAndPlace')}</TableHead>
-                                          <TableHead className="w-[300px]">{t('dailyProgramme.reference')}</TableHead>
-                                          <TableHead className="w-[80px] no-print text-center">{t('dailyProgramme.docs')}</TableHead>
-                                          <TableHead className="w-[150px] no-print">{t('dailyProgramme.attendance')}</TableHead>
-                                          <TableHead className="w-[100px] no-print">{t('dailyProgramme.actions')}</TableHead>
-                                        </TableRow>
-                                      </TableHeader>
-                                      <TableBody>
-                                        {(() => {
-                                          const sorted = [...section.items].sort((a, b) => {
-                                            const timeA = a.startTime || '00:00';
-                                            const timeB = b.startTime || '00:00';
-                                            const byTime = timeA.localeCompare(timeB);
-                                            if (byTime !== 0) return byTime;
-                                            const orderA = a.sortOrder ?? 1;
-                                            const orderB = b.sortOrder ?? 1;
-                                            return orderA - orderB;
-                                          });
+                                      const groupKeys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
 
-                                          const groups = new Map<string, ProgrammeItem[]>();
-                                          for (const it of sorted) {
-                                            const key = it.startTime || '00:00';
-                                            const list = groups.get(key) ?? [];
-                                            list.push(it);
-                                            groups.set(key, list);
-                                          }
+                                      return groupKeys.map((startTimeKey) => {
+                                        const group = groups.get(startTimeKey) ?? [];
+                                        const canReorder = group.length > 1;
+                                        const ids = group.map((it) => it.id);
 
-                                          const groupKeys = Array.from(groups.keys()).sort((a, b) => a.localeCompare(b));
+                                        const onDragEnd = async (event: DragEndEvent) => {
+                                          const { active, over } = event;
+                                          if (!over || active.id === over.id) return;
+                                          const oldIndex = ids.indexOf(String(active.id));
+                                          const newIndex = ids.indexOf(String(over.id));
+                                          if (oldIndex < 0 || newIndex < 0) return;
+                                          const next = arrayMove(group, oldIndex, newIndex);
 
-                                          return groupKeys.map((startTimeKey) => {
-                                            const group = groups.get(startTimeKey) ?? [];
-                                            const canReorder = group.length > 1;
-                                            const ids = group.map((it) => it.id);
+                                          setAllItems((prev) =>
+                                            prev.map((p) => {
+                                              const idx = next.findIndex((n) => n.id === p.id);
+                                              if (idx === -1) return p;
+                                              return { ...p, sortOrder: idx + 1 };
+                                            }),
+                                          );
 
-                                            const onDragEnd = async (event: DragEndEvent) => {
-                                              const { active, over } = event;
-                                              if (!over || active.id === over.id) return;
-                                              const oldIndex = ids.indexOf(String(active.id));
-                                              const newIndex = ids.indexOf(String(over.id));
-                                              if (oldIndex < 0 || newIndex < 0) return;
-                                              const next = arrayMove(group, oldIndex, newIndex);
+                                          await persistReorder(next);
+                                        };
 
-                                              setAllItems((prev) =>
-                                                prev.map((p) => {
-                                                  const idx = next.findIndex((n) => n.id === p.id);
-                                                  if (idx === -1) return p;
-                                                  return { ...p, sortOrder: idx + 1 };
-                                                }),
-                                              );
-
-                                              await persistReorder(next);
-                                            };
-
-                                            return (
-                                              <DndContext
-                                                key={startTimeKey}
-                                                sensors={sensors}
-                                                collisionDetection={closestCenter}
-                                                onDragEnd={onDragEnd}
-                                              >
-                                                <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-                                                  {group.map((item) => (
-                                                    <SortableProgrammeRow
-                                                      key={item.id}
-                                                      item={item}
-                                                      index={sorted.findIndex((s) => s.id === item.id)}
-                                                      locale={locale}
-                                                      t={t}
-                                                      DURATION_OPTIONS={DURATION_OPTIONS}
-                                                      onOpenAttachmentDialog={handleOpenAttachmentDialog}
-                                                      onAttendanceChange={handleAttendanceChange}
-                                                      onEdit={handleEdit}
-                                                      onDelete={handleDelete}
-                                                      enableReorder={canReorder}
-                                                    />
-                                                  ))}
-                                                </SortableContext>
-                                              </DndContext>
-                                            );
-                                          });
-                                        })()}
-                                      </TableBody>
-                                    </Table>
-                                  </div>
-                                </div>
-                              ))}
+                                        return (
+                                          <DndContext
+                                            key={startTimeKey}
+                                            sensors={sensors}
+                                            collisionDetection={closestCenter}
+                                            onDragEnd={onDragEnd}
+                                          >
+                                            <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+                                              {group.map((item) => (
+                                                <SortableProgrammeRow
+                                                  key={item.id}
+                                                  item={item}
+                                                  index={sorted.findIndex((s) => s.id === item.id)}
+                                                  locale={locale}
+                                                  t={t}
+                                                  DURATION_OPTIONS={DURATION_OPTIONS}
+                                                  onOpenAttachmentDialog={handleOpenAttachmentDialog}
+                                                  onAttendanceChange={handleAttendanceChange}
+                                                  onEdit={handleEdit}
+                                                  onDelete={handleDelete}
+                                                  enableReorder={canReorder}
+                                                />
+                                              ))}
+                                            </SortableContext>
+                                          </DndContext>
+                                        );
+                                      });
+                                    })()}
+                                  </TableBody>
+                                </Table>
+                              </div>
                             </div>
                           </div>
                         );
@@ -1554,13 +1531,24 @@ export function DailyProgramme({
           {filteredDateEntries.map(([dateKey, items]) => {
             const date = parseISO(dateKey);
             const formattedDate = format(date, 'EEEE, dd MMM yyyy', { locale: enIN });
-            const sections: Array<{
-              programmeType: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
-              items: ProgrammeItem[];
-            }> = [
-              { programmeType: 'CONSTITUENCY' as const, items: items.filter((it) => (it.programmeType ?? 'CONSTITUENCY') === 'CONSTITUENCY') },
-              { programmeType: 'OUTSIDE_CONSTITUENCY' as const, items: items.filter((it) => (it.programmeType ?? 'CONSTITUENCY') === 'OUTSIDE_CONSTITUENCY') },
-            ].filter((s) => s.items.length > 0);
+            const typeOrder: Record<'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY', number> = {
+              CONSTITUENCY: 0,
+              OUTSIDE_CONSTITUENCY: 1,
+            };
+
+            const sorted = [...items].sort((a, b) => {
+              const typeA = (a.programmeType ?? 'CONSTITUENCY') as 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
+              const typeB = (b.programmeType ?? 'CONSTITUENCY') as 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
+              const byType = typeOrder[typeA] - typeOrder[typeB];
+              if (byType !== 0) return byType;
+              const timeA = a.startTime || '00:00';
+              const timeB = b.startTime || '00:00';
+              const byTime = timeA.localeCompare(timeB);
+              if (byTime !== 0) return byTime;
+              const orderA = a.sortOrder ?? 1;
+              const orderB = b.sortOrder ?? 1;
+              return orderA - orderB;
+            });
 
             return (
               <div key={`pdf:${dateKey}`} style={{ marginBottom: '22px' }}>
@@ -1574,86 +1562,74 @@ export function DailyProgramme({
                   </div>
                 </div>
 
-                {sections.map((section) => {
-                  const sorted = [...section.items].sort((a, b) => {
-                    const timeA = a.startTime || '00:00';
-                    const timeB = b.startTime || '00:00';
-                    const byTime = timeA.localeCompare(timeB);
-                    if (byTime !== 0) return byTime;
-                    const orderA = a.sortOrder ?? 1;
-                    const orderB = b.sortOrder ?? 1;
-                    return orderA - orderB;
-                  });
-
-                  return (
-                    <div key={`pdf:${dateKey}:${section.programmeType}`} style={{ marginBottom: '18px' }}>
-                      <div className="pdf-programme-type">
-                        {getProgrammeTypeLabel(section.programmeType, t)}
-                      </div>
-
-                      <table>
-                        <colgroup>
-                          <col className="pdf-col-sr" />
-                          <col className="pdf-col-time" />
-                          <col className="pdf-col-nature" />
-                          <col className="pdf-col-ref" />
-                        </colgroup>
-                        <thead>
-                          <tr>
-                            <th className="pdf-col-sr">{t('dailyProgramme.serialNo')}</th>
-                            <th className="pdf-col-time">{t('dailyProgramme.time')}</th>
-                            <th className="pdf-col-nature">{t('dailyProgramme.programmeNatureAndPlace')}</th>
-                            <th className="pdf-col-ref">{t('dailyProgramme.reference')}</th>
+                <div style={{ marginBottom: '18px' }}>
+                  <table>
+                    <colgroup>
+                      <col className="pdf-col-sr" />
+                      <col className="pdf-col-time" />
+                      <col className="pdf-col-nature" />
+                      <col className="pdf-col-ref" />
+                    </colgroup>
+                    <thead>
+                      <tr>
+                        <th className="pdf-col-sr">{t('dailyProgramme.serialNo')}</th>
+                        <th className="pdf-col-time">{t('dailyProgramme.time')}</th>
+                        <th className="pdf-col-nature">{t('dailyProgramme.programmeNatureAndPlace')}</th>
+                        <th className="pdf-col-ref">{t('dailyProgramme.reference')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {sorted.map((it, idx) => {
+                        const serialNumber = (idx + 1).toLocaleString(
+                          locale === 'mr' ? 'mr-IN-u-nu-deva' : 'en-IN',
+                        );
+                        const start = formatTimePartsForPdf(it.startTime, locale);
+                        const end = it.endTime ? formatTimePartsForPdf(it.endTime, locale) : null;
+                        const isOutside = (it.programmeType ?? 'CONSTITUENCY') === 'OUTSIDE_CONSTITUENCY';
+                        return (
+                          <tr key={`pdf-row:${it.id}:${idx}`}>
+                            <td className="pdf-col-sr">{serialNumber}</td>
+                            <td className="pdf-col-time">
+                              <div className="pdf-time-main">
+                                {start.time} <span className="pdf-time-period">{start.period}</span>
+                                {end ? (
+                                  <>
+                                    <br />–<br />
+                                    {end.time} <span className="pdf-time-period">{end.period}</span>
+                                  </>
+                                ) : null}
+                              </div>
+                              <div className="pdf-time-sub pdf-muted italic underline">
+                                {getProgrammeTypeLabel(
+                                  (it.programmeType ?? 'CONSTITUENCY') as 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY',
+                                  t,
+                                )}
+                              </div>
+                            </td>
+                            <td className="pdf-col-nature">
+                              <div className="pdf-title">
+                                {it.title}
+                              </div>
+                              {it.location ? (
+                                <div className="pdf-location pdf-muted">
+                                  <span className="pdf-pin" aria-hidden>📍</span>
+                                  <span>{it.location}</span>
+                                </div>
+                              ) : null}
+                            </td>
+                            <td className="pdf-col-ref">
+                              {it.remarks ? (
+                                <div>{it.remarks}</div>
+                              ) : (
+                                <div className="pdf-muted">—</div>
+                              )}
+                            </td>
                           </tr>
-                        </thead>
-                        <tbody>
-                          {sorted.map((it, idx) => {
-                            const serialNumber = (idx + 1).toLocaleString(
-                              locale === 'mr' ? 'mr-IN-u-nu-deva' : 'en-IN',
-                            );
-                            const start = formatTimePartsForPdf(it.startTime, locale);
-                            const end = it.endTime ? formatTimePartsForPdf(it.endTime, locale) : null;
-                            return (
-                              <tr key={`pdf-row:${it.id}:${idx}`}>
-                                <td className="pdf-col-sr">{serialNumber}</td>
-                                <td className="pdf-col-time">
-                                  <div className="pdf-time-main">
-                                    {start.time} <span className="pdf-time-period">{start.period}</span>
-                                    {end ? (
-                                      <>
-                                        <br />–<br />
-                                        {end.time} <span className="pdf-time-period">{end.period}</span>
-                                      </>
-                                    ) : null}
-                                  </div>
-                                  <div className="pdf-time-sub pdf-muted">
-                                    {getProgrammeTypeLabel((it.programmeType ?? 'CONSTITUENCY') as 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY', t)}
-                                  </div>
-                                </td>
-                                <td className="pdf-col-nature">
-                                  <div className="pdf-title">{it.title}</div>
-                                  {it.location ? (
-                                    <div className="pdf-location pdf-muted">
-                                      <span className="pdf-pin" aria-hidden>📍</span>
-                                      <span>{it.location}</span>
-                                    </div>
-                                  ) : null}
-                                </td>
-                                <td className="pdf-col-ref">
-                                  {it.remarks ? (
-                                    <div>{it.remarks}</div>
-                                  ) : (
-                                    <div className="pdf-muted">—</div>
-                                  )}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  );
-                })}
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             );
           })}
