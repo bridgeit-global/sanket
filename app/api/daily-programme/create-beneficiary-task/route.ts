@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
       requestedBy: session.user.id,
       voterId: voterEpicNumber,
       notes: `Created automatically from daily programme item: ${programmeItem.title}. Programme: ${programmeItem.title} at ${programmeItem.location}`,
+      programmeId: programmeItemId,
     });
 
     return NextResponse.json(

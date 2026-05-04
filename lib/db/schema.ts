@@ -343,6 +343,9 @@ export const beneficiaryServices = pgTable('BeneficiaryService', {
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
   completedAt: timestamp('completed_at'),
   notes: text('notes'),
+  programmeId: uuid('programme_id').references(() => dailyProgramme.id, {
+    onDelete: 'set null',
+  }),
 });
 
 export type BeneficiaryService = InferSelectModel<typeof beneficiaryServices>;
