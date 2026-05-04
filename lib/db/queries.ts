@@ -2148,8 +2148,14 @@ export async function createVoter(
 }
 
 // Beneficiary Service queries
-// Generate a unique token for beneficiary service: DDMMYY-NNNN (date-embedded, daily sequential)
-async function generateServiceToken(): Promise<string> {
+/** First 4 chars of programme UUID (no hyphens), for compact tokens. */
+function shortProgrammeTokenSegment(programmeUuid: string): string {
+  const compact = programmeUuid.replace(/-/g, '');
+  return compact.slice(0, 4).toUpperCase();
+}
+
+// Token: DDMMYY-NNNN, or with linked programme DDMMYY-SHORT-NNNN (SHORT = 4 hex from programme id; NNNN = daily seq for that programme)
+async function generateServiceToken(programmeId?: string | null): Promise<string> {
   const now = new Date();
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
@@ -2158,6 +2164,24 @@ async function generateServiceToken(): Promise<string> {
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const yy = String(now.getFullYear()).slice(-2);
   const datePrefix = `${dd}${mm}${yy}`;
+
+  const trimmedProgrammeId = programmeId?.trim() || '';
+
+  if (trimmedProgrammeId) {
+    const shortProg = shortProgrammeTokenSegment(trimmedProgrammeId);
+    const [result] = await db
+      .select({ count: count() })
+      .from(beneficiaryServices)
+      .where(
+        and(
+          gte(beneficiaryServices.createdAt, todayStart),
+          eq(beneficiaryServices.programmeId, trimmedProgrammeId),
+        ),
+      );
+
+    const nextNumber = (result?.count || 0) + 1;
+    return `${datePrefix}-${shortProg}-${String(nextNumber).padStart(4, '0')}`;
+  }
 
   const [result] = await db
     .select({ count: count() })
@@ -2190,7 +2214,8 @@ export async function createBeneficiaryService({
   programmeId?: string;
 }): Promise<BeneficiaryService> {
   try {
-    const token = await generateServiceToken();
+    const trimmedProgramme = programmeId?.trim() || undefined;
+    const token = await generateServiceToken(trimmedProgramme);
 
     const [service] = await db
       .insert(beneficiaryServices)
@@ -2205,7 +2230,7 @@ export async function createBeneficiaryService({
         voterId: serviceType === 'individual' ? voterId : undefined,
         token,
         notes,
-        programmeId: programmeId || undefined,
+        programmeId: trimmedProgramme,
         createdAt: new Date(),
         updatedAt: new Date(),
       })
