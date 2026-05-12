@@ -629,6 +629,12 @@ export function DailyProgramme({
       .sort(([dateA], [dateB]) => dateA.localeCompare(dateB));
   }, [itemsByDate, dateRange.start, dateRange.end]);
 
+  /** Rows actually shown in the register (expanded date ranges, programme filter, date-range filter). */
+  const visibleEventCount = useMemo(
+    () => filteredDateEntries.reduce((sum, [, items]) => sum + items.length, 0),
+    [filteredDateEntries],
+  );
+
   const loadItems = useCallback(
     async (startDate?: string, endDate?: string) => {
       try {
@@ -1260,7 +1266,7 @@ export function DailyProgramme({
                   <Skeleton className="h-5 w-32" />
                 ) : (
                   <span className="text-sm text-muted-foreground">
-                    {t('dailyProgramme.total')}: {allItems.length} | {t('dailyProgramme.dates')}: {filteredDateEntries.length}
+                    {t('dailyProgramme.total')}: {visibleEventCount} | {t('dailyProgramme.dates')}: {filteredDateEntries.length}
                   </span>
                 )}
               </div>
@@ -1305,8 +1311,8 @@ export function DailyProgramme({
                         <div className="font-semibold text-lg">{dateRangeLabel}</div>
                         <div className="text-xs text-muted-foreground">
                           {t('dailyProgramme.showingEvents')
-                            .replace('{count}', allItems.length.toString())
-                            .replace('{plural}', allItems.length !== 1 ? 's' : '')
+                            .replace('{count}', visibleEventCount.toString())
+                            .replace('{plural}', visibleEventCount !== 1 ? 's' : '')
                             .replace('{dateCount}', filteredDateEntries.length.toString())
                             .replace('{datePlural}', filteredDateEntries.length !== 1 ? 's' : '')}
                         </div>
