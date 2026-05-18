@@ -86,6 +86,8 @@ export interface BeneficiaryServiceFormProps {
 }
 
 const INDIVIDUAL_SERVICES = [
+    "SIR Mapping",
+    "PAN Card",
     // Housing & Infrastructure
     'Residential Structural Repairs',
     'Residential Lift Repairs',
@@ -208,9 +210,9 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
             notes,
             ...(linkedProgrammeId
                 ? {
-                      programmeId: linkedProgrammeId,
-                      programmeLabel: resolvedLabel,
-                  }
+                    programmeId: linkedProgrammeId,
+                    programmeLabel: resolvedLabel,
+                }
                 : {}),
         };
 
