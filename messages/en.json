@@ -580,6 +580,27 @@
       "outsiderNameRequired": "Outsider name is required"
     }
   },
+  "landing": {
+    "title": "eOffice",
+    "description": "Specialized ERP for beneficiary management across multiple locations",
+    "signIn": "Sign in",
+    "getStarted": "Get started",
+    "createAccount": "Create account",
+    "features": {
+      "beneficiary": {
+        "title": "Beneficiary management",
+        "description": "Track services, tasks, and support for constituents in one place."
+      },
+      "programme": {
+        "title": "Daily programme",
+        "description": "Plan meetings, visits, and schedules with a clear daily view."
+      },
+      "operations": {
+        "title": "Office operations",
+        "description": "Manage inward, outward, projects, and team workflows efficiently."
+      }
+    }
+  },
   "auth": {
     "login": {
       "title": "Sign In",

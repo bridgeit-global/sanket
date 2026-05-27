@@ -10,7 +10,7 @@ export default async function VoterProfilePage({
   const session = await auth();
 
   if (!session?.user) {
-    redirect('/');
+    redirect('/login');
   }
 
   const { epicNumber } = await params;

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { isDevelopmentEnvironment } from './lib/constants';
+import { getHomePathFromModules } from './lib/auth-home-path';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -17,8 +18,8 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow access to login and register pages without authentication
-  if (['/login', '/register'].includes(pathname)) {
+  // Allow access to public pages without authentication
+  if (['/', '/login', '/register'].includes(pathname)) {
     return NextResponse.next();
   }
 
@@ -51,28 +52,16 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  if (token && ['/login', '/register'].includes(pathname)) {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
-
-  // Module-based access control
   const modules = (token.modules as string[]) || [];
   const defaultLandingModule = token.defaultLandingModule as string | undefined;
 
-  // Root path - redirect to default landing module or first available module
-  if (pathname === '/') {
-    if (modules.length > 0) {
-      // Check if default landing module exists and is accessible
-      if (defaultLandingModule && modules.includes(defaultLandingModule)) {
-        return NextResponse.redirect(
-          new URL(`/modules/${defaultLandingModule}`, request.url),
-        );
-      }
-      // Fall back to first module
-      const firstModule = modules[0];
-      return NextResponse.redirect(new URL(`/modules/${firstModule}`, request.url));
-    }
-    return NextResponse.redirect(new URL('/unauthorized', request.url));
+  if (token && ['/login', '/register'].includes(pathname)) {
+    return NextResponse.redirect(
+      new URL(
+        getHomePathFromModules(modules, defaultLandingModule),
+        request.url,
+      ),
+    );
   }
 
   // Base /chat path without ID - redirect to modules/chat
