@@ -14,11 +14,13 @@ import type { VoterWithPartNo } from '@/lib/db/schema';
 import { PhoneUpdateForm } from '@/components/phone-update-form';
 import { useTranslations } from '@/hooks/use-translations';
 import { AadhaarQrScanButton, AadhaarQrScannerDialog } from '@/components/aadhaar-qr-scanner-dialog';
+import { EpicQrScanButton, EpicQrScannerDialog } from '@/components/epic-qr-scanner-dialog';
 import {
     ageFromAadhaarDob,
     mapAadhaarGenderToSearchValue,
     type AadhaarQrData,
 } from '@/lib/aadhaar/decode-qr-payload';
+import type { EpicQrData } from '@/lib/epic/decode-qr-payload';
 
 
 export function BackOfficeWorkflow() {
@@ -41,6 +43,7 @@ export function BackOfficeWorkflow() {
     const [age, setAge] = useState<number>(25);
     const [ageRange, setAgeRange] = useState<number>(5);
     const [showAadhaarScanner, setShowAadhaarScanner] = useState(false);
+    const [showEpicScanner, setShowEpicScanner] = useState(false);
 
     type SearchOverrides = {
         name?: string;
@@ -48,6 +51,8 @@ export function BackOfficeWorkflow() {
         age?: number;
         ageRange?: number;
         forceDetails?: boolean;
+        searchTerm?: string;
+        forceVoterId?: boolean;
     };
 
     const handleSearchTypeChange = (newSearchType: 'voterId' | 'details' | 'mobileNumber') => {
@@ -66,11 +71,16 @@ export function BackOfficeWorkflow() {
     };
 
     const handleSearch = async (overrides?: SearchOverrides) => {
-        const effectiveSearchType = overrides?.forceDetails ? 'details' : searchType;
+        const effectiveSearchType = overrides?.forceVoterId
+            ? 'voterId'
+            : overrides?.forceDetails
+              ? 'details'
+              : searchType;
         const effectiveName = overrides?.name ?? name;
         const effectiveGender = overrides?.gender ?? gender;
         const effectiveAge = overrides?.age ?? age;
         const effectiveAgeRange = overrides?.ageRange ?? ageRange;
+        const trimmedSearchTerm = (overrides?.searchTerm ?? searchTerm).trim();
 
         if (effectiveSearchType === 'details') {
             if (!effectiveName.trim() && (!effectiveGender || effectiveGender === 'any') && effectiveAge === undefined) {
@@ -81,7 +91,7 @@ export function BackOfficeWorkflow() {
                 return;
             }
         } else if (effectiveSearchType === 'mobileNumber') {
-            if (!searchTerm.trim()) {
+            if (!trimmedSearchTerm) {
                 toast({
                     type: 'error',
                     description: t('backOffice.pleaseEnterMobileNumber'),
@@ -89,7 +99,7 @@ export function BackOfficeWorkflow() {
                 return;
             }
         } else {
-            if (!searchTerm.trim()) {
+            if (!trimmedSearchTerm) {
                 toast({
                     type: 'error',
                     description: t('backOffice.pleaseEnterVoterId'),
@@ -107,7 +117,7 @@ export function BackOfficeWorkflow() {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    searchTerm: searchTerm.trim(),
+                    searchTerm: trimmedSearchTerm,
                     searchType: effectiveSearchType,
                     name: effectiveSearchType === 'details' ? effectiveName.trim() : undefined,
                     gender: effectiveSearchType === 'details' ? (effectiveGender === 'any' ? undefined : effectiveGender) : undefined,
@@ -161,6 +171,15 @@ export function BackOfficeWorkflow() {
             });
         },
         [age, ageRange, gender, handleSearch],
+    );
+
+    const handleEpicDataDetected = useCallback(
+        (data: EpicQrData) => {
+            setSearchType('voterId');
+            setSearchTerm(data.epic);
+            void handleSearch({ searchTerm: data.epic, forceVoterId: true });
+        },
+        [handleSearch],
     );
 
     const handleSelectVoter = (voter: VoterWithPartNo) => {
@@ -387,7 +406,13 @@ export function BackOfficeWorkflow() {
                         ) : (
                             <div className="space-y-4">
                                 <div>
-                                    <Label htmlFor="search">{t('backOffice.voterIdEpicNumber')}</Label>
+                                    <div className="mb-2 flex items-center justify-between gap-2">
+                                        <Label htmlFor="search">{t('backOffice.voterIdEpicNumber')}</Label>
+                                        <EpicQrScanButton
+                                            onClick={() => setShowEpicScanner(true)}
+                                            label={t('backOffice.scanEpicQr')}
+                                        />
+                                    </div>
                                     <div className="relative">
                                         <Input id="search" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t('backOffice.enterVoterId')} type={'text'} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} className="pr-10" />
                                         {searchTerm && (
@@ -544,6 +569,14 @@ export function BackOfficeWorkflow() {
                 onDataDetected={handleAadhaarDataDetected}
                 title={t('backOffice.aadhaarScannerTitle')}
                 description={t('backOffice.aadhaarScannerDescription')}
+            />
+            <EpicQrScannerDialog
+                open={showEpicScanner}
+                onOpenChange={setShowEpicScanner}
+                onDataDetected={handleEpicDataDetected}
+                title={t('backOffice.epicScannerTitle')}
+                description={t('backOffice.epicScannerDescription')}
+                uploadLabel={t('backOffice.uploadEpicPhoto')}
             />
         </div>
     );

@@ -17,11 +17,13 @@ import { TaskManagement } from '@/components/task-management';
 import { useTranslations } from '@/hooks/use-translations';
 import { Share2 } from 'lucide-react';
 import { AadhaarQrScanButton, AadhaarQrScannerDialog } from '@/components/aadhaar-qr-scanner-dialog';
+import { EpicQrScanButton, EpicQrScannerDialog } from '@/components/epic-qr-scanner-dialog';
 import {
     ageFromAadhaarDob,
     mapAadhaarGenderToSearchValue,
     type AadhaarQrData,
 } from '@/lib/aadhaar/decode-qr-payload';
+import type { EpicQrData } from '@/lib/epic/decode-qr-payload';
 import type { VoterWithPartNo, BeneficiaryService } from '@/lib/db/schema';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
@@ -221,6 +223,7 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
     const [age, setAge] = useState<number | undefined>(undefined);
     const [ageRange, setAgeRange] = useState<number>(5);
     const [showAadhaarScanner, setShowAadhaarScanner] = useState(false);
+    const [showEpicScanner, setShowEpicScanner] = useState(false);
     const [showBeneficiaryService, setShowBeneficiaryService] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [showPhoneUpdate, setShowPhoneUpdate] = useState(false);
@@ -242,6 +245,8 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
         age?: number | undefined;
         ageRange?: number;
         forceDetails?: boolean;
+        searchTerm?: string;
+        forceVoterId?: boolean;
     };
 
     // Helper function to clear search state when switching tabs
@@ -350,12 +355,16 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
     ]);
 
     const handleSearch = async (overrides?: SearchOverrides) => {
-        const effectiveSearchType = overrides?.forceDetails ? 'details' : searchType;
+        const effectiveSearchType = overrides?.forceVoterId
+            ? 'voterId'
+            : overrides?.forceDetails
+              ? 'details'
+              : searchType;
         const effectiveName = overrides?.name ?? name;
         const effectiveGender = overrides?.gender ?? gender;
         const effectiveAge = overrides?.age !== undefined ? overrides.age : age;
         const effectiveAgeRange = overrides?.ageRange ?? ageRange;
-        const trimmedTerm = searchTerm.trim();
+        const trimmedTerm = (overrides?.searchTerm ?? searchTerm).trim();
 
         if (effectiveSearchType === 'details') {
             if (!effectiveName.trim() && (!effectiveGender || effectiveGender === 'any') && effectiveAge === undefined) {
@@ -373,7 +382,7 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                 });
                 return;
             }
-            if (searchType === 'phone' && !isValidIndianMobile(trimmedTerm)) {
+            if (effectiveSearchType === 'phone' && !isValidIndianMobile(trimmedTerm)) {
                 toast({
                     type: 'error',
                     description: t('operator.messages.invalidIndianMobile'),
@@ -504,6 +513,15 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
             });
         },
         [age, ageRange, gender, handleSearch],
+    );
+
+    const handleEpicDataDetected = useCallback(
+        (data: EpicQrData) => {
+            setSearchType('voterId');
+            setSearchTerm(data.epic);
+            void handleSearch({ searchTerm: data.epic, forceVoterId: true });
+        },
+        [handleSearch],
     );
 
     const handleSelectVoter = (voter: VoterWithPartNo) => {
@@ -1351,9 +1369,17 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                                     ) : (
                                         <div className="space-y-4">
                                             <div>
-                                                <Label htmlFor="search">
-                                                    {searchType === 'voterId' ? t('backOffice.voterIdEpicNumber') : t('operator.search.types.phone')}
-                                                </Label>
+                                                <div className="mb-2 flex items-center justify-between gap-2">
+                                                    <Label htmlFor="search">
+                                                        {searchType === 'voterId' ? t('backOffice.voterIdEpicNumber') : t('operator.search.types.phone')}
+                                                    </Label>
+                                                    {searchType === 'voterId' && (
+                                                        <EpicQrScanButton
+                                                            onClick={() => setShowEpicScanner(true)}
+                                                            label={t('operator.search.scanEpicQr')}
+                                                        />
+                                                    )}
+                                                </div>
                                                 <div className="relative">
                                                     <Input
                                                         id="search"
@@ -1500,6 +1526,14 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                 onDataDetected={handleAadhaarDataDetected}
                 title={t('operator.search.aadhaarScannerTitle')}
                 description={t('operator.search.aadhaarScannerDescription')}
+            />
+            <EpicQrScannerDialog
+                open={showEpicScanner}
+                onOpenChange={setShowEpicScanner}
+                onDataDetected={handleEpicDataDetected}
+                title={t('operator.search.epicScannerTitle')}
+                description={t('operator.search.epicScannerDescription')}
+                uploadLabel={t('operator.search.uploadEpicPhoto')}
             />
         </div>
     );

@@ -3,28 +3,30 @@
 import { useCallback } from 'react';
 import { toast } from '@/components/toast';
 import { QrScanButton, QrScannerDialog } from '@/components/qr-scanner-dialog';
-import { decodeAadhaarQrPayload, type AadhaarQrData } from '@/lib/aadhaar/decode-qr-payload';
+import { decodeEpicQrPayload, type EpicQrData } from '@/lib/epic/decode-qr-payload';
 
-type AadhaarQrScannerDialogProps = {
+type EpicQrScannerDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onDataDetected: (data: AadhaarQrData) => void;
+  onDataDetected: (data: EpicQrData) => void;
   title?: string;
   description?: string;
+  uploadLabel?: string;
 };
 
-export function AadhaarQrScannerDialog({
+export function EpicQrScannerDialog({
   open,
   onOpenChange,
   onDataDetected,
-  title = 'Scan Aadhaar QR',
-  description = 'Scan the QR code on the Aadhaar card to prefill voter details.',
-}: AadhaarQrScannerDialogProps) {
+  title = 'Scan Voter ID QR',
+  description = 'Scan the QR code on the voter ID card to prefill the EPIC number.',
+  uploadLabel = 'Upload voter ID photo',
+}: EpicQrScannerDialogProps) {
   const handleScan = useCallback(
     async (payload: string) => {
-      const data = decodeAadhaarQrPayload(payload);
+      const data = await decodeEpicQrPayload(payload);
       onDataDetected(data);
-      toast({ type: 'success', description: `Prefilled details for ${data.name}` });
+      toast({ type: 'success', description: `Prefilled EPIC number ${data.epic}` });
     },
     [onDataDetected],
   );
@@ -36,14 +38,14 @@ export function AadhaarQrScannerDialog({
       onScan={handleScan}
       title={title}
       description={description}
-      uploadLabel="Upload Aadhaar photo"
+      uploadLabel={uploadLabel}
     />
   );
 }
 
-export function AadhaarQrScanButton({
+export function EpicQrScanButton({
   onClick,
-  label = 'Scan Aadhaar QR',
+  label = 'Scan Voter ID QR',
 }: {
   onClick: () => void;
   label?: string;
