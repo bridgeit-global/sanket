@@ -18,6 +18,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Public static assets (required for next/image upstream fallback on the landing page)
+  if (pathname.startsWith('/images/') || pathname.startsWith('/favicon/')) {
+    return NextResponse.next();
+  }
+
   // Allow access to public pages without authentication
   if (['/', '/login', '/register'].includes(pathname)) {
     return NextResponse.next();
