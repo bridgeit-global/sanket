@@ -16,6 +16,12 @@ import { PhoneUpdateForm, type MobileNumberEntry } from '@/components/phone-upda
 import { TaskManagement } from '@/components/task-management';
 import { useTranslations } from '@/hooks/use-translations';
 import { Share2 } from 'lucide-react';
+import { AadhaarQrScanButton, AadhaarQrScannerDialog } from '@/components/aadhaar-qr-scanner-dialog';
+import {
+    ageFromAadhaarDob,
+    mapAadhaarGenderToSearchValue,
+    type AadhaarQrData,
+} from '@/lib/aadhaar/decode-qr-payload';
 import type { VoterWithPartNo, BeneficiaryService } from '@/lib/db/schema';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
@@ -214,6 +220,7 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
     const [gender, setGender] = useState('');
     const [age, setAge] = useState<number | undefined>(undefined);
     const [ageRange, setAgeRange] = useState<number>(5);
+    const [showAadhaarScanner, setShowAadhaarScanner] = useState(false);
     const [showBeneficiaryService, setShowBeneficiaryService] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [showPhoneUpdate, setShowPhoneUpdate] = useState(false);
@@ -228,6 +235,14 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
     );
     const activeTab = (searchParams.get('tab') as 'create' | 'manage' | null) ?? initialTab;
     const getNormalizedVoterId = (voter: VoterWithPartNo | null | undefined) => voter?.epicNumber?.trim() ?? '';
+
+    type SearchOverrides = {
+        name?: string;
+        gender?: string;
+        age?: number | undefined;
+        ageRange?: number;
+        forceDetails?: boolean;
+    };
 
     // Helper function to clear search state when switching tabs
     const clearSearchStateIfNeeded = () => {
@@ -334,11 +349,16 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
         t,
     ]);
 
-    const handleSearch = async () => {
+    const handleSearch = async (overrides?: SearchOverrides) => {
+        const effectiveSearchType = overrides?.forceDetails ? 'details' : searchType;
+        const effectiveName = overrides?.name ?? name;
+        const effectiveGender = overrides?.gender ?? gender;
+        const effectiveAge = overrides?.age !== undefined ? overrides.age : age;
+        const effectiveAgeRange = overrides?.ageRange ?? ageRange;
         const trimmedTerm = searchTerm.trim();
 
-        if (searchType === 'details') {
-            if (!name.trim() && (!gender || gender === 'any') && age === undefined) {
+        if (effectiveSearchType === 'details') {
+            if (!effectiveName.trim() && (!effectiveGender || effectiveGender === 'any') && effectiveAge === undefined) {
                 toast({
                     type: 'error',
                     description: t('operator.messages.pleaseProvideCriteria'),
@@ -371,10 +391,10 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                 body: JSON.stringify({
                     searchTerm: typeToUse === 'details' ? '' : trimmedTerm,
                     searchType: typeToUse,
-                    name: typeToUse === 'details' ? (searchType === 'details' ? name.trim() : trimmedTerm) : undefined,
-                    gender: typeToUse === 'details' ? (gender === 'any' ? undefined : gender) : undefined,
-                    age: typeToUse === 'details' ? age : undefined,
-                    ageRange: typeToUse === 'details' ? ageRange : undefined,
+                    name: typeToUse === 'details' ? (effectiveSearchType === 'details' ? effectiveName.trim() : trimmedTerm) : undefined,
+                    gender: typeToUse === 'details' ? (effectiveGender === 'any' ? undefined : effectiveGender) : undefined,
+                    age: typeToUse === 'details' ? effectiveAge : undefined,
+                    ageRange: typeToUse === 'details' ? effectiveAgeRange : undefined,
                     limit: VOTER_SEARCH_PAGE_SIZE,
                     offset: 0,
                 }),
@@ -400,7 +420,7 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
 
         try {
             const searchOrder: Array<'voterId' | 'phone' | 'details'> =
-                searchType === 'details' ? ['details'] : ['voterId', 'phone', 'details'];
+                effectiveSearchType === 'details' ? ['details'] : ['voterId', 'phone', 'details'];
 
             let finalData:
                 | {
@@ -410,11 +430,11 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                     searchType?: 'voterId' | 'phone' | 'details';
                 }
                 | null = null;
-            let finalType: 'voterId' | 'phone' | 'details' = searchType;
+            let finalType: 'voterId' | 'phone' | 'details' = effectiveSearchType;
 
             for (const typeToUse of searchOrder) {
                 // If user explicitly chose phone, don't force voterId first.
-                if (searchType === 'phone' && typeToUse === 'voterId') continue;
+                if (effectiveSearchType === 'phone' && typeToUse === 'voterId') continue;
                 // If user explicitly chose voterId, keep the requested order.
 
                 const data = await runSearch(typeToUse);
@@ -460,6 +480,31 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
             setIsSearching(false);
         }
     };
+
+    const handleAadhaarDataDetected = useCallback(
+        (data: AadhaarQrData) => {
+            const mappedGender = mapAadhaarGenderToSearchValue(data.gender);
+            const calculatedAge = ageFromAadhaarDob(data.dateOfBirth);
+
+            setSearchType('details');
+            setName(data.name);
+            if (mappedGender) {
+                setGender(mappedGender);
+            }
+            if (calculatedAge !== undefined) {
+                setAge(calculatedAge);
+            }
+
+            void handleSearch({
+                name: data.name,
+                gender: mappedGender || gender,
+                age: calculatedAge ?? age,
+                ageRange,
+                forceDetails: true,
+            });
+        },
+        [age, ageRange, gender, handleSearch],
+    );
 
     const handleSelectVoter = (voter: VoterWithPartNo) => {
         const voterId = getNormalizedVoterId(voter);
@@ -1194,7 +1239,13 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                                         <div className="space-y-6">
                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                                 <div>
-                                                    <Label htmlFor="name">{t('backOffice.nameOptional')}</Label>
+                                                    <div className="mb-2 flex items-center justify-between gap-2">
+                                                        <Label htmlFor="name">{t('backOffice.nameOptional')}</Label>
+                                                        <AadhaarQrScanButton
+                                                            onClick={() => setShowAadhaarScanner(true)}
+                                                            label={t('operator.search.scanAadhaarQr')}
+                                                        />
+                                                    </div>
                                                     <Input
                                                         id="name"
                                                         value={name}
@@ -1272,7 +1323,7 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                                             </div>
 
                                             <div className="flex flex-col gap-2 sm:flex-row">
-                                                <Button onClick={handleSearch} disabled={isSearching} className="flex-1">
+                                                <Button onClick={() => void handleSearch()} disabled={isSearching} className="flex-1">
                                                     {isSearching ? t('operator.search.searching') : t('common.search')}
                                                 </Button>
                                                 <Button
@@ -1355,7 +1406,7 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                                                 </div>
                                             </div>
                                             <div className="flex flex-col gap-2 sm:flex-row">
-                                                <Button onClick={handleSearch} disabled={isSearching} className="flex-1">
+                                                <Button onClick={() => void handleSearch()} disabled={isSearching} className="flex-1">
                                                     {isSearching ? t('operator.search.searching') : t('common.search')}
                                                 </Button>
                                                 {searchTerm && (
@@ -1443,6 +1494,13 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                     )}
                 </>
             )}
+            <AadhaarQrScannerDialog
+                open={showAadhaarScanner}
+                onOpenChange={setShowAadhaarScanner}
+                onDataDetected={handleAadhaarDataDetected}
+                title={t('operator.search.aadhaarScannerTitle')}
+                description={t('operator.search.aadhaarScannerDescription')}
+            />
         </div>
     );
 }

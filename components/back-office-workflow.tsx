@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,12 @@ import { toast } from '@/components/toast';
 import type { VoterWithPartNo } from '@/lib/db/schema';
 import { PhoneUpdateForm } from '@/components/phone-update-form';
 import { useTranslations } from '@/hooks/use-translations';
+import { AadhaarQrScanButton, AadhaarQrScannerDialog } from '@/components/aadhaar-qr-scanner-dialog';
+import {
+    ageFromAadhaarDob,
+    mapAadhaarGenderToSearchValue,
+    type AadhaarQrData,
+} from '@/lib/aadhaar/decode-qr-payload';
 
 
 export function BackOfficeWorkflow() {
@@ -34,6 +40,15 @@ export function BackOfficeWorkflow() {
     const [gender, setGender] = useState('');
     const [age, setAge] = useState<number>(25);
     const [ageRange, setAgeRange] = useState<number>(5);
+    const [showAadhaarScanner, setShowAadhaarScanner] = useState(false);
+
+    type SearchOverrides = {
+        name?: string;
+        gender?: string;
+        age?: number;
+        ageRange?: number;
+        forceDetails?: boolean;
+    };
 
     const handleSearchTypeChange = (newSearchType: 'voterId' | 'details' | 'mobileNumber') => {
         setSearchType(newSearchType);
@@ -50,16 +65,22 @@ export function BackOfficeWorkflow() {
         setShowPhoneUpdate(false);
     };
 
-    const handleSearch = async () => {
-        if (searchType === 'details') {
-            if (!name.trim() && (!gender || gender === 'any') && age === undefined) {
+    const handleSearch = async (overrides?: SearchOverrides) => {
+        const effectiveSearchType = overrides?.forceDetails ? 'details' : searchType;
+        const effectiveName = overrides?.name ?? name;
+        const effectiveGender = overrides?.gender ?? gender;
+        const effectiveAge = overrides?.age ?? age;
+        const effectiveAgeRange = overrides?.ageRange ?? ageRange;
+
+        if (effectiveSearchType === 'details') {
+            if (!effectiveName.trim() && (!effectiveGender || effectiveGender === 'any') && effectiveAge === undefined) {
                 toast({
                     type: 'error',
                     description: t('backOffice.pleaseProvideCriteria'),
                 });
                 return;
             }
-        } else if (searchType === 'mobileNumber') {
+        } else if (effectiveSearchType === 'mobileNumber') {
             if (!searchTerm.trim()) {
                 toast({
                     type: 'error',
@@ -87,11 +108,11 @@ export function BackOfficeWorkflow() {
                 },
                 body: JSON.stringify({
                     searchTerm: searchTerm.trim(),
-                    searchType: searchType,
-                    name: searchType === 'details' ? name.trim() : undefined,
-                    gender: searchType === 'details' ? (gender === 'any' ? undefined : gender) : undefined,
-                    age: searchType === 'details' ? age : undefined,
-                    ageRange: searchType === 'details' ? ageRange : undefined,
+                    searchType: effectiveSearchType,
+                    name: effectiveSearchType === 'details' ? effectiveName.trim() : undefined,
+                    gender: effectiveSearchType === 'details' ? (effectiveGender === 'any' ? undefined : effectiveGender) : undefined,
+                    age: effectiveSearchType === 'details' ? effectiveAge : undefined,
+                    ageRange: effectiveSearchType === 'details' ? effectiveAgeRange : undefined,
                 }),
             });
 
@@ -101,12 +122,12 @@ export function BackOfficeWorkflow() {
 
             const data = await response.json();
             setSearchResults(data.voters || []);
-            setLastSearchType(data.searchType || searchType);
+            setLastSearchType(data.searchType || effectiveSearchType);
 
             if ((data.voters || []).length === 0) {
                 toast({ type: 'error', description: t('backOffice.noVotersFound') });
             } else {
-                const actualType = data.searchType || searchType;
+                const actualType = data.searchType || effectiveSearchType;
                 const searchTypeText = actualType === 'voterId' ? t('backOffice.voterIdType') : actualType === 'mobileNumber' ? t('backOffice.mobileNumberType') : t('backOffice.detailsType');
                 toast({ type: 'success', description: `${data.voters.length} ${t('backOffice.foundBy', { type: searchTypeText })}` });
             }
@@ -116,6 +137,31 @@ export function BackOfficeWorkflow() {
             setIsSearching(false);
         }
     };
+
+    const handleAadhaarDataDetected = useCallback(
+        (data: AadhaarQrData) => {
+            const mappedGender = mapAadhaarGenderToSearchValue(data.gender);
+            const calculatedAge = ageFromAadhaarDob(data.dateOfBirth);
+
+            setSearchType('details');
+            setName(data.name);
+            if (mappedGender) {
+                setGender(mappedGender);
+            }
+            if (calculatedAge !== undefined) {
+                setAge(calculatedAge);
+            }
+
+            void handleSearch({
+                name: data.name,
+                gender: mappedGender || gender,
+                age: calculatedAge ?? age,
+                ageRange,
+                forceDetails: true,
+            });
+        },
+        [age, ageRange, gender, handleSearch],
+    );
 
     const handleSelectVoter = (voter: VoterWithPartNo) => {
         // Navigate to voter profile page
@@ -230,7 +276,13 @@ export function BackOfficeWorkflow() {
                             <div className="space-y-6">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div>
-                                        <Label htmlFor="name">{t('backOffice.nameOptional')}</Label>
+                                        <div className="mb-2 flex items-center justify-between gap-2">
+                                            <Label htmlFor="name">{t('backOffice.nameOptional')}</Label>
+                                            <AadhaarQrScanButton
+                                                onClick={() => setShowAadhaarScanner(true)}
+                                                label={t('backOffice.scanAadhaarQr')}
+                                            />
+                                        </div>
                                         <Input
                                             id="name"
                                             value={name}
@@ -288,7 +340,7 @@ export function BackOfficeWorkflow() {
                                 </div>
 
                                 <div className="flex gap-2">
-                                    <Button onClick={handleSearch} disabled={isSearching} className="flex-1">
+                                    <Button onClick={() => void handleSearch()} disabled={isSearching} className="flex-1">
                                         {isSearching ? t('backOffice.searching') : t('common.search')}
                                     </Button>
                                     <Button
@@ -326,7 +378,7 @@ export function BackOfficeWorkflow() {
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
-                                    <Button onClick={handleSearch} disabled={isSearching} className="flex-1">{isSearching ? t('backOffice.searching') : t('common.search')}</Button>
+                                    <Button onClick={() => void handleSearch()} disabled={isSearching} className="flex-1">{isSearching ? t('backOffice.searching') : t('common.search')}</Button>
                                     {searchTerm && (
                                         <Button variant="outline" onClick={() => { setSearchTerm(''); setSearchResults([]); setLastSearchType(null); setHasSearched(false); setIsSearching(false); }} className="px-4">{t('backOffice.clear')}</Button>
                                     )}
@@ -349,7 +401,7 @@ export function BackOfficeWorkflow() {
                                     </div>
                                 </div>
                                 <div className="flex gap-2">
-                                    <Button onClick={handleSearch} disabled={isSearching} className="flex-1">{isSearching ? t('backOffice.searching') : t('common.search')}</Button>
+                                    <Button onClick={() => void handleSearch()} disabled={isSearching} className="flex-1">{isSearching ? t('backOffice.searching') : t('common.search')}</Button>
                                     {searchTerm && (
                                         <Button variant="outline" onClick={() => { setSearchTerm(''); setSearchResults([]); setLastSearchType(null); setHasSearched(false); setIsSearching(false); }} className="px-4">{t('backOffice.clear')}</Button>
                                     )}
@@ -486,6 +538,13 @@ export function BackOfficeWorkflow() {
                     </div>
                 </CardContent>
             </Card>
+            <AadhaarQrScannerDialog
+                open={showAadhaarScanner}
+                onOpenChange={setShowAadhaarScanner}
+                onDataDetected={handleAadhaarDataDetected}
+                title={t('backOffice.aadhaarScannerTitle')}
+                description={t('backOffice.aadhaarScannerDescription')}
+            />
         </div>
     );
 }
