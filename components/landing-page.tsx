@@ -1146,15 +1146,6 @@ export function LandingPage() {
                   referrerPolicy="no-referrer-when-downgrade"
                   allowFullScreen
                 />
-                <a
-                  href={LANDING_MAP_EXTERNAL_URL}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-md bg-landing-contrast-foreground px-2.5 py-1.5 text-xs font-medium text-landing-contrast shadow-md transition-opacity hover:opacity-90"
-                >
-                  Maps
-                  <ArrowRight className="size-3 rotate-[-45deg]" aria-hidden />
-                </a>
               </div>
             </div>
           </div>
