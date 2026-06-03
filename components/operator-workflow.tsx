@@ -19,6 +19,13 @@ import { Share2 } from 'lucide-react';
 import type { VoterWithPartNo, BeneficiaryService } from '@/lib/db/schema';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
+import {
+    WorkflowStepper,
+    getWorkflowStepState,
+    type WorkflowStepperItem,
+} from '@/components/ui/workflow-stepper';
+
+const OPERATOR_WORKFLOW_STEPS = ['phoneUpdate', 'service', 'confirmation', 'completed'] as const;
 
 const VOTER_SEARCH_PAGE_SIZE = 50;
 const ESTIMATED_VOTER_ROW_PX = 144;
@@ -831,63 +838,46 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
             )}
 
             {/* Workflow Progress Indicator */}
-            {activeTab === 'create' && workflowStep !== 'search' && (
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="hidden sm:flex items-center space-x-4">
-                            <div className={`flex items-center space-x-2 ${workflowStep === 'phoneUpdate' ? 'text-blue-600' : workflowStep === 'service' || workflowStep === 'confirmation' || workflowStep === 'completed' ? 'text-green-600' : 'text-gray-500'}`}>
-                                <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'phoneUpdate' ? 'bg-blue-100 text-blue-600' : workflowStep === 'service' || workflowStep === 'confirmation' || workflowStep === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                                    1
-                                </div>
-                                <span className="text-sm font-medium">{t('operator.workflow.phoneUpdate')}</span>
-                            </div>
-                            <div className="flex-1 h-px bg-gray-200" />
-                            <div className={`flex items-center space-x-2 ${workflowStep === 'service' ? 'text-blue-600' : workflowStep === 'confirmation' || workflowStep === 'completed' ? 'text-green-600' : 'text-gray-500'}`}>
-                                <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'service' ? 'bg-blue-100 text-blue-600' : workflowStep === 'confirmation' || workflowStep === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                                    2
-                                </div>
-                                <span className="text-sm font-medium">{t('operator.workflow.serviceDetails')}</span>
-                            </div>
-                            <div className="flex-1 h-px bg-gray-200" />
-                            <div className={`flex items-center space-x-2 ${workflowStep === 'confirmation' ? 'text-blue-600' : workflowStep === 'completed' ? 'text-green-600' : 'text-gray-500'}`}>
-                                <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'confirmation' ? 'bg-blue-100 text-blue-600' : workflowStep === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                                    3
-                                </div>
-                                <span className="text-sm font-medium">{t('operator.workflow.confirmation')}</span>
-                            </div>
-                            <div className="flex-1 h-px bg-gray-200" />
-                            <div className={`flex items-center space-x-2 ${workflowStep === 'completed' ? 'text-green-600' : 'text-gray-500'}`}>
-                                <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'completed' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                                    4
-                                </div>
-                                <span className="text-sm font-medium">{t('operator.workflow.tokenGenerated')}</span>
-                            </div>
-                        </div>
+            {activeTab === 'create' && workflowStep !== 'search' && (() => {
+                const currentIndex = OPERATOR_WORKFLOW_STEPS.indexOf(
+                    workflowStep as (typeof OPERATOR_WORKFLOW_STEPS)[number],
+                );
+                if (currentIndex < 0) return null;
 
-                        {/* Mobile Progress Indicator */}
-                        <div className="sm:hidden space-y-2">
-                            <div className="flex items-center justify-between text-xs">
-                                <span>{t('operator.workflow.step', { current: workflowStep === 'phoneUpdate' ? '1' : workflowStep === 'service' ? '2' : workflowStep === 'confirmation' ? '3' : '4', total: '4' })}</span>
-                                <span className="text-muted-foreground">
-                                    {workflowStep === 'phoneUpdate' ? t('operator.workflow.phoneUpdate') :
-                                        workflowStep === 'service' ? t('operator.workflow.serviceDetails') :
-                                            workflowStep === 'confirmation' ? t('operator.workflow.confirmation') : t('operator.workflow.tokenGenerated')}
-                                </span>
-                            </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                                <div
-                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                    style={{
-                                        width: `${workflowStep === 'phoneUpdate' ? 25 :
-                                            workflowStep === 'service' ? 50 :
-                                                workflowStep === 'confirmation' ? 75 : 100}%`
-                                    }}
-                                />
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+                const stepLabels = [
+                    t('operator.workflow.phoneUpdate'),
+                    t('operator.workflow.serviceDetails'),
+                    t('operator.workflow.confirmation'),
+                    t('operator.workflow.tokenGenerated'),
+                ] as const;
+
+                const steps: WorkflowStepperItem[] = stepLabels.map((label, index) => ({
+                    label,
+                    state: getWorkflowStepState(index, currentIndex, {
+                        markCurrentAsCompleted: workflowStep === 'completed',
+                    }),
+                }));
+
+                const progressPercent = ((currentIndex + 1) / OPERATOR_WORKFLOW_STEPS.length) * 100;
+
+                return (
+                    <Card>
+                        <CardContent className="pt-6">
+                            <WorkflowStepper
+                                steps={steps}
+                                mobileProgress={{
+                                    stepLabel: t('operator.workflow.step', {
+                                        current: String(currentIndex + 1),
+                                        total: String(OPERATOR_WORKFLOW_STEPS.length),
+                                    }),
+                                    stepName: stepLabels[currentIndex],
+                                    percent: progressPercent,
+                                }}
+                            />
+                        </CardContent>
+                    </Card>
+                );
+            })()}
 
             {/* Create Service Workflow */}
             {activeTab === 'create' && (

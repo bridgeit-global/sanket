@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useTheme } from 'next-themes';
 import Image from 'next/image';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
@@ -19,10 +20,12 @@ import {
   MapPin,
   Megaphone,
   Mic,
+  Moon,
   Newspaper,
   Quote,
   Shield,
   Stethoscope,
+  Sun,
   TrendingUp,
   Users,
 } from 'lucide-react';
@@ -112,7 +115,7 @@ function LandingGridOverlay() {
         />
       ))}
       <circle cx="85%" cy="15%" r="120" fill="hsl(var(--primary) / 0.08)" />
-      <circle cx="10%" cy="70%" r="80" fill="hsl(171 77% 50% / 0.06)" />
+      <circle cx="10%" cy="70%" r="80" fill="hsl(var(--primary) / 0.06)" />
     </svg>
   );
 }
@@ -122,11 +125,13 @@ function SectionHeader({
   title,
   subtitle,
   align = 'center',
+  onDark = false,
 }: {
   eyebrow?: string;
   title: string;
   subtitle?: string;
   align?: 'center' | 'left';
+  onDark?: boolean;
 }) {
   return (
     <motion.header
@@ -143,16 +148,44 @@ function SectionHeader({
         </p>
       ) : null}
       <h2 className="text-3xl font-bold tracking-tight md:text-4xl lg:text-[2.75rem] lg:leading-tight">
-        <span className="bg-gradient-to-br from-foreground via-foreground to-foreground/70 bg-clip-text text-transparent">
+        <span
+          className={cn(
+            'bg-clip-text text-transparent',
+            onDark
+              ? 'bg-gradient-to-br from-landing-contrast-foreground via-landing-contrast-foreground to-landing-contrast-foreground/70'
+              : 'bg-gradient-to-br from-foreground via-foreground to-foreground/70',
+          )}
+        >
           {title}
         </span>
       </h2>
       {subtitle ? (
-        <p className="mt-4 text-base leading-relaxed text-muted-foreground md:text-lg">
+        <p
+          className={cn(
+            'mt-4 text-base leading-relaxed md:text-lg',
+            onDark ? 'text-landing-contrast-foreground/70' : 'text-muted-foreground',
+          )}
+        >
           {subtitle}
         </p>
       ) : null}
     </motion.header>
+  );
+}
+
+function LandingDarkBand({
+  children,
+  className,
+  id,
+}: {
+  children: ReactNode;
+  className?: string;
+  id?: string;
+}) {
+  return (
+    <section id={id} className={cn('landing-dark-band relative overflow-hidden', className)}>
+      {children}
+    </section>
   );
 }
 
@@ -179,7 +212,13 @@ function GlassCard({
 export function LandingPage() {
   const { t } = useTranslations();
   const { locale, setLocale } = useLanguage();
+  const { resolvedTheme, setTheme } = useTheme();
+  const [themeMounted, setThemeMounted] = useState(false);
   const [journeyIndex, setJourneyIndex] = useState(0);
+
+  useEffect(() => setThemeMounted(true), []);
+
+  const isDarkTheme = themeMounted ? resolvedTheme === 'dark' : true;
 
   const activeJourney = JOURNEY_ITEMS[journeyIndex];
 
@@ -317,24 +356,13 @@ export function LandingPage() {
         <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
         <div className="container mx-auto flex h-16 items-center justify-between gap-3 px-4 md:h-[4.5rem]">
           <Link href="/" className="group flex shrink-0 items-center gap-3">
-            <span className="relative flex size-10 items-center justify-center overflow-hidden rounded-xl bg-primary/15 ring-1 ring-primary/30">
-              <span className="landing-pulse-ring absolute inset-0 rounded-xl border border-primary/40" />
-              <Image
-                src={LANDING_IMAGES.logo}
-                alt=""
-                width={28}
-                height={28}
-                className="relative size-7 object-contain"
-              />
-            </span>
-            <span className="hidden flex-col sm:flex">
-              <span className="text-[10px] font-semibold uppercase tracking-widest text-primary">
-                MLA
-              </span>
-              <span className="text-base font-bold tracking-tight transition-colors group-hover:text-primary">
-                {t('landing.title')}
-              </span>
-            </span>
+            <Image
+              src={LANDING_IMAGES.logo}
+              alt=""
+              width={140}
+              height={140}
+              className="relative object-contain"
+            />
           </Link>
 
           <nav className="hidden items-center gap-0.5 lg:flex" aria-label="Sections">
@@ -353,6 +381,21 @@ export function LandingPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
+              size="icon"
+              className="size-9 shrink-0 rounded-full border border-transparent text-muted-foreground hover:border-primary/20 hover:bg-primary/5"
+              onClick={() => setTheme(isDarkTheme ? 'light' : 'dark')}
+              aria-label={t('userNav.toggleTheme', {
+                theme: isDarkTheme ? t('userNav.light') : t('userNav.dark'),
+              })}
+            >
+              {isDarkTheme ? (
+                <Sun className="size-4 text-primary" />
+              ) : (
+                <Moon className="size-4 text-primary" />
+              )}
+            </Button>
+            <Button
+              variant="ghost"
               size="sm"
               className="gap-1.5 rounded-full border border-transparent text-muted-foreground hover:border-primary/20 hover:bg-primary/5"
               onClick={() => setLocale(locale === 'en' ? 'mr' : 'en')}
@@ -369,7 +412,7 @@ export function LandingPage() {
 
       <main className="pt-16 md:pt-[4.5rem]">
         {/* Hero */}
-        <section className="relative isolate overflow-hidden bg-[#e91e63]">
+        <section className="relative isolate overflow-hidden bg-primary">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -386,7 +429,7 @@ export function LandingPage() {
             />
           </motion.div>
 
-          <div className="border-t border-[#ffeb3b]/40 bg-background">
+          <div className="border-t border-chart-3/40 bg-background">
             <motion.div
               initial="hidden"
               animate="visible"
@@ -568,7 +611,7 @@ export function LandingPage() {
                     <p className="relative mt-2 text-sm leading-relaxed text-muted-foreground">
                       {area.description}
                     </p>
-                    <div className="absolute bottom-0 left-0 h-0.5 w-0 bg-gradient-to-r from-primary to-emerald-400 transition-all duration-500 group-hover:w-full" />
+                    <div className="absolute bottom-0 left-0 h-0.5 w-0 bg-gradient-to-r from-primary to-chart-2 transition-all duration-500 group-hover:w-full" />
                   </motion.article>
                 ))}
               </motion.div>
@@ -687,11 +730,10 @@ export function LandingPage() {
         </section>
 
         {/* Speeches */}
-        <section
+        <LandingDarkBand
           id="speeches"
-          className="scroll-mt-28 relative overflow-hidden bg-[#060b10] py-20 text-white md:py-28"
+          className="scroll-mt-28 py-20 md:py-28"
         >
-          <div className="landing-mesh absolute inset-0 opacity-60" aria-hidden />
           <div className="container relative mx-auto px-4">
             <motion.div
               initial="hidden"
@@ -700,6 +742,7 @@ export function LandingPage() {
               variants={stagger}
             >
               <SectionHeader
+                onDark
                 eyebrow={locale === 'en' ? 'Assembly floor' : 'विधानसभा'}
                 title={t('landing.speeches.sectionTitle')}
                 subtitle={t('landing.speeches.sectionSubtitle')}
@@ -712,7 +755,7 @@ export function LandingPage() {
                   <motion.article
                     key={key}
                     variants={fadeUp}
-                    className="group flex gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-md transition-all hover:border-primary/40 hover:bg-white/10"
+                    className="group flex gap-4 rounded-2xl border border-landing-contrast-foreground/10 bg-landing-contrast-foreground/5 p-5 backdrop-blur-md transition-all hover:border-primary/40 hover:bg-landing-contrast-foreground/10"
                   >
                     <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary ring-1 ring-primary/30">
                       <Mic className="size-5" aria-hidden />
@@ -721,10 +764,10 @@ export function LandingPage() {
                       <span className="text-[10px] font-mono uppercase tracking-widest text-primary/80">
                         {String(i + 1).padStart(2, '0')}
                       </span>
-                      <h3 className="mt-1 font-semibold leading-snug text-white">
+                      <h3 className="mt-1 font-semibold leading-snug text-landing-contrast-foreground">
                         {t(`landing.speeches.items.${key}.title`)}
                       </h3>
-                      <p className="mt-2 text-xs text-white/50">
+                      <p className="mt-2 text-xs text-landing-contrast-foreground/50">
                         {t(`landing.speeches.items.${key}.date`)}
                       </p>
                     </div>
@@ -733,7 +776,7 @@ export function LandingPage() {
               </motion.div>
             </motion.div>
           </div>
-        </section>
+        </LandingDarkBand>
 
         {/* Services */}
         <section id="services" className="scroll-mt-28 container mx-auto px-4 py-20 md:py-28">
@@ -814,11 +857,11 @@ export function LandingPage() {
                       className="object-cover transition-transform duration-700 group-hover:scale-110"
                       sizes="(max-width: 768px) 100vw, 33vw"
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#060b10]/90 via-[#060b10]/30 to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-landing-contrast/90 via-landing-contrast/30 to-transparent" />
                     <div className="absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
                       <div className="absolute inset-0 bg-primary/20 mix-blend-overlay" />
                     </div>
-                    <p className="absolute bottom-5 left-5 text-sm font-bold uppercase tracking-wide text-white">
+                    <p className="absolute bottom-5 left-5 text-sm font-bold uppercase tracking-wide text-landing-contrast-foreground">
                       {item.label}
                     </p>
                   </motion.div>
@@ -866,10 +909,7 @@ export function LandingPage() {
         </section>
 
         {/* CTA */}
-        <section className="relative overflow-hidden">
-          <div className="absolute inset-0 bg-[#060b10]" />
-          <div className="landing-mesh absolute inset-0 opacity-70" aria-hidden />
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/40 via-emerald-600/30 to-teal-800/50" />
+        <LandingDarkBand>
           <LandingGridOverlay />
           <div className="container relative mx-auto px-4 py-20 text-center md:py-28">
             <motion.div
@@ -878,16 +918,16 @@ export function LandingPage() {
               viewport={{ once: true }}
             >
               <Landmark className="mx-auto mb-6 size-12 text-primary-foreground/90" />
-              <h2 className="text-3xl font-bold tracking-tight text-white md:text-5xl">
+              <h2 className="text-3xl font-bold tracking-tight text-landing-contrast-foreground md:text-5xl">
                 {t('landing.cta.title')}
               </h2>
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-white/80 md:text-lg">
+              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-landing-contrast-foreground/80 md:text-lg">
                 {t('landing.cta.description')}
               </p>
               <Button
                 size="lg"
                 asChild
-                className="mt-10 h-12 rounded-full bg-white px-8 font-semibold text-[#060b10] hover:bg-white/90"
+                className="mt-10 h-12 rounded-full bg-landing-contrast-foreground px-8 font-semibold text-landing-contrast hover:bg-landing-contrast-foreground/90"
               >
                 <a href="#about">
                   {locale === 'en' ? 'Get started' : 'सुरू करा'}
@@ -896,7 +936,7 @@ export function LandingPage() {
               </Button>
             </motion.div>
           </div>
-        </section>
+        </LandingDarkBand>
       </main>
 
       <footer className="border-t border-primary/10 bg-muted/20 py-10">

@@ -72,6 +72,10 @@ const config: Config = {
           border: 'hsl(var(--sidebar-border))',
           ring: 'hsl(var(--sidebar-ring))',
         },
+        landing: {
+          contrast: 'hsl(var(--landing-contrast))',
+          'contrast-foreground': 'hsl(var(--landing-contrast-foreground))',
+        },
       },
     },
   },

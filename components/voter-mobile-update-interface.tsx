@@ -12,6 +12,13 @@ import { BeneficiaryServiceForm } from '@/components/beneficiary-service-form';
 import { useTranslations } from '@/hooks/use-translations';
 // API calls will be made directly in the component
 import type { VoterWithPartNo } from '@/lib/db/schema';
+import {
+    WorkflowStepper,
+    getWorkflowStepState,
+    type WorkflowStepperItem,
+} from '@/components/ui/workflow-stepper';
+
+const VOTER_WORKFLOW_STEPS = ['profile', 'mobile_update', 'service', 'update'] as const;
 
 export function VoterMobileUpdateInterface() {
     const router = useRouter();
@@ -230,41 +237,34 @@ export function VoterMobileUpdateInterface() {
     return (
         <div className="space-y-6">
             {/* Workflow Progress Indicator */}
-            {workflowStep !== 'search' && (
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center space-x-4">
-                            <div className={`flex items-center space-x-2 ${workflowStep === 'profile' ? 'text-blue-600' : 'text-gray-500'}`}>
-                                <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'profile' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
-                                    1
-                                </div>
-                                <span className="text-sm font-medium">Voter Profiling</span>
-                            </div>
-                            <div className="flex-1 h-px bg-gray-200" />
-                            <div className={`flex items-center space-x-2 ${workflowStep === 'mobile_update' ? 'text-blue-600' : 'text-gray-500'}`}>
-                                <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'mobile_update' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
-                                    2
-                                </div>
-                                <span className="text-sm font-medium">Mobile Update</span>
-                            </div>
-                            <div className="flex-1 h-px bg-gray-200" />
-                            <div className={`flex items-center space-x-2 ${workflowStep === 'service' ? 'text-blue-600' : workflowStep === 'update' ? 'text-green-600' : 'text-gray-500'}`}>
-                                <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'service' ? 'bg-blue-100 text-blue-600' : workflowStep === 'update' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                                    3
-                                </div>
-                                <span className="text-sm font-medium">Service Creation</span>
-                            </div>
-                            <div className="flex-1 h-px bg-gray-200" />
-                            <div className={`flex items-center space-x-2 ${workflowStep === 'update' ? 'text-blue-600' : 'text-gray-500'}`}>
-                                <div className={`size-6 rounded-full flex items-center justify-center text-sm font-medium ${workflowStep === 'update' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
-                                    4
-                                </div>
-                                <span className="text-sm font-medium">Complete</span>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-            )}
+            {workflowStep !== 'search' && (() => {
+                const currentIndex = VOTER_WORKFLOW_STEPS.indexOf(
+                    workflowStep as (typeof VOTER_WORKFLOW_STEPS)[number],
+                );
+                if (currentIndex < 0) return null;
+
+                const stepLabels = [
+                    'Voter Profiling',
+                    'Mobile Update',
+                    'Service Creation',
+                    'Complete',
+                ] as const;
+
+                const steps: WorkflowStepperItem[] = stepLabels.map((label, index) => ({
+                    label,
+                    state: getWorkflowStepState(index, currentIndex, {
+                        markCurrentAsCompleted: workflowStep === 'update',
+                    }),
+                }));
+
+                return (
+                    <Card>
+                        <CardContent className="pt-6">
+                            <WorkflowStepper steps={steps} />
+                        </CardContent>
+                    </Card>
+                );
+            })()}
 
             {/* Voter Profiling Form */}
             {showVoterProfiling && (
