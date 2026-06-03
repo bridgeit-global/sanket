@@ -5189,6 +5189,8 @@ export async function syncVoterMobileNumberTable(
   }
 }
 
+const VOTER_MOBILE_EPIC_BATCH_SIZE = 5000;
+
 // Get all mobile numbers from VoterMobileNumber table grouped by epic number
 export async function getVoterMobileNumbersByEpicNumbers(
   epicNumbers: string[]
@@ -5198,38 +5200,58 @@ export async function getVoterMobileNumbersByEpicNumbers(
       return new Map();
     }
 
-    const normalizedEpicNumbers = epicNumbers
-      .map((epicNumber) => epicNumber?.trim())
-      .filter((epicNumber): epicNumber is string => Boolean(epicNumber));
+    const normalizedEpicNumbers = [
+      ...new Set(
+        epicNumbers
+          .map((epicNumber) => epicNumber?.trim())
+          .filter((epicNumber): epicNumber is string => Boolean(epicNumber)),
+      ),
+    ];
 
     if (normalizedEpicNumbers.length === 0) {
       return new Map();
     }
 
-    const mobileNumbers = await db
-      .select({
-        epicNumber: voterMobileNumber.epicNumber,
-        mobileNumber: voterMobileNumber.mobileNumber,
-        sortOrder: voterMobileNumber.sortOrder,
-      })
-      .from(voterMobileNumber)
-      .where(inArray(voterMobileNumber.epicNumber, normalizedEpicNumbers))
-      .orderBy(asc(voterMobileNumber.epicNumber), asc(voterMobileNumber.sortOrder));
-
-    // Group mobile numbers by epic number with sort order
     const result = new Map<string, MobileNumberWithSortOrder[]>();
-    for (const row of mobileNumbers) {
-      const existing = result.get(row.epicNumber) || [];
-      existing.push({
-        mobileNumber: row.mobileNumber,
-        sortOrder: row.sortOrder,
-      });
-      result.set(row.epicNumber, existing);
+
+    // Drizzle blows the stack building inArray() for very large lists (full exports).
+    for (let i = 0; i < normalizedEpicNumbers.length; i += VOTER_MOBILE_EPIC_BATCH_SIZE) {
+      const epicBatch = normalizedEpicNumbers.slice(
+        i,
+        i + VOTER_MOBILE_EPIC_BATCH_SIZE,
+      );
+
+      const mobileNumbers = await db
+        .select({
+          epicNumber: voterMobileNumber.epicNumber,
+          mobileNumber: voterMobileNumber.mobileNumber,
+          sortOrder: voterMobileNumber.sortOrder,
+        })
+        .from(voterMobileNumber)
+        .where(inArray(voterMobileNumber.epicNumber, epicBatch))
+        .orderBy(
+          asc(voterMobileNumber.epicNumber),
+          asc(voterMobileNumber.sortOrder),
+        );
+
+      for (const row of mobileNumbers) {
+        const existing = result.get(row.epicNumber) || [];
+        existing.push({
+          mobileNumber: row.mobileNumber,
+          sortOrder: row.sortOrder,
+        });
+        result.set(row.epicNumber, existing);
+      }
     }
 
     return result;
   } catch (error) {
-    throw new ChatSDKError('bad_request:database', 'Failed to get voter mobile numbers');
+    const cause = error instanceof Error ? error.message : String(error);
+    console.error('getVoterMobileNumbersByEpicNumbers failed:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      `Failed to get voter mobile numbers: ${cause}`,
+    );
   }
 }
 
