@@ -614,3 +614,26 @@ export const userPartAssignment = pgTable(
 );
 
 export type UserPartAssignment = InferSelectModel<typeof userPartAssignment>;
+
+// SRA Campaign voter registrations
+export const sraCampaignVoter = pgTable(
+  'SraCampaignVoter',
+  {
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
+    sraVoterId: varchar('sra_voter_id', { length: 50 }).notNull(),
+    name: varchar('name', { length: 255 }).notNull(),
+    phoneNumber: varchar('phone_number', { length: 20 }).notNull(),
+    description: text('description'),
+    token: varchar('token', { length: 20 }).notNull(),
+    createdBy: uuid('created_by').references(() => user.id),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    idxSraVoterId: index('idx_sra_campaign_voter_sra_voter_id').on(table.sraVoterId),
+    idxCreatedBy: index('idx_sra_campaign_voter_created_by').on(table.createdBy),
+    idxCreatedAt: index('idx_sra_campaign_voter_created_at').on(table.createdAt),
+  }),
+);
+
+export type SraCampaignVoter = InferSelectModel<typeof sraCampaignVoter>;

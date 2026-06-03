@@ -67,6 +67,8 @@ import {
   type ExportJob,
   phoneUpdateHistory,
   voterMobileNumber,
+  sraCampaignVoter,
+  type SraCampaignVoter,
 } from './schema';
 import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
@@ -3323,6 +3325,15 @@ export async function updateUserModulePermissions(
 }
 
 export async function hasModuleAccess(userId: string, moduleKey: string): Promise<boolean> {
+  if (moduleKey === 'sra-campaign') {
+    const [userRecord] = await db
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.id, userId))
+      .limit(1);
+    return !!userRecord;
+  }
+
   try {
     const moduleKeysToCheck =
       moduleKey === 'daily-programme' || moduleKey === 'calendar'
@@ -5471,6 +5482,101 @@ export async function getVotingPatterns(
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to get voting patterns',
+    );
+  }
+}
+
+// Token: DDMMYY-NNNN (daily sequence for SRA campaign registrations)
+async function generateSraCampaignToken(): Promise<string> {
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+
+  const dd = String(now.getDate()).padStart(2, '0');
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yy = String(now.getFullYear()).slice(-2);
+  const datePrefix = `${dd}${mm}${yy}`;
+
+  const [result] = await db
+    .select({ count: count() })
+    .from(sraCampaignVoter)
+    .where(gte(sraCampaignVoter.createdAt, todayStart));
+
+  const nextNumber = (result?.count || 0) + 1;
+  return `${datePrefix}-${String(nextNumber).padStart(4, '0')}`;
+}
+
+export async function createSraCampaignVoter({
+  sraVoterId,
+  name,
+  phoneNumber,
+  description,
+  createdBy,
+}: {
+  sraVoterId: string;
+  name: string;
+  phoneNumber: string;
+  description?: string;
+  createdBy?: string | null;
+}): Promise<SraCampaignVoter> {
+  try {
+    const token = await generateSraCampaignToken();
+
+    const [entry] = await db
+      .insert(sraCampaignVoter)
+      .values({
+        sraVoterId,
+        name,
+        phoneNumber,
+        description: description || null,
+        token,
+        createdBy: createdBy ?? null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning();
+
+    return entry;
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create SRA campaign voter entry',
+    );
+  }
+}
+
+export async function getSraCampaignVoters({
+  search,
+  limit = 100,
+}: {
+  search?: string;
+  limit?: number;
+} = {}): Promise<SraCampaignVoter[]> {
+  try {
+    const conditions: SQL[] = [];
+
+    if (search?.trim()) {
+      const term = `%${search.trim()}%`;
+      conditions.push(
+        or(
+          ilike(sraCampaignVoter.sraVoterId, term),
+          ilike(sraCampaignVoter.name, term),
+          ilike(sraCampaignVoter.phoneNumber, term),
+          ilike(sraCampaignVoter.token, term),
+        )!,
+      );
+    }
+
+    return await db
+      .select()
+      .from(sraCampaignVoter)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(sraCampaignVoter.createdAt))
+      .limit(limit);
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to fetch SRA campaign voters',
     );
   }
 }

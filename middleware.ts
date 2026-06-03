@@ -24,7 +24,10 @@ export async function middleware(request: NextRequest) {
   }
 
   // Allow access to public pages without authentication
-  if (['/', '/login', '/register'].includes(pathname)) {
+  if (
+    ['/', '/login', '/register', '/sra-campaign'].includes(pathname) ||
+    pathname === '/api/sra-campaign'
+  ) {
     return NextResponse.next();
   }
 
@@ -82,6 +85,11 @@ export async function middleware(request: NextRequest) {
 
     // Profile is accessible to all authenticated users
     if (moduleKey === 'profile') {
+      return NextResponse.next();
+    }
+
+    // SRA campaign records: any logged-in user; registration stays public at /sra-campaign
+    if (moduleKey === 'sra-campaign') {
       return NextResponse.next();
     }
 

@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import {
+  isValidIndianMobile,
+  normalizeIndianMobileDigits,
+} from '@/lib/indian-mobile';
 
 // Project form validation
 export const projectFormSchema = z.object({
@@ -56,6 +60,56 @@ export const roleFormSchema = z.object({
 });
 
 export type RoleFormData = z.infer<typeof roleFormSchema>;
+
+export const sraCampaignVoterIdSchema = z
+  .string()
+  .trim()
+  .min(1, 'sra_voter_id_required')
+  .max(50, 'sra_voter_id_too_long')
+  .transform((val) => val.toUpperCase());
+
+export const sraCampaignVoterFormSchema = z
+  .object({
+    sraVoterId: sraCampaignVoterIdSchema,
+    name: z
+      .string()
+      .trim()
+      .min(1, 'name_required')
+      .max(255, 'name_too_long'),
+    phoneNumber: z
+      .string()
+      .trim()
+      .min(1, 'phone_required')
+      .refine((val) => isValidIndianMobile(val), 'phone_invalid'),
+    description: z
+      .string()
+      .trim()
+      .max(2000, 'description_too_long')
+      .optional()
+      .or(z.literal('')),
+  })
+  .transform((data) => ({
+    sraVoterId: data.sraVoterId,
+    name: data.name,
+    phoneNumber: normalizeIndianMobileDigits(data.phoneNumber),
+    description: data.description?.trim() ? data.description.trim() : undefined,
+  }));
+
+export type SraCampaignVoterFormData = z.infer<typeof sraCampaignVoterFormSchema>;
+
+const SRA_CAMPAIGN_VALIDATION_MESSAGES: Record<string, string> = {
+  sra_voter_id_required: 'Voter ID is required',
+  sra_voter_id_too_long: 'Voter ID is too long',
+  name_required: 'Name is required',
+  name_too_long: 'Name is too long',
+  phone_required: 'Phone number is required',
+  phone_invalid: 'Enter a valid 10-digit Indian mobile number',
+  description_too_long: 'Description is too long',
+};
+
+export function formatSraCampaignValidationError(message: string): string {
+  return SRA_CAMPAIGN_VALIDATION_MESSAGES[message] ?? message;
+}
 
 // Helper function to validate form data and return errors
 export function validateForm<T>(

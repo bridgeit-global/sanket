@@ -93,6 +93,10 @@
       "label": "Voting Participation",
       "description": "Mark and track voting participation for elections"
     },
+    "sraCampaign": {
+      "label": "SRA Campaign",
+      "description": "Register and manage SRA campaign voter details"
+    },
     "chat": {
       "label": "Chat / Analytics",
       "description": "AI-powered chat interface for voter analysis"
@@ -123,6 +127,70 @@
       "phone": "Enter phone number",
       "subject": "Short description of letter / document",
       "fromTo": "Name, designation, department..."
+    }
+  },
+  "sraCampaign": {
+    "title": "SRA Campaign",
+    "subtitle": "Collect and manage voter details for the SRA campaign",
+    "tabs": {
+      "register": "Register voter",
+      "records": "All records"
+    },
+    "form": {
+      "title": "Voter details",
+      "description": "Enter Voter ID, name, phone number, and any notes."
+    },
+    "fields": {
+      "sraVoterId": "Voter ID",
+      "name": "Name",
+      "phoneNumber": "Phone number",
+      "description": "Description",
+      "token": "Token"
+    },
+    "placeholders": {
+      "sraVoterId": "Enter Voter ID",
+      "name": "Enter full name",
+      "phoneNumber": "Enter 10-digit mobile number",
+      "description": "Notes, issue, or request details"
+    },
+    "actions": {
+      "save": "Save details",
+      "lookup": "Look up",
+      "search": "Search",
+      "registerAnother": "Register another voter",
+      "shareThermalTicket": "Share thermal ticket"
+    },
+    "completion": {
+      "title": "Registration saved",
+      "description": "A reference token has been generated for this voter",
+      "referenceToken": "Reference token",
+      "saveToken": "Save this token for future reference and tracking"
+    },
+    "records": {
+      "title": "Registered voters",
+      "description": "Search and review saved SRA campaign entries",
+      "searchPlaceholder": "Search by token, ID, name, or phone",
+      "empty": "No records found",
+      "date": "Registered"
+    },
+    "messages": {
+      "saved": "Voter details saved successfully",
+      "saveFailed": "Failed to save voter details",
+      "loadFailed": "Failed to load records",
+      "lookupFailed": "Lookup failed",
+      "enterSraVoterId": "Enter a Voter ID to look up",
+      "foundExisting": "Loaded existing record for this Voter ID",
+      "notFound": "No record found for this Voter ID",
+      "thermalTicketDownloaded": "Ticket PDF downloaded. Share it to your thermal printer app."
+    },
+    "validation": {
+      "sra_voter_id_required": "Voter ID is required",
+      "sra_voter_id_too_long": "Voter ID must be 50 characters or fewer",
+      "name_required": "Name is required",
+      "name_too_long": "Name must be 255 characters or fewer",
+      "phone_required": "Phone number is required",
+      "phone_invalid": "Enter a valid 10-digit Indian mobile number",
+      "description_too_long": "Description must be 2000 characters or fewer"
     }
   },
   "beneficiary": {

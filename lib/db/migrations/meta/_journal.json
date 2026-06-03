@@ -428,6 +428,27 @@
       "when": 1774000000000,
       "tag": "0060_beneficiary_service_programme_id",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1774000001000,
+      "tag": "0061_add_sra_campaign_voter",
+      "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1774000002000,
+      "tag": "0062_sra_campaign_voter_nullable_created_by",
+      "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1774000003000,
+      "tag": "0063_sra_campaign_voter_token",
+      "breakpoints": true
     }
   ]
 }
