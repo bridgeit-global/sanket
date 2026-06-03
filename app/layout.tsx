@@ -11,7 +11,15 @@ import { SessionProvider } from 'next-auth/react';
 export const metadata: Metadata = {
   title: 'eOffice - Specialized ERP for Beneficiary Management',
   description: 'Streamline your beneficiary management across multiple locations',
-  manifest: '/favicon/site.webmanifest'
+  manifest: '/favicon/site.webmanifest',
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/favicon/favicon.svg', type: 'image/svg+xml' },
+      { url: '/favicon/favicon-96x96.png', sizes: '96x96', type: 'image/png' },
+    ],
+    apple: '/favicon/apple-touch-icon.png',
+  },
 };
 
 export const viewport = {
@@ -87,7 +95,7 @@ export default async function RootLayout({
           content="CRM for beneficiary management" />
         <meta property="og:type" content="website" />
         <meta property="og:url" content="https://sanket.bridgeit.in/" />
-        <meta property="og:image" content="https://sanket.bridgeit.in/favicon/favicon-32x32.png" />
+        <meta property="og:image" content="https://sanket.bridgeit.in/favicon/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
