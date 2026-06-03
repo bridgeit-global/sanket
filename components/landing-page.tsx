@@ -49,7 +49,7 @@ import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 
 const LANDING_IMAGES = {
-  hero: '/images/landing/hero-banner.png',
+  hero: '/images/landing/hero-banner.jpg',
   about: '/images/landing/about.webp',
   logo: '/images/landing/logo.png',
   community: '/images/landing/community.jpg',

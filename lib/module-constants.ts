@@ -132,15 +132,6 @@ export const ALL_MODULES: ModuleDefinition[] = [
     category: 'operations',
     defaultRoles: [],
   },
-  {
-    key: 'sra-campaign',
-    label: 'SRA Campaign',
-    description: 'Register and manage SRA campaign voter details',
-    route: '/modules/sra-campaign',
-    icon: 'Home',
-    category: 'operations',
-    defaultRoles: ['admin', 'operator', 'back-office'],
-  },
 ];
 
 // Get module by key
@@ -175,6 +166,5 @@ export const MODULE_KEYS = {
   PROJECTS: 'projects',
   VOTING_PARTICIPATION: 'voting-participation',
   FIELD_VISITOR: 'field-visitor',
-  SRA_CAMPAIGN: 'sra-campaign',
 } as const;
 

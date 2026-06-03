@@ -16,10 +16,9 @@ import {
   FileDown,
   Vote,
   MapPin,
-  Home,
 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar';
-import { getModuleByKey, type ModuleDefinition } from '@/lib/module-constants';
+import type { ModuleDefinition } from '@/lib/module-constants';
 import { SidebarLink } from './sidebar-link';
 import { useTranslations } from '@/hooks/use-translations';
 
@@ -34,7 +33,6 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'inward': Inbox,
   'outward': Send,
   'voting-participation': Vote,
-  'sra-campaign': Home,
   'chat': MessageSquare,
   'user-management': Users,
   'profile': UserIcon,
@@ -52,7 +50,6 @@ const MODULE_ORDER = [
   'inward',
   'outward',
   'voting-participation',
-  'sra-campaign',
   'chat',
   'user-management',
   'profile',
@@ -76,25 +73,6 @@ const sortModules = (mods: ModuleDefinition[]): ModuleDefinition[] => {
   });
 };
 
-/** Shown for every logged-in user (matches middleware + module-access). */
-const UNIVERSAL_MODULE_KEYS = ['sra-campaign'] as const;
-
-function withUniversalModules(
-  mods: ModuleDefinition[],
-  userId?: string,
-): ModuleDefinition[] {
-  if (!userId) return mods;
-
-  let next = [...mods];
-  for (const key of UNIVERSAL_MODULE_KEYS) {
-    if (!next.some((m) => m.key === key)) {
-      const mod = getModuleByKey(key);
-      if (mod) next.push(mod);
-    }
-  }
-  return sortModules(next);
-}
-
 // Map module keys to translation keys
 const getModuleTranslationKey = (moduleKey: string): string => {
   const keyMap: Record<string, string> = {
@@ -108,7 +86,6 @@ const getModuleTranslationKey = (moduleKey: string): string => {
     'inward': 'modules.inward.label',
     'outward': 'modules.outward.label',
     'voting-participation': 'modules.votingParticipation.label',
-    'sra-campaign': 'modules.sraCampaign.label',
     'chat': 'modules.chat.label',
     'user-management': 'modules.userManagement.label',
     'profile': 'modules.profile.label',
@@ -126,16 +103,13 @@ export function ModuleNavigation({
   const pathname = usePathname();
   const { t } = useTranslations();
   const [modules, setModules] = useState<ModuleDefinition[]>(() =>
-    withUniversalModules(
-      initialModules ? sortModules(initialModules) : [],
-      user?.id,
-    ),
+    initialModules ? sortModules(initialModules) : [],
   );
   const [loading, setLoading] = useState(!(initialModules && initialModules.length > 0));
 
   useEffect(() => {
     if (initialModules && initialModules.length > 0) {
-      setModules(withUniversalModules(sortModules(initialModules), user?.id));
+      setModules(sortModules(initialModules));
       setLoading(false);
     }
   }, [initialModules, user?.id]);
@@ -150,7 +124,7 @@ export function ModuleNavigation({
         const response = await fetch('/api/user/modules');
         if (response.ok) {
           const data = await response.json();
-          setModules(withUniversalModules(sortModules(data), user?.id));
+          setModules(sortModules(data));
         }
       } catch (error) {
         console.error('Error loading modules:', error);

@@ -449,6 +449,13 @@
       "when": 1774000003000,
       "tag": "0063_sra_campaign_voter_token",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1774000004000,
+      "tag": "0064_drop_sra_campaign_voter",
+      "breakpoints": true
     }
   ]
 }

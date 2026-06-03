@@ -123,9 +123,6 @@ export const {
           accessibleModules.add('daily-programme');
         }
 
-        // SRA campaign staff view: any authenticated user
-        accessibleModules.add('sra-campaign');
-
         return {
           id: userRecord.id,
           userId: userRecord.userId,

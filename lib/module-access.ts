@@ -65,9 +65,6 @@ export async function getUserAccessibleModules(
       accessibleKeys.add('daily-programme');
     }
 
-    // SRA campaign staff view: any authenticated user (registration stays public at /sra-campaign)
-    accessibleKeys.add('sra-campaign');
-
     // Note: Removed fallback to role enum as we're migrating to roleId-based system
 
     return ALL_MODULES.filter((module) => accessibleKeys.has(module.key));
