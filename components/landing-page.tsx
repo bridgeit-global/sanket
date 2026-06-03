@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type MouseEvent, type ReactNode } from 'react';
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -19,6 +19,7 @@ import {
   Landmark,
   MapPin,
   Megaphone,
+  Menu,
   Mic,
   Moon,
   Newspaper,
@@ -31,6 +32,13 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
 import { useLanguage } from '@/components/language-provider';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
@@ -70,6 +78,53 @@ const NAV_SECTIONS = [
   { id: 'news', labelKey: 'landing.nav.news' },
   { id: 'services', labelKey: 'landing.nav.services' },
 ] as const;
+
+const LANDING_SECTION_SCROLL_MARGIN = 'scroll-mt-[4.75rem] md:scroll-mt-[5.25rem]';
+
+function getLandingHeaderOffset() {
+  const header = document.querySelector<HTMLElement>('[data-landing-header]');
+  return (header?.getBoundingClientRect().height ?? 64) + 8;
+}
+
+function scrollToLandingSection(sectionId: string, updateHash = true) {
+  const target = document.getElementById(sectionId);
+  if (!target) return;
+
+  const top = target.getBoundingClientRect().top + window.scrollY - getLandingHeaderOffset();
+  window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+
+  if (updateHash) {
+    window.history.replaceState(null, '', `#${sectionId}`);
+  }
+}
+
+function LandingSectionLink({
+  sectionId,
+  className,
+  children,
+  onNavigate,
+}: {
+  sectionId: string;
+  className?: string;
+  children: ReactNode;
+  onNavigate?: () => void;
+}) {
+  const handleClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
+    if (onNavigate) {
+      onNavigate();
+      requestAnimationFrame(() => scrollToLandingSection(sectionId));
+      return;
+    }
+    scrollToLandingSection(sectionId);
+  };
+
+  return (
+    <a href={`#${sectionId}`} className={className} onClick={handleClick}>
+      {children}
+    </a>
+  );
+}
 
 const fadeUp = {
   hidden: { opacity: 0, y: 28 },
@@ -215,8 +270,21 @@ export function LandingPage() {
   const { resolvedTheme, setTheme } = useTheme();
   const [themeMounted, setThemeMounted] = useState(false);
   const [journeyIndex, setJourneyIndex] = useState(0);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => setThemeMounted(true), []);
+
+  const scrollToSectionFromHash = useCallback(() => {
+    const sectionId = window.location.hash.replace('#', '');
+    if (!sectionId || !document.getElementById(sectionId)) return;
+    requestAnimationFrame(() => scrollToLandingSection(sectionId, false));
+  }, []);
+
+  useEffect(() => {
+    scrollToSectionFromHash();
+    window.addEventListener('hashchange', scrollToSectionFromHash);
+    return () => window.removeEventListener('hashchange', scrollToSectionFromHash);
+  }, [scrollToSectionFromHash]);
 
   const isDarkTheme = themeMounted ? resolvedTheme === 'dark' : true;
 
@@ -350,9 +418,12 @@ export function LandingPage() {
   };
 
   return (
-    <div className="min-h-dvh overflow-x-hidden bg-background text-foreground">
+    <div className="min-h-dvh scroll-smooth overflow-x-hidden bg-background text-foreground">
       {/* Header */}
-      <header className="fixed inset-x-0 top-0 z-50 border-b border-primary/10 bg-background/75 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/55">
+      <header
+        data-landing-header
+        className="fixed inset-x-0 top-0 z-50 border-b border-primary/10 bg-background/75 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/55"
+      >
         <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
         <div className="container mx-auto flex h-16 items-center justify-between gap-3 px-4 md:h-[4.5rem]">
           <Link href="/" className="group flex shrink-0 items-center gap-3">
@@ -367,18 +438,47 @@ export function LandingPage() {
 
           <nav className="hidden items-center gap-0.5 lg:flex" aria-label="Sections">
             {NAV_SECTIONS.map((section) => (
-              <a
+              <LandingSectionLink
                 key={section.id}
-                href={`#${section.id}`}
+                sectionId={section.id}
                 className="relative rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
                 <span className="relative z-10">{t(section.labelKey)}</span>
                 <span className="absolute inset-0 scale-90 rounded-lg bg-primary/0 opacity-0 transition-all hover:scale-100 hover:bg-primary/10 hover:opacity-100" />
-              </a>
+              </LandingSectionLink>
             ))}
           </nav>
 
           <div className="flex items-center gap-2">
+            <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-9 shrink-0 rounded-full border border-transparent text-muted-foreground hover:border-primary/20 hover:bg-primary/5 lg:hidden"
+                  aria-label={t('landing.nav.menu')}
+                >
+                  <Menu className="size-4 text-primary" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-[min(100%,20rem)] pt-12">
+                <SheetHeader className="sr-only">
+                  <SheetTitle>{t('landing.nav.menu')}</SheetTitle>
+                </SheetHeader>
+                <nav className="flex flex-col gap-1" aria-label="Sections">
+                  {NAV_SECTIONS.map((section) => (
+                    <LandingSectionLink
+                      key={section.id}
+                      sectionId={section.id}
+                      onNavigate={() => setMobileNavOpen(false)}
+                      className="rounded-lg px-4 py-3 text-sm font-medium text-foreground transition-colors hover:bg-primary/10"
+                    >
+                      {t(section.labelKey)}
+                    </LandingSectionLink>
+                  ))}
+                </nav>
+              </SheetContent>
+            </Sheet>
             <Button
               variant="ghost"
               size="icon"
@@ -442,17 +542,17 @@ export function LandingPage() {
                   asChild
                   className="group h-12 rounded-full bg-primary px-8 font-semibold text-primary-foreground shadow-lg shadow-primary/30 hover:bg-primary/90"
                 >
-                  <a href="#about">
+                  <LandingSectionLink sectionId="about">
                     {locale === 'en' ? 'Explore profile' : 'प्रोफाइल पहा'}
                     <ArrowRight className="ml-2 size-4 transition-transform group-hover:translate-x-1" />
-                  </a>
+                  </LandingSectionLink>
                 </Button>
               </motion.div>
               <motion.div variants={fadeUp}>
                 <Button size="lg" variant="outline" asChild className="h-12 rounded-full px-8">
-                  <a href="#journey">
+                  <LandingSectionLink sectionId="journey">
                     {locale === 'en' ? 'Political journey' : 'राजकीय प्रवास'}
-                  </a>
+                  </LandingSectionLink>
                 </Button>
               </motion.div>
             </motion.div>
@@ -488,7 +588,10 @@ export function LandingPage() {
         </section>
 
         {/* About */}
-        <section id="about" className="scroll-mt-28 container mx-auto px-4 py-20 md:py-28">
+        <section
+          id="about"
+          className={cn(LANDING_SECTION_SCROLL_MARGIN, 'container mx-auto px-4 py-20 md:py-28')}
+        >
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -566,7 +669,10 @@ export function LandingPage() {
         {/* Vision */}
         <section
           id="vision"
-          className="scroll-mt-28 relative overflow-hidden bg-muted/40 py-20 md:py-28"
+          className={cn(
+            LANDING_SECTION_SCROLL_MARGIN,
+            'relative overflow-hidden bg-muted/40 py-20 md:py-28',
+          )}
         >
           <div className="landing-mesh absolute inset-0 opacity-50" aria-hidden />
           <div className="container relative mx-auto px-4">
@@ -581,16 +687,10 @@ export function LandingPage() {
                 title={t('landing.vision.sectionTitle')}
                 subtitle={t('landing.vision.sectionSubtitle')}
               />
-              <motion.p
-                variants={fadeUp}
-                className="mx-auto mt-6 max-w-3xl text-center text-sm leading-relaxed text-muted-foreground md:text-base"
-              >
-                {t('landing.vision.intro')}
-              </motion.p>
 
               <motion.div
                 variants={stagger}
-                className="mt-14 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+                className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
               >
                 {visionAreas.map((area, index) => (
                   <motion.article
@@ -620,7 +720,10 @@ export function LandingPage() {
         </section>
 
         {/* Journey */}
-        <section id="journey" className="scroll-mt-28 container mx-auto px-4 py-20 md:py-28">
+        <section
+          id="journey"
+          className={cn(LANDING_SECTION_SCROLL_MARGIN, 'container mx-auto px-4 py-20 md:py-28')}
+        >
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -732,7 +835,7 @@ export function LandingPage() {
         {/* Speeches */}
         <LandingDarkBand
           id="speeches"
-          className="scroll-mt-28 py-20 md:py-28"
+          className={cn(LANDING_SECTION_SCROLL_MARGIN, 'py-20 md:py-28')}
         >
           <div className="container relative mx-auto px-4">
             <motion.div
@@ -779,7 +882,10 @@ export function LandingPage() {
         </LandingDarkBand>
 
         {/* Services */}
-        <section id="services" className="scroll-mt-28 container mx-auto px-4 py-20 md:py-28">
+        <section
+          id="services"
+          className={cn(LANDING_SECTION_SCROLL_MARGIN, 'container mx-auto px-4 py-20 md:py-28')}
+        >
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -872,7 +978,10 @@ export function LandingPage() {
         </section>
 
         {/* News */}
-        <section id="news" className="scroll-mt-28 container mx-auto px-4 py-20 md:py-28">
+        <section
+          id="news"
+          className={cn(LANDING_SECTION_SCROLL_MARGIN, 'container mx-auto px-4 py-20 md:py-28')}
+        >
           <motion.div
             initial="hidden"
             whileInView="visible"
@@ -929,10 +1038,10 @@ export function LandingPage() {
                 asChild
                 className="mt-10 h-12 rounded-full bg-landing-contrast-foreground px-8 font-semibold text-landing-contrast hover:bg-landing-contrast-foreground/90"
               >
-                <a href="#about">
+                <LandingSectionLink sectionId="about">
                   {locale === 'en' ? 'Get started' : 'सुरू करा'}
                   <ArrowRight className="ml-2 size-4" />
-                </a>
+                </LandingSectionLink>
               </Button>
             </motion.div>
           </div>
