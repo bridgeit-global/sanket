@@ -785,7 +785,26 @@
       "description": "Sign in to request beneficiary services, track programmes, and connect with the team serving Anushakti Nagar.",
       "button": "Access services portal"
     },
-    "footer": "Official constituency services portal · Anushakti Nagar",
+    "footer": {
+      "importantLinks": "Important Links",
+      "home": "Home",
+      "about": "About Me",
+      "events": "Events",
+      "news": "News & Media",
+      "contact": "Contact",
+      "contactInfo": "Contact Info",
+      "officeAddress": "Office Address",
+      "phone": "022-4604 1633",
+      "email": "connect@sanamalikshaikh.in",
+      "address": "1st Floor, Yash Signature, Opp. Telecom Factory, V. N. Purav Marg, Deonar, Mumbai - 400088",
+      "privacy": "Privacy Policy",
+      "terms": "Terms & Conditions",
+      "disclaimer": "Disclaimer",
+      "legal": "Legal Notice & Copyright",
+      "copyright": "© Copyright {year} Sana Malik Shaikh. All Rights Reserved.",
+      "backToTop": "Back to top",
+      "openInMaps": "Open in Google Maps"
+    },
     "features": {
       "sectionTitle": "Services for constituents",
       "sectionSubtitle": "Voters and residents can use this portal to connect with MLA office programmes and support.",

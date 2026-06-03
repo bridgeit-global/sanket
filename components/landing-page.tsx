@@ -13,21 +13,26 @@ import {
   CalendarDays,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Globe,
   GraduationCap,
   Heart,
+  Home,
   Landmark,
+  Mail,
   MapPin,
   Megaphone,
   Menu,
   Mic,
   Moon,
   Newspaper,
+  Phone,
   Quote,
   Shield,
   Stethoscope,
   Sun,
   TrendingUp,
+  User,
   Users,
 } from 'lucide-react';
 
@@ -80,6 +85,27 @@ const NAV_SECTIONS = [
 ] as const;
 
 const LANDING_SECTION_SCROLL_MARGIN = 'scroll-mt-[4.75rem] md:scroll-mt-[5.25rem]';
+
+const LANDING_MAP_EMBED_SRC =
+  'https://www.google.com/maps?ll=19.044549,72.917761&z=15&t=m&hl=en&gl=IN&mapclient=embed&cid=14120413650705643949&output=embed';
+
+const LANDING_MAP_EXTERNAL_URL =
+  'https://www.google.com/maps?ll=19.044549,72.917761&z=15&t=m&hl=en&gl=IN&mapclient=embed&cid=14120413650705643949';
+
+const FOOTER_NAV_LINKS = [
+  { sectionId: 'home', labelKey: 'landing.footer.home', icon: Home },
+  { sectionId: 'about', labelKey: 'landing.footer.about', icon: User },
+  { sectionId: 'gallery', labelKey: 'landing.footer.events', icon: CalendarDays },
+  { sectionId: 'news', labelKey: 'landing.footer.news', icon: Newspaper },
+  { sectionId: 'contact', labelKey: 'landing.footer.contact', icon: MapPin },
+] as const;
+
+const FOOTER_LEGAL_LINKS = [
+  { labelKey: 'landing.footer.privacy', href: '#' },
+  { labelKey: 'landing.footer.terms', href: '#' },
+  { labelKey: 'landing.footer.disclaimer', href: '#' },
+  { labelKey: 'landing.footer.legal', href: '#' },
+] as const;
 
 function getLandingHeaderOffset() {
   const header = document.querySelector<HTMLElement>('[data-landing-header]');
@@ -271,8 +297,16 @@ export function LandingPage() {
   const [themeMounted, setThemeMounted] = useState(false);
   const [journeyIndex, setJourneyIndex] = useState(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
   useEffect(() => setThemeMounted(true), []);
+
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 400);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 
   const scrollToSectionFromHash = useCallback(() => {
     const sectionId = window.location.hash.replace('#', '');
@@ -292,121 +326,141 @@ export function LandingPage() {
 
   const visionAreas = [
     {
+      id: 'socialReform',
       icon: Heart,
       title: t('landing.vision.socialReform.title'),
       description: t('landing.vision.socialReform.description'),
     },
     {
+      id: 'education',
       icon: GraduationCap,
       title: t('landing.vision.education.title'),
       description: t('landing.vision.education.description'),
     },
     {
+      id: 'economy',
       icon: TrendingUp,
       title: t('landing.vision.economy.title'),
       description: t('landing.vision.economy.description'),
     },
     {
+      id: 'awareness',
       icon: Megaphone,
       title: t('landing.vision.awareness.title'),
       description: t('landing.vision.awareness.description'),
     },
     {
+      id: 'wellbeing',
       icon: Brain,
       title: t('landing.vision.wellbeing.title'),
       description: t('landing.vision.wellbeing.description'),
     },
     {
+      id: 'health',
       icon: Stethoscope,
       title: t('landing.vision.health.title'),
       description: t('landing.vision.health.description'),
     },
-  ];
+  ] as const;
 
   const aboutHighlights = [
     {
+      id: 'mla',
       icon: Award,
       title: t('landing.about.highlights.mla.title'),
       description: t('landing.about.highlights.mla.description'),
     },
     {
+      id: 'spokesperson',
       icon: Megaphone,
       title: t('landing.about.highlights.spokesperson.title'),
       description: t('landing.about.highlights.spokesperson.description'),
     },
     {
+      id: 'committees',
       icon: Users,
       title: t('landing.about.highlights.committees.title'),
       description: t('landing.about.highlights.committees.description'),
     },
     {
+      id: 'legacy',
       icon: Shield,
       title: t('landing.about.highlights.legacy.title'),
       description: t('landing.about.highlights.legacy.description'),
     },
-  ];
+  ] as const;
 
   const features = [
     {
+      id: 'beneficiary',
       icon: Users,
       title: t('landing.features.beneficiary.title'),
       description: t('landing.features.beneficiary.description'),
     },
     {
+      id: 'programme',
       icon: CalendarDays,
       title: t('landing.features.programme.title'),
       description: t('landing.features.programme.description'),
     },
     {
+      id: 'operations',
       icon: Briefcase,
       title: t('landing.features.operations.title'),
       description: t('landing.features.operations.description'),
     },
-  ];
+  ] as const;
 
   const stats = [
     {
+      id: 'mla',
       icon: Award,
       value: t('landing.stats.mla.value'),
       label: t('landing.stats.mla.label'),
     },
     {
+      id: 'constituency',
       icon: MapPin,
       value: t('landing.stats.constituency.value'),
       label: t('landing.stats.constituency.label'),
     },
     {
+      id: 'votes',
       icon: Users,
       value: t('landing.stats.votes.value'),
       label: t('landing.stats.votes.label'),
     },
     {
+      id: 'committees',
       icon: Shield,
       value: t('landing.stats.committees.value'),
       label: t('landing.stats.committees.label'),
     },
-  ];
+  ] as const;
 
   const galleryItems = [
     {
+      id: 'community',
       src: LANDING_IMAGES.community,
       alt: t('landing.gallery.community'),
       label: t('landing.gallery.community'),
       className: 'md:col-span-2 md:row-span-2',
     },
     {
+      id: 'office',
       src: LANDING_IMAGES.office,
       alt: t('landing.gallery.office'),
       label: t('landing.gallery.office'),
       className: '',
     },
     {
+      id: 'partnership',
       src: LANDING_IMAGES.handshake,
       alt: t('landing.gallery.partnership'),
       label: t('landing.gallery.partnership'),
       className: '',
     },
-  ];
+  ] as const;
 
   const shiftJourney = (direction: -1 | 1) => {
     setJourneyIndex((current) => {
@@ -512,7 +566,7 @@ export function LandingPage() {
 
       <main className="pt-16 md:pt-[4.5rem]">
         {/* Hero */}
-        <section className="relative isolate overflow-hidden bg-primary">
+        <section id="home" className="relative isolate overflow-hidden bg-primary">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -565,7 +619,7 @@ export function LandingPage() {
             <GlassCard className="grid grid-cols-2 divide-y divide-primary/10 md:grid-cols-4 md:divide-x md:divide-y-0">
               {stats.map((stat, i) => (
                 <motion.div
-                  key={stat.label}
+                  key={stat.id}
                   initial={{ opacity: 0, y: 12 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
@@ -649,7 +703,7 @@ export function LandingPage() {
           >
             {aboutHighlights.map((item) => (
               <motion.article
-                key={item.title}
+                key={item.id}
                 variants={fadeUp}
                 className="group relative overflow-hidden rounded-2xl border border-border/80 bg-card/50 p-6 backdrop-blur-sm transition-all duration-300 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10"
               >
@@ -694,7 +748,7 @@ export function LandingPage() {
               >
                 {visionAreas.map((area, index) => (
                   <motion.article
-                    key={area.title}
+                    key={area.id}
                     variants={fadeUp}
                     className="group relative overflow-hidden rounded-2xl border bg-card/70 p-6 shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/35 hover:shadow-xl hover:shadow-primary/10"
                   >
@@ -901,7 +955,7 @@ export function LandingPage() {
             <motion.div variants={stagger} className="mt-14 grid gap-6 md:grid-cols-3">
               {features.map((feature, index) => (
                 <motion.article
-                  key={feature.title}
+                  key={feature.id}
                   variants={fadeUp}
                   className="group relative overflow-hidden rounded-2xl border bg-card/60 p-8 backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/35 hover:shadow-2xl hover:shadow-primary/10"
                 >
@@ -926,7 +980,13 @@ export function LandingPage() {
         </section>
 
         {/* Gallery */}
-        <section className="relative overflow-hidden bg-muted/30 py-20 md:py-28">
+        <section
+          id="gallery"
+          className={cn(
+            LANDING_SECTION_SCROLL_MARGIN,
+            'relative overflow-hidden bg-muted/30 py-20 md:py-28',
+          )}
+        >
           <div className="container mx-auto px-4">
             <motion.div
               initial="hidden"
@@ -949,7 +1009,7 @@ export function LandingPage() {
               >
                 {galleryItems.map((item) => (
                   <motion.div
-                    key={item.alt}
+                    key={item.id}
                     variants={fadeUp}
                     className={cn(
                       'landing-glow-border group relative overflow-hidden rounded-2xl shadow-xl',
@@ -1016,48 +1076,138 @@ export function LandingPage() {
             </motion.div>
           </motion.div>
         </section>
-
-        {/* CTA */}
-        <LandingDarkBand>
-          <LandingGridOverlay />
-          <div className="container relative mx-auto px-4 py-20 text-center md:py-28">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-            >
-              <Landmark className="mx-auto mb-6 size-12 text-primary-foreground/90" />
-              <h2 className="text-3xl font-bold tracking-tight text-landing-contrast-foreground md:text-5xl">
-                {t('landing.cta.title')}
-              </h2>
-              <p className="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-landing-contrast-foreground/80 md:text-lg">
-                {t('landing.cta.description')}
-              </p>
-              <Button
-                size="lg"
-                asChild
-                className="mt-10 h-12 rounded-full bg-landing-contrast-foreground px-8 font-semibold text-landing-contrast hover:bg-landing-contrast-foreground/90"
-              >
-                <LandingSectionLink sectionId="about">
-                  {locale === 'en' ? 'Get started' : 'सुरू करा'}
-                  <ArrowRight className="ml-2 size-4" />
-                </LandingSectionLink>
-              </Button>
-            </motion.div>
-          </div>
-        </LandingDarkBand>
       </main>
 
-      <footer className="border-t border-primary/10 bg-muted/20 py-10">
-        <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 text-center text-sm text-muted-foreground sm:flex-row sm:text-left">
-          <p>
-            © {new Date().getFullYear()} {t('landing.title')} — {t('landing.footer')}
-          </p>
-          <p className="text-xs uppercase tracking-widest text-primary/70">
-            Member of Legislative Assembly
-          </p>
+      <footer className="bg-landing-contrast text-landing-contrast-foreground">
+        <div className="container mx-auto px-4 py-12 md:py-16">
+          <div className="grid gap-10 md:grid-cols-3 md:gap-8 lg:gap-12">
+            <div>
+              <h3 className="text-lg font-bold text-landing-contrast-foreground">
+                {t('landing.footer.importantLinks')}
+              </h3>
+              <ul className="mt-5 space-y-3">
+                {FOOTER_NAV_LINKS.map((link) => (
+                  <li key={link.sectionId}>
+                    <LandingSectionLink
+                      sectionId={link.sectionId}
+                      className="group inline-flex items-center gap-3 text-sm text-landing-contrast-foreground/75 transition-colors hover:text-landing-contrast-foreground"
+                    >
+                      <link.icon
+                        className="size-4 shrink-0 text-landing-contrast-foreground/90"
+                        aria-hidden
+                      />
+                      {t(link.labelKey)}
+                    </LandingSectionLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div id="contact">
+              <h3 className="text-lg font-bold text-landing-contrast-foreground">
+                {t('landing.footer.contactInfo')}
+              </h3>
+              <ul className="mt-5 space-y-4 text-sm text-landing-contrast-foreground/75">
+                <li>
+                  <a
+                    href={`tel:${t('landing.footer.phone').replace(/\s/g, '')}`}
+                    className="inline-flex items-start gap-3 transition-colors hover:text-landing-contrast-foreground"
+                  >
+                    <Phone className="mt-0.5 size-4 shrink-0" aria-hidden />
+                    {t('landing.footer.phone')}
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href={`mailto:${t('landing.footer.email')}`}
+                    className="inline-flex items-start gap-3 break-all transition-colors hover:text-landing-contrast-foreground"
+                  >
+                    <Mail className="mt-0.5 size-4 shrink-0" aria-hidden />
+                    {t('landing.footer.email')}
+                  </a>
+                </li>
+                <li className="inline-flex items-start gap-3">
+                  <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
+                  <span>{t('landing.footer.address')}</span>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="text-lg font-bold text-landing-contrast-foreground">
+                {t('landing.footer.officeAddress')}
+              </h3>
+              <div className="relative mt-5 overflow-hidden rounded-xl">
+                <iframe
+                  title={t('landing.footer.officeAddress')}
+                  src={LANDING_MAP_EMBED_SRC}
+                  className="h-[220px] w-full border-0 md:h-[240px]"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  allowFullScreen
+                />
+                <a
+                  href={LANDING_MAP_EXTERNAL_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-md bg-landing-contrast-foreground px-2.5 py-1.5 text-xs font-medium text-landing-contrast shadow-md transition-opacity hover:opacity-90"
+                >
+                  Maps
+                  <ArrowRight className="size-3 rotate-[-45deg]" aria-hidden />
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <nav
+            aria-label="Legal"
+            className="mt-10 flex flex-wrap items-center justify-center gap-x-2 gap-y-2 text-sm text-landing-contrast-foreground/70"
+          >
+            {FOOTER_LEGAL_LINKS.map((link, index) => (
+              <span key={link.labelKey} className="inline-flex items-center gap-2">
+                {index > 0 ? (
+                  <span className="text-landing-contrast-foreground/35" aria-hidden>
+                    |
+                  </span>
+                ) : null}
+                <a
+                  href={link.href}
+                  className="transition-colors hover:text-landing-contrast-foreground"
+                  onClick={(event) => {
+                    if (link.href === '#') event.preventDefault();
+                  }}
+                >
+                  {t(link.labelKey)}
+                </a>
+              </span>
+            ))}
+          </nav>
+        </div>
+
+        <div className="border-t border-landing-contrast-foreground/15">
+          <div className="container mx-auto px-4 py-6">
+            <p className="text-center text-sm text-landing-contrast-foreground/65">
+              {t('landing.footer.copyright', { year: new Date().getFullYear() })}
+            </p>
+          </div>
         </div>
       </footer>
+
+      <Button
+        type="button"
+        variant="default"
+        size="icon"
+        className={cn(
+          'fixed bottom-6 right-6 z-40 size-10 rounded-md shadow-lg transition-all duration-300',
+          showBackToTop
+            ? 'translate-y-0 opacity-100'
+            : 'pointer-events-none translate-y-3 opacity-0',
+        )}
+        aria-label={t('landing.footer.backToTop')}
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      >
+        <ChevronUp className="size-5" aria-hidden />
+      </Button>
     </div>
   );
 }
