@@ -1685,6 +1685,7 @@ html.pdf-export .print-schedule thead {
         content: '';
         position: absolute;
         inset: 0;
+        z-index: 1;
         border-radius: inherit;
         padding: 1px;
         background: linear-gradient(

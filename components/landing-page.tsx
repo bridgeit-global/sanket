@@ -429,13 +429,7 @@ export function LandingPage() {
       icon: Users,
       value: t('landing.stats.votes.value'),
       label: t('landing.stats.votes.label'),
-    },
-    {
-      id: 'committees',
-      icon: Shield,
-      value: t('landing.stats.committees.value'),
-      label: t('landing.stats.committees.label'),
-    },
+    }
   ] as const;
 
   const galleryItems = [
@@ -614,9 +608,9 @@ export function LandingPage() {
         </section>
 
         {/* Stats */}
-        <section className="relative z-10 px-4 pb-4 pt-2 md:pb-6">
+        <section className="relative z-10 px-3 pb-4 pt-2 sm:px-4 md:pb-6">
           <div className="container mx-auto">
-            <GlassCard className="grid grid-cols-2 divide-y divide-primary/10 md:grid-cols-4 md:divide-x md:divide-y-0">
+            <GlassCard className="grid grid-cols-1 divide-y divide-primary/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
               {stats.map((stat, i) => (
                 <motion.div
                   key={stat.id}
@@ -624,17 +618,19 @@ export function LandingPage() {
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true }}
                   transition={{ delay: i * 0.06 }}
-                  className="flex flex-col items-center gap-2 p-6 text-center md:items-start md:p-8 md:text-left"
+                  className="flex min-w-0 flex-row items-center gap-3 p-4 text-left sm:flex-col sm:items-center sm:gap-2 sm:p-6 sm:text-center md:items-start md:p-8 md:text-left"
                 >
-                  <div className="flex size-10 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25">
-                    <stat.icon className="size-5" aria-hidden />
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/25 sm:size-10">
+                    <stat.icon className="size-4 sm:size-5" aria-hidden />
                   </div>
-                  <span className="bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-3xl font-extrabold tracking-tight text-transparent md:text-4xl">
-                    {stat.value}
-                  </span>
-                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground md:text-sm">
-                    {stat.label}
-                  </span>
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:items-center sm:gap-2 md:items-start">
+                    <span className="break-words bg-gradient-to-br from-foreground to-foreground/70 bg-clip-text text-xl font-extrabold leading-tight tracking-tight text-transparent sm:text-3xl md:text-4xl">
+                      {stat.value}
+                    </span>
+                    <span className="text-[0.65rem] font-medium uppercase leading-snug tracking-wide text-muted-foreground sm:text-xs md:text-sm">
+                      {stat.label}
+                    </span>
+                  </div>
                 </motion.div>
               ))}
             </GlassCard>
