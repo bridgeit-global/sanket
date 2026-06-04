@@ -23,7 +23,7 @@ import {
   MapPin,
   Megaphone,
   Menu,
-  Mic,
+  ExternalLink,
   Moon,
   Newspaper,
   Phone,
@@ -72,7 +72,33 @@ const JOURNEY_ITEMS = [
   { year: '2025', key: 'y2025', image: '/images/landing/timeline/10.webp' },
 ] as const;
 
-const SPEECH_KEYS = ['rmc', 'hospitals', 'nameFormat', 'noise', 'urdu'] as const;
+const SPEECH_ITEMS = [
+  {
+    key: 'rmc',
+    image: '/images/landing/speeches/assembly-image-1.jpg',
+    href: 'https://www.freepressjournal.in/mumbai/maharashtra-mla-sana-malik-calls-for-closure-of-deonar-rmc-plants-in-first-assembly-speech',
+  },
+  {
+    key: 'hospitals',
+    image: '/images/landing/speeches/news-12.jpg',
+    href: 'https://www.freepressjournal.in/mumbai/mumbai-mla-sana-malik-shaikh-flags-misuse-of-free-beds-in-charitable-hospitals-seeks-govt-accountability',
+  },
+  {
+    key: 'nameFormat',
+    image: '/images/landing/speeches/news-11.jpg',
+    href: 'https://www.freepressjournal.in/mumbai/maharashtra-news-first-time-ncp-mla-sana-malik-shaikh-advocates-for-womens-right-to-choose-names-in-official-records',
+  },
+  {
+    key: 'noise',
+    image: '/images/landing/speeches/assembly-image-4.jpg',
+    href: 'https://en.wikipedia.org/wiki/Sana_Malik',
+  },
+  {
+    key: 'urdu',
+    image: '/images/landing/speeches/assembly-image-5.jpg',
+    href: 'https://www.freepressjournal.in/mumbai/not-just-a-celebration-mlas-demand-support-for-urdu-academys-golden-jubilee-highlight-marathi-urdu-cultural-bond',
+  },
+] as const;
 const NEWS_KEYS = ['decibel', 'ajitPawar', 'spokesperson'] as const;
 
 const NAV_SECTIONS = [
@@ -902,27 +928,47 @@ export function LandingPage() {
               />
               <motion.div
                 variants={stagger}
-                className="mt-14 grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+                className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
               >
-                {SPEECH_KEYS.map((key, i) => (
+                {SPEECH_ITEMS.map((item, i) => (
                   <motion.article
-                    key={key}
+                    key={item.key}
                     variants={fadeUp}
-                    className="group flex gap-4 rounded-2xl border border-landing-contrast-foreground/10 bg-landing-contrast-foreground/5 p-5 backdrop-blur-md transition-all hover:border-primary/40 hover:bg-landing-contrast-foreground/10"
+                    className="group flex flex-col overflow-hidden rounded-2xl border border-landing-contrast-foreground/10 bg-landing-contrast-foreground/5 backdrop-blur-md transition-all hover:border-primary/40 hover:bg-landing-contrast-foreground/10"
                   >
-                    <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary/20 text-primary ring-1 ring-primary/30">
-                      <Mic className="size-5" aria-hidden />
-                    </div>
-                    <div>
-                      <span className="text-[10px] font-mono uppercase tracking-widest text-primary/80">
+                    <div className="relative aspect-[938/530] w-full overflow-hidden">
+                      <Image
+                        src={item.image}
+                        alt={t(`landing.speeches.items.${item.key}.title`)}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-landing-contrast/80 via-transparent to-transparent" />
+                      <span className="absolute left-4 top-4 rounded-full bg-primary/90 px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-widest text-primary-foreground">
                         {String(i + 1).padStart(2, '0')}
                       </span>
-                      <h3 className="mt-1 font-semibold leading-snug text-landing-contrast-foreground">
-                        {t(`landing.speeches.items.${key}.title`)}
+                    </div>
+                    <div className="flex flex-1 flex-col p-5">
+                      <h3 className="font-semibold leading-snug text-landing-contrast-foreground">
+                        {t(`landing.speeches.items.${item.key}.title`)}
                       </h3>
                       <p className="mt-2 text-xs text-landing-contrast-foreground/50">
-                        {t(`landing.speeches.items.${key}.date`)}
+                        {t(`landing.speeches.items.${item.key}.date`)}
                       </p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="h-9 rounded-full bg-landing-contrast-foreground/10 text-landing-contrast-foreground hover:bg-primary hover:text-primary-foreground"
+                          asChild
+                        >
+                          <a href={item.href} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink className="mr-1.5 size-3.5" aria-hidden />
+                            {t('landing.speeches.viewSpeech')}
+                          </a>
+                        </Button>
+                      </div>
                     </div>
                   </motion.article>
                 ))}
