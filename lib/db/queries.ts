@@ -1050,6 +1050,50 @@ export async function getVoterByPart(partNo: string, electionId?: string): Promi
   }
 }
 
+export async function getVoterEpicByPartAndSerial(
+  partNo: string,
+  srNo: string,
+  electionId?: string,
+): Promise<string | null> {
+  try {
+    const currentElectionId = electionId || (await getCurrentElectionId());
+    const normalizedPartNo = partNo.trim();
+    const normalizedSrNo = srNo.trim();
+    if (!normalizedPartNo || !normalizedSrNo) return null;
+
+    const srCandidates = Array.from(
+      new Set([
+        normalizedSrNo,
+        normalizedSrNo.replace(/^0+/, '') || '0',
+        normalizedSrNo.padStart(5, '0'),
+      ]),
+    );
+
+    const results = await db
+      .select({ epicNumber: VoterMaster.epicNumber })
+      .from(VoterMaster)
+      .innerJoin(
+        ElectionMapping,
+        and(
+          eq(VoterMaster.epicNumber, ElectionMapping.epicNumber),
+          eq(ElectionMapping.electionId, currentElectionId),
+          eq(ElectionMapping.boothNo, normalizedPartNo),
+          inArray(ElectionMapping.srNo, srCandidates),
+        ),
+      )
+      .limit(2);
+
+    if (results.length !== 1) return null;
+    return results[0]?.epicNumber ?? null;
+  } catch (error) {
+    console.error('Error getting voter by part and serial:', error);
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get voter by part and serial number',
+    );
+  }
+}
+
 export async function getVoterByBooth(boothName: string, electionId?: string): Promise<Array<VoterWithPartNo>> {
   try {
     const currentElectionId = electionId || await getCurrentElectionId();

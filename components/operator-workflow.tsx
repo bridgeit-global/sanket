@@ -18,6 +18,7 @@ import { useTranslations } from '@/hooks/use-translations';
 import { Share2 } from 'lucide-react';
 import { AadhaarQrScanButton, AadhaarQrScannerDialog } from '@/components/aadhaar-qr-scanner-dialog';
 import { EpicQrScanButton, EpicQrScannerDialog } from '@/components/epic-qr-scanner-dialog';
+import { EpicBarcodeScanButton, EpicBarcodeScannerDialog } from '@/components/epic-barcode-scanner-dialog';
 import {
     ageFromAadhaarDob,
     mapAadhaarGenderToSearchValue,
@@ -224,6 +225,7 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
     const [ageRange, setAgeRange] = useState<number>(5);
     const [showAadhaarScanner, setShowAadhaarScanner] = useState(false);
     const [showEpicScanner, setShowEpicScanner] = useState(false);
+    const [showEpicBarcodeScanner, setShowEpicBarcodeScanner] = useState(false);
     const [showBeneficiaryService, setShowBeneficiaryService] = useState(false);
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [showPhoneUpdate, setShowPhoneUpdate] = useState(false);
@@ -524,6 +526,15 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
         [handleSearch],
     );
 
+    const handleEpicBarcodeDetected = useCallback(
+        (epic: string) => {
+            setSearchType('voterId');
+            setSearchTerm(epic);
+            void handleSearch({ searchTerm: epic, forceVoterId: true });
+        },
+        [handleSearch],
+    );
+
     const handleSelectVoter = (voter: VoterWithPartNo) => {
         const voterId = getNormalizedVoterId(voter);
 
@@ -726,7 +737,7 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
         const mergedDescription = [programmeLine, serviceData.description?.trim(), outsiderInfo].filter(Boolean).join('\n\n');
 
         const servicePayload = { ...(serviceData as Record<string, unknown>) };
-        delete servicePayload.programmeLabel;
+        servicePayload.programmeLabel = undefined;
 
         try {
             const response = await fetch('/operator/api/create-beneficiary-service', {
@@ -1374,10 +1385,16 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                                                         {searchType === 'voterId' ? t('backOffice.voterIdEpicNumber') : t('operator.search.types.phone')}
                                                     </Label>
                                                     {searchType === 'voterId' && (
-                                                        <EpicQrScanButton
-                                                            onClick={() => setShowEpicScanner(true)}
-                                                            label={t('operator.search.scanEpicQr')}
-                                                        />
+                                                        <div className="flex flex-wrap items-center justify-end gap-2">
+                                                            <EpicQrScanButton
+                                                                onClick={() => setShowEpicScanner(true)}
+                                                                label={t('operator.search.scanEpicQr')}
+                                                            />
+                                                            <EpicBarcodeScanButton
+                                                                onClick={() => setShowEpicBarcodeScanner(true)}
+                                                                label={t('operator.search.scanEpicBarcode')}
+                                                            />
+                                                        </div>
                                                     )}
                                                 </div>
                                                 <div className="relative">
@@ -1533,6 +1550,14 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
                 onDataDetected={handleEpicDataDetected}
                 title={t('operator.search.epicScannerTitle')}
                 description={t('operator.search.epicScannerDescription')}
+                uploadLabel={t('operator.search.uploadEpicPhoto')}
+            />
+            <EpicBarcodeScannerDialog
+                open={showEpicBarcodeScanner}
+                onOpenChange={setShowEpicBarcodeScanner}
+                onEpicDetected={handleEpicBarcodeDetected}
+                title={t('operator.search.epicBarcodeScannerTitle')}
+                description={t('operator.search.epicBarcodeScannerDescription')}
                 uploadLabel={t('operator.search.uploadEpicPhoto')}
             />
         </div>

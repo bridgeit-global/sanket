@@ -226,7 +226,7 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
         setIsSubmitting(true);
         try {
             const createBody = { ...serviceData } as Record<string, unknown>;
-            delete createBody.programmeLabel;
+            createBody.programmeLabel = undefined;
             const response = await fetch('/operator/api/create-beneficiary-service', {
                 method: 'POST',
                 headers: {
