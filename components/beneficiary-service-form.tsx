@@ -96,6 +96,12 @@ const INDIVIDUAL_SERVICES = [
     'SRA',
     'MHADA',
     'MMRDA',
+    "SRA: biometric verification",
+    "SRA: rent",
+    "SRA: eligibility",
+    "SRA: tenement allotment",
+    "SRA: rehabilitation",
+    "SRA: other",
 
     // Documents & Certificates
     'Aadhar Card',
