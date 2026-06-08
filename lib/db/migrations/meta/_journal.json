@@ -428,6 +428,13 @@
       "when": 1774000000000,
       "tag": "0060_beneficiary_service_programme_id",
       "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1774000001000,
+      "tag": "0061_service_catalog",
+      "breakpoints": true
     }
   ]
 }

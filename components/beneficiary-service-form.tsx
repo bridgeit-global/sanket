@@ -85,50 +85,22 @@ export interface BeneficiaryServiceFormProps {
     initialData?: BeneficiaryServiceInitialData;
 }
 
-const INDIVIDUAL_SERVICES = [
-    "SIR Mapping",
-    "PAN Card",
-    // Housing & Infrastructure
-    'Residential Structural Repairs',
-    'Residential Lift Repairs',
-    'Residential Water Leakage MMRDA',
-    'Residential Water Leakage BMC',
-    'SRA',
-    'MHADA',
-    'MMRDA',
-    "SRA: biometric verification",
-    "SRA: rent",
-    "SRA: eligibility",
-    "SRA: tenement allotment",
-    "SRA: rehabilitation",
-    "SRA: other",
-
-    // Documents & Certificates
-    'Aadhar Card',
-    'Ration Card',
-    'Income Certificate',
-    'Domicile Certificate',
-
-    // Financial Assistance
-    'Marriage Donation',
-    'Festival Donation',
-    'Education Donation',
-    'Medical Aid',
-
-    // Legal & Support
-    'Police Case',
-    'Domestic Violence'
-];
+type IndividualServiceRow = {
+    id: string;
+    name: string;
+    sortOrder: number;
+};
 
 export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
     const { voter, onServiceCreated, onServiceDataReady, onPrevious, onCancel, initialData } = props;
     const { t } = useTranslations();
     const serviceType = 'individual' as const;
     const initialServiceName = initialData?.serviceName ?? '';
-    const initialIsCustom = !!initialServiceName && !INDIVIDUAL_SERVICES.includes(initialServiceName);
-    const [serviceName, setServiceName] = useState(initialIsCustom ? '' : initialServiceName);
-    const [customServiceName, setCustomServiceName] = useState(initialIsCustom ? initialServiceName : '');
-    const [isCustomService, setIsCustomService] = useState(initialIsCustom);
+    const [individualServices, setIndividualServices] = useState<IndividualServiceRow[]>([]);
+    const [servicesLoaded, setServicesLoaded] = useState(false);
+    const [serviceName, setServiceName] = useState(initialServiceName);
+    const [customServiceName, setCustomServiceName] = useState('');
+    const [isCustomService, setIsCustomService] = useState(false);
     const [description, setDescription] = useState(initialData?.description ?? '');
     const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>(initialData?.priority ?? 'medium');
     const [notes, setNotes] = useState(initialData?.notes ?? '');
@@ -149,6 +121,40 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
             }
         }
     }, [initialData?.programmeId, initialData?.programmeLabel]);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch('/operator/api/individual-services');
+                if (!res.ok) return;
+                const data = (await res.json()) as IndividualServiceRow[];
+                if (!cancelled) {
+                    const rows = Array.isArray(data) ? data : [];
+                    setIndividualServices(rows);
+                    if (initialServiceName) {
+                        const isKnown = rows.some((row) => row.name === initialServiceName);
+                        if (isKnown) {
+                            setServiceName(initialServiceName);
+                            setCustomServiceName('');
+                            setIsCustomService(false);
+                        } else {
+                            setServiceName('');
+                            setCustomServiceName(initialServiceName);
+                            setIsCustomService(true);
+                        }
+                    }
+                }
+            } catch {
+                // optional — combobox still allows custom entry
+            } finally {
+                if (!cancelled) setServicesLoaded(true);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [initialServiceName]);
 
     useEffect(() => {
         let cancelled = false;
@@ -324,11 +330,16 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
                                                 setCustomServiceName('');
                                             }
                                         }}
-                                        placeholder={t('beneficiaryService.form.fields.selectService')}
+                                        placeholder={
+                                            servicesLoaded
+                                                ? t('beneficiaryService.form.fields.selectService')
+                                                : t('common.loading')
+                                        }
+                                        disabled={!servicesLoaded}
                                         options={[
-                                            ...INDIVIDUAL_SERVICES.map((service) => ({
-                                                value: service,
-                                                label: service,
+                                            ...individualServices.map((service) => ({
+                                                value: service.name,
+                                                label: service.name,
                                             })),
                                             {
                                                 value: 'custom',
