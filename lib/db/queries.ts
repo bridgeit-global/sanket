@@ -17,9 +17,6 @@ import {
   sql,
   type SQL,
 } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
-
 import {
   user,
   chat,
@@ -68,18 +65,18 @@ import {
   phoneUpdateHistory,
   voterMobileNumber,
 } from './schema';
+import { db } from './client';
 import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
 import type { ArtifactKind } from '@/components/artifact';
 import { ChatSDKError } from '../errors';
+import { notifyPush, sendPushToUser } from '@/lib/push/send';
 
 // Optionally, if not using email/pass login, you can
 // use the Drizzle adapter for Auth.js / NextAuth
 // https://authjs.dev/reference/adapter/drizzle
 
-// biome-ignore lint: Forbidden non-null assertion.
-const client = postgres(process.env.SUPABASE_DB_URL!, { max: 1 });
-export const db = drizzle(client);
+export { db } from './client';
 
 let voterMasterHasCasteColumn: boolean | null = null;
 
@@ -2321,6 +2318,16 @@ export async function updateBeneficiaryServiceStatus({
   assignedTo?: string;
 }): Promise<BeneficiaryService | null> {
   try {
+    const [currentService] = await db
+      .select()
+      .from(beneficiaryServices)
+      .where(eq(beneficiaryServices.id, id))
+      .limit(1);
+
+    if (!currentService) {
+      return null;
+    }
+
     const updateData: Partial<BeneficiaryService> = {
       status,
       updatedAt: new Date(),
@@ -2336,6 +2343,21 @@ export async function updateBeneficiaryServiceStatus({
       .set(updateData)
       .where(eq(beneficiaryServices.id, id))
       .returning();
+
+    if (
+      updatedService &&
+      currentService.status !== status &&
+      updatedService.assignedTo
+    ) {
+      notifyPush(() =>
+        sendPushToUser(updatedService.assignedTo!, {
+          title: 'Service status updated',
+          body: `${updatedService.serviceName}: ${currentService.status} → ${status}`,
+          url: `/modules/operator?serviceId=${updatedService.id}`,
+          tag: `service-${updatedService.id}`,
+        }),
+      );
+    }
 
     return updatedService || null;
   } catch (error) {
@@ -2405,6 +2427,17 @@ export async function createVoterTask({
         updatedAt: new Date(),
       })
       .returning();
+
+    if (task && assignedTo && createdBy && assignedTo !== createdBy) {
+      notifyPush(() =>
+        sendPushToUser(assignedTo, {
+          title: 'New task assigned',
+          body: `You have been assigned: ${taskType}`,
+          url: `/modules/operator?taskId=${task.id}`,
+          tag: `task-${task.id}`,
+        }),
+      );
+    }
 
     return task;
   } catch (error) {
@@ -3067,6 +3100,17 @@ export async function updateVoterTaskStatus({
           newValue: assignedTo,
           performedBy,
         });
+
+        if (assignedTo !== performedBy) {
+          notifyPush(() =>
+            sendPushToUser(assignedTo, {
+              title: 'New task assigned',
+              body: `You have been assigned: ${currentTask.taskType}`,
+              url: `/modules/operator?taskId=${id}`,
+              tag: `task-${id}`,
+            }),
+          );
+        }
       }
     }
 

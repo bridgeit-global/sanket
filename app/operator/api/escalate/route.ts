@@ -8,6 +8,7 @@ import {
     getBeneficiaryServiceById,
     createTaskHistoryEntry
 } from '@/lib/db/queries';
+import { notifyPush, sendPushToModule } from '@/lib/push/send';
 
 export async function POST(request: NextRequest) {
     try {
@@ -94,8 +95,17 @@ export async function POST(request: NextRequest) {
             result.service = updatedService;
         }
 
-        // TODO: Send notification to admin users about escalation
-        // This could be implemented with email notifications, in-app notifications, etc.
+        const escalationTarget = taskId ? 'Task' : 'Service';
+        notifyPush(() =>
+            sendPushToModule('user-management', {
+                title: `${escalationTarget} escalated`,
+                body: reason.length > 120 ? `${reason.slice(0, 117)}...` : reason,
+                url: taskId
+                    ? `/modules/operator?taskId=${taskId}`
+                    : `/modules/operator?serviceId=${serviceId}`,
+                tag: `escalation-${taskId ?? serviceId}`,
+            }, { excludeUserId: session.user.id }),
+        );
 
         return NextResponse.json({
             message: 'Escalation request submitted successfully',

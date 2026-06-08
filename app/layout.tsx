@@ -7,6 +7,7 @@ import { cookies } from 'next/headers';
 
 import './globals.css';
 import { SessionProvider } from 'next-auth/react';
+import { PwaProvider } from '@/components/pwa-provider';
 
 export const metadata: Metadata = {
   title: 'eOffice - Specialized ERP for Beneficiary Management',
@@ -105,7 +106,9 @@ export default async function RootLayout({
             disableTransitionOnChange
           >
             <Toaster position="top-center" />
-            <SessionProvider>{children}</SessionProvider>
+            <SessionProvider>
+              <PwaProvider>{children}</PwaProvider>
+            </SessionProvider>
           </ThemeProvider>
         </LanguageProvider>
       </body>

@@ -1,5 +1,13 @@
 import type { NextConfig } from 'next';
+import withSerwistInit from '@serwist/next';
 import packageJson from './package.json';
+
+const withSerwist = withSerwistInit({
+  swSrc: 'app/sw.ts',
+  swDest: 'public/sw.js',
+  cacheOnNavigation: true,
+  reloadOnOnline: true,
+});
 
 const nextConfig: NextConfig = {
   images: {
@@ -14,4 +22,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+export default withSerwist(nextConfig);

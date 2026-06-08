@@ -614,3 +614,26 @@ export const userPartAssignment = pgTable(
 );
 
 export type UserPartAssignment = InferSelectModel<typeof userPartAssignment>;
+
+export const pushSubscription = pgTable(
+  'PushSubscription',
+  {
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull().unique(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    idxPushSubscriptionUserId: index('idx_push_subscription_user_id').on(
+      table.userId,
+    ),
+  }),
+);
+
+export type PushSubscription = InferSelectModel<typeof pushSubscription>;

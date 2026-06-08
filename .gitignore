@@ -12,6 +12,8 @@ coverage
 .next/
 out/
 build
+public/sw.js
+public/sw.js.map
 
 # misc
 .DS_Store
