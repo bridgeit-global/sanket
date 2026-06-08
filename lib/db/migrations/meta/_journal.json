@@ -435,6 +435,13 @@
       "when": 1774100000000,
       "tag": "0061_push_subscription",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1774200000000,
+      "tag": "0062_service_catalog",
+      "breakpoints": true
     }
   ]
 }

@@ -40,6 +40,8 @@ import {
   PartNo,
   beneficiaryServices,
   type BeneficiaryService,
+  serviceCatalog,
+  type ServiceCatalog,
   voterTasks,
   type VoterTask,
   communityServiceAreas,
@@ -2188,6 +2190,53 @@ export async function createVoter(
   }
 }
 
+// Service catalog queries
+export async function getActiveServiceCatalog(): Promise<Array<ServiceCatalog>> {
+  try {
+    return await db
+      .select()
+      .from(serviceCatalog)
+      .where(eq(serviceCatalog.isActive, true))
+      .orderBy(asc(serviceCatalog.sortOrder), asc(serviceCatalog.name));
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get service catalog',
+    );
+  }
+}
+
+/** Add a service name to the catalog if it does not already exist (e.g. custom entries). */
+export async function ensureServiceCatalogEntry(name: string): Promise<void> {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+
+  try {
+    const [existing] = await db
+      .select({ id: serviceCatalog.id })
+      .from(serviceCatalog)
+      .where(eq(serviceCatalog.name, trimmed))
+      .limit(1);
+
+    if (existing) return;
+
+    const [maxRow] = await db
+      .select({ maxOrder: sql<number>`coalesce(max(${serviceCatalog.sortOrder}), 0)` })
+      .from(serviceCatalog);
+
+    await db.insert(serviceCatalog).values({
+      name: trimmed,
+      sortOrder: Number(maxRow?.maxOrder ?? 0) + 1,
+      isActive: true,
+    });
+  } catch (error) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to add service to catalog',
+    );
+  }
+}
+
 // Beneficiary Service queries
 /** First 4 chars of programme UUID (no hyphens), for compact tokens. */
 function shortProgrammeTokenSegment(programmeUuid: string): string {
@@ -2257,6 +2306,10 @@ export async function createBeneficiaryService({
   try {
     const trimmedProgramme = programmeId?.trim() || undefined;
     const token = await generateServiceToken(trimmedProgramme);
+
+    if (serviceType === 'individual') {
+      await ensureServiceCatalogEntry(serviceName);
+    }
 
     const [service] = await db
       .insert(beneficiaryServices)

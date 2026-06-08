@@ -350,6 +350,17 @@ export const beneficiaryServices = pgTable('BeneficiaryService', {
 
 export type BeneficiaryService = InferSelectModel<typeof beneficiaryServices>;
 
+export const serviceCatalog = pgTable('ServiceCatalog', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull().unique(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type ServiceCatalog = InferSelectModel<typeof serviceCatalog>;
+
 export const voterTasks = pgTable('VoterTask', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   serviceId: uuid('service_id').notNull().references(() => beneficiaryServices.id),
