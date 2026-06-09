@@ -3,9 +3,14 @@
 import { Bell, BellOff } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useModules } from '@/components/modules-context';
 import { usePushNotifications } from '@/hooks/use-push-notifications';
+import { PUSH_ELIGIBLE_MODULE_KEYS } from '@/lib/push/types';
 
 export function PushNotificationSettings() {
+  const { hasModuleAccess } = useModules();
+  const canReceivePush = PUSH_ELIGIBLE_MODULE_KEYS.some(hasModuleAccess);
+
   const {
     isSupported,
     permission,
@@ -15,6 +20,10 @@ export function PushNotificationSettings() {
     subscribe,
     unsubscribe,
   } = usePushNotifications();
+
+  if (!canReceivePush) {
+    return null;
+  }
 
   if (!isSupported) {
     return (
