@@ -29,6 +29,7 @@ import {
   type DBMessage,
   type Chat,
   stream,
+  type VoterWithBooth,
   type VoterWithPartNo,
   VoterMaster,
   type VoterMaster as VoterMasterType,
@@ -37,7 +38,6 @@ import {
   BoothMaster,
   ElectionMapping,
   type ElectionMapping as ElectionMappingType,
-  PartNo,
   beneficiaryServices,
   type BeneficiaryService,
   serviceCatalog,
@@ -737,10 +737,8 @@ async function getVoterWithCurrentElection(
       // BoothMaster fields (from join)
       boothName: BoothMaster.boothName,
       boothAddress: BoothMaster.boothAddress,
-      // PartNo fields (from join with PartNo table if partNo exists) - fallback if booth not in BoothMaster
-      wardNo: PartNo.wardNo,
-      partNoBoothName: PartNo.boothName,
-      englishBoothAddress: PartNo.englishBoothAddress,
+      wardNo: communityServiceAreas.wardNo,
+      englishBoothAddress: BoothMaster.boothAddress,
       // hasVoted from ElectionMapping
       hasVoted: ElectionMapping.hasVoted,
     })
@@ -763,7 +761,10 @@ async function getVoterWithCurrentElection(
         eq(ElectionMapping.boothNo, BoothMaster.boothNo)
       )
     )
-    .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
+    .leftJoin(
+      communityServiceAreas,
+      eq(ElectionMapping.boothNo, communityServiceAreas.boothNo),
+    )
     .where(eq(VoterMaster.epicNumber, epicNumber))
     .limit(1);
 
@@ -970,7 +971,7 @@ export async function getVoterByWard(wardNo: string, electionId?: string): Promi
         localityStreet: VoterMaster.localityStreet,
         townVillage: VoterMaster.townVillage,
         pincode: VoterMaster.pincode,
-        wardNo: PartNo.wardNo,
+        wardNo: communityServiceAreas.wardNo,
         boothName: BoothMaster.boothName,
         englishBoothAddress: BoothMaster.boothAddress,
       })
@@ -989,8 +990,13 @@ export async function getVoterByWard(wardNo: string, electionId?: string): Promi
           eq(ElectionMapping.boothNo, BoothMaster.boothNo)
         )
       )
-      .innerJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
-      .where(eq(PartNo.wardNo, wardNo))
+      .innerJoin(
+        communityServiceAreas,
+        and(
+          eq(ElectionMapping.boothNo, communityServiceAreas.boothNo),
+          eq(communityServiceAreas.wardNo, wardNo),
+        ),
+      )
       .orderBy(asc(VoterMaster.fullName)) as unknown as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
@@ -1115,7 +1121,7 @@ export async function getVoterByBooth(boothName: string, electionId?: string): P
         localityStreet: VoterMaster.localityStreet,
         townVillage: VoterMaster.townVillage,
         pincode: VoterMaster.pincode,
-        wardNo: PartNo.wardNo,
+        wardNo: communityServiceAreas.wardNo,
         boothName: BoothMaster.boothName,
         englishBoothAddress: BoothMaster.boothAddress,
       })
@@ -1135,7 +1141,10 @@ export async function getVoterByBooth(boothName: string, electionId?: string): P
           eq(BoothMaster.boothName, boothName)
         )
       )
-      .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
+      .leftJoin(
+        communityServiceAreas,
+        eq(ElectionMapping.boothNo, communityServiceAreas.boothNo),
+      )
       .orderBy(asc(VoterMaster.fullName)) as unknown as Array<VoterWithPartNo>;
   } catch (error) {
     throw new ChatSDKError(
@@ -1440,7 +1449,6 @@ export async function getVoterByVotingStatus(voted: boolean): Promise<Array<Vote
         ),
       )
       .leftJoin(ElectionMaster, eq(ElectionMapping.electionId, ElectionMaster.electionId))
-      .leftJoin(PartNo, eq(ElectionMapping.boothNo, PartNo.partNo))
       .where(
         voted
           ? eq(ElectionMapping.hasVoted, true)
@@ -2982,11 +2990,35 @@ export async function getTasksWithFilters({
         voterAge: VoterMaster.age,
         voterGender: VoterMaster.gender,
         voterRelation: VoterMaster.relationName,
-        voterPartNo: ElectionMapping.boothNo,
-        voterAcNo: ElectionMaster.constituencyId,
-        voterConstituencyType: ElectionMaster.constituencyType,
-        voterWardNo: PartNo.wardNo,
-        voterBoothName: PartNo.boothName,
+        voterPartNo: sql<string | null>`(
+          select em.booth_no from "ElectionMapping" em
+          where em.epic_number = ${voterTasks.voterId}
+          order by em.election_id desc limit 1
+        )`,
+        voterAcNo: sql<string | null>`(
+          select em2.constituency_id from "ElectionMapping" em
+          join "ElectionMaster" em2 on em2.election_id = em.election_id
+          where em.epic_number = ${voterTasks.voterId}
+          order by em.election_id desc limit 1
+        )`,
+        voterConstituencyType: sql<string | null>`(
+          select em2.constituency_type from "ElectionMapping" em
+          join "ElectionMaster" em2 on em2.election_id = em.election_id
+          where em.epic_number = ${voterTasks.voterId}
+          order by em.election_id desc limit 1
+        )`,
+        voterWardNo: sql<string | null>`(
+          select csa.ward_no from "ElectionMapping" em
+          join "CommunityServiceArea" csa on csa.booth_no = em.booth_no
+          where em.epic_number = ${voterTasks.voterId}
+          order by em.election_id desc limit 1
+        )`,
+        voterBoothName: sql<string | null>`(
+          select bm.booth_name from "ElectionMapping" em
+          join "BoothMaster" bm on bm.election_id = em.election_id and bm.booth_no = em.booth_no
+          where em.epic_number = ${voterTasks.voterId}
+          order by em.election_id desc limit 1
+        )`,
       })
       .from(voterTasks)
       .leftJoin(beneficiaryServices, eq(voterTasks.serviceId, beneficiaryServices.id))
@@ -3184,17 +3216,21 @@ export async function createCommunityServiceAreas({
 }: {
   serviceId: string;
   areas: Array<{
+    boothNo?: string;
+    /** @deprecated Use boothNo */
     partNo?: string;
     wardNo?: string;
     acNo?: string;
+    electionId?: string;
   }>;
 }): Promise<Array<CommunityServiceArea>> {
   try {
     const areaData = areas.map(area => ({
       serviceId,
-      partNo: area.partNo,
+      boothNo: area.boothNo ?? area.partNo,
       wardNo: area.wardNo,
       acNo: area.acNo,
+      electionId: area.electionId,
       createdAt: new Date(),
     }));
 
@@ -4914,8 +4950,7 @@ export async function getVotingStatistics(
   try {
     // Build filter conditions
     const boothNoText = sql<string>`CAST(${ElectionMapping.boothNo} AS text)`;
-    const partNoText = sql<string>`CAST(${PartNo.partNo} AS text)`;
-    const wardNoText = sql<string>`CAST(${PartNo.wardNo} AS text)`;
+    const wardNoText = sql<string>`CAST(${communityServiceAreas.wardNo} AS text)`;
     const filterConditions: SQL[] = [eq(ElectionMapping.electionId, electionId)];
     if (filters?.acNo) {
       filterConditions.push(eq(ElectionMaster.constituencyType, 'assembly'));
@@ -4939,7 +4974,10 @@ export async function getVotingStatistics(
         ElectionMaster,
         eq(ElectionMapping.electionId, ElectionMaster.electionId)
       )
-      .leftJoin(PartNo, eq(boothNoText, partNoText));
+      .leftJoin(
+        communityServiceAreas,
+        eq(ElectionMapping.boothNo, communityServiceAreas.boothNo),
+      );
 
     const query = queryBuilder.where(and(...filterConditions));
 
@@ -4984,8 +5022,7 @@ export async function getVotersForExport(filters?: {
     // Some DB columns that we treat as "numbers" may be stored as bigint in Postgres.
     // Filters arrive as strings from the UI. Casting both sides to text avoids bigint/varchar operator errors.
     const electionBoothNoText = sql<string>`${ElectionMapping.boothNo}::text`;
-    const partNoText = sql<string>`${PartNo.partNo}::text`;
-    const partWardNoText = sql<string>`${PartNo.wardNo}::text`;
+    const csaWardNoText = sql<string>`${communityServiceAreas.wardNo}::text`;
     const electionConstituencyIdText = sql<string>`${ElectionMaster.constituencyId}::text`;
     const voterEpicNumberText = sql<string>`${VoterMaster.epicNumber}::text`;
     const electionMappingEpicNumberText = sql<string>`${ElectionMapping.epicNumber}::text`;
@@ -5009,12 +5046,12 @@ export async function getVotersForExport(filters?: {
       if (Array.isArray(filters.wardNo) && filters.wardNo.length > 0) {
         conditions.push(
           inArray(
-            partWardNoText,
+            csaWardNoText,
             filters.wardNo.map((w) => String(w)),
           ),
         );
       } else if (typeof filters.wardNo === 'string') {
-        conditions.push(eq(partWardNoText, String(filters.wardNo)));
+        conditions.push(eq(csaWardNoText, String(filters.wardNo)));
       }
     }
     if (filters?.acNo) {
@@ -5094,9 +5131,9 @@ export async function getVotersForExport(filters?: {
         hasVoted: ElectionMapping.hasVoted,
         constituencyType: ElectionMaster.constituencyType,
         constituencyId: ElectionMaster.constituencyId,
-        wardNo: PartNo.wardNo,
-        boothName: PartNo.boothName,
-        englishBoothAddress: PartNo.englishBoothAddress,
+        wardNo: communityServiceAreas.wardNo,
+        boothName: BoothMaster.boothName,
+        englishBoothAddress: BoothMaster.boothAddress,
       })
       .from(VoterMaster)
       .leftJoin(
@@ -5110,7 +5147,17 @@ export async function getVotersForExport(filters?: {
         ElectionMaster,
         eq(electionMappingElectionIdText, electionMasterElectionIdText),
       )
-      .leftJoin(PartNo, eq(electionBoothNoText, partNoText));
+      .leftJoin(
+        BoothMaster,
+        and(
+          eq(electionMappingElectionIdText, BoothMaster.electionId),
+          eq(electionBoothNoText, sql`${BoothMaster.boothNo}::text`),
+        ),
+      )
+      .leftJoin(
+        communityServiceAreas,
+        eq(electionBoothNoText, sql`${communityServiceAreas.boothNo}::text`),
+      );
 
     const results = await (
       conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery
@@ -5171,8 +5218,7 @@ export async function getVotersCountForExport(filters?: {
 
     // Same casting strategy as `getVotersForExport` to avoid bigint/varchar operator errors.
     const electionBoothNoText = sql<string>`${ElectionMapping.boothNo}::text`;
-    const partNoText = sql<string>`${PartNo.partNo}::text`;
-    const partWardNoText = sql<string>`${PartNo.wardNo}::text`;
+    const csaWardNoText = sql<string>`${communityServiceAreas.wardNo}::text`;
     const electionConstituencyIdText = sql<string>`${ElectionMaster.constituencyId}::text`;
     const voterEpicNumberText = sql<string>`${VoterMaster.epicNumber}::text`;
     const electionMappingEpicNumberText = sql<string>`${ElectionMapping.epicNumber}::text`;
@@ -5196,12 +5242,12 @@ export async function getVotersCountForExport(filters?: {
       if (Array.isArray(filters.wardNo) && filters.wardNo.length > 0) {
         conditions.push(
           inArray(
-            partWardNoText,
+            csaWardNoText,
             filters.wardNo.map((w) => String(w)),
           ),
         );
       } else if (typeof filters.wardNo === 'string') {
-        conditions.push(eq(partWardNoText, String(filters.wardNo)));
+        conditions.push(eq(csaWardNoText, String(filters.wardNo)));
       }
     }
     if (filters?.acNo) {
@@ -5258,7 +5304,10 @@ export async function getVotersCountForExport(filters?: {
         ElectionMaster,
         eq(electionMappingElectionIdText, electionMasterElectionIdText),
       )
-      .leftJoin(PartNo, eq(electionBoothNoText, partNoText));
+      .leftJoin(
+        communityServiceAreas,
+        eq(electionBoothNoText, sql`${communityServiceAreas.boothNo}::text`),
+      );
 
     const result = await (conditions.length > 0 ? baseQuery.where(and(...conditions)) : baseQuery);
 
@@ -5637,4 +5686,22 @@ export async function getVotingPatterns(
       'Failed to get voting patterns',
     );
   }
+}
+
+export async function getBoothsForElection(electionId: string): Promise<
+  Array<{
+    boothNo: string;
+    boothName: string | null;
+    boothAddress: string | null;
+  }>
+> {
+  return db
+    .select({
+      boothNo: BoothMaster.boothNo,
+      boothName: BoothMaster.boothName,
+      boothAddress: BoothMaster.boothAddress,
+    })
+    .from(BoothMaster)
+    .where(eq(BoothMaster.electionId, electionId))
+    .orderBy(asc(BoothMaster.boothNo));
 }

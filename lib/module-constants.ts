@@ -132,6 +132,15 @@ export const ALL_MODULES: ModuleDefinition[] = [
     category: 'operations',
     defaultRoles: [],
   },
+  {
+    key: 'hierarchy',
+    label: 'Cadre Hierarchy',
+    description: 'NCP organizational hierarchy map and cadre management',
+    route: '/modules/hierarchy',
+    icon: 'Network',
+    category: 'operations',
+    defaultRoles: ['admin'],
+  },
 ];
 
 // Get module by key
@@ -166,5 +175,6 @@ export const MODULE_KEYS = {
   PROJECTS: 'projects',
   VOTING_PARTICIPATION: 'voting-participation',
   FIELD_VISITOR: 'field-visitor',
+  HIERARCHY: 'hierarchy',
 } as const;
 

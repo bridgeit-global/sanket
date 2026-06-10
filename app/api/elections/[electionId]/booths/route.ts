@@ -1,27 +1,29 @@
-import { NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { getBoothsForElection, getCurrentElectionId } from '@/lib/db/queries';
+import { getBoothsForElection } from '@/lib/db/queries';
 
-export async function GET() {
+export async function GET(
+    _request: NextRequest,
+    { params }: { params: Promise<{ electionId: string }> },
+) {
     try {
         const session = await auth();
         if (!session?.user) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const electionId = await getCurrentElectionId();
+        const { electionId } = await params;
         const booths = await getBoothsForElection(electionId);
-        const parts = booths.map((b) => b.boothNo).filter(Boolean);
 
         return NextResponse.json({
             success: true,
-            parts,
             electionId,
+            booths,
         });
     } catch (error) {
-        console.error('Parts fetch error:', error);
+        console.error('Booths fetch error:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch booth/part numbers' },
+            { error: 'Failed to fetch booths' },
             { status: 500 },
         );
     }

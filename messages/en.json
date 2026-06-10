@@ -73,6 +73,10 @@
       "label": "Field Visitor",
       "description": "Data collection and profiling by field workers"
     },
+    "hierarchy": {
+      "label": "Cadre Hierarchy",
+      "description": "NCP organizational hierarchy map and cadre management"
+    },
     "dataExport": {
       "label": "Data Export",
       "description": "Export voter data in various formats"

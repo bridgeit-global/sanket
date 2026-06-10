@@ -30,8 +30,9 @@ The voter database is modeled around a master voter identity plus election and b
 2. "ElectionMapping" table - Links a voter to an election and booth:
    - epic_number (FK to VoterMaster), election_id (FK to ElectionMaster), booth_no, sr_no, has_voted
 
-3. "PartNo" / "BoothMaster" tables - Booth and ward mapping:
-   - PartNo: part_no (PK), ward_no, booth_name, english_booth_address
+3. "BoothMaster" table - Booth/part mapping per election_id:
+   - BoothMaster: election_id + booth_no (PK), booth_name, booth_address
+   - CommunityServiceArea: booth_no, ward_no for ward-to-booth mapping
    - BoothMaster: election_id + booth_no (PK), booth_name, booth_address
 
 CRITICAL: Ward/booth analytics come from joining VoterMaster with ElectionMapping and then to PartNo/BoothMaster.

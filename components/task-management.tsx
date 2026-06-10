@@ -1254,8 +1254,8 @@ export function TaskManagement({
                                                                         </div>
                                                                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-sm text-blue-700">
                                                                             {service.areas.map((area) => (
-                                                                                <div key={`${area.partNo || ''}-${area.wardNo || ''}-${area.acNo || ''}`} className="flex flex-wrap gap-1">
-                                                                                    {area.partNo && <span><strong>Part:</strong> {area.partNo}</span>}
+                                                                                <div key={`${area.boothNo || ''}-${area.wardNo || ''}-${area.acNo || ''}`} className="flex flex-wrap gap-1">
+                                                                                    {area.boothNo && <span><strong>Booth/Part:</strong> {area.boothNo}</span>}
                                                                                     {area.wardNo && <span><strong>Ward:</strong> {area.wardNo}</span>}
                                                                                     {area.acNo && <span><strong>AC:</strong> {area.acNo}</span>}
                                                                                 </div>

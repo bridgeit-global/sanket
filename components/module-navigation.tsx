@@ -16,6 +16,7 @@ import {
   FileDown,
   Vote,
   MapPin,
+  Network,
 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { ModuleDefinition } from '@/lib/module-constants';
@@ -36,6 +37,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'chat': MessageSquare,
   'user-management': Users,
   'profile': UserIcon,
+  'hierarchy': Network,
 };
 
 // Define the desired order of modules
@@ -45,6 +47,7 @@ const MODULE_ORDER = [
   'back-office',
   'operator',
   'field-visitor',
+  'hierarchy',
   'data-export',
   'projects',
   'inward',
@@ -81,6 +84,7 @@ const getModuleTranslationKey = (moduleKey: string): string => {
     'back-office': 'modules.backOffice.label',
     'operator': 'modules.operator.label',
     'field-visitor': 'modules.fieldVisitor.label',
+    'hierarchy': 'modules.hierarchy.label',
     'data-export': 'modules.dataExport.label',
     'projects': 'modules.projects.label',
     'inward': 'modules.inward.label',

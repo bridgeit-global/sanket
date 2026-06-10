@@ -209,17 +209,6 @@ export const stream = pgTable(
 
 export type Stream = InferSelectModel<typeof stream>;
 
-export const PartNo = pgTable('PartNo', {
-  partNo: varchar('part_no', { length: 10 }).primaryKey().notNull(),
-  wardNo: varchar('ward_no', { length: 10 }),
-  boothName: varchar('booth_name', { length: 255 }),
-  englishBoothAddress: text('english_booth_address'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
-
-export type PartNoType = InferSelectModel<typeof PartNo>;
-
 // VoterMaster Table - Personal information + EPIC number (immutable voter identity)
 export const VoterMaster = pgTable('VoterMaster', {
   epicNumber: varchar('epic_number', { length: 20 }).primaryKey().notNull(),
@@ -292,10 +281,11 @@ export const ElectionMapping = pgTable('ElectionMapping', {
 
 export type ElectionMapping = InferSelectModel<typeof ElectionMapping>;
 
-// Extended voter type that includes PartNo / election information,
-// derived from VoterMaster plus joined fields from ElectionMapping / PartNo.
-export type VoterWithPartNo = VoterMaster & {
+// Extended voter type with election/booth information from ElectionMapping / BoothMaster.
+export type VoterWithBooth = VoterMaster & {
   acNo?: string | null;
+  boothNo?: string | null;
+  /** @deprecated Use boothNo */
   partNo?: string | null;
   srNo?: string | null;
   isVoted2024?: boolean;
@@ -308,6 +298,9 @@ export type VoterWithPartNo = VoterMaster & {
   englishBoothAddress?: string | null;
   caste?: string | null;
 };
+
+/** @deprecated Use VoterWithBooth */
+export type VoterWithPartNo = VoterWithBooth;
 
 export const voterMobileNumber = pgTable(
   'VoterMobileNumber',
@@ -383,7 +376,8 @@ export type VoterTask = InferSelectModel<typeof voterTasks>;
 export const communityServiceAreas = pgTable('CommunityServiceArea', {
   id: uuid('id').primaryKey().notNull().defaultRandom(),
   serviceId: uuid('service_id').notNull().references(() => beneficiaryServices.id),
-  partNo: varchar('part_no', { length: 10 }),
+  electionId: varchar('election_id', { length: 50 }).references(() => ElectionMaster.electionId, { onDelete: 'set null' }),
+  boothNo: varchar('booth_no', { length: 10 }),
   wardNo: varchar('ward_no', { length: 10 }),
   acNo: varchar('ac_no', { length: 10 }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
@@ -648,3 +642,132 @@ export const pushSubscription = pgTable(
 );
 
 export type PushSubscription = InferSelectModel<typeof pushSubscription>;
+
+// --- NCP Cadre Hierarchy Tables ---
+
+export const cadreVerticalCategory = pgTable('CadreVerticalCategory', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  name: varchar('name', { length: 255 }).notNull().unique(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type CadreVerticalCategory = InferSelectModel<typeof cadreVerticalCategory>;
+
+export const cadreVertical = pgTable('CadreVertical', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  categoryId: uuid('category_id')
+    .notNull()
+    .references(() => cadreVerticalCategory.id, { onDelete: 'restrict' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type CadreVertical = InferSelectModel<typeof cadreVertical>;
+
+export const cadrePositionLevel = pgTable('CadrePositionLevel', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  key: varchar('key', { length: 50 }).notNull().unique(),
+  name: varchar('name', { length: 255 }).notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type CadrePositionLevel = InferSelectModel<typeof cadrePositionLevel>;
+
+export const cadrePosition = pgTable('CadrePosition', {
+  id: uuid('id').primaryKey().notNull().defaultRandom(),
+  levelId: uuid('level_id')
+    .notNull()
+    .references(() => cadrePositionLevel.id, { onDelete: 'restrict' }),
+  name: varchar('name', { length: 255 }).notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+export type CadrePosition = InferSelectModel<typeof cadrePosition>;
+
+export const cadreGeographicUnit = pgTable(
+  'CadreGeographicUnit',
+  {
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
+    type: varchar('type', {
+      enum: ['division', 'district', 'taluka', 'ward'],
+    }).notNull(),
+    name: varchar('name', { length: 255 }).notNull(),
+    parentId: uuid('parent_id'),
+    acNo: varchar('ac_no', { length: 10 }),
+    sortOrder: integer('sort_order').notNull().default(0),
+    isActive: boolean('is_active').notNull().default(true),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    parentRef: foreignKey({
+      columns: [table.parentId],
+      foreignColumns: [table.id],
+    }),
+  }),
+);
+
+export type CadreGeographicUnit = InferSelectModel<typeof cadreGeographicUnit>;
+
+export const cadreNode = pgTable(
+  'CadreNode',
+  {
+    id: uuid('id').primaryKey().notNull().defaultRandom(),
+    parentId: uuid('parent_id'),
+    verticalId: uuid('vertical_id')
+      .notNull()
+      .references(() => cadreVertical.id, { onDelete: 'cascade' }),
+    positionId: uuid('position_id')
+      .notNull()
+      .references(() => cadrePosition.id, { onDelete: 'restrict' }),
+    constituencyId: varchar('constituency_id', { length: 50 }),
+    divisionId: uuid('division_id').references(() => cadreGeographicUnit.id, { onDelete: 'set null' }),
+    districtId: uuid('district_id').references(() => cadreGeographicUnit.id, { onDelete: 'set null' }),
+    talukaId: uuid('taluka_id').references(() => cadreGeographicUnit.id, { onDelete: 'set null' }),
+    wardGeoId: uuid('ward_geo_id').references(() => cadreGeographicUnit.id, { onDelete: 'set null' }),
+    electionId: varchar('election_id', { length: 50 }).references(() => ElectionMaster.electionId, { onDelete: 'set null' }),
+    boothNo: varchar('booth_no', { length: 10 }),
+    personName: varchar('person_name', { length: 255 }),
+    personPhone: varchar('person_phone', { length: 20 }),
+    personEmail: varchar('person_email', { length: 255 }),
+    photoUrl: text('photo_url'),
+    userId: uuid('user_id').references(() => user.id, { onDelete: 'set null' }),
+    epicNumber: varchar('epic_number', { length: 20 }).references(() => VoterMaster.epicNumber, { onDelete: 'set null' }),
+    notes: text('notes'),
+    isVacant: boolean('is_vacant').notNull().default(false),
+    isActive: boolean('is_active').notNull().default(true),
+    appointedAt: timestamp('appointed_at'),
+    termEndsAt: timestamp('term_ends_at'),
+    createdBy: uuid('created_by').references(() => user.id, { onDelete: 'set null' }),
+    updatedBy: uuid('updated_by').references(() => user.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at').notNull().defaultNow(),
+    updatedAt: timestamp('updated_at').notNull().defaultNow(),
+  },
+  (table) => ({
+    parentRef: foreignKey({
+      columns: [table.parentId],
+      foreignColumns: [table.id],
+    }),
+    idxVerticalConstituency: index('idx_cadre_node_vertical_constituency').on(
+      table.verticalId,
+      table.constituencyId,
+    ),
+    idxParentId: index('idx_cadre_node_parent_id').on(table.parentId),
+    idxPositionId: index('idx_cadre_node_position_id').on(table.positionId),
+    idxUserId: index('idx_cadre_node_user_id').on(table.userId),
+    idxEpicNumber: index('idx_cadre_node_epic_number').on(table.epicNumber),
+  }),
+);
+
+export type CadreNode = InferSelectModel<typeof cadreNode>;

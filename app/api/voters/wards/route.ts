@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { PartNo } from '@/lib/db/schema';
+import { communityServiceAreas, ElectionMaster } from '@/lib/db/schema';
 import { auth } from '@/app/(auth)/auth';
 import { db } from '@/lib/db/queries';
 import { asc, eq, and, isNotNull } from 'drizzle-orm';
@@ -12,40 +12,53 @@ export async function GET(request: NextRequest) {
         }
 
         const { searchParams } = new URL(request.url);
-        const partNo = searchParams.get('partNo');
+        const boothNo = searchParams.get('boothNo') ?? searchParams.get('partNo');
 
-        // Build query conditions
-        const conditions = [isNotNull(PartNo.wardNo)];
-        if (partNo) {
-            conditions.push(eq(PartNo.partNo, partNo));
+        const csaConditions = [isNotNull(communityServiceAreas.wardNo)];
+        if (boothNo) {
+            csaConditions.push(eq(communityServiceAreas.boothNo, boothNo));
         }
 
-        // Get distinct ward numbers from PartNo table
-        const wards = await db
-            .select({ wardNo: PartNo.wardNo })
-            .from(PartNo)
-            .where(and(...conditions))
-            .groupBy(PartNo.wardNo)
-            .orderBy(asc(PartNo.wardNo));
+        const wardFromServiceAreas = await db
+            .select({ wardNo: communityServiceAreas.wardNo })
+            .from(communityServiceAreas)
+            .where(and(...csaConditions))
+            .groupBy(communityServiceAreas.wardNo)
+            .orderBy(asc(communityServiceAreas.wardNo));
 
-        const wardNumbers = wards
-            .map((ward: { wardNo: string | null }) => ward.wardNo)
-            .filter((wardNo): wardNo is string => wardNo !== null);
+        const wardFromElections = await db
+            .select({ wardNo: ElectionMaster.constituencyId })
+            .from(ElectionMaster)
+            .where(
+                and(
+                    eq(ElectionMaster.constituencyType, 'ward'),
+                    isNotNull(ElectionMaster.constituencyId),
+                ),
+            )
+            .groupBy(ElectionMaster.constituencyId)
+            .orderBy(asc(ElectionMaster.constituencyId));
+
+        const wardSet = new Set<string>();
+        for (const row of [...wardFromServiceAreas, ...wardFromElections]) {
+            if (row.wardNo) wardSet.add(row.wardNo);
+        }
+
+        const wardNumbers = Array.from(wardSet).sort((a, b) =>
+            a.localeCompare(b, undefined, { numeric: true }),
+        );
 
         return NextResponse.json({
             success: true,
             data: {
                 wardNumbers,
-                totalWards: wardNumbers.length
-            }
+                totalWards: wardNumbers.length,
+            },
         });
-
     } catch (error) {
         console.error('Wards fetch error:', error);
         return NextResponse.json(
             { error: 'Failed to fetch ward numbers' },
-            { status: 500 }
+            { status: 500 },
         );
     }
 }
-

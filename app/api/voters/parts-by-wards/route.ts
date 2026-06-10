@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { PartNo } from '@/lib/db/schema';
+import { communityServiceAreas, BoothMaster } from '@/lib/db/schema';
 import { auth } from '@/app/(auth)/auth';
-import { db } from '@/lib/db/queries';
-import { asc, and, isNotNull, inArray } from 'drizzle-orm';
+import { db, getCurrentElectionId } from '@/lib/db/queries';
+import { asc, and, eq, inArray, isNotNull } from 'drizzle-orm';
 
 export async function GET(request: NextRequest) {
     try {
@@ -13,45 +13,62 @@ export async function GET(request: NextRequest) {
 
         const { searchParams } = new URL(request.url);
         const wardNos = searchParams.getAll('wardNo');
+        const electionId =
+            searchParams.get('electionId') ?? (await getCurrentElectionId());
 
-        // Build query conditions
-        const conditions = [isNotNull(PartNo.partNo)];
+        const partsByWard: Record<string, string[]> = {};
+        const allPartsSet = new Set<string>();
+
         if (wardNos.length > 0) {
-            conditions.push(inArray(PartNo.wardNo, wardNos));
+            const csaParts = await db
+                .select({
+                    boothNo: communityServiceAreas.boothNo,
+                    wardNo: communityServiceAreas.wardNo,
+                })
+                .from(communityServiceAreas)
+                .where(
+                    and(
+                        isNotNull(communityServiceAreas.boothNo),
+                        inArray(communityServiceAreas.wardNo, wardNos),
+                    ),
+                )
+                .orderBy(asc(communityServiceAreas.wardNo), asc(communityServiceAreas.boothNo));
+
+            for (const part of csaParts) {
+                if (!part.wardNo || !part.boothNo) continue;
+                if (!partsByWard[part.wardNo]) partsByWard[part.wardNo] = [];
+                partsByWard[part.wardNo].push(part.boothNo);
+                allPartsSet.add(part.boothNo);
+            }
         }
 
-        // Get part numbers from PartNo table filtered by ward numbers
-        const parts = await db
-            .select({ partNo: PartNo.partNo, wardNo: PartNo.wardNo })
-            .from(PartNo)
-            .where(and(...conditions))
-            .orderBy(asc(PartNo.wardNo), asc(PartNo.partNo));
+        const boothRows = await db
+            .select({ boothNo: BoothMaster.boothNo })
+            .from(BoothMaster)
+            .where(eq(BoothMaster.electionId, electionId))
+            .orderBy(asc(BoothMaster.boothNo));
 
-        // Group by ward number
-        const partsByWard: Record<string, string[]> = {};
-        parts.forEach((part) => {
-            if (part.wardNo && part.partNo) {
-                if (!partsByWard[part.wardNo]) {
-                    partsByWard[part.wardNo] = [];
-                }
-                partsByWard[part.wardNo].push(part.partNo);
-            }
-        });
+        for (const row of boothRows) {
+            if (row.boothNo) allPartsSet.add(row.boothNo);
+        }
+
+        const allParts = Array.from(allPartsSet).sort((a, b) =>
+            a.localeCompare(b, undefined, { numeric: true }),
+        );
 
         return NextResponse.json({
             success: true,
             data: {
                 partsByWard,
-                allParts: parts.map(p => p.partNo).filter((p): p is string => p !== null)
-            }
+                allParts,
+                electionId,
+            },
         });
-
     } catch (error) {
         console.error('Parts by wards fetch error:', error);
         return NextResponse.json(
-            { error: 'Failed to fetch part numbers by ward' },
-            { status: 500 }
+            { error: 'Failed to fetch booth/part numbers by ward' },
+            { status: 500 },
         );
     }
 }
-
