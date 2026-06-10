@@ -46,64 +46,73 @@ export async function POST(request: NextRequest) {
 
         const result: { task?: any; service?: any } = {};
 
-        // Escalate task if taskId provided
-        if (taskId) {
-            const task = await getVoterTaskById(taskId);
-            if (!task) {
-                return NextResponse.json({ error: 'Task not found' }, { status: 404 });
-            }
-
-            // Update task with increased priority and escalation notes
-            const updatedTask = await updateVoterTaskStatus({
-                id: taskId,
-                status: 'in_progress', // Move to in_progress when escalated
-                priority: priority, // Update priority to escalated level
-                notes: escalationNote,
-                assignedTo: session.user.id,
-                performedBy: session.user.id,
-            });
-
-            // Create escalation history entry
-            await createTaskHistoryEntry({
-                taskId,
-                action: 'escalated',
-                oldValue: task.priority,
-                newValue: `Priority: ${priority}, Reason: ${reason}`,
-                performedBy: session.user.id,
-                notes: escalationNote,
-            });
-
-            result.task = updatedTask;
-        }
-
-        // Escalate service if serviceId provided
-        if (serviceId) {
-            const service = await getBeneficiaryServiceById(serviceId);
+        const escalateService = async (id: string) => {
+            const service = await getBeneficiaryServiceById(id);
             if (!service) {
-                return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+                return null;
             }
 
-            // Update service with increased priority and escalation notes
             const updatedService = await updateBeneficiaryServiceStatus({
-                id: serviceId,
-                status: 'in_progress', // Move to in_progress when escalated
-                priority: priority, // Update priority to escalated level
+                id,
+                status: 'in_progress',
+                priority,
                 notes: escalationNote,
                 assignedTo: session.user.id,
             });
 
             result.service = updatedService;
+            return updatedService;
+        };
+
+        // Escalate by taskId — individual services use beneficiary service ID as task ID
+        if (taskId) {
+            const escalatedAsService = await escalateService(taskId);
+            if (!escalatedAsService) {
+                const task = await getVoterTaskById(taskId);
+                if (!task) {
+                    return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+                }
+
+                const updatedTask = await updateVoterTaskStatus({
+                    id: taskId,
+                    status: 'in_progress',
+                    priority,
+                    notes: escalationNote,
+                    assignedTo: session.user.id,
+                    performedBy: session.user.id,
+                });
+
+                await createTaskHistoryEntry({
+                    taskId,
+                    action: 'escalated',
+                    oldValue: task.priority,
+                    newValue: `Priority: ${priority}, Reason: ${reason}`,
+                    performedBy: session.user.id,
+                    notes: escalationNote,
+                });
+
+                result.task = updatedTask;
+            }
         }
 
-        const escalationTarget = taskId ? 'Task' : 'Service';
+        // Escalate linked service when distinct from taskId (e.g. community tasks)
+        if (serviceId && serviceId !== taskId) {
+            const updatedService = await escalateService(serviceId);
+            if (!updatedService) {
+                return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+            }
+        }
+
+        const escalationTarget = result.task ? 'Task' : 'Service';
+        const escalationId = taskId ?? serviceId;
         notifyPush(() =>
             sendPushToModule('user-management', {
                 title: `${escalationTarget} escalated`,
                 body: reason.length > 120 ? `${reason.slice(0, 117)}...` : reason,
-                url: taskId
+                url: result.task
                     ? `/modules/operator?taskId=${taskId}`
-                    : `/modules/operator?serviceId=${serviceId}`,
-                tag: `escalation-${taskId ?? serviceId}`,
+                    : `/modules/operator?serviceId=${serviceId ?? taskId}`,
+                tag: `escalation-${escalationId}`,
             }, { excludeUserId: session.user.id }),
         );
 

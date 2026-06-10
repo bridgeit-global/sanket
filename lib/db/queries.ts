@@ -3155,6 +3155,7 @@ export async function updateVoterTaskStatus({
         });
 
         if (assignedTo !== performedBy) {
+
           notifyPush(() =>
             sendPushToUser(assignedTo, {
               title: 'New task assigned',
