@@ -816,5 +816,9 @@
       "escalationSuccess": "Escalation request submitted successfully",
       "escalationFailed": "Failed to escalate request"
     }
+  },
+  "pwa": {
+    "updateAvailable": "Update available",
+    "updateDescription": "A new version of eOffice is ready. Refresh to apply it."
   }
 }

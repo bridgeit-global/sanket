@@ -57,17 +57,26 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   const url = (event.notification.data?.url as string) ?? '/modules/operator';
+  const targetUrl = new URL(url, self.location.origin).href;
 
   event.waitUntil(
     self.clients
       .matchAll({ type: 'window', includeUncontrolled: true })
-      .then((clientList) => {
-        const targetUrl = new URL(url, self.location.origin).href;
-
+      .then(async (clientList) => {
         for (const client of clientList) {
-          if (client.url.startsWith(self.location.origin) && 'focus' in client) {
-            return client.focus();
+          if (!client.url.startsWith(self.location.origin) || !('focus' in client)) {
+            continue;
           }
+
+          const windowClient = client as WindowClient;
+          await windowClient.focus();
+
+          if (typeof windowClient.navigate === 'function') {
+            return windowClient.navigate(targetUrl);
+          }
+
+          client.postMessage({ type: 'notification-click', url });
+          return;
         }
 
         if (self.clients.openWindow) {

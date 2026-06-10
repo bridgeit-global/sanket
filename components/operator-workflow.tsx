@@ -238,7 +238,12 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
     const [workflowStep, setWorkflowStep] = useState<'search' | 'phoneUpdate' | 'service' | 'confirmation' | 'completed' | 'tasks'>(
         initialTab === 'manage' ? 'tasks' : 'search',
     );
-    const activeTab = (searchParams.get('tab') as 'create' | 'manage' | null) ?? initialTab;
+    const deepLinkTaskId = searchParams.get('taskId');
+    const deepLinkServiceId = searchParams.get('serviceId');
+    const hasDeepLink = Boolean(deepLinkTaskId || deepLinkServiceId);
+    const activeTab = hasDeepLink
+        ? 'manage'
+        : ((searchParams.get('tab') as 'create' | 'manage' | null) ?? initialTab);
     const getNormalizedVoterId = (voter: VoterWithPartNo | null | undefined) => voter?.epicNumber?.trim() ?? '';
 
     type SearchOverrides = {
@@ -901,7 +906,10 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
 
             {/* Task Management Section */}
             {activeTab === 'manage' && (
-                <TaskManagement />
+                <TaskManagement
+                    initialTaskId={deepLinkTaskId ?? undefined}
+                    initialServiceId={deepLinkServiceId ?? undefined}
+                />
             )}
 
             {/* Workflow Progress Indicator */}

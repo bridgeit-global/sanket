@@ -312,9 +312,13 @@ function formatTaskType(taskType?: string) {
         .join(' ');
 }
 
-export function TaskManagement() {
-
-
+export function TaskManagement({
+    initialTaskId,
+    initialServiceId,
+}: {
+    initialTaskId?: string;
+    initialServiceId?: string;
+} = {}) {
     const { t } = useTranslations();
     const [tasks, setTasks] = useState<TaskWithService[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -512,6 +516,43 @@ export function TaskManagement() {
             if (highlightTimeoutRef.current != null) window.clearTimeout(highlightTimeoutRef.current);
         };
     }, []);
+
+    useEffect(() => {
+        const targetId = initialServiceId ?? initialTaskId;
+        if (!targetId) return;
+
+        let cancelled = false;
+
+        const openDeepLinkedItem = async () => {
+            try {
+                const response = await fetch(`/operator/api/tasks/${targetId}`);
+                if (!response.ok) return;
+                const { task } = await response.json();
+                if (cancelled || !task) return;
+
+                if (task.service?.serviceType === 'community') {
+                    setSelectedCommunityService(task.service);
+                    setSelectedTask(null);
+                } else {
+                    setSelectedTask(task);
+                    setSelectedCommunityService(null);
+                }
+
+                setNewStatus(task.status);
+                setNewNote('');
+                setShowTaskDialog(true);
+                setHighlightedItemId(task.id);
+            } catch (error) {
+                console.error('Failed to open notification target:', error);
+            }
+        };
+
+        void openDeepLinkedItem();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [initialTaskId, initialServiceId]);
 
     // Debounce the "typing" inputs before applying filters (prevents frequent fetches while typing).
     useEffect(() => {
