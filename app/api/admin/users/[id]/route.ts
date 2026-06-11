@@ -2,15 +2,12 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import {
-  db,
-  getUserById,
   deleteUser,
-  getUserModulePermissions,
   getRoleById,
+  getUserById,
+  getUserModulePermissions,
+  updateUserDetails,
 } from '@/lib/db/queries';
-import { generateHashedPassword } from '@/lib/db/utils';
-import { user } from '@/lib/db/schema';
-import { eq } from 'drizzle-orm';
 
 export async function GET(
   request: NextRequest,
@@ -32,7 +29,6 @@ export async function GET(
 
     const permissions = await getUserModulePermissions(id);
 
-    // Get role information if user has a roleId
     let roleInfo = null;
     if (userRecord.roleId) {
       roleInfo = await getRoleById(userRecord.roleId);
@@ -68,23 +64,7 @@ export async function PUT(
     const body = await request.json();
     const { userId, roleId, password } = body;
 
-    const updateData: Partial<typeof user.$inferInsert> = {
-      updatedAt: new Date(),
-    };
-
-    if (userId) updateData.userId = userId;
-    if (roleId !== undefined) updateData.roleId = roleId;
-    if (password) updateData.password = generateHashedPassword(password);
-
-    const [updated] = await db
-      .update(user)
-      .set(updateData)
-      .where(eq(user.id, id))
-      .returning();
-
-    if (!updated) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
+    const updated = await updateUserDetails(id, { userId, roleId, password });
 
     return NextResponse.json(updated);
   } catch (error) {
@@ -109,7 +89,6 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Prevent deleting yourself
     if (id === session.user.id) {
       return NextResponse.json(
         { error: 'Cannot delete your own account' },
@@ -128,4 +107,3 @@ export async function DELETE(
     );
   }
 }
-

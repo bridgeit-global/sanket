@@ -1,287 +1,186 @@
-import type { InferSelectModel } from 'drizzle-orm';
-import {
-  pgTable,
-  varchar,
-  timestamp,
-  date,
-  json,
-  uuid,
-  text,
-  primaryKey,
-  foreignKey,
-  boolean,
-  integer,
-  unique,
-  index,
-} from 'drizzle-orm/pg-core';
+/** Database table names (PascalCase as stored in PostgreSQL). */
+export const TABLES = {
+  role: 'Role',
+  user: 'User',
+  roleModulePermissions: 'RoleModulePermissions',
+  chat: 'Chat',
+  messageDeprecated: 'Message',
+  message: 'Message_v2',
+  voteDeprecated: 'Vote',
+  vote: 'Vote_v2',
+  document: 'Document',
+  suggestion: 'Suggestion',
+  stream: 'Stream',
+  voterMaster: 'VoterMaster',
+  electionMaster: 'ElectionMaster',
+  boothMaster: 'BoothMaster',
+  electionMapping: 'ElectionMapping',
+  voterMobileNumber: 'VoterMobileNumber',
+  beneficiaryServices: 'BeneficiaryService',
+  serviceCatalog: 'ServiceCatalog',
+  voterTasks: 'VoterTask',
+  communityServiceAreas: 'CommunityServiceArea',
+  taskHistory: 'TaskHistory',
+  userModulePermissions: 'UserModulePermissions',
+  dailyProgramme: 'DailyProgramme',
+  dailyProgrammeAttachment: 'DailyProgrammeAttachment',
+  mlaProject: 'MlaProject',
+  projectAttachment: 'ProjectAttachment',
+  registerEntry: 'RegisterEntry',
+  registerAttachment: 'RegisterAttachment',
+  exportJob: 'ExportJob',
+  phoneUpdateHistory: 'PhoneUpdateHistory',
+  voterProfile: 'VoterProfile',
+  userPartAssignment: 'UserPartAssignment',
+  pushSubscription: 'PushSubscription',
+  cadreVerticalCategory: 'CadreVerticalCategory',
+  cadreVertical: 'CadreVertical',
+  cadrePositionLevel: 'CadrePositionLevel',
+  cadrePosition: 'CadrePosition',
+  cadreGeographicUnit: 'CadreGeographicUnit',
+  cadreNode: 'CadreNode',
+} as const;
 
-// Role Table (defined before User to allow forward reference)
-export const role = pgTable('Role', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  name: varchar('name', { length: 100 }).notNull().unique(),
-  description: text('description'),
-  defaultLandingModule: varchar('default_landing_module', { length: 50 }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+export type Role = {
+  id: string;
+  name: string;
+  description: string | null;
+  defaultLandingModule: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-export type Role = InferSelectModel<typeof role>;
+export type User = {
+  id: string;
+  userId: string;
+  password: string | null;
+  roleId: string | null;
+  metadata: unknown;
+  lastLogin: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-export const user = pgTable('User', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  userId: varchar('user_id', { length: 64 }).notNull().unique(),
-  password: varchar('password', { length: 64 }),
-  roleId: uuid('role_id').references(() => role.id, { onDelete: 'restrict' }),
-  metadata: json('metadata'), // Stores user preferences like language, theme, etc.
-  lastLogin: timestamp('last_login'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+export type RoleModulePermission = {
+  id: string;
+  roleId: string;
+  moduleKey: string;
+  hasAccess: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-export type User = InferSelectModel<typeof user>;
+export type Chat = {
+  id: string;
+  createdAt: Date;
+  title: string;
+  userId: string;
+  visibility: 'public' | 'private';
+};
 
-// Role Module Permissions Table
-export const roleModulePermissions = pgTable(
-  'RoleModulePermissions',
-  {
-    id: uuid('id').primaryKey().notNull().defaultRandom(),
-    roleId: uuid('role_id')
-      .notNull()
-      .references(() => role.id, { onDelete: 'cascade' }),
-    moduleKey: varchar('module_key', { length: 50 }).notNull(),
-    hasAccess: boolean('has_access').notNull().default(false),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  },
-  (table) => ({
-    uniqueRoleModule: unique().on(table.roleId, table.moduleKey),
-  }),
-);
+export type MessageDeprecated = {
+  id: string;
+  chatId: string;
+  role: string;
+  content: unknown;
+  createdAt: Date;
+};
 
-export type RoleModulePermission = InferSelectModel<typeof roleModulePermissions>;
+export type DBMessage = {
+  id: string;
+  chatId: string;
+  role: string;
+  parts: unknown;
+  attachments: unknown;
+  createdAt: Date;
+};
 
-export const chat = pgTable('Chat', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  createdAt: timestamp('createdAt').notNull(),
-  title: text('title').notNull(),
-  userId: uuid('userId')
-    .notNull()
-    .references(() => user.id),
-  visibility: varchar('visibility', { enum: ['public', 'private'] })
-    .notNull()
-    .default('private'),
-});
+export type VoteDeprecated = {
+  chatId: string;
+  messageId: string;
+  isUpvoted: boolean;
+};
 
-export type Chat = InferSelectModel<typeof chat>;
+export type Vote = {
+  chatId: string;
+  messageId: string;
+  isUpvoted: boolean;
+};
 
-// DEPRECATED: The following schema is deprecated and will be removed in the future.
-// Read the migration guide at https://chat-sdk.dev/docs/migration-guides/message-parts
-export const messageDeprecated = pgTable('Message', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  chatId: uuid('chatId')
-    .notNull()
-    .references(() => chat.id),
-  role: varchar('role').notNull(),
-  content: json('content').notNull(),
-  createdAt: timestamp('createdAt').notNull(),
-});
+export type Document = {
+  id: string;
+  createdAt: Date;
+  title: string;
+  content: string | null;
+  kind: 'text' | 'code' | 'image' | 'sheet';
+  userId: string;
+};
 
-export type MessageDeprecated = InferSelectModel<typeof messageDeprecated>;
+export type Suggestion = {
+  id: string;
+  documentId: string;
+  documentCreatedAt: Date;
+  originalText: string;
+  suggestedText: string;
+  description: string | null;
+  isResolved: boolean;
+  userId: string;
+  createdAt: Date;
+};
 
-export const message = pgTable('Message_v2', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  chatId: uuid('chatId')
-    .notNull()
-    .references(() => chat.id),
-  role: varchar('role').notNull(),
-  parts: json('parts').notNull(),
-  attachments: json('attachments').notNull(),
-  createdAt: timestamp('createdAt').notNull(),
-});
+export type Stream = {
+  id: string;
+  chatId: string;
+  createdAt: Date;
+};
 
-export type DBMessage = InferSelectModel<typeof message>;
+export type VoterMaster = {
+  epicNumber: string;
+  fullName: string;
+  relationType: string | null;
+  relationName: string | null;
+  familyGrouping: string | null;
+  houseNumber: string | null;
+  localityStreet: string | null;
+  townVillage: string | null;
+  religion: string | null;
+  caste: string | null;
+  age: number | null;
+  dob: string | null;
+  gender: string | null;
+  address: string | null;
+  pincode: string | null;
+};
 
-// DEPRECATED: The following schema is deprecated and will be removed in the future.
-// Read the migration guide at https://chat-sdk.dev/docs/migration-guides/message-parts
-export const voteDeprecated = pgTable(
-  'Vote',
-  {
-    chatId: uuid('chatId')
-      .notNull()
-      .references(() => chat.id),
-    messageId: uuid('messageId')
-      .notNull()
-      .references(() => messageDeprecated.id),
-    isUpvoted: boolean('isUpvoted').notNull(),
-  },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.chatId, table.messageId] }),
-    };
-  },
-);
+export type ElectionMaster = {
+  electionId: string;
+  electionType: string;
+  year: number;
+  delimitationVersion: string | null;
+  dataSource: string | null;
+  constituencyType: 'ward' | 'assembly' | 'parliament' | null;
+  constituencyId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-export type VoteDeprecated = InferSelectModel<typeof voteDeprecated>;
+export type BoothMaster = {
+  electionId: string;
+  boothNo: string;
+  boothName: string | null;
+  boothAddress: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-export const vote = pgTable(
-  'Vote_v2',
-  {
-    chatId: uuid('chatId')
-      .notNull()
-      .references(() => chat.id),
-    messageId: uuid('messageId')
-      .notNull()
-      .references(() => message.id),
-    isUpvoted: boolean('isUpvoted').notNull(),
-  },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.chatId, table.messageId] }),
-    };
-  },
-);
+export type ElectionMapping = {
+  epicNumber: string;
+  electionId: string;
+  boothNo: string | null;
+  srNo: string | null;
+  hasVoted: boolean | null;
+};
 
-export type Vote = InferSelectModel<typeof vote>;
-
-export const document = pgTable(
-  'Document',
-  {
-    id: uuid('id').notNull().defaultRandom(),
-    createdAt: timestamp('createdAt').notNull(),
-    title: text('title').notNull(),
-    content: text('content'),
-    kind: varchar('text', { enum: ['text', 'code', 'image', 'sheet'] })
-      .notNull()
-      .default('text'),
-    userId: uuid('userId')
-      .notNull()
-      .references(() => user.id),
-  },
-  (table) => {
-    return {
-      pk: primaryKey({ columns: [table.id, table.createdAt] }),
-    };
-  },
-);
-
-export type Document = InferSelectModel<typeof document>;
-
-export const suggestion = pgTable(
-  'Suggestion',
-  {
-    id: uuid('id').notNull().defaultRandom(),
-    documentId: uuid('documentId').notNull(),
-    documentCreatedAt: timestamp('documentCreatedAt').notNull(),
-    originalText: text('originalText').notNull(),
-    suggestedText: text('suggestedText').notNull(),
-    description: text('description'),
-    isResolved: boolean('isResolved').notNull().default(false),
-    userId: uuid('userId')
-      .notNull()
-      .references(() => user.id),
-    createdAt: timestamp('createdAt').notNull(),
-  },
-  (table) => ({
-    pk: primaryKey({ columns: [table.id] }),
-    documentRef: foreignKey({
-      columns: [table.documentId, table.documentCreatedAt],
-      foreignColumns: [document.id, document.createdAt],
-    }),
-  }),
-);
-
-export type Suggestion = InferSelectModel<typeof suggestion>;
-
-export const stream = pgTable(
-  'Stream',
-  {
-    id: uuid('id').primaryKey().notNull().defaultRandom(),
-    chatId: uuid('chatId').notNull(),
-    createdAt: timestamp('createdAt').notNull(),
-  },
-  (table) => ({
-    chatRef: foreignKey({
-      columns: [table.chatId],
-      foreignColumns: [chat.id],
-    }),
-  }),
-);
-
-export type Stream = InferSelectModel<typeof stream>;
-
-// VoterMaster Table - Personal information + EPIC number (immutable voter identity)
-export const VoterMaster = pgTable('VoterMaster', {
-  epicNumber: varchar('epic_number', { length: 20 }).primaryKey().notNull(),
-  fullName: varchar('full_name', { length: 255 }).notNull(),
-  relationType: varchar('relation_type', { length: 50 }),
-  relationName: varchar('relation_name', { length: 255 }),
-  familyGrouping: varchar('family_grouping', { length: 100 }),
-  houseNumber: varchar('house_number', { length: 127 }),
-  localityStreet: varchar('locality_street', { length: 255 }),
-  townVillage: varchar('town_village', { length: 255 }),
-  religion: varchar('religion', { length: 50 }),
-  caste: varchar('caste', { length: 50 }),
-  age: integer('age'),
-  dob: date('dob', { mode: 'string' }),
-  gender: varchar('gender', { length: 10 }),
-  address: text('address'),
-  pincode: varchar('pincode', { length: 10 })
-});
-
-export type VoterMaster = InferSelectModel<typeof VoterMaster>;
-
-// ElectionMaster Table - Election-level metadata
-export const ElectionMaster = pgTable('ElectionMaster', {
-  electionId: varchar('election_id', { length: 50 }).primaryKey().notNull(), // e.g., '172LS2024', 'AE2024', 'LE2024'
-  electionType: varchar('election_type', { length: 50 }).notNull(), // 'General', 'Assembly', 'Local'
-  year: integer('year').notNull(),
-  delimitationVersion: varchar('delimitation_version', { length: 50 }), // e.g., '2023', '2019'
-  dataSource: varchar('data_source', { length: 100 }), // 'ECI', 'Manual', 'Import'
-  constituencyType: varchar('constituency_type', { enum: ['ward', 'assembly', 'parliament'] }),
-  constituencyId: varchar('constituency_id', { length: 50 }), // ward number, AC number, or parliament constituency number
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
-
-export type ElectionMaster = InferSelectModel<typeof ElectionMaster>;
-
-// BoothMaster Table - Booth-level information with constituency identification
-export const BoothMaster = pgTable('BoothMaster', {
-  electionId: varchar('election_id', { length: 50 })
-    .notNull()
-    .references(() => ElectionMaster.electionId, { onDelete: 'cascade' }),
-  boothNo: varchar('booth_no', { length: 10 }).notNull(),
-  boothName: varchar('booth_name', { length: 255 }),
-  boothAddress: text('booth_address'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-}, (table) => ({
-  pk: primaryKey({ columns: [table.electionId, table.boothNo] }),
-  idxElectionId: index('idx_booth_master_election_id').on(table.electionId),
-}));
-
-export type BoothMaster = InferSelectModel<typeof BoothMaster>;
-
-// ElectionMapping Table - Voter-to-election mapping with constituency identification
-export const ElectionMapping = pgTable('ElectionMapping', {
-  epicNumber: varchar('epic_number', { length: 20 })
-    .notNull()
-    .references(() => VoterMaster.epicNumber, { onDelete: 'cascade' }),
-  electionId: varchar('election_id', { length: 50 })
-    .notNull()
-    .references(() => ElectionMaster.electionId, { onDelete: 'cascade' }), // FK to ElectionMaster
-  boothNo: varchar('booth_no', { length: 10 }), // Can be null if booth not assigned
-  srNo: varchar('sr_no', { length: 10 }),
-  hasVoted: boolean('has_voted').default(false),
-}, (table) => ({
-  pk: primaryKey({ columns: [table.epicNumber, table.electionId] }),
-  idxElectionId: index('idx_election_mapping_election_id').on(table.electionId),
-  idxEpicNumber: index('idx_election_mapping_epic_number').on(table.epicNumber),
-}));
-
-export type ElectionMapping = InferSelectModel<typeof ElectionMapping>;
-
-// Extended voter type with election/booth information from ElectionMapping / BoothMaster.
 export type VoterWithBooth = VoterMaster & {
   acNo?: string | null;
   boothNo?: string | null;
@@ -302,472 +201,305 @@ export type VoterWithBooth = VoterMaster & {
 /** @deprecated Use VoterWithBooth */
 export type VoterWithPartNo = VoterWithBooth;
 
-export const voterMobileNumber = pgTable(
-  'VoterMobileNumber',
-  {
-    epicNumber: varchar('epic_number', { length: 20 })
-      .notNull()
-      .references(() => VoterMaster.epicNumber, { onDelete: 'cascade' }),
-    mobileNumber: varchar('mobile_number', { length: 15 }).notNull(),
-    sortOrder: integer('sort_order').notNull(),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  },
-  (table) => ({
-    pk: primaryKey({ columns: [table.epicNumber, table.mobileNumber] }),
-    uniqueEpicSortOrder: unique().on(table.epicNumber, table.sortOrder),
-  }),
-);
+export type VoterMobileNumber = {
+  epicNumber: string;
+  mobileNumber: string;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-export type VoterMobileNumber = InferSelectModel<typeof voterMobileNumber>;
+export type BeneficiaryService = {
+  id: string;
+  serviceType: 'individual' | 'community';
+  serviceName: string;
+  description: string | null;
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  requestedBy: string;
+  assignedTo: string | null;
+  voterId: string | null;
+  token: string;
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt: Date | null;
+  notes: string | null;
+  programmeId: string | null;
+};
 
-export const beneficiaryServices = pgTable('BeneficiaryService', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  serviceType: varchar('service_type', { enum: ['individual', 'community'] }).notNull(),
-  serviceName: varchar('service_name', { length: 255 }).notNull(),
-  description: text('description'),
-  status: varchar('status', { enum: ['pending', 'in_progress', 'completed', 'cancelled'] }).notNull().default('pending'),
-  priority: varchar('priority', { enum: ['low', 'medium', 'high', 'urgent'] }).notNull().default('medium'),
-  requestedBy: uuid('requested_by').notNull().references(() => user.id),
-  assignedTo: uuid('assigned_to').references(() => user.id),
-  voterId: varchar('voter_id', { length: 20 }).references(() => VoterMaster.epicNumber),
-  token: varchar('token', { length: 20 }).notNull(),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  completedAt: timestamp('completed_at'),
-  notes: text('notes'),
-  programmeId: uuid('programme_id').references(() => dailyProgramme.id, {
-    onDelete: 'set null',
-  }),
-});
+export type ServiceCatalog = {
+  id: string;
+  name: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-export type BeneficiaryService = InferSelectModel<typeof beneficiaryServices>;
+export type VoterTask = {
+  id: string;
+  serviceId: string;
+  voterId: string;
+  taskType: string;
+  description: string | null;
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  assignedTo: string | null;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt: Date | null;
+  notes: string | null;
+};
 
-export const serviceCatalog = pgTable('ServiceCatalog', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  name: varchar('name', { length: 255 }).notNull().unique(),
-  sortOrder: integer('sort_order').notNull().default(0),
-  isActive: boolean('is_active').notNull().default(true),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+export type CommunityServiceArea = {
+  id: string;
+  serviceId: string;
+  electionId: string | null;
+  boothNo: string | null;
+  wardNo: string | null;
+  acNo: string | null;
+  createdAt: Date;
+};
 
-export type ServiceCatalog = InferSelectModel<typeof serviceCatalog>;
+export type TaskHistory = {
+  id: string;
+  taskId: string;
+  action: string;
+  oldValue: string | null;
+  newValue: string | null;
+  performedBy: string;
+  notes: string | null;
+  createdAt: Date;
+};
 
-export const voterTasks = pgTable('VoterTask', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  serviceId: uuid('service_id').notNull().references(() => beneficiaryServices.id),
-  voterId: varchar('voter_id', { length: 20 }).notNull().references(() => VoterMaster.epicNumber),
-  taskType: varchar('task_type', { length: 100 }).notNull(),
-  description: text('description'),
-  status: varchar('status', { enum: ['pending', 'in_progress', 'completed', 'cancelled'] }).notNull().default('pending'),
-  priority: varchar('priority', { enum: ['low', 'medium', 'high', 'urgent'] }).notNull().default('medium'),
-  assignedTo: uuid('assigned_to').references(() => user.id),
-  createdBy: uuid('created_by').references(() => user.id),
-  updatedBy: uuid('updated_by').references(() => user.id),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  completedAt: timestamp('completed_at'),
-  notes: text('notes'),
-});
+export type UserModulePermission = {
+  id: string;
+  userId: string;
+  moduleKey: string;
+  hasAccess: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-export type VoterTask = InferSelectModel<typeof voterTasks>;
+export type DailyProgramme = {
+  id: string;
+  date: string;
+  startTime: string;
+  endTime: string | null;
+  title: string;
+  location: string;
+  remarks: string | null;
+  attended: boolean | null;
+  programmeType: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
+  sortOrder: number;
+  startDate: string | null;
+  endDate: string | null;
+  createdBy: string;
+  updatedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-export const communityServiceAreas = pgTable('CommunityServiceArea', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  serviceId: uuid('service_id').notNull().references(() => beneficiaryServices.id),
-  electionId: varchar('election_id', { length: 50 }).references(() => ElectionMaster.electionId, { onDelete: 'set null' }),
-  boothNo: varchar('booth_no', { length: 10 }),
-  wardNo: varchar('ward_no', { length: 10 }),
-  acNo: varchar('ac_no', { length: 10 }),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+export type DailyProgrammeAttachment = {
+  id: string;
+  programmeId: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl: string | null;
+  createdAt: Date;
+};
 
-export type CommunityServiceArea = InferSelectModel<typeof communityServiceAreas>;
+export type MlaProject = {
+  id: string;
+  name: string;
+  ward: string | null;
+  type: string | null;
+  status: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-export const taskHistory = pgTable('TaskHistory', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  taskId: uuid('task_id').notNull().references(() => voterTasks.id),
-  action: varchar('action', { length: 50 }).notNull(), // 'created', 'status_changed', 'priority_changed', 'note_added', 'escalated', 'assigned'
-  oldValue: text('old_value'),
-  newValue: text('new_value'),
-  performedBy: uuid('performed_by').notNull().references(() => user.id),
-  notes: text('notes'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+export type ProjectAttachment = {
+  id: string;
+  projectId: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl: string | null;
+  createdAt: Date;
+};
 
-export type TaskHistory = InferSelectModel<typeof taskHistory>;
+export type RegisterEntry = {
+  id: string;
+  type: 'inward' | 'outward';
+  documentType: 'VIP' | 'Department' | 'General';
+  date: string;
+  fromTo: string;
+  subject: string;
+  projectId: string | null;
+  mode: string | null;
+  refNo: string | null;
+  officer: string | null;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-// Module Permissions Table
-export const userModulePermissions = pgTable('UserModulePermissions', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  userId: uuid('userId')
-    .notNull()
-    .references(() => user.id, { onDelete: 'cascade' }),
-  moduleKey: varchar('module_key', { length: 50 }).notNull(),
-  hasAccess: boolean('has_access').notNull().default(false),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+export type RegisterAttachment = {
+  id: string;
+  entryId: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl: string | null;
+  createdAt: Date;
+};
 
-export type UserModulePermission = InferSelectModel<typeof userModulePermissions>;
+export type ExportJob = {
+  id: string;
+  type: string;
+  format: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  progress: number;
+  totalRecords: number | null;
+  processedRecords: number | null;
+  fileUrl: string | null;
+  fileName: string | null;
+  fileSizeKb: number | null;
+  filters: unknown;
+  errorMessage: string | null;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+  completedAt: Date | null;
+};
 
-// Daily Programme Table
-export const dailyProgramme = pgTable('DailyProgramme', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  date: date('date', { mode: 'string' }).notNull(),
-  startTime: varchar('start_time', { length: 10 }).notNull(), // HH:MM format
-  endTime: varchar('end_time', { length: 10 }), // HH:MM format, nullable
-  title: varchar('title', { length: 255 }).notNull(),
-  location: varchar('location', { length: 255 }).notNull(),
-  remarks: text('remarks'),
-  attended: boolean('attended'), // null = not set, true = attended, false = not attended
-  programmeType: varchar('programme_type', {
-    length: 30,
-    enum: ['CONSTITUENCY', 'OUTSIDE_CONSTITUENCY'],
-  })
-    .notNull()
-    .default('CONSTITUENCY'),
-  sortOrder: integer('sort_order').notNull().default(1),
-  startDate: date('start_date', { mode: 'string' }),
-  endDate: date('end_date', { mode: 'string' }),
-  createdBy: uuid('created_by')
-    .notNull()
-    .references(() => user.id),
-  updatedBy: uuid('updated_by').references(() => user.id),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+export type PhoneUpdateHistory = {
+  id: string;
+  epicNumber: string;
+  oldMobileNoPrimary: string | null;
+  newMobileNoPrimary: string | null;
+  oldMobileNoSecondary: string | null;
+  newMobileNoSecondary: string | null;
+  updatedBy: string;
+  sourceModule: string;
+  createdAt: Date;
+};
 
-export type DailyProgramme = InferSelectModel<typeof dailyProgramme>;
+export type VoterProfile = {
+  epicNumber: string;
+  education: string | null;
+  occupationType: 'business' | 'service' | null;
+  occupationDetail: string | null;
+  region: string | null;
+  religion: string | null;
+  caste: string | null;
+  isOurSupporter: boolean | null;
+  feedback: string | null;
+  influencerType: 'political' | 'local' | 'education' | 'religious' | null;
+  vehicleType: '2w' | '4w' | 'both' | null;
+  isProfiled: boolean;
+  profiledAt: Date | null;
+  profiledBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-// Daily Programme Attachments Table
-export const dailyProgrammeAttachment = pgTable('DailyProgrammeAttachment', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  programmeId: uuid('programme_id')
-    .notNull()
-    .references(() => dailyProgramme.id, { onDelete: 'cascade' }),
-  fileName: varchar('file_name', { length: 255 }).notNull(),
-  fileSizeKb: integer('file_size_kb').notNull(),
-  fileUrl: text('file_url'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+export type UserPartAssignment = {
+  id: string;
+  userId: string;
+  electionId: string;
+  boothNo: string;
+  createdAt: Date;
+};
 
-export type DailyProgrammeAttachment = InferSelectModel<typeof dailyProgrammeAttachment>;
+export type PushSubscription = {
+  id: string;
+  userId: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  userAgent: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-// MLA Projects Table
-export const mlaProject = pgTable('MlaProject', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  name: varchar('name', { length: 255 }).notNull(),
-  ward: varchar('ward', { length: 100 }),
-  type: varchar('type', { length: 100 }),
-  status: varchar('status', {
-    enum: ['Concept', 'Proposal', 'In Progress', 'Completed'],
-  })
-    .notNull()
-    .default('Concept'),
-  createdBy: uuid('created_by')
-    .notNull()
-    .references(() => user.id),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+export type CadreVerticalCategory = {
+  id: string;
+  name: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-export type MlaProject = InferSelectModel<typeof mlaProject>;
+export type CadreVertical = {
+  id: string;
+  categoryId: string;
+  name: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-// Project Attachments Table
-export const projectAttachment = pgTable('ProjectAttachment', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  projectId: uuid('project_id')
-    .notNull()
-    .references(() => mlaProject.id, { onDelete: 'cascade' }),
-  fileName: varchar('file_name', { length: 255 }).notNull(),
-  fileSizeKb: integer('file_size_kb').notNull(),
-  fileUrl: text('file_url'),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
+export type CadrePositionLevel = {
+  id: string;
+  key: string;
+  name: string;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-export type ProjectAttachment = InferSelectModel<typeof projectAttachment>;
+export type CadrePosition = {
+  id: string;
+  levelId: string;
+  name: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-// Register Entry Table (for Inward/Outward)
-export const registerEntry = pgTable('RegisterEntry', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  type: varchar('type', { enum: ['inward', 'outward'] }).notNull(),
-  documentType: varchar('document_type', { enum: ['VIP', 'Department', 'General'] }).notNull().default('General'),
-  date: date('date', { mode: 'string' }).notNull(),
-  fromTo: varchar('from_to', { length: 255 }).notNull(), // "From" for inward, "To" for outward
-  subject: varchar('subject', { length: 500 }).notNull(),
-  projectId: uuid('project_id').references(() => mlaProject.id),
-  mode: varchar('mode', { length: 100 }), // Hand, Email, Dak, Courier, etc.
-  refNo: varchar('ref_no', { length: 100 }),
-  officer: varchar('officer', { length: 255 }),
-  createdBy: uuid('created_by')
-    .notNull()
-    .references(() => user.id),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
+export type CadreGeographicUnit = {
+  id: string;
+  type: 'division' | 'district' | 'taluka' | 'ward';
+  name: string;
+  parentId: string | null;
+  acNo: string | null;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
-export type RegisterEntry = InferSelectModel<typeof registerEntry>;
-
-// Register Attachments Table
-export const registerAttachment = pgTable('RegisterAttachment', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  entryId: uuid('entry_id')
-    .notNull()
-    .references(() => registerEntry.id, { onDelete: 'cascade' }),
-  fileName: varchar('file_name', { length: 255 }).notNull(),
-  fileSizeKb: integer('file_size_kb').notNull(),
-  fileUrl: text('file_url'), // for future cloud storage integration
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
-
-export type RegisterAttachment = InferSelectModel<typeof registerAttachment>;
-
-// Export Jobs Table (for tracking long-running export tasks)
-export const exportJob = pgTable('ExportJob', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  type: varchar('type', { length: 50 }).notNull(), // 'voters', 'visitors', 'register', etc.
-  format: varchar('format', { length: 10 }).notNull(), // 'pdf', 'excel', 'csv'
-  status: varchar('status', {
-    enum: ['pending', 'processing', 'completed', 'failed']
-  }).notNull().default('pending'),
-  progress: integer('progress').notNull().default(0), // 0-100
-  totalRecords: integer('total_records').default(0),
-  processedRecords: integer('processed_records').default(0),
-  fileUrl: text('file_url'),
-  fileName: varchar('file_name', { length: 255 }),
-  fileSizeKb: integer('file_size_kb'),
-  filters: json('filters'), // Store filter parameters used for the export
-  errorMessage: text('error_message'),
-  createdBy: uuid('created_by')
-    .notNull()
-    .references(() => user.id),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  completedAt: timestamp('completed_at'),
-});
-
-export type ExportJob = InferSelectModel<typeof exportJob>;
-
-// Phone Update History Table
-export const phoneUpdateHistory = pgTable('PhoneUpdateHistory', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  epicNumber: varchar('epic_number', { length: 20 })
-    .notNull()
-    .references(() => VoterMaster.epicNumber, { onDelete: 'cascade' }),
-  oldMobileNoPrimary: varchar('old_mobile_no_primary', { length: 15 }),
-  newMobileNoPrimary: varchar('new_mobile_no_primary', { length: 15 }),
-  oldMobileNoSecondary: varchar('old_mobile_no_secondary', { length: 15 }),
-  newMobileNoSecondary: varchar('new_mobile_no_secondary', { length: 15 }),
-  updatedBy: uuid('updated_by')
-    .notNull()
-    .references(() => user.id),
-  sourceModule: varchar('source_module', { length: 50 }).notNull(), // 'profile_update' or 'beneficiary_management'
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-});
-
-export type PhoneUpdateHistory = InferSelectModel<typeof phoneUpdateHistory>;
-
-
-// Voter Profile Table - Extended profiling data for field visitor data collection
-export const voterProfile = pgTable('VoterProfile', {
-  epicNumber: varchar('epic_number', { length: 20 })
-    .primaryKey()
-    .notNull()
-    .references(() => VoterMaster.epicNumber, { onDelete: 'cascade' }),
-  education: varchar('education', { length: 100 }),
-  occupationType: varchar('occupation_type', { enum: ['business', 'service'] }),
-  occupationDetail: varchar('occupation_detail', { length: 255 }),
-  region: varchar('region', { length: 100 }),
-  religion: varchar('religion', { length: 50 }),
-  caste: varchar('caste', { length: 50 }),
-  isOurSupporter: boolean('is_our_supporter'),
-  feedback: text('feedback'),
-  influencerType: varchar('influencer_type', { 
-    enum: ['political', 'local', 'education', 'religious'] 
-  }),
-  vehicleType: varchar('vehicle_type', { enum: ['2w', '4w', 'both'] }),
-  isProfiled: boolean('is_profiled').notNull().default(false),
-  profiledAt: timestamp('profiled_at'),
-  profiledBy: uuid('profiled_by').references(() => user.id),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
-
-export type VoterProfile = InferSelectModel<typeof voterProfile>;
-
-// User Part Assignment Table - Maps users to their assigned part/booth numbers
-export const userPartAssignment = pgTable(
-  'UserPartAssignment',
-  {
-    id: uuid('id').primaryKey().notNull().defaultRandom(),
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
-    electionId: varchar('election_id', { length: 50 })
-      .notNull()
-      .references(() => ElectionMaster.electionId, { onDelete: 'cascade' }),
-    boothNo: varchar('booth_no', { length: 10 }).notNull(),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-  },
-  (table) => ({
-    uniqueUserElectionBooth: unique().on(table.userId, table.electionId, table.boothNo),
-    idxUserId: index('idx_user_part_assignment_user_id').on(table.userId),
-    idxElectionId: index('idx_user_part_assignment_election_id').on(table.electionId),
-  }),
-);
-
-export type UserPartAssignment = InferSelectModel<typeof userPartAssignment>;
-
-export const pushSubscription = pgTable(
-  'PushSubscription',
-  {
-    id: uuid('id').primaryKey().notNull().defaultRandom(),
-    userId: uuid('user_id')
-      .notNull()
-      .references(() => user.id, { onDelete: 'cascade' }),
-    endpoint: text('endpoint').notNull().unique(),
-    p256dh: text('p256dh').notNull(),
-    auth: text('auth').notNull(),
-    userAgent: text('user_agent'),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  },
-  (table) => ({
-    idxPushSubscriptionUserId: index('idx_push_subscription_user_id').on(
-      table.userId,
-    ),
-  }),
-);
-
-export type PushSubscription = InferSelectModel<typeof pushSubscription>;
-
-// --- NCP Cadre Hierarchy Tables ---
-
-export const cadreVerticalCategory = pgTable('CadreVerticalCategory', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  name: varchar('name', { length: 255 }).notNull().unique(),
-  sortOrder: integer('sort_order').notNull().default(0),
-  isActive: boolean('is_active').notNull().default(true),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
-
-export type CadreVerticalCategory = InferSelectModel<typeof cadreVerticalCategory>;
-
-export const cadreVertical = pgTable('CadreVertical', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  categoryId: uuid('category_id')
-    .notNull()
-    .references(() => cadreVerticalCategory.id, { onDelete: 'restrict' }),
-  name: varchar('name', { length: 255 }).notNull(),
-  sortOrder: integer('sort_order').notNull().default(0),
-  isActive: boolean('is_active').notNull().default(true),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
-
-export type CadreVertical = InferSelectModel<typeof cadreVertical>;
-
-export const cadrePositionLevel = pgTable('CadrePositionLevel', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  key: varchar('key', { length: 50 }).notNull().unique(),
-  name: varchar('name', { length: 255 }).notNull(),
-  sortOrder: integer('sort_order').notNull().default(0),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
-
-export type CadrePositionLevel = InferSelectModel<typeof cadrePositionLevel>;
-
-export const cadrePosition = pgTable('CadrePosition', {
-  id: uuid('id').primaryKey().notNull().defaultRandom(),
-  levelId: uuid('level_id')
-    .notNull()
-    .references(() => cadrePositionLevel.id, { onDelete: 'restrict' }),
-  name: varchar('name', { length: 255 }).notNull(),
-  sortOrder: integer('sort_order').notNull().default(0),
-  isActive: boolean('is_active').notNull().default(true),
-  createdAt: timestamp('created_at').notNull().defaultNow(),
-  updatedAt: timestamp('updated_at').notNull().defaultNow(),
-});
-
-export type CadrePosition = InferSelectModel<typeof cadrePosition>;
-
-export const cadreGeographicUnit = pgTable(
-  'CadreGeographicUnit',
-  {
-    id: uuid('id').primaryKey().notNull().defaultRandom(),
-    type: varchar('type', {
-      enum: ['division', 'district', 'taluka', 'ward'],
-    }).notNull(),
-    name: varchar('name', { length: 255 }).notNull(),
-    parentId: uuid('parent_id'),
-    acNo: varchar('ac_no', { length: 10 }),
-    sortOrder: integer('sort_order').notNull().default(0),
-    isActive: boolean('is_active').notNull().default(true),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  },
-  (table) => ({
-    parentRef: foreignKey({
-      columns: [table.parentId],
-      foreignColumns: [table.id],
-    }),
-  }),
-);
-
-export type CadreGeographicUnit = InferSelectModel<typeof cadreGeographicUnit>;
-
-export const cadreNode = pgTable(
-  'CadreNode',
-  {
-    id: uuid('id').primaryKey().notNull().defaultRandom(),
-    parentId: uuid('parent_id'),
-    verticalId: uuid('vertical_id')
-      .notNull()
-      .references(() => cadreVertical.id, { onDelete: 'cascade' }),
-    positionId: uuid('position_id')
-      .notNull()
-      .references(() => cadrePosition.id, { onDelete: 'restrict' }),
-    constituencyId: varchar('constituency_id', { length: 50 }),
-    divisionId: uuid('division_id').references(() => cadreGeographicUnit.id, { onDelete: 'set null' }),
-    districtId: uuid('district_id').references(() => cadreGeographicUnit.id, { onDelete: 'set null' }),
-    talukaId: uuid('taluka_id').references(() => cadreGeographicUnit.id, { onDelete: 'set null' }),
-    wardGeoId: uuid('ward_geo_id').references(() => cadreGeographicUnit.id, { onDelete: 'set null' }),
-    electionId: varchar('election_id', { length: 50 }).references(() => ElectionMaster.electionId, { onDelete: 'set null' }),
-    boothNo: varchar('booth_no', { length: 10 }),
-    personName: varchar('person_name', { length: 255 }),
-    personPhone: varchar('person_phone', { length: 20 }),
-    personEmail: varchar('person_email', { length: 255 }),
-    photoUrl: text('photo_url'),
-    userId: uuid('user_id').references(() => user.id, { onDelete: 'set null' }),
-    epicNumber: varchar('epic_number', { length: 20 }).references(() => VoterMaster.epicNumber, { onDelete: 'set null' }),
-    notes: text('notes'),
-    isVacant: boolean('is_vacant').notNull().default(false),
-    isActive: boolean('is_active').notNull().default(true),
-    appointedAt: timestamp('appointed_at'),
-    termEndsAt: timestamp('term_ends_at'),
-    createdBy: uuid('created_by').references(() => user.id, { onDelete: 'set null' }),
-    updatedBy: uuid('updated_by').references(() => user.id, { onDelete: 'set null' }),
-    createdAt: timestamp('created_at').notNull().defaultNow(),
-    updatedAt: timestamp('updated_at').notNull().defaultNow(),
-  },
-  (table) => ({
-    parentRef: foreignKey({
-      columns: [table.parentId],
-      foreignColumns: [table.id],
-    }),
-    idxVerticalConstituency: index('idx_cadre_node_vertical_constituency').on(
-      table.verticalId,
-      table.constituencyId,
-    ),
-    idxParentId: index('idx_cadre_node_parent_id').on(table.parentId),
-    idxPositionId: index('idx_cadre_node_position_id').on(table.positionId),
-    idxUserId: index('idx_cadre_node_user_id').on(table.userId),
-    idxEpicNumber: index('idx_cadre_node_epic_number').on(table.epicNumber),
-  }),
-);
-
-export type CadreNode = InferSelectModel<typeof cadreNode>;
+export type CadreNode = {
+  id: string;
+  parentId: string | null;
+  verticalId: string;
+  positionId: string;
+  constituencyId: string | null;
+  divisionId: string | null;
+  districtId: string | null;
+  talukaId: string | null;
+  wardGeoId: string | null;
+  electionId: string | null;
+  boothNo: string | null;
+  personName: string | null;
+  personPhone: string | null;
+  personEmail: string | null;
+  photoUrl: string | null;
+  userId: string | null;
+  epicNumber: string | null;
+  notes: string | null;
+  isVacant: boolean;
+  isActive: boolean;
+  appointedAt: Date | null;
+  termEndsAt: Date | null;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};

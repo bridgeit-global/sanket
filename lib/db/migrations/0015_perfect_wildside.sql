@@ -1,1 +1,0 @@
-ALTER TABLE "Voter" ALTER COLUMN "house_number" SET DATA TYPE varchar(127);

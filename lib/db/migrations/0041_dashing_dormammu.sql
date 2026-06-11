@@ -1,1 +1,0 @@
-ALTER TABLE "Voter" ADD COLUMN "dob" date;

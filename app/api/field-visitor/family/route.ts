@@ -1,10 +1,10 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { db } from '@/lib/db/queries';
-import { VoterMaster, voterProfile } from '@/lib/db/schema';
-import { eq, and, ne, asc } from 'drizzle-orm';
+import {
+  bulkSaveFieldVisitorFamilyProfiles,
+  getFieldVisitorFamily,
+} from '@/lib/db/queries';
 
-// GET: Get family members for a voter
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -19,22 +19,17 @@ export async function GET(request: NextRequest) {
     if (!epicNumber) {
       return NextResponse.json(
         { error: 'EPIC number is required' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    // Get the voter to find their family grouping
-    const [voter] = await db
-      .select()
-      .from(VoterMaster)
-      .where(eq(VoterMaster.epicNumber, epicNumber))
-      .limit(1);
+    const { familyMembers, primaryVoter } = await getFieldVisitorFamily(epicNumber);
 
-    if (!voter) {
+    if (!primaryVoter) {
       return NextResponse.json({ error: 'Voter not found' }, { status: 404 });
     }
 
-    if (!voter.familyGrouping) {
+    if (!primaryVoter.familyGrouping) {
       return NextResponse.json({
         success: true,
         familyMembers: [],
@@ -42,57 +37,20 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Get family members with their profile status
-    const familyMembers = await db
-      .select({
-        epicNumber: VoterMaster.epicNumber,
-        fullName: VoterMaster.fullName,
-        relationType: VoterMaster.relationType,
-        relationName: VoterMaster.relationName,
-        familyGrouping: VoterMaster.familyGrouping,
-        religion: VoterMaster.religion,
-        caste: VoterMaster.caste,
-        age: VoterMaster.age,
-        gender: VoterMaster.gender,
-        // Profile fields
-        isProfiled: voterProfile.isProfiled,
-        education: voterProfile.education,
-        occupationType: voterProfile.occupationType,
-        isOurSupporter: voterProfile.isOurSupporter,
-        influencerType: voterProfile.influencerType,
-        vehicleType: voterProfile.vehicleType,
-      })
-      .from(VoterMaster)
-      .leftJoin(voterProfile, eq(VoterMaster.epicNumber, voterProfile.epicNumber))
-      .where(
-        and(
-          eq(VoterMaster.familyGrouping, voter.familyGrouping),
-          ne(VoterMaster.epicNumber, epicNumber)
-        )
-      )
-      .orderBy(asc(VoterMaster.fullName));
-
     return NextResponse.json({
       success: true,
       familyMembers,
-      primaryVoter: {
-        epicNumber: voter.epicNumber,
-        fullName: voter.fullName,
-        religion: voter.religion,
-        caste: voter.caste,
-        familyGrouping: voter.familyGrouping,
-      },
+      primaryVoter,
     });
   } catch (error) {
     console.error('Error getting family members:', error);
     return NextResponse.json(
       { error: 'Failed to get family members' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-// POST: Bulk update family members with common fields
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -107,76 +65,34 @@ export async function POST(request: NextRequest) {
     if (!Array.isArray(familyMembers) || familyMembers.length === 0) {
       return NextResponse.json(
         { error: 'Family members array is required' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const results = [];
-
-    for (const member of familyMembers) {
-      const {
-        epicNumber,
-        education,
-        occupationType,
-        occupationDetail,
-        region,
-        isOurSupporter,
-        influencerType,
-        vehicleType,
-      } = member;
-
-      if (!epicNumber) continue;
-
-      // Verify voter exists
-      const [voter] = await db
-        .select()
-        .from(VoterMaster)
-        .where(eq(VoterMaster.epicNumber, epicNumber))
-        .limit(1);
-
-      if (!voter) continue;
-
-      // Upsert profile
-      const profileData = {
-        epicNumber,
-        education: education || null,
-        occupationType: occupationType || null,
-        occupationDetail: occupationDetail || null,
-        region: region || null,
-        isOurSupporter: isOurSupporter ?? null,
-        influencerType: influencerType || null,
-        vehicleType: vehicleType || null,
-        isProfiled: true,
-        profiledAt: new Date(),
+    const profiles = await bulkSaveFieldVisitorFamilyProfiles(
+      familyMembers.map((member: Record<string, unknown>) => ({
+        epicNumber: String(member.epicNumber),
+        education: member.education as string | null | undefined,
+        occupationType: member.occupationType as string | null | undefined,
+        occupationDetail: member.occupationDetail as string | null | undefined,
+        region: member.region as string | null | undefined,
+        isOurSupporter: member.isOurSupporter as boolean | null | undefined,
+        influencerType: member.influencerType as string | null | undefined,
+        vehicleType: member.vehicleType as string | null | undefined,
         profiledBy: session.user.id,
-        updatedAt: new Date(),
-      };
-
-      const [savedProfile] = await db
-        .insert(voterProfile)
-        .values({
-          ...profileData,
-          createdAt: new Date(),
-        })
-        .onConflictDoUpdate({
-          target: voterProfile.epicNumber,
-          set: profileData,
-        })
-        .returning();
-
-      results.push(savedProfile);
-    }
+      })),
+    );
 
     return NextResponse.json({
       success: true,
-      updatedCount: results.length,
-      profiles: results,
+      updatedCount: profiles.length,
+      profiles,
     });
   } catch (error) {
     console.error('Error updating family profiles:', error);
     return NextResponse.json(
       { error: 'Failed to update family profiles' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

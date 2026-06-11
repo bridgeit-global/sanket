@@ -1,9 +1,11 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { db, getPhoneUpdateStats, getBeneficiaryServiceStats } from '@/lib/db/queries';
-import { dailyProgramme, registerEntry, mlaProject } from '@/lib/db/schema';
-import { eq, and, gte, count } from 'drizzle-orm';
+import {
+  getDashboardCounts,
+  getPhoneUpdateStats,
+  getBeneficiaryServiceStats,
+} from '@/lib/db/queries';
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,69 +15,28 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Calculate date range for today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = today.toISOString().split('T')[0];
 
-    // Run all queries in parallel
     const [
-      programmeItems,
-      inwardCount,
-      outwardCount,
-      projectsCount,
+      dashboardCounts,
       phoneUpdateStats,
       beneficiaryServiceStats,
     ] = await Promise.all([
-      // Today's programme items
-      db
-        .select()
-        .from(dailyProgramme)
-        .where(eq(dailyProgramme.date, todayStr))
-        .orderBy(dailyProgramme.startTime)
-        .limit(5),
-
-      // Today's inward count
-      db
-        .select({ count: count() })
-        .from(registerEntry)
-        .where(
-          and(
-            eq(registerEntry.type, 'inward'),
-            gte(registerEntry.date, todayStr)
-          )
-        ),
-
-      // Today's outward count
-      db
-        .select({ count: count() })
-        .from(registerEntry)
-        .where(
-          and(
-            eq(registerEntry.type, 'outward'),
-            gte(registerEntry.date, todayStr)
-          )
-        ),
-
-      // Total active projects
-      db
-        .select({ count: count() })
-        .from(mlaProject)
-        .where(eq(mlaProject.status, 'In Progress')),
-
-      // Phone update statistics
+      getDashboardCounts(todayStr),
       getPhoneUpdateStats(),
-
-      // Beneficiary service statistics
       getBeneficiaryServiceStats(),
     ]);
+
+    const { programmeItems, inwardCount, outwardCount, projectsCount } = dashboardCounts;
 
     return NextResponse.json({
       stats: {
         meetings: programmeItems.length,
-        inward: inwardCount[0]?.count || 0,
-        outward: outwardCount[0]?.count || 0,
-        projects: projectsCount[0]?.count || 0,
+        inward: inwardCount,
+        outward: outwardCount,
+        projects: projectsCount,
         phoneUpdates: phoneUpdateStats.phoneUpdatesToday,
       },
       phoneUpdates: {
@@ -107,4 +68,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

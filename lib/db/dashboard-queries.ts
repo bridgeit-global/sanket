@@ -1,8 +1,6 @@
 import 'server-only';
 
-import { db, getPhoneUpdateStats, getBeneficiaryServiceStats } from './queries';
-import { dailyProgramme, registerEntry, mlaProject } from './schema';
-import { eq, and, gte, count } from 'drizzle-orm';
+import { getPhoneUpdateStats, getBeneficiaryServiceStats, getDashboardCounts } from './queries';
 
 export interface DashboardData {
   stats: {
@@ -54,67 +52,25 @@ export interface DashboardData {
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
-  // Calculate date range for today
   const today = new Date();
   const todayStr = today.toISOString().split('T')[0];
-  // Run all queries in parallel
+
   const [
-    programmeItems,
-    inwardCount,
-    outwardCount,
-    projectsCount,
+    dashboardCounts,
     phoneUpdateStats,
     beneficiaryServiceStats,
   ] = await Promise.all([
-    // Today's programme items
-    db
-      .select()
-      .from(dailyProgramme)
-      .where(eq(dailyProgramme.date, todayStr))
-      .orderBy(dailyProgramme.startTime)
-      .limit(5),
-
-    // Today's inward count
-    db
-      .select({ count: count() })
-      .from(registerEntry)
-      .where(
-        and(
-          eq(registerEntry.type, 'inward'),
-          gte(registerEntry.date, todayStr)
-        )
-      ),
-
-    // Today's outward count
-    db
-      .select({ count: count() })
-      .from(registerEntry)
-      .where(
-        and(
-          eq(registerEntry.type, 'outward'),
-          gte(registerEntry.date, todayStr)
-        )
-      ),
-
-    // Total active projects
-    db
-      .select({ count: count() })
-      .from(mlaProject)
-      .where(eq(mlaProject.status, 'In Progress')),
-
-    // Phone update statistics
+    getDashboardCounts(todayStr),
     getPhoneUpdateStats(),
-
-    // Beneficiary service statistics
     getBeneficiaryServiceStats(),
   ]);
 
   return {
     stats: {
-      meetings: programmeItems.length,
-      inward: inwardCount[0]?.count || 0,
-      outward: outwardCount[0]?.count || 0,
-      projects: projectsCount[0]?.count || 0,
+      meetings: dashboardCounts.programmeItems.length,
+      inward: dashboardCounts.inwardCount,
+      outward: dashboardCounts.outwardCount,
+      projects: dashboardCounts.projectsCount,
       phoneUpdates: phoneUpdateStats.phoneUpdatesToday,
     },
     phoneUpdates: {
@@ -138,7 +94,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         community: beneficiaryServiceStats.byType.community || 0,
       },
     },
-    upcoming: programmeItems.slice(0, 3).map((item) => ({
+    upcoming: dashboardCounts.programmeItems.slice(0, 3).map((item) => ({
       id: item.id,
       date: item.date,
       startTime: item.startTime,
@@ -147,4 +103,3 @@ export async function getDashboardData(): Promise<DashboardData> {
     })),
   };
 }
-

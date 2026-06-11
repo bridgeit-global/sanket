@@ -1,13 +1,16 @@
 import { compare } from 'bcrypt-ts';
 import NextAuth, { type DefaultSession } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
-import { getUser, getRoleAccessibleModules, getRoleById } from '@/lib/db/queries';
+import {
+  getUser,
+  getRoleAccessibleModules,
+  getRoleById,
+  getUserModulePermissions,
+  updateUserLastLogin,
+} from '@/lib/db/queries';
 import { authConfig } from './auth.config';
 import { DUMMY_PASSWORD } from '@/lib/constants';
 import type { DefaultJWT } from 'next-auth/jwt';
-import { eq, and } from 'drizzle-orm';
-import { db } from '@/lib/db/queries';
-import { user, userModulePermissions } from '@/lib/db/schema';
 
 declare module 'next-auth' {
   interface Session extends DefaultSession {
@@ -74,11 +77,7 @@ export const {
 
         if (!passwordsMatch) return null;
 
-        // Update last_login timestamp on successful login
-        await db
-          .update(user)
-          .set({ lastLogin: new Date(), updatedAt: new Date() })
-          .where(eq(user.id, userRecord.id));
+        await updateUserLastLogin(userRecord.id);
 
         // Get accessible modules for the user
         const accessibleModules = new Set<string>();
@@ -103,19 +102,9 @@ export const {
           }
         }
 
-        // Then, get user-specific module permissions (overrides)
-        const userPermissions = await db
-          .select()
-          .from(userModulePermissions)
-          .where(
-            and(
-              eq(userModulePermissions.userId, userRecord.id),
-              eq(userModulePermissions.hasAccess, true),
-            ),
-          );
-
-        for (const perm of userPermissions) {
-          accessibleModules.add(perm.moduleKey);
+        const userPermissions = await getUserModulePermissions(userRecord.id);
+        for (const [moduleKey, hasAccess] of Object.entries(userPermissions)) {
+          if (hasAccess) accessibleModules.add(moduleKey);
         }
 
         // Special case: if calendar access, also grant daily-programme access

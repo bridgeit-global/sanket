@@ -1,71 +1,58 @@
 import 'server-only';
 
-import { eq, and } from 'drizzle-orm';
-import { db } from './db/queries';
-import { userModulePermissions, user, roleModulePermissions, } from './db/schema';
+import { supabase } from '@/lib/supabase/server';
+import { throwOnSupabaseError } from '@/lib/db/errors';
+import { TABLES } from './db/schema';
+import { mapRoleModulePermissionRow, mapUserModulePermissionRow, mapUserRow } from './db/mappers';
 import { ALL_MODULES, type ModuleDefinition } from './module-constants';
 
-// Re-export hasModuleAccess from queries for convenience
 export { hasModuleAccess } from './db/queries';
 
-/**
- * Get all modules that a user has access to
- */
 export async function getUserAccessibleModules(
   userId: string,
 ): Promise<ModuleDefinition[]> {
   try {
-    // Get user record with roleId
-    const [userRecord] = await db
-      .select()
-      .from(user)
-      .where(eq(user.id, userId))
-      .limit(1);
+    const { data: userData, error: userError } = await supabase
+      .from(TABLES.user)
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+    throwOnSupabaseError(userError, 'Failed to get user');
 
-    if (!userRecord) {
+    if (!userData) {
       return [];
     }
 
+    const userRecord = mapUserRow(userData);
     const accessibleKeys = new Set<string>();
 
-    // First, check role-based permissions if user has a roleId
     if (userRecord.roleId) {
-      const rolePermissions = await db
-        .select()
-        .from(roleModulePermissions)
-        .where(
-          and(
-            eq(roleModulePermissions.roleId, userRecord.roleId),
-            eq(roleModulePermissions.hasAccess, true),
-          ),
-        );
+      const { data: rolePermissions, error: roleError } = await supabase
+        .from(TABLES.roleModulePermissions)
+        .select('*')
+        .eq('role_id', userRecord.roleId)
+        .eq('has_access', true);
+      throwOnSupabaseError(roleError, 'Failed to get role permissions');
 
-      for (const perm of rolePermissions) {
-        accessibleKeys.add(perm.moduleKey);
+      for (const perm of rolePermissions ?? []) {
+        accessibleKeys.add(mapRoleModulePermissionRow(perm).moduleKey);
       }
     }
 
-    // Then, get explicit user-specific permissions (for backward compatibility/overrides)
-    const userPermissions = await db
-      .select()
-      .from(userModulePermissions)
-      .where(
-        and(
-          eq(userModulePermissions.userId, userId),
-          eq(userModulePermissions.hasAccess, true),
-        ),
-      );
+    const { data: userPermissions, error: permError } = await supabase
+      .from(TABLES.userModulePermissions)
+      .select('*')
+      .eq('userId', userId)
+      .eq('has_access', true);
+    throwOnSupabaseError(permError, 'Failed to get user permissions');
 
-    for (const perm of userPermissions) {
-      accessibleKeys.add(perm.moduleKey);
+    for (const perm of userPermissions ?? []) {
+      accessibleKeys.add(mapUserModulePermissionRow(perm).moduleKey);
     }
 
-    // Special case: if calendar access, also grant daily-programme access
     if (accessibleKeys.has('calendar')) {
       accessibleKeys.add('daily-programme');
     }
-
-    // Note: Removed fallback to role enum as we're migrating to roleId-based system
 
     return ALL_MODULES.filter((module) => accessibleKeys.has(module.key));
   } catch (error) {
@@ -74,9 +61,6 @@ export async function getUserAccessibleModules(
   }
 }
 
-/**
- * Get modules grouped by category for a user
- */
 export async function getModulesByCategoryForUser(
   userId: string,
 ): Promise<Record<string, ModuleDefinition[]>> {
@@ -93,9 +77,6 @@ export async function getModulesByCategoryForUser(
   return grouped;
 }
 
-/**
- * Check if user has access to any of the provided modules
- */
 export async function hasAnyModuleAccess(
   userId: string,
   moduleKeys: string[],
@@ -103,50 +84,8 @@ export async function hasAnyModuleAccess(
   if (moduleKeys.length === 0) return false;
 
   try {
-    const [userRecord] = await db
-      .select()
-      .from(user)
-      .where(eq(user.id, userId))
-      .limit(1);
-
-    if (!userRecord) {
-      return false;
-    }
-
-    const accessibleKeys = new Set<string>();
-
-    // Check role-based permissions if user has a roleId
-    if (userRecord.roleId) {
-      const rolePermissions = await db
-        .select()
-        .from(roleModulePermissions)
-        .where(
-          and(
-            eq(roleModulePermissions.roleId, userRecord.roleId),
-            eq(roleModulePermissions.hasAccess, true),
-          ),
-        );
-
-      for (const perm of rolePermissions) {
-        accessibleKeys.add(perm.moduleKey);
-      }
-    }
-
-    // Check user-specific permissions
-    const userPermissions = await db
-      .select()
-      .from(userModulePermissions)
-      .where(
-        and(
-          eq(userModulePermissions.userId, userId),
-          eq(userModulePermissions.hasAccess, true),
-        ),
-      );
-
-    for (const perm of userPermissions) {
-      accessibleKeys.add(perm.moduleKey);
-    }
-
+    const accessible = await getUserAccessibleModules(userId);
+    const accessibleKeys = new Set(accessible.map((mod) => mod.key));
     return moduleKeys.some((key) => accessibleKeys.has(key));
   } catch (error) {
     console.error('Error checking any module access:', error);
@@ -154,45 +93,46 @@ export async function hasAnyModuleAccess(
   }
 }
 
-/**
- * Get all module permissions for a user (from role and user-specific overrides)
- */
 export async function getUserModulePermissions(
   userId: string,
 ): Promise<Record<string, boolean>> {
   try {
-    const [userRecord] = await db
-      .select()
-      .from(user)
-      .where(eq(user.id, userId))
-      .limit(1);
+    const { data: userData, error: userError } = await supabase
+      .from(TABLES.user)
+      .select('*')
+      .eq('id', userId)
+      .maybeSingle();
+    throwOnSupabaseError(userError, 'Failed to get user');
 
-    if (!userRecord) {
+    if (!userData) {
       return {};
     }
 
+    const userRecord = mapUserRow(userData);
     const result: Record<string, boolean> = {};
 
-    // Get role-based permissions if user has a roleId
     if (userRecord.roleId) {
-      const rolePermissions = await db
-        .select()
-        .from(roleModulePermissions)
-        .where(eq(roleModulePermissions.roleId, userRecord.roleId));
+      const { data: rolePermissions, error: roleError } = await supabase
+        .from(TABLES.roleModulePermissions)
+        .select('*')
+        .eq('role_id', userRecord.roleId);
+      throwOnSupabaseError(roleError, 'Failed to get role permissions');
 
-      for (const perm of rolePermissions) {
-        result[perm.moduleKey] = perm.hasAccess;
+      for (const perm of rolePermissions ?? []) {
+        const mapped = mapRoleModulePermissionRow(perm);
+        result[mapped.moduleKey] = mapped.hasAccess;
       }
     }
 
-    // Get user-specific permissions (these can override role permissions)
-    const userPermissions = await db
-      .select()
-      .from(userModulePermissions)
-      .where(eq(userModulePermissions.userId, userId));
+    const { data: userPermissions, error: permError } = await supabase
+      .from(TABLES.userModulePermissions)
+      .select('*')
+      .eq('userId', userId);
+    throwOnSupabaseError(permError, 'Failed to get user permissions');
 
-    for (const perm of userPermissions) {
-      result[perm.moduleKey] = perm.hasAccess;
+    for (const perm of userPermissions ?? []) {
+      const mapped = mapUserModulePermissionRow(perm);
+      result[mapped.moduleKey] = mapped.hasAccess;
     }
 
     return result;
@@ -201,4 +141,3 @@ export async function getUserModulePermissions(
     return {};
   }
 }
-

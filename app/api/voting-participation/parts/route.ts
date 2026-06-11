@@ -1,8 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { db } from '@/lib/db/queries';
-import { BoothMaster } from '@/lib/db/schema';
-import { asc, eq } from 'drizzle-orm';
+import { getVotingParticipationParts } from '@/lib/db/queries';
 
 export async function GET(request: NextRequest) {
   try {
@@ -18,25 +16,21 @@ export async function GET(request: NextRequest) {
     if (!electionId) {
       return NextResponse.json(
         { error: 'Election ID is required' },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
-    const parts = await db
-      .select({ boothNo: BoothMaster.boothNo })
-      .from(BoothMaster)
-      .where(eq(BoothMaster.electionId, electionId))
-      .orderBy(asc(BoothMaster.boothNo));
+    const parts = await getVotingParticipationParts(electionId);
 
     return NextResponse.json({
       success: true,
-      parts: parts.map((part) => part.boothNo),
+      parts,
     });
   } catch (error) {
     console.error('Error getting part numbers:', error);
     return NextResponse.json(
       { error: 'Failed to get part numbers' },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

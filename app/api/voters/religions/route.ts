@@ -1,8 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { VoterMaster } from '@/lib/db/schema';
 import { auth } from '@/app/(auth)/auth';
-import { db } from '@/lib/db/queries';
-import { asc, isNotNull } from 'drizzle-orm';
+import { getDistinctReligions } from '@/lib/db/queries';
 
 export async function GET(request: NextRequest) {
     try {
@@ -11,17 +9,7 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        // Get distinct religions from VoterMaster table
-        const religions = await db
-            .select({ religion: VoterMaster.religion })
-            .from(VoterMaster)
-            .where(isNotNull(VoterMaster.religion))
-            .groupBy(VoterMaster.religion)
-            .orderBy(asc(VoterMaster.religion));
-
-        const religionList = religions
-            .map((r: { religion: string | null }) => r.religion)
-            .filter((religion): religion is string => religion !== null && religion.trim() !== '');
+        const religionList = await getDistinctReligions();
 
         return NextResponse.json({
             success: true,
@@ -39,4 +27,3 @@ export async function GET(request: NextRequest) {
         );
     }
 }
-
