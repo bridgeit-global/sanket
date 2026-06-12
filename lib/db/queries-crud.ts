@@ -1957,27 +1957,9 @@ export async function getDailyProgrammeItemsWithAttachments(
   >
 > {
   try {
-    const { startDate, endDate, limit = 100 } = args;
-    const conditions: ReturnType<typeof pgSql>[] = [];
-    if (startDate) {
-      const filterStart = formatDateToString(startDate);
-      conditions.push(pgSql`GREATEST(
-        COALESCE(dp.start_date, dp.date),
-        COALESCE(dp.end_date, dp.date)
-      ) >= ${filterStart}`);
-    }
-    if (endDate) {
-      const filterEnd = formatDateToString(endDate);
-      conditions.push(pgSql`LEAST(
-        COALESCE(dp.start_date, dp.date),
-        COALESCE(dp.end_date, dp.date)
-      ) <= ${filterEnd}`);
-    }
-
-    const whereClause =
-      conditions.length > 0
-        ? pgSql`WHERE ${conditions.reduce((acc, cond, i) => (i === 0 ? cond : pgSql`${acc} AND ${cond}`))}`
-        : pgSql``;
+    const { startDate, endDate, limit = 1000 } = args;
+    const filterStart = startDate ? formatDateToString(startDate) : null;
+    const filterEnd = endDate ? formatDateToString(endDate) : null;
 
     const items = await pgSql`
       SELECT dp.*,
@@ -1986,7 +1968,15 @@ export async function getDailyProgrammeItemsWithAttachments(
       FROM "DailyProgramme" dp
       LEFT JOIN "User" AS created_by_user ON dp.created_by = created_by_user.id
       LEFT JOIN "User" AS updated_by_user ON dp.updated_by = updated_by_user.id
-      ${whereClause}
+      WHERE
+        (${filterStart}::text IS NULL OR GREATEST(
+          COALESCE(dp.start_date, dp.date),
+          COALESCE(dp.end_date, dp.date)
+        ) >= ${filterStart})
+        AND (${filterEnd}::text IS NULL OR LEAST(
+          COALESCE(dp.start_date, dp.date),
+          COALESCE(dp.end_date, dp.date)
+        ) <= ${filterEnd})
       ORDER BY dp.date ASC, dp.start_time ASC, dp.sort_order ASC
       LIMIT ${limit}
     `;

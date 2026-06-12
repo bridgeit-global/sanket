@@ -246,6 +246,22 @@ function eachDateInclusive(start: string, end: string): string[] {
   return result;
 }
 
+/** Effective calendar span for a programme row (handles swapped or single-day ranges). */
+function getProgrammeDateSpan(item: {
+  date?: string | Date | null;
+  startDate?: string | Date | null;
+  endDate?: string | Date | null;
+}): { start: string; end: string } | null {
+  const start = normalizeDate(item.startDate ?? item.date ?? null);
+  const end = normalizeDate(item.endDate ?? null);
+  if (!start && !end) return null;
+  const spanStart = start ?? end!;
+  const spanEnd = end ?? start!;
+  return spanStart <= spanEnd
+    ? { start: spanStart, end: spanEnd }
+    : { start: spanEnd, end: spanStart };
+}
+
 // DURATION_OPTIONS will be generated inside component with access to translations
 
 // Helper function to format dates with locale support
@@ -582,10 +598,9 @@ export function DailyProgramme({
     const result: ProgrammeItem[] = [];
     for (const item of allItems) {
       const programmeType = item.programmeType ?? 'CONSTITUENCY';
-      const start = normalizeDate(item.startDate ?? null);
-      const end = normalizeDate(item.endDate ?? null);
-      if (start && end && start <= end) {
-        for (const d of eachDateInclusive(start, end)) {
+      const span = getProgrammeDateSpan(item);
+      if (span) {
+        for (const d of eachDateInclusive(span.start, span.end)) {
           result.push({ ...item, programmeType, date: d });
         }
       } else {
@@ -661,23 +676,17 @@ export function DailyProgramme({
           return;
         }
         const data = await response.json();
+        if (!Array.isArray(data)) {
+          console.error('Unexpected daily programme API response:', data);
+          return;
+        }
 
-
-        // Filter out items with null or undefined dates
         const validItems = data
-          .filter((item: ProgrammeItem) => {
-            const hasDate = item.date != null;
-            if (!hasDate) {
-              console.warn('Item missing date:', item);
-            }
-            return hasDate;
-          })
+          .filter((item: ProgrammeItem) => item.date != null && item.date !== '')
           .map((item: ProgrammeItem & { attachments?: DailyProgrammeAttachment[] }) => ({
             ...item,
             attachments: Array.isArray(item.attachments) ? item.attachments : [],
           }));
-        console.log('Valid items after filtering:', validItems);
-        console.log('Number of valid items:', validItems.length);
         setAllItems(validItems);
       } catch (error) {
         console.error('Error loading programme items:', error);

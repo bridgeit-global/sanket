@@ -7,6 +7,8 @@ import {
 } from '@/lib/db/queries';
 import { hasModuleAccess } from '@/lib/db/queries';
 
+export const dynamic = 'force-dynamic';
+
 /** Calendar day from the query string; avoid `Date` so UTC midnight is not shifted by local TZ in DB filters. */
 function dailyProgrammeQueryDate(param: string | null): Date | string | undefined {
   if (!param) return undefined;

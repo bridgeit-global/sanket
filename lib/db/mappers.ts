@@ -56,6 +56,34 @@ function toStringOrNull(value: unknown): string | null {
   return String(value);
 }
 
+/** Normalize DB date/timestamptz values to `yyyy-MM-dd` for API responses. */
+function formatDateField(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'string') {
+    const isoDate = value.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (isoDate) return isoDate[1];
+  }
+  const date =
+    value instanceof Date
+      ? value
+      : typeof value === 'string' || typeof value === 'number'
+        ? new Date(value)
+        : null;
+  if (date && !Number.isNaN(date.getTime())) {
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(date.getUTCDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+  return String(value);
+}
+
+function formatDateFieldOrNull(value: unknown): string | null {
+  if (value == null) return null;
+  const formatted = formatDateField(value);
+  return formatted || null;
+}
+
 function toNumberOrNull(value: unknown): number | null {
   if (value == null) return null;
   const n = Number(value);
@@ -323,7 +351,7 @@ export function mapTaskHistoryRow(row: Row): TaskHistory {
 export function mapDailyProgrammeRow(row: Row): DailyProgramme {
   return {
     id: String(row.id),
-    date: String(row.date),
+    date: formatDateField(row.date),
     startTime: String(row.start_time ?? row.startTime),
     endTime: toStringOrNull(row.end_time ?? row.endTime),
     title: String(row.title),
@@ -332,8 +360,8 @@ export function mapDailyProgrammeRow(row: Row): DailyProgramme {
     attended: toBoolOrNull(row.attended),
     programmeType: (row.programme_type ?? row.programmeType) as DailyProgramme['programmeType'],
     sortOrder: Number(row.sort_order ?? row.sortOrder ?? 1),
-    startDate: toStringOrNull(row.start_date ?? row.startDate),
-    endDate: toStringOrNull(row.end_date ?? row.endDate),
+    startDate: formatDateFieldOrNull(row.start_date ?? row.startDate),
+    endDate: formatDateFieldOrNull(row.end_date ?? row.endDate),
     createdBy: String(row.created_by ?? row.createdBy),
     updatedBy: toStringOrNull(row.updated_by ?? row.updatedBy),
     createdAt: toDate(row.created_at ?? row.createdAt),
