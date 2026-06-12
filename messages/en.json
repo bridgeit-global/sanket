@@ -601,6 +601,249 @@
       "outsiderNameRequired": "Outsider name is required"
     }
   },
+  "landing": {
+    "title": "Sana Malik Shaikh",
+    "tagline": "Vision for a Stronger Tomorrow, Built on Unity and Progress",
+    "description": "MLA, Anushakti Nagar — serving constituents with transparency and care",
+    "signIn": "Sign in",
+    "getStarted": "Get started",
+    "createAccount": "Create account",
+    "hero": {
+      "badge": "MLA, Anushakti Nagar",
+      "subtitle": "Born and raised in Mumbai, Sana Malik Shaikh brings together architecture, law, and public service to uplift women, youth, and every family in the constituency.",
+      "roles": "Mother · Homemaker · Architect · Lawyer · Entrepreneur · Social reformer · NCP spokesperson · Trustee, Rehbar & Dadamiya Foundation"
+    },
+    "quote": "Public service is not just a responsibility — it's a privilege. Every voice matters, and every citizen deserves to be heard.",
+    "nav": {
+      "menu": "Section menu",
+      "about": "About",
+      "vision": "Vision",
+      "journey": "Journey",
+      "speeches": "Speeches",
+      "news": "News",
+      "services": "Services"
+    },
+    "about": {
+      "sectionTitle": "Who is Sana Malik Shaikh?",
+      "sectionSubtitle": "A life rooted in Mumbai, dedicated to unity, progress, and public service.",
+      "bio": "Sana Malik Shaikh hails from a family of farmers who migrated from Dhuswa, Uttar Pradesh, in the 1950s. Her education and life lessons were shaped by Mumbai's diverse and vibrant culture. She began her professional journey as an architect and later earned an LLB degree, building a strong foundation across architecture, law, business, and social reform.",
+      "bioContinued": "Today she serves as MLA for Anushakti Nagar, spokesperson for the Maharashtra wing of the Nationalist Congress Party (NCP), and trustee of the Rehbar Foundation and Dadamiya Foundation — working every day for social justice, education, economic opportunity, and community well-being.",
+      "highlights": {
+        "mla": {
+          "title": "Elected MLA, 2024",
+          "description": "Elected MLA from Anushakti Nagar with 49,341 votes — among 78 first-time MLAs in the Maharashtra Assembly."
+        },
+        "spokesperson": {
+          "title": "NCP spokesperson",
+          "description": "Appointed spokesperson for the Maharashtra wing of the Nationalist Congress Party in 2024."
+        },
+        "committees": {
+          "title": "Assembly committees, 2025",
+          "description": "Member of the Minority Welfare Committee and the Women & Child Committee."
+        },
+        "legacy": {
+          "title": "Continuing public service",
+          "description": "Decades of community work — from student organizing and hospital advocacy to election campaigns and constituency leadership."
+        }
+      }
+    },
+    "vision": {
+      "sectionTitle": "Vision & focus areas",
+      "sectionSubtitle": "Building a more equitable environment for women, youth, and every citizen of Anushakti Nagar.",
+      "intro": "Sana Malik Shaikh has dedicated her political career to addressing complex challenges in social justice, education, and economic opportunity. Her vision centers on fostering empowerment and creating a more equitable environment for women and youth across five core focus areas.",
+      "socialReform": {
+        "title": "Social reform",
+        "description": "Uplifting marginalized communities and ensuring access to fundamental rights for all."
+      },
+      "education": {
+        "title": "Educational development",
+        "description": "Enhancing education and creating skill development opportunities for youth."
+      },
+      "economy": {
+        "title": "Economic growth",
+        "description": "Advocating for job creation, supporting small businesses, and promoting financial independence, especially for women."
+      },
+      "awareness": {
+        "title": "Political awareness",
+        "description": "Empowering women and youth to actively participate in shaping their futures."
+      },
+      "wellbeing": {
+        "title": "Psychological well-being",
+        "description": "Raising mental health awareness and providing support systems for community wellness."
+      },
+      "health": {
+        "title": "Community health & welfare",
+        "description": "Improving healthcare access and promoting well-being, especially for underserved communities."
+      }
+    },
+    "stats": {
+      "mla": {
+        "value": "2024",
+        "label": "Elected MLA"
+      },
+      "constituency": {
+        "value": "Anushakti Nagar",
+        "label": "Constituency"
+      },
+      "votes": {
+        "value": "49,341",
+        "label": "Votes secured"
+      },
+      "committees": {
+        "value": "2",
+        "label": "Assembly committees"
+      }
+    },
+    "journey": {
+      "sectionTitle": "Political journey",
+      "sectionSubtitle": "From student leadership and community advocacy to the Maharashtra Legislative Assembly.",
+      "prev": "Previous",
+      "next": "Next",
+      "items": {
+        "y2005": {
+          "title": "Organizing & participation",
+          "description": "HUDCO Trophy, National Association of Students of Architecture (NASA)."
+        },
+        "y2006": {
+          "title": "Candle march with students",
+          "description": "Organized a candle march with students after the 7/11 Mumbai train bombings — Azad Maidan, Mumbai."
+        },
+        "y2009": {
+          "title": "Finale speaker, students council",
+          "description": "11th International Conference of Human Habitat (ICHH), Rizvi College of Architecture."
+        },
+        "y2012": {
+          "title": "Motivational speaker",
+          "description": "Talk show with role models, organized by Association of Muslim Professionals (AMP) — ARK Polytechnic, Panvel."
+        },
+        "y2014": {
+          "title": "Election campaigning",
+          "description": "Campaign for Mr. Nawab Malik, NCP — Anushakti Nagar Vidhan Sabha constituency."
+        },
+        "y2017a": {
+          "title": "Protest & dharna",
+          "description": "Protest for deficient patient services — K. B. Bhabha Hospital, Kurla (W), Mumbai."
+        },
+        "y2017b": {
+          "title": "NCP & municipal contest",
+          "description": "Associated with NCP and contested councillor election, Beat No. 165, L Ward, BMC."
+        },
+        "y2019a": {
+          "title": "Lok Sabha campaigning",
+          "description": "Campaign for Mrs. Priya Dutt, INC — Mumbai North Central."
+        },
+        "y2019b": {
+          "title": "Vidhan Sabha campaigning",
+          "description": "Campaign for Mr. Nawab Malik (NCP) — Anushakti Nagar, Mumbai."
+        },
+        "y2024a": {
+          "title": "Appointed NCP spokesperson",
+          "description": "Appointed spokesperson for the Maharashtra wing of the Nationalist Congress Party."
+        },
+        "y2024b": {
+          "title": "Elected MLA, Anushakti Nagar",
+          "description": "Elected MLA with 49,341 votes — one of 78 first-time MLAs in the Maharashtra Assembly."
+        },
+        "y2025": {
+          "title": "Assembly committee member",
+          "description": "Member of the Minority Welfare Committee and the Women & Child Committee."
+        }
+      }
+    },
+    "speeches": {
+      "sectionTitle": "Key assembly speeches & debates",
+      "sectionSubtitle": "Legislative advocacy on health, environment, women's rights, and community welfare.",
+      "viewSpeech": "Check full speech",
+      "items": {
+        "rmc": {
+          "title": "First assembly speech: Deonar RMC plants",
+          "date": "December 19, 2024"
+        },
+        "hospitals": {
+          "title": "Misuse of free beds in charitable hospitals",
+          "date": "July 2025"
+        },
+        "nameFormat": {
+          "title": "Women's freedom to choose name format",
+          "date": "March 2025"
+        },
+        "noise": {
+          "title": "Noise pollution standards reform",
+          "date": "2025"
+        },
+        "urdu": {
+          "title": "Support for Urdu Academy's golden jubilee",
+          "date": "July 2025"
+        }
+      }
+    },
+    "news": {
+      "sectionTitle": "Voices of change in action",
+      "sectionSubtitle": "News and media coverage from Anushakti Nagar and across Maharashtra.",
+      "items": {
+        "decibel": {
+          "title": "Decibel limits need to be improved; Sana Malik-Shaikh's recommendation",
+          "source": "Assembly advocacy"
+        },
+        "ajitPawar": {
+          "title": "Ajit Pawar gave important responsibility to Nawab Malik's daughter Sana Malik",
+          "source": "Jan Samman Yatra, Anushakti Nagar"
+        },
+        "spokesperson": {
+          "title": "Who is Sana Malik? Maharashtra Deputy CM Ajit Pawar made her NCP spokesperson",
+          "source": "Political appointment"
+        }
+      }
+    },
+    "gallery": {
+      "title": "Serving Anushakti Nagar",
+      "subtitle": "Connecting communities, building futures, and empowering every citizen.",
+      "community": "Community outreach",
+      "office": "Constituency office",
+      "partnership": "Working together"
+    },
+    "cta": {
+      "title": "Need help from your MLA office?",
+      "description": "Sign in to request beneficiary services, track programmes, and connect with the team serving Anushakti Nagar.",
+      "button": "Access services portal"
+    },
+    "footer": {
+      "importantLinks": "Important Links",
+      "home": "Home",
+      "about": "About Me",
+      "events": "Events",
+      "news": "News & Media",
+      "contact": "Contact",
+      "contactInfo": "Contact Info",
+      "officeAddress": "Office Address",
+      "phone": "022-4604 1633",
+      "email": "connect@sanamalikshaikh.in",
+      "address": "1st Floor, Yash Signature, Opp. Telecom Factory, V. N. Purav Marg, Deonar, Mumbai - 400088",
+      "privacy": "Privacy Policy",
+      "terms": "Terms & Conditions",
+      "disclaimer": "Disclaimer",
+      "legal": "Legal Notice & Copyright",
+      "copyright": "© Copyright {year} Sana Malik Shaikh. All Rights Reserved.",
+      "backToTop": "Back to top",
+      "openInMaps": "Open in Google Maps"
+    },
+    "features": {
+      "sectionTitle": "Services for constituents",
+      "sectionSubtitle": "Voters and residents can use this portal to connect with MLA office programmes and support.",
+      "beneficiary": {
+        "title": "Beneficiary services",
+        "description": "Request and track individual or community-based support for you and your family."
+      },
+      "programme": {
+        "title": "Daily programme & events",
+        "description": "Stay informed about constituency visits, meetings, and community programmes."
+      },
+      "operations": {
+        "title": "Office follow-up",
+        "description": "Transparent tracking of inward requests, outward correspondence, and case progress."
+      }
+    }
+  },
   "auth": {
     "login": {
       "title": "Sign In",

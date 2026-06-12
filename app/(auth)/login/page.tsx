@@ -46,7 +46,7 @@ export default function Page() {
         const params = new URLSearchParams(window.location.search);
         const callbackUrl = params.get('callbackUrl');
         // Use window.location for a hard navigation to ensure cookies are set
-        window.location.href = callbackUrl || '/';
+        window.location.href = callbackUrl || '/home';
       });
     }
   }, [state.status, isSuccessful, t, updateSession]);

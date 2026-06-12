@@ -120,7 +120,7 @@ export function ChatHistory({
     setShowDeleteDialog(false);
 
     if (deleteId === id) {
-      router.push('/');
+      router.push('/modules/chat');
     }
   };
 

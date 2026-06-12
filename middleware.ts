@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 import { isDevelopmentEnvironment } from './lib/constants';
+import { getHomePathFromModules } from './lib/auth-home-path';
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -33,109 +34,104 @@ export async function middleware(request: NextRequest) {
 
   // Allow access to login and register pages without authentication
   if (['/login', '/register'].includes(pathname)) {
-    return NextResponse.next();
-  }
+    // Public static assets (required for next/image upstream fallback on the landing page)
+    if (pathname.startsWith('/images/') || pathname.startsWith('/favicon/')) {
+      return NextResponse.next();
+    }
 
-  const token = await getToken({
-    req: request,
-    secret: process.env.AUTH_SECRET,
-    secureCookie: !isDevelopmentEnvironment,
-  });
+    // Allow access to public pages without authentication
+    if (['/', '/login', '/register'].includes(pathname)) {
+      return NextResponse.next();
+    }
 
-  if (!token) {
-    const redirectUrl = encodeURIComponent(request.url);
+    const token = await getToken({
+      req: request,
+      secret: process.env.AUTH_SECRET,
+      secureCookie: !isDevelopmentEnvironment,
+    });
 
-    return NextResponse.redirect(
-      new URL(`/login?callbackUrl=${redirectUrl}`, request.url),
-    );
-  }
-
-  // Check for global session reset epoch
-  // If AUTH_SESSION_EPOCH is set, invalidate all tokens issued before that time
-  const sessionEpoch = process.env.AUTH_SESSION_EPOCH;
-  if (sessionEpoch && token.iat) {
-    const epochTimestamp = Number.parseInt(sessionEpoch, 10);
-    if (!Number.isNaN(epochTimestamp) && token.iat < epochTimestamp) {
-      // Token was issued before the reset epoch, invalidate it
+    if (!token) {
       const redirectUrl = encodeURIComponent(request.url);
 
       return NextResponse.redirect(
         new URL(`/login?callbackUrl=${redirectUrl}`, request.url),
       );
     }
-  }
 
-  if (token && ['/login', '/register'].includes(pathname)) {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
+    // Check for global session reset epoch
+    // If AUTH_SESSION_EPOCH is set, invalidate all tokens issued before that time
+    const sessionEpoch = process.env.AUTH_SESSION_EPOCH;
+    if (sessionEpoch && token.iat) {
+      const epochTimestamp = Number.parseInt(sessionEpoch, 10);
+      if (!Number.isNaN(epochTimestamp) && token.iat < epochTimestamp) {
+        // Token was issued before the reset epoch, invalidate it
+        const redirectUrl = encodeURIComponent(request.url);
 
-  // Module-based access control
-  const modules = (token.modules as string[]) || [];
-  const defaultLandingModule = token.defaultLandingModule as string | undefined;
-
-  // Root path - redirect to default landing module or first available module
-  if (pathname === '/') {
-    if (modules.length > 0) {
-      // Check if default landing module exists and is accessible
-      if (defaultLandingModule && modules.includes(defaultLandingModule)) {
         return NextResponse.redirect(
-          new URL(`/modules/${defaultLandingModule}`, request.url),
+          new URL(`/login?callbackUrl=${redirectUrl}`, request.url),
         );
       }
-      // Fall back to first module
-      const firstModule = modules[0];
-      return NextResponse.redirect(new URL(`/modules/${firstModule}`, request.url));
-    }
-    return NextResponse.redirect(new URL('/unauthorized', request.url));
-  }
-
-  // Base /chat path without ID - redirect to modules/chat
-  if (pathname === '/chat') {
-    return NextResponse.redirect(new URL('/modules/chat', request.url));
-  }
-
-  // /chat/{id} paths - allow through (handled by Next.js route)
-
-  // Module routes - simple token-based check
-  if (pathname.startsWith('/modules/')) {
-    const moduleKey = pathname.replace('/modules/', '').split('/')[0];
-
-    // Profile is accessible to all authenticated users
-    if (moduleKey === 'profile') {
-      return NextResponse.next();
     }
 
-    // Allow back-office and operator users to access voter routes (for viewing voter profiles from search)
-    if (moduleKey === 'voter') {
-      const hasAccess = modules.includes('back-office') || modules.includes('operator') || modules.includes('user-management');
-      if (hasAccess) {
+    const modules = (token.modules as string[]) || [];
+    const defaultLandingModule = token.defaultLandingModule as string | undefined;
+
+    if (token && ['/login', '/register'].includes(pathname)) {
+      return NextResponse.redirect(
+        new URL(
+          getHomePathFromModules(modules, defaultLandingModule),
+          request.url,
+        ),
+      );
+    }
+
+    // Base /chat path without ID - redirect to modules/chat
+    if (pathname === '/chat') {
+      return NextResponse.redirect(new URL('/modules/chat', request.url));
+    }
+
+    // /chat/{id} paths - allow through (handled by Next.js route)
+
+    // Module routes - simple token-based check
+    if (pathname.startsWith('/modules/')) {
+      const moduleKey = pathname.replace('/modules/', '').split('/')[0];
+
+      // Profile is accessible to all authenticated users
+      if (moduleKey === 'profile') {
         return NextResponse.next();
       }
-      return NextResponse.redirect(new URL('/unauthorized', request.url));
+
+      // Allow back-office and operator users to access voter routes (for viewing voter profiles from search)
+      if (moduleKey === 'voter') {
+        const hasAccess = modules.includes('back-office') || modules.includes('operator') || modules.includes('user-management');
+        if (hasAccess) {
+          return NextResponse.next();
+        }
+        return NextResponse.redirect(new URL('/unauthorized', request.url));
+      }
+
+      if (!modules.includes(moduleKey)) {
+        return NextResponse.redirect(new URL('/unauthorized', request.url));
+      }
     }
 
-    if (!modules.includes(moduleKey)) {
-      return NextResponse.redirect(new URL('/unauthorized', request.url));
-    }
+    return NextResponse.next();
   }
 
-  return NextResponse.next();
-}
+  export const config = {
+    matcher: [
+      '/',
+      '/chat/:id',
+      '/api/:path*',
+      '/login',
+      '/register',
 
-export const config = {
-  matcher: [
-    '/',
-    '/chat/:id',
-    '/api/:path*',
-    '/login',
-    '/register',
-
-    /*
-     * Match all request paths except for the ones starting with:
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico, sitemap.xml, robots.txt (metadata files)
-     */
-    '/((?!_next/static|_next/image|favicon.ico|favicon/|sw.js|workbox-|serwist-|sitemap.xml|robots.txt).*)',
-  ],
-};
+      /*
+       * Match all request paths except for the ones starting with:
+       * - _next/static (static files)
+       * - _next/image (image optimization files)
+       * - favicon.ico, sitemap.xml, robots.txt (metadata files)
+       */
+      '/((?!_next/static|_next/image|favicon.ico|favicon/|sw.js|workbox-|serwist-|sitemap.xml|robots.txt).*)',
+    ],
+  };

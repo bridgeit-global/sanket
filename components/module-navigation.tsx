@@ -106,14 +106,20 @@ export function ModuleNavigation({
 }) {
   const pathname = usePathname();
   const { t } = useTranslations();
-  const [modules, setModules] = useState<ModuleDefinition[]>(
+  const [modules, setModules] = useState<ModuleDefinition[]>(() =>
     initialModules ? sortModules(initialModules) : [],
   );
   const [loading, setLoading] = useState(!(initialModules && initialModules.length > 0));
 
   useEffect(() => {
-    if (modules.length > 0 || !user?.id) {
+    if (initialModules && initialModules.length > 0) {
+      setModules(sortModules(initialModules));
       setLoading(false);
+    }
+  }, [initialModules, user?.id]);
+
+  useEffect(() => {
+    if ((initialModules && initialModules.length > 0) || !user?.id) {
       return;
     }
 
@@ -132,7 +138,7 @@ export function ModuleNavigation({
     };
 
     loadModules();
-  }, [modules.length, user?.id]);
+  }, [initialModules, user?.id]);
 
   if (loading || modules.length === 0) {
     return null;

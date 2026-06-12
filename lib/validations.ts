@@ -1,4 +1,8 @@
 import { z } from 'zod';
+import {
+  isValidIndianMobile,
+  normalizeIndianMobileDigits,
+} from '@/lib/indian-mobile';
 
 // Project form validation
 export const projectFormSchema = z.object({

@@ -19,15 +19,12 @@ export default async function ModulesLayout({
 }) {
   const [session, cookieStore] = await Promise.all([auth(), cookies()]);
   
-  // Cache module permissions for 5 minutes to avoid repeated DB queries
-  const getCachedModules = unstable_cache(
-    async (userId: string) => getUserAccessibleModules(userId),
-    ['modules'],
-    { revalidate: 300 }
-  );
-  
-  const modules = session?.user?.id 
-    ? await getCachedModules(session.user.id)
+  const modules = session?.user?.id
+    ? await unstable_cache(
+        async () => getUserAccessibleModules(session.user.id),
+        ['user-accessible-modules', session.user.id],
+        { revalidate: 300 },
+      )()
     : [];
   const isCollapsed = cookieStore.get('sidebar:state')?.value !== 'true';
 

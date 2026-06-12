@@ -376,23 +376,22 @@ html.pdf-export .print-schedule thead {
         --card-foreground: 222 47% 11%;
         --popover: 0 0% 100%;
         --popover-foreground: 222 47% 11%;
-        /* Distinctive teal accent for primary */
-        --primary: 171 77% 36%;
+        /* Magenta accent from landing brand (#a51f64) */
+        --primary: 329 68% 38%;
         --primary-foreground: 0 0% 100%;
         --secondary: 210 40% 96%;
         --secondary-foreground: 222 47% 11%;
         --muted: 210 40% 96%;
         --muted-foreground: 215 16% 47%;
-        /* Vibrant accent color */
-        --accent: 171 77% 95%;
-        --accent-foreground: 171 77% 26%;
+        /* Light magenta tint for accent surfaces */
+        --accent: 329 68% 95%;
+        --accent-foreground: 329 68% 26%;
         --destructive: 0 84% 60%;
         --destructive-foreground: 0 0% 100%;
         --border: 214 32% 91%;
         --input: 214 32% 91%;
-        --ring: 171 77% 36%;
-        /* Chart colors with teal theme */
-        --chart-1: 171 77% 36%;
+        --ring: 329 68% 38%;
+        --chart-1: 329 68% 38%;
         --chart-2: 340 75% 55%;
         --chart-3: 45 93% 47%;
         --chart-4: 262 83% 58%;
@@ -408,12 +407,15 @@ html.pdf-export .print-schedule thead {
         /* Sidebar with subtle gradient feel */
         --sidebar-background: 210 40% 98%;
         --sidebar-foreground: 222 47% 11%;
-        --sidebar-primary: 171 77% 36%;
+        --sidebar-primary: 329 68% 38%;
         --sidebar-primary-foreground: 0 0% 100%;
-        --sidebar-accent: 171 77% 95%;
-        --sidebar-accent-foreground: 171 77% 26%;
+        --sidebar-accent: 329 68% 95%;
+        --sidebar-accent-foreground: 329 68% 26%;
         --sidebar-border: 214 32% 91%;
-        --sidebar-ring: 171 77% 36%;
+        --sidebar-ring: 329 68% 38%;
+        /* Landing dark bands (speeches, gallery overlays, CTA) */
+        --landing-contrast: 222 47% 5%;
+        --landing-contrast-foreground: 0 0% 100%;
     }
 
     .dark {
@@ -423,21 +425,21 @@ html.pdf-export .print-schedule thead {
         --card-foreground: 210 40% 98%;
         --popover: 222 47% 7%;
         --popover-foreground: 210 40% 98%;
-        /* Teal remains vibrant in dark mode */
-        --primary: 171 77% 46%;
-        --primary-foreground: 222 47% 5%;
+        /* Magenta remains vibrant in dark mode */
+        --primary: 329 68% 48%;
+        --primary-foreground: 0 0% 100%;
         --secondary: 217 33% 17%;
         --secondary-foreground: 210 40% 98%;
         --muted: 217 33% 17%;
         --muted-foreground: 215 20% 65%;
-        --accent: 171 77% 15%;
-        --accent-foreground: 171 77% 70%;
+        --accent: 329 68% 15%;
+        --accent-foreground: 329 68% 70%;
         --destructive: 0 63% 31%;
         --destructive-foreground: 210 40% 98%;
         --border: 217 33% 17%;
         --input: 217 33% 17%;
-        --ring: 171 77% 46%;
-        --chart-1: 171 77% 50%;
+        --ring: 329 68% 48%;
+        --chart-1: 329 68% 50%;
         --chart-2: 340 75% 55%;
         --chart-3: 45 93% 47%;
         --chart-4: 262 83% 58%;
@@ -450,12 +452,14 @@ html.pdf-export .print-schedule thead {
         --info-foreground: 222 47% 5%;
         --sidebar-background: 222 47% 7%;
         --sidebar-foreground: 210 40% 98%;
-        --sidebar-primary: 171 77% 46%;
-        --sidebar-primary-foreground: 222 47% 5%;
-        --sidebar-accent: 171 77% 15%;
-        --sidebar-accent-foreground: 171 77% 70%;
+        --sidebar-primary: 329 68% 48%;
+        --sidebar-primary-foreground: 0 0% 100%;
+        --sidebar-accent: 329 68% 15%;
+        --sidebar-accent-foreground: 329 68% 70%;
         --sidebar-border: 217 33% 17%;
-        --sidebar-ring: 171 77% 46%;
+        --sidebar-ring: 329 68% 48%;
+        --landing-contrast: 222 47% 5%;
+        --landing-contrast-foreground: 0 0% 100%;
     }
 }
 
@@ -475,6 +479,12 @@ html.pdf-export .print-schedule thead {
     select,
     textarea {
         @apply transition-colors duration-200;
+    }
+
+    /* Native radios/checkboxes use browser accent (often blue) unless overridden */
+    input[type='radio'],
+    input[type='checkbox']:not(.sr-only) {
+        accent-color: hsl(var(--primary));
     }
 }
 
@@ -1636,5 +1646,115 @@ html.pdf-export .print-schedule thead {
         text-align: center;
         margin: 6px 0;
         font-size: 11px;
+    }
+}
+
+/* Landing page — futuristic MLA visuals */
+@layer utilities {
+    .landing-dark-band {
+        color: hsl(var(--landing-contrast-foreground));
+        background-color: hsl(var(--landing-contrast));
+        background-image:
+            linear-gradient(
+                to bottom right,
+                hsl(var(--primary) / 0.4),
+                hsl(var(--chart-2) / 0.25),
+                hsl(var(--primary) / 0.3)
+            ),
+            linear-gradient(hsl(var(--primary) / 0.06) 1px, transparent 1px),
+            linear-gradient(90deg, hsl(var(--primary) / 0.06) 1px, transparent 1px);
+        background-size:
+            100% 100%,
+            48px 48px,
+            48px 48px;
+    }
+
+    .landing-mesh {
+        background-image:
+            linear-gradient(hsl(var(--primary) / 0.06) 1px, transparent 1px),
+            linear-gradient(90deg, hsl(var(--primary) / 0.06) 1px, transparent 1px);
+        background-size: 48px 48px;
+        mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, black 20%, transparent 75%);
+    }
+
+    .landing-glow-border {
+        position: relative;
+    }
+
+    .landing-glow-border::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        border-radius: inherit;
+        padding: 1px;
+        background: linear-gradient(
+            135deg,
+            hsl(var(--primary) / 0.7),
+            hsl(var(--primary) / 0.1) 40%,
+            hsl(329 68% 60% / 0.5)
+        );
+        -webkit-mask:
+            linear-gradient(#fff 0 0) content-box,
+            linear-gradient(#fff 0 0);
+        mask:
+            linear-gradient(#fff 0 0) content-box,
+            linear-gradient(#fff 0 0);
+        -webkit-mask-composite: xor;
+        mask-composite: exclude;
+        pointer-events: none;
+    }
+
+    .landing-shimmer {
+        background: linear-gradient(
+            110deg,
+            transparent 25%,
+            hsl(var(--primary) / 0.12) 50%,
+            transparent 75%
+        );
+        background-size: 200% 100%;
+        animation: landing-shimmer 4s ease-in-out infinite;
+    }
+
+    .landing-float {
+        animation: landing-float 6s ease-in-out infinite;
+    }
+
+    .landing-pulse-ring {
+        animation: landing-pulse-ring 2.5s ease-out infinite;
+    }
+}
+
+@keyframes landing-shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+@keyframes landing-float {
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
+    }
+}
+
+@keyframes landing-pulse-ring {
+    0% {
+        transform: scale(0.95);
+        opacity: 0.6;
+    }
+    70% {
+        transform: scale(1.15);
+        opacity: 0;
+    }
+    100% {
+        transform: scale(1.15);
+        opacity: 0;
     }
 }
