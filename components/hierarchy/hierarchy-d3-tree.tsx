@@ -1,0 +1,422 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { zoom, zoomIdentity, select, type ZoomBehavior, type D3ZoomEvent } from 'd3';
+import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { CommitteeMembersSheet } from './committee-members-sheet';
+import { HierarchyNodeCardContent } from './hierarchy-node-card-content';
+import {
+  computeD3TreeLayout,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+} from '@/lib/hierarchy/d3-tree-layout';
+import { MAP_MIN_FIT_SCALE } from '@/lib/hierarchy/map-filters';
+import { getLevelColor } from '@/lib/hierarchy/build-tree';
+import {
+  committeeHubHasMatch,
+  isCommitteeHubNode,
+  type CommitteeHubStats,
+} from '@/lib/hierarchy/committee-hub';
+import {
+  isVerticalHubNode,
+  type VerticalHubStats,
+} from '@/lib/hierarchy/forest-builder';
+import { isPlaceholderNode } from '@/lib/hierarchy/vacant-slots';
+import type { CadreNodeDetail } from '@/lib/hierarchy/types';
+
+const PADDING = 48;
+const MIN_MANUAL_ZOOM = 0.12;
+const LARGE_TREE_NODE_THRESHOLD = 80;
+
+type PositionedNode = {
+  id: string;
+  cadre: CadreNodeDetail;
+  x: number;
+  y: number;
+};
+
+interface HierarchyD3TreeProps {
+  nodes: CadreNodeDetail[];
+  matchIds: Set<string>;
+  hasActiveSearchFilter: boolean;
+  /** When set, zoom to this node (nav member selection). */
+  focusNodeId?: string | null;
+  /** Subset of nodes to fit (e.g. ward-scoped); defaults to all visible nodes. */
+  fitBoundsNodeIds?: Set<string>;
+  selectedId: string | null;
+  expandedVerticalIds: ReadonlySet<string>;
+  hubStats: Map<string, VerticalHubStats>;
+  committeeHubMembers: Map<string, CadreNodeDetail[]>;
+  committeeHubStats: Map<string, CommitteeHubStats>;
+  onNodeClick: (node: CadreNodeDetail) => void;
+  onHubToggle: (verticalId: string) => void;
+  /** Admin-only inline card actions. */
+  onEditNode?: (node: CadreNodeDetail) => void;
+  onAddChild?: (node: CadreNodeDetail) => void;
+}
+
+function normalizeLayout(nodes: ReturnType<typeof computeD3TreeLayout>['nodes']): PositionedNode[] {
+  if (nodes.length === 0) return [];
+  const minX = Math.min(...nodes.map((n) => n.x));
+  const minY = Math.min(...nodes.map((n) => n.y));
+  return nodes.map((n) => ({
+    id: n.id,
+    cadre: n.cadre,
+    x: n.x - minX + NODE_WIDTH / 2,
+    y: n.y - minY + NODE_HEIGHT / 2,
+  }));
+}
+
+function getNodeBounds(positioned: PositionedNode[], ids?: Set<string>) {
+  const subset = ids && ids.size > 0 ? positioned.filter((n) => ids.has(n.id)) : positioned;
+  if (subset.length === 0) return null;
+
+  const lefts = subset.map((n) => n.x - NODE_WIDTH / 2);
+  const rights = subset.map((n) => n.x + NODE_WIDTH / 2);
+  const tops = subset.map((n) => n.y - NODE_HEIGHT / 2);
+  const bottoms = subset.map((n) => n.y + NODE_HEIGHT / 2);
+
+  return {
+    minX: Math.min(...lefts),
+    maxX: Math.max(...rights),
+    minY: Math.min(...tops),
+    maxY: Math.max(...bottoms),
+  };
+}
+
+export function HierarchyD3Tree({
+  nodes: cadreNodes,
+  matchIds,
+  hasActiveSearchFilter,
+  focusNodeId,
+  fitBoundsNodeIds,
+  selectedId,
+  expandedVerticalIds,
+  hubStats,
+  committeeHubMembers,
+  committeeHubStats,
+  onNodeClick,
+  onHubToggle,
+  onEditNode,
+  onAddChild,
+}: HierarchyD3TreeProps) {
+  const isMobile = useIsMobile();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
+  const zoomBehaviorRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
+  const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
+  const [openCommitteeHubId, setOpenCommitteeHubId] = useState<string | null>(null);
+
+  const layout = useMemo(() => computeD3TreeLayout(cadreNodes), [cadreNodes]);
+  const positionedNodes = useMemo(() => normalizeLayout(layout.nodes), [layout.nodes]);
+
+  const links = useMemo(() => {
+    const posById = new Map(positionedNodes.map((n) => [n.id, n]));
+    return layout.links
+      .map((link) => {
+        const source = posById.get(link.sourceId);
+        const target = posById.get(link.targetId);
+        if (!source || !target) return null;
+        return {
+          id: link.id,
+          source: { x: source.x, y: source.y + NODE_HEIGHT / 2 - 4 },
+          target: { x: target.x, y: target.y - NODE_HEIGHT / 2 + 4 },
+        };
+      })
+      .filter(Boolean) as Array<{
+      id: string;
+      source: { x: number; y: number };
+      target: { x: number; y: number };
+    }>;
+  }, [layout.links, positionedNodes]);
+
+  const graphWidth =
+    positionedNodes.length > 0
+      ? Math.max(...positionedNodes.map((n) => n.x)) + NODE_WIDTH / 2
+      : 0;
+  const graphHeight =
+    positionedNodes.length > 0
+      ? Math.max(...positionedNodes.map((n) => n.y)) + NODE_HEIGHT / 2
+      : 0;
+
+  const fitToBounds = useCallback(
+    (ids?: Set<string>, animate = false) => {
+      const container = containerRef.current;
+      const svg = svgRef.current;
+      const zoomBehavior = zoomBehaviorRef.current;
+      if (!container || !svg || !zoomBehavior || positionedNodes.length === 0) return;
+
+      const bounds = getNodeBounds(positionedNodes, ids);
+      if (!bounds) return;
+
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      const contentWidth = Math.max(bounds.maxX - bounds.minX, NODE_WIDTH);
+      const contentHeight = Math.max(bounds.maxY - bounds.minY, NODE_HEIGHT);
+      const fitScale = Math.min(
+        (width - PADDING * 2) / contentWidth,
+        (height - PADDING * 2) / contentHeight,
+        1.5,
+      );
+      const isFocusedFit = Boolean(ids && ids.size > 0);
+      const isLargeTree = positionedNodes.length > LARGE_TREE_NODE_THRESHOLD;
+      const minScale = isFocusedFit
+        ? 0.5
+        : isLargeTree
+          ? MAP_MIN_FIT_SCALE
+          : MIN_MANUAL_ZOOM;
+      const scale = Math.max(minScale, fitScale);
+      const tx = width / 2 - ((bounds.minX + bounds.maxX) / 2) * scale;
+      const ty = height / 2 - ((bounds.minY + bounds.maxY) / 2) * scale;
+      const next = zoomIdentity.translate(tx, ty).scale(scale);
+
+      const transition = animate
+        ? select(svg).transition().duration(400)
+        : select(svg);
+      transition.call(zoomBehavior.transform, next);
+    },
+    [positionedNodes],
+  );
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+
+    const zoomBehavior = zoom<SVGSVGElement, unknown>()
+      .scaleExtent([MIN_MANUAL_ZOOM, 2.5])
+      .on('zoom', (event: D3ZoomEvent<SVGSVGElement, unknown>) => {
+        setTransform({
+          x: event.transform.x,
+          y: event.transform.y,
+          k: event.transform.k,
+        });
+      });
+
+    zoomBehaviorRef.current = zoomBehavior;
+    select(svg).call(zoomBehavior).on('dblclick.zoom', null);
+
+    return () => {
+      select(svg).on('.zoom', null);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (cadreNodes.length === 0) return;
+
+    const focusIds = focusNodeId
+      ? new Set([focusNodeId])
+      : hasActiveSearchFilter && matchIds.size > 0
+        ? matchIds
+        : fitBoundsNodeIds && fitBoundsNodeIds.size > 0
+          ? fitBoundsNodeIds
+          : undefined;
+
+    requestAnimationFrame(() => fitToBounds(focusIds, Boolean(focusNodeId)));
+  }, [
+    cadreNodes,
+    matchIds,
+    hasActiveSearchFilter,
+    focusNodeId,
+    fitBoundsNodeIds,
+    fitToBounds,
+  ]);
+
+  const handleZoomIn = () => {
+    const svg = svgRef.current;
+    const zoomBehavior = zoomBehaviorRef.current;
+    if (!svg || !zoomBehavior) return;
+    select(svg).transition().duration(200).call(zoomBehavior.scaleBy, 1.25);
+  };
+
+  const handleZoomOut = () => {
+    const svg = svgRef.current;
+    const zoomBehavior = zoomBehaviorRef.current;
+    if (!svg || !zoomBehavior) return;
+    select(svg).transition().duration(200).call(zoomBehavior.scaleBy, 0.8);
+  };
+
+  const handleFitView = () => {
+    const focusIds = focusNodeId
+      ? new Set([focusNodeId])
+      : hasActiveSearchFilter && matchIds.size > 0
+        ? matchIds
+        : fitBoundsNodeIds && fitBoundsNodeIds.size > 0
+          ? fitBoundsNodeIds
+          : undefined;
+    fitToBounds(focusIds, true);
+  };
+
+  const openCommitteeStats = openCommitteeHubId
+    ? committeeHubStats.get(openCommitteeHubId) ?? null
+    : null;
+  const openCommitteeMembers = openCommitteeHubId
+    ? committeeHubMembers.get(openCommitteeHubId) ?? []
+    : [];
+
+  const handleCommitteeMemberClick = useCallback(
+    (member: CadreNodeDetail) => {
+      onNodeClick(member);
+      setOpenCommitteeHubId(null);
+    },
+    [onNodeClick],
+  );
+
+  const getNodeColor = useCallback(
+    (cadre: CadreNodeDetail) => {
+      if (isCommitteeHubNode(cadre)) {
+        const stats = committeeHubStats.get(cadre.id);
+        return getLevelColor(stats?.levelKey ?? cadre.positionLevelKey);
+      }
+      return getLevelColor(cadre.positionLevelKey);
+    },
+    [committeeHubStats],
+  );
+
+  return (
+    <div className="relative h-full w-full overflow-hidden rounded-lg border border-border bg-background">
+      {cadreNodes.length === 0 ? (
+        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+          No nodes match the current filters.
+        </div>
+      ) : (
+        <>
+          <div ref={containerRef} className="absolute inset-0">
+            <svg ref={svgRef} className="h-full w-full touch-none">
+              <rect width="100%" height="100%" fill="transparent" />
+              <g transform={`translate(${transform.x},${transform.y}) scale(${transform.k})`}>
+                {links.map((link) => {
+                  const midY = (link.source.y + link.target.y) / 2;
+                  const d = `M${link.source.x},${link.source.y} C${link.source.x},${midY} ${link.target.x},${midY} ${link.target.x},${link.target.y}`;
+                  return (
+                    <path
+                      key={link.id}
+                      d={d}
+                      fill="none"
+                      stroke="hsl(var(--muted-foreground))"
+                      strokeWidth={1.5}
+                      strokeOpacity={0.6}
+                    />
+                  );
+                })}
+              </g>
+            </svg>
+
+            <div
+              className="pointer-events-none absolute left-0 top-0 origin-top-left"
+              style={{
+                width: graphWidth,
+                height: graphHeight,
+                transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.k})`,
+              }}
+            >
+              {positionedNodes.map((node) => {
+                const isHub = isVerticalHubNode(node.cadre);
+                const isCommitteeHub = isCommitteeHubNode(node.cadre);
+                const isMatch =
+                  matchIds.has(node.id) ||
+                  (isCommitteeHub &&
+                    committeeHubHasMatch(node.id, committeeHubMembers, matchIds));
+                const dimmed = hasActiveSearchFilter && matchIds.size > 0 && !isMatch;
+                const committeeStats = isCommitteeHub
+                  ? committeeHubStats.get(node.id)
+                  : undefined;
+                return (
+                  <div
+                    key={node.id}
+                    className="pointer-events-auto absolute"
+                    style={{
+                      left: node.x - NODE_WIDTH / 2,
+                      top: node.y - NODE_HEIGHT / 2,
+                      width: NODE_WIDTH,
+                    }}
+                  >
+                    <HierarchyNodeCardContent
+                      cadre={node.cadre}
+                      color={getNodeColor(node.cadre)}
+                      selected={selectedId === node.id}
+                      dimmed={dimmed}
+                      highlighted={isMatch}
+                      expanded={isHub && expandedVerticalIds.has(node.cadre.verticalId)}
+                      hubStats={isHub ? hubStats.get(node.cadre.verticalId) : undefined}
+                      committeeHubStats={committeeStats}
+                      onClick={() => {
+                        if (isHub) {
+                          onHubToggle(node.cadre.verticalId);
+                        } else if (isCommitteeHub) {
+                          setOpenCommitteeHubId(node.id);
+                        } else {
+                          onNodeClick(node.cadre);
+                        }
+                      }}
+                      onEdit={
+                        onEditNode && !isPlaceholderNode(node.cadre) && !isCommitteeHub
+                          ? () => onEditNode(node.cadre)
+                          : undefined
+                      }
+                      onAddChild={
+                        !isHub &&
+                        !isCommitteeHub &&
+                        onAddChild &&
+                        !isPlaceholderNode(node.cadre)
+                          ? () => onAddChild(node.cadre)
+                          : undefined
+                      }
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <CommitteeMembersSheet
+            open={openCommitteeHubId != null}
+            onOpenChange={(open) => {
+              if (!open) setOpenCommitteeHubId(null);
+            }}
+            hubStats={openCommitteeStats}
+            members={openCommitteeMembers}
+            selectedId={selectedId}
+            matchIds={matchIds}
+            side={isMobile ? 'bottom' : 'right'}
+            onMemberClick={handleCommitteeMemberClick}
+          />
+
+          <div className="absolute bottom-3 right-3 z-10 flex gap-1 md:left-3 md:right-auto">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-8 bg-card"
+              onClick={handleZoomIn}
+              aria-label="Zoom in"
+            >
+              <ZoomIn className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-8 bg-card"
+              onClick={handleZoomOut}
+              aria-label="Zoom out"
+            >
+              <ZoomOut className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className="size-8 bg-card"
+              onClick={handleFitView}
+              aria-label="Fit view"
+            >
+              <Maximize2 className="size-4" />
+            </Button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

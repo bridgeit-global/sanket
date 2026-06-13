@@ -39,12 +39,13 @@ import { toast } from '@/components/toast';
 import type { CadreConfig, CadreConfigReferenceCounts } from '@/lib/hierarchy/types';
 
 // Categories and verticals are managed directly from the map (vertical dialog).
-type ConfigKind = 'position' | 'geo';
+type ConfigKind = 'position' | 'level' | 'geo';
 
 type EditState = {
   kind: ConfigKind;
   id?: string;
   name: string;
+  key: string;
   sortOrder: number;
   isActive: boolean;
   levelId: string;
@@ -66,6 +67,7 @@ interface HierarchyConfigAdminProps {
 const EMPTY_REFERENCE_COUNTS: CadreConfigReferenceCounts = {
   categories: {},
   verticals: {},
+  levels: {},
   positions: {},
   geoUnits: {},
 };
@@ -74,6 +76,7 @@ function defaultEditState(kind: ConfigKind): EditState {
   return {
     kind,
     name: '',
+    key: '',
     sortOrder: 99,
     isActive: true,
     levelId: '',
@@ -87,6 +90,13 @@ function getDeleteBlockReason(
   name: string,
   referenceCounts: CadreConfigReferenceCounts,
 ): string | null {
+  if (kind === 'level') {
+    const positionCount = referenceCounts.levels[id]?.positionCount ?? 0;
+    if (positionCount > 0) {
+      return `Cannot delete ${name} — ${positionCount} position${positionCount === 1 ? '' : 's'} use this level`;
+    }
+    return null;
+  }
   if (kind === 'position') {
     const nodeCount = referenceCounts.positions[id]?.nodeCount ?? 0;
     if (nodeCount > 0) {
@@ -113,6 +123,9 @@ function getDeleteBlockReason(
 }
 
 function getDeleteUrl(target: DeleteTarget): string {
+  if (target.kind === 'level') {
+    return `/api/hierarchy/config/levels?id=${encodeURIComponent(target.id)}`;
+  }
   if (target.kind === 'position') {
     return `/api/hierarchy/config/positions?id=${encodeURIComponent(target.id)}`;
   }
@@ -185,9 +198,23 @@ export function HierarchyConfigAdmin({
       kind: 'position',
       id: item.id,
       name: item.name,
+      key: '',
       sortOrder: item.sortOrder,
       isActive: item.isActive,
       levelId: item.levelId,
+      geoType: 'division',
+    });
+  };
+
+  const openEditLevel = (item: CadreConfig['levels'][number]) => {
+    setEditState({
+      kind: 'level',
+      id: item.id,
+      name: item.name,
+      key: item.key,
+      sortOrder: item.sortOrder,
+      isActive: true,
+      levelId: '',
       geoType: 'division',
     });
   };
@@ -197,6 +224,7 @@ export function HierarchyConfigAdmin({
       kind: 'geo',
       id: item.id,
       name: item.name,
+      key: '',
       sortOrder: item.sortOrder,
       isActive: item.isActive,
       levelId: '',
@@ -213,13 +241,18 @@ export function HierarchyConfigAdmin({
       const body: Record<string, unknown> = {
         name: editState.name.trim(),
         sortOrder: editState.sortOrder,
-        isActive: editState.isActive,
       };
       if (editState.id) body.id = editState.id;
+
+      if (editState.kind === 'position' || editState.kind === 'geo') {
+        body.isActive = editState.isActive;
+      }
 
       if (editState.kind === 'position') {
         if (!editState.levelId) throw new Error('Level is required');
         body.levelId = editState.levelId;
+      } else if (editState.kind === 'level') {
+        body.key = editState.key.trim();
       } else {
         body.type = editState.geoType;
       }
@@ -227,7 +260,9 @@ export function HierarchyConfigAdmin({
       const url =
         editState.kind === 'position'
           ? '/api/hierarchy/config/positions'
-          : '/api/hierarchy/config/geo-units';
+          : editState.kind === 'level'
+            ? '/api/hierarchy/config/levels'
+            : '/api/hierarchy/config/geo-units';
       const res = await fetch(url, {
         method: editState.id ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -271,7 +306,19 @@ export function HierarchyConfigAdmin({
   const isEdit = Boolean(editState?.id);
   const canSave =
     Boolean(editState?.name.trim()) &&
-    (editState?.kind !== 'position' || editState.levelId);
+    (editState?.kind === 'position'
+      ? Boolean(editState.levelId)
+      : editState?.kind === 'level'
+        ? Boolean(editState.key.trim())
+        : true);
+
+  const editDialogTitle = (() => {
+    if (!editState) return '';
+    const action = isEdit ? 'Edit' : 'Add';
+    if (editState.kind === 'position') return `${action} position`;
+    if (editState.kind === 'level') return `${action} position level`;
+    return `${action} geographic unit`;
+  })();
 
   return (
     <TooltipProvider>
@@ -279,6 +326,7 @@ export function HierarchyConfigAdmin({
         <Tabs defaultValue="positions">
           <TabsList>
             <TabsTrigger value="positions">Positions</TabsTrigger>
+            <TabsTrigger value="levels">Position Levels</TabsTrigger>
             <TabsTrigger value="geo">Geographic</TabsTrigger>
           </TabsList>
 
@@ -309,6 +357,43 @@ export function HierarchyConfigAdmin({
                           onEdit={() => openEditPosition(p)}
                           onDelete={() =>
                             setDeleteTarget({ kind: 'position', id: p.id, name: p.name })
+                          }
+                        />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="levels" className="space-y-4">
+            <Button onClick={() => openCreate('level')}>Add position level</Button>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Key</TableHead>
+                    <TableHead>Order</TableHead>
+                    <TableHead className="w-24">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {config.levels.map((level) => (
+                    <TableRow key={level.id}>
+                      <TableCell>{level.name}</TableCell>
+                      <TableCell>
+                        <code className="text-xs">{level.key}</code>
+                      </TableCell>
+                      <TableCell>{level.sortOrder}</TableCell>
+                      <TableCell>
+                        <RowActions
+                          deleteReason={getDeleteBlockReason('level', level.id, level.name, counts)}
+                          deleting={deletingId === level.id}
+                          onEdit={() => openEditLevel(level)}
+                          onDelete={() =>
+                            setDeleteTarget({ kind: 'level', id: level.id, name: level.name })
                           }
                         />
                       </TableCell>
@@ -362,11 +447,7 @@ export function HierarchyConfigAdmin({
         <Dialog open={editState !== null} onOpenChange={(open) => !open && closeDialog()}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>
-                {editState
-                  ? `${isEdit ? 'Edit' : 'Add'} ${editState.kind === 'position' ? 'position' : 'geographic unit'}`
-                  : ''}
-              </DialogTitle>
+              <DialogTitle>{editDialogTitle}</DialogTitle>
             </DialogHeader>
             {editState && (
               <div className="space-y-4">
@@ -392,16 +473,39 @@ export function HierarchyConfigAdmin({
                     }
                   />
                 </div>
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="config-active"
-                    checked={editState.isActive}
-                    onChange={(e) =>
-                      setEditState({ ...editState, isActive: e.target.checked })
-                    }
-                  />
-                  <Label htmlFor="config-active">Active</Label>
-                </div>
+                {(editState.kind === 'position' || editState.kind === 'geo') && (
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="config-active"
+                      checked={editState.isActive}
+                      onChange={(e) =>
+                        setEditState({ ...editState, isActive: e.target.checked })
+                      }
+                    />
+                    <Label htmlFor="config-active">Active</Label>
+                  </div>
+                )}
+                {editState.kind === 'level' && (
+                  <div>
+                    <Label>Key</Label>
+                    {isEdit ? (
+                      <Input value={editState.key} disabled />
+                    ) : (
+                      <Input
+                        value={editState.key}
+                        placeholder="e.g. ward_committee"
+                        onChange={(e) =>
+                          setEditState({ ...editState, key: e.target.value })
+                        }
+                      />
+                    )}
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {isEdit
+                        ? 'Key is fixed after creation because it is referenced in code.'
+                        : 'Lowercase slug used in hierarchy logic (e.g. taluka, ward, booth).'}
+                    </p>
+                  </div>
+                )}
                 {editState.kind === 'position' && (
                   <div>
                     <Label>Level</Label>

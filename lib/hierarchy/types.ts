@@ -22,6 +22,8 @@ export type CadreNodeDetail = {
   appointedAt: string | null;
   termEndsAt: string | null;
   positionName: string;
+  /** Lower values rank higher in the org chart (from CadrePosition.sort_order). */
+  positionSortOrder: number;
   positionLevelKey: string;
   positionLevelName: string;
   verticalName: string;
@@ -36,6 +38,7 @@ export type CadreNodeDetail = {
 export type CadreConfigReferenceCounts = {
   categories: Record<string, { verticalCount: number }>;
   verticals: Record<string, { nodeCount: number }>;
+  levels: Record<string, { positionCount: number }>;
   positions: Record<string, { nodeCount: number }>;
   geoUnits: Record<string, { nodeCount: number; childGeoCount: number }>;
 };
