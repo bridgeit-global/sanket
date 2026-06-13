@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { auth } from '@/app/(auth)/auth';
 import { redirect } from 'next/navigation';
 import { hasModuleAccess } from '@/lib/db/queries';
@@ -19,8 +20,10 @@ export default async function HierarchyPage() {
   const isAdmin = await isUserAdmin(session.user.id);
 
   return (
-    <div className="container mx-auto p-4 sm:py-8 max-w-7xl">
-      <HierarchyModule isAdmin={isAdmin} />
+    <div className="mx-auto w-full max-w-[1600px] p-4 sm:py-6">
+      <Suspense fallback={<p className="text-muted-foreground py-12 text-center">Loading...</p>}>
+        <HierarchyModule isAdmin={isAdmin} />
+      </Suspense>
     </div>
   );
 }

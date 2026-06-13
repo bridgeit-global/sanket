@@ -17,12 +17,14 @@ import type {
   CadreGeographicUnit,
   CadreNode,
   CadrePosition,
+  CadrePositionLevel,
   CadreVertical,
   CadreVerticalCategory,
 } from './schema';
 
 export type CadreNodeWithDetails = CadreNode & {
   positionName: string;
+  positionSortOrder: number;
   positionLevelKey: string;
   positionLevelName: string;
   verticalName: string;
@@ -174,6 +176,257 @@ export async function upsertCadrePosition(data: {
   );
 }
 
+export async function upsertCadrePositionLevel(data: {
+  id?: string;
+  key: string;
+  name: string;
+  sortOrder?: number;
+}): Promise<CadrePositionLevel> {
+  return upsertCadreRow(
+    TABLES.cadrePositionLevel,
+    data.id,
+    {
+      key: data.key.trim(),
+      name: data.name.trim(),
+      sort_order: data.sortOrder ?? 0,
+    },
+    mapCadrePositionLevelRow,
+  );
+}
+
+export type CadreConfigReferenceCounts = {
+  categories: Record<string, { verticalCount: number }>;
+  verticals: Record<string, { nodeCount: number }>;
+  levels: Record<string, { positionCount: number }>;
+  positions: Record<string, { nodeCount: number }>;
+  geoUnits: Record<string, { nodeCount: number; childGeoCount: number }>;
+};
+
+export class CadreConfigDeleteError extends Error {
+  readonly code = 'IN_USE' as const;
+  readonly usage: {
+    nodeCount?: number;
+    verticalCount?: number;
+    positionCount?: number;
+    childGeoCount?: number;
+  };
+
+  constructor(
+    message: string,
+    usage: {
+      nodeCount?: number;
+      verticalCount?: number;
+      positionCount?: number;
+      childGeoCount?: number;
+    } = {},
+  ) {
+    super(message);
+    this.name = 'CadreConfigDeleteError';
+    this.usage = usage;
+  }
+}
+
+export async function getCadreConfigReferenceCounts(): Promise<CadreConfigReferenceCounts> {
+  const [
+    verticalsByCategory,
+    nodesByVertical,
+    positionsByLevel,
+    nodesByPosition,
+    childGeoByParent,
+    geoNodeRows,
+  ] = await Promise.all([
+    pgSql`
+      SELECT category_id, COUNT(*)::int AS total
+      FROM "CadreVertical"
+      GROUP BY category_id
+    `,
+    pgSql`
+      SELECT vertical_id, COUNT(*)::int AS total
+      FROM "CadreNode"
+      GROUP BY vertical_id
+    `,
+    pgSql`
+      SELECT level_id, COUNT(*)::int AS total
+      FROM "CadrePosition"
+      GROUP BY level_id
+    `,
+    pgSql`
+      SELECT position_id, COUNT(*)::int AS total
+      FROM "CadreNode"
+      GROUP BY position_id
+    `,
+    pgSql`
+      SELECT parent_id, COUNT(*)::int AS total
+      FROM "CadreGeographicUnit"
+      WHERE parent_id IS NOT NULL
+      GROUP BY parent_id
+    `,
+    pgSql`
+      SELECT division_id, district_id, taluka_id, ward_geo_id
+      FROM "CadreNode"
+    `,
+  ]);
+
+  const categories: CadreConfigReferenceCounts['categories'] = {};
+  for (const row of verticalsByCategory) {
+    categories[String(row.category_id)] = { verticalCount: Number(row.total) };
+  }
+
+  const verticals: CadreConfigReferenceCounts['verticals'] = {};
+  for (const row of nodesByVertical) {
+    verticals[String(row.vertical_id)] = { nodeCount: Number(row.total) };
+  }
+
+  const levels: CadreConfigReferenceCounts['levels'] = {};
+  for (const row of positionsByLevel) {
+    levels[String(row.level_id)] = { positionCount: Number(row.total) };
+  }
+
+  const positions: CadreConfigReferenceCounts['positions'] = {};
+  for (const row of nodesByPosition) {
+    positions[String(row.position_id)] = { nodeCount: Number(row.total) };
+  }
+
+  const geoUnits: CadreConfigReferenceCounts['geoUnits'] = {};
+  for (const row of childGeoByParent) {
+    const parentId = String(row.parent_id);
+    geoUnits[parentId] = { nodeCount: 0, childGeoCount: Number(row.total) };
+  }
+  for (const row of geoNodeRows) {
+    for (const geoId of [
+      row.division_id,
+      row.district_id,
+      row.taluka_id,
+      row.ward_geo_id,
+    ]) {
+      if (!geoId) continue;
+      const id = String(geoId);
+      const existing = geoUnits[id] ?? { nodeCount: 0, childGeoCount: 0 };
+      geoUnits[id] = { ...existing, nodeCount: existing.nodeCount + 1 };
+    }
+  }
+
+  return { categories, verticals, levels, positions, geoUnits };
+}
+
+export async function deleteCadreVerticalCategory(id: string): Promise<void> {
+  const [usage] = await pgSql`
+    SELECT COUNT(*)::int AS total
+    FROM "CadreVertical"
+    WHERE category_id = ${id}
+  `;
+  const verticalCount = Number(usage?.total ?? 0);
+  if (verticalCount > 0) {
+    throw new CadreConfigDeleteError(
+      `Cannot delete — ${verticalCount} vertical${verticalCount === 1 ? '' : 's'} use this category`,
+      { verticalCount },
+    );
+  }
+  const { error } = await supabase
+    .from(TABLES.cadreVerticalCategory)
+    .delete()
+    .eq('id', id);
+  throwOnSupabaseError(error, 'Failed to delete cadre vertical category');
+}
+
+export async function deleteCadreVertical(id: string): Promise<void> {
+  const [usage] = await pgSql`
+    SELECT COUNT(*)::int AS total
+    FROM "CadreNode"
+    WHERE vertical_id = ${id}
+  `;
+  const nodeCount = Number(usage?.total ?? 0);
+  if (nodeCount > 0) {
+    throw new CadreConfigDeleteError(
+      `Cannot delete — ${nodeCount} cadre node${nodeCount === 1 ? '' : 's'} ${nodeCount === 1 ? 'is' : 'are'} assigned to this vertical`,
+      { nodeCount },
+    );
+  }
+  const { error } = await supabase.from(TABLES.cadreVertical).delete().eq('id', id);
+  throwOnSupabaseError(error, 'Failed to delete cadre vertical');
+}
+
+export async function deleteCadrePositionLevel(id: string): Promise<void> {
+  const [usage] = await pgSql`
+    SELECT COUNT(*)::int AS total
+    FROM "CadrePosition"
+    WHERE level_id = ${id}
+  `;
+  const positionCount = Number(usage?.total ?? 0);
+  if (positionCount > 0) {
+    throw new CadreConfigDeleteError(
+      `Cannot delete — ${positionCount} position${positionCount === 1 ? '' : 's'} use this level`,
+      { positionCount },
+    );
+  }
+  const { error } = await supabase
+    .from(TABLES.cadrePositionLevel)
+    .delete()
+    .eq('id', id);
+  throwOnSupabaseError(error, 'Failed to delete cadre position level');
+}
+
+export async function deleteCadrePosition(id: string): Promise<void> {
+  const [usage] = await pgSql`
+    SELECT COUNT(*)::int AS total
+    FROM "CadreNode"
+    WHERE position_id = ${id}
+  `;
+  const nodeCount = Number(usage?.total ?? 0);
+  if (nodeCount > 0) {
+    throw new CadreConfigDeleteError(
+      `Cannot delete — ${nodeCount} cadre node${nodeCount === 1 ? '' : 's'} use this position`,
+      { nodeCount },
+    );
+  }
+  const { error } = await supabase.from(TABLES.cadrePosition).delete().eq('id', id);
+  throwOnSupabaseError(error, 'Failed to delete cadre position');
+}
+
+export async function deleteCadreGeographicUnit(id: string, name?: string): Promise<void> {
+  const [childUsage, nodeRows] = await Promise.all([
+    pgSql`
+      SELECT COUNT(*)::int AS total
+      FROM "CadreGeographicUnit"
+      WHERE parent_id = ${id}
+    `,
+    pgSql`
+      SELECT division_id, district_id, taluka_id, ward_geo_id
+      FROM "CadreNode"
+      WHERE division_id = ${id}
+        OR district_id = ${id}
+        OR taluka_id = ${id}
+        OR ward_geo_id = ${id}
+    `,
+  ]);
+
+  const childGeoCount = Number(childUsage[0]?.total ?? 0);
+  const nodeCount = nodeRows.length;
+  if (childGeoCount > 0 || nodeCount > 0) {
+    const label = name ? `"${name}"` : 'This unit';
+    const parts: string[] = [];
+    if (nodeCount > 0) {
+      parts.push(
+        `${nodeCount} cadre node${nodeCount === 1 ? '' : 's'} ${nodeCount === 1 ? 'is' : 'are'} assigned to ${label}`,
+      );
+    }
+    if (childGeoCount > 0) {
+      parts.push(
+        `${childGeoCount} child geographic unit${childGeoCount === 1 ? '' : 's'} depend on ${label}`,
+      );
+    }
+    throw new CadreConfigDeleteError(`Cannot delete — ${parts.join('; ')}`, {
+      nodeCount,
+      childGeoCount,
+    });
+  }
+  const { error } = await supabase
+    .from(TABLES.cadreGeographicUnit)
+    .delete()
+    .eq('id', id);
+  throwOnSupabaseError(error, 'Failed to delete cadre geographic unit');
+}
+
 export async function upsertCadreGeographicUnit(data: {
   id?: string;
   type: 'division' | 'district' | 'taluka' | 'ward';
@@ -198,19 +451,25 @@ export async function upsertCadreGeographicUnit(data: {
   );
 }
 
+/** When verticalId is omitted, returns the full forest across all active verticals. */
 export async function getCadreTree(filters: {
-  verticalId: string;
+  verticalId?: string;
   constituencyId?: string;
 }): Promise<CadreNodeWithDetails[]> {
   const constituencyClause = filters.constituencyId
     ? pgSql`AND (n.constituency_id = ${filters.constituencyId} OR n.constituency_id IS NULL)`
     : pgSql``;
 
+  const verticalClause = filters.verticalId
+    ? pgSql`AND n.vertical_id = ${filters.verticalId}`
+    : pgSql`AND v.is_active = true`;
+
   const [rows, geoRes] = await Promise.all([
     pgSql`
       SELECT
         n.*,
         p.name AS position_name,
+        p.sort_order AS position_sort_order,
         pl.key AS position_level_key,
         pl.name AS position_level_name,
         v.name AS vertical_name,
@@ -230,8 +489,8 @@ export async function getCadreTree(filters: {
       INNER JOIN "CadreVertical" v ON n.vertical_id = v.id
       LEFT JOIN "User" u ON n.user_id = u.id
       LEFT JOIN "VoterMaster" vm ON n.epic_number = vm.epic_number
-      WHERE n.vertical_id = ${filters.verticalId}
-        AND n.is_active = true
+      WHERE n.is_active = true
+        ${verticalClause}
         ${constituencyClause}
       ORDER BY p.sort_order ASC
     `,
@@ -248,6 +507,7 @@ export async function getCadreTree(filters: {
     return {
       ...node,
       positionName: String(row.position_name),
+      positionSortOrder: Number(row.position_sort_order),
       positionLevelKey: String(row.position_level_key),
       positionLevelName: String(row.position_level_name),
       verticalName: String(row.vertical_name),
@@ -463,7 +723,7 @@ export async function searchUsersForCadre(query: string, limit = 20) {
     SELECT u.id, u.user_id, r.name AS role_name
     FROM "User" u
     LEFT JOIN "Role" r ON u.role_id = r.id
-    WHERE u.user_id ILIKE ${'%' + query + '%'}
+    WHERE u.user_id ILIKE ${`%${query}%`}
     LIMIT ${limit}
   `;
   return rows.map((row) => ({

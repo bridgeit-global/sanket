@@ -33,6 +33,13 @@ export type CadreNodeDetail = {
   linkedVoter: { epicNumber: string; fullName: string; mobile: string | null } | null;
 };
 
+export type CadreConfigReferenceCounts = {
+  categories: Record<string, { verticalCount: number }>;
+  verticals: Record<string, { nodeCount: number }>;
+  positions: Record<string, { nodeCount: number }>;
+  geoUnits: Record<string, { nodeCount: number; childGeoCount: number }>;
+};
+
 export type CadreConfig = {
   categories: Array<{ id: string; name: string; sortOrder: number; isActive: boolean }>;
   verticals: Array<{

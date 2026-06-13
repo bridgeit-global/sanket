@@ -9,13 +9,10 @@ export async function GET(request: NextRequest) {
   }
 
   const { searchParams } = new URL(request.url);
-  const verticalId = searchParams.get('verticalId');
+  const verticalId = searchParams.get('verticalId') ?? undefined;
   const constituencyId = searchParams.get('constituencyId') ?? undefined;
 
-  if (!verticalId) {
-    return NextResponse.json({ error: 'verticalId is required' }, { status: 400 });
-  }
-
+  // Without verticalId the route returns the full forest across active verticals.
   const nodes = await getCadreTree({ verticalId, constituencyId });
   return NextResponse.json({ success: true, nodes });
 }

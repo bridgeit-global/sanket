@@ -3,8 +3,10 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Pencil, Plus, X } from 'lucide-react';
+import { Pencil, Plus, UserPlus, X } from 'lucide-react';
 import type { CadreNodeDetail } from '@/lib/hierarchy/types';
+import { formatGeoContextLine } from '@/lib/hierarchy/geo-attribution';
+import { isPlaceholderNode } from '@/lib/hierarchy/vacant-slots';
 
 interface HierarchyNodeDetailProps {
   node: CadreNodeDetail;
@@ -12,6 +14,7 @@ interface HierarchyNodeDetailProps {
   onClose: () => void;
   onEdit: () => void;
   onAddSubordinate: () => void;
+  onFillVacant?: () => void;
 }
 
 export function HierarchyNodeDetail({
@@ -20,11 +23,24 @@ export function HierarchyNodeDetail({
   onClose,
   onEdit,
   onAddSubordinate,
+  onFillVacant,
 }: HierarchyNodeDetailProps) {
+  const isPlaceholder = isPlaceholderNode(node);
+  const geoLine = formatGeoContextLine(node);
+
   return (
-    <Card className="w-80 shadow-xl border-2">
+    <Card
+      className={`w-80 shadow-xl border-2 ${
+        node.isVacant ? 'border-dashed border-amber-500/60' : ''
+      }`}
+    >
       <CardHeader className="pb-2 flex flex-row items-start justify-between space-y-0">
-        <CardTitle className="text-base leading-tight pr-6">{node.positionName}</CardTitle>
+        <div className="pr-6 space-y-1">
+          <CardTitle className="text-base leading-tight">{node.positionName}</CardTitle>
+          {geoLine && (
+            <p className="text-xs font-medium text-muted-foreground">{geoLine}</p>
+          )}
+        </div>
         <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={onClose}>
           <X className="size-4" />
         </Button>
@@ -32,7 +48,7 @@ export function HierarchyNodeDetail({
       <CardContent className="space-y-2 text-sm">
         <div>
           <span className="text-muted-foreground">Person: </span>
-          <span className="font-medium">
+          <span className={`font-medium ${node.isVacant ? 'italic text-amber-800 dark:text-amber-200' : ''}`}>
             {node.isVacant ? 'Vacant' : node.personName ?? '—'}
           </span>
         </div>
@@ -97,13 +113,40 @@ export function HierarchyNodeDetail({
           </div>
         )}
         {isAdmin && (
-          <div className="flex gap-2 pt-2">
-            <Button size="sm" variant="outline" onClick={onEdit}>
-              <Pencil className="size-3.5 mr-1" /> Edit
-            </Button>
-            <Button size="sm" variant="secondary" onClick={onAddSubordinate}>
-              <Plus className="size-3.5 mr-1" /> Add subordinate
-            </Button>
+          <div className="flex flex-col gap-2 pt-2">
+            {isPlaceholder && onFillVacant ? (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  This expected slot has no database record yet. Create a node with ward/booth
+                  context pre-filled.
+                </p>
+                <Button size="sm" onClick={onFillVacant}>
+                  <UserPlus className="size-3.5 mr-1" /> Fill this position
+                </Button>
+              </>
+            ) : isPlaceholder ? (
+              <p className="text-xs text-muted-foreground">
+                This slot has no database record yet. Ask an admin to fill it from the chart.
+              </p>
+            ) : node.isVacant ? (
+              <>
+                <Button size="sm" onClick={onEdit}>
+                  <UserPlus className="size-3.5 mr-1" /> Assign person
+                </Button>
+                <Button size="sm" variant="outline" onClick={onEdit}>
+                  <Pencil className="size-3.5 mr-1" /> Edit
+                </Button>
+              </>
+            ) : (
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={onEdit}>
+                  <Pencil className="size-3.5 mr-1" /> Edit
+                </Button>
+                <Button size="sm" variant="secondary" onClick={onAddSubordinate}>
+                  <Plus className="size-3.5 mr-1" /> Add subordinate
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </CardContent>
