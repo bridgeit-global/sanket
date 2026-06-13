@@ -1,10 +1,15 @@
 import { hierarchy, tree, type HierarchyPointNode } from 'd3';
 import type { CadreNodeDetail } from './types';
 
-export const NODE_WIDTH = 220;
-export const NODE_HEIGHT = 104;
-const HORIZONTAL_GAP = 20;
-const VERTICAL_GAP = 16;
+export const NODE_WIDTH = 228;
+export const NODE_HEIGHT = 96;
+export const COMPACT_NODE_WIDTH = 172;
+export const COMPACT_NODE_HEIGHT = 72;
+const HORIZONTAL_GAP = 16;
+const COMPACT_HORIZONTAL_GAP = 10;
+const VERTICAL_GAP = 14;
+const SIBLING_GRID_THRESHOLD = 5;
+const SIBLING_GRID_COLS = 4;
 
 type TreeDatum = {
   id: string;
@@ -18,6 +23,9 @@ export type LayoutNode = {
   x: number;
   y: number;
   parentId: string | null;
+  width: number;
+  height: number;
+  compact: boolean;
 };
 
 export type LayoutLink = {
@@ -32,6 +40,13 @@ export type D3TreeLayout = {
   width: number;
   height: number;
 };
+
+export function getLayoutNodeDimensions(node: Pick<LayoutNode, 'width' | 'height'>): {
+  width: number;
+  height: number;
+} {
+  return { width: node.width, height: node.height };
+}
 
 function positionSortOrder(cadre: CadreNodeDetail): number {
   return cadre.positionSortOrder ?? 999;
@@ -91,6 +106,9 @@ function flattenHierarchy(
       x: d.x,
       y: d.y,
       parentId: parent?.data.id ?? null,
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
+      compact: false,
     });
 
     if (parent?.data.cadre) {
@@ -132,7 +150,7 @@ function subtreeBottom(
   const node = nodeById.get(rootId);
   if (!node) return 0;
 
-  let max = node.y + NODE_HEIGHT / 2;
+  let max = node.y + node.height / 2;
   for (const child of childrenByParent.get(rootId) ?? []) {
     max = Math.max(max, subtreeBottom(child.id, childrenByParent, nodeById));
   }
@@ -141,6 +159,7 @@ function subtreeBottom(
 
 function shiftSubtree(
   rootId: string,
+  deltaX: number,
   deltaY: number,
   childrenByParent: Map<string, LayoutNode[]>,
   nodeById: Map<string, LayoutNode>,
@@ -148,10 +167,22 @@ function shiftSubtree(
   const node = nodeById.get(rootId);
   if (!node) return;
 
+  node.x += deltaX;
   node.y += deltaY;
   for (const child of childrenByParent.get(rootId) ?? []) {
-    shiftSubtree(child.id, deltaY, childrenByParent, nodeById);
+    shiftSubtree(child.id, deltaX, deltaY, childrenByParent, nodeById);
   }
+}
+
+function buildChildrenMap(nodes: LayoutNode[]): Map<string, LayoutNode[]> {
+  const childrenByParent = new Map<string, LayoutNode[]>();
+  for (const node of nodes) {
+    if (!node.parentId) continue;
+    const list = childrenByParent.get(node.parentId) ?? [];
+    list.push(node);
+    childrenByParent.set(node.parentId, list);
+  }
+  return childrenByParent;
 }
 
 /**
@@ -161,16 +192,7 @@ function shiftSubtree(
  */
 function applySortOrderOffsets(nodes: LayoutNode[]): void {
   const nodeById = new Map(nodes.map((n) => [n.id, n]));
-  const childrenByParent = new Map<string, LayoutNode[]>();
-
-  for (const node of nodes) {
-    if (!node.parentId) continue;
-    const list = childrenByParent.get(node.parentId) ?? [];
-    list.push(node);
-    childrenByParent.set(node.parentId, list);
-  }
-
-  const rowGap = NODE_HEIGHT + VERTICAL_GAP;
+  const childrenByParent = buildChildrenMap(nodes);
   const queue = nodes.filter((n) => !n.parentId).map((n) => n.id);
 
   while (queue.length > 0) {
@@ -188,13 +210,14 @@ function applySortOrderOffsets(nodes: LayoutNode[]): void {
     let cursorBottom = Number.NEGATIVE_INFINITY;
     for (let i = 0; i < groups.length; i++) {
       const group = groups[i];
-      const groupTop = Math.min(...group.map((n) => n.y - NODE_HEIGHT / 2));
+      const groupTop = Math.min(...group.map((n) => n.y - n.height / 2));
 
       if (i > 0) {
+        const rowGap = Math.max(...group.map((n) => n.height)) + VERTICAL_GAP;
         const shift = cursorBottom + rowGap - groupTop;
         if (shift > 0) {
           for (const node of group) {
-            shiftSubtree(node.id, shift, childrenByParent, nodeById);
+            shiftSubtree(node.id, 0, shift, childrenByParent, nodeById);
           }
         }
       }
@@ -202,6 +225,52 @@ function applySortOrderOffsets(nodes: LayoutNode[]): void {
       cursorBottom = Math.max(
         ...group.map((n) => subtreeBottom(n.id, childrenByParent, nodeById)),
       );
+    }
+  }
+}
+
+/**
+ * Wraps wide sibling rows into a compact multi-row grid when a single sort-order
+ * tier has more than {@link SIBLING_GRID_THRESHOLD} nodes.
+ */
+function applySiblingGridLayout(nodes: LayoutNode[]): void {
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  const childrenByParent = buildChildrenMap(nodes);
+
+  for (const children of childrenByParent.values()) {
+    if (children.length <= SIBLING_GRID_THRESHOLD) continue;
+
+    const groups = groupChildrenBySortOrder(children);
+    for (const group of groups) {
+      if (group.length <= SIBLING_GRID_THRESHOLD) continue;
+
+      const sorted = [...group].sort((a, b) => a.x - b.x);
+      const anchorY = sorted[0]?.y ?? 0;
+      const minX = Math.min(...sorted.map((n) => n.x));
+      const compact = true;
+      const nodeWidth = compact ? COMPACT_NODE_WIDTH : NODE_WIDTH;
+      const nodeHeight = compact ? COMPACT_NODE_HEIGHT : NODE_HEIGHT;
+      const colWidth = nodeWidth + COMPACT_HORIZONTAL_GAP;
+      const rowGap = nodeHeight + VERTICAL_GAP;
+
+      for (let i = 0; i < sorted.length; i++) {
+        const node = sorted[i];
+        if (!node) continue;
+        const row = Math.floor(i / SIBLING_GRID_COLS);
+        const col = i % SIBLING_GRID_COLS;
+        const targetX = minX + col * colWidth;
+        const targetY = anchorY + row * rowGap;
+        const deltaX = targetX - node.x;
+        const deltaY = targetY - node.y;
+
+        node.compact = compact;
+        node.width = nodeWidth;
+        node.height = nodeHeight;
+
+        if (deltaX !== 0 || deltaY !== 0) {
+          shiftSubtree(node.id, deltaX, deltaY, childrenByParent, nodeById);
+        }
+      }
     }
   }
 }
@@ -221,18 +290,17 @@ export function computeD3TreeLayout(nodes: CadreNodeDetail[]): D3TreeLayout {
 
   const { nodes: layoutNodes, links } = flattenHierarchy(laidOut);
   applySortOrderOffsets(layoutNodes);
+  applySiblingGridLayout(layoutNodes);
 
-  const xs = layoutNodes.map((n) => n.x);
-  const ys = layoutNodes.map((n) => n.y);
-  const minX = Math.min(...xs) - NODE_WIDTH / 2;
-  const maxX = Math.max(...xs) + NODE_WIDTH / 2;
-  const minY = Math.min(...ys) - NODE_HEIGHT / 2;
-  const maxY = Math.max(...ys) + NODE_HEIGHT / 2;
+  const lefts = layoutNodes.map((n) => n.x - n.width / 2);
+  const rights = layoutNodes.map((n) => n.x + n.width / 2);
+  const tops = layoutNodes.map((n) => n.y - n.height / 2);
+  const bottoms = layoutNodes.map((n) => n.y + n.height / 2);
 
   return {
     nodes: layoutNodes,
     links,
-    width: maxX - minX,
-    height: maxY - minY,
+    width: Math.max(...rights) - Math.min(...lefts),
+    height: Math.max(...bottoms) - Math.min(...tops),
   };
 }

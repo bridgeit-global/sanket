@@ -35,7 +35,7 @@ export const DEFAULT_MAP_DEPTH: MapDepth = 'ward';
 export const MAP_MAX_RENDER_NODES = 120;
 
 /** Minimum zoom when fitting large trees so cards stay partially readable. */
-export const MAP_MIN_FIT_SCALE = 0.35;
+export const MAP_MIN_FIT_SCALE = 0.42;
 
 export type MapRenderGate = {
   render: boolean;

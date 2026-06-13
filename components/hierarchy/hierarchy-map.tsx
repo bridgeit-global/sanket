@@ -105,7 +105,7 @@ export function HierarchyMap({
   );
 
   return (
-    <div className="flex h-full flex-col gap-1 md:gap-2">
+    <div className="flex h-full flex-col gap-1">
       {isMobile ? (
         <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
           <DropdownMenu>
@@ -127,8 +127,11 @@ export function HierarchyMap({
           )}
         </div>
       ) : (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-md border border-border/50 bg-muted/20 px-2.5 py-1 text-[11px] text-muted-foreground">
           {legendItems}
+          {(hasActiveSearchFilter || vacantOnMap > 0 || cadreNodes.length > MAP_MAX_RENDER_NODES) && (
+            <span className="hidden h-3 w-px bg-border/80 sm:inline-block" aria-hidden />
+          )}
           {statusItems}
         </div>
       )}

@@ -11,6 +11,7 @@ import {
   computeD3TreeLayout,
   NODE_HEIGHT,
   NODE_WIDTH,
+  type LayoutNode,
 } from '@/lib/hierarchy/d3-tree-layout';
 import { MAP_MIN_FIT_SCALE } from '@/lib/hierarchy/map-filters';
 import { getLevelColor } from '@/lib/hierarchy/build-tree';
@@ -26,15 +27,21 @@ import {
 import { isPlaceholderNode } from '@/lib/hierarchy/vacant-slots';
 import type { CadreNodeDetail } from '@/lib/hierarchy/types';
 
-const PADDING = 48;
+const PADDING = 40;
+const FOCUSED_PADDING = 20;
 const MIN_MANUAL_ZOOM = 0.12;
 const LARGE_TREE_NODE_THRESHOLD = 80;
+const FOCUSED_MIN_SCALE = 0.72;
+const FOCUSED_MAX_SCALE = 2;
 
 type PositionedNode = {
   id: string;
   cadre: CadreNodeDetail;
   x: number;
   y: number;
+  width: number;
+  height: number;
+  compact: boolean;
 };
 
 interface HierarchyD3TreeProps {
@@ -57,15 +64,18 @@ interface HierarchyD3TreeProps {
   onAddChild?: (node: CadreNodeDetail) => void;
 }
 
-function normalizeLayout(nodes: ReturnType<typeof computeD3TreeLayout>['nodes']): PositionedNode[] {
+function normalizeLayout(nodes: LayoutNode[]): PositionedNode[] {
   if (nodes.length === 0) return [];
-  const minX = Math.min(...nodes.map((n) => n.x));
-  const minY = Math.min(...nodes.map((n) => n.y));
+  const minX = Math.min(...nodes.map((n) => n.x - n.width / 2));
+  const minY = Math.min(...nodes.map((n) => n.y - n.height / 2));
   return nodes.map((n) => ({
     id: n.id,
     cadre: n.cadre,
-    x: n.x - minX + NODE_WIDTH / 2,
-    y: n.y - minY + NODE_HEIGHT / 2,
+    x: n.x - minX + n.width / 2,
+    y: n.y - minY + n.height / 2,
+    width: n.width,
+    height: n.height,
+    compact: n.compact,
   }));
 }
 
@@ -73,10 +83,10 @@ function getNodeBounds(positioned: PositionedNode[], ids?: Set<string>) {
   const subset = ids && ids.size > 0 ? positioned.filter((n) => ids.has(n.id)) : positioned;
   if (subset.length === 0) return null;
 
-  const lefts = subset.map((n) => n.x - NODE_WIDTH / 2);
-  const rights = subset.map((n) => n.x + NODE_WIDTH / 2);
-  const tops = subset.map((n) => n.y - NODE_HEIGHT / 2);
-  const bottoms = subset.map((n) => n.y + NODE_HEIGHT / 2);
+  const lefts = subset.map((n) => n.x - n.width / 2);
+  const rights = subset.map((n) => n.x + n.width / 2);
+  const tops = subset.map((n) => n.y - n.height / 2);
+  const bottoms = subset.map((n) => n.y + n.height / 2);
 
   return {
     minX: Math.min(...lefts),
@@ -121,8 +131,8 @@ export function HierarchyD3Tree({
         if (!source || !target) return null;
         return {
           id: link.id,
-          source: { x: source.x, y: source.y + NODE_HEIGHT / 2 - 4 },
-          target: { x: target.x, y: target.y - NODE_HEIGHT / 2 + 4 },
+          source: { x: source.x, y: source.y + source.height / 2 - 4 },
+          target: { x: target.x, y: target.y - target.height / 2 + 4 },
         };
       })
       .filter(Boolean) as Array<{
@@ -134,11 +144,11 @@ export function HierarchyD3Tree({
 
   const graphWidth =
     positionedNodes.length > 0
-      ? Math.max(...positionedNodes.map((n) => n.x)) + NODE_WIDTH / 2
+      ? Math.max(...positionedNodes.map((n) => n.x + n.width / 2))
       : 0;
   const graphHeight =
     positionedNodes.length > 0
-      ? Math.max(...positionedNodes.map((n) => n.y)) + NODE_HEIGHT / 2
+      ? Math.max(...positionedNodes.map((n) => n.y + n.height / 2))
       : 0;
 
   const fitToBounds = useCallback(
@@ -155,15 +165,16 @@ export function HierarchyD3Tree({
       const height = container.clientHeight;
       const contentWidth = Math.max(bounds.maxX - bounds.minX, NODE_WIDTH);
       const contentHeight = Math.max(bounds.maxY - bounds.minY, NODE_HEIGHT);
-      const fitScale = Math.min(
-        (width - PADDING * 2) / contentWidth,
-        (height - PADDING * 2) / contentHeight,
-        1.5,
-      );
       const isFocusedFit = Boolean(ids && ids.size > 0);
+      const padding = isFocusedFit ? FOCUSED_PADDING : PADDING;
+      const fitScale = Math.min(
+        (width - padding * 2) / contentWidth,
+        (height - padding * 2) / contentHeight,
+        isFocusedFit ? FOCUSED_MAX_SCALE : 1.5,
+      );
       const isLargeTree = positionedNodes.length > LARGE_TREE_NODE_THRESHOLD;
       const minScale = isFocusedFit
-        ? 0.5
+        ? FOCUSED_MIN_SCALE
         : isLargeTree
           ? MAP_MIN_FIT_SCALE
           : MIN_MANUAL_ZOOM;
@@ -275,16 +286,35 @@ export function HierarchyD3Tree({
   );
 
   return (
-    <div className="relative h-full w-full overflow-hidden rounded-lg border border-border bg-background">
+    <div className="relative size-full overflow-hidden rounded-lg border border-border bg-gradient-to-br from-muted/20 via-background to-muted/30">
       {cadreNodes.length === 0 ? (
-        <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-          No nodes match the current filters.
+        <div className="flex h-full flex-col items-center justify-center gap-2 px-6 text-center">
+          <p className="text-sm font-medium text-muted-foreground">No nodes match the current filters</p>
+          <p className="text-xs text-muted-foreground/80">
+            Try a different ward, booth, or search term.
+          </p>
         </div>
       ) : (
         <>
           <div ref={containerRef} className="absolute inset-0">
-            <svg ref={svgRef} className="h-full w-full touch-none">
-              <rect width="100%" height="100%" fill="transparent" />
+            <svg ref={svgRef} className="size-full touch-none">
+              <defs>
+                <pattern
+                  id="hierarchy-grid"
+                  width="24"
+                  height="24"
+                  patternUnits="userSpaceOnUse"
+                >
+                  <path
+                    d="M 24 0 L 0 0 0 24"
+                    fill="none"
+                    stroke="hsl(var(--border))"
+                    strokeWidth="0.5"
+                    strokeOpacity="0.35"
+                  />
+                </pattern>
+              </defs>
+              <rect width="100%" height="100%" fill="url(#hierarchy-grid)" />
               <g transform={`translate(${transform.x},${transform.y}) scale(${transform.k})`}>
                 {links.map((link) => {
                   const midY = (link.source.y + link.target.y) / 2;
@@ -294,9 +324,9 @@ export function HierarchyD3Tree({
                       key={link.id}
                       d={d}
                       fill="none"
-                      stroke="hsl(var(--muted-foreground))"
-                      strokeWidth={1.5}
-                      strokeOpacity={0.6}
+                      stroke="hsl(var(--border))"
+                      strokeWidth={1.25}
+                      strokeOpacity={0.55}
                     />
                   );
                 })}
@@ -327,14 +357,15 @@ export function HierarchyD3Tree({
                     key={node.id}
                     className="pointer-events-auto absolute"
                     style={{
-                      left: node.x - NODE_WIDTH / 2,
-                      top: node.y - NODE_HEIGHT / 2,
-                      width: NODE_WIDTH,
+                      left: node.x - node.width / 2,
+                      top: node.y - node.height / 2,
+                      width: node.width,
                     }}
                   >
                     <HierarchyNodeCardContent
                       cadre={node.cadre}
                       color={getNodeColor(node.cadre)}
+                      compact={node.compact}
                       selected={selectedId === node.id}
                       dimmed={dimmed}
                       highlighted={isMatch}
@@ -383,12 +414,12 @@ export function HierarchyD3Tree({
             onMemberClick={handleCommitteeMemberClick}
           />
 
-          <div className="absolute bottom-3 right-3 z-10 flex gap-1 md:left-3 md:right-auto">
+          <div className="absolute bottom-3 right-3 z-10 flex gap-0.5 rounded-lg border border-border/60 bg-card/90 p-0.5 shadow-sm backdrop-blur-sm md:left-3 md:right-auto">
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="icon"
-              className="size-8 bg-card"
+              className="size-8"
               onClick={handleZoomIn}
               aria-label="Zoom in"
             >
@@ -396,9 +427,9 @@ export function HierarchyD3Tree({
             </Button>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="icon"
-              className="size-8 bg-card"
+              className="size-8"
               onClick={handleZoomOut}
               aria-label="Zoom out"
             >
@@ -406,9 +437,9 @@ export function HierarchyD3Tree({
             </Button>
             <Button
               type="button"
-              variant="outline"
+              variant="ghost"
               size="icon"
-              className="size-8 bg-card"
+              className="size-8"
               onClick={handleFitView}
               aria-label="Fit view"
             >

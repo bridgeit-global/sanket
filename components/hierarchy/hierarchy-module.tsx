@@ -50,7 +50,7 @@ import {
   type MapDepth,
 } from '@/lib/hierarchy/map-filters';
 import { buildForest, isVerticalHubNode } from '@/lib/hierarchy/forest-builder';
-import { applyCommitteeHubCollapse } from '@/lib/hierarchy/committee-hub';
+import { applyCommitteeHubCollapse, isCommitteeHubNode } from '@/lib/hierarchy/committee-hub';
 import {
   buildBoothCommitteeOptions,
   buildBoothOptions,
@@ -414,6 +414,17 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
   const fitBoundsNodeIds = useMemo(() => {
     if (focusNodeId) return undefined;
     if (resolvedWardGeoId || boothNo || wardMemberId || boothMemberId) {
+      if (resolvedWardGeoId && !wardMemberId && !boothMemberId) {
+        const wardLocal = mapNodes.filter(
+          (n) =>
+            !isVerticalHubNode(n) &&
+            n.positionLevelKey !== 'taluka' &&
+            (n.wardGeoId === resolvedWardGeoId || isCommitteeHubNode(n)),
+        );
+        if (wardLocal.length > 0) {
+          return new Set(wardLocal.map((n) => n.id));
+        }
+      }
       return new Set(mapNodes.map((n) => n.id));
     }
     return undefined;
@@ -810,7 +821,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
   }, [isAdmin, quickEdit, config, defaultElectionId, detailNode, refresh]);
 
   return (
-    <div className="flex h-[calc(100dvh-7rem)] max-md:h-[calc(100dvh-10rem)] min-h-[360px] flex-col gap-2 md:gap-3">
+    <div className="flex h-[calc(100dvh-5.5rem)] max-md:h-[calc(100dvh-9rem)] min-h-[400px] flex-col gap-2 md:gap-2">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <ModulePageHeader title="Cadre Hierarchy" />
         {isAdmin && (
@@ -929,7 +940,10 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
 
       <div className="min-h-0 flex-1">
         {loading ? (
-          <p className="text-muted-foreground py-12 text-center">Loading...</p>
+          <div className="flex h-full flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-muted/20">
+            <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            <p className="text-sm text-muted-foreground">Loading hierarchy…</p>
+          </div>
         ) : (
           <HierarchyMap
             nodes={mapNodes}

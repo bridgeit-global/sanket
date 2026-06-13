@@ -20,6 +20,7 @@ import { getLevelColor } from '@/lib/hierarchy/build-tree';
 interface HierarchyNodeCardContentProps {
   cadre: CadreNodeDetail;
   color: string;
+  compact?: boolean;
   selected?: boolean;
   dimmed?: boolean;
   highlighted?: boolean;
@@ -35,9 +36,47 @@ interface HierarchyNodeCardContentProps {
   onAddChild?: () => void;
 }
 
+function cardShellClass({
+  selected,
+  dimmed,
+  highlighted,
+  compact,
+  vacant,
+}: {
+  selected: boolean;
+  dimmed: boolean;
+  highlighted: boolean;
+  compact: boolean;
+  vacant: boolean;
+}): string {
+  const parts = [
+    'group/card relative rounded-md border bg-card shadow-sm cursor-pointer transition-shadow hover:shadow-md overflow-hidden',
+    compact ? 'px-2 py-1.5' : 'px-3 py-2',
+    vacant
+      ? 'border-dashed border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/25'
+      : 'border-border/70',
+    selected ? 'ring-2 ring-primary ring-offset-1' : '',
+    highlighted ? 'ring-2 ring-amber-400 shadow-md' : '',
+    dimmed ? 'opacity-40' : '',
+  ];
+  return parts.filter(Boolean).join(' ');
+}
+
+function accentStyle(color: string, vacant: boolean): React.CSSProperties {
+  if (vacant) {
+    return { borderLeftWidth: 4, borderLeftColor: 'hsl(38 92% 50% / 0.75)' };
+  }
+  return {
+    borderLeftWidth: 4,
+    borderLeftColor: color,
+    borderLeftStyle: 'solid',
+  };
+}
+
 export function HierarchyNodeCardContent({
   cadre,
   color,
+  compact = false,
   selected = false,
   dimmed = false,
   highlighted = false,
@@ -61,6 +100,24 @@ export function HierarchyNodeCardContent({
   const actionButtonClass =
     'rounded-full border bg-card p-1 shadow-sm hover:bg-accent';
 
+  const roleClass = compact
+    ? 'text-[8px] font-medium uppercase tracking-wide text-muted-foreground'
+    : 'text-[9px] font-medium uppercase tracking-wide text-muted-foreground';
+  const nameClass = compact
+    ? 'text-xs font-semibold leading-tight truncate'
+    : 'text-sm font-semibold leading-snug truncate';
+  const metaClass = compact
+    ? 'text-[8px] text-muted-foreground'
+    : 'text-[10px] text-muted-foreground';
+
+  const shellProps = {
+    selected,
+    dimmed,
+    highlighted,
+    compact,
+    vacant: cadre.isVacant,
+  };
+
   if (isHub) {
     return (
       <div
@@ -73,15 +130,11 @@ export function HierarchyNodeCardContent({
             onClick?.();
           }
         }}
-        className={`group/card relative rounded-lg border-2 bg-card px-3 py-2 shadow-sm min-w-[200px] max-w-[220px] cursor-pointer transition-shadow hover:shadow-md ${
-          selected ? 'ring-2 ring-primary' : ''
-        } ${dimmed ? 'opacity-40' : ''}`}
-        style={{ borderColor: color, boxShadow: `0 0 0 1px ${color}33` }}
+        className={cardShellClass(shellProps)}
+        style={accentStyle(color, false)}
       >
         <div className="flex items-center justify-between gap-1">
-          <p className="min-w-0 flex-1 truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            {cadre.positionName}
-          </p>
+          <p className={`min-w-0 flex-1 truncate ${roleClass}`}>{cadre.positionName}</p>
           <div className="flex shrink-0 items-center gap-0.5">
             {onEdit && (
               <button
@@ -103,17 +156,19 @@ export function HierarchyNodeCardContent({
             )}
           </div>
         </div>
-        <p className="text-sm font-semibold truncate">{cadre.verticalName}</p>
-        <div className="mt-1 flex items-center gap-1.5 flex-wrap text-[10px] text-muted-foreground">
+        <p className={nameClass}>{cadre.verticalName}</p>
+        <div className={`mt-0.5 flex items-center gap-1.5 flex-wrap ${metaClass}`}>
           <span>{hubStats?.totalNodes ?? 0} members</span>
           {(hubStats?.vacantNodes ?? 0) > 0 && (
             <span className="inline-flex items-center rounded bg-amber-100 px-1 py-0.5 text-amber-800 dark:bg-amber-900 dark:text-amber-100">
               {hubStats?.vacantNodes} vacant
             </span>
           )}
-          <span className="text-muted-foreground/70">
-            {expanded ? 'Click to collapse' : 'Click to expand'}
-          </span>
+          {!compact && (
+            <span className="text-muted-foreground/70">
+              {expanded ? 'Click to collapse' : 'Click to expand'}
+            </span>
+          )}
         </div>
       </div>
     );
@@ -132,26 +187,24 @@ export function HierarchyNodeCardContent({
             onClick?.();
           }
         }}
-        className={`group/card relative rounded-lg border-2 bg-card px-3 py-2 shadow-sm min-w-[200px] max-w-[220px] cursor-pointer transition-shadow hover:shadow-md ${
-          selected ? 'ring-2 ring-primary' : ''
-        } ${dimmed ? 'opacity-40' : ''} ${highlighted ? 'ring-2 ring-amber-400 shadow-md' : ''}`}
-        style={{ borderColor: committeeColor, boxShadow: `0 0 0 1px ${committeeColor}33` }}
+        className={cardShellClass(shellProps)}
+        style={accentStyle(committeeColor, false)}
       >
         <div className="flex items-center justify-between gap-1">
-          <p className="min-w-0 flex-1 truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-            {cadre.positionName}
+          <p className={`min-w-0 flex-1 truncate ${roleClass}`}>
+            {committeeHubStats.levelLabel}
           </p>
           <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
         </div>
-        <p className="text-sm font-semibold truncate">{cadre.personName}</p>
-        <div className="mt-1 flex items-center gap-1.5 flex-wrap text-[10px] text-muted-foreground">
+        <p className={nameClass}>{cadre.personName}</p>
+        <div className={`mt-0.5 flex items-center gap-1.5 flex-wrap ${metaClass}`}>
           <span>{committeeHubStats.totalNodes} members</span>
           {committeeHubStats.vacantNodes > 0 && (
             <span className="inline-flex items-center rounded bg-amber-100 px-1 py-0.5 text-amber-800 dark:bg-amber-900 dark:text-amber-100">
               {committeeHubStats.vacantNodes} vacant
             </span>
           )}
-          <span className="text-muted-foreground/70">Tap to browse</span>
+          {!compact && <span className="text-muted-foreground/70">Tap to browse</span>}
         </div>
       </div>
     );
@@ -171,23 +224,11 @@ export function HierarchyNodeCardContent({
         }
       }}
       onContextMenu={onContextMenu}
-      className={`group/card relative rounded-lg border-2 bg-card px-3 py-2 shadow-sm min-w-[200px] max-w-[220px] cursor-pointer transition-shadow ${
-        cadre.isVacant
-          ? 'border-dashed border-amber-500/60 bg-amber-50/40 dark:bg-amber-950/20 hover:shadow-md hover:border-amber-500'
-          : 'border-border hover:shadow-md'
-      } ${selected ? 'ring-2 ring-primary' : ''} ${
-        highlighted ? 'ring-2 ring-amber-400 shadow-md' : ''
-      } ${dimmed ? 'opacity-40' : ''}`}
-      style={
-        cadre.isVacant
-          ? undefined
-          : { borderColor: color, boxShadow: `0 0 0 1px ${color}33` }
-      }
+      className={cardShellClass(shellProps)}
+      style={accentStyle(color, cadre.isVacant)}
     >
       <div className="flex items-center justify-between gap-1">
-        <p className="min-w-0 flex-1 truncate text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          {cadre.positionName}
-        </p>
+        <p className={`min-w-0 flex-1 truncate ${roleClass}`}>{cadre.positionName}</p>
         {hasActions && (
           <div className="hidden shrink-0 items-center gap-0.5 group-hover/card:flex">
             {onEdit && (
@@ -220,30 +261,32 @@ export function HierarchyNodeCardContent({
         )}
       </div>
       <p
-        className={`text-sm font-semibold truncate ${
-          cadre.isVacant ? 'italic text-amber-800 dark:text-amber-200' : ''
+        className={`${nameClass} ${
+          cadre.isVacant ? 'italic text-amber-800 dark:text-amber-200' : 'text-foreground'
         }`}
       >
         {displayName}
       </p>
-      {!cadre.isVacant && geoLine && (
-        <p className="text-[10px] text-muted-foreground truncate mt-0.5">{geoLine}</p>
+      {!compact && !cadre.isVacant && geoLine && (
+        <p className={`${metaClass} truncate mt-0.5`}>{geoLine}</p>
       )}
-      {cadre.isVacant && geo.secondary && (
-        <p className="text-[10px] text-muted-foreground truncate mt-0.5">{geo.secondary}</p>
+      {!compact && cadre.isVacant && geo.secondary && (
+        <p className={`${metaClass} truncate mt-0.5`}>{geo.secondary}</p>
       )}
-      <div className="mt-1 flex items-center gap-1 flex-wrap">
-        {cadre.linkedUser && (
-          <span className="inline-flex items-center gap-0.5 rounded bg-blue-100 px-1 py-0.5 text-[10px] text-blue-800 dark:bg-blue-900 dark:text-blue-100">
-            <User className="size-2.5" /> User
-          </span>
-        )}
-        {cadre.linkedVoter && (
-          <span className="inline-flex items-center gap-0.5 rounded bg-green-100 px-1 py-0.5 text-[10px] text-green-800 dark:bg-green-900 dark:text-green-100">
-            <Vote className="size-2.5" /> Voter
-          </span>
-        )}
-      </div>
+      {!compact && (
+        <div className="mt-1 flex items-center gap-1 flex-wrap">
+          {cadre.linkedUser && (
+            <span className="inline-flex items-center gap-0.5 rounded bg-blue-100 px-1 py-0.5 text-[10px] text-blue-800 dark:bg-blue-900 dark:text-blue-100">
+              <User className="size-2.5" /> User
+            </span>
+          )}
+          {cadre.linkedVoter && (
+            <span className="inline-flex items-center gap-0.5 rounded bg-green-100 px-1 py-0.5 text-[10px] text-green-800 dark:bg-green-900 dark:text-green-100">
+              <Vote className="size-2.5" /> Voter
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }

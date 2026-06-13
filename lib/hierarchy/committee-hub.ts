@@ -3,7 +3,7 @@ import type { CadreNodeDetail } from './types';
 export const COMMITTEE_HUB_PREFIX = 'committee-hub:';
 export const COMMITTEE_HUB_LEVEL_KEY = 'committee_hub';
 /** Collapse when a parent has this many or more committee siblings. */
-export const COMMITTEE_COLLAPSE_THRESHOLD = 7;
+export const COMMITTEE_COLLAPSE_THRESHOLD = 5;
 
 const COMMITTEE_LEVELS = ['ward_committee', 'booth_committee'] as const;
 type CommitteeLevel = (typeof COMMITTEE_LEVELS)[number];
@@ -96,8 +96,8 @@ function makeCommitteeHubNode(
 
 /**
  * Replaces wide sibling rows of committee members with a single hub card when
- * count meets {@link COMMITTEE_COLLAPSE_THRESHOLD}. Members in
- * `preserveMemberIds` (search matches, URL focus) keep the row expanded.
+ * count meets {@link COMMITTEE_COLLAPSE_THRESHOLD}. Search matches still highlight
+ * the hub; only a single URL-focused member keeps the row expanded.
  */
 export function applyCommitteeHubCollapse(
   nodes: CadreNodeDetail[],
@@ -127,7 +127,11 @@ export function applyCommitteeHubCollapse(
         (c) => c.positionLevelKey === levelKey && !collapsedChildIds.has(c.id),
       );
       if (committeeChildren.length < COMMITTEE_COLLAPSE_THRESHOLD) continue;
-      if (committeeChildren.some((c) => preserveIds.has(c.id))) continue;
+      // Keep the row expanded only when a single URL-focused member is in this group.
+      const singleFocusedMember =
+        preserveIds.size === 1 &&
+        committeeChildren.some((c) => preserveIds.has(c.id));
+      if (singleFocusedMember) continue;
 
       const hubId = committeeHubId(parentId, levelKey);
       const vacantNodes = committeeChildren.filter((c) => c.isVacant).length;
