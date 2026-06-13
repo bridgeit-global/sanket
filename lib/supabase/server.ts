@@ -1,12 +1,18 @@
 import 'server-only';
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { resolveServiceRoleKey, resolveSupabaseUrl } from './config';
+import {
+  resolveServiceRoleKey,
+  resolveSupabaseUrl,
+  validateSupabaseEnv,
+} from './config';
 
 let client: SupabaseClient | undefined;
 
 function getClient(): SupabaseClient {
   if (client) return client;
+
+  validateSupabaseEnv();
 
   const url = resolveSupabaseUrl();
   const key = resolveServiceRoleKey();

@@ -6,8 +6,13 @@ export function throwOnSupabaseError(
   message: string,
 ): void {
   if (error) {
-    console.error(message, error);
-    throw new ChatSDKError('bad_request:database', message);
+    console.error(message, {
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      message: error.message,
+    });
+    throw new ChatSDKError('bad_request:database', `${message}: ${error.message}`);
   }
 }
 
