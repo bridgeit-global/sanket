@@ -1,3 +1,33 @@
+/** Geographic unit types stored on CadreGeographicUnit.type (varchar, no DB enum). */
+export const CADRE_GEOGRAPHIC_UNIT_TYPES = [
+  'national',
+  'state',
+  'division',
+  'district',
+  'taluka',
+  'ward',
+  'booth',
+] as const;
+
+export type CadreGeographicUnitType = (typeof CADRE_GEOGRAPHIC_UNIT_TYPES)[number];
+
+export const CADRE_GEOGRAPHIC_UNIT_TYPE_LABELS: Record<CadreGeographicUnitType, string> = {
+  national: 'National',
+  state: 'State',
+  division: 'Division',
+  district: 'District',
+  taluka: 'Taluka / City',
+  ward: 'Ward',
+  booth: 'Booth',
+};
+
+export function isCadreGeographicUnitType(value: unknown): value is CadreGeographicUnitType {
+  return (
+    typeof value === 'string' &&
+    (CADRE_GEOGRAPHIC_UNIT_TYPES as readonly string[]).includes(value)
+  );
+}
+
 export type CadreNodeDetail = {
   id: string;
   parentId: string | null;
@@ -65,7 +95,7 @@ export type CadreConfig = {
   }>;
   geoUnits: Array<{
     id: string;
-    type: string;
+    type: CadreGeographicUnitType;
     name: string;
     parentId: string | null;
     acNo: string | null;

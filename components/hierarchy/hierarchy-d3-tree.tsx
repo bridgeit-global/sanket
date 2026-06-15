@@ -20,12 +20,14 @@ import {
 import { isPlaceholderNode } from '@/lib/hierarchy/vacant-slots';
 import type { CadreNodeDetail } from '@/lib/hierarchy/types';
 
-const PADDING = 40;
-const FOCUSED_PADDING = 20;
+const PADDING = 48;
+const FOCUSED_PADDING = 24;
+const GRAPH_MARGIN = 24;
 const MIN_MANUAL_ZOOM = 0.12;
 const LARGE_TREE_NODE_THRESHOLD = 80;
 const FOCUSED_MIN_SCALE = 0.72;
 const FOCUSED_MAX_SCALE = 2;
+const LARGE_TREE_MAX_FIT_SCALE = 1.2;
 
 type PositionedNode = {
   id: string;
@@ -119,32 +121,30 @@ export function HierarchyD3Tree({
 
         const sourceBottom = source.y + source.height / 2 - 4;
         const targetTop = target.y - target.height / 2 + 4;
-        const sourceHalf = source.width / 2 - 10;
-        const sourceX = Math.max(
-          source.x - sourceHalf,
-          Math.min(source.x + sourceHalf, target.x),
-        );
+        const midY = sourceBottom + (targetTop - sourceBottom) * 0.45;
 
         return {
           id: link.id,
-          source: { x: sourceX, y: sourceBottom },
+          source: { x: source.x, y: sourceBottom },
           target: { x: target.x, y: targetTop },
+          midY,
         };
       })
       .filter(Boolean) as Array<{
       id: string;
       source: { x: number; y: number };
       target: { x: number; y: number };
+      midY: number;
     }>;
   }, [layout.links, positionedNodes]);
 
   const graphWidth =
     positionedNodes.length > 0
-      ? Math.max(...positionedNodes.map((n) => n.x + n.width / 2))
+      ? Math.max(...positionedNodes.map((n) => n.x + n.width / 2)) + GRAPH_MARGIN
       : 0;
   const graphHeight =
     positionedNodes.length > 0
-      ? Math.max(...positionedNodes.map((n) => n.y + n.height / 2))
+      ? Math.max(...positionedNodes.map((n) => n.y + n.height / 2)) + GRAPH_MARGIN
       : 0;
 
   const fitToBounds = useCallback(
@@ -163,12 +163,12 @@ export function HierarchyD3Tree({
       const contentHeight = Math.max(bounds.maxY - bounds.minY, NODE_HEIGHT);
       const isFocusedFit = Boolean(ids && ids.size > 0);
       const padding = isFocusedFit ? FOCUSED_PADDING : PADDING;
+      const isLargeTree = positionedNodes.length > LARGE_TREE_NODE_THRESHOLD;
       const fitScale = Math.min(
         (width - padding * 2) / contentWidth,
         (height - padding * 2) / contentHeight,
-        isFocusedFit ? FOCUSED_MAX_SCALE : 1.5,
+        isFocusedFit ? FOCUSED_MAX_SCALE : isLargeTree ? LARGE_TREE_MAX_FIT_SCALE : 1.5,
       );
-      const isLargeTree = positionedNodes.length > LARGE_TREE_NODE_THRESHOLD;
       const minScale = isFocusedFit
         ? FOCUSED_MIN_SCALE
         : isLargeTree
@@ -292,8 +292,7 @@ export function HierarchyD3Tree({
               <rect width="100%" height="100%" fill="url(#hierarchy-grid)" />
               <g transform={`translate(${transform.x},${transform.y}) scale(${transform.k})`}>
                 {links.map((link) => {
-                  const midY = (link.source.y + link.target.y) / 2;
-                  const d = `M${link.source.x},${link.source.y} L${link.source.x},${midY} L${link.target.x},${midY} L${link.target.x},${link.target.y}`;
+                  const d = `M${link.source.x},${link.source.y} L${link.source.x},${link.midY} L${link.target.x},${link.midY} L${link.target.x},${link.target.y}`;
                   return (
                     <path
                       key={link.id}

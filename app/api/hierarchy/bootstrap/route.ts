@@ -5,6 +5,7 @@ import {
   getCadreTree,
 } from '@/lib/db/cadre-queries';
 import { getBoothsForElection, getElectionMasters } from '@/lib/db/queries';
+import { extractBoothNumber } from '@/lib/hierarchy/booth-geo-units';
 import { requireHierarchyAccess } from '@/lib/hierarchy/auth';
 
 function resolveDefaultElectionId(
@@ -37,6 +38,15 @@ export async function GET(request: NextRequest) {
     defaultElectionId ? getBoothsForElection(defaultElectionId) : Promise.resolve([]),
   ]);
 
+  const boothNosFromGeo = [
+    ...new Set(
+      config.geoUnits
+        .filter((g) => g.type === 'booth' && g.isActive)
+        .map((g) => extractBoothNumber(g.name))
+        .filter((n): n is string => Boolean(n)),
+    ),
+  ];
+
   return NextResponse.json({
     success: true,
     config,
@@ -44,6 +54,6 @@ export async function GET(request: NextRequest) {
     nodes,
     elections,
     defaultElectionId,
-    boothNos: booths.map((b) => b.boothNo),
+    boothNos: boothNosFromGeo.length > 0 ? boothNosFromGeo : booths.map((b) => b.boothNo),
   });
 }

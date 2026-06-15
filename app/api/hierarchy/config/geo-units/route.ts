@@ -7,6 +7,7 @@ import {
   upsertCadreVerticalCategory,
 } from '@/lib/db/cadre-queries';
 import { requireHierarchyAccess } from '@/lib/hierarchy/auth';
+import { isCadreGeographicUnitType } from '@/lib/hierarchy/types';
 
 export async function POST(request: Request) {
   const access = await requireHierarchyAccess(true);
@@ -18,6 +19,12 @@ export async function POST(request: Request) {
   if (body.entityType === 'category') {
     const category = await upsertCadreVerticalCategory(body);
     return NextResponse.json({ success: true, category });
+  }
+  if (!body.name?.trim()) {
+    return NextResponse.json({ error: 'name is required' }, { status: 400 });
+  }
+  if (!body.id && !isCadreGeographicUnitType(body.type)) {
+    return NextResponse.json({ error: 'type is required' }, { status: 400 });
   }
   const geoUnit = await upsertCadreGeographicUnit(body);
   return NextResponse.json({ success: true, geoUnit });

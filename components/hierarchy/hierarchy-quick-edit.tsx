@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Pencil, Plus, Trash2, UserPlus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,6 +27,12 @@ import {
   positionNeedsBooth,
   positionNeedsWard,
 } from '@/lib/hierarchy/child-position';
+import {
+  boothNoFromGeoUnit,
+  getBoothGeoUnits,
+  resolveBoothGeoId,
+  wardGeoIdFromBoothGeoUnit,
+} from '@/lib/hierarchy/booth-geo-units';
 import { toPersistableParentId } from '@/lib/hierarchy/forest-builder';
 import { formatGeoContextLine } from '@/lib/hierarchy/geo-attribution';
 import {
@@ -59,7 +65,7 @@ type Draft = {
   userId: string | null;
   epicNumber: string | null;
   wardGeoId: string;
-  boothNo: string;
+  boothGeoId: string;
   divisionId: string | null;
   notes: string;
   isVacant: boolean;
@@ -82,7 +88,7 @@ function draftFromTarget(target: QuickEditTarget, config: CadreConfig): Draft {
       userId: node.userId,
       epicNumber: node.epicNumber,
       wardGeoId: node.wardGeoId ?? '',
-      boothNo: node.boothNo ?? '',
+      boothGeoId: resolveBoothGeoId(config.geoUnits, node.wardGeoId, node.boothNo),
       divisionId: node.divisionId,
       notes: node.notes ?? '',
       isVacant: node.isVacant,
@@ -107,7 +113,11 @@ function draftFromTarget(target: QuickEditTarget, config: CadreConfig): Draft {
     userId: null,
     epicNumber: null,
     wardGeoId: inherited.wardGeoId,
-    boothNo: inherited.boothNo,
+    boothGeoId: resolveBoothGeoId(
+      config.geoUnits,
+      inherited.wardGeoId,
+      inherited.boothNo,
+    ),
     divisionId: null,
     notes: '',
     isVacant: false,
@@ -136,23 +146,12 @@ export function HierarchyQuickEdit({
   onSaved,
 }: HierarchyQuickEditProps) {
   const [draft, setDraft] = useState<Draft>(() => draftFromTarget(target, config));
-  const [booths, setBooths] = useState<
-    Array<{ boothNo: string; boothName: string | null }>
-  >([]);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     setDraft(draftFromTarget(target, config));
   }, [target, config]);
-
-  useEffect(() => {
-    if (!electionId) return;
-    fetch(`/api/hierarchy/lookups/booths?electionId=${encodeURIComponent(electionId)}`)
-      .then((r) => r.json())
-      .then((d) => setBooths(d.booths ?? []))
-      .catch(() => setBooths([]));
-  }, [electionId]);
 
   const isEdit = draft.nodeId !== null;
   const levelKey = getPositionLevelKey(draft.positionId, config);
@@ -162,9 +161,22 @@ export function HierarchyQuickEdit({
   const wardUnits = config.geoUnits.filter(
     (g) => g.type === 'ward' && g.isActive && isValidSelectItemValue(g.id),
   );
+  const boothUnits = useMemo(
+    () =>
+      getBoothGeoUnits(
+        config.geoUnits,
+        constituencyId,
+        needsWard ? draft.wardGeoId : null,
+      ).filter((g) => isValidSelectItemValue(g.id)),
+    [config.geoUnits, constituencyId, needsWard, draft.wardGeoId],
+  );
   const positions = config.positions.filter(
     (p) => p.isActive && isValidSelectItemValue(p.id),
   );
+
+  const resolvedBoothNo = boothNoFromGeoUnit(config.geoUnits, draft.boothGeoId);
+  const resolvedWardGeoId =
+    wardGeoIdFromBoothGeoUnit(config.geoUnits, draft.boothGeoId) ?? draft.wardGeoId;
 
   const canSave =
     Boolean(draft.positionId) &&
@@ -180,9 +192,9 @@ export function HierarchyQuickEdit({
         positionId: draft.positionId,
         constituencyId,
         divisionId: draft.divisionId,
-        wardGeoId: needsWard && draft.wardGeoId ? draft.wardGeoId : null,
-        electionId: needsBooth && draft.boothNo ? electionId : null,
-        boothNo: needsBooth && draft.boothNo ? draft.boothNo : null,
+        wardGeoId: needsWard && resolvedWardGeoId ? resolvedWardGeoId : null,
+        electionId: needsBooth && resolvedBoothNo ? electionId : null,
+        boothNo: needsBooth && resolvedBoothNo ? resolvedBoothNo : null,
         personName: draft.personName.trim() || null,
         personPhone: draft.personPhone.trim() || null,
         personEmail: draft.personEmail.trim() || null,
@@ -225,7 +237,7 @@ export function HierarchyQuickEdit({
           userId: null,
           epicNumber: null,
           // Booth context carries down to committee members; ward carries to booths.
-          boothNo: levelKey === 'booth' ? draft.boothNo : '',
+          boothGeoId: levelKey === 'booth' ? draft.boothGeoId : '',
           divisionId: null,
           notes: '',
           isVacant: false,
@@ -242,8 +254,8 @@ export function HierarchyQuickEdit({
           epicNumber: null,
           // Sibling at same level: keep ward for booths, clear booth/ward selection
           // that was specific to the saved node.
-          wardGeoId: needsBooth ? draft.wardGeoId : '',
-          boothNo: '',
+          wardGeoId: needsBooth ? resolvedWardGeoId : '',
+          boothGeoId: '',
           divisionId: null,
           notes: '',
           isVacant: false,
@@ -407,7 +419,11 @@ export function HierarchyQuickEdit({
             <Select
               value={toOptionalSelectValue(draft.wardGeoId)}
               onValueChange={(v) =>
-                setDraft({ ...draft, wardGeoId: fromOptionalSelectValue(v) })
+                setDraft({
+                  ...draft,
+                  wardGeoId: fromOptionalSelectValue(v),
+                  boothGeoId: '',
+                })
               }
             >
               <SelectTrigger className="h-9">
@@ -429,24 +445,30 @@ export function HierarchyQuickEdit({
           <div>
             <Label className="text-xs">Booth / Part No</Label>
             <Select
-              value={toOptionalSelectValue(draft.boothNo)}
-              onValueChange={(v) =>
-                setDraft({ ...draft, boothNo: fromOptionalSelectValue(v) })
-              }
+              value={toOptionalSelectValue(draft.boothGeoId)}
+              onValueChange={(v) => {
+                const boothGeoId = fromOptionalSelectValue(v);
+                const wardFromBooth = wardGeoIdFromBoothGeoUnit(
+                  config.geoUnits,
+                  boothGeoId,
+                );
+                setDraft({
+                  ...draft,
+                  boothGeoId,
+                  wardGeoId: wardFromBooth ?? draft.wardGeoId,
+                });
+              }}
             >
               <SelectTrigger className="h-9">
                 <SelectValue placeholder="Select booth" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value={SELECT_NONE_VALUE}>None</SelectItem>
-                {booths
-                  .filter((b) => isValidSelectItemValue(b.boothNo))
-                  .map((b) => (
-                    <SelectItem key={b.boothNo} value={b.boothNo}>
-                      {b.boothNo}
-                      {b.boothName ? ` — ${b.boothName}` : ''}
-                    </SelectItem>
-                  ))}
+                {boothUnits.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    {b.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

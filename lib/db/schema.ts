@@ -1,3 +1,5 @@
+import type { CadreGeographicUnitType } from '@/lib/hierarchy/types';
+
 /** Database table names (PascalCase as stored in PostgreSQL). */
 export const TABLES = {
   role: 'Role',
@@ -465,7 +467,7 @@ export type CadrePosition = {
 
 export type CadreGeographicUnit = {
   id: string;
-  type: 'division' | 'district' | 'taluka' | 'ward';
+  type: CadreGeographicUnitType;
   name: string;
   parentId: string | null;
   acNo: string | null;

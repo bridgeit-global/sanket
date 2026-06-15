@@ -21,6 +21,7 @@ import type {
   CadreVertical,
   CadreVerticalCategory,
 } from './schema';
+import type { CadreGeographicUnitType } from '@/lib/hierarchy/types';
 
 export type CadreNodeWithDetails = CadreNode & {
   positionName: string;
@@ -428,7 +429,7 @@ export async function deleteCadreGeographicUnit(id: string, name?: string): Prom
 
 export async function upsertCadreGeographicUnit(data: {
   id?: string;
-  type: 'division' | 'district' | 'taluka' | 'ward';
+  type: CadreGeographicUnitType;
   name: string;
   parentId?: string | null;
   acNo?: string | null;

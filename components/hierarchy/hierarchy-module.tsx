@@ -59,6 +59,7 @@ import {
   inferDepthFromNav,
   resolveNavPathFromNode,
 } from '@/lib/hierarchy/nav-options';
+import { extractBoothNumber } from '@/lib/hierarchy/booth-geo-units';
 import {
   fromOptionalSelectValue,
   SELECT_NONE_VALUE,
@@ -221,13 +222,20 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
 
   const boothToWardGeoId = useMemo(() => {
     const mapping = new Map(boothWardFromApi);
+    if (config) {
+      for (const geo of config.geoUnits) {
+        if (geo.type !== 'booth' || !geo.parentId) continue;
+        const boothNo = extractBoothNumber(geo.name);
+        if (boothNo) mapping.set(boothNo, geo.parentId);
+      }
+    }
     for (const node of nodes) {
       if (node.positionLevelKey === 'booth' && node.boothNo && node.wardGeoId) {
         mapping.set(node.boothNo, node.wardGeoId);
       }
     }
     return mapping;
-  }, [boothWardFromApi, nodes]);
+  }, [boothWardFromApi, config, nodes]);
 
   const refresh = useCallback(() => {
     void loadBootstrap();

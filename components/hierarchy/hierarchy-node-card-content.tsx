@@ -96,7 +96,7 @@ export function HierarchyNodeCardContent({
     ? 'text-[9px] font-medium uppercase tracking-wide text-muted-foreground'
     : 'text-[9px] font-medium uppercase tracking-wide text-muted-foreground';
   const nameClass = compact
-    ? 'text-[13px] font-semibold leading-tight truncate'
+    ? 'text-[12px] font-semibold leading-tight line-clamp-2'
     : 'text-sm font-semibold leading-snug truncate';
   const metaClass = compact
     ? 'text-[9px] text-muted-foreground'

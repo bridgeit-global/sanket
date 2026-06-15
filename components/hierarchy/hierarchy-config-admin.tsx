@@ -36,7 +36,13 @@ import {
 } from '@/components/ui/tooltip';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { toast } from '@/components/toast';
-import type { CadreConfig, CadreConfigReferenceCounts } from '@/lib/hierarchy/types';
+import {
+  CADRE_GEOGRAPHIC_UNIT_TYPE_LABELS,
+  CADRE_GEOGRAPHIC_UNIT_TYPES,
+  type CadreConfig,
+  type CadreConfigReferenceCounts,
+  type CadreGeographicUnitType,
+} from '@/lib/hierarchy/types';
 
 // Categories and verticals are managed directly from the map (vertical dialog).
 type ConfigKind = 'position' | 'level' | 'geo';
@@ -49,7 +55,7 @@ type EditState = {
   sortOrder: number;
   isActive: boolean;
   levelId: string;
-  geoType: 'division' | 'district' | 'taluka' | 'ward';
+  geoType: CadreGeographicUnitType;
 };
 
 type DeleteTarget = {
@@ -544,10 +550,11 @@ export function HierarchyConfigAdmin({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="division">Division</SelectItem>
-                        <SelectItem value="district">District</SelectItem>
-                        <SelectItem value="taluka">Taluka / City</SelectItem>
-                        <SelectItem value="ward">Ward</SelectItem>
+                        {CADRE_GEOGRAPHIC_UNIT_TYPES.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {CADRE_GEOGRAPHIC_UNIT_TYPE_LABELS[type]}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -555,7 +562,13 @@ export function HierarchyConfigAdmin({
                 {editState.kind === 'geo' && isEdit && (
                   <div>
                     <Label>Type</Label>
-                    <Input value={editState.geoType} disabled className="capitalize" />
+                    <Input
+                      value={
+                        CADRE_GEOGRAPHIC_UNIT_TYPE_LABELS[editState.geoType] ??
+                        editState.geoType
+                      }
+                      disabled
+                    />
                   </div>
                 )}
                 <Button
