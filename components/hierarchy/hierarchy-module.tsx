@@ -51,10 +51,8 @@ import {
 } from '@/lib/hierarchy/map-filters';
 import { buildForest, isVerticalHubNode } from '@/lib/hierarchy/forest-builder';
 import {
-  buildBoothCommitteeOptions,
   buildBoothOptions,
   buildVerticalOptions,
-  buildWardCommitteeOptions,
   buildWardOptions,
   inferDepthFromNav,
   resolveNavPathFromNode,
@@ -110,8 +108,6 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
   const boothNo = searchParams.get(HIERARCHY_URL_PARAMS.boothNo) ?? '';
   const expandParam = searchParams.get(HIERARCHY_URL_PARAMS.expand) ?? '';
   const wardGeoIdParam = searchParams.get(HIERARCHY_URL_PARAMS.ward) ?? '';
-  const wardMemberId = searchParams.get(HIERARCHY_URL_PARAMS.wardMember) ?? '';
-  const boothMemberId = searchParams.get(HIERARCHY_URL_PARAMS.boothMember) ?? '';
 
   const expandedVerticalIds = useMemo(
     () => new Set(expandParam.split(',').filter(Boolean)),
@@ -129,18 +125,14 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
       depth?: MapDepth;
       search?: string;
       wardGeoId?: string;
-      wardMemberId?: string;
       boothNo?: string;
-      boothMemberId?: string;
       expand?: string;
     }) => {
       const next = {
         depth: updates.depth ?? mapDepth,
         search: updates.search ?? searchQuery,
         wardGeoId: updates.wardGeoId ?? wardGeoIdParam,
-        wardMemberId: updates.wardMemberId ?? wardMemberId,
         boothNo: updates.boothNo ?? boothNo,
-        boothMemberId: updates.boothMemberId ?? boothMemberId,
         expand: updates.expand ?? expandParam,
       };
       const params = new URLSearchParams();
@@ -153,14 +145,8 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
       if (next.wardGeoId.trim()) {
         params.set(HIERARCHY_URL_PARAMS.ward, next.wardGeoId.trim());
       }
-      if (next.wardMemberId.trim()) {
-        params.set(HIERARCHY_URL_PARAMS.wardMember, next.wardMemberId.trim());
-      }
       if (next.boothNo.trim()) {
         params.set(HIERARCHY_URL_PARAMS.boothNo, next.boothNo.trim());
-      }
-      if (next.boothMemberId.trim()) {
-        params.set(HIERARCHY_URL_PARAMS.boothMember, next.boothMemberId.trim());
       }
       if (next.expand) {
         params.set(HIERARCHY_URL_PARAMS.expand, next.expand);
@@ -173,9 +159,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
       mapDepth,
       searchQuery,
       wardGeoIdParam,
-      wardMemberId,
       boothNo,
-      boothMemberId,
       expandParam,
     ],
   );
@@ -312,28 +296,12 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
     [nodes, selectedVerticalId, config],
   );
 
-  const wardCommitteeOptions = useMemo(
-    () =>
-      resolvedWardGeoId ? buildWardCommitteeOptions(nodes, resolvedWardGeoId) : [],
-    [nodes, resolvedWardGeoId],
-  );
-
   const boothOptions = useMemo(
     () => (resolvedWardGeoId ? buildBoothOptions(nodes, resolvedWardGeoId) : []),
     [nodes, resolvedWardGeoId],
   );
 
-  const boothCommitteeOptions = useMemo(
-    () =>
-      resolvedWardGeoId && boothNo
-        ? buildBoothCommitteeOptions(nodes, resolvedWardGeoId, boothNo)
-        : [],
-    [nodes, resolvedWardGeoId, boothNo],
-  );
-
   const hasActiveSearchInput = Boolean(searchQuery.trim());
-
-  const focusNodeId = wardMemberId || boothMemberId || null;
 
   // Skip singleton ward/booth dropdowns by auto-selecting the only option.
   useEffect(() => {
@@ -344,9 +312,9 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
 
   useEffect(() => {
     const onlyBooth = boothOptions.length === 1 ? boothOptions[0] : undefined;
-    if (!resolvedWardGeoId || wardMemberId || boothNo || !onlyBooth) return;
+    if (!resolvedWardGeoId || boothNo || !onlyBooth) return;
     setUrlParams({ boothNo: onlyBooth.value, depth: 'booth' });
-  }, [resolvedWardGeoId, wardMemberId, boothNo, boothOptions, setUrlParams]);
+  }, [resolvedWardGeoId, boothNo, boothOptions, setUrlParams]);
 
   // Booth/committee depth without a ward loads the entire vertical — cap to ward.
   useEffect(() => {
@@ -392,8 +360,6 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
     const navFiltered = applyNavFilters(depthFiltered, {
       wardGeoId: resolvedWardGeoId,
       boothNo,
-      wardMemberId,
-      boothMemberId,
     });
     const searched = applySearchFilters(navFiltered.nodes, {
       search: searchQuery,
@@ -426,8 +392,6 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
     searchQuery,
     resolvedWardGeoId,
     boothNo,
-    wardMemberId,
-    boothMemberId,
   ]);
 
   const mapRenderGate = useMemo(
@@ -435,16 +399,13 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
       getMapRenderGate(mapNodes.length, {
         wardGeoId: resolvedWardGeoId,
         boothNo,
-        wardMemberId,
-        boothMemberId,
       }, mapDepth),
-    [mapNodes.length, resolvedWardGeoId, boothNo, wardMemberId, boothMemberId, mapDepth],
+    [mapNodes.length, resolvedWardGeoId, boothNo, mapDepth],
   );
 
   const fitBoundsNodeIds = useMemo(() => {
-    if (focusNodeId) return undefined;
-    if (resolvedWardGeoId || boothNo || wardMemberId || boothMemberId) {
-      if (resolvedWardGeoId && !wardMemberId && !boothMemberId) {
+    if (resolvedWardGeoId || boothNo) {
+      if (resolvedWardGeoId && !boothNo) {
         const wardLocal = mapNodes.filter(
           (n) =>
             !isVerticalHubNode(n) &&
@@ -458,7 +419,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
       return new Set(mapNodes.map((n) => n.id));
     }
     return undefined;
-  }, [mapNodes, focusNodeId, resolvedWardGeoId, boothNo, wardMemberId, boothMemberId]);
+  }, [mapNodes, resolvedWardGeoId, boothNo]);
 
   const toggleVertical = (verticalId: string) => {
     // One expanded vertical at a time keeps large trees fast.
@@ -511,14 +472,12 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
     );
     if (match) {
       const path = resolveNavPathFromNode(match, nodes);
-      const depth = inferDepthFromNav(path);
+      const depth = inferDepthFromNav(path, match.positionLevelKey);
       setUrlParams({
         search: trimmed,
         expand: path.verticalId ?? selectedVerticalId,
         wardGeoId: path.wardGeoId ?? '',
-        wardMemberId: path.wardMemberId ?? '',
         boothNo: path.boothNo ?? '',
-        boothMemberId: path.boothMemberId ?? '',
         ...(depth ? { depth } : {}),
       });
       return;
@@ -532,9 +491,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
     if (searchQuery.trim()) count += 1;
     if (selectedVerticalId && verticalOptions.length > 1) count += 1;
     if (resolvedWardGeoId) count += 1;
-    if (wardMemberId) count += 1;
     if (boothNo) count += 1;
-    if (boothMemberId) count += 1;
     if (mapDepth !== DEFAULT_MAP_DEPTH) count += 1;
     return count;
   }, [
@@ -542,9 +499,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
     selectedVerticalId,
     verticalOptions.length,
     resolvedWardGeoId,
-    wardMemberId,
     boothNo,
-    boothMemberId,
     mapDepth,
   ]);
 
@@ -569,9 +524,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
           setUrlParams({
             expand: '',
             wardGeoId: '',
-            wardMemberId: '',
             boothNo: '',
-            boothMemberId: '',
           }),
       });
     }
@@ -584,21 +537,9 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
         onClear: () =>
           setUrlParams({
             wardGeoId: '',
-            wardMemberId: '',
             boothNo: '',
-            boothMemberId: '',
             depth: DEFAULT_MAP_DEPTH,
           }),
-      });
-    }
-    if (wardMemberId) {
-      const label =
-        wardCommitteeOptions.find((o) => o.value === wardMemberId)?.label ??
-        'Ward committee';
-      chips.push({
-        key: 'wardMember',
-        label,
-        onClear: () => setUrlParams({ wardMemberId: '' }),
       });
     }
     if (boothNo) {
@@ -608,17 +549,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
         key: 'booth',
         label,
         onClear: () =>
-          setUrlParams({ boothNo: '', boothMemberId: '', depth: 'ward' }),
-      });
-    }
-    if (boothMemberId) {
-      const label =
-        boothCommitteeOptions.find((o) => o.value === boothMemberId)?.label ??
-        'Booth committee';
-      chips.push({
-        key: 'boothMember',
-        label,
-        onClear: () => setUrlParams({ boothMemberId: '' }),
+          setUrlParams({ boothNo: '', depth: 'ward' }),
       });
     }
     if (mapDepth !== DEFAULT_MAP_DEPTH) {
@@ -636,12 +567,8 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
     verticalOptions,
     resolvedWardGeoId,
     wardOptions,
-    wardMemberId,
-    wardCommitteeOptions,
     boothNo,
     boothOptions,
-    boothMemberId,
-    boothCommitteeOptions,
     mapDepth,
     setUrlParams,
   ]);
@@ -685,9 +612,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
               setUrlParams({
                 expand: fromOptionalSelectValue(value),
                 wardGeoId: '',
-                wardMemberId: '',
                 boothNo: '',
-                boothMemberId: '',
               })
             }
           >
@@ -715,9 +640,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
               const geoId = fromOptionalSelectValue(value);
               setUrlParams({
                 wardGeoId: geoId,
-                wardMemberId: '',
                 boothNo: '',
-                boothMemberId: '',
                 depth: geoId ? 'ward' : DEFAULT_MAP_DEPTH,
               });
             }}
@@ -737,37 +660,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
         </div>
       )}
 
-      {resolvedWardGeoId && wardCommitteeOptions.length > 0 && (
-        <div className="w-full md:min-w-44 md:max-w-64">
-          <Label className="text-xs text-muted-foreground">Ward committee</Label>
-          <Select
-            value={toOptionalSelectValue(wardMemberId)}
-            onValueChange={(value) => {
-              const memberId = fromOptionalSelectValue(value);
-              setUrlParams({
-                wardMemberId: memberId,
-                boothNo: '',
-                boothMemberId: '',
-              });
-            }}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Select member" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={SELECT_NONE_VALUE}>All members</SelectItem>
-              {wardCommitteeOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
       {resolvedWardGeoId &&
-        !wardMemberId &&
         (boothOptions.length > 1 || boothNo) && (
           <div className="w-full md:min-w-44 md:max-w-64">
             <Label className="text-xs text-muted-foreground">Booth</Label>
@@ -777,7 +670,6 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
                 const nextBooth = fromOptionalSelectValue(value);
                 setUrlParams({
                   boothNo: nextBooth,
-                  boothMemberId: '',
                   depth: nextBooth ? 'booth' : mapDepth,
                 });
               }}
@@ -796,34 +688,6 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
             </Select>
           </div>
         )}
-
-      {boothNo && boothCommitteeOptions.length > 0 && (
-        <div className="w-full md:min-w-44 md:max-w-64">
-          <Label className="text-xs text-muted-foreground">Booth committee</Label>
-          <Select
-            value={toOptionalSelectValue(boothMemberId)}
-            onValueChange={(value) => {
-              const memberId = fromOptionalSelectValue(value);
-              setUrlParams({
-                boothMemberId: memberId,
-                depth: memberId ? 'committee' : mapDepth,
-              });
-            }}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Select member" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={SELECT_NONE_VALUE}>All members</SelectItem>
-              {boothCommitteeOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
     </>
   );
 
@@ -1001,7 +865,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
             nodes={mapNodes}
             matchIds={matchIds}
             hasActiveSearchFilter={hasActiveFilter}
-            focusNodeId={focusNodeId}
+            focusNodeId={null}
             fitBoundsNodeIds={fitBoundsNodeIds}
             mapRenderGate={mapRenderGate}
             selectedId={

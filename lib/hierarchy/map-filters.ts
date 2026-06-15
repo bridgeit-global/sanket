@@ -65,9 +65,6 @@ export function getMapRenderGate(
   if (nodeCount <= MAP_MAX_RENDER_NODES) {
     return { render: true };
   }
-  if (nav.boothMemberId?.trim() || nav.wardMemberId?.trim()) {
-    return { render: true };
-  }
   if (!nav.wardGeoId?.trim()) {
     return {
       render: false,
@@ -93,15 +90,11 @@ export const HIERARCHY_URL_PARAMS = {
   boothNo: 'boothNo',
   expand: 'expand',
   ward: 'ward',
-  wardMember: 'wardMember',
-  boothMember: 'boothMember',
 } as const;
 
 export type NavFilterState = {
   wardGeoId?: string;
   boothNo?: string;
-  wardMemberId?: string;
-  boothMemberId?: string;
 };
 
 /** Parse depth from URL; accepts legacy values from earlier filter UI. */
@@ -239,28 +232,13 @@ function addAncestors(
   }
 }
 
-function addDescendants(
-  nodes: CadreNodeDetail[],
-  visible: Map<string, CadreNodeDetail>,
-  rootId: string,
-): void {
-  for (const node of nodes) {
-    if (node.parentId === rootId) {
-      visible.set(node.id, node);
-      addDescendants(nodes, visible, node.id);
-    }
-  }
-}
-
 export function applyNavFilters(
   nodes: CadreNodeDetail[],
   nav: NavFilterState,
 ): SearchFilterResult {
   const wardGeoId = nav.wardGeoId?.trim() ?? '';
   const boothNo = nav.boothNo?.trim() ?? '';
-  const wardMemberId = nav.wardMemberId?.trim() ?? '';
-  const boothMemberId = nav.boothMemberId?.trim() ?? '';
-  const hasActiveFilter = Boolean(wardGeoId || boothNo || wardMemberId || boothMemberId);
+  const hasActiveFilter = Boolean(wardGeoId || boothNo);
 
   if (!hasActiveFilter) {
     return { nodes, matchIds: new Set(), hasActiveFilter: false };
@@ -270,20 +248,6 @@ export function applyNavFilters(
   const visible = new Map<string, CadreNodeDetail>();
   const matchIds = new Set<string>();
 
-  if (boothMemberId && byId.has(boothMemberId)) {
-    matchIds.add(boothMemberId);
-    addAncestors(byId, visible, boothMemberId);
-    addDescendants(nodes, visible, boothMemberId);
-    return { nodes: [...visible.values()], matchIds, hasActiveFilter: true };
-  }
-
-  if (wardMemberId && byId.has(wardMemberId)) {
-    matchIds.add(wardMemberId);
-    addAncestors(byId, visible, wardMemberId);
-    addDescendants(nodes, visible, wardMemberId);
-    return { nodes: [...visible.values()], matchIds, hasActiveFilter: true };
-  }
-
   for (const node of nodes) {
     if (isVerticalHubNode(node)) {
       visible.set(node.id, node);
@@ -291,7 +255,6 @@ export function applyNavFilters(
     }
     if (!nodeMatchesWardGeo(node, wardGeoId, byId)) continue;
     if (!nodeMatchesBoothNo(node, boothNo)) continue;
-    if (boothNo && !wardMemberId && node.positionLevelKey === 'ward_committee') continue;
     visible.set(node.id, node);
   }
 
@@ -302,7 +265,6 @@ export function applyNavFilters(
     for (const node of visible.values()) {
       if (node.positionLevelKey === 'booth' && node.boothNo !== boothNo) continue;
       if (node.positionLevelKey === 'booth_committee' && node.boothNo !== boothNo) continue;
-      if (!wardMemberId && node.positionLevelKey === 'ward_committee') continue;
       pruned.set(node.id, node);
     }
     includeAncestors(nodes, pruned);

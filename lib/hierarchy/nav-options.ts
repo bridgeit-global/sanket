@@ -102,32 +102,6 @@ export function buildWardOptions(
     });
 }
 
-/** Ward committee members are children of the ward adhyaksh (Basic vertical). */
-export function buildWardCommitteeOptions(
-  nodes: CadreNodeDetail[],
-  wardGeoId: string,
-): NavSelectOption[] {
-  const wardNodeIds = new Set(
-    nodes
-      .filter((n) => n.positionLevelKey === 'ward' && n.wardGeoId === wardGeoId)
-      .map((n) => n.id),
-  );
-
-  return nodes
-    .filter(
-      (n) =>
-        n.positionLevelKey === 'ward_committee' &&
-        n.wardGeoId === wardGeoId &&
-        n.parentId != null &&
-        wardNodeIds.has(n.parentId),
-    )
-    .sort((a, b) => getNodeDisplayName(a).localeCompare(getNodeDisplayName(b)))
-    .map((n) => ({
-      value: n.id,
-      label: getNodeDisplayName(n) || n.positionName,
-    }));
-}
-
 export function buildBoothOptions(
   nodes: CadreNodeDetail[],
   wardGeoId: string,
@@ -153,45 +127,10 @@ export function buildBoothOptions(
     });
 }
 
-export function buildBoothCommitteeOptions(
-  nodes: CadreNodeDetail[],
-  wardGeoId: string,
-  boothNo: string,
-): NavSelectOption[] {
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const boothIds = new Set(
-    nodes
-      .filter(
-        (n) =>
-          n.positionLevelKey === 'booth' &&
-          resolveEffectiveWardGeoId(n, byId) === wardGeoId &&
-          n.boothNo === boothNo,
-      )
-      .map((n) => n.id),
-  );
-
-  return nodes
-    .filter(
-      (n) =>
-        n.positionLevelKey === 'booth_committee' &&
-        resolveEffectiveWardGeoId(n, byId) === wardGeoId &&
-        n.boothNo === boothNo &&
-        n.parentId != null &&
-        boothIds.has(n.parentId),
-    )
-    .sort((a, b) => getNodeDisplayName(a).localeCompare(getNodeDisplayName(b)))
-    .map((n) => ({
-      value: n.id,
-      label: getNodeDisplayName(n) || n.positionName,
-    }));
-}
-
 export type NavPath = {
   verticalId: string;
   wardGeoId: string;
-  wardMemberId: string;
   boothNo: string;
-  boothMemberId: string;
 };
 
 /** Walk ancestors to backfill cascading nav from a matched node. */
@@ -207,12 +146,6 @@ export function resolveNavPathFromNode(
   if (node.wardGeoId) path.wardGeoId = node.wardGeoId;
   if (node.boothNo) path.boothNo = node.boothNo;
 
-  if (node.positionLevelKey === 'ward_committee') {
-    path.wardMemberId = node.id;
-  } else if (node.positionLevelKey === 'booth_committee') {
-    path.boothMemberId = node.id;
-  }
-
   let current = node.parentId ? byId.get(node.parentId) : undefined;
   while (current) {
     if (current.positionLevelKey === 'ward' && current.wardGeoId) {
@@ -227,13 +160,15 @@ export function resolveNavPathFromNode(
   return path;
 }
 
-export function inferDepthFromNav(path: {
-  boothMemberId?: string;
-  boothNo?: string;
-  wardMemberId?: string;
-}): 'ward' | 'booth' | 'committee' | undefined {
-  if (path.boothMemberId) return 'committee';
+export function inferDepthFromNav(
+  path: {
+    boothNo?: string;
+    wardGeoId?: string;
+  },
+  nodeLevelKey?: string,
+): 'ward' | 'booth' | 'committee' | undefined {
+  if (nodeLevelKey === 'booth_committee') return 'committee';
   if (path.boothNo) return 'booth';
-  if (path.wardMemberId) return 'ward';
+  if (path.wardGeoId || nodeLevelKey === 'ward_committee') return 'ward';
   return undefined;
 }
