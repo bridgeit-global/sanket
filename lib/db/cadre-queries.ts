@@ -38,36 +38,34 @@ export type CadreNodeWithDetails = CadreNode & {
 };
 
 export async function getCadreConfig() {
-  const [categoriesRes, verticalsRes, levelsRes, positionsRes, geoRes] =
-    await Promise.all([
-      pgSql`
-        SELECT id, name, sort_order, is_active, created_at, updated_at
-        FROM "CadreVerticalCategory"
-        ORDER BY sort_order ASC
-      `,
-      pgSql`
-        SELECT v.id, v.category_id, v.name, v.sort_order, v.is_active, c.name AS category_name
-        FROM "CadreVertical" v
-        INNER JOIN "CadreVerticalCategory" c ON v.category_id = c.id
-        ORDER BY v.sort_order ASC
-      `,
-      pgSql`
-        SELECT id, key, name, sort_order, created_at, updated_at
-        FROM "CadrePositionLevel"
-        ORDER BY sort_order ASC
-      `,
-      pgSql`
-        SELECT p.id, p.level_id, p.name, p.sort_order, p.is_active, l.key AS level_key, l.name AS level_name
-        FROM "CadrePosition" p
-        INNER JOIN "CadrePositionLevel" l ON p.level_id = l.id
-        ORDER BY p.sort_order ASC
-      `,
-      pgSql`
-        SELECT id, type, name, parent_id, ac_no, sort_order, is_active, created_at, updated_at
-        FROM "CadreGeographicUnit"
-        ORDER BY sort_order ASC
-      `,
-    ]);
+  // Sequential reads — avoids pool deadlock when max pool size is 1 (session pooler).
+  const categoriesRes = await pgSql`
+    SELECT id, name, sort_order, is_active, created_at, updated_at
+    FROM "CadreVerticalCategory"
+    ORDER BY sort_order ASC
+  `;
+  const verticalsRes = await pgSql`
+    SELECT v.id, v.category_id, v.name, v.sort_order, v.is_active, c.name AS category_name
+    FROM "CadreVertical" v
+    INNER JOIN "CadreVerticalCategory" c ON v.category_id = c.id
+    ORDER BY v.sort_order ASC
+  `;
+  const levelsRes = await pgSql`
+    SELECT id, key, name, sort_order, created_at, updated_at
+    FROM "CadrePositionLevel"
+    ORDER BY sort_order ASC
+  `;
+  const positionsRes = await pgSql`
+    SELECT p.id, p.level_id, p.name, p.sort_order, p.is_active, l.key AS level_key, l.name AS level_name
+    FROM "CadrePosition" p
+    INNER JOIN "CadrePositionLevel" l ON p.level_id = l.id
+    ORDER BY p.sort_order ASC
+  `;
+  const geoRes = await pgSql`
+    SELECT id, type, name, parent_id, ac_no, sort_order, is_active, created_at, updated_at
+    FROM "CadreGeographicUnit"
+    ORDER BY sort_order ASC
+  `;
 
   return {
     categories: categoriesRes.map(mapCadreVerticalCategoryRow),
@@ -227,45 +225,36 @@ export class CadreConfigDeleteError extends Error {
 }
 
 export async function getCadreConfigReferenceCounts(): Promise<CadreConfigReferenceCounts> {
-  const [
-    verticalsByCategory,
-    nodesByVertical,
-    positionsByLevel,
-    nodesByPosition,
-    childGeoByParent,
-    geoNodeRows,
-  ] = await Promise.all([
-    pgSql`
-      SELECT category_id, COUNT(*)::int AS total
-      FROM "CadreVertical"
-      GROUP BY category_id
-    `,
-    pgSql`
-      SELECT vertical_id, COUNT(*)::int AS total
-      FROM "CadreNode"
-      GROUP BY vertical_id
-    `,
-    pgSql`
-      SELECT level_id, COUNT(*)::int AS total
-      FROM "CadrePosition"
-      GROUP BY level_id
-    `,
-    pgSql`
-      SELECT position_id, COUNT(*)::int AS total
-      FROM "CadreNode"
-      GROUP BY position_id
-    `,
-    pgSql`
-      SELECT parent_id, COUNT(*)::int AS total
-      FROM "CadreGeographicUnit"
-      WHERE parent_id IS NOT NULL
-      GROUP BY parent_id
-    `,
-    pgSql`
-      SELECT division_id, district_id, taluka_id, ward_geo_id
-      FROM "CadreNode"
-    `,
-  ]);
+  const verticalsByCategory = await pgSql`
+    SELECT category_id, COUNT(*)::int AS total
+    FROM "CadreVertical"
+    GROUP BY category_id
+  `;
+  const nodesByVertical = await pgSql`
+    SELECT vertical_id, COUNT(*)::int AS total
+    FROM "CadreNode"
+    GROUP BY vertical_id
+  `;
+  const positionsByLevel = await pgSql`
+    SELECT level_id, COUNT(*)::int AS total
+    FROM "CadrePosition"
+    GROUP BY level_id
+  `;
+  const nodesByPosition = await pgSql`
+    SELECT position_id, COUNT(*)::int AS total
+    FROM "CadreNode"
+    GROUP BY position_id
+  `;
+  const childGeoByParent = await pgSql`
+    SELECT parent_id, COUNT(*)::int AS total
+    FROM "CadreGeographicUnit"
+    WHERE parent_id IS NOT NULL
+    GROUP BY parent_id
+  `;
+  const geoNodeRows = await pgSql`
+    SELECT division_id, district_id, taluka_id, ward_geo_id
+    FROM "CadreNode"
+  `;
 
   const categories: CadreConfigReferenceCounts['categories'] = {};
   for (const row of verticalsByCategory) {
@@ -480,12 +469,7 @@ export async function getCadreTree(filters: {
       u.user_id AS linked_user_user_id,
       vm.epic_number AS linked_voter_epic,
       vm.full_name AS linked_voter_name,
-      (
-        SELECT vmn.mobile_number
-        FROM "VoterMobileNumber" vmn
-        WHERE vmn.epic_number = n.epic_number AND vmn.sort_order = 1
-        LIMIT 1
-      ) AS linked_voter_mobile
+      vmn.mobile_number AS linked_voter_mobile
     FROM "CadreNode" n
     INNER JOIN "CadrePosition" p ON n.position_id = p.id
     INNER JOIN "CadrePositionLevel" pl ON p.level_id = pl.id
@@ -496,6 +480,11 @@ export async function getCadreTree(filters: {
     LEFT JOIN "CadreGeographicUnit" geo_ward ON n.ward_geo_id = geo_ward.id
     LEFT JOIN "User" u ON n.user_id = u.id
     LEFT JOIN "VoterMaster" vm ON n.epic_number = vm.epic_number
+    LEFT JOIN (
+      SELECT DISTINCT ON (epic_number) epic_number, mobile_number
+      FROM "VoterMobileNumber"
+      ORDER BY epic_number, sort_order ASC
+    ) vmn ON vmn.epic_number = n.epic_number
     WHERE n.is_active = true
       ${verticalClause}
       ${constituencyClause}

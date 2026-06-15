@@ -8,9 +8,7 @@ export async function GET() {
     return NextResponse.json({ error: access.error }, { status: access.status });
   }
 
-  const [config, referenceCounts] = await Promise.all([
-    getCadreConfig(),
-    getCadreConfigReferenceCounts(),
-  ]);
+  const config = await getCadreConfig();
+  const referenceCounts = await getCadreConfigReferenceCounts();
   return NextResponse.json({ success: true, config, referenceCounts });
 }

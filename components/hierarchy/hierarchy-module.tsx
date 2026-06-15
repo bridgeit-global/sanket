@@ -92,6 +92,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
     () => new Map(),
   );
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [searchDraft, setSearchDraft] = useState('');
 
   const [quickEdit, setQuickEdit] = useState<QuickEditTarget | null>(null);
@@ -190,25 +191,45 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
 
   const loadBootstrap = useCallback(async (signal?: AbortSignal) => {
     const params = new URLSearchParams({ constituencyId: DEFAULT_CONSTITUENCY_ID });
-    const res = await fetch(`/api/hierarchy/bootstrap?${params}`, { signal });
+    let res: Response;
+    try {
+      res = await fetch(`/api/hierarchy/bootstrap?${params}`, { signal });
+    } catch (err) {
+      if (signal?.aborted) return;
+      const message =
+        err instanceof Error ? err.message : 'Failed to load hierarchy data';
+      setLoadError(message);
+      return;
+    }
     if (!res.ok) {
-      console.error('Hierarchy bootstrap failed:', res.status, await res.text());
+      let message = `Failed to load hierarchy (${res.status})`;
+      const text = await res.text();
+      try {
+        const body = JSON.parse(text) as { error?: string };
+        if (typeof body.error === 'string' && body.error.trim()) {
+          message = body.error.trim();
+        }
+      } catch {
+        if (text.trim()) message = text.trim();
+      }
+      setLoadError(message);
       return;
     }
     const data = await res.json();
     if (data.config) {
       setConfig(data.config);
-      setReferenceCounts(data.referenceCounts ?? null);
     }
     setNodes(data.nodes ?? []);
     setDefaultElectionId(data.defaultElectionId ?? '');
     setExpectedBoothNos(data.boothNos ?? []);
+    setLoadError(null);
   }, []);
 
   useEffect(() => {
     const controller = new AbortController();
     (async () => {
       setLoading(true);
+      setLoadError(null);
       try {
         await loadBootstrap(controller.signal);
       } finally {
@@ -219,6 +240,11 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
     })();
     return () => controller.abort();
   }, [loadBootstrap]);
+
+  const ensureReferenceCounts = useCallback(async () => {
+    if (referenceCounts) return;
+    await loadConfig();
+  }, [referenceCounts, loadConfig]);
 
   const boothToWardGeoId = useMemo(() => {
     const mapping = new Map(boothWardFromApi);
@@ -238,6 +264,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
   }, [boothWardFromApi, config, nodes]);
 
   const refresh = useCallback(() => {
+    setLoadError(null);
     void loadBootstrap();
   }, [loadBootstrap]);
 
@@ -467,6 +494,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
   };
 
   const openNewVertical = () => {
+    void ensureReferenceCounts();
     setEditVertical(null);
     setVerticalDialogOpen(true);
   };
@@ -838,7 +866,10 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => setConfigOpen(true)}
+              onClick={() => {
+                void ensureReferenceCounts();
+                setConfigOpen(true);
+              }}
               aria-label="Configuration"
             >
               <Settings className="size-4" />
@@ -950,6 +981,21 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
             <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             <p className="text-sm text-muted-foreground">Loading hierarchy…</p>
           </div>
+        ) : loadError ? (
+          <div className="flex h-full flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-destructive/40 bg-destructive/5 px-4 text-center">
+            <p className="text-sm text-destructive">{loadError}</p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setLoading(true);
+                setLoadError(null);
+                void loadBootstrap().finally(() => setLoading(false));
+              }}
+            >
+              Retry
+            </Button>
+          </div>
         ) : (
           <HierarchyMap
             nodes={mapNodes}
@@ -976,10 +1022,11 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
                       const vertical = activeVerticals.find(
                         (v) => v.id === node.verticalId,
                       );
-                      if (vertical) {
-                        setEditVertical(vertical);
-                        setVerticalDialogOpen(true);
-                      }
+                    if (vertical) {
+                      void ensureReferenceCounts();
+                      setEditVertical(vertical);
+                      setVerticalDialogOpen(true);
+                    }
                       return;
                     }
                     setQuickEdit({ mode: 'edit', node });

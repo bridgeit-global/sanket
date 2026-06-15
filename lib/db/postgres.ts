@@ -4,9 +4,11 @@ import postgres from 'postgres';
 import type { Sql, Options } from 'postgres';
 
 const PG_GLOBAL_KEY = '__sanket_pg_sql__' as const;
+const PG_URL_KEY = '__sanket_pg_url__' as const;
 
 type PgGlobal = typeof globalThis & {
   [PG_GLOBAL_KEY]?: Sql;
+  [PG_URL_KEY]?: string;
 };
 
 function usesSupabasePooler(url: string): boolean {
@@ -34,7 +36,9 @@ function resolvePoolOptions(url: string): Options<Record<string, never>> {
   return {
     // Session mode: one real connection per pool slot (Supabase default limit: 15).
     // Transaction mode: connections are multiplexed — a small pool is safe per process.
-    max: sessionMode ? 1 : pooler ? 5 : 10,
+    // Transaction pooler multiplexes — allow enough slots for bootstrap fan-out.
+    // Session pooler (5432): one real connection per slot; keep max at 1.
+    max: sessionMode ? 1 : pooler ? 10 : 10,
     idle_timeout: 20,
     max_lifetime: 60 * 10,
     connect_timeout: 10,
@@ -44,15 +48,22 @@ function resolvePoolOptions(url: string): Options<Record<string, never>> {
 
 function getSql(): Sql {
   const globalStore = globalThis as PgGlobal;
-  if (globalStore[PG_GLOBAL_KEY]) {
-    return globalStore[PG_GLOBAL_KEY];
-  }
-
   const url = process.env.SUPABASE_DB_URL;
   if (!url) {
     throw new Error('SUPABASE_DB_URL is not set');
   }
 
+  if (globalStore[PG_GLOBAL_KEY] && globalStore[PG_URL_KEY] !== url) {
+    void globalStore[PG_GLOBAL_KEY].end({ timeout: 5 }).catch(() => {});
+    globalStore[PG_GLOBAL_KEY] = undefined;
+    globalStore[PG_URL_KEY] = undefined;
+  }
+
+  if (globalStore[PG_GLOBAL_KEY]) {
+    return globalStore[PG_GLOBAL_KEY];
+  }
+
+  globalStore[PG_URL_KEY] = url;
   globalStore[PG_GLOBAL_KEY] = postgres(url, resolvePoolOptions(url));
   return globalStore[PG_GLOBAL_KEY];
 }

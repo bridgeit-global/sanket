@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import {
   getCadreConfig,
-  getCadreConfigReferenceCounts,
   getCadreTree,
 } from '@/lib/db/cadre-queries';
 import { getBoothsForElection, getElectionMasters } from '@/lib/db/queries';
@@ -28,32 +27,37 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const constituencyId = searchParams.get('constituencyId') ?? '172';
 
-  const elections = await getElectionMasters();
-  const defaultElectionId = resolveDefaultElectionId(elections, constituencyId);
+  try {
+    const elections = await getElectionMasters();
+    const defaultElectionId = resolveDefaultElectionId(elections, constituencyId);
 
-  const [config, referenceCounts, nodes, booths] = await Promise.all([
-    getCadreConfig(),
-    getCadreConfigReferenceCounts(),
-    getCadreTree({ constituencyId }),
-    defaultElectionId ? getBoothsForElection(defaultElectionId) : Promise.resolve([]),
-  ]);
+    const config = await getCadreConfig();
+    const nodes = await getCadreTree({ constituencyId });
+    const booths = defaultElectionId
+      ? await getBoothsForElection(defaultElectionId)
+      : [];
 
-  const boothNosFromGeo = [
-    ...new Set(
-      config.geoUnits
-        .filter((g) => g.type === 'booth' && g.isActive)
-        .map((g) => extractBoothNumber(g.name))
-        .filter((n): n is string => Boolean(n)),
-    ),
-  ];
+    const boothNosFromGeo = [
+      ...new Set(
+        config.geoUnits
+          .filter((g) => g.type === 'booth' && g.isActive)
+          .map((g) => extractBoothNumber(g.name))
+          .filter((n): n is string => Boolean(n)),
+      ),
+    ];
 
-  return NextResponse.json({
-    success: true,
-    config,
-    referenceCounts,
-    nodes,
-    elections,
-    defaultElectionId,
-    boothNos: boothNosFromGeo.length > 0 ? boothNosFromGeo : booths.map((b) => b.boothNo),
-  });
+    return NextResponse.json({
+      success: true,
+      config,
+      nodes,
+      elections,
+      defaultElectionId,
+      boothNos: boothNosFromGeo.length > 0 ? boothNosFromGeo : booths.map((b) => b.boothNo),
+    });
+  } catch (error) {
+    console.error('Hierarchy bootstrap failed:', error);
+    const message =
+      error instanceof Error ? error.message : 'Failed to load hierarchy data';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
