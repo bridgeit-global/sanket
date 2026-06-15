@@ -3,7 +3,8 @@
 import { ChevronDown, ChevronRight, Pencil, Plus, User, Vote } from 'lucide-react';
 import type { CadreNodeDetail } from '@/lib/hierarchy/types';
 import {
-  formatGeoContextLine,
+  formatFilledCardTitle,
+  formatFilledGeoSubtitle,
   formatVacantCardTitle,
   getNodeGeoAttribution,
 } from '@/lib/hierarchy/geo-attribution';
@@ -91,11 +92,11 @@ export function HierarchyNodeCardContent({
   const isHub = isVerticalHubNode(cadre);
   const isCommitteeHub = isCommitteeHubNode(cadre);
   const geo = getNodeGeoAttribution(cadre);
-  const geoLine = formatGeoContextLine(cadre);
+  const filledGeoSubtitle = formatFilledGeoSubtitle(cadre);
 
   const displayName = cadre.isVacant
     ? formatVacantCardTitle(cadre)
-    : cadre.personName ?? cadre.linkedVoter?.fullName ?? cadre.linkedUser?.userId ?? '—';
+    : formatFilledCardTitle(cadre);
 
   const actionButtonClass =
     'rounded-full border bg-card p-1 shadow-sm hover:bg-accent';
@@ -267,8 +268,8 @@ export function HierarchyNodeCardContent({
       >
         {displayName}
       </p>
-      {!compact && !cadre.isVacant && geoLine && (
-        <p className={`${metaClass} truncate mt-0.5`}>{geoLine}</p>
+      {!compact && !cadre.isVacant && filledGeoSubtitle && (
+        <p className={`${metaClass} truncate mt-0.5`}>{filledGeoSubtitle}</p>
       )}
       {!compact && cadre.isVacant && geo.secondary && (
         <p className={`${metaClass} truncate mt-0.5`}>{geo.secondary}</p>

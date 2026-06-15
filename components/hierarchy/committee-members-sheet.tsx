@@ -10,7 +10,8 @@ import {
 } from '@/components/ui/sheet';
 import { getLevelColor } from '@/lib/hierarchy/build-tree';
 import {
-  formatGeoContextLine,
+  formatFilledCardTitle,
+  formatFilledGeoSubtitle,
   formatVacantCardTitle,
 } from '@/lib/hierarchy/geo-attribution';
 import type { CommitteeHubStats } from '@/lib/hierarchy/committee-hub';
@@ -64,11 +65,8 @@ export function CommitteeMembersSheet({
             {members.map((member) => {
               const displayName = member.isVacant
                 ? formatVacantCardTitle(member)
-                : member.personName ??
-                  member.linkedVoter?.fullName ??
-                  member.linkedUser?.userId ??
-                  '—';
-              const geoLine = formatGeoContextLine(member);
+                : formatFilledCardTitle(member);
+              const filledGeoSubtitle = formatFilledGeoSubtitle(member);
               const isSelected = selectedId === member.id;
               const isMatch = matchIds.has(member.id);
 
@@ -91,9 +89,9 @@ export function CommitteeMembersSheet({
                     }
                   >
                     <p className="truncate text-sm font-semibold">{displayName}</p>
-                    {geoLine && (
+                    {filledGeoSubtitle && (
                       <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                        {geoLine}
+                        {filledGeoSubtitle}
                       </p>
                     )}
                     <div className="mt-1 flex flex-wrap items-center gap-1">
