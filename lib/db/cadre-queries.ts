@@ -39,38 +39,37 @@ export type CadreNodeWithDetails = CadreNode & {
 export async function getCadreConfig() {
   const [categoriesRes, verticalsRes, levelsRes, positionsRes, geoRes] =
     await Promise.all([
-      supabase
-        .from(TABLES.cadreVerticalCategory)
-        .select('*')
-        .order('sort_order', { ascending: true }),
+      pgSql`
+        SELECT id, name, sort_order, is_active, created_at, updated_at
+        FROM "CadreVerticalCategory"
+        ORDER BY sort_order ASC
+      `,
       pgSql`
         SELECT v.id, v.category_id, v.name, v.sort_order, v.is_active, c.name AS category_name
         FROM "CadreVertical" v
         INNER JOIN "CadreVerticalCategory" c ON v.category_id = c.id
         ORDER BY v.sort_order ASC
       `,
-      supabase
-        .from(TABLES.cadrePositionLevel)
-        .select('*')
-        .order('sort_order', { ascending: true }),
+      pgSql`
+        SELECT id, key, name, sort_order, created_at, updated_at
+        FROM "CadrePositionLevel"
+        ORDER BY sort_order ASC
+      `,
       pgSql`
         SELECT p.id, p.level_id, p.name, p.sort_order, p.is_active, l.key AS level_key, l.name AS level_name
         FROM "CadrePosition" p
         INNER JOIN "CadrePositionLevel" l ON p.level_id = l.id
         ORDER BY p.sort_order ASC
       `,
-      supabase
-        .from(TABLES.cadreGeographicUnit)
-        .select('*')
-        .order('sort_order', { ascending: true }),
+      pgSql`
+        SELECT id, type, name, parent_id, ac_no, sort_order, is_active, created_at, updated_at
+        FROM "CadreGeographicUnit"
+        ORDER BY sort_order ASC
+      `,
     ]);
 
-  throwOnSupabaseError(categoriesRes.error, 'Failed to get cadre categories');
-  throwOnSupabaseError(levelsRes.error, 'Failed to get cadre position levels');
-  throwOnSupabaseError(geoRes.error, 'Failed to get cadre geo units');
-
   return {
-    categories: (categoriesRes.data ?? []).map(mapCadreVerticalCategoryRow),
+    categories: categoriesRes.map(mapCadreVerticalCategoryRow),
     verticals: verticalsRes.map((row) => ({
       id: String(row.id),
       categoryId: String(row.category_id),
@@ -79,7 +78,7 @@ export async function getCadreConfig() {
       isActive: Boolean(row.is_active),
       categoryName: String(row.category_name),
     })),
-    levels: (levelsRes.data ?? []).map(mapCadrePositionLevelRow),
+    levels: levelsRes.map(mapCadrePositionLevelRow),
     positions: positionsRes.map((row) => ({
       id: String(row.id),
       levelId: String(row.level_id),
@@ -89,7 +88,7 @@ export async function getCadreConfig() {
       levelKey: String(row.level_key),
       levelName: String(row.level_name),
     })),
-    geoUnits: (geoRes.data ?? []).map(mapCadreGeographicUnitRow),
+    geoUnits: geoRes.map(mapCadreGeographicUnitRow),
   };
 }
 
@@ -457,50 +456,50 @@ export async function getCadreTree(filters: {
   constituencyId?: string;
 }): Promise<CadreNodeWithDetails[]> {
   const constituencyClause = filters.constituencyId
-    ? pgSql`AND (n.constituency_id = ${filters.constituencyId} OR n.constituency_id IS NULL)`
+    ? pgSql`AND (TRIM(n.constituency_id) = ${filters.constituencyId} OR n.constituency_id IS NULL)`
     : pgSql``;
 
   const verticalClause = filters.verticalId
     ? pgSql`AND n.vertical_id = ${filters.verticalId}`
     : pgSql`AND v.is_active = true`;
 
-  const [rows, geoRes] = await Promise.all([
-    pgSql`
-      SELECT
-        n.*,
-        p.name AS position_name,
-        p.sort_order AS position_sort_order,
-        pl.key AS position_level_key,
-        pl.name AS position_level_name,
-        v.name AS vertical_name,
-        u.id AS linked_user_id,
-        u.user_id AS linked_user_user_id,
-        vm.epic_number AS linked_voter_epic,
-        vm.full_name AS linked_voter_name,
-        (
-          SELECT vmn.mobile_number
-          FROM "VoterMobileNumber" vmn
-          WHERE vmn.epic_number = n.epic_number AND vmn.sort_order = 1
-          LIMIT 1
-        ) AS linked_voter_mobile
-      FROM "CadreNode" n
-      INNER JOIN "CadrePosition" p ON n.position_id = p.id
-      INNER JOIN "CadrePositionLevel" pl ON p.level_id = pl.id
-      INNER JOIN "CadreVertical" v ON n.vertical_id = v.id
-      LEFT JOIN "User" u ON n.user_id = u.id
-      LEFT JOIN "VoterMaster" vm ON n.epic_number = vm.epic_number
-      WHERE n.is_active = true
-        ${verticalClause}
-        ${constituencyClause}
-      ORDER BY p.sort_order ASC
-    `,
-    supabase.from(TABLES.cadreGeographicUnit).select('*'),
-  ]);
-
-  throwOnSupabaseError(geoRes.error, 'Failed to get geo units');
-  const geoMap = new Map(
-    (geoRes.data ?? []).map((g) => [String(g.id), String(g.name)]),
-  );
+  const rows = await pgSql`
+    SELECT
+      n.*,
+      p.name AS position_name,
+      p.sort_order AS position_sort_order,
+      pl.key AS position_level_key,
+      pl.name AS position_level_name,
+      v.name AS vertical_name,
+      geo_div.name AS division_name,
+      geo_dist.name AS district_name,
+      geo_tal.name AS taluka_name,
+      geo_ward.name AS ward_geo_name,
+      u.id AS linked_user_id,
+      u.user_id AS linked_user_user_id,
+      vm.epic_number AS linked_voter_epic,
+      vm.full_name AS linked_voter_name,
+      (
+        SELECT vmn.mobile_number
+        FROM "VoterMobileNumber" vmn
+        WHERE vmn.epic_number = n.epic_number AND vmn.sort_order = 1
+        LIMIT 1
+      ) AS linked_voter_mobile
+    FROM "CadreNode" n
+    INNER JOIN "CadrePosition" p ON n.position_id = p.id
+    INNER JOIN "CadrePositionLevel" pl ON p.level_id = pl.id
+    INNER JOIN "CadreVertical" v ON n.vertical_id = v.id
+    LEFT JOIN "CadreGeographicUnit" geo_div ON n.division_id = geo_div.id
+    LEFT JOIN "CadreGeographicUnit" geo_dist ON n.district_id = geo_dist.id
+    LEFT JOIN "CadreGeographicUnit" geo_tal ON n.taluka_id = geo_tal.id
+    LEFT JOIN "CadreGeographicUnit" geo_ward ON n.ward_geo_id = geo_ward.id
+    LEFT JOIN "User" u ON n.user_id = u.id
+    LEFT JOIN "VoterMaster" vm ON n.epic_number = vm.epic_number
+    WHERE n.is_active = true
+      ${verticalClause}
+      ${constituencyClause}
+    ORDER BY p.sort_order ASC
+  `;
 
   return rows.map((row) => {
     const node = mapCadreNodeRow(row);
@@ -511,10 +510,10 @@ export async function getCadreTree(filters: {
       positionLevelKey: String(row.position_level_key),
       positionLevelName: String(row.position_level_name),
       verticalName: String(row.vertical_name),
-      divisionName: node.divisionId ? geoMap.get(node.divisionId) ?? null : null,
-      districtName: node.districtId ? geoMap.get(node.districtId) ?? null : null,
-      talukaName: node.talukaId ? geoMap.get(node.talukaId) ?? null : null,
-      wardGeoName: node.wardGeoId ? geoMap.get(node.wardGeoId) ?? null : null,
+      divisionName: row.division_name ? String(row.division_name) : null,
+      districtName: row.district_name ? String(row.district_name) : null,
+      talukaName: row.taluka_name ? String(row.taluka_name) : null,
+      wardGeoName: row.ward_geo_name ? String(row.ward_geo_name) : null,
       linkedUser: row.linked_user_id
         ? { id: String(row.linked_user_id), userId: String(row.linked_user_user_id) }
         : null,
@@ -530,17 +529,17 @@ export async function getCadreTree(filters: {
 }
 
 export async function getCadreNodeById(id: string): Promise<CadreNodeWithDetails | null> {
-  const { data, error } = await supabase
-    .from(TABLES.cadreNode)
-    .select('vertical_id, constituency_id')
-    .eq('id', id)
-    .maybeSingle();
-  throwOnSupabaseError(error, 'Failed to get cadre node');
+  const [data] = await pgSql`
+    SELECT vertical_id, constituency_id
+    FROM "CadreNode"
+    WHERE id = ${id}
+    LIMIT 1
+  `;
   if (!data) return null;
 
   const tree = await getCadreTree({
     verticalId: String(data.vertical_id),
-    constituencyId: data.constituency_id ? String(data.constituency_id) : undefined,
+    constituencyId: data.constituency_id ? String(data.constituency_id).trim() : undefined,
   });
   return tree.find((n) => n.id === id) ?? null;
 }

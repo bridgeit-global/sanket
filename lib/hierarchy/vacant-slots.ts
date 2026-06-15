@@ -33,7 +33,10 @@ export function getRequiredWardGeoUnits(
   constituencyId: string,
 ): CadreConfig['geoUnits'] {
   const wards = geoUnits.filter(
-    (g) => g.type === 'ward' && g.isActive && (g.acNo === constituencyId || !g.acNo),
+    (g) =>
+      g.type === 'ward' &&
+      g.isActive &&
+      ((g.acNo?.trim() ?? '') === constituencyId || !g.acNo?.trim()),
   );
   const byKey = new Map<string, (typeof wards)[number]>();
   for (const ward of wards) {

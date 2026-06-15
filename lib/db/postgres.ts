@@ -5,13 +5,24 @@ import type { Sql } from 'postgres';
 
 let client: Sql | undefined;
 
+function usesSupabasePooler(url: string): boolean {
+  return (
+    url.includes('.pooler.supabase.com') ||
+    /\/\/postgres\.[a-z0-9]+:/i.test(url)
+  );
+}
+
 function getSql(): Sql {
   if (client) return client;
   const url = process.env.SUPABASE_DB_URL;
   if (!url) {
     throw new Error('SUPABASE_DB_URL is not set');
   }
-  client = postgres(url, { max: 1 });
+  // Transaction pooler mode rejects prepared statements — disable for Supabase pooler URLs.
+  client = postgres(url, {
+    max: 1,
+    prepare: usesSupabasePooler(url) ? false : undefined,
+  });
   return client;
 }
 

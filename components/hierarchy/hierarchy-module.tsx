@@ -191,7 +191,10 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
   const loadBootstrap = useCallback(async (signal?: AbortSignal) => {
     const params = new URLSearchParams({ constituencyId: DEFAULT_CONSTITUENCY_ID });
     const res = await fetch(`/api/hierarchy/bootstrap?${params}`, { signal });
-    if (!res.ok) return;
+    if (!res.ok) {
+      console.error('Hierarchy bootstrap failed:', res.status, await res.text());
+      return;
+    }
     const data = await res.json();
     if (data.config) {
       setConfig(data.config);
@@ -246,7 +249,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
   }, [wardGeoIdParam, legacyWardNo, config]);
 
   const selectedVerticalId = useMemo(() => {
-    if (expandParam) return expandParam;
+    if (expandParam) return expandParam.split(',')[0] ?? '';
     if (activeVerticals.length === 1) return activeVerticals[0]?.id ?? '';
     if (resolvedWardGeoId) {
       const wardNode = nodes.find(
@@ -264,10 +267,15 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
 
   const wardOptions = useMemo(
     () =>
-      selectedVerticalId
-        ? buildWardOptions(nodes, selectedVerticalId)
+      selectedVerticalId && config
+        ? buildWardOptions(
+            nodes,
+            selectedVerticalId,
+            config,
+            DEFAULT_CONSTITUENCY_ID,
+          )
         : [],
-    [nodes, selectedVerticalId],
+    [nodes, selectedVerticalId, config],
   );
 
   const wardCommitteeOptions = useMemo(
@@ -672,7 +680,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
         </div>
       )}
 
-      {(wardOptions.length > 1 || resolvedWardGeoId) && selectedVerticalId && (
+      {selectedVerticalId && wardOptions.length > 0 && (
         <div className="w-full md:min-w-52 md:max-w-72">
           <Label className="text-xs text-muted-foreground">Ward</Label>
           <Select

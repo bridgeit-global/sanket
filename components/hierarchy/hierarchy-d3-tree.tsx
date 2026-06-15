@@ -129,10 +129,19 @@ export function HierarchyD3Tree({
         const source = posById.get(link.sourceId);
         const target = posById.get(link.targetId);
         if (!source || !target) return null;
+
+        const sourceBottom = source.y + source.height / 2 - 4;
+        const targetTop = target.y - target.height / 2 + 4;
+        const sourceHalf = source.width / 2 - 10;
+        const sourceX = Math.max(
+          source.x - sourceHalf,
+          Math.min(source.x + sourceHalf, target.x),
+        );
+
         return {
           id: link.id,
-          source: { x: source.x, y: source.y + source.height / 2 - 4 },
-          target: { x: target.x, y: target.y - target.height / 2 + 4 },
+          source: { x: sourceX, y: sourceBottom },
+          target: { x: target.x, y: targetTop },
         };
       })
       .filter(Boolean) as Array<{
@@ -318,7 +327,7 @@ export function HierarchyD3Tree({
               <g transform={`translate(${transform.x},${transform.y}) scale(${transform.k})`}>
                 {links.map((link) => {
                   const midY = (link.source.y + link.target.y) / 2;
-                  const d = `M${link.source.x},${link.source.y} C${link.source.x},${midY} ${link.target.x},${midY} ${link.target.x},${link.target.y}`;
+                  const d = `M${link.source.x},${link.source.y} L${link.source.x},${midY} L${link.target.x},${midY} L${link.target.x},${link.target.y}`;
                   return (
                     <path
                       key={link.id}

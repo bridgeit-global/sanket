@@ -3,7 +3,8 @@ import {
   extractWardNumber,
   getNodeDisplayName,
 } from './map-filters';
-import type { CadreNodeDetail } from './types';
+import type { CadreConfig, CadreNodeDetail } from './types';
+import { getRequiredWardGeoUnits } from './vacant-slots';
 
 export type NavSelectOption = { value: string; label: string };
 
@@ -18,6 +19,32 @@ function sortByWardNumber(a: CadreNodeDetail, b: CadreNodeDetail): number {
   const nb = Number(extractWardNumber(b.wardGeoName) ?? 0);
   if (na !== nb) return na - nb;
   return (a.wardGeoName ?? '').localeCompare(b.wardGeoName ?? '');
+}
+
+function sortGeoUnitsByWardNumber(
+  a: CadreConfig['geoUnits'][number],
+  b: CadreConfig['geoUnits'][number],
+): number {
+  const na = Number(extractWardNumber(a.name) ?? 0);
+  const nb = Number(extractWardNumber(b.name) ?? 0);
+  if (na !== nb) return na - nb;
+  return a.name.localeCompare(b.name);
+}
+
+function pickWardNodeForGeo(
+  nodes: CadreNodeDetail[],
+  verticalId: string,
+  wardGeoId: string,
+): CadreNodeDetail | undefined {
+  const candidates = nodes.filter(
+    (n) =>
+      n.verticalId === verticalId &&
+      n.positionLevelKey === 'ward' &&
+      n.wardGeoId === wardGeoId,
+  );
+  return (
+    candidates.find((n) => !n.isVacant && getNodeDisplayName(n)) ?? candidates[0]
+  );
 }
 
 function sortByBoothNo(a: CadreNodeDetail, b: CadreNodeDetail): number {
@@ -36,14 +63,27 @@ export function buildVerticalOptions(
 export function buildWardOptions(
   nodes: CadreNodeDetail[],
   verticalId: string,
+  config?: CadreConfig,
+  constituencyId?: string,
 ): NavSelectOption[] {
+  if (config && constituencyId) {
+    return getRequiredWardGeoUnits(config.geoUnits, constituencyId)
+      .sort(sortGeoUnitsByWardNumber)
+      .map((geo) => {
+        const node = pickWardNodeForGeo(nodes, verticalId, geo.id);
+        return {
+          value: geo.id,
+          label: node ? formatWardLabel(node) : geo.name,
+        };
+      });
+  }
+
   const wards = nodes
     .filter(
       (n) =>
         n.verticalId === verticalId &&
         n.positionLevelKey === 'ward' &&
-        n.wardGeoId &&
-        !n.isVacant,
+        n.wardGeoId,
     )
     .sort(sortByWardNumber);
 
@@ -53,10 +93,12 @@ export function buildWardOptions(
     if (!byGeo.has(ward.wardGeoId)) byGeo.set(ward.wardGeoId, ward);
   }
 
-  return [...byGeo.entries()].map(([geoId, ward]) => ({
-    value: geoId,
-    label: formatWardLabel(ward),
-  }));
+  return [...byGeo.values()]
+    .sort(sortByWardNumber)
+    .flatMap((ward) => {
+      if (!ward.wardGeoId) return [];
+      return [{ value: ward.wardGeoId, label: formatWardLabel(ward) }];
+    });
 }
 
 /** Ward committee members are children of the ward adhyaksh (Basic vertical). */

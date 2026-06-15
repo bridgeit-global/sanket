@@ -3,8 +3,8 @@ import type { CadreNodeDetail } from './types';
 
 export const NODE_WIDTH = 228;
 export const NODE_HEIGHT = 96;
-export const COMPACT_NODE_WIDTH = 172;
-export const COMPACT_NODE_HEIGHT = 72;
+export const COMPACT_NODE_WIDTH = 188;
+export const COMPACT_NODE_HEIGHT = 80;
 const HORIZONTAL_GAP = 16;
 const COMPACT_HORIZONTAL_GAP = 10;
 const VERTICAL_GAP = 14;
@@ -275,6 +275,41 @@ function applySiblingGridLayout(nodes: LayoutNode[]): void {
   }
 }
 
+/**
+ * After sibling grid reflow, D3 parent x still reflects the pre-grid span. Re-center
+ * each parent horizontally over its children's bounding box.
+ */
+function repositionParentsOverChildren(nodes: LayoutNode[]): void {
+  const childrenByParent = buildChildrenMap(nodes);
+  const depthById = new Map<string, number>();
+
+  function depth(id: string, nodeById: Map<string, LayoutNode>): number {
+    const cached = depthById.get(id);
+    if (cached !== undefined) return cached;
+    const node = nodeById.get(id);
+    if (!node) return 0;
+    const d = node.parentId ? depth(node.parentId, nodeById) + 1 : 0;
+    depthById.set(id, d);
+    return d;
+  }
+
+  const nodeById = new Map(nodes.map((n) => [n.id, n]));
+  for (const node of nodes) depth(node.id, nodeById);
+
+  const byDepthDesc = [...nodes].sort(
+    (a, b) => (depthById.get(b.id) ?? 0) - (depthById.get(a.id) ?? 0),
+  );
+
+  for (const node of byDepthDesc) {
+    const children = childrenByParent.get(node.id) ?? [];
+    if (children.length === 0) continue;
+
+    const minX = Math.min(...children.map((c) => c.x - c.width / 2));
+    const maxX = Math.max(...children.map((c) => c.x + c.width / 2));
+    node.x = (minX + maxX) / 2;
+  }
+}
+
 export function computeD3TreeLayout(nodes: CadreNodeDetail[]): D3TreeLayout {
   if (nodes.length === 0) {
     return { nodes: [], links: [], width: 0, height: 0 };
@@ -291,6 +326,7 @@ export function computeD3TreeLayout(nodes: CadreNodeDetail[]): D3TreeLayout {
   const { nodes: layoutNodes, links } = flattenHierarchy(laidOut);
   applySortOrderOffsets(layoutNodes);
   applySiblingGridLayout(layoutNodes);
+  repositionParentsOverChildren(layoutNodes);
 
   const lefts = layoutNodes.map((n) => n.x - n.width / 2);
   const rights = layoutNodes.map((n) => n.x + n.width / 2);

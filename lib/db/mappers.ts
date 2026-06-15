@@ -95,6 +95,15 @@ function toBoolOrNull(value: unknown): boolean | null {
   return Boolean(value);
 }
 
+/** Parse Postgres booleans reliably (including 't'/'f' string forms). */
+function toBool(value: unknown, defaultValue = false): boolean {
+  if (value == null) return defaultValue;
+  if (typeof value === 'boolean') return value;
+  if (value === 't' || value === 'true' || value === '1') return true;
+  if (value === 'f' || value === 'false' || value === '0') return false;
+  return Boolean(value);
+}
+
 export function mapUserRow(row: Row): User {
   return {
     id: String(row.id),
@@ -600,8 +609,8 @@ export function mapCadreNodeRow(row: Row): CadreNode {
     userId: toStringOrNull(row.user_id ?? row.userId),
     epicNumber: toStringOrNull(row.epic_number ?? row.epicNumber),
     notes: toStringOrNull(row.notes),
-    isVacant: Boolean(row.is_vacant ?? row.isVacant),
-    isActive: Boolean(row.is_active ?? row.isActive ?? true),
+    isVacant: toBool(row.is_vacant ?? row.isVacant),
+    isActive: toBool(row.is_active ?? row.isActive, true),
     appointedAt: toDateOrNull(row.appointed_at ?? row.appointedAt),
     termEndsAt: toDateOrNull(row.term_ends_at ?? row.termEndsAt),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),

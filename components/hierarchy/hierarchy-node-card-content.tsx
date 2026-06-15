@@ -101,13 +101,13 @@ export function HierarchyNodeCardContent({
     'rounded-full border bg-card p-1 shadow-sm hover:bg-accent';
 
   const roleClass = compact
-    ? 'text-[8px] font-medium uppercase tracking-wide text-muted-foreground'
+    ? 'text-[9px] font-medium uppercase tracking-wide text-muted-foreground'
     : 'text-[9px] font-medium uppercase tracking-wide text-muted-foreground';
   const nameClass = compact
-    ? 'text-xs font-semibold leading-tight truncate'
+    ? 'text-[13px] font-semibold leading-tight truncate'
     : 'text-sm font-semibold leading-snug truncate';
   const metaClass = compact
-    ? 'text-[8px] text-muted-foreground'
+    ? 'text-[9px] text-muted-foreground'
     : 'text-[10px] text-muted-foreground';
 
   const shellProps = {
