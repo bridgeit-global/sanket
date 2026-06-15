@@ -2,6 +2,7 @@ import { isVerticalHubNode } from './forest-builder';
 import {
   extractWardNumber,
   getNodeDisplayName,
+  resolveEffectiveWardGeoId,
 } from './map-filters';
 import type { CadreConfig, CadreNodeDetail } from './types';
 import { getRequiredWardGeoUnits } from './vacant-slots';
@@ -131,11 +132,12 @@ export function buildBoothOptions(
   nodes: CadreNodeDetail[],
   wardGeoId: string,
 ): NavSelectOption[] {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
   return nodes
     .filter(
       (n) =>
         n.positionLevelKey === 'booth' &&
-        n.wardGeoId === wardGeoId &&
+        resolveEffectiveWardGeoId(n, byId) === wardGeoId &&
         n.boothNo,
     )
     .sort(sortByBoothNo)
@@ -156,12 +158,13 @@ export function buildBoothCommitteeOptions(
   wardGeoId: string,
   boothNo: string,
 ): NavSelectOption[] {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
   const boothIds = new Set(
     nodes
       .filter(
         (n) =>
           n.positionLevelKey === 'booth' &&
-          n.wardGeoId === wardGeoId &&
+          resolveEffectiveWardGeoId(n, byId) === wardGeoId &&
           n.boothNo === boothNo,
       )
       .map((n) => n.id),
@@ -171,7 +174,7 @@ export function buildBoothCommitteeOptions(
     .filter(
       (n) =>
         n.positionLevelKey === 'booth_committee' &&
-        n.wardGeoId === wardGeoId &&
+        resolveEffectiveWardGeoId(n, byId) === wardGeoId &&
         n.boothNo === boothNo &&
         n.parentId != null &&
         boothIds.has(n.parentId),

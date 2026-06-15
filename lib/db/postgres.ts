@@ -1,9 +1,13 @@
 import 'server-only';
 
 import postgres from 'postgres';
-import type { Sql } from 'postgres';
+import type { Sql, Options } from 'postgres';
 
-let client: Sql | undefined;
+const PG_GLOBAL_KEY = '__sanket_pg_sql__' as const;
+
+type PgGlobal = typeof globalThis & {
+  [PG_GLOBAL_KEY]?: Sql;
+};
 
 function usesSupabasePooler(url: string): boolean {
   return (
@@ -12,21 +16,48 @@ function usesSupabasePooler(url: string): boolean {
   );
 }
 
+/** Session pooler (port 5432) holds one DB connection per client; transaction pooler (6543) multiplexes. */
+function isSupabaseSessionPooler(url: string): boolean {
+  if (!usesSupabasePooler(url)) return false;
+  try {
+    const { port } = new URL(url);
+    return port === '' || port === '5432';
+  } catch {
+    return url.includes(':5432/');
+  }
+}
+
+function resolvePoolOptions(url: string): Options<Record<string, never>> {
+  const pooler = usesSupabasePooler(url);
+  const sessionMode = isSupabaseSessionPooler(url);
+
+  return {
+    // Session mode: one real connection per pool slot (Supabase default limit: 15).
+    // Transaction mode: connections are multiplexed — a small pool is safe per process.
+    max: sessionMode ? 1 : pooler ? 5 : 10,
+    idle_timeout: 20,
+    max_lifetime: 60 * 10,
+    connect_timeout: 10,
+    prepare: pooler ? false : undefined,
+  };
+}
+
 function getSql(): Sql {
-  if (client) return client;
+  const globalStore = globalThis as PgGlobal;
+  if (globalStore[PG_GLOBAL_KEY]) {
+    return globalStore[PG_GLOBAL_KEY];
+  }
+
   const url = process.env.SUPABASE_DB_URL;
   if (!url) {
     throw new Error('SUPABASE_DB_URL is not set');
   }
-  // Transaction pooler mode rejects prepared statements — disable for Supabase pooler URLs.
-  client = postgres(url, {
-    max: 1,
-    prepare: usesSupabasePooler(url) ? false : undefined,
-  });
-  return client;
+
+  globalStore[PG_GLOBAL_KEY] = postgres(url, resolvePoolOptions(url));
+  return globalStore[PG_GLOBAL_KEY];
 }
 
-/** Lazy postgres client for complex raw SQL — initialized on first use. */
+/** Lazy postgres client for complex raw SQL — single global pool, survives dev HMR. */
 export const sql = new Proxy((() => {}) as unknown as Sql, {
   apply(_target, _thisArg, args) {
     return (getSql() as unknown as (...a: unknown[]) => unknown)(...args);

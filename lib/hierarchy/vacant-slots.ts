@@ -250,15 +250,18 @@ export function appendVacantSlots(
     );
     if (exists) continue;
 
-    const wardGeoId = ctx.boothToWardGeoId.get(boothNo) ?? null;
-    if (ctx.wardGeoId != null && wardGeoId !== ctx.wardGeoId) continue;
+    let wardGeoId = ctx.boothToWardGeoId.get(boothNo) ?? ctx.wardGeoId ?? null;
 
     const wardParent = result.find(
       (n) =>
         n.verticalId === basicVerticalId &&
         n.positionLevelKey === 'ward' &&
-        n.wardGeoId === wardGeoId,
+        (wardGeoId ? n.wardGeoId === wardGeoId : ctx.wardGeoId ? n.wardGeoId === ctx.wardGeoId : false),
     );
+    if (!wardGeoId && wardParent?.wardGeoId) {
+      wardGeoId = wardParent.wardGeoId;
+    }
+    if (ctx.wardGeoId != null && wardGeoId !== ctx.wardGeoId) continue;
     const wardGeo = wardGeoId
       ? config.geoUnits.find((g) => g.id === wardGeoId)
       : undefined;

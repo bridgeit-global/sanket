@@ -97,7 +97,10 @@ function draftFromTarget(target: QuickEditTarget, config: CadreConfig): Draft {
   }
 
   const { parent, prefillFrom } = target;
-  const inherited = getInheritedGeo(prefillFrom ?? parent);
+  const anchor = prefillFrom ?? parent;
+  const inherited = getInheritedGeo(anchor);
+  const wardFromParent =
+    parent?.positionLevelKey === 'ward' ? parent.wardGeoId ?? '' : '';
   const positionId =
     prefillFrom?.positionId ??
     getSuggestedChildPositionId(parent?.positionLevelKey ?? null, config);
@@ -112,10 +115,10 @@ function draftFromTarget(target: QuickEditTarget, config: CadreConfig): Draft {
     personEmail: '',
     userId: null,
     epicNumber: null,
-    wardGeoId: inherited.wardGeoId,
+    wardGeoId: inherited.wardGeoId || wardFromParent,
     boothGeoId: resolveBoothGeoId(
       config.geoUnits,
-      inherited.wardGeoId,
+      inherited.wardGeoId || wardFromParent,
       inherited.boothNo,
     ),
     divisionId: null,
@@ -174,9 +177,16 @@ export function HierarchyQuickEdit({
     (p) => p.isActive && isValidSelectItemValue(p.id),
   );
 
-  const resolvedBoothNo = boothNoFromGeoUnit(config.geoUnits, draft.boothGeoId);
+  const resolvedBoothNo =
+    boothNoFromGeoUnit(config.geoUnits, draft.boothGeoId) ??
+    (target.mode === 'create' ? target.prefillFrom?.boothNo ?? null : null);
   const resolvedWardGeoId =
-    wardGeoIdFromBoothGeoUnit(config.geoUnits, draft.boothGeoId) ?? draft.wardGeoId;
+    wardGeoIdFromBoothGeoUnit(config.geoUnits, draft.boothGeoId) ??
+    draft.wardGeoId ??
+    (target.mode === 'create' && target.parent?.positionLevelKey === 'ward'
+      ? target.parent.wardGeoId ?? null
+      : null) ??
+    '';
 
   const canSave =
     Boolean(draft.positionId) &&

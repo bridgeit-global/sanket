@@ -611,6 +611,71 @@ async function resolvePersonFields(
   return { personName, personPhone, personEmail };
 }
 
+const GEO_LEVELS_NEEDING_WARD = new Set([
+  'ward',
+  'booth',
+  'booth_committee',
+  'ward_committee',
+]);
+const GEO_LEVELS_NEEDING_BOOTH = new Set(['booth', 'booth_committee']);
+
+async function resolveCadreNodeGeoFields(
+  input: Pick<
+    CadreNodeInput,
+    'positionId' | 'parentId' | 'wardGeoId' | 'boothNo' | 'electionId'
+  >,
+  existing?: {
+    parentId?: string | null;
+    wardGeoId?: string | null;
+    boothNo?: string | null;
+    electionId?: string | null;
+  },
+): Promise<Pick<CadreNodeInput, 'wardGeoId' | 'boothNo' | 'electionId'>> {
+  const [positionRow] = await pgSql`
+    SELECT pl.key AS level_key
+    FROM "CadrePosition" p
+    INNER JOIN "CadrePositionLevel" pl ON p.level_id = pl.id
+    WHERE p.id = ${input.positionId}
+    LIMIT 1
+  `;
+  const levelKey = positionRow ? String(positionRow.level_key) : null;
+
+  const parentId = input.parentId ?? existing?.parentId ?? null;
+  let parentWard: string | null = null;
+  let parentBooth: string | null = null;
+  let parentElection: string | null = null;
+
+  if (parentId) {
+    const [parentRow] = await pgSql`
+      SELECT n.ward_geo_id, n.booth_no, n.election_id
+      FROM "CadreNode" n
+      WHERE n.id = ${parentId}
+      LIMIT 1
+    `;
+    if (parentRow) {
+      parentWard = parentRow.ward_geo_id ? String(parentRow.ward_geo_id) : null;
+      parentBooth = parentRow.booth_no ? String(parentRow.booth_no) : null;
+      parentElection = parentRow.election_id ? String(parentRow.election_id) : null;
+    }
+  }
+
+  let wardGeoId = input.wardGeoId ?? existing?.wardGeoId ?? null;
+  let boothNo = input.boothNo ?? existing?.boothNo ?? null;
+  let electionId = input.electionId ?? existing?.electionId ?? null;
+
+  if (!wardGeoId && parentWard && levelKey && GEO_LEVELS_NEEDING_WARD.has(levelKey)) {
+    wardGeoId = parentWard;
+  }
+  if (!boothNo && parentBooth && levelKey === 'booth_committee') {
+    boothNo = parentBooth;
+  }
+  if (!electionId && parentElection && levelKey && GEO_LEVELS_NEEDING_BOOTH.has(levelKey)) {
+    electionId = parentElection;
+  }
+
+  return { wardGeoId, boothNo, electionId };
+}
+
 export async function createCadreNode(
   input: CadreNodeInput,
   createdBy: string,
@@ -620,6 +685,7 @@ export async function createCadreNode(
   }
 
   const person = await resolvePersonFields(input);
+  const geo = await resolveCadreNodeGeoFields(input);
 
   const { data, error } = await supabase
     .from(TABLES.cadreNode)
@@ -631,9 +697,9 @@ export async function createCadreNode(
       division_id: input.divisionId ?? null,
       district_id: input.districtId ?? null,
       taluka_id: input.talukaId ?? null,
-      ward_geo_id: input.wardGeoId ?? null,
-      election_id: input.electionId ?? null,
-      booth_no: input.boothNo ?? null,
+      ward_geo_id: geo.wardGeoId ?? null,
+      election_id: geo.electionId ?? null,
+      booth_no: geo.boothNo ?? null,
       person_name: person.personName,
       person_phone: person.personPhone,
       person_email: person.personEmail,
@@ -658,11 +724,37 @@ export async function updateCadreNode(
   input: Partial<CadreNodeInput>,
   updatedBy: string,
 ): Promise<CadreNode> {
+  const [existingRow] = await pgSql`
+    SELECT parent_id, ward_geo_id, booth_no, election_id, position_id
+    FROM "CadreNode"
+    WHERE id = ${id}
+    LIMIT 1
+  `;
+  if (!existingRow) {
+    throw new Error('Cadre node not found');
+  }
+
   const person = await resolvePersonFields({
     verticalId: '',
     positionId: '',
     ...input,
   });
+
+  const geo = await resolveCadreNodeGeoFields(
+    {
+      positionId: input.positionId ?? String(existingRow.position_id),
+      parentId: input.parentId ?? (existingRow.parent_id ? String(existingRow.parent_id) : null),
+      wardGeoId: input.wardGeoId,
+      boothNo: input.boothNo,
+      electionId: input.electionId,
+    },
+    {
+      parentId: existingRow.parent_id ? String(existingRow.parent_id) : null,
+      wardGeoId: existingRow.ward_geo_id ? String(existingRow.ward_geo_id) : null,
+      boothNo: existingRow.booth_no ? String(existingRow.booth_no) : null,
+      electionId: existingRow.election_id ? String(existingRow.election_id) : null,
+    },
+  );
 
   const patch: Record<string, unknown> = {
     updated_by: updatedBy,
@@ -679,9 +771,21 @@ export async function updateCadreNode(
   if (input.divisionId !== undefined) patch.division_id = input.divisionId;
   if (input.districtId !== undefined) patch.district_id = input.districtId;
   if (input.talukaId !== undefined) patch.taluka_id = input.talukaId;
-  if (input.wardGeoId !== undefined) patch.ward_geo_id = input.wardGeoId;
-  if (input.electionId !== undefined) patch.election_id = input.electionId;
-  if (input.boothNo !== undefined) patch.booth_no = input.boothNo;
+  if (input.wardGeoId !== undefined) {
+    patch.ward_geo_id = geo.wardGeoId ?? null;
+  } else if (!existingRow.ward_geo_id && geo.wardGeoId) {
+    patch.ward_geo_id = geo.wardGeoId;
+  }
+  if (input.electionId !== undefined) {
+    patch.election_id = geo.electionId ?? null;
+  } else if (!existingRow.election_id && geo.electionId) {
+    patch.election_id = geo.electionId;
+  }
+  if (input.boothNo !== undefined) {
+    patch.booth_no = geo.boothNo ?? null;
+  } else if (!existingRow.booth_no && geo.boothNo) {
+    patch.booth_no = geo.boothNo;
+  }
   if (input.photoUrl !== undefined) patch.photo_url = input.photoUrl;
   if (input.userId !== undefined) patch.user_id = input.userId;
   if (input.epicNumber !== undefined) patch.epic_number = input.epicNumber;

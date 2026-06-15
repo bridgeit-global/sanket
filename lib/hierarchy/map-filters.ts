@@ -112,6 +112,22 @@ export function parseMapDepth(value: string | null | undefined): MapDepth {
   return DEFAULT_MAP_DEPTH;
 }
 
+/** Walk parent chain when legacy rows omit ward_geo_id on booth nodes. */
+export function resolveEffectiveWardGeoId(
+  node: CadreNodeDetail,
+  byId: Map<string, CadreNodeDetail>,
+): string | null {
+  if (node.wardGeoId) return node.wardGeoId;
+  let parentId = node.parentId;
+  while (parentId) {
+    const parent = byId.get(parentId);
+    if (!parent) break;
+    if (parent.wardGeoId) return parent.wardGeoId;
+    parentId = parent.parentId;
+  }
+  return null;
+}
+
 function includeAncestors(
   nodes: CadreNodeDetail[],
   visible: Map<string, CadreNodeDetail>,
@@ -136,10 +152,16 @@ export function filterNodesForMap(
 ): CadreNodeDetail[] {
   const allowedLevels = DEPTH_LEVELS[depth];
   const visible = new Map<string, CadreNodeDetail>();
+  const byId = new Map(nodes.map((n) => [n.id, n]));
 
   for (const node of nodes) {
     if (!allowedLevels.has(node.positionLevelKey)) continue;
-    if (wardGeoId && node.positionLevelKey !== 'taluka' && node.wardGeoId !== wardGeoId) {
+    if (
+      wardGeoId &&
+      node.positionLevelKey !== 'taluka' &&
+      !isVerticalHubNode(node) &&
+      resolveEffectiveWardGeoId(node, byId) !== wardGeoId
+    ) {
       continue;
     }
     visible.set(node.id, node);
@@ -180,11 +202,16 @@ export function nodeMatchesWardNo(node: CadreNodeDetail, wardNo: string): boolea
   return extractWardNumber(node.wardGeoName) === w;
 }
 
-export function nodeMatchesWardGeo(node: CadreNodeDetail, wardGeoId: string): boolean {
+export function nodeMatchesWardGeo(
+  node: CadreNodeDetail,
+  wardGeoId: string,
+  byId?: Map<string, CadreNodeDetail>,
+): boolean {
   const id = wardGeoId.trim();
   if (!id) return true;
   if (node.positionLevelKey === 'taluka' || isVerticalHubNode(node)) return true;
-  return node.wardGeoId === id;
+  const effectiveWard = byId ? resolveEffectiveWardGeoId(node, byId) : node.wardGeoId;
+  return effectiveWard === id;
 }
 
 export function nodeMatchesBoothNo(node: CadreNodeDetail, boothNo: string): boolean {
@@ -262,7 +289,7 @@ export function applyNavFilters(
       visible.set(node.id, node);
       continue;
     }
-    if (!nodeMatchesWardGeo(node, wardGeoId)) continue;
+    if (!nodeMatchesWardGeo(node, wardGeoId, byId)) continue;
     if (!nodeMatchesBoothNo(node, boothNo)) continue;
     if (boothNo && !wardMemberId && node.positionLevelKey === 'ward_committee') continue;
     visible.set(node.id, node);

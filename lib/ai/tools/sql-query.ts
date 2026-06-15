@@ -1,6 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import postgres from 'postgres';
+import { sql } from '@/lib/db/postgres';
 import { Parser } from 'node-sql-parser/build/postgresql';
 
 const PG_OPT = { database: 'Postgresql' as const };
@@ -153,18 +153,7 @@ ORDER BY voter_count DESC`,
                 };
             }
 
-            const postgresUrl = process.env.SUPABASE_DB_URL;
-            if (!postgresUrl) {
-                return {
-                    query,
-                    error: 'Database connection not configured',
-                    answer: 'Database connection is not available.',
-                };
-            }
-
-            const client = postgres(postgresUrl, { max: 1 });
-            const result = await client.unsafe(query);
-            await client.end();
+            const result = await sql.unsafe(query);
 
             const rowCount = Array.isArray(result) ? result.length : 0;
 

@@ -447,9 +447,12 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
     }
     setDetailNode(null);
     if (isPlaceholderNode(node)) {
+      const wardParent = node.parentId
+        ? nodes.find((n) => n.id === node.parentId)
+        : undefined;
       setQuickEdit({
         mode: 'create',
-        parent: node,
+        parent: wardParent ?? node,
         verticalId: node.verticalId,
         prefillFrom: node,
       });
