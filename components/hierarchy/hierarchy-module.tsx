@@ -50,7 +50,6 @@ import {
   type MapDepth,
 } from '@/lib/hierarchy/map-filters';
 import { buildForest, isVerticalHubNode } from '@/lib/hierarchy/forest-builder';
-import { applyCommitteeHubCollapse, isCommitteeHubNode } from '@/lib/hierarchy/committee-hub';
 import {
   buildBoothCommitteeOptions,
   buildBoothOptions,
@@ -322,15 +321,13 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
     }
   }, [mapDepth, resolvedWardGeoId, setUrlParams]);
 
-  const { nodes: mapNodes, matchIds, hasActiveFilter, hubStats, committeeHubMembers, committeeHubStats } = useMemo(() => {
+  const { nodes: mapNodes, matchIds, hasActiveFilter, hubStats } = useMemo(() => {
     if (!config) {
       return {
         nodes: [] as CadreNodeDetail[],
         matchIds: new Set<string>(),
         hasActiveFilter: false,
         hubStats: new Map(),
-        committeeHubMembers: new Map<string, CadreNodeDetail[]>(),
-        committeeHubStats: new Map(),
       };
     }
 
@@ -374,20 +371,11 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
       ...searched.matchIds,
     ]);
 
-    const preserveMemberIds = new Set(combinedMatchIds);
-    if (focusNodeId) preserveMemberIds.add(focusNodeId);
-
-    const committeeCollapsed = applyCommitteeHubCollapse(searched.nodes, {
-      preserveMemberIds,
-    });
-
     return {
-      nodes: committeeCollapsed.nodes,
+      nodes: searched.nodes,
       matchIds: combinedMatchIds,
       hasActiveFilter: navFiltered.hasActiveFilter || searched.hasActiveFilter,
       hubStats: forest.hubStats,
-      committeeHubMembers: committeeCollapsed.hubMembers,
-      committeeHubStats: committeeCollapsed.hubStats,
     };
   }, [
     config,
@@ -405,7 +393,6 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
     boothNo,
     wardMemberId,
     boothMemberId,
-    focusNodeId,
   ]);
 
   const mapRenderGate = useMemo(
@@ -427,7 +414,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
           (n) =>
             !isVerticalHubNode(n) &&
             n.positionLevelKey !== 'taluka' &&
-            (n.wardGeoId === resolvedWardGeoId || isCommitteeHubNode(n)),
+            n.wardGeoId === resolvedWardGeoId,
         );
         if (wardLocal.length > 0) {
           return new Set(wardLocal.map((n) => n.id));
@@ -969,8 +956,6 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
             }
             expandedVerticalIds={expandedVerticalIds}
             hubStats={hubStats}
-            committeeHubMembers={committeeHubMembers}
-            committeeHubStats={committeeHubStats}
             onNodeClick={handleNodeClick}
             onHubToggle={toggleVertical}
             onEditNode={

@@ -12,7 +12,6 @@ import {
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getLevelColor } from '@/lib/hierarchy/build-tree';
 import type { VerticalHubStats } from '@/lib/hierarchy/forest-builder';
-import type { CommitteeHubStats } from '@/lib/hierarchy/committee-hub';
 import type { MapRenderGate } from '@/lib/hierarchy/map-filters';
 import { MAP_MAX_RENDER_NODES } from '@/lib/hierarchy/map-filters';
 import type { CadreNodeDetail } from '@/lib/hierarchy/types';
@@ -36,8 +35,6 @@ interface HierarchyMapProps {
   selectedId: string | null;
   expandedVerticalIds: ReadonlySet<string>;
   hubStats: Map<string, VerticalHubStats>;
-  committeeHubMembers: Map<string, CadreNodeDetail[]>;
-  committeeHubStats: Map<string, CommitteeHubStats>;
   onNodeClick: (node: CadreNodeDetail) => void;
   onHubToggle: (verticalId: string) => void;
   onEditNode?: (node: CadreNodeDetail) => void;
@@ -56,8 +53,6 @@ export function HierarchyMap({
   selectedId,
   expandedVerticalIds,
   hubStats,
-  committeeHubMembers,
-  committeeHubStats,
   onNodeClick,
   onHubToggle,
   onEditNode,
@@ -156,8 +151,6 @@ export function HierarchyMap({
           selectedId={selectedId}
           expandedVerticalIds={expandedVerticalIds}
           hubStats={hubStats}
-          committeeHubMembers={committeeHubMembers}
-          committeeHubStats={committeeHubStats}
           onNodeClick={onNodeClick}
           onHubToggle={onHubToggle}
           onEditNode={onEditNode}

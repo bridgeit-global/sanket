@@ -4,8 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { zoom, zoomIdentity, select, type ZoomBehavior, type D3ZoomEvent } from 'd3';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { CommitteeMembersSheet } from './committee-members-sheet';
 import { HierarchyNodeCardContent } from './hierarchy-node-card-content';
 import {
   computeD3TreeLayout,
@@ -15,11 +13,6 @@ import {
 } from '@/lib/hierarchy/d3-tree-layout';
 import { MAP_MIN_FIT_SCALE } from '@/lib/hierarchy/map-filters';
 import { getLevelColor } from '@/lib/hierarchy/build-tree';
-import {
-  committeeHubHasMatch,
-  isCommitteeHubNode,
-  type CommitteeHubStats,
-} from '@/lib/hierarchy/committee-hub';
 import {
   isVerticalHubNode,
   type VerticalHubStats,
@@ -55,8 +48,6 @@ interface HierarchyD3TreeProps {
   selectedId: string | null;
   expandedVerticalIds: ReadonlySet<string>;
   hubStats: Map<string, VerticalHubStats>;
-  committeeHubMembers: Map<string, CadreNodeDetail[]>;
-  committeeHubStats: Map<string, CommitteeHubStats>;
   onNodeClick: (node: CadreNodeDetail) => void;
   onHubToggle: (verticalId: string) => void;
   /** Admin-only inline card actions. */
@@ -105,19 +96,15 @@ export function HierarchyD3Tree({
   selectedId,
   expandedVerticalIds,
   hubStats,
-  committeeHubMembers,
-  committeeHubStats,
   onNodeClick,
   onHubToggle,
   onEditNode,
   onAddChild,
 }: HierarchyD3TreeProps) {
-  const isMobile = useIsMobile();
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomBehaviorRef = useRef<ZoomBehavior<SVGSVGElement, unknown> | null>(null);
   const [transform, setTransform] = useState({ x: 0, y: 0, k: 1 });
-  const [openCommitteeHubId, setOpenCommitteeHubId] = useState<string | null>(null);
 
   const layout = useMemo(() => computeD3TreeLayout(cadreNodes), [cadreNodes]);
   const positionedNodes = useMemo(() => normalizeLayout(layout.nodes), [layout.nodes]);
@@ -268,30 +255,9 @@ export function HierarchyD3Tree({
     fitToBounds(focusIds, true);
   };
 
-  const openCommitteeStats = openCommitteeHubId
-    ? committeeHubStats.get(openCommitteeHubId) ?? null
-    : null;
-  const openCommitteeMembers = openCommitteeHubId
-    ? committeeHubMembers.get(openCommitteeHubId) ?? []
-    : [];
-
-  const handleCommitteeMemberClick = useCallback(
-    (member: CadreNodeDetail) => {
-      onNodeClick(member);
-      setOpenCommitteeHubId(null);
-    },
-    [onNodeClick],
-  );
-
   const getNodeColor = useCallback(
-    (cadre: CadreNodeDetail) => {
-      if (isCommitteeHubNode(cadre)) {
-        const stats = committeeHubStats.get(cadre.id);
-        return getLevelColor(stats?.levelKey ?? cadre.positionLevelKey);
-      }
-      return getLevelColor(cadre.positionLevelKey);
-    },
-    [committeeHubStats],
+    (cadre: CadreNodeDetail) => getLevelColor(cadre.positionLevelKey),
+    [],
   );
 
   return (
@@ -352,15 +318,8 @@ export function HierarchyD3Tree({
             >
               {positionedNodes.map((node) => {
                 const isHub = isVerticalHubNode(node.cadre);
-                const isCommitteeHub = isCommitteeHubNode(node.cadre);
-                const isMatch =
-                  matchIds.has(node.id) ||
-                  (isCommitteeHub &&
-                    committeeHubHasMatch(node.id, committeeHubMembers, matchIds));
+                const isMatch = matchIds.has(node.id);
                 const dimmed = hasActiveSearchFilter && matchIds.size > 0 && !isMatch;
-                const committeeStats = isCommitteeHub
-                  ? committeeHubStats.get(node.id)
-                  : undefined;
                 return (
                   <div
                     key={node.id}
@@ -380,26 +339,20 @@ export function HierarchyD3Tree({
                       highlighted={isMatch}
                       expanded={isHub && expandedVerticalIds.has(node.cadre.verticalId)}
                       hubStats={isHub ? hubStats.get(node.cadre.verticalId) : undefined}
-                      committeeHubStats={committeeStats}
                       onClick={() => {
                         if (isHub) {
                           onHubToggle(node.cadre.verticalId);
-                        } else if (isCommitteeHub) {
-                          setOpenCommitteeHubId(node.id);
                         } else {
                           onNodeClick(node.cadre);
                         }
                       }}
                       onEdit={
-                        onEditNode && !isPlaceholderNode(node.cadre) && !isCommitteeHub
+                        onEditNode && !isPlaceholderNode(node.cadre)
                           ? () => onEditNode(node.cadre)
                           : undefined
                       }
                       onAddChild={
-                        !isHub &&
-                        !isCommitteeHub &&
-                        onAddChild &&
-                        !isPlaceholderNode(node.cadre)
+                        !isHub && onAddChild && !isPlaceholderNode(node.cadre)
                           ? () => onAddChild(node.cadre)
                           : undefined
                       }
@@ -409,19 +362,6 @@ export function HierarchyD3Tree({
               })}
             </div>
           </div>
-
-          <CommitteeMembersSheet
-            open={openCommitteeHubId != null}
-            onOpenChange={(open) => {
-              if (!open) setOpenCommitteeHubId(null);
-            }}
-            hubStats={openCommitteeStats}
-            members={openCommitteeMembers}
-            selectedId={selectedId}
-            matchIds={matchIds}
-            side={isMobile ? 'bottom' : 'right'}
-            onMemberClick={handleCommitteeMemberClick}
-          />
 
           <div className="absolute bottom-3 right-3 z-10 flex gap-0.5 rounded-lg border border-border/60 bg-card/90 p-0.5 shadow-sm backdrop-blur-sm md:left-3 md:right-auto">
             <Button

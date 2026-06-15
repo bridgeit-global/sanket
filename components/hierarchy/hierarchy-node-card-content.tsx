@@ -12,11 +12,6 @@ import {
   isVerticalHubNode,
   type VerticalHubStats,
 } from '@/lib/hierarchy/forest-builder';
-import {
-  isCommitteeHubNode,
-  type CommitteeHubStats,
-} from '@/lib/hierarchy/committee-hub';
-import { getLevelColor } from '@/lib/hierarchy/build-tree';
 
 interface HierarchyNodeCardContentProps {
   cadre: CadreNodeDetail;
@@ -28,8 +23,6 @@ interface HierarchyNodeCardContentProps {
   /** For vertical hub cards. */
   expanded?: boolean;
   hubStats?: VerticalHubStats;
-  /** For committee aggregate hub cards. */
-  committeeHubStats?: CommitteeHubStats;
   onClick?: () => void;
   onContextMenu?: (event: React.MouseEvent) => void;
   /** Admin inline actions (hidden until hover). */
@@ -83,14 +76,12 @@ export function HierarchyNodeCardContent({
   highlighted = false,
   expanded = false,
   hubStats,
-  committeeHubStats,
   onClick,
   onContextMenu,
   onEdit,
   onAddChild,
 }: HierarchyNodeCardContentProps) {
   const isHub = isVerticalHubNode(cadre);
-  const isCommitteeHub = isCommitteeHubNode(cadre);
   const geo = getNodeGeoAttribution(cadre);
   const filledGeoSubtitle = formatFilledGeoSubtitle(cadre);
 
@@ -170,42 +161,6 @@ export function HierarchyNodeCardContent({
               {expanded ? 'Click to collapse' : 'Click to expand'}
             </span>
           )}
-        </div>
-      </div>
-    );
-  }
-
-  if (isCommitteeHub && committeeHubStats) {
-    const committeeColor = getLevelColor(committeeHubStats.levelKey);
-    return (
-      <div
-        role="button"
-        tabIndex={0}
-        onClick={onClick}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            onClick?.();
-          }
-        }}
-        className={cardShellClass(shellProps)}
-        style={accentStyle(committeeColor, false)}
-      >
-        <div className="flex items-center justify-between gap-1">
-          <p className={`min-w-0 flex-1 truncate ${roleClass}`}>
-            {committeeHubStats.levelLabel}
-          </p>
-          <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
-        </div>
-        <p className={nameClass}>{cadre.personName}</p>
-        <div className={`mt-0.5 flex items-center gap-1.5 flex-wrap ${metaClass}`}>
-          <span>{committeeHubStats.totalNodes} members</span>
-          {committeeHubStats.vacantNodes > 0 && (
-            <span className="inline-flex items-center rounded bg-amber-100 px-1 py-0.5 text-amber-800 dark:bg-amber-900 dark:text-amber-100">
-              {committeeHubStats.vacantNodes} vacant
-            </span>
-          )}
-          {!compact && <span className="text-muted-foreground/70">Tap to browse</span>}
         </div>
       </div>
     );
