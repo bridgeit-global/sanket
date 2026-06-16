@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
   BackgroundVariant,
+  BaseEdge,
   getViewportForBounds,
   Handle,
   Position,
@@ -11,6 +12,7 @@ import {
   ReactFlowProvider,
   useReactFlow,
   type Edge,
+  type EdgeProps,
   type Node,
   type NodeProps,
 } from '@xyflow/react';
@@ -19,6 +21,8 @@ import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { HierarchyNodeCardContent } from './hierarchy-node-card-content';
 import {
+  COMPACT_NODE_HEIGHT,
+  COMPACT_NODE_WIDTH,
   computeTreeLayout,
   getLayoutNodeBounds,
   NODE_HEIGHT,
@@ -43,6 +47,10 @@ const LARGE_TREE_NODE_THRESHOLD = 80;
 const FOCUSED_MIN_SCALE = 0.72;
 const FOCUSED_MAX_SCALE = 2;
 const LARGE_TREE_MAX_FIT_SCALE = 1.2;
+const EDGE_INSET = 4;
+const EDGE_MID_Y_RATIO = 0.45;
+const EDGE_STROKE = 'hsl(var(--foreground) / 0.32)';
+const EDGE_STROKE_WIDTH = 1.5;
 
 type HierarchyNodeData = {
   cadre: CadreNodeDetail;
@@ -99,7 +107,10 @@ const HierarchyFlowNode = memo(function HierarchyFlowNode({
   return (
     <div
       className="nodrag nopan relative"
-      style={{ width: data.compact ? 188 : 228 }}
+      style={{
+        width: data.compact ? COMPACT_NODE_WIDTH : NODE_WIDTH,
+        minHeight: data.compact ? COMPACT_NODE_HEIGHT : NODE_HEIGHT,
+      }}
     >
       <Handle
         type="target"
@@ -135,6 +146,50 @@ const HierarchyFlowNode = memo(function HierarchyFlowNode({
 
 const nodeTypes = { hierarchyCard: HierarchyFlowNode };
 
+function HierarchyTreeEdge({ id, sourceX, sourceY, targetX, targetY, style }: EdgeProps) {
+  const sourceBottom = sourceY - EDGE_INSET;
+  const targetTop = targetY + EDGE_INSET;
+  const midY = sourceBottom + (targetTop - sourceBottom) * EDGE_MID_Y_RATIO;
+  const path = `M ${sourceX},${sourceBottom} L ${sourceX},${midY} L ${targetX},${midY} L ${targetX},${targetTop}`;
+
+  return (
+    <BaseEdge
+      id={id}
+      path={path}
+      style={{
+        stroke: EDGE_STROKE,
+        strokeWidth: EDGE_STROKE_WIDTH,
+        strokeLinecap: 'round',
+        strokeLinejoin: 'round',
+        ...style,
+      }}
+    />
+  );
+}
+
+const edgeTypes = { hierarchyTree: HierarchyTreeEdge };
+
+function buildDepthById(nodes: LayoutNode[]): Map<string, number> {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const depthById = new Map<string, number>();
+
+  function depth(id: string): number {
+    const cached = depthById.get(id);
+    if (cached !== undefined) return cached;
+    const node = byId.get(id);
+    if (!node?.parentId || !byId.has(node.parentId)) {
+      depthById.set(id, 0);
+      return 0;
+    }
+    const nextDepth = depth(node.parentId) + 1;
+    depthById.set(id, nextDepth);
+    return nextDepth;
+  }
+
+  for (const node of nodes) depth(node.id);
+  return depthById;
+}
+
 function HierarchyFlowTreeInner({
   nodes: cadreNodes,
   matchIds,
@@ -159,6 +214,16 @@ function HierarchyFlowTreeInner({
   const [layoutLinks, setLayoutLinks] = useState<LayoutLink[]>([]);
   const [layoutReady, setLayoutReady] = useState(false);
   const layoutVersionRef = useRef(0);
+  const prevCadreNodeIdsRef = useRef<Set<string>>(new Set());
+
+  function isExpandOrCollapseOnly(prev: Set<string>, next: Set<string>): boolean {
+    const added = [...next].filter((id) => !prev.has(id));
+    const removed = [...prev].filter((id) => !next.has(id));
+    return (
+      (added.length > 0 && removed.length === 0) ||
+      (added.length === 0 && removed.length > 0)
+    );
+  }
 
   useEffect(() => {
     const version = layoutVersionRef.current + 1;
@@ -182,6 +247,8 @@ function HierarchyFlowTreeInner({
 
   const positionedNodes = layoutNodes;
 
+  const depthById = useMemo(() => buildDepthById(positionedNodes), [positionedNodes]);
+
   const flowNodes = useMemo((): HierarchyFlowNodeType[] => {
     return positionedNodes.map((node) => {
       const isHub = isVerticalHubNode(node.cadre);
@@ -201,6 +268,7 @@ function HierarchyFlowTreeInner({
         },
         width: node.width,
         height: node.height,
+        zIndex: 1000 - (depthById.get(node.id) ?? 0),
         draggable: false,
         selectable: false,
         connectable: false,
@@ -238,6 +306,7 @@ function HierarchyFlowTreeInner({
     });
   }, [
     positionedNodes,
+    depthById,
     matchIds,
     hasActiveSearchFilter,
     selectedId,
@@ -258,11 +327,11 @@ function HierarchyFlowTreeInner({
       id: link.id,
       source: link.sourceId,
       target: link.targetId,
-      type: 'smoothstep',
+      type: 'hierarchyTree',
+      zIndex: 0,
       style: {
-        stroke: 'hsl(var(--border))',
-        strokeWidth: 1.25,
-        strokeOpacity: 0.55,
+        stroke: EDGE_STROKE,
+        strokeWidth: EDGE_STROKE_WIDTH,
       },
     }));
   }, [layoutLinks]);
@@ -324,6 +393,20 @@ function HierarchyFlowTreeInner({
   useEffect(() => {
     if (!layoutReady || cadreNodes.length === 0) return;
 
+    const currentIds = new Set(cadreNodes.map((node) => node.id));
+    const prevIds = prevCadreNodeIdsRef.current;
+    const expandCollapseOnly = isExpandOrCollapseOnly(prevIds, currentIds);
+    prevCadreNodeIdsRef.current = currentIds;
+
+    if (
+      prevIds.size > 0 &&
+      expandCollapseOnly &&
+      !focusNodeId &&
+      !hasActiveSearchFilter
+    ) {
+      return;
+    }
+
     const focusIds = resolveFocusIds();
     const animate = Boolean(focusNodeId);
     let raf2 = 0;
@@ -341,7 +424,6 @@ function HierarchyFlowTreeInner({
   }, [
     layoutReady,
     cadreNodes,
-    positionedNodes,
     focusNodeId,
     fitBoundsNodeIds,
     matchIds,
@@ -385,6 +467,9 @@ function HierarchyFlowTreeInner({
             nodes={flowNodes}
             edges={flowEdges}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            elevateEdgesOnSelect={false}
+            elevateNodesOnSelect={false}
             minZoom={MIN_MANUAL_ZOOM}
             maxZoom={2.5}
             nodesDraggable={false}
