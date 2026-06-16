@@ -18,6 +18,7 @@ export function toPersistableParentId(id: string | null | undefined): string | n
   if (
     id.startsWith(VERTICAL_HUB_PREFIX) ||
     id.startsWith('committee-hub:') ||
+    id.startsWith('group:') ||
     id.startsWith('vacant:')
   ) {
     return null;
@@ -61,6 +62,7 @@ function makeHubNode(vertical: CadreConfig['verticals'][number]): CadreNodeDetai
     termEndsAt: null,
     positionName: vertical.categoryName,
     positionSortOrder: vertical.sortOrder,
+    positionLevelSortOrder: 0,
     positionLevelKey: VERTICAL_LEVEL_KEY,
     positionLevelName: 'Vertical',
     verticalName: vertical.name,

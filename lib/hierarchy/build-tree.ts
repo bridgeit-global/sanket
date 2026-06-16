@@ -6,6 +6,9 @@ const LEVEL_COLORS: Record<string, string> = {
   booth: '#ca8a04',
   booth_committee: '#c2410c',
   ward_committee: '#9333ea',
+  ward_committee_group: '#9333ea',
+  booths_group: '#ca8a04',
+  booth_group: '#ca8a04',
 };
 
 export function getLevelColor(levelKey: string): string {

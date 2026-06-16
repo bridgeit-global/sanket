@@ -26,6 +26,7 @@ import type { CadreGeographicUnitType } from '@/lib/hierarchy/types';
 export type CadreNodeWithDetails = CadreNode & {
   positionName: string;
   positionSortOrder: number;
+  positionLevelSortOrder: number;
   positionLevelKey: string;
   positionLevelName: string;
   verticalName: string;
@@ -460,6 +461,7 @@ export async function getCadreTree(filters: {
       p.sort_order AS position_sort_order,
       pl.key AS position_level_key,
       pl.name AS position_level_name,
+      pl.sort_order AS position_level_sort_order,
       v.name AS vertical_name,
       geo_div.name AS division_name,
       geo_dist.name AS district_name,
@@ -497,6 +499,7 @@ export async function getCadreTree(filters: {
       ...node,
       positionName: String(row.position_name),
       positionSortOrder: Number(row.position_sort_order),
+      positionLevelSortOrder: Number(row.position_level_sort_order),
       positionLevelKey: String(row.position_level_key),
       positionLevelName: String(row.position_level_name),
       verticalName: String(row.vertical_name),

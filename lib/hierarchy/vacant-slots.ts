@@ -1,4 +1,3 @@
-import type { MapDepth } from './map-filters';
 import type { CadreConfig, CadreNodeDetail } from './types';
 
 /** Ward numbers / labels that must have a Ward Adhyaksh slot for AC 172. */
@@ -55,6 +54,13 @@ function findPosition(
   return positions.find((p) => p.isActive && p.levelKey === levelKey);
 }
 
+function findLevelSortOrder(
+  levels: CadreConfig['levels'],
+  levelKey: string,
+): number {
+  return levels.find((l) => l.key === levelKey)?.sortOrder ?? 999;
+}
+
 function makePlaceholder(
   id: string,
   partial: Pick<
@@ -65,6 +71,7 @@ function makePlaceholder(
     | 'positionId'
     | 'positionName'
     | 'positionSortOrder'
+    | 'positionLevelSortOrder'
     | 'positionLevelKey'
     | 'positionLevelName'
     | 'constituencyId'
@@ -99,6 +106,7 @@ function makePlaceholder(
     termEndsAt: null,
     positionName: partial.positionName,
     positionSortOrder: partial.positionSortOrder,
+    positionLevelSortOrder: partial.positionLevelSortOrder,
     positionLevelKey: partial.positionLevelKey,
     positionLevelName: partial.positionLevelName,
     verticalName: partial.verticalName,
@@ -146,7 +154,6 @@ export type VacantSlotContext = {
   verticalName: string;
   constituencyId: string;
   electionId: string;
-  mapDepth: MapDepth;
   wardGeoId: string | null;
   config: CadreConfig;
   expectedBoothNos: string[];
@@ -161,7 +168,7 @@ export function appendVacantSlots(
   nodes: CadreNodeDetail[],
   ctx: VacantSlotContext,
 ): CadreNodeDetail[] {
-  const { config, verticalId, verticalName, constituencyId, electionId, mapDepth } = ctx;
+  const { config, verticalId, verticalName, constituencyId, electionId } = ctx;
   const posTaluka = findPosition(config.positions, 'taluka');
   const posWard = findPosition(config.positions, 'ward');
   const posBooth = findPosition(config.positions, 'booth');
@@ -185,6 +192,7 @@ export function appendVacantSlots(
       positionId: posTaluka.id,
       positionName: posTaluka.name,
       positionSortOrder: posTaluka.sortOrder,
+      positionLevelSortOrder: findLevelSortOrder(config.levels, 'taluka'),
       positionLevelKey: 'taluka',
       positionLevelName: posTaluka.levelName,
       constituencyId,
@@ -220,6 +228,7 @@ export function appendVacantSlots(
       positionId: posWard.id,
       positionName: posWard.name,
       positionSortOrder: posWard.sortOrder,
+      positionLevelSortOrder: findLevelSortOrder(config.levels, 'ward'),
       positionLevelKey: 'ward',
       positionLevelName: posWard.levelName,
       constituencyId,
@@ -233,7 +242,7 @@ export function appendVacantSlots(
   }
 
   const isBasicVertical = verticalName === BASIC_VERTICAL_NAME;
-  const includeBoothSlots = mapDepth === 'booth' || mapDepth === 'committee';
+  const includeBoothSlots = ctx.wardGeoId != null;
   if (!includeBoothSlots || !isBasicVertical || !posBooth || ctx.expectedBoothNos.length === 0) {
     return result;
   }
@@ -273,6 +282,7 @@ export function appendVacantSlots(
       positionId: posBooth.id,
       positionName: posBooth.name,
       positionSortOrder: posBooth.sortOrder,
+      positionLevelSortOrder: findLevelSortOrder(config.levels, 'booth'),
       positionLevelKey: 'booth',
       positionLevelName: posBooth.levelName,
       constituencyId,

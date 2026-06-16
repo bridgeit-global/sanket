@@ -1,89 +1,10 @@
-import { isVerticalHubNode, VERTICAL_LEVEL_KEY } from './forest-builder';
+import { isVerticalHubNode } from './forest-builder';
 import type { CadreNodeDetail } from './types';
-
-/**
- * Progressive map depth:
- * - ward: Taluka Adhyaksh → Ward Adhyaksh
- * - booth: + Booth Adhyaksh
- * - committee: + Booth Committee Member
- */
-export type MapDepth = 'ward' | 'booth' | 'committee';
-
-const DEPTH_LEVELS: Record<MapDepth, ReadonlySet<string>> = {
-  ward: new Set([VERTICAL_LEVEL_KEY, 'taluka', 'ward', 'ward_committee']),
-  /** Booth branch only — ward committee is a sibling under ward, not part of booth depth. */
-  booth: new Set([VERTICAL_LEVEL_KEY, 'taluka', 'ward', 'booth']),
-  committee: new Set([
-    VERTICAL_LEVEL_KEY,
-    'taluka',
-    'ward',
-    'ward_committee',
-    'booth',
-    'booth_committee',
-  ]),
-};
-
-export const MAP_DEPTH_LABELS: Record<MapDepth, string> = {
-  ward: 'Ward',
-  booth: 'Booth',
-  committee: 'Committee',
-};
-
-export const DEFAULT_MAP_DEPTH: MapDepth = 'ward';
-
-/** Max nodes before prompting ward/booth drill-down instead of rendering the full tree. */
-export const MAP_MAX_RENDER_NODES = 120;
 
 /** Minimum zoom when fitting large trees so cards stay partially readable. */
 export const MAP_MIN_FIT_SCALE = 0.36;
 
-export type MapRenderGate = {
-  render: boolean;
-  message?: string;
-  hint?: 'ward' | 'booth';
-};
-
-export function isDepthAllowed(depth: MapDepth, wardGeoId: string | null | undefined): boolean {
-  if (depth === 'ward') return true;
-  return Boolean(wardGeoId?.trim());
-}
-
-export function capDepthWithoutWard(
-  depth: MapDepth,
-  wardGeoId: string | null | undefined,
-): MapDepth {
-  if (wardGeoId?.trim()) return depth;
-  if (depth === 'committee' || depth === 'booth') return 'ward';
-  return depth;
-}
-
-export function getMapRenderGate(
-  nodeCount: number,
-  nav: NavFilterState,
-  depth: MapDepth,
-): MapRenderGate {
-  if (nodeCount <= MAP_MAX_RENDER_NODES) {
-    return { render: true };
-  }
-  if (!nav.wardGeoId?.trim()) {
-    return {
-      render: false,
-      hint: 'ward',
-      message: `${nodeCount.toLocaleString()} members — select a ward to view the hierarchy`,
-    };
-  }
-  if (depth === 'committee' && !nav.boothNo?.trim()) {
-    return {
-      render: false,
-      hint: 'booth',
-      message: `${nodeCount.toLocaleString()} members — select a booth to view committee members`,
-    };
-  }
-  return { render: true };
-}
-
 export const HIERARCHY_URL_PARAMS = {
-  depth: 'depth',
   search: 'search',
   /** @deprecated Legacy text filter — prefer `ward` (geo id). */
   wardNo: 'wardNo',
@@ -93,16 +14,62 @@ export const HIERARCHY_URL_PARAMS = {
 } as const;
 
 export type NavFilterState = {
+  /** When set, only this vertical's hub card is shown. */
+  focusVerticalId?: string;
   wardGeoId?: string;
   boothNo?: string;
 };
 
-/** Parse depth from URL; accepts legacy values from earlier filter UI. */
-export function parseMapDepth(value: string | null | undefined): MapDepth {
-  if (value === 'committee' || value === 'members' || value === 'full') return 'committee';
-  if (value === 'booth' || value === 'booths') return 'booth';
-  if (value === 'ward' || value === 'overview') return 'ward';
-  return DEFAULT_MAP_DEPTH;
+/** Hide vertical hub cards that are not in focus. */
+export function filterVerticalHubs(
+  nodes: CadreNodeDetail[],
+  focusVerticalId?: string,
+): CadreNodeDetail[] {
+  const verticalId = focusVerticalId?.trim() ?? '';
+  if (!verticalId) return nodes;
+  return nodes.filter(
+    (node) => !isVerticalHubNode(node) || node.verticalId === verticalId,
+  );
+}
+
+export type NavFocusInput = {
+  selectedVerticalId?: string;
+  wardGeoId?: string;
+  boothNo?: string;
+  verticalSelectOpen?: boolean;
+  wardSelectOpen?: boolean;
+  boothSelectOpen?: boolean;
+  /** When false, a lone vertical never triggers hub filtering. */
+  multipleVerticals?: boolean;
+};
+
+/**
+ * Vertical hub focus: hide other vertical cards when a specific vertical is
+ * selected, or when ward/booth nav is active (including open dropdowns).
+ */
+export function resolveFocusVerticalId(input: NavFocusInput): string {
+  const selectedVerticalId = input.selectedVerticalId?.trim() ?? '';
+  const wardGeoId = input.wardGeoId?.trim() ?? '';
+  const boothNo = input.boothNo?.trim() ?? '';
+
+  if (
+    boothNo ||
+    input.boothSelectOpen ||
+    wardGeoId ||
+    input.wardSelectOpen
+  ) {
+    return selectedVerticalId;
+  }
+
+  if (!selectedVerticalId) return '';
+
+  if (input.multipleVerticals === false) return '';
+
+  if (input.verticalSelectOpen || input.multipleVerticals) {
+    return selectedVerticalId;
+  }
+
+  return '';
 }
 
 /** Walk parent chain when legacy rows omit ward_geo_id on booth nodes. */
@@ -136,32 +103,6 @@ function includeAncestors(
       parentId = parent.parentId;
     }
   }
-}
-
-export function filterNodesForMap(
-  nodes: CadreNodeDetail[],
-  depth: MapDepth,
-  wardGeoId: string | null,
-): CadreNodeDetail[] {
-  const allowedLevels = DEPTH_LEVELS[depth];
-  const visible = new Map<string, CadreNodeDetail>();
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-
-  for (const node of nodes) {
-    if (!allowedLevels.has(node.positionLevelKey)) continue;
-    if (
-      wardGeoId &&
-      node.positionLevelKey !== 'taluka' &&
-      !isVerticalHubNode(node) &&
-      resolveEffectiveWardGeoId(node, byId) !== wardGeoId
-    ) {
-      continue;
-    }
-    visible.set(node.id, node);
-  }
-
-  includeAncestors(nodes, visible);
-  return [...visible.values()];
 }
 
 export function extractWardNumber(wardGeoName: string | null): string | null {
@@ -210,7 +151,9 @@ export function nodeMatchesWardGeo(
 export function nodeMatchesBoothNo(node: CadreNodeDetail, boothNo: string): boolean {
   const b = boothNo.trim();
   if (!b) return true;
-  if (!['booth', 'booth_committee'].includes(node.positionLevelKey)) return true;
+  if (!['booth', 'booth_committee', 'booth_group'].includes(node.positionLevelKey)) {
+    return true;
+  }
   return node.boothNo === b;
 }
 
@@ -236,12 +179,21 @@ export function applyNavFilters(
   nodes: CadreNodeDetail[],
   nav: NavFilterState,
 ): SearchFilterResult {
+  const focusVerticalId = nav.focusVerticalId?.trim() ?? '';
   const wardGeoId = nav.wardGeoId?.trim() ?? '';
   const boothNo = nav.boothNo?.trim() ?? '';
-  const hasActiveFilter = Boolean(wardGeoId || boothNo);
+  const hasActiveFilter = Boolean(focusVerticalId || wardGeoId || boothNo);
 
   if (!hasActiveFilter) {
     return { nodes, matchIds: new Set(), hasActiveFilter: false };
+  }
+
+  if (!wardGeoId && !boothNo) {
+    return {
+      nodes: filterVerticalHubs(nodes, focusVerticalId),
+      matchIds: new Set(),
+      hasActiveFilter: true,
+    };
   }
 
   const byId = new Map(nodes.map((n) => [n.id, n]));
@@ -250,9 +202,11 @@ export function applyNavFilters(
 
   for (const node of nodes) {
     if (isVerticalHubNode(node)) {
+      if (focusVerticalId && node.verticalId !== focusVerticalId) continue;
       visible.set(node.id, node);
       continue;
     }
+    if (node.positionLevelKey === 'taluka') continue;
     if (!nodeMatchesWardGeo(node, wardGeoId, byId)) continue;
     if (!nodeMatchesBoothNo(node, boothNo)) continue;
     visible.set(node.id, node);
@@ -263,15 +217,24 @@ export function applyNavFilters(
   if (boothNo) {
     const pruned = new Map<string, CadreNodeDetail>();
     for (const node of visible.values()) {
+      if (node.positionLevelKey === 'booth_group' && node.boothNo !== boothNo) continue;
       if (node.positionLevelKey === 'booth' && node.boothNo !== boothNo) continue;
       if (node.positionLevelKey === 'booth_committee' && node.boothNo !== boothNo) continue;
       pruned.set(node.id, node);
     }
     includeAncestors(nodes, pruned);
-    return { nodes: [...pruned.values()], matchIds, hasActiveFilter: true };
+    return {
+      nodes: filterVerticalHubs([...pruned.values()], focusVerticalId),
+      matchIds,
+      hasActiveFilter: true,
+    };
   }
 
-  return { nodes: [...visible.values()], matchIds, hasActiveFilter: true };
+  return {
+    nodes: filterVerticalHubs([...visible.values()], focusVerticalId),
+    matchIds,
+    hasActiveFilter: true,
+  };
 }
 
 export function applySearchFilters(

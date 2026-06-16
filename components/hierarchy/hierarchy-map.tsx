@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { Info } from 'lucide-react';
-import { HierarchyD3Tree } from './hierarchy-d3-tree';
+import { HierarchyFlowTree } from './hierarchy-flow-tree';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -12,8 +12,6 @@ import {
 import { useIsMobile } from '@/hooks/use-mobile';
 import { getLevelColor } from '@/lib/hierarchy/build-tree';
 import type { VerticalHubStats } from '@/lib/hierarchy/forest-builder';
-import type { MapRenderGate } from '@/lib/hierarchy/map-filters';
-import { MAP_MAX_RENDER_NODES } from '@/lib/hierarchy/map-filters';
 import type { CadreNodeDetail } from '@/lib/hierarchy/types';
 
 const LEVEL_LEGEND: Array<{ key: string; label: string }> = [
@@ -31,9 +29,12 @@ interface HierarchyMapProps {
   hasActiveSearchFilter: boolean;
   focusNodeId?: string | null;
   fitBoundsNodeIds?: Set<string>;
-  mapRenderGate: MapRenderGate;
   selectedId: string | null;
   expandedVerticalIds: ReadonlySet<string>;
+  expandedIds: ReadonlySet<string>;
+  childCountById: Map<string, number>;
+  hasChildrenById: Map<string, boolean>;
+  onToggleExpand: (nodeId: string) => void;
   hubStats: Map<string, VerticalHubStats>;
   onNodeClick: (node: CadreNodeDetail) => void;
   onHubToggle: (verticalId: string) => void;
@@ -49,9 +50,12 @@ export function HierarchyMap({
   hasActiveSearchFilter,
   focusNodeId,
   fitBoundsNodeIds,
-  mapRenderGate,
   selectedId,
   expandedVerticalIds,
+  expandedIds,
+  childCountById,
+  hasChildrenById,
+  onToggleExpand,
   hubStats,
   onNodeClick,
   onHubToggle,
@@ -91,11 +95,6 @@ export function HierarchyMap({
       {vacantOnMap > 0 && (
         <span>{vacantOnMap} vacant — click a dashed card to fill</span>
       )}
-      {cadreNodes.length > MAP_MAX_RENDER_NODES && mapRenderGate.render && (
-        <span className="text-amber-700 dark:text-amber-300">
-          {cadreNodes.length.toLocaleString()} nodes — zoom and pan to explore
-        </span>
-      )}
     </>
   );
 
@@ -124,7 +123,7 @@ export function HierarchyMap({
       ) : (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-md border border-border/50 bg-muted/20 px-2.5 py-1 text-[11px] text-muted-foreground">
           {legendItems}
-          {(hasActiveSearchFilter || vacantOnMap > 0 || cadreNodes.length > MAP_MAX_RENDER_NODES) && (
+          {(hasActiveSearchFilter || vacantOnMap > 0) && (
             <span className="hidden h-3 w-px bg-border/80 sm:inline-block" aria-hidden />
           )}
           {statusItems}
@@ -132,17 +131,7 @@ export function HierarchyMap({
       )}
 
       <div className="relative min-h-0 flex-1">
-        {!mapRenderGate.render ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-6 text-center">
-            <p className="text-sm font-medium text-foreground">{mapRenderGate.message}</p>
-            <p className="text-xs text-muted-foreground">
-              {mapRenderGate.hint === 'booth'
-                ? 'Use the Booth dropdown above to narrow the view.'
-                : 'Use the Ward dropdown above to drill into a single ward.'}
-            </p>
-          </div>
-        ) : (
-        <HierarchyD3Tree
+        <HierarchyFlowTree
           nodes={cadreNodes}
           matchIds={matchIds}
           hasActiveSearchFilter={hasActiveSearchFilter}
@@ -150,14 +139,17 @@ export function HierarchyMap({
           fitBoundsNodeIds={fitBoundsNodeIds}
           selectedId={selectedId}
           expandedVerticalIds={expandedVerticalIds}
+          expandedIds={expandedIds}
+          childCountById={childCountById}
+          hasChildrenById={hasChildrenById}
+          onToggleExpand={onToggleExpand}
           hubStats={hubStats}
           onNodeClick={onNodeClick}
           onHubToggle={onHubToggle}
           onEditNode={onEditNode}
           onAddChild={onAddChild}
         />
-        )}
-        {overlay && mapRenderGate.render && (
+        {overlay && (
           <div className="absolute top-3 right-3 z-10 max-h-[calc(100%-1.5rem)] max-w-[min(22rem,calc(100%-1.5rem))]">
             {overlay}
           </div>

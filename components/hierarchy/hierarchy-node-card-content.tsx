@@ -12,6 +12,7 @@ import {
   isVerticalHubNode,
   type VerticalHubStats,
 } from '@/lib/hierarchy/forest-builder';
+import { isGroupNode } from '@/lib/hierarchy/tree-builder';
 
 interface HierarchyNodeCardContentProps {
   cadre: CadreNodeDetail;
@@ -23,6 +24,10 @@ interface HierarchyNodeCardContentProps {
   /** For vertical hub cards. */
   expanded?: boolean;
   hubStats?: VerticalHubStats;
+  /** Node has children in the navigable tree. */
+  expandable?: boolean;
+  childCount?: number;
+  onToggleExpand?: () => void;
   onClick?: () => void;
   onContextMenu?: (event: React.MouseEvent) => void;
   /** Admin inline actions (hidden until hover). */
@@ -44,7 +49,7 @@ function cardShellClass({
   vacant: boolean;
 }): string {
   const parts = [
-    'group/card relative rounded-md border bg-card shadow-sm cursor-pointer transition-shadow hover:shadow-md overflow-hidden',
+    'nodrag nopan group/card relative rounded-md border bg-card shadow-sm cursor-pointer transition-shadow hover:shadow-md overflow-hidden',
     compact ? 'px-2 py-1.5' : 'px-3 py-2',
     vacant
       ? 'border-dashed border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/25'
@@ -67,6 +72,40 @@ function accentStyle(color: string, vacant: boolean): React.CSSProperties {
   };
 }
 
+function ExpandChevron({
+  expanded,
+  onToggleExpand,
+}: {
+  expanded: boolean;
+  onToggleExpand?: () => void;
+}) {
+  if (!onToggleExpand) {
+    return expanded ? (
+      <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+    ) : (
+      <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      aria-label={expanded ? 'Collapse' : 'Expand'}
+      className="rounded-full border bg-card p-0.5 shadow-sm hover:bg-accent"
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggleExpand();
+      }}
+    >
+      {expanded ? (
+        <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
+      ) : (
+        <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+      )}
+    </button>
+  );
+}
+
 export function HierarchyNodeCardContent({
   cadre,
   color,
@@ -76,12 +115,16 @@ export function HierarchyNodeCardContent({
   highlighted = false,
   expanded = false,
   hubStats,
+  expandable = false,
+  childCount = 0,
+  onToggleExpand,
   onClick,
   onContextMenu,
   onEdit,
   onAddChild,
 }: HierarchyNodeCardContentProps) {
   const isHub = isVerticalHubNode(cadre);
+  const isGroup = isGroupNode(cadre);
   const geo = getNodeGeoAttribution(cadre);
   const filledGeoSubtitle = formatFilledGeoSubtitle(cadre);
 
@@ -110,7 +153,13 @@ export function HierarchyNodeCardContent({
     vacant: cadre.isVacant,
   };
 
-  if (isHub) {
+  if (isHub || isGroup) {
+    const title = isHub ? cadre.verticalName : cadre.personName ?? cadre.positionName;
+    const roleLabel = isHub ? cadre.positionName : cadre.positionName;
+    const countLabel = isHub
+      ? `${hubStats?.totalNodes ?? 0} members`
+      : `${childCount} ${childCount === 1 ? 'item' : 'items'}`;
+
     return (
       <div
         role="button"
@@ -126,9 +175,9 @@ export function HierarchyNodeCardContent({
         style={accentStyle(color, false)}
       >
         <div className="flex items-center justify-between gap-1">
-          <p className={`min-w-0 flex-1 truncate ${roleClass}`}>{cadre.positionName}</p>
+          <p className={`min-w-0 flex-1 truncate ${roleClass}`}>{roleLabel}</p>
           <div className="flex shrink-0 items-center gap-0.5">
-            {onEdit && (
+            {onEdit && isHub && (
               <button
                 type="button"
                 aria-label="Edit vertical"
@@ -141,17 +190,13 @@ export function HierarchyNodeCardContent({
                 <Pencil className="size-3" />
               </button>
             )}
-            {expanded ? (
-              <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
-            ) : (
-              <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
-            )}
+            <ExpandChevron expanded={expanded} onToggleExpand={onToggleExpand} />
           </div>
         </div>
-        <p className={nameClass}>{cadre.verticalName}</p>
+        <p className={nameClass}>{title}</p>
         <div className={`mt-0.5 flex items-center gap-1.5 flex-wrap ${metaClass}`}>
-          <span>{hubStats?.totalNodes ?? 0} members</span>
-          {(hubStats?.vacantNodes ?? 0) > 0 && (
+          <span>{countLabel}</span>
+          {isHub && (hubStats?.vacantNodes ?? 0) > 0 && (
             <span className="inline-flex items-center rounded bg-amber-100 px-1 py-0.5 text-amber-800 dark:bg-amber-900 dark:text-amber-100">
               {hubStats?.vacantNodes} vacant
             </span>
@@ -185,36 +230,41 @@ export function HierarchyNodeCardContent({
     >
       <div className="flex items-center justify-between gap-1">
         <p className={`min-w-0 flex-1 truncate ${roleClass}`}>{cadre.positionName}</p>
-        {hasActions && (
-          <div className="hidden shrink-0 items-center gap-0.5 group-hover/card:flex">
-            {onEdit && (
-              <button
-                type="button"
-                aria-label="Edit node"
-                className={actionButtonClass}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit();
-                }}
-              >
-                <Pencil className="size-3" />
-              </button>
-            )}
-            {onAddChild && (
-              <button
-                type="button"
-                aria-label="Add subordinate"
-                className={actionButtonClass}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAddChild();
-                }}
-              >
-                <Plus className="size-3" />
-              </button>
-            )}
-          </div>
-        )}
+        <div className="flex shrink-0 items-center gap-0.5">
+          {hasActions && (
+            <div className="hidden shrink-0 items-center gap-0.5 group-hover/card:flex">
+              {onEdit && (
+                <button
+                  type="button"
+                  aria-label="Edit node"
+                  className={actionButtonClass}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEdit();
+                  }}
+                >
+                  <Pencil className="size-3" />
+                </button>
+              )}
+              {onAddChild && (
+                <button
+                  type="button"
+                  aria-label="Add subordinate"
+                  className={actionButtonClass}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddChild();
+                  }}
+                >
+                  <Plus className="size-3" />
+                </button>
+              )}
+            </div>
+          )}
+          {expandable && (
+            <ExpandChevron expanded={expanded} onToggleExpand={onToggleExpand} />
+          )}
+        </div>
       </div>
       <p
         className={`${nameClass} ${

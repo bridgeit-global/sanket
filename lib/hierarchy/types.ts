@@ -54,6 +54,8 @@ export type CadreNodeDetail = {
   positionName: string;
   /** Lower values rank higher in the org chart (from CadrePosition.sort_order). */
   positionSortOrder: number;
+  /** Lower values rank higher among siblings (from CadrePositionLevel.sort_order). */
+  positionLevelSortOrder: number;
   positionLevelKey: string;
   positionLevelName: string;
   verticalName: string;

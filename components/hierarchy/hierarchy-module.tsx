@@ -21,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { HierarchyMap } from './hierarchy-map';
 import { HierarchyConfigAdmin } from './hierarchy-config-admin';
@@ -36,25 +35,23 @@ import type {
 import {
   applyNavFilters,
   applySearchFilters,
-  capDepthWithoutWard,
   extractWardNumber,
-  filterNodesForMap,
-  DEFAULT_MAP_DEPTH,
-  getMapRenderGate,
   HIERARCHY_URL_PARAMS,
-  isDepthAllowed,
-  MAP_DEPTH_LABELS,
-  MAP_MAX_RENDER_NODES,
   nodeMatchesSearch,
-  parseMapDepth,
-  type MapDepth,
+  resolveFocusVerticalId,
 } from '@/lib/hierarchy/map-filters';
+import {
+  applyCollapse,
+  defaultExpandedIds,
+  expandPathTo,
+  findBoothGroupId,
+  findWardNodeId,
+} from '@/lib/hierarchy/collapse';
 import { buildForest, isVerticalHubNode } from '@/lib/hierarchy/forest-builder';
 import {
   buildBoothOptions,
   buildVerticalOptions,
   buildWardOptions,
-  inferDepthFromNav,
   resolveNavPathFromNode,
 } from '@/lib/hierarchy/nav-options';
 import { extractBoothNumber } from '@/lib/hierarchy/booth-geo-units';
@@ -68,6 +65,7 @@ import {
   appendVacantSlotsForForest,
   isPlaceholderNode,
 } from '@/lib/hierarchy/vacant-slots';
+import { buildNavigableTree } from '@/lib/hierarchy/tree-builder';
 
 const DEFAULT_CONSTITUENCY_ID = '172';
 
@@ -93,6 +91,8 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [searchDraft, setSearchDraft] = useState('');
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  const [expandedInitialized, setExpandedInitialized] = useState(false);
 
   const [quickEdit, setQuickEdit] = useState<QuickEditTarget | null>(null);
   const [detailNode, setDetailNode] = useState<CadreNodeDetail | null>(null);
@@ -102,8 +102,10 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   >(null);
   const [configOpen, setConfigOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [verticalSelectOpen, setVerticalSelectOpen] = useState(false);
+  const [wardSelectOpen, setWardSelectOpen] = useState(false);
+  const [boothSelectOpen, setBoothSelectOpen] = useState(false);
 
-  const mapDepth = parseMapDepth(searchParams.get(HIERARCHY_URL_PARAMS.depth));
   const searchQuery = searchParams.get(HIERARCHY_URL_PARAMS.search) ?? '';
   const legacyWardNo = searchParams.get(HIERARCHY_URL_PARAMS.wardNo) ?? '';
   const boothNo = searchParams.get(HIERARCHY_URL_PARAMS.boothNo) ?? '';
@@ -119,27 +121,20 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     setSearchDraft(searchQuery);
   }, [searchQuery]);
 
-  // Builds the query string from managed params only, dropping legacy
-  // params (vertical, ward, tab) from older versions of this page.
   const setUrlParams = useCallback(
     (updates: {
-      depth?: MapDepth;
       search?: string;
       wardGeoId?: string;
       boothNo?: string;
       expand?: string;
     }) => {
       const next = {
-        depth: updates.depth ?? mapDepth,
         search: updates.search ?? searchQuery,
         wardGeoId: updates.wardGeoId ?? wardGeoIdParam,
         boothNo: updates.boothNo ?? boothNo,
         expand: updates.expand ?? expandParam,
       };
       const params = new URLSearchParams();
-      if (next.depth !== DEFAULT_MAP_DEPTH) {
-        params.set(HIERARCHY_URL_PARAMS.depth, next.depth);
-      }
       if (next.search.trim()) {
         params.set(HIERARCHY_URL_PARAMS.search, next.search.trim());
       }
@@ -155,14 +150,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       const qs = params.toString();
       router.replace(qs ? `?${qs}` : '?', { scroll: false });
     },
-    [
-      router,
-      mapDepth,
-      searchQuery,
-      wardGeoIdParam,
-      boothNo,
-      expandParam,
-    ],
+    [router, searchQuery, wardGeoIdParam, boothNo, expandParam],
   );
 
   const loadConfig = useCallback(async () => {
@@ -236,8 +224,8 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     if (config) {
       for (const geo of config.geoUnits) {
         if (geo.type !== 'booth' || !geo.parentId) continue;
-        const boothNo = extractBoothNumber(geo.name);
-        if (boothNo) mapping.set(boothNo, geo.parentId);
+        const boothNum = extractBoothNumber(geo.name);
+        if (boothNum) mapping.set(boothNum, geo.parentId);
       }
     }
     for (const node of nodes) {
@@ -304,33 +292,44 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
 
   const hasActiveSearchInput = Boolean(searchQuery.trim());
 
-  // Skip singleton ward/booth dropdowns by auto-selecting the only option.
+  const focusVerticalId = useMemo(
+    () =>
+      resolveFocusVerticalId({
+        selectedVerticalId,
+        wardGeoId: resolvedWardGeoId,
+        boothNo,
+        verticalSelectOpen,
+        wardSelectOpen,
+        boothSelectOpen,
+        multipleVerticals: verticalOptions.length > 1,
+      }),
+    [
+      selectedVerticalId,
+      resolvedWardGeoId,
+      boothNo,
+      verticalSelectOpen,
+      wardSelectOpen,
+      boothSelectOpen,
+      verticalOptions.length,
+    ],
+  );
+
   useEffect(() => {
     const onlyWard = wardOptions.length === 1 ? wardOptions[0] : undefined;
     if (!selectedVerticalId || resolvedWardGeoId || !onlyWard) return;
-    setUrlParams({ wardGeoId: onlyWard.value, depth: 'ward' });
+    setUrlParams({ wardGeoId: onlyWard.value });
   }, [selectedVerticalId, resolvedWardGeoId, wardOptions, setUrlParams]);
 
   useEffect(() => {
     const onlyBooth = boothOptions.length === 1 ? boothOptions[0] : undefined;
     if (!resolvedWardGeoId || boothNo || !onlyBooth) return;
-    setUrlParams({ boothNo: onlyBooth.value, depth: 'booth' });
+    setUrlParams({ boothNo: onlyBooth.value });
   }, [resolvedWardGeoId, boothNo, boothOptions, setUrlParams]);
 
-  // Booth/committee depth without a ward loads the entire vertical — cap to ward.
-  useEffect(() => {
-    const capped = capDepthWithoutWard(mapDepth, resolvedWardGeoId);
-    if (capped !== mapDepth) {
-      setUrlParams({ depth: capped });
-    }
-  }, [mapDepth, resolvedWardGeoId, setUrlParams]);
-
-  const { nodes: mapNodes, matchIds, hasActiveFilter, hubStats } = useMemo(() => {
+  const navigableForest = useMemo(() => {
     if (!config) {
       return {
-        nodes: [] as CadreNodeDetail[],
-        matchIds: new Set<string>(),
-        hasActiveFilter: false,
+        navigableNodes: [] as CadreNodeDetail[],
         hubStats: new Map(),
       };
     }
@@ -339,7 +338,6 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       verticals: activeVerticals.map((v) => ({ id: v.id, name: v.name })),
       constituencyId: DEFAULT_CONSTITUENCY_ID,
       electionId: defaultElectionId,
-      mapDepth,
       wardGeoId: resolvedWardGeoId || null,
       config,
       expectedBoothNos,
@@ -353,30 +351,14 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         : expandedVerticalIds;
 
     const forest = buildForest(withVacants, activeVerticals, effectiveExpanded);
-    const depthFiltered = filterNodesForMap(
-      forest.nodes,
-      mapDepth,
-      resolvedWardGeoId || null,
-    );
-    const navFiltered = applyNavFilters(depthFiltered, {
+    const navFiltered = applyNavFilters(forest.nodes, {
+      focusVerticalId,
       wardGeoId: resolvedWardGeoId,
       boothNo,
     });
-    const searched = applySearchFilters(navFiltered.nodes, {
-      search: searchQuery,
-      wardGeoId: resolvedWardGeoId,
-      boothNo,
-    });
-
-    const combinedMatchIds = new Set([
-      ...navFiltered.matchIds,
-      ...searched.matchIds,
-    ]);
 
     return {
-      nodes: searched.nodes,
-      matchIds: combinedMatchIds,
-      hasActiveFilter: navFiltered.hasActiveFilter || searched.hasActiveFilter,
+      navigableNodes: buildNavigableTree(navFiltered.nodes),
       hubStats: forest.hubStats,
     };
   }, [
@@ -384,25 +366,120 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     nodes,
     activeVerticals,
     defaultElectionId,
-    mapDepth,
     expectedBoothNos,
     boothToWardGeoId,
     expandedVerticalIds,
     selectedVerticalId,
     hasActiveSearchInput,
-    searchQuery,
     resolvedWardGeoId,
     boothNo,
+    focusVerticalId,
   ]);
 
-  const mapRenderGate = useMemo(
-    () =>
-      getMapRenderGate(mapNodes.length, {
+  useEffect(() => {
+    if (expandedInitialized || navigableForest.navigableNodes.length === 0) return;
+    setExpandedIds(
+      defaultExpandedIds(
+        navigableForest.navigableNodes,
+        selectedVerticalId || undefined,
+      ),
+    );
+    setExpandedInitialized(true);
+  }, [
+    navigableForest.navigableNodes,
+    selectedVerticalId,
+    expandedInitialized,
+  ]);
+
+  useEffect(() => {
+    if (!selectedVerticalId) return;
+    setExpandedInitialized(false);
+  }, [selectedVerticalId]);
+
+  const { mapNodes, matchIds, hasActiveFilter, childCountById, hasChildrenById, effectiveExpandedIds } =
+    useMemo(() => {
+      const { navigableNodes } = navigableForest;
+      if (navigableNodes.length === 0) {
+        return {
+          mapNodes: [] as CadreNodeDetail[],
+          matchIds: new Set<string>(),
+          hasActiveFilter: false,
+          childCountById: new Map<string, number>(),
+          hasChildrenById: new Map<string, boolean>(),
+          effectiveExpandedIds: new Set<string>(),
+        };
+      }
+
+      const searchMatches = new Set<string>();
+      if (searchQuery.trim()) {
+        for (const node of navigableNodes) {
+          if (isVerticalHubNode(node)) continue;
+          if (nodeMatchesSearch(node, searchQuery)) {
+            searchMatches.add(node.id);
+          }
+        }
+      }
+
+      const effectiveExpanded = new Set(expandedIds);
+
+      if (resolvedWardGeoId) {
+        const wardNodeId = findWardNodeId(
+          navigableNodes,
+          resolvedWardGeoId,
+          selectedVerticalId || undefined,
+        );
+        if (wardNodeId) {
+          for (const id of expandPathTo(navigableNodes, wardNodeId)) {
+            effectiveExpanded.add(id);
+          }
+          effectiveExpanded.add(wardNodeId);
+          if (boothNo) {
+            const boothGroupId = findBoothGroupId(
+              navigableNodes,
+              wardNodeId,
+              boothNo,
+            );
+            if (boothGroupId) {
+              for (const id of expandPathTo(navigableNodes, boothGroupId)) {
+                effectiveExpanded.add(id);
+              }
+              effectiveExpanded.add(boothGroupId);
+            }
+          }
+        }
+      }
+
+      for (const matchId of searchMatches) {
+        for (const id of expandPathTo(navigableNodes, matchId)) {
+          effectiveExpanded.add(id);
+        }
+        effectiveExpanded.add(matchId);
+      }
+
+      const collapsed = applyCollapse(navigableNodes, effectiveExpanded);
+
+      const searched = applySearchFilters(collapsed.nodes, {
+        search: searchQuery,
         wardGeoId: resolvedWardGeoId,
         boothNo,
-      }, mapDepth),
-    [mapNodes.length, resolvedWardGeoId, boothNo, mapDepth],
-  );
+      });
+
+      return {
+        mapNodes: searchQuery.trim() ? searched.nodes : collapsed.nodes,
+        matchIds: searched.matchIds,
+        hasActiveFilter: searched.hasActiveFilter,
+        childCountById: collapsed.childCountById,
+        hasChildrenById: collapsed.hasChildrenById,
+        effectiveExpandedIds: effectiveExpanded,
+      };
+    }, [
+      navigableForest,
+      expandedIds,
+      searchQuery,
+      resolvedWardGeoId,
+      boothNo,
+      selectedVerticalId,
+    ]);
 
   const fitBoundsNodeIds = useMemo(() => {
     if (resolvedWardGeoId || boothNo) {
@@ -423,11 +500,22 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   }, [mapNodes, resolvedWardGeoId, boothNo]);
 
   const toggleVertical = (verticalId: string) => {
-    // One expanded vertical at a time keeps large trees fast.
     setUrlParams({
       expand: expandedVerticalIds.has(verticalId) ? '' : verticalId,
     });
   };
+
+  const handleToggleExpand = useCallback((nodeId: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) {
+        next.delete(nodeId);
+      } else {
+        next.add(nodeId);
+      }
+      return next;
+    });
+  }, []);
 
   const handleNodeClick = (node: CadreNodeDetail) => {
     if (!canEdit) {
@@ -473,13 +561,11 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     );
     if (match) {
       const path = resolveNavPathFromNode(match, nodes);
-      const depth = inferDepthFromNav(path, match.positionLevelKey);
       setUrlParams({
         search: trimmed,
         expand: path.verticalId ?? selectedVerticalId,
         wardGeoId: path.wardGeoId ?? '',
         boothNo: path.boothNo ?? '',
-        ...(depth ? { depth } : {}),
       });
       return;
     }
@@ -493,7 +579,6 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     if (selectedVerticalId && verticalOptions.length > 1) count += 1;
     if (resolvedWardGeoId) count += 1;
     if (boothNo) count += 1;
-    if (mapDepth !== DEFAULT_MAP_DEPTH) count += 1;
     return count;
   }, [
     searchQuery,
@@ -501,7 +586,6 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     verticalOptions.length,
     resolvedWardGeoId,
     boothNo,
-    mapDepth,
   ]);
 
   const activeFilterChips = useMemo(() => {
@@ -539,7 +623,6 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
           setUrlParams({
             wardGeoId: '',
             boothNo: '',
-            depth: DEFAULT_MAP_DEPTH,
           }),
       });
     }
@@ -549,15 +632,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       chips.push({
         key: 'booth',
         label,
-        onClear: () =>
-          setUrlParams({ boothNo: '', depth: 'ward' }),
-      });
-    }
-    if (mapDepth !== DEFAULT_MAP_DEPTH) {
-      chips.push({
-        key: 'depth',
-        label: `Depth: ${MAP_DEPTH_LABELS[mapDepth]}`,
-        onClear: () => setUrlParams({ depth: DEFAULT_MAP_DEPTH }),
+        onClear: () => setUrlParams({ boothNo: '' }),
       });
     }
 
@@ -570,37 +645,8 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     wardOptions,
     boothNo,
     boothOptions,
-    mapDepth,
     setUrlParams,
   ]);
-
-  const depthTabs = (
-    <div>
-      <Label className="text-xs text-muted-foreground">Depth</Label>
-      <Tabs
-        value={mapDepth}
-        onValueChange={(value) => setUrlParams({ depth: value as MapDepth })}
-      >
-        <TabsList className="h-9 max-md:w-max">
-          {(Object.keys(MAP_DEPTH_LABELS) as MapDepth[]).map((depth) => (
-            <TabsTrigger
-              key={depth}
-              value={depth}
-              disabled={!isDepthAllowed(depth, resolvedWardGeoId)}
-              className="text-xs"
-              title={
-                !isDepthAllowed(depth, resolvedWardGeoId)
-                  ? 'Select a ward first'
-                  : undefined
-              }
-            >
-              {MAP_DEPTH_LABELS[depth]}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-    </div>
-  );
 
   const navSelects = (
     <>
@@ -608,6 +654,8 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         <div className="w-full md:w-44">
           <Label className="text-xs text-muted-foreground">Vertical</Label>
           <Select
+            open={verticalSelectOpen}
+            onOpenChange={setVerticalSelectOpen}
             value={toControlledSelectValue(selectedVerticalId)}
             onValueChange={(value) =>
               setUrlParams({
@@ -636,13 +684,14 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         <div className="w-full md:min-w-52 md:max-w-72">
           <Label className="text-xs text-muted-foreground">Ward</Label>
           <Select
+            open={wardSelectOpen}
+            onOpenChange={setWardSelectOpen}
             value={toOptionalSelectValue(resolvedWardGeoId)}
             onValueChange={(value) => {
               const geoId = fromOptionalSelectValue(value);
               setUrlParams({
                 wardGeoId: geoId,
                 boothNo: '',
-                depth: geoId ? 'ward' : DEFAULT_MAP_DEPTH,
               });
             }}
           >
@@ -666,13 +715,12 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
           <div className="w-full md:min-w-44 md:max-w-64">
             <Label className="text-xs text-muted-foreground">Booth</Label>
             <Select
+              open={boothSelectOpen}
+              onOpenChange={setBoothSelectOpen}
               value={toOptionalSelectValue(boothNo)}
               onValueChange={(value) => {
                 const nextBooth = fromOptionalSelectValue(value);
-                setUrlParams({
-                  boothNo: nextBooth,
-                  depth: nextBooth ? 'booth' : mapDepth,
-                });
+                setUrlParams({ boothNo: nextBooth });
               }}
             >
               <SelectTrigger className="h-9">
@@ -776,8 +824,6 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             </Button>
           </div>
 
-          <div className="-mx-1 overflow-x-auto px-1">{depthTabs}</div>
-
           {activeFilterChips.length > 0 && (
             <div className="flex gap-1.5 overflow-x-auto pb-0.5">
               {activeFilterChips.map((chip) => (
@@ -828,15 +874,6 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
           </div>
 
           {navSelects}
-          {depthTabs}
-
-          {mapNodes.length > MAP_MAX_RENDER_NODES && (
-            <div className="flex items-end pb-0.5">
-              <span className="text-xs text-muted-foreground">
-                {mapNodes.length.toLocaleString()} nodes on map
-              </span>
-            </div>
-          )}
         </div>
       )}
 
@@ -868,7 +905,6 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             hasActiveSearchFilter={hasActiveFilter}
             focusNodeId={null}
             fitBoundsNodeIds={fitBoundsNodeIds}
-            mapRenderGate={mapRenderGate}
             selectedId={
               quickEdit?.mode === 'edit'
                 ? quickEdit.node.id
@@ -877,7 +913,11 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
                   : detailNode?.id ?? null
             }
             expandedVerticalIds={expandedVerticalIds}
-            hubStats={hubStats}
+            expandedIds={effectiveExpandedIds}
+            childCountById={childCountById}
+            hasChildrenById={hasChildrenById}
+            onToggleExpand={handleToggleExpand}
+            hubStats={navigableForest.hubStats}
             onNodeClick={handleNodeClick}
             onHubToggle={toggleVertical}
             onEditNode={
@@ -888,11 +928,11 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
                       const vertical = activeVerticals.find(
                         (v) => v.id === node.verticalId,
                       );
-                    if (vertical) {
-                      void ensureReferenceCounts();
-                      setEditVertical(vertical);
-                      setVerticalDialogOpen(true);
-                    }
+                      if (vertical) {
+                        void ensureReferenceCounts();
+                        setEditVertical(vertical);
+                        setVerticalDialogOpen(true);
+                      }
                       return;
                     }
                     setQuickEdit({ mode: 'edit', node });

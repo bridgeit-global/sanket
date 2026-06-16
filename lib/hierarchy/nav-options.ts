@@ -159,16 +159,3 @@ export function resolveNavPathFromNode(
 
   return path;
 }
-
-export function inferDepthFromNav(
-  path: {
-    boothNo?: string;
-    wardGeoId?: string;
-  },
-  nodeLevelKey?: string,
-): 'ward' | 'booth' | 'committee' | undefined {
-  if (nodeLevelKey === 'booth_committee') return 'committee';
-  if (path.boothNo) return 'booth';
-  if (path.wardGeoId || nodeLevelKey === 'ward_committee') return 'ward';
-  return undefined;
-}
