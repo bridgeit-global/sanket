@@ -496,8 +496,11 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       }
       return new Set(mapNodes.map((n) => n.id));
     }
+    if (focusVerticalId) {
+      return new Set(mapNodes.map((n) => n.id));
+    }
     return undefined;
-  }, [mapNodes, resolvedWardGeoId, boothNo]);
+  }, [mapNodes, resolvedWardGeoId, boothNo, focusVerticalId]);
 
   const toggleVertical = (verticalId: string) => {
     setUrlParams({

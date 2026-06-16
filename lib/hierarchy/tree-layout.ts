@@ -59,6 +59,34 @@ export function getLayoutNodeDimensions(node: Pick<LayoutNode, 'width' | 'height
   return { width: node.width, height: node.height };
 }
 
+export type LayoutBounds = {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+};
+
+/** Axis-aligned bounds for layout nodes, optionally restricted to a subset of ids. */
+export function getLayoutNodeBounds(
+  nodes: LayoutNode[],
+  ids?: Set<string>,
+): LayoutBounds | null {
+  const subset = ids && ids.size > 0 ? nodes.filter((n) => ids.has(n.id)) : nodes;
+  if (subset.length === 0) return null;
+
+  const lefts = subset.map((n) => n.x - n.width / 2);
+  const rights = subset.map((n) => n.x + n.width / 2);
+  const tops = subset.map((n) => n.y - n.height / 2);
+  const bottoms = subset.map((n) => n.y + n.height / 2);
+
+  return {
+    minX: Math.min(...lefts),
+    maxX: Math.max(...rights),
+    minY: Math.min(...tops),
+    maxY: Math.max(...bottoms),
+  };
+}
+
 function displayName(cadre: CadreNodeDetail): string {
   return cadre.personName ?? cadre.linkedVoter?.fullName ?? cadre.positionName;
 }

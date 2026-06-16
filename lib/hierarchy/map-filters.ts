@@ -4,6 +4,12 @@ import type { CadreNodeDetail } from './types';
 /** Minimum zoom when fitting large trees so cards stay partially readable. */
 export const MAP_MIN_FIT_SCALE = 0.36;
 
+/** Minimum zoom when fitting small trees (prevents over-zoom-out on few nodes). */
+export const MAP_SMALL_TREE_MIN_FIT_SCALE = 0.55;
+
+/** Minimum zoom when fitting small trees (prevents over-zoom-out on few visible nodes). */
+export const SMALL_TREE_MIN_FIT_SCALE = 0.55;
+
 export const HIERARCHY_URL_PARAMS = {
   search: 'search',
   /** @deprecated Legacy text filter — prefer `ward` (geo id). */

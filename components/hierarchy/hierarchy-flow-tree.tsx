@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Background,
   BackgroundVariant,
+  getViewportForBounds,
   Handle,
   Position,
   ReactFlow,
@@ -17,9 +18,17 @@ import '@xyflow/react/dist/style.css';
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { HierarchyNodeCardContent } from './hierarchy-node-card-content';
-import { computeTreeLayout } from '@/lib/hierarchy/tree-layout';
+import {
+  computeTreeLayout,
+  getLayoutNodeBounds,
+  NODE_HEIGHT,
+  NODE_WIDTH,
+} from '@/lib/hierarchy/tree-layout';
 import type { LayoutLink, LayoutNode } from '@/lib/hierarchy/tree-layout';
-import { MAP_MIN_FIT_SCALE } from '@/lib/hierarchy/map-filters';
+import {
+  MAP_MIN_FIT_SCALE,
+  MAP_SMALL_TREE_MIN_FIT_SCALE,
+} from '@/lib/hierarchy/map-filters';
 import { getLevelColor } from '@/lib/hierarchy/build-tree';
 import { isVerticalHubNode, type VerticalHubStats } from '@/lib/hierarchy/forest-builder';
 import { isPlaceholderNode } from '@/lib/hierarchy/vacant-slots';
@@ -144,7 +153,8 @@ function HierarchyFlowTreeInner({
   onEditNode,
   onAddChild,
 }: HierarchyFlowTreeProps) {
-  const { fitView, zoomIn, zoomOut } = useReactFlow();
+  const { setViewport, zoomIn, zoomOut } = useReactFlow();
+  const containerRef = useRef<HTMLDivElement>(null);
   const [layoutNodes, setLayoutNodes] = useState<LayoutNode[]>([]);
   const [layoutLinks, setLayoutLinks] = useState<LayoutLink[]>([]);
   const [layoutReady, setLayoutReady] = useState(false);
@@ -266,37 +276,79 @@ function HierarchyFlowTreeInner({
 
   const fitToBounds = useCallback(
     (ids?: Set<string>, animate = false) => {
-      if (!layoutReady || positionedNodes.length === 0) return;
+      const container = containerRef.current;
+      if (!container || !layoutReady || positionedNodes.length === 0) return;
 
+      const bounds = getLayoutNodeBounds(positionedNodes, ids);
+      if (!bounds) return;
+
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      if (width <= 0 || height <= 0) return;
+
+      const contentWidth = Math.max(bounds.maxX - bounds.minX, NODE_WIDTH);
+      const contentHeight = Math.max(bounds.maxY - bounds.minY, NODE_HEIGHT);
       const isFocusedFit = Boolean(ids && ids.size > 0);
       const isLargeTree = positionedNodes.length > LARGE_TREE_NODE_THRESHOLD;
+      const padding = isFocusedFit ? FOCUSED_PADDING : PADDING;
       const minZoom = isFocusedFit
         ? FOCUSED_MIN_SCALE
         : isLargeTree
           ? MAP_MIN_FIT_SCALE
-          : MIN_MANUAL_ZOOM;
+          : MAP_SMALL_TREE_MIN_FIT_SCALE;
       const maxZoom = isFocusedFit
         ? FOCUSED_MAX_SCALE
         : isLargeTree
           ? LARGE_TREE_MAX_FIT_SCALE
           : 1.5;
-      const padding = isFocusedFit ? FOCUSED_PADDING : PADDING;
 
-      void fitView({
-        nodes: ids && ids.size > 0 ? [...ids].map((id) => ({ id })) : undefined,
-        padding,
+      const viewport = getViewportForBounds(
+        {
+          x: bounds.minX,
+          y: bounds.minY,
+          width: contentWidth,
+          height: contentHeight,
+        },
+        width,
+        height,
         minZoom,
         maxZoom,
-        duration: animate ? 400 : 0,
-      });
+        padding,
+      );
+
+      void setViewport(viewport, { duration: animate ? 400 : 0 });
     },
-    [fitView, layoutReady, positionedNodes.length],
+    [layoutReady, positionedNodes, setViewport],
   );
 
   useEffect(() => {
     if (!layoutReady || cadreNodes.length === 0) return;
-    requestAnimationFrame(() => fitToBounds(resolveFocusIds(), Boolean(focusNodeId)));
-  }, [layoutReady, cadreNodes, resolveFocusIds, focusNodeId, fitToBounds]);
+
+    const focusIds = resolveFocusIds();
+    const animate = Boolean(focusNodeId);
+    let raf2 = 0;
+
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        fitToBounds(focusIds, animate);
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(raf1);
+      if (raf2) cancelAnimationFrame(raf2);
+    };
+  }, [
+    layoutReady,
+    cadreNodes,
+    positionedNodes,
+    focusNodeId,
+    fitBoundsNodeIds,
+    matchIds,
+    hasActiveSearchFilter,
+    fitToBounds,
+    resolveFocusIds,
+  ]);
 
   const handleZoomIn = () => {
     void zoomIn({ duration: 200 });
@@ -328,7 +380,8 @@ function HierarchyFlowTreeInner({
         </div>
       ) : (
         <>
-          <ReactFlow
+          <div ref={containerRef} className="size-full">
+            <ReactFlow
             nodes={flowNodes}
             edges={flowEdges}
             nodeTypes={nodeTypes}
@@ -354,6 +407,7 @@ function HierarchyFlowTreeInner({
               style={{ opacity: 0.35 }}
             />
           </ReactFlow>
+          </div>
 
           <div className="absolute bottom-3 right-3 z-10 flex gap-0.5 rounded-lg border border-border/60 bg-card/90 p-0.5 shadow-sm backdrop-blur-sm md:left-3 md:right-auto">
             <Button
