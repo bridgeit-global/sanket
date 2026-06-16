@@ -72,10 +72,11 @@ import {
 const DEFAULT_CONSTITUENCY_ID = '172';
 
 interface HierarchyModuleProps {
+  canEdit: boolean;
   isAdmin: boolean;
 }
 
-export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
+export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const isMobile = useIsMobile();
@@ -429,7 +430,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
   };
 
   const handleNodeClick = (node: CadreNodeDetail) => {
-    if (!isAdmin) {
+    if (!canEdit) {
       setDetailNode(node);
       return;
     }
@@ -692,7 +693,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
   );
 
   const overlay = useMemo(() => {
-    if (isAdmin && quickEdit && config) {
+    if (canEdit && quickEdit && config) {
       return (
         <HierarchyQuickEdit
           target={quickEdit}
@@ -704,7 +705,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
         />
       );
     }
-    if (!isAdmin && detailNode) {
+    if (!canEdit && detailNode) {
       return (
         <HierarchyNodeDetail
           node={detailNode}
@@ -716,7 +717,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
       );
     }
     return null;
-  }, [isAdmin, quickEdit, config, defaultElectionId, detailNode, refresh]);
+  }, [canEdit, quickEdit, config, defaultElectionId, detailNode, refresh]);
 
   return (
     <div className="flex h-[calc(100dvh-5.5rem)] max-md:h-[calc(100dvh-9rem)] min-h-[400px] flex-col gap-2 md:gap-2">
@@ -880,9 +881,10 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
             onNodeClick={handleNodeClick}
             onHubToggle={toggleVertical}
             onEditNode={
-              isAdmin
+              canEdit
                 ? (node) => {
                     if (isVerticalHubNode(node)) {
+                      if (!isAdmin) return;
                       const vertical = activeVerticals.find(
                         (v) => v.id === node.verticalId,
                       );
@@ -897,7 +899,7 @@ export function HierarchyModule({ isAdmin }: HierarchyModuleProps) {
                   }
                 : undefined
             }
-            onAddChild={isAdmin ? handleAddChild : undefined}
+            onAddChild={canEdit ? handleAddChild : undefined}
             overlay={overlay}
           />
         )}

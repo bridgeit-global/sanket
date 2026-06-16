@@ -22,7 +22,7 @@ export default async function HierarchyPage() {
   return (
     <div className="mx-auto w-full max-w-[1600px] p-4 sm:py-6">
       <Suspense fallback={<p className="text-muted-foreground py-12 text-center">Loading...</p>}>
-        <HierarchyModule isAdmin={isAdmin} />
+        <HierarchyModule canEdit={hasAccess} isAdmin={isAdmin} />
       </Suspense>
     </div>
   );
