@@ -1183,14 +1183,22 @@ export async function getDailyProgrammeItems({
       LEFT JOIN "User" AS created_by_user ON dp.created_by = created_by_user.id
       LEFT JOIN "User" AS updated_by_user ON dp.updated_by = updated_by_user.id
       WHERE
-        (${filterStart}::text IS NULL OR GREATEST(
-          COALESCE(dp.start_date, dp.date),
-          COALESCE(dp.end_date, dp.date)
-        ) >= ${filterStart})
-        AND (${filterEnd}::text IS NULL OR LEAST(
-          COALESCE(dp.start_date, dp.date),
-          COALESCE(dp.end_date, dp.date)
-        ) <= ${filterEnd})
+        (
+          dp.start_date IS NOT NULL
+          AND dp.end_date IS NOT NULL
+          AND dp.start_date < dp.end_date
+          AND (${filterStart}::text IS NULL OR dp.end_date >= ${filterStart})
+          AND (${filterEnd}::text IS NULL OR dp.start_date <= ${filterEnd})
+        )
+        OR (
+          NOT (
+            dp.start_date IS NOT NULL
+            AND dp.end_date IS NOT NULL
+            AND dp.start_date < dp.end_date
+          )
+          AND (${filterStart}::text IS NULL OR dp.date >= ${filterStart})
+          AND (${filterEnd}::text IS NULL OR dp.date <= ${filterEnd})
+        )
       ORDER BY dp.date ASC, dp.start_time ASC, dp.sort_order ASC
       LIMIT ${limit}
     `;

@@ -246,20 +246,21 @@ function eachDateInclusive(start: string, end: string): string[] {
   return result;
 }
 
-/** Effective calendar span for a programme row (handles swapped or single-day ranges). */
+/** Effective calendar span for a programme row. Multi-day only when end is strictly after start. */
 function getProgrammeDateSpan(item: {
   date?: string | Date | null;
   startDate?: string | Date | null;
   endDate?: string | Date | null;
 }): { start: string; end: string } | null {
-  const start = normalizeDate(item.startDate ?? item.date ?? null);
-  const end = normalizeDate(item.endDate ?? null);
-  if (!start && !end) return null;
-  const spanStart = start ?? end!;
-  const spanEnd = end ?? start!;
-  return spanStart <= spanEnd
-    ? { start: spanStart, end: spanEnd }
-    : { start: spanEnd, end: spanStart };
+  const startDate = normalizeDate(item.startDate ?? null);
+  const endDate = normalizeDate(item.endDate ?? null);
+
+  if (startDate && endDate && startDate < endDate) {
+    return { start: startDate, end: endDate };
+  }
+
+  const single = normalizeDate(item.date ?? null) ?? startDate ?? endDate;
+  return single ? { start: single, end: single } : null;
 }
 
 // DURATION_OPTIONS will be generated inside component with access to translations
