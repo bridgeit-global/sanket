@@ -1,15 +1,6 @@
 import { isVerticalHubNode } from './forest-builder';
 import type { CadreNodeDetail } from './types';
 
-/** Minimum zoom when fitting large trees so cards stay partially readable. */
-export const MAP_MIN_FIT_SCALE = 0.36;
-
-/** Minimum zoom when fitting small trees (prevents over-zoom-out on few nodes). */
-export const MAP_SMALL_TREE_MIN_FIT_SCALE = 0.55;
-
-/** Minimum zoom when fitting small trees (prevents over-zoom-out on few visible nodes). */
-export const SMALL_TREE_MIN_FIT_SCALE = 0.55;
-
 export const HIERARCHY_URL_PARAMS = {
   search: 'search',
   /** @deprecated Legacy text filter — prefer `ward` (geo id). */
@@ -135,10 +126,19 @@ export function nodeMatchesSearch(node: CadreNodeDetail, query: string): boolean
   return getNodeDisplayName(node).toLowerCase().includes(q);
 }
 
+const TALUKA_SCOPE_LEVEL_KEYS = new Set([
+  'taluka',
+  'taluka_committee',
+  'taluka_committee_group',
+  'wards_group',
+]);
+
 export function nodeMatchesWardNo(node: CadreNodeDetail, wardNo: string): boolean {
   const w = wardNo.trim();
   if (!w) return true;
-  if (node.positionLevelKey === 'taluka' || isVerticalHubNode(node)) return true;
+  if (TALUKA_SCOPE_LEVEL_KEYS.has(node.positionLevelKey) || isVerticalHubNode(node)) {
+    return true;
+  }
   return extractWardNumber(node.wardGeoName) === w;
 }
 
@@ -149,7 +149,9 @@ export function nodeMatchesWardGeo(
 ): boolean {
   const id = wardGeoId.trim();
   if (!id) return true;
-  if (node.positionLevelKey === 'taluka' || isVerticalHubNode(node)) return true;
+  if (TALUKA_SCOPE_LEVEL_KEYS.has(node.positionLevelKey) || isVerticalHubNode(node)) {
+    return true;
+  }
   const effectiveWard = byId ? resolveEffectiveWardGeoId(node, byId) : node.wardGeoId;
   return effectiveWard === id;
 }
@@ -212,7 +214,7 @@ export function applyNavFilters(
       visible.set(node.id, node);
       continue;
     }
-    if (node.positionLevelKey === 'taluka') continue;
+    if (TALUKA_SCOPE_LEVEL_KEYS.has(node.positionLevelKey)) continue;
     if (!nodeMatchesWardGeo(node, wardGeoId, byId)) continue;
     if (!nodeMatchesBoothNo(node, boothNo)) continue;
     visible.set(node.id, node);

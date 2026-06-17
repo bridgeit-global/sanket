@@ -276,11 +276,11 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     () =>
       selectedVerticalId && config
         ? buildWardOptions(
-            nodes,
-            selectedVerticalId,
-            config,
-            DEFAULT_CONSTITUENCY_ID,
-          )
+          nodes,
+          selectedVerticalId,
+          config,
+          DEFAULT_CONSTITUENCY_ID,
+        )
         : [],
     [nodes, selectedVerticalId, config],
   );
@@ -480,27 +480,6 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       boothNo,
       selectedVerticalId,
     ]);
-
-  const fitBoundsNodeIds = useMemo(() => {
-    if (resolvedWardGeoId || boothNo) {
-      if (resolvedWardGeoId && !boothNo) {
-        const wardLocal = mapNodes.filter(
-          (n) =>
-            !isVerticalHubNode(n) &&
-            n.positionLevelKey !== 'taluka' &&
-            n.wardGeoId === resolvedWardGeoId,
-        );
-        if (wardLocal.length > 0) {
-          return new Set(wardLocal.map((n) => n.id));
-        }
-      }
-      return new Set(mapNodes.map((n) => n.id));
-    }
-    if (focusVerticalId) {
-      return new Set(mapNodes.map((n) => n.id));
-    }
-    return undefined;
-  }, [mapNodes, resolvedWardGeoId, boothNo, focusVerticalId]);
 
   const toggleVertical = (verticalId: string) => {
     setUrlParams({
@@ -762,8 +741,8 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
           node={detailNode}
           isAdmin={false}
           onClose={() => setDetailNode(null)}
-          onEdit={() => {}}
-          onAddSubordinate={() => {}}
+          onEdit={() => { }}
+          onAddSubordinate={() => { }}
         />
       );
     }
@@ -773,7 +752,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   return (
     <div className="flex h-[calc(100dvh-5.5rem)] max-md:h-[calc(100dvh-9rem)] min-h-[400px] flex-col gap-2 md:gap-2">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <ModulePageHeader title="Cadre Hierarchy" />
+        <ModulePageHeader title="NCP 172 Anushakti Nagar Vidhan Sabha" />
         {isAdmin && (
           <div className="flex flex-wrap items-center gap-2">
             <Button size="sm" variant="outline" onClick={openNewVertical}>
@@ -796,36 +775,34 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
 
       {isMobile ? (
         <div className="flex flex-col gap-2">
-          <div className="flex items-end gap-2">
-            <div className="min-w-0 flex-1">
-              <Label className="text-xs text-muted-foreground">Search by name</Label>
-              <Input
-                className="h-9"
-                value={searchDraft}
-                onChange={(e) => setSearchDraft(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') commitSearch();
-                }}
-                onBlur={commitSearch}
-                placeholder="Person name"
-              />
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-9 shrink-0 gap-1.5"
-              onClick={() => setFiltersOpen(true)}
-            >
-              <SlidersHorizontal className="size-4" />
-              Filters
-              {activeFilterCount > 0 && (
-                <Badge variant="secondary" className="h-5 min-w-5 justify-center px-1.5">
-                  {activeFilterCount}
-                </Badge>
-              )}
-            </Button>
+          <div className="w-full">
+            <Label className="text-xs text-muted-foreground">Search by name</Label>
+            <Input
+              className="h-9 w-full"
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitSearch();
+              }}
+              onBlur={commitSearch}
+              placeholder="Person name"
+            />
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-9 w-full gap-1.5"
+            onClick={() => setFiltersOpen(true)}
+          >
+            <SlidersHorizontal className="size-4" />
+            Filters
+            {activeFilterCount > 0 && (
+              <Badge variant="secondary" className="h-5 min-w-5 justify-center px-1.5">
+                {activeFilterCount}
+              </Badge>
+            )}
+          </Button>
 
           {activeFilterChips.length > 0 && (
             <div className="flex gap-1.5 overflow-x-auto pb-0.5">
@@ -854,7 +831,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               <SheetHeader>
                 <SheetTitle>Map filters</SheetTitle>
               </SheetHeader>
-              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="mt-4 flex flex-col gap-3">
                 {navSelects}
               </div>
             </SheetContent>
@@ -906,8 +883,6 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             nodes={mapNodes}
             matchIds={matchIds}
             hasActiveSearchFilter={hasActiveFilter}
-            focusNodeId={null}
-            fitBoundsNodeIds={fitBoundsNodeIds}
             selectedId={
               quickEdit?.mode === 'edit'
                 ? quickEdit.node.id
@@ -926,20 +901,20 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             onEditNode={
               canEdit
                 ? (node) => {
-                    if (isVerticalHubNode(node)) {
-                      if (!isAdmin) return;
-                      const vertical = activeVerticals.find(
-                        (v) => v.id === node.verticalId,
-                      );
-                      if (vertical) {
-                        void ensureReferenceCounts();
-                        setEditVertical(vertical);
-                        setVerticalDialogOpen(true);
-                      }
-                      return;
+                  if (isVerticalHubNode(node)) {
+                    if (!isAdmin) return;
+                    const vertical = activeVerticals.find(
+                      (v) => v.id === node.verticalId,
+                    );
+                    if (vertical) {
+                      void ensureReferenceCounts();
+                      setEditVertical(vertical);
+                      setVerticalDialogOpen(true);
                     }
-                    setQuickEdit({ mode: 'edit', node });
+                    return;
                   }
+                  setQuickEdit({ mode: 'edit', node });
+                }
                 : undefined
             }
             onAddChild={canEdit ? handleAddChild : undefined}

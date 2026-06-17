@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { Info } from 'lucide-react';
-import { HierarchyFlowTree } from './hierarchy-flow-tree';
+import { HierarchyTableTree } from './hierarchy-table-tree';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -17,6 +17,7 @@ import type { CadreNodeDetail } from '@/lib/hierarchy/types';
 const LEVEL_LEGEND: Array<{ key: string; label: string }> = [
   { key: 'vertical', label: 'Vertical' },
   { key: 'taluka', label: 'Taluka Adhyaksh' },
+  { key: 'taluka_committee', label: 'Taluka Committee' },
   { key: 'ward', label: 'Ward Adhyaksh' },
   { key: 'ward_committee', label: 'Ward Committee' },
   { key: 'booth', label: 'Booth Adhyaksh' },
@@ -27,8 +28,6 @@ interface HierarchyMapProps {
   nodes: CadreNodeDetail[];
   matchIds: Set<string>;
   hasActiveSearchFilter: boolean;
-  focusNodeId?: string | null;
-  fitBoundsNodeIds?: Set<string>;
   selectedId: string | null;
   expandedVerticalIds: ReadonlySet<string>;
   expandedIds: ReadonlySet<string>;
@@ -48,8 +47,6 @@ export function HierarchyMap({
   nodes: cadreNodes,
   matchIds,
   hasActiveSearchFilter,
-  focusNodeId,
-  fitBoundsNodeIds,
   selectedId,
   expandedVerticalIds,
   expandedIds,
@@ -131,12 +128,10 @@ export function HierarchyMap({
       )}
 
       <div className="relative min-h-0 flex-1">
-        <HierarchyFlowTree
+        <HierarchyTableTree
           nodes={cadreNodes}
           matchIds={matchIds}
           hasActiveSearchFilter={hasActiveSearchFilter}
-          focusNodeId={focusNodeId}
-          fitBoundsNodeIds={fitBoundsNodeIds}
           selectedId={selectedId}
           expandedVerticalIds={expandedVerticalIds}
           expandedIds={expandedIds}
@@ -150,7 +145,7 @@ export function HierarchyMap({
           onAddChild={onAddChild}
         />
         {overlay && (
-          <div className="absolute top-3 right-3 z-10 max-h-[calc(100%-1.5rem)] max-w-[min(22rem,calc(100%-1.5rem))]">
+          <div className="absolute inset-x-2 bottom-2 z-10 max-h-[min(45dvh,calc(100%-1rem))] md:inset-x-auto md:bottom-auto md:right-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:max-w-[min(22rem,calc(100%-1.5rem))]">
             {overlay}
           </div>
         )}

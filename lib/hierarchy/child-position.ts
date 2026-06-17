@@ -7,6 +7,8 @@ const CHILD_LEVEL_BY_PARENT: Record<string, string> = {
   taluka: 'ward',
   ward: 'booth',
   booth: 'booth_committee',
+  taluka_committee_group: 'taluka_committee',
+  ward_committee_group: 'ward_committee',
 };
 
 export function getSuggestedChildPositionId(

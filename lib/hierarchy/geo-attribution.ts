@@ -15,6 +15,10 @@ export function getNodeGeoAttribution(cadre: CadreNodeDetail): NodeGeoAttributio
     return { primary: null, secondary: null };
   }
 
+  if (positionLevelKey === 'taluka_committee') {
+    return { primary: cadre.talukaName, secondary: null };
+  }
+
   if (positionLevelKey === 'ward' || positionLevelKey === 'ward_committee') {
     return { primary: wardGeoName, secondary: null };
   }
