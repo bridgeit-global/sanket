@@ -100,10 +100,17 @@ function draftFromTarget(target: QuickEditTarget, config: CadreConfig): Draft {
   const anchor = prefillFrom ?? parent;
   const inherited = getInheritedGeo(anchor);
   const wardFromParent =
-    parent?.positionLevelKey === 'ward' ? parent.wardGeoId ?? '' : '';
+    parent?.positionLevelKey === 'ward' ||
+    parent?.positionLevelKey === 'ward_committee_group' ||
+    parent?.positionLevelKey === 'booth_group'
+      ? parent.wardGeoId ?? ''
+      : '';
   const positionId =
     prefillFrom?.positionId ??
-    getSuggestedChildPositionId(parent?.positionLevelKey ?? null, config);
+    getSuggestedChildPositionId(
+      prefillFrom?.positionLevelKey ?? parent?.positionLevelKey ?? null,
+      config,
+    );
 
   return {
     nodeId: null,
@@ -183,7 +190,11 @@ export function HierarchyQuickEdit({
   const resolvedWardGeoId =
     wardGeoIdFromBoothGeoUnit(config.geoUnits, draft.boothGeoId) ??
     draft.wardGeoId ??
-    (target.mode === 'create' && target.parent?.positionLevelKey === 'ward'
+    (target.mode === 'create' &&
+    target.parent &&
+    ['ward', 'ward_committee_group', 'booth_group'].includes(
+      target.parent.positionLevelKey,
+    )
       ? target.parent.wardGeoId ?? null
       : null) ??
     '';

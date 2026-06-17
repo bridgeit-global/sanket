@@ -9,6 +9,7 @@ const CHILD_LEVEL_BY_PARENT: Record<string, string> = {
   booth: 'booth_committee',
   taluka_committee_group: 'taluka_committee',
   ward_committee_group: 'ward_committee',
+  booth_group: 'booth_committee',
 };
 
 export function getSuggestedChildPositionId(
@@ -46,6 +47,21 @@ export function getInheritedGeo(parent: CadreNodeDetail | null): {
   boothNo: string;
 } {
   if (!parent) return { wardGeoId: '', boothNo: '' };
+
+  if (parent.positionLevelKey === 'booth_group') {
+    return {
+      wardGeoId: parent.wardGeoId ?? '',
+      boothNo: parent.boothNo ?? '',
+    };
+  }
+
+  if (parent.positionLevelKey === 'ward_committee_group') {
+    return {
+      wardGeoId: parent.wardGeoId ?? '',
+      boothNo: '',
+    };
+  }
+
   const keepBooth = ['booth', 'booth_committee'].includes(parent.positionLevelKey);
   return {
     wardGeoId: parent.wardGeoId ?? '',

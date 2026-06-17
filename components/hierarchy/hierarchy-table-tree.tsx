@@ -23,7 +23,7 @@ import {
   type VerticalHubStats,
 } from '@/lib/hierarchy/forest-builder';
 import { compareSiblingNodes } from '@/lib/hierarchy/sort-nodes';
-import { isGroupNode } from '@/lib/hierarchy/tree-builder';
+import { isAddableGroupNode, isGroupNode } from '@/lib/hierarchy/tree-builder';
 import { isPlaceholderNode } from '@/lib/hierarchy/vacant-slots';
 import type { CadreNodeDetail } from '@/lib/hierarchy/types';
 
@@ -272,6 +272,10 @@ function RowActions({
   onEditNode?: (node: CadreNodeDetail) => void;
   onAddChild?: (node: CadreNodeDetail) => void;
 }) {
+  const canAddFromGroup = isGroup && isAddableGroupNode(node);
+  const canAddFromMember =
+    !isGroup && !isPlaceholderNode(node) && expandableMember;
+
   return (
     <div className="flex shrink-0 items-center justify-end gap-0.5">
       {onEditNode && (isHub || (!isGroup && !isPlaceholderNode(node))) && (
@@ -289,25 +293,21 @@ function RowActions({
           <Pencil className="size-3.5" />
         </Button>
       )}
-      {onAddChild &&
-        !isHub &&
-        !isGroup &&
-        !isPlaceholderNode(node) &&
-        expandableMember && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            aria-label="Add subordinate"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddChild(node);
-            }}
-          >
-            <Plus className="size-3.5" />
-          </Button>
-        )}
+      {onAddChild && !isHub && (canAddFromGroup || canAddFromMember) && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-7"
+          aria-label={canAddFromGroup ? 'Add member' : 'Add subordinate'}
+          onClick={(e) => {
+            e.stopPropagation();
+            onAddChild(node);
+          }}
+        >
+          <Plus className="size-3.5" />
+        </Button>
+      )}
     </div>
   );
 }

@@ -56,6 +56,21 @@ export function isGroupNode(node: Pick<CadreNodeDetail, 'id' | 'positionLevelKey
   );
 }
 
+/** Synthetic group nodes that hold assignable cadre positions (not pure folders). */
+export const ADDABLE_GROUP_LEVEL_KEYS = [
+  'taluka_committee_group',
+  'ward_committee_group',
+  'booth_group',
+] as const;
+
+export type AddableGroupLevelKey = (typeof ADDABLE_GROUP_LEVEL_KEYS)[number];
+
+export function isAddableGroupNode(
+  node: Pick<CadreNodeDetail, 'positionLevelKey'>,
+): node is CadreNodeDetail & { positionLevelKey: AddableGroupLevelKey } {
+  return (ADDABLE_GROUP_LEVEL_KEYS as readonly string[]).includes(node.positionLevelKey);
+}
+
 function compareBoothNo(a: string, b: string): number {
   const na = Number(a);
   const nb = Number(b);
