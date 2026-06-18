@@ -6,7 +6,7 @@ import { throwOnSupabaseError } from '@/lib/db/errors';
 import { TABLES } from './schema';
 import {
   mapCadreGeographicUnitRow,
-  mapCadreNodeRow,
+  mapCadreMemberRow,
   mapCadrePositionLevelRow,
   mapCadrePositionRow,
   mapCadreVerticalCategoryRow,
@@ -15,28 +15,16 @@ import {
 } from './mappers';
 import type {
   CadreGeographicUnit,
-  CadreNode,
+  CadreMember,
   CadrePosition,
   CadrePositionLevel,
   CadreVertical,
   CadreVerticalCategory,
 } from './schema';
-import type { CadreGeographicUnitType } from '@/lib/hierarchy/types';
-
-export type CadreNodeWithDetails = CadreNode & {
-  positionName: string;
-  positionSortOrder: number;
-  positionLevelSortOrder: number;
-  positionLevelKey: string;
-  positionLevelName: string;
-  verticalName: string;
-  divisionName: string | null;
-  districtName: string | null;
-  talukaName: string | null;
-  wardGeoName: string | null;
-  linkedUser: { id: string; userId: string } | null;
-  linkedVoter: { epicNumber: string; fullName: string; mobile: string | null } | null;
-};
+import type {
+  CadreGeographicUnitType,
+  CadreMemberCard,
+} from '@/lib/hierarchy/types';
 
 export async function getCadreConfig() {
   // Sequential reads — avoids pool deadlock when max pool size is 1 (session pooler).
@@ -233,7 +221,7 @@ export async function getCadreConfigReferenceCounts(): Promise<CadreConfigRefere
   `;
   const nodesByVertical = await pgSql`
     SELECT vertical_id, COUNT(*)::int AS total
-    FROM "CadreNode"
+    FROM "CadreMemberVertical"
     GROUP BY vertical_id
   `;
   const positionsByLevel = await pgSql`
@@ -243,7 +231,7 @@ export async function getCadreConfigReferenceCounts(): Promise<CadreConfigRefere
   `;
   const nodesByPosition = await pgSql`
     SELECT position_id, COUNT(*)::int AS total
-    FROM "CadreNode"
+    FROM "CadreMemberPost"
     GROUP BY position_id
   `;
   const childGeoByParent = await pgSql`
@@ -253,8 +241,8 @@ export async function getCadreConfigReferenceCounts(): Promise<CadreConfigRefere
     GROUP BY parent_id
   `;
   const geoNodeRows = await pgSql`
-    SELECT division_id, district_id, taluka_id, ward_geo_id
-    FROM "CadreNode"
+    SELECT taluka_id, ward_geo_id
+    FROM "CadreMemberPost"
   `;
 
   const categories: CadreConfigReferenceCounts['categories'] = {};
@@ -283,12 +271,7 @@ export async function getCadreConfigReferenceCounts(): Promise<CadreConfigRefere
     geoUnits[parentId] = { nodeCount: 0, childGeoCount: Number(row.total) };
   }
   for (const row of geoNodeRows) {
-    for (const geoId of [
-      row.division_id,
-      row.district_id,
-      row.taluka_id,
-      row.ward_geo_id,
-    ]) {
+    for (const geoId of [row.taluka_id, row.ward_geo_id]) {
       if (!geoId) continue;
       const id = String(geoId);
       const existing = geoUnits[id] ?? { nodeCount: 0, childGeoCount: 0 };
@@ -322,13 +305,13 @@ export async function deleteCadreVerticalCategory(id: string): Promise<void> {
 export async function deleteCadreVertical(id: string): Promise<void> {
   const [usage] = await pgSql`
     SELECT COUNT(*)::int AS total
-    FROM "CadreNode"
+    FROM "CadreMemberVertical"
     WHERE vertical_id = ${id}
   `;
   const nodeCount = Number(usage?.total ?? 0);
   if (nodeCount > 0) {
     throw new CadreConfigDeleteError(
-      `Cannot delete — ${nodeCount} cadre node${nodeCount === 1 ? '' : 's'} ${nodeCount === 1 ? 'is' : 'are'} assigned to this vertical`,
+      `Cannot delete — ${nodeCount} member${nodeCount === 1 ? '' : 's'} ${nodeCount === 1 ? 'is' : 'are'} assigned to this vertical`,
       { nodeCount },
     );
   }
@@ -359,13 +342,13 @@ export async function deleteCadrePositionLevel(id: string): Promise<void> {
 export async function deleteCadrePosition(id: string): Promise<void> {
   const [usage] = await pgSql`
     SELECT COUNT(*)::int AS total
-    FROM "CadreNode"
+    FROM "CadreMemberPost"
     WHERE position_id = ${id}
   `;
   const nodeCount = Number(usage?.total ?? 0);
   if (nodeCount > 0) {
     throw new CadreConfigDeleteError(
-      `Cannot delete — ${nodeCount} cadre node${nodeCount === 1 ? '' : 's'} use this position`,
+      `Cannot delete — ${nodeCount} member post${nodeCount === 1 ? '' : 's'} use this position`,
       { nodeCount },
     );
   }
@@ -381,11 +364,9 @@ export async function deleteCadreGeographicUnit(id: string, name?: string): Prom
       WHERE parent_id = ${id}
     `,
     pgSql`
-      SELECT division_id, district_id, taluka_id, ward_geo_id
-      FROM "CadreNode"
-      WHERE division_id = ${id}
-        OR district_id = ${id}
-        OR taluka_id = ${id}
+      SELECT taluka_id, ward_geo_id
+      FROM "CadreMemberPost"
+      WHERE taluka_id = ${id}
         OR ward_geo_id = ${id}
     `,
   ]);
@@ -397,7 +378,7 @@ export async function deleteCadreGeographicUnit(id: string, name?: string): Prom
     const parts: string[] = [];
     if (nodeCount > 0) {
       parts.push(
-        `${nodeCount} cadre node${nodeCount === 1 ? '' : 's'} ${nodeCount === 1 ? 'is' : 'are'} assigned to ${label}`,
+        `${nodeCount} member post${nodeCount === 1 ? '' : 's'} ${nodeCount === 1 ? 'is' : 'are'} assigned to ${label}`,
       );
     }
     if (childGeoCount > 0) {
@@ -441,113 +422,298 @@ export async function upsertCadreGeographicUnit(data: {
   );
 }
 
-/** When verticalId is omitted, returns the full forest across all active verticals. */
-export async function getCadreTree(filters: {
+type PositionMeta = {
+  name: string;
+  sortOrder: number;
+  levelKey: string;
+  levelName: string;
+  levelSortOrder: number;
+};
+
+async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard[]> {
+  if (members.length === 0) return [];
+
+  const memberIds = members.map((m) => m.id);
+  const userIds = [...new Set(members.map((m) => m.userId).filter(Boolean))] as string[];
+  const epicNumbers = [...new Set(members.map((m) => m.epicNumber).filter(Boolean))] as string[];
+
+  const [
+    verticalLinksRes,
+    postRowsRes,
+    usersRes,
+    votersRes,
+    mobilesRes,
+  ] = await Promise.all([
+    supabase
+      .from(TABLES.cadreMemberVertical)
+      .select('member_id, vertical_id, is_primary')
+      .in('member_id', memberIds),
+    supabase
+      .from(TABLES.cadreMemberPost)
+      .select('*')
+      .in('member_id', memberIds)
+      .order('is_primary', { ascending: false })
+      .order('sort_order', { ascending: true }),
+    userIds.length > 0
+      ? supabase.from(TABLES.user).select('id, user_id').in('id', userIds)
+      : Promise.resolve({ data: [], error: null }),
+    epicNumbers.length > 0
+      ? supabase
+          .from(TABLES.voterMaster)
+          .select('epic_number, full_name')
+          .in('epic_number', epicNumbers)
+      : Promise.resolve({ data: [], error: null }),
+    epicNumbers.length > 0
+      ? supabase
+          .from(TABLES.voterMobileNumber)
+          .select('epic_number, mobile_number')
+          .in('epic_number', epicNumbers)
+          .eq('sort_order', 1)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  throwOnSupabaseError(verticalLinksRes.error, 'Failed to load member verticals');
+  throwOnSupabaseError(postRowsRes.error, 'Failed to load member posts');
+  throwOnSupabaseError(usersRes.error, 'Failed to load linked users');
+  throwOnSupabaseError(votersRes.error, 'Failed to load linked voters');
+  throwOnSupabaseError(mobilesRes.error, 'Failed to load voter mobiles');
+
+  const verticalLinks = verticalLinksRes.data ?? [];
+  const postRows = postRowsRes.data ?? [];
+  const verticalIds = [...new Set(verticalLinks.map((row) => String(row.vertical_id)))];
+  const positionIds = [...new Set(postRows.map((row) => String(row.position_id)))];
+  const geoIds = [
+    ...new Set(
+      postRows.flatMap((row) => [
+        row.taluka_id ? String(row.taluka_id) : null,
+        row.ward_geo_id ? String(row.ward_geo_id) : null,
+      ]).filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  const [verticalsRes, positionsRes, geoRes] = await Promise.all([
+    verticalIds.length > 0
+      ? supabase
+          .from(TABLES.cadreVertical)
+          .select('id, name, sort_order')
+          .in('id', verticalIds)
+      : Promise.resolve({ data: [], error: null }),
+    positionIds.length > 0
+      ? supabase
+          .from(TABLES.cadrePosition)
+          .select('id, name, sort_order, level_id')
+          .in('id', positionIds)
+      : Promise.resolve({ data: [], error: null }),
+    geoIds.length > 0
+      ? supabase
+          .from(TABLES.cadreGeographicUnit)
+          .select('id, name')
+          .in('id', geoIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+
+  throwOnSupabaseError(verticalsRes.error, 'Failed to load verticals');
+  throwOnSupabaseError(positionsRes.error, 'Failed to load positions');
+  throwOnSupabaseError(geoRes.error, 'Failed to load geographic units');
+
+  const verticalById = new Map(
+    (verticalsRes.data ?? []).map((row) => [
+      String(row.id),
+      {
+        id: String(row.id),
+        name: String(row.name),
+        sortOrder: Number(row.sort_order ?? 0),
+      },
+    ]),
+  );
+
+  const levelIds = [
+    ...new Set((positionsRes.data ?? []).map((row) => String(row.level_id))),
+  ];
+  const levelsRes =
+    levelIds.length > 0
+      ? await supabase
+          .from(TABLES.cadrePositionLevel)
+          .select('id, key, name, sort_order')
+          .in('id', levelIds)
+      : { data: [], error: null };
+  throwOnSupabaseError(levelsRes.error, 'Failed to load position levels');
+
+  const levelById = new Map(
+    (levelsRes.data ?? []).map((row) => [
+      String(row.id),
+      {
+        key: String(row.key),
+        name: String(row.name),
+        sortOrder: Number(row.sort_order ?? 0),
+      },
+    ]),
+  );
+
+  const positionById = new Map<string, PositionMeta>();
+  for (const row of positionsRes.data ?? []) {
+    const level = levelById.get(String(row.level_id));
+    positionById.set(String(row.id), {
+      name: String(row.name),
+      sortOrder: Number(row.sort_order ?? 0),
+      levelKey: level?.key ?? '',
+      levelName: level?.name ?? '',
+      levelSortOrder: level?.sortOrder ?? 0,
+    });
+  }
+
+  const geoById = new Map(
+    (geoRes.data ?? []).map((row) => [String(row.id), String(row.name)]),
+  );
+
+  const verticalsByMember = new Map<string, CadreMemberCard['verticals']>();
+  for (const link of verticalLinks) {
+    const vertical = verticalById.get(String(link.vertical_id));
+    if (!vertical) continue;
+    const list = verticalsByMember.get(String(link.member_id)) ?? [];
+    list.push({
+      id: vertical.id,
+      name: vertical.name,
+      isPrimary: Boolean(link.is_primary),
+      sortOrder: vertical.sortOrder,
+    });
+    verticalsByMember.set(String(link.member_id), list);
+  }
+  for (const list of verticalsByMember.values()) {
+    list.sort((a, b) => {
+      if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+      return a.sortOrder - b.sortOrder;
+    });
+  }
+
+  const postsByMember = new Map<string, CadreMemberCard['posts']>();
+  for (const row of postRows) {
+    const position = positionById.get(String(row.position_id));
+    const list = postsByMember.get(String(row.member_id)) ?? [];
+    list.push({
+      id: String(row.id),
+      positionId: String(row.position_id),
+      positionName: position?.name ?? '',
+      positionLevelKey: position?.levelKey ?? '',
+      positionLevelName: position?.levelName ?? '',
+      positionSortOrder: position?.sortOrder ?? 0,
+      positionLevelSortOrder: position?.levelSortOrder ?? 0,
+      talukaId: row.taluka_id ? String(row.taluka_id) : null,
+      talukaName: row.taluka_id ? geoById.get(String(row.taluka_id)) ?? null : null,
+      wardGeoId: row.ward_geo_id ? String(row.ward_geo_id) : null,
+      wardGeoName: row.ward_geo_id ? geoById.get(String(row.ward_geo_id)) ?? null : null,
+      electionId: row.election_id ? String(row.election_id) : null,
+      boothNo: row.booth_no ? String(row.booth_no) : null,
+      label: row.label ? String(row.label) : null,
+      isPrimary: Boolean(row.is_primary),
+      sortOrder: Number(row.sort_order ?? 0),
+    });
+    postsByMember.set(String(row.member_id), list);
+  }
+
+  const userById = new Map(
+    (usersRes.data ?? []).map((row) => [
+      String(row.id),
+      { id: String(row.id), userId: String(row.user_id) },
+    ]),
+  );
+  const voterByEpic = new Map(
+    (votersRes.data ?? []).map((row) => [
+      String(row.epic_number),
+      {
+        epicNumber: String(row.epic_number),
+        fullName: String(row.full_name),
+        mobile: null as string | null,
+      },
+    ]),
+  );
+  for (const row of mobilesRes.data ?? []) {
+    const voter = voterByEpic.get(String(row.epic_number));
+    if (voter) {
+      voter.mobile = row.mobile_number ? String(row.mobile_number) : null;
+    }
+  }
+
+  return members.map((member) => ({
+    id: member.id,
+    constituencyId: member.constituencyId,
+    personName: member.personName,
+    personPhone: member.personPhone,
+    personEmail: member.personEmail,
+    photoUrl: member.photoUrl,
+    userId: member.userId,
+    epicNumber: member.epicNumber,
+    notes: member.notes,
+    isActive: member.isActive,
+    verticals: verticalsByMember.get(member.id) ?? [],
+    posts: postsByMember.get(member.id) ?? [],
+    linkedUser: member.userId ? userById.get(member.userId) ?? null : null,
+    linkedVoter: member.epicNumber ? voterByEpic.get(member.epicNumber) ?? null : null,
+  }));
+}
+
+export async function getCadreMembers(filters: {
   verticalId?: string;
   constituencyId?: string;
-}): Promise<CadreNodeWithDetails[]> {
-  const constituencyClause = filters.constituencyId
-    ? pgSql`AND (TRIM(n.constituency_id) = ${filters.constituencyId} OR n.constituency_id IS NULL)`
-    : pgSql``;
+}): Promise<CadreMemberCard[]> {
+  let memberIds: string[] | undefined;
+  if (filters.verticalId) {
+    const { data, error } = await supabase
+      .from(TABLES.cadreMemberVertical)
+      .select('member_id')
+      .eq('vertical_id', filters.verticalId);
+    throwOnSupabaseError(error, 'Failed to filter members by vertical');
+    memberIds = (data ?? []).map((row) => String(row.member_id));
+    if (memberIds.length === 0) return [];
+  }
 
-  const verticalClause = filters.verticalId
-    ? pgSql`AND n.vertical_id = ${filters.verticalId}`
-    : pgSql`AND v.is_active = true`;
+  let query = supabase
+    .from(TABLES.cadreMember)
+    .select('*')
+    .eq('is_active', true)
+    .order('person_name', { ascending: true });
 
-  const rows = await pgSql`
-    SELECT
-      n.*,
-      p.name AS position_name,
-      p.sort_order AS position_sort_order,
-      pl.key AS position_level_key,
-      pl.name AS position_level_name,
-      pl.sort_order AS position_level_sort_order,
-      v.name AS vertical_name,
-      geo_div.name AS division_name,
-      geo_dist.name AS district_name,
-      geo_tal.name AS taluka_name,
-      geo_ward.name AS ward_geo_name,
-      u.id AS linked_user_id,
-      u.user_id AS linked_user_user_id,
-      vm.epic_number AS linked_voter_epic,
-      vm.full_name AS linked_voter_name,
-      vmn.mobile_number AS linked_voter_mobile
-    FROM "CadreNode" n
-    INNER JOIN "CadrePosition" p ON n.position_id = p.id
-    INNER JOIN "CadrePositionLevel" pl ON p.level_id = pl.id
-    INNER JOIN "CadreVertical" v ON n.vertical_id = v.id
-    LEFT JOIN "CadreGeographicUnit" geo_div ON n.division_id = geo_div.id
-    LEFT JOIN "CadreGeographicUnit" geo_dist ON n.district_id = geo_dist.id
-    LEFT JOIN "CadreGeographicUnit" geo_tal ON n.taluka_id = geo_tal.id
-    LEFT JOIN "CadreGeographicUnit" geo_ward ON n.ward_geo_id = geo_ward.id
-    LEFT JOIN "User" u ON n.user_id = u.id
-    LEFT JOIN "VoterMaster" vm ON n.epic_number = vm.epic_number
-    LEFT JOIN (
-      SELECT DISTINCT ON (epic_number) epic_number, mobile_number
-      FROM "VoterMobileNumber"
-      ORDER BY epic_number, sort_order ASC
-    ) vmn ON vmn.epic_number = n.epic_number
-    WHERE n.is_active = true
-      ${verticalClause}
-      ${constituencyClause}
-    ORDER BY p.sort_order ASC
-  `;
+  if (memberIds) {
+    query = query.in('id', memberIds);
+  }
+  if (filters.constituencyId) {
+    query = query.or(
+      `constituency_id.eq.${filters.constituencyId},constituency_id.is.null`,
+    );
+  }
 
-  return rows.map((row) => {
-    const node = mapCadreNodeRow(row);
-    return {
-      ...node,
-      positionName: String(row.position_name),
-      positionSortOrder: Number(row.position_sort_order),
-      positionLevelSortOrder: Number(row.position_level_sort_order),
-      positionLevelKey: String(row.position_level_key),
-      positionLevelName: String(row.position_level_name),
-      verticalName: String(row.vertical_name),
-      divisionName: row.division_name ? String(row.division_name) : null,
-      districtName: row.district_name ? String(row.district_name) : null,
-      talukaName: row.taluka_name ? String(row.taluka_name) : null,
-      wardGeoName: row.ward_geo_name ? String(row.ward_geo_name) : null,
-      linkedUser: row.linked_user_id
-        ? { id: String(row.linked_user_id), userId: String(row.linked_user_user_id) }
-        : null,
-      linkedVoter: row.linked_voter_epic
-        ? {
-            epicNumber: String(row.linked_voter_epic),
-            fullName: String(row.linked_voter_name),
-            mobile: row.linked_voter_mobile ? String(row.linked_voter_mobile) : null,
-          }
-        : null,
-    };
-  });
+  const { data, error } = await query;
+  throwOnSupabaseError(error, 'Failed to load cadre members');
+  return buildMemberCards((data ?? []).map(mapCadreMemberRow));
 }
 
-export async function getCadreNodeById(id: string): Promise<CadreNodeWithDetails | null> {
-  const [data] = await pgSql`
-    SELECT vertical_id, constituency_id
-    FROM "CadreNode"
-    WHERE id = ${id}
-    LIMIT 1
-  `;
+export async function getCadreMemberById(
+  id: string,
+): Promise<CadreMemberCard | null> {
+  const { data, error } = await supabase
+    .from(TABLES.cadreMember)
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+  throwOnSupabaseError(error, 'Failed to load cadre member');
   if (!data) return null;
-
-  const tree = await getCadreTree({
-    verticalId: String(data.vertical_id),
-    constituencyId: data.constituency_id ? String(data.constituency_id).trim() : undefined,
-  });
-  return tree.find((n) => n.id === id) ?? null;
+  const [card] = await buildMemberCards([mapCadreMemberRow(data)]);
+  return card ?? null;
 }
 
-export type CadreNodeInput = {
-  parentId?: string | null;
-  verticalId: string;
+export type CadreMemberPostInput = {
   positionId: string;
-  constituencyId?: string | null;
-  divisionId?: string | null;
-  districtId?: string | null;
   talukaId?: string | null;
   wardGeoId?: string | null;
   electionId?: string | null;
   boothNo?: string | null;
+  label?: string | null;
+  isPrimary?: boolean;
+  sortOrder?: number;
+};
+
+export type CadreMemberInput = {
+  constituencyId?: string | null;
   personName?: string | null;
   personPhone?: string | null;
   personEmail?: string | null;
@@ -555,14 +721,25 @@ export type CadreNodeInput = {
   userId?: string | null;
   epicNumber?: string | null;
   notes?: string | null;
-  isVacant?: boolean;
   appointedAt?: Date | null;
   termEndsAt?: Date | null;
+  /** Vertical ids the member belongs to. */
+  verticalIds?: string[];
+  /** Which vertical id is primary (first badge); defaults to first. */
+  primaryVerticalId?: string | null;
+  posts?: CadreMemberPostInput[];
 };
 
-async function resolvePersonFields(
-  input: CadreNodeInput,
-): Promise<Pick<CadreNodeInput, 'personName' | 'personPhone' | 'personEmail'>> {
+async function resolveMemberPersonFields(
+  input: Pick<
+    CadreMemberInput,
+    'personName' | 'personPhone' | 'personEmail' | 'userId' | 'epicNumber'
+  >,
+): Promise<{
+  personName: string | null;
+  personPhone: string | null;
+  personEmail: string | null;
+}> {
   let personName = input.personName ?? null;
   let personPhone = input.personPhone ?? null;
   let personEmail = input.personEmail ?? null;
@@ -603,95 +780,56 @@ async function resolvePersonFields(
   return { personName, personPhone, personEmail };
 }
 
-const GEO_LEVELS_NEEDING_WARD = new Set([
-  'ward',
-  'booth',
-  'booth_committee',
-  'ward_committee',
-]);
-const GEO_LEVELS_NEEDING_BOOTH = new Set(['booth', 'booth_committee']);
-
-async function resolveCadreNodeGeoFields(
-  input: Pick<
-    CadreNodeInput,
-    'positionId' | 'parentId' | 'wardGeoId' | 'boothNo' | 'electionId'
-  >,
-  existing?: {
-    parentId?: string | null;
-    wardGeoId?: string | null;
-    boothNo?: string | null;
-    electionId?: string | null;
-  },
-): Promise<Pick<CadreNodeInput, 'wardGeoId' | 'boothNo' | 'electionId'>> {
-  const [positionRow] = await pgSql`
-    SELECT pl.key AS level_key
-    FROM "CadrePosition" p
-    INNER JOIN "CadrePositionLevel" pl ON p.level_id = pl.id
-    WHERE p.id = ${input.positionId}
-    LIMIT 1
-  `;
-  const levelKey = positionRow ? String(positionRow.level_key) : null;
-
-  const parentId = input.parentId ?? existing?.parentId ?? null;
-  let parentWard: string | null = null;
-  let parentBooth: string | null = null;
-  let parentElection: string | null = null;
-
-  if (parentId) {
-    const [parentRow] = await pgSql`
-      SELECT n.ward_geo_id, n.booth_no, n.election_id
-      FROM "CadreNode" n
-      WHERE n.id = ${parentId}
-      LIMIT 1
-    `;
-    if (parentRow) {
-      parentWard = parentRow.ward_geo_id ? String(parentRow.ward_geo_id) : null;
-      parentBooth = parentRow.booth_no ? String(parentRow.booth_no) : null;
-      parentElection = parentRow.election_id ? String(parentRow.election_id) : null;
-    }
-  }
-
-  let wardGeoId = input.wardGeoId ?? existing?.wardGeoId ?? null;
-  let boothNo = input.boothNo ?? existing?.boothNo ?? null;
-  let electionId = input.electionId ?? existing?.electionId ?? null;
-
-  if (!wardGeoId && parentWard && levelKey && GEO_LEVELS_NEEDING_WARD.has(levelKey)) {
-    wardGeoId = parentWard;
-  }
-  if (!boothNo && parentBooth && levelKey === 'booth_committee') {
-    boothNo = parentBooth;
-  }
-  if (!electionId && parentElection && levelKey && GEO_LEVELS_NEEDING_BOOTH.has(levelKey)) {
-    electionId = parentElection;
-  }
-
-  return { wardGeoId, boothNo, electionId };
+function buildVerticalRows(memberId: string, input: CadreMemberInput) {
+  const ids = [...new Set((input.verticalIds ?? []).filter(Boolean))];
+  const primary = input.primaryVerticalId ?? ids[0] ?? null;
+  return ids.map((verticalId) => ({
+    member_id: memberId,
+    vertical_id: verticalId,
+    is_primary: verticalId === primary,
+  }));
 }
 
-export async function createCadreNode(
-  input: CadreNodeInput,
+function buildPostRows(memberId: string, input: CadreMemberInput) {
+  const posts = input.posts ?? [];
+  let hasPrimary = posts.some((p) => p.isPrimary);
+  return posts.map((post, index) => {
+    const isPrimary = post.isPrimary ?? (!hasPrimary && index === 0);
+    if (isPrimary) hasPrimary = true;
+    return {
+      member_id: memberId,
+      position_id: post.positionId,
+      taluka_id: post.talukaId ?? null,
+      ward_geo_id: post.wardGeoId ?? null,
+      election_id: post.electionId ?? null,
+      booth_no: post.boothNo ?? null,
+      label: post.label?.trim() || null,
+      is_primary: isPrimary,
+      sort_order: post.sortOrder ?? index,
+    };
+  });
+}
+
+export async function createCadreMember(
+  input: CadreMemberInput,
   createdBy: string,
-): Promise<CadreNode> {
-  if (!input.isVacant && !input.personName && !input.userId && !input.epicNumber) {
-    throw new Error('Person name, user link, or voter link required for non-vacant nodes');
+): Promise<CadreMember> {
+  if (!input.personName && !input.userId && !input.epicNumber) {
+    throw new Error('Person name, user link, or voter link is required');
+  }
+  if (!input.verticalIds || input.verticalIds.length === 0) {
+    throw new Error('At least one vertical is required');
+  }
+  if (!input.posts || input.posts.length === 0) {
+    throw new Error('At least one post is required');
   }
 
-  const person = await resolvePersonFields(input);
-  const geo = await resolveCadreNodeGeoFields(input);
+  const person = await resolveMemberPersonFields(input);
 
   const { data, error } = await supabase
-    .from(TABLES.cadreNode)
+    .from(TABLES.cadreMember)
     .insert({
-      parent_id: input.parentId ?? null,
-      vertical_id: input.verticalId,
-      position_id: input.positionId,
       constituency_id: input.constituencyId ?? null,
-      division_id: input.divisionId ?? null,
-      district_id: input.districtId ?? null,
-      taluka_id: input.talukaId ?? null,
-      ward_geo_id: geo.wardGeoId ?? null,
-      election_id: geo.electionId ?? null,
-      booth_no: geo.boothNo ?? null,
       person_name: person.personName,
       person_phone: person.personPhone,
       person_email: person.personEmail,
@@ -699,7 +837,6 @@ export async function createCadreNode(
       user_id: input.userId ?? null,
       epic_number: input.epicNumber ?? null,
       notes: input.notes ?? null,
-      is_vacant: input.isVacant ?? false,
       appointed_at: input.appointedAt?.toISOString() ?? null,
       term_ends_at: input.termEndsAt?.toISOString() ?? null,
       created_by: createdBy,
@@ -707,82 +844,55 @@ export async function createCadreNode(
     })
     .select()
     .single();
-  throwOnSupabaseError(error, 'Failed to create cadre node');
-  return mapCadreNodeRow(data);
-}
+  throwOnSupabaseError(error, 'Failed to create member');
+  const member = mapCadreMemberRow(data);
 
-export async function updateCadreNode(
-  id: string,
-  input: Partial<CadreNodeInput>,
-  updatedBy: string,
-): Promise<CadreNode> {
-  const [existingRow] = await pgSql`
-    SELECT parent_id, ward_geo_id, booth_no, election_id, position_id
-    FROM "CadreNode"
-    WHERE id = ${id}
-    LIMIT 1
-  `;
-  if (!existingRow) {
-    throw new Error('Cadre node not found');
+  const verticalRows = buildVerticalRows(member.id, input);
+  if (verticalRows.length > 0) {
+    const { error: vErr } = await supabase
+      .from(TABLES.cadreMemberVertical)
+      .insert(verticalRows);
+    throwOnSupabaseError(vErr, 'Failed to assign verticals');
   }
 
-  const person = await resolvePersonFields({
-    verticalId: '',
-    positionId: '',
-    ...input,
-  });
+  const postRows = buildPostRows(member.id, input);
+  if (postRows.length > 0) {
+    const { error: pErr } = await supabase
+      .from(TABLES.cadreMemberPost)
+      .insert(postRows);
+    throwOnSupabaseError(pErr, 'Failed to assign posts');
+  }
 
-  const geo = await resolveCadreNodeGeoFields(
-    {
-      positionId: input.positionId ?? String(existingRow.position_id),
-      parentId: input.parentId ?? (existingRow.parent_id ? String(existingRow.parent_id) : null),
-      wardGeoId: input.wardGeoId,
-      boothNo: input.boothNo,
-      electionId: input.electionId,
-    },
-    {
-      parentId: existingRow.parent_id ? String(existingRow.parent_id) : null,
-      wardGeoId: existingRow.ward_geo_id ? String(existingRow.ward_geo_id) : null,
-      boothNo: existingRow.booth_no ? String(existingRow.booth_no) : null,
-      electionId: existingRow.election_id ? String(existingRow.election_id) : null,
-    },
-  );
+  return member;
+}
+
+export async function updateCadreMember(
+  id: string,
+  input: CadreMemberInput,
+  updatedBy: string,
+): Promise<CadreMember> {
+  const { data: existing, error: existingError } = await supabase
+    .from(TABLES.cadreMember)
+    .select('id')
+    .eq('id', id)
+    .maybeSingle();
+  throwOnSupabaseError(existingError, 'Failed to load cadre member');
+  if (!existing) throw new Error('Member not found');
+
+  const person = await resolveMemberPersonFields(input);
 
   const patch: Record<string, unknown> = {
     updated_by: updatedBy,
     updated_at: new Date().toISOString(),
-    person_name: input.personName ?? person.personName,
-    person_phone: input.personPhone ?? person.personPhone,
-    person_email: input.personEmail ?? person.personEmail,
   };
-
-  if (input.parentId !== undefined) patch.parent_id = input.parentId;
-  if (input.verticalId) patch.vertical_id = input.verticalId;
-  if (input.positionId) patch.position_id = input.positionId;
   if (input.constituencyId !== undefined) patch.constituency_id = input.constituencyId;
-  if (input.divisionId !== undefined) patch.division_id = input.divisionId;
-  if (input.districtId !== undefined) patch.district_id = input.districtId;
-  if (input.talukaId !== undefined) patch.taluka_id = input.talukaId;
-  if (input.wardGeoId !== undefined) {
-    patch.ward_geo_id = geo.wardGeoId ?? null;
-  } else if (!existingRow.ward_geo_id && geo.wardGeoId) {
-    patch.ward_geo_id = geo.wardGeoId;
-  }
-  if (input.electionId !== undefined) {
-    patch.election_id = geo.electionId ?? null;
-  } else if (!existingRow.election_id && geo.electionId) {
-    patch.election_id = geo.electionId;
-  }
-  if (input.boothNo !== undefined) {
-    patch.booth_no = geo.boothNo ?? null;
-  } else if (!existingRow.booth_no && geo.boothNo) {
-    patch.booth_no = geo.boothNo;
-  }
+  patch.person_name = input.personName ?? person.personName;
+  patch.person_phone = input.personPhone ?? person.personPhone;
+  patch.person_email = input.personEmail ?? person.personEmail;
   if (input.photoUrl !== undefined) patch.photo_url = input.photoUrl;
   if (input.userId !== undefined) patch.user_id = input.userId;
   if (input.epicNumber !== undefined) patch.epic_number = input.epicNumber;
   if (input.notes !== undefined) patch.notes = input.notes;
-  if (input.isVacant !== undefined) patch.is_vacant = input.isVacant;
   if (input.appointedAt !== undefined) {
     patch.appointed_at = input.appointedAt?.toISOString() ?? null;
   }
@@ -791,27 +901,52 @@ export async function updateCadreNode(
   }
 
   const { data, error } = await supabase
-    .from(TABLES.cadreNode)
+    .from(TABLES.cadreMember)
     .update(patch)
     .eq('id', id)
     .select()
     .single();
-  throwOnSupabaseError(error, 'Failed to update cadre node');
-  return mapCadreNodeRow(data);
+  throwOnSupabaseError(error, 'Failed to update member');
+  const member = mapCadreMemberRow(data);
+
+  // Replace verticals when provided.
+  if (input.verticalIds !== undefined) {
+    const { error: delV } = await supabase
+      .from(TABLES.cadreMemberVertical)
+      .delete()
+      .eq('member_id', id);
+    throwOnSupabaseError(delV, 'Failed to update verticals');
+    const verticalRows = buildVerticalRows(id, input);
+    if (verticalRows.length > 0) {
+      const { error: insV } = await supabase
+        .from(TABLES.cadreMemberVertical)
+        .insert(verticalRows);
+      throwOnSupabaseError(insV, 'Failed to update verticals');
+    }
+  }
+
+  // Replace posts when provided.
+  if (input.posts !== undefined) {
+    const { error: delP } = await supabase
+      .from(TABLES.cadreMemberPost)
+      .delete()
+      .eq('member_id', id);
+    throwOnSupabaseError(delP, 'Failed to update posts');
+    const postRows = buildPostRows(id, input);
+    if (postRows.length > 0) {
+      const { error: insP } = await supabase
+        .from(TABLES.cadreMemberPost)
+        .insert(postRows);
+      throwOnSupabaseError(insP, 'Failed to update posts');
+    }
+  }
+
+  return member;
 }
 
-export async function deleteCadreNode(id: string): Promise<void> {
-  const { data: children, error: childError } = await supabase
-    .from(TABLES.cadreNode)
-    .select('id')
-    .eq('parent_id', id)
-    .limit(1);
-  throwOnSupabaseError(childError, 'Failed to check cadre node children');
-  if ((children ?? []).length > 0) {
-    throw new Error('Cannot delete node with subordinates');
-  }
-  const { error } = await supabase.from(TABLES.cadreNode).delete().eq('id', id);
-  throwOnSupabaseError(error, 'Failed to delete cadre node');
+export async function deleteCadreMember(id: string): Promise<void> {
+  const { error } = await supabase.from(TABLES.cadreMember).delete().eq('id', id);
+  throwOnSupabaseError(error, 'Failed to delete member');
 }
 
 export async function searchUsersForCadre(query: string, limit = 20) {
@@ -838,4 +973,24 @@ export async function isUserAdmin(userId: string): Promise<boolean> {
     LIMIT 1
   `;
   return rows[0]?.role_name === 'admin';
+}
+
+export async function getBoothsForWard(
+  electionId: string,
+  wardNo: string,
+): Promise<Array<{ boothNo: string; boothName: string | null }>> {
+  const rows = await pgSql`
+    SELECT DISTINCT csa.booth_no, bm.booth_name
+    FROM "CommunityServiceArea" csa
+    LEFT JOIN "BoothMaster" bm
+      ON bm.election_id = ${electionId}
+      AND bm.booth_no::text = csa.booth_no::text
+    WHERE csa.ward_no = ${wardNo}
+      AND csa.booth_no IS NOT NULL
+    ORDER BY csa.booth_no ASC
+  `;
+  return rows.map((row) => ({
+    boothNo: String(row.booth_no),
+    boothName: row.booth_name != null ? String(row.booth_name) : null,
+  }));
 }

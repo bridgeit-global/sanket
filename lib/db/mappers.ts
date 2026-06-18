@@ -2,7 +2,8 @@ import type {
   BeneficiaryService,
   BoothMaster,
   CadreGeographicUnit,
-  CadreNode,
+  CadreMember,
+  CadreMemberPost,
   CadrePosition,
   CadrePositionLevel,
   CadreVertical,
@@ -589,19 +590,10 @@ export function mapCadreGeographicUnitRow(row: Row): CadreGeographicUnit {
   };
 }
 
-export function mapCadreNodeRow(row: Row): CadreNode {
+export function mapCadreMemberRow(row: Row): CadreMember {
   return {
     id: String(row.id),
-    parentId: toStringOrNull(row.parent_id ?? row.parentId),
-    verticalId: String(row.vertical_id ?? row.verticalId),
-    positionId: String(row.position_id ?? row.positionId),
     constituencyId: toStringOrNull(row.constituency_id ?? row.constituencyId),
-    divisionId: toStringOrNull(row.division_id ?? row.divisionId),
-    districtId: toStringOrNull(row.district_id ?? row.districtId),
-    talukaId: toStringOrNull(row.taluka_id ?? row.talukaId),
-    wardGeoId: toStringOrNull(row.ward_geo_id ?? row.wardGeoId),
-    electionId: toStringOrNull(row.election_id ?? row.electionId),
-    boothNo: toStringOrNull(row.booth_no ?? row.boothNo),
     personName: toStringOrNull(row.person_name ?? row.personName),
     personPhone: toStringOrNull(row.person_phone ?? row.personPhone),
     personEmail: toStringOrNull(row.person_email ?? row.personEmail),
@@ -609,12 +601,28 @@ export function mapCadreNodeRow(row: Row): CadreNode {
     userId: toStringOrNull(row.user_id ?? row.userId),
     epicNumber: toStringOrNull(row.epic_number ?? row.epicNumber),
     notes: toStringOrNull(row.notes),
-    isVacant: toBool(row.is_vacant ?? row.isVacant),
     isActive: toBool(row.is_active ?? row.isActive, true),
     appointedAt: toDateOrNull(row.appointed_at ?? row.appointedAt),
     termEndsAt: toDateOrNull(row.term_ends_at ?? row.termEndsAt),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),
     updatedBy: toStringOrNull(row.updated_by ?? row.updatedBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapCadreMemberPostRow(row: Row): CadreMemberPost {
+  return {
+    id: String(row.id),
+    memberId: String(row.member_id ?? row.memberId),
+    positionId: String(row.position_id ?? row.positionId),
+    talukaId: toStringOrNull(row.taluka_id ?? row.talukaId),
+    wardGeoId: toStringOrNull(row.ward_geo_id ?? row.wardGeoId),
+    electionId: toStringOrNull(row.election_id ?? row.electionId),
+    boothNo: toStringOrNull(row.booth_no ?? row.boothNo),
+    label: toStringOrNull(row.label),
+    isPrimary: toBool(row.is_primary ?? row.isPrimary),
+    sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),
   };

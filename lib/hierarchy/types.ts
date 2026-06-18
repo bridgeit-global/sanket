@@ -28,18 +28,41 @@ export function isCadreGeographicUnitType(value: unknown): value is CadreGeograp
   );
 }
 
-export type CadreNodeDetail = {
+/** A vertical a member belongs to (e.g. Basic, Mahila, Yuvti). */
+export type CadreMemberVerticalRef = {
   id: string;
-  parentId: string | null;
-  verticalId: string;
+  name: string;
+  isPrimary: boolean;
+  sortOrder: number;
+};
+
+/** A post (position + geo context) held by a member. */
+export type CadreMemberPostDetail = {
+  id: string;
   positionId: string;
-  constituencyId: string | null;
-  divisionId: string | null;
-  districtId: string | null;
+  positionName: string;
+  positionLevelKey: string;
+  positionLevelName: string;
+  /** Lower values rank higher in the org chart (from CadrePosition.sort_order). */
+  positionSortOrder: number;
+  /** Lower values rank higher among siblings (from CadrePositionLevel.sort_order). */
+  positionLevelSortOrder: number;
   talukaId: string | null;
+  talukaName: string | null;
   wardGeoId: string | null;
+  wardGeoName: string | null;
   electionId: string | null;
   boothNo: string | null;
+  /** Optional custom title, e.g. "Mandal Head". */
+  label: string | null;
+  isPrimary: boolean;
+  sortOrder: number;
+};
+
+/** A member is a person who can hold multiple verticals and posts (one card). */
+export type CadreMemberCard = {
+  id: string;
+  constituencyId: string | null;
   personName: string | null;
   personPhone: string | null;
   personEmail: string | null;
@@ -47,22 +70,9 @@ export type CadreNodeDetail = {
   userId: string | null;
   epicNumber: string | null;
   notes: string | null;
-  isVacant: boolean;
   isActive: boolean;
-  appointedAt: string | null;
-  termEndsAt: string | null;
-  positionName: string;
-  /** Lower values rank higher in the org chart (from CadrePosition.sort_order). */
-  positionSortOrder: number;
-  /** Lower values rank higher among siblings (from CadrePositionLevel.sort_order). */
-  positionLevelSortOrder: number;
-  positionLevelKey: string;
-  positionLevelName: string;
-  verticalName: string;
-  divisionName: string | null;
-  districtName: string | null;
-  talukaName: string | null;
-  wardGeoName: string | null;
+  verticals: CadreMemberVerticalRef[];
+  posts: CadreMemberPostDetail[];
   linkedUser: { id: string; userId: string } | null;
   linkedVoter: { epicNumber: string; fullName: string; mobile: string | null } | null;
 };

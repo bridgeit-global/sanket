@@ -449,6 +449,13 @@
       "when": 1774300000000,
       "tag": "0063_ncp_directory_hierarchy",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1774400000000,
+      "tag": "0064_cadre_member_model",
+      "breakpoints": true
     }
   ]
 }

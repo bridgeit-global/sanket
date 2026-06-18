@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import { getCadreTree } from '@/lib/db/cadre-queries';
+import { getCadreMembers } from '@/lib/db/cadre-queries';
 import { requireHierarchyAccess } from '@/lib/hierarchy/auth';
 
 export async function GET(request: NextRequest) {
@@ -12,7 +12,6 @@ export async function GET(request: NextRequest) {
   const verticalId = searchParams.get('verticalId') ?? undefined;
   const constituencyId = searchParams.get('constituencyId') ?? undefined;
 
-  // Without verticalId the route returns the full forest across active verticals.
-  const nodes = await getCadreTree({ verticalId, constituencyId });
-  return NextResponse.json({ success: true, nodes });
+  const members = await getCadreMembers({ verticalId, constituencyId });
+  return NextResponse.json({ success: true, members });
 }

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import {
   getCadreConfig,
-  getCadreTree,
+  getCadreMembers,
 } from '@/lib/db/cadre-queries';
 import { getBoothsForElection, getElectionMasters } from '@/lib/db/queries';
 import { extractBoothNumber } from '@/lib/hierarchy/booth-geo-units';
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const defaultElectionId = resolveDefaultElectionId(elections, constituencyId);
 
     const config = await getCadreConfig();
-    const nodes = await getCadreTree({ constituencyId });
+    const members = await getCadreMembers({ constituencyId });
     const booths = defaultElectionId
       ? await getBoothsForElection(defaultElectionId)
       : [];
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       config,
-      nodes,
+      members,
       elections,
       defaultElectionId,
       boothNos: boothNosFromGeo.length > 0 ? boothNosFromGeo : booths.map((b) => b.boothNo),

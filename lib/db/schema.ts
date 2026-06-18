@@ -40,7 +40,9 @@ export const TABLES = {
   cadrePositionLevel: 'CadrePositionLevel',
   cadrePosition: 'CadrePosition',
   cadreGeographicUnit: 'CadreGeographicUnit',
-  cadreNode: 'CadreNode',
+  cadreMember: 'CadreMember',
+  cadreMemberVertical: 'CadreMemberVertical',
+  cadreMemberPost: 'CadreMemberPost',
 } as const;
 
 export type Role = {
@@ -477,18 +479,9 @@ export type CadreGeographicUnit = {
   updatedAt: Date;
 };
 
-export type CadreNode = {
+export type CadreMember = {
   id: string;
-  parentId: string | null;
-  verticalId: string;
-  positionId: string;
   constituencyId: string | null;
-  divisionId: string | null;
-  districtId: string | null;
-  talukaId: string | null;
-  wardGeoId: string | null;
-  electionId: string | null;
-  boothNo: string | null;
   personName: string | null;
   personPhone: string | null;
   personEmail: string | null;
@@ -496,12 +489,33 @@ export type CadreNode = {
   userId: string | null;
   epicNumber: string | null;
   notes: string | null;
-  isVacant: boolean;
   isActive: boolean;
   appointedAt: Date | null;
   termEndsAt: Date | null;
   createdBy: string | null;
   updatedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type CadreMemberVertical = {
+  memberId: string;
+  verticalId: string;
+  isPrimary: boolean;
+  createdAt: Date;
+};
+
+export type CadreMemberPost = {
+  id: string;
+  memberId: string;
+  positionId: string;
+  talukaId: string | null;
+  wardGeoId: string | null;
+  electionId: string | null;
+  boothNo: string | null;
+  label: string | null;
+  isPrimary: boolean;
+  sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
 };

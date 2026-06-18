@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import {
-  deleteCadreNode,
-  getCadreNodeById,
-  updateCadreNode,
+  deleteCadreMember,
+  getCadreMemberById,
+  updateCadreMember,
 } from '@/lib/db/cadre-queries';
 import { requireHierarchyAccess } from '@/lib/hierarchy/auth';
 
@@ -16,11 +16,11 @@ export async function GET(
   }
 
   const { id } = await params;
-  const node = await getCadreNodeById(id);
-  if (!node) {
-    return NextResponse.json({ error: 'Node not found' }, { status: 404 });
+  const member = await getCadreMemberById(id);
+  if (!member) {
+    return NextResponse.json({ error: 'Member not found' }, { status: 404 });
   }
-  return NextResponse.json({ success: true, node });
+  return NextResponse.json({ success: true, member });
 }
 
 export async function PUT(
@@ -35,10 +35,10 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const node = await updateCadreNode(id, body, access.userId);
-    return NextResponse.json({ success: true, node });
+    const member = await updateCadreMember(id, body, access.userId);
+    return NextResponse.json({ success: true, member });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to update node';
+    const message = error instanceof Error ? error.message : 'Failed to update member';
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
@@ -54,10 +54,10 @@ export async function DELETE(
 
   try {
     const { id } = await params;
-    await deleteCadreNode(id);
+    await deleteCadreMember(id);
     return NextResponse.json({ success: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to delete node';
+    const message = error instanceof Error ? error.message : 'Failed to delete member';
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

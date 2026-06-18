@@ -1,74 +1,52 @@
-import type { CadreNodeDetail } from './types';
+import type { CadreMemberCard, CadreMemberPostDetail } from './types';
 
-export type NodeGeoAttribution = {
-  /** Primary geo label, e.g. "Ward 144" or "Booth 42". */
-  primary: string | null;
-  /** Secondary context, e.g. ward name under a booth node. */
-  secondary: string | null;
-};
+const TALUKA_LEVELS = new Set(['taluka', 'taluka_committee']);
+const WARD_LEVELS = new Set(['ward', 'ward_committee']);
+const BOOTH_LEVELS = new Set(['booth', 'booth_committee']);
 
-/** Ward/booth labels for map cards and detail panels. */
-export function getNodeGeoAttribution(cadre: CadreNodeDetail): NodeGeoAttribution {
-  const { positionLevelKey, wardGeoName, boothNo } = cadre;
+/** Short geo chip for a post, e.g. "Main Taluka", "Ward 140", "Booth 12". */
+export function getPostGeoChip(post: CadreMemberPostDetail): string | null {
+  const { positionLevelKey, talukaName, wardGeoName, boothNo } = post;
 
-  if (positionLevelKey === 'taluka') {
-    return { primary: null, secondary: null };
+  if (BOOTH_LEVELS.has(positionLevelKey)) {
+    if (boothNo) return `Booth ${boothNo}`;
+    return wardGeoName ?? null;
   }
-
-  if (positionLevelKey === 'taluka_committee') {
-    return { primary: cadre.talukaName, secondary: null };
+  if (WARD_LEVELS.has(positionLevelKey)) {
+    return wardGeoName ?? null;
   }
-
-  if (positionLevelKey === 'ward' || positionLevelKey === 'ward_committee') {
-    return { primary: wardGeoName, secondary: null };
+  if (TALUKA_LEVELS.has(positionLevelKey)) {
+    return talukaName ?? null;
   }
-
-  if (positionLevelKey === 'booth' || positionLevelKey === 'booth_committee') {
-    const boothLabel = boothNo ? `Booth ${boothNo}` : null;
-    if (boothLabel && wardGeoName) {
-      return { primary: boothLabel, secondary: wardGeoName };
-    }
-    return { primary: boothLabel ?? wardGeoName, secondary: null };
-  }
-
-  if (boothNo) {
-    return {
-      primary: wardGeoName,
-      secondary: `Booth ${boothNo}`,
-    };
-  }
-
-  return { primary: wardGeoName, secondary: null };
+  return boothNo ? `Booth ${boothNo}` : wardGeoName ?? talukaName ?? null;
 }
 
-export function getNodePersonLabel(cadre: CadreNodeDetail): string {
+/** Uppercase-friendly breadcrumb segments, e.g. ["Constituency", "Ward 140", "Booth 12"]. */
+export function getPostBreadcrumb(post: CadreMemberPostDetail): string[] {
+  const segments: string[] = ['Constituency'];
+  if (post.talukaName && TALUKA_LEVELS.has(post.positionLevelKey)) {
+    segments.push(post.talukaName);
+  }
+  if (post.wardGeoName) segments.push(post.wardGeoName);
+  if (post.boothNo) segments.push(`Booth ${post.boothNo}`);
+  return segments;
+}
+
+/** Single-line geo context, e.g. "Ward 140 · Booth 12". */
+export function getPostGeoContextLine(post: CadreMemberPostDetail): string | null {
+  const parts = getPostBreadcrumb(post).slice(1);
+  return parts.length > 0 ? parts.join(' · ') : null;
+}
+
+export function getMemberDisplayName(member: CadreMemberCard): string {
   return (
-    cadre.personName ?? cadre.linkedVoter?.fullName ?? cadre.linkedUser?.userId ?? '—'
+    member.personName ??
+    member.linkedVoter?.fullName ??
+    member.linkedUser?.userId ??
+    '—'
   );
 }
 
-export function formatVacantCardTitle(cadre: CadreNodeDetail): string {
-  const { primary } = getNodeGeoAttribution(cadre);
-  if (primary) return `${primary} — Vacant`;
-  return 'Vacant';
-}
-
-/** Card title for filled nodes; mirrors vacant "geo — label" when geo is known. */
-export function formatFilledCardTitle(cadre: CadreNodeDetail): string {
-  const personName = getNodePersonLabel(cadre);
-  const { primary } = getNodeGeoAttribution(cadre);
-  if (primary) return `${primary} — ${personName}`;
-  return personName;
-}
-
-/** Ward context under a booth title when primary geo is already in the title line. */
-export function formatFilledGeoSubtitle(cadre: CadreNodeDetail): string | null {
-  const { primary, secondary } = getNodeGeoAttribution(cadre);
-  return primary && secondary ? secondary : null;
-}
-
-export function formatGeoContextLine(cadre: CadreNodeDetail): string | null {
-  const { primary, secondary } = getNodeGeoAttribution(cadre);
-  if (primary && secondary) return `${secondary} · ${primary}`;
-  return primary ?? secondary;
+export function getMemberPhone(member: CadreMemberCard): string | null {
+  return member.personPhone ?? member.linkedVoter?.mobile ?? null;
 }

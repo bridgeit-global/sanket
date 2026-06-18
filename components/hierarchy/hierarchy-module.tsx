@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Plus, Settings, SlidersHorizontal, X } from 'lucide-react';
+import { ChevronRight, Plus, Search, Settings, SlidersHorizontal, X } from 'lucide-react';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,51 +21,31 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useIsMobile } from '@/hooks/use-mobile';
-import { HierarchyMap } from './hierarchy-map';
+import { MemberList } from './member-list';
+import { MemberEditor, type MemberEditorTarget } from './member-editor';
+import { MemberDetail } from './member-detail';
 import { HierarchyConfigAdmin } from './hierarchy-config-admin';
-import { HierarchyNodeDetail } from './hierarchy-node-detail';
-import { HierarchyQuickEdit, type QuickEditTarget } from './hierarchy-quick-edit';
 import { VerticalDialog } from './vertical-dialog';
 import type {
   CadreConfig,
   CadreConfigReferenceCounts,
-  CadreNodeDetail,
+  CadreMemberCard,
 } from '@/lib/hierarchy/types';
 import {
-  applyNavFilters,
-  applySearchFilters,
-  extractWardNumber,
   HIERARCHY_URL_PARAMS,
-  nodeMatchesSearch,
-  resolveFocusVerticalId,
-} from '@/lib/hierarchy/map-filters';
+  extractWardNumber,
+  filterMembers,
+  sortMembers,
+} from '@/lib/hierarchy/member-list';
 import {
-  applyCollapse,
-  defaultExpandedIds,
-  expandPathTo,
-  findBoothGroupId,
-  findWardNodeId,
-} from '@/lib/hierarchy/collapse';
-import { buildForest, isVerticalHubNode } from '@/lib/hierarchy/forest-builder';
+  extractBoothNumber,
+  getBoothGeoUnits,
+} from '@/lib/hierarchy/booth-geo-units';
 import {
-  buildBoothOptions,
-  buildVerticalOptions,
-  buildWardOptions,
-  resolveNavPathFromNode,
-} from '@/lib/hierarchy/nav-options';
-import { extractBoothNumber } from '@/lib/hierarchy/booth-geo-units';
-import {
-  fromOptionalSelectValue,
   SELECT_NONE_VALUE,
-  toControlledSelectValue,
+  fromOptionalSelectValue,
   toOptionalSelectValue,
 } from '@/lib/hierarchy/select-utils';
-import {
-  appendVacantSlotsForForest,
-  isPlaceholderNode,
-} from '@/lib/hierarchy/vacant-slots';
-import { buildNavigableTree } from '@/lib/hierarchy/tree-builder';
 
 const DEFAULT_CONSTITUENCY_ID = '172';
 
@@ -77,45 +57,29 @@ interface HierarchyModuleProps {
 export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const isMobile = useIsMobile();
 
   const [config, setConfig] = useState<CadreConfig | null>(null);
   const [referenceCounts, setReferenceCounts] =
     useState<CadreConfigReferenceCounts | null>(null);
-  const [nodes, setNodes] = useState<CadreNodeDetail[]>([]);
+  const [members, setMembers] = useState<CadreMemberCard[]>([]);
   const [defaultElectionId, setDefaultElectionId] = useState('');
-  const [expectedBoothNos, setExpectedBoothNos] = useState<string[]>([]);
-  const [boothWardFromApi, setBoothWardFromApi] = useState<Map<string, string>>(
-    () => new Map(),
-  );
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [searchDraft, setSearchDraft] = useState('');
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
-  const [expandedInitialized, setExpandedInitialized] = useState(false);
 
-  const [quickEdit, setQuickEdit] = useState<QuickEditTarget | null>(null);
-  const [detailNode, setDetailNode] = useState<CadreNodeDetail | null>(null);
+  const [editorTarget, setEditorTarget] = useState<MemberEditorTarget | null>(null);
+  const [detailMember, setDetailMember] = useState<CadreMemberCard | null>(null);
   const [verticalDialogOpen, setVerticalDialogOpen] = useState(false);
   const [editVertical, setEditVertical] = useState<
     CadreConfig['verticals'][number] | null
   >(null);
   const [configOpen, setConfigOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
-  const [verticalSelectOpen, setVerticalSelectOpen] = useState(false);
-  const [wardSelectOpen, setWardSelectOpen] = useState(false);
-  const [boothSelectOpen, setBoothSelectOpen] = useState(false);
 
   const searchQuery = searchParams.get(HIERARCHY_URL_PARAMS.search) ?? '';
-  const legacyWardNo = searchParams.get(HIERARCHY_URL_PARAMS.wardNo) ?? '';
-  const boothNo = searchParams.get(HIERARCHY_URL_PARAMS.boothNo) ?? '';
-  const expandParam = searchParams.get(HIERARCHY_URL_PARAMS.expand) ?? '';
-  const wardGeoIdParam = searchParams.get(HIERARCHY_URL_PARAMS.ward) ?? '';
-
-  const expandedVerticalIds = useMemo(
-    () => new Set(expandParam.split(',').filter(Boolean)),
-    [expandParam],
-  );
+  const verticalId = searchParams.get(HIERARCHY_URL_PARAMS.vertical) ?? '';
+  const wardGeoId = searchParams.get(HIERARCHY_URL_PARAMS.ward) ?? '';
+  const boothNo = searchParams.get(HIERARCHY_URL_PARAMS.booth) ?? '';
 
   useEffect(() => {
     setSearchDraft(searchQuery);
@@ -124,33 +88,25 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const setUrlParams = useCallback(
     (updates: {
       search?: string;
-      wardGeoId?: string;
-      boothNo?: string;
-      expand?: string;
+      vertical?: string;
+      ward?: string;
+      booth?: string;
     }) => {
       const next = {
         search: updates.search ?? searchQuery,
-        wardGeoId: updates.wardGeoId ?? wardGeoIdParam,
-        boothNo: updates.boothNo ?? boothNo,
-        expand: updates.expand ?? expandParam,
+        vertical: updates.vertical ?? verticalId,
+        ward: updates.ward ?? wardGeoId,
+        booth: updates.booth ?? boothNo,
       };
       const params = new URLSearchParams();
-      if (next.search.trim()) {
-        params.set(HIERARCHY_URL_PARAMS.search, next.search.trim());
-      }
-      if (next.wardGeoId.trim()) {
-        params.set(HIERARCHY_URL_PARAMS.ward, next.wardGeoId.trim());
-      }
-      if (next.boothNo.trim()) {
-        params.set(HIERARCHY_URL_PARAMS.boothNo, next.boothNo.trim());
-      }
-      if (next.expand) {
-        params.set(HIERARCHY_URL_PARAMS.expand, next.expand);
-      }
+      if (next.search.trim()) params.set(HIERARCHY_URL_PARAMS.search, next.search.trim());
+      if (next.vertical.trim()) params.set(HIERARCHY_URL_PARAMS.vertical, next.vertical.trim());
+      if (next.ward.trim()) params.set(HIERARCHY_URL_PARAMS.ward, next.ward.trim());
+      if (next.booth.trim()) params.set(HIERARCHY_URL_PARAMS.booth, next.booth.trim());
       const qs = params.toString();
       router.replace(qs ? `?${qs}` : '?', { scroll: false });
     },
-    [router, searchQuery, wardGeoIdParam, boothNo, expandParam],
+    [router, searchQuery, verticalId, wardGeoId, boothNo],
   );
 
   const loadConfig = useCallback(async () => {
@@ -169,9 +125,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       res = await fetch(`/api/hierarchy/bootstrap?${params}`, { signal });
     } catch (err) {
       if (signal?.aborted) return;
-      const message =
-        err instanceof Error ? err.message : 'Failed to load hierarchy data';
-      setLoadError(message);
+      setLoadError(err instanceof Error ? err.message : 'Failed to load hierarchy data');
       return;
     }
     if (!res.ok) {
@@ -179,9 +133,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       const text = await res.text();
       try {
         const body = JSON.parse(text) as { error?: string };
-        if (typeof body.error === 'string' && body.error.trim()) {
-          message = body.error.trim();
-        }
+        if (typeof body.error === 'string' && body.error.trim()) message = body.error.trim();
       } catch {
         if (text.trim()) message = text.trim();
       }
@@ -189,12 +141,9 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       return;
     }
     const data = await res.json();
-    if (data.config) {
-      setConfig(data.config);
-    }
-    setNodes(data.nodes ?? []);
+    if (data.config) setConfig(data.config);
+    setMembers(data.members ?? []);
     setDefaultElectionId(data.defaultElectionId ?? '');
-    setExpectedBoothNos(data.boothNos ?? []);
     setLoadError(null);
   }, []);
 
@@ -206,9 +155,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       try {
         await loadBootstrap(controller.signal);
       } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
+        if (!controller.signal.aborted) setLoading(false);
       }
     })();
     return () => controller.abort();
@@ -218,23 +165,6 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     if (referenceCounts) return;
     await loadConfig();
   }, [referenceCounts, loadConfig]);
-
-  const boothToWardGeoId = useMemo(() => {
-    const mapping = new Map(boothWardFromApi);
-    if (config) {
-      for (const geo of config.geoUnits) {
-        if (geo.type !== 'booth' || !geo.parentId) continue;
-        const boothNum = extractBoothNumber(geo.name);
-        if (boothNum) mapping.set(boothNum, geo.parentId);
-      }
-    }
-    for (const node of nodes) {
-      if (node.positionLevelKey === 'booth' && node.boothNo && node.wardGeoId) {
-        mapping.set(node.boothNo, node.wardGeoId);
-      }
-    }
-    return mapping;
-  }, [boothWardFromApi, config, nodes]);
 
   const refresh = useCallback(() => {
     setLoadError(null);
@@ -246,526 +176,175 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     [config?.verticals],
   );
 
-  const resolvedWardGeoId = useMemo(() => {
-    if (wardGeoIdParam) return wardGeoIdParam;
-    if (!legacyWardNo || !config) return '';
-    const match = config.geoUnits.find(
-      (g) => g.type === 'ward' && extractWardNumber(g.name) === legacyWardNo.trim(),
-    );
-    return match?.id ?? '';
-  }, [wardGeoIdParam, legacyWardNo, config]);
-
-  const selectedVerticalId = useMemo(() => {
-    if (expandParam) return expandParam.split(',')[0] ?? '';
-    if (activeVerticals.length === 1) return activeVerticals[0]?.id ?? '';
-    if (resolvedWardGeoId) {
-      const wardNode = nodes.find(
-        (n) => n.positionLevelKey === 'ward' && n.wardGeoId === resolvedWardGeoId,
-      );
-      if (wardNode) return wardNode.verticalId;
-    }
-    return '';
-  }, [expandParam, activeVerticals, resolvedWardGeoId, nodes]);
-
-  const verticalOptions = useMemo(
-    () => buildVerticalOptions(activeVerticals),
-    [activeVerticals],
-  );
-
   const wardOptions = useMemo(
     () =>
-      selectedVerticalId && config
-        ? buildWardOptions(
-          nodes,
-          selectedVerticalId,
-          config,
-          DEFAULT_CONSTITUENCY_ID,
-        )
-        : [],
-    [nodes, selectedVerticalId, config],
+      (config?.geoUnits ?? [])
+        .filter((g) => g.type === 'ward' && g.isActive)
+        .sort((a, b) => extractWardNumber(a.name) - extractWardNumber(b.name)),
+    [config?.geoUnits],
   );
 
-  const boothOptions = useMemo(
-    () => (resolvedWardGeoId ? buildBoothOptions(nodes, resolvedWardGeoId) : []),
-    [nodes, resolvedWardGeoId],
-  );
+  const wardSummary = useMemo(() => {
+    if (wardOptions.length === 0) return 'Wards';
+    const nums = wardOptions
+      .map((w) => extractWardNumber(w.name))
+      .filter((n) => n !== Number.MAX_SAFE_INTEGER)
+      .sort((a, b) => a - b);
+    if (nums.length === 0) return 'Wards';
+    return `Wards (${nums[0]}-${nums[nums.length - 1]})`;
+  }, [wardOptions]);
 
-  const hasActiveSearchInput = Boolean(searchQuery.trim());
+  const boothOptions = useMemo(() => {
+    if (!config?.geoUnits) return [];
+    const units = wardGeoId
+      ? getBoothGeoUnits(config.geoUnits, DEFAULT_CONSTITUENCY_ID, wardGeoId)
+      : getBoothGeoUnits(config.geoUnits, DEFAULT_CONSTITUENCY_ID);
+    return units
+      .map((g) => extractBoothNumber(g.name) ?? g.name.trim())
+      .filter((b): b is string => Boolean(b));
+  }, [config?.geoUnits, wardGeoId]);
 
-  const focusVerticalId = useMemo(
+  const visibleMembers = useMemo(
     () =>
-      resolveFocusVerticalId({
-        selectedVerticalId,
-        wardGeoId: resolvedWardGeoId,
-        boothNo,
-        verticalSelectOpen,
-        wardSelectOpen,
-        boothSelectOpen,
-        multipleVerticals: verticalOptions.length > 1,
-      }),
-    [
-      selectedVerticalId,
-      resolvedWardGeoId,
-      boothNo,
-      verticalSelectOpen,
-      wardSelectOpen,
-      boothSelectOpen,
-      verticalOptions.length,
-    ],
+      sortMembers(
+        filterMembers(members, {
+          search: searchQuery,
+          verticalId,
+          wardGeoId,
+          boothNo,
+        }),
+      ),
+    [members, searchQuery, verticalId, wardGeoId, boothNo],
   );
 
-  useEffect(() => {
-    const onlyWard = wardOptions.length === 1 ? wardOptions[0] : undefined;
-    if (!selectedVerticalId || resolvedWardGeoId || !onlyWard) return;
-    setUrlParams({ wardGeoId: onlyWard.value });
-  }, [selectedVerticalId, resolvedWardGeoId, wardOptions, setUrlParams]);
-
-  useEffect(() => {
-    const onlyBooth = boothOptions.length === 1 ? boothOptions[0] : undefined;
-    if (!resolvedWardGeoId || boothNo || !onlyBooth) return;
-    setUrlParams({ boothNo: onlyBooth.value });
-  }, [resolvedWardGeoId, boothNo, boothOptions, setUrlParams]);
-
-  const navigableForest = useMemo(() => {
-    if (!config) {
-      return {
-        navigableNodes: [] as CadreNodeDetail[],
-        hubStats: new Map(),
-      };
-    }
-
-    const withVacants = appendVacantSlotsForForest(nodes, {
-      verticals: activeVerticals.map((v) => ({ id: v.id, name: v.name })),
-      constituencyId: DEFAULT_CONSTITUENCY_ID,
-      electionId: defaultElectionId,
-      wardGeoId: resolvedWardGeoId || null,
-      config,
-      expectedBoothNos,
-      boothToWardGeoId,
-    });
-
-    const effectiveExpanded = hasActiveSearchInput
-      ? new Set(activeVerticals.map((v) => v.id))
-      : selectedVerticalId
-        ? new Set([selectedVerticalId])
-        : expandedVerticalIds;
-
-    const forest = buildForest(withVacants, activeVerticals, effectiveExpanded);
-    const navFiltered = applyNavFilters(forest.nodes, {
-      focusVerticalId,
-      wardGeoId: resolvedWardGeoId,
-      boothNo,
-    });
-
-    return {
-      navigableNodes: buildNavigableTree(navFiltered.nodes),
-      hubStats: forest.hubStats,
-    };
-  }, [
-    config,
-    nodes,
-    activeVerticals,
-    defaultElectionId,
-    expectedBoothNos,
-    boothToWardGeoId,
-    expandedVerticalIds,
-    selectedVerticalId,
-    hasActiveSearchInput,
-    resolvedWardGeoId,
-    boothNo,
-    focusVerticalId,
-  ]);
-
-  useEffect(() => {
-    if (expandedInitialized || navigableForest.navigableNodes.length === 0) return;
-    setExpandedIds(
-      defaultExpandedIds(
-        navigableForest.navigableNodes,
-        selectedVerticalId || undefined,
-      ),
-    );
-    setExpandedInitialized(true);
-  }, [
-    navigableForest.navigableNodes,
-    selectedVerticalId,
-    expandedInitialized,
-  ]);
-
-  useEffect(() => {
-    if (!selectedVerticalId) return;
-    setExpandedInitialized(false);
-  }, [selectedVerticalId]);
-
-  const { mapNodes, matchIds, hasActiveFilter, childCountById, hasChildrenById, effectiveExpandedIds } =
-    useMemo(() => {
-      const { navigableNodes } = navigableForest;
-      if (navigableNodes.length === 0) {
-        return {
-          mapNodes: [] as CadreNodeDetail[],
-          matchIds: new Set<string>(),
-          hasActiveFilter: false,
-          childCountById: new Map<string, number>(),
-          hasChildrenById: new Map<string, boolean>(),
-          effectiveExpandedIds: new Set<string>(),
-        };
-      }
-
-      const searchMatches = new Set<string>();
-      if (searchQuery.trim()) {
-        for (const node of navigableNodes) {
-          if (isVerticalHubNode(node)) continue;
-          if (nodeMatchesSearch(node, searchQuery)) {
-            searchMatches.add(node.id);
-          }
-        }
-      }
-
-      const effectiveExpanded = new Set(expandedIds);
-
-      if (resolvedWardGeoId) {
-        const wardNodeId = findWardNodeId(
-          navigableNodes,
-          resolvedWardGeoId,
-          selectedVerticalId || undefined,
-        );
-        if (wardNodeId) {
-          for (const id of expandPathTo(navigableNodes, wardNodeId)) {
-            effectiveExpanded.add(id);
-          }
-          effectiveExpanded.add(wardNodeId);
-          if (boothNo) {
-            const boothGroupId = findBoothGroupId(
-              navigableNodes,
-              wardNodeId,
-              boothNo,
-            );
-            if (boothGroupId) {
-              for (const id of expandPathTo(navigableNodes, boothGroupId)) {
-                effectiveExpanded.add(id);
-              }
-              effectiveExpanded.add(boothGroupId);
-            }
-          }
-        }
-      }
-
-      for (const matchId of searchMatches) {
-        for (const id of expandPathTo(navigableNodes, matchId)) {
-          effectiveExpanded.add(id);
-        }
-        effectiveExpanded.add(matchId);
-      }
-
-      const collapsed = applyCollapse(navigableNodes, effectiveExpanded);
-
-      const searched = applySearchFilters(collapsed.nodes, {
-        search: searchQuery,
-        wardGeoId: resolvedWardGeoId,
-        boothNo,
-      });
-
-      return {
-        mapNodes: searchQuery.trim() ? searched.nodes : collapsed.nodes,
-        matchIds: searched.matchIds,
-        hasActiveFilter: searched.hasActiveFilter,
-        childCountById: collapsed.childCountById,
-        hasChildrenById: collapsed.hasChildrenById,
-        effectiveExpandedIds: effectiveExpanded,
-      };
-    }, [
-      navigableForest,
-      expandedIds,
-      searchQuery,
-      resolvedWardGeoId,
-      boothNo,
-      selectedVerticalId,
-    ]);
-
-  const toggleVertical = (verticalId: string) => {
-    setUrlParams({
-      expand: expandedVerticalIds.has(verticalId) ? '' : verticalId,
-    });
-  };
-
-  const handleToggleExpand = useCallback((nodeId: string) => {
-    setExpandedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(nodeId)) {
-        next.delete(nodeId);
-      } else {
-        next.add(nodeId);
-      }
-      return next;
-    });
-  }, []);
-
-  const handleNodeClick = (node: CadreNodeDetail) => {
-    if (!canEdit) {
-      setDetailNode(node);
-      return;
-    }
-    setDetailNode(null);
-    if (isPlaceholderNode(node)) {
-      const wardParent = node.parentId
-        ? nodes.find((n) => n.id === node.parentId)
-        : undefined;
-      setQuickEdit({
-        mode: 'create',
-        parent: wardParent ?? node,
-        verticalId: node.verticalId,
-        prefillFrom: node,
-      });
+  const breadcrumb = useMemo(() => {
+    const segments: string[] = ['Constituency'];
+    if (wardGeoId) {
+      segments.push(
+        wardOptions.find((w) => w.id === wardGeoId)?.name ?? 'Ward',
+      );
     } else {
-      setQuickEdit({ mode: 'edit', node });
+      segments.push(wardSummary);
     }
-  };
-
-  const handleAddChild = (parent: CadreNodeDetail) => {
-    setDetailNode(null);
-    setQuickEdit({ mode: 'create', parent, verticalId: parent.verticalId });
-  };
-
-  const openNewVertical = () => {
-    void ensureReferenceCounts();
-    setEditVertical(null);
-    setVerticalDialogOpen(true);
-  };
-
-  const commitSearch = () => {
-    const trimmed = searchDraft.trim();
-    if (!trimmed) {
-      setUrlParams({ search: '' });
-      return;
-    }
-
-    const match = nodes.find(
-      (n) => !isVerticalHubNode(n) && nodeMatchesSearch(n, trimmed),
-    );
-    if (match) {
-      const path = resolveNavPathFromNode(match, nodes);
-      setUrlParams({
-        search: trimmed,
-        expand: path.verticalId ?? selectedVerticalId,
-        wardGeoId: path.wardGeoId ?? '',
-        boothNo: path.boothNo ?? '',
-      });
-      return;
-    }
-
-    setUrlParams({ search: trimmed });
-  };
+    if (boothNo) segments.push(`Booth ${boothNo}`);
+    segments.push('Organization Tree');
+    return segments;
+  }, [wardGeoId, wardOptions, wardSummary, boothNo]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
-    if (searchQuery.trim()) count += 1;
-    if (selectedVerticalId && verticalOptions.length > 1) count += 1;
-    if (resolvedWardGeoId) count += 1;
+    if (verticalId) count += 1;
+    if (wardGeoId) count += 1;
     if (boothNo) count += 1;
     return count;
-  }, [
-    searchQuery,
-    selectedVerticalId,
-    verticalOptions.length,
-    resolvedWardGeoId,
-    boothNo,
-  ]);
+  }, [verticalId, wardGeoId, boothNo]);
 
-  const activeFilterChips = useMemo(() => {
-    const chips: Array<{ key: string; label: string; onClear: () => void }> = [];
+  const commitSearch = () => setUrlParams({ search: searchDraft });
 
-    if (searchQuery.trim()) {
-      chips.push({
-        key: 'search',
-        label: `Search: ${searchQuery.trim()}`,
-        onClear: () => setUrlParams({ search: '' }),
-      });
+  const openCreateMember = () => {
+    setDetailMember(null);
+    setEditorTarget({ mode: 'create' });
+  };
+
+  const handleSelect = (member: CadreMemberCard) => {
+    if (canEdit) {
+      setEditorTarget({ mode: 'edit', member });
+    } else {
+      setDetailMember(member);
     }
-    if (selectedVerticalId && verticalOptions.length > 1) {
-      const label =
-        verticalOptions.find((o) => o.value === selectedVerticalId)?.label ??
-        'Vertical';
-      chips.push({
-        key: 'vertical',
-        label,
-        onClear: () =>
-          setUrlParams({
-            expand: '',
-            wardGeoId: '',
-            boothNo: '',
-          }),
-      });
-    }
-    if (resolvedWardGeoId) {
-      const label =
-        wardOptions.find((o) => o.value === resolvedWardGeoId)?.label ?? 'Ward';
-      chips.push({
-        key: 'ward',
-        label,
-        onClear: () =>
-          setUrlParams({
-            wardGeoId: '',
-            boothNo: '',
-          }),
-      });
-    }
-    if (boothNo) {
-      const label =
-        boothOptions.find((o) => o.value === boothNo)?.label ?? `Booth ${boothNo}`;
-      chips.push({
-        key: 'booth',
-        label,
-        onClear: () => setUrlParams({ boothNo: '' }),
-      });
-    }
+  };
 
-    return chips;
-  }, [
-    searchQuery,
-    selectedVerticalId,
-    verticalOptions,
-    resolvedWardGeoId,
-    wardOptions,
-    boothNo,
-    boothOptions,
-    setUrlParams,
-  ]);
-
-  const navSelects = (
-    <>
-      {verticalOptions.length > 1 && (
-        <div className="w-full md:w-44">
-          <Label className="text-xs text-muted-foreground">Vertical</Label>
-          <Select
-            open={verticalSelectOpen}
-            onOpenChange={setVerticalSelectOpen}
-            value={toControlledSelectValue(selectedVerticalId)}
-            onValueChange={(value) =>
-              setUrlParams({
-                expand: fromOptionalSelectValue(value),
-                wardGeoId: '',
-                boothNo: '',
-              })
-            }
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Select vertical" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={SELECT_NONE_VALUE}>All verticals</SelectItem>
-              {verticalOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      {selectedVerticalId && wardOptions.length > 0 && (
-        <div className="w-full md:min-w-52 md:max-w-72">
-          <Label className="text-xs text-muted-foreground">Ward</Label>
-          <Select
-            open={wardSelectOpen}
-            onOpenChange={setWardSelectOpen}
-            value={toOptionalSelectValue(resolvedWardGeoId)}
-            onValueChange={(value) => {
-              const geoId = fromOptionalSelectValue(value);
-              setUrlParams({
-                wardGeoId: geoId,
-                boothNo: '',
-              });
-            }}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue placeholder="Select ward" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={SELECT_NONE_VALUE}>All wards</SelectItem>
-              {wardOptions.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
-
-      {resolvedWardGeoId &&
-        (boothOptions.length > 1 || boothNo) && (
-          <div className="w-full md:min-w-44 md:max-w-64">
-            <Label className="text-xs text-muted-foreground">Booth</Label>
-            <Select
-              open={boothSelectOpen}
-              onOpenChange={setBoothSelectOpen}
-              value={toOptionalSelectValue(boothNo)}
-              onValueChange={(value) => {
-                const nextBooth = fromOptionalSelectValue(value);
-                setUrlParams({ boothNo: nextBooth });
-              }}
-            >
-              <SelectTrigger className="h-9">
-                <SelectValue placeholder="Select booth" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={SELECT_NONE_VALUE}>All booths</SelectItem>
-                {boothOptions.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-    </>
-  );
+  const handleEdit = (member: CadreMemberCard) => {
+    setDetailMember(null);
+    setEditorTarget({ mode: 'edit', member });
+  };
 
   const overlay = useMemo(() => {
-    if (canEdit && quickEdit && config) {
+    if (canEdit && editorTarget && config) {
       return (
-        <HierarchyQuickEdit
-          target={quickEdit}
+        <MemberEditor
+          target={editorTarget}
           config={config}
           constituencyId={DEFAULT_CONSTITUENCY_ID}
           electionId={defaultElectionId}
-          onClose={() => setQuickEdit(null)}
+          onClose={() => setEditorTarget(null)}
           onSaved={refresh}
         />
       );
     }
-    if (!canEdit && detailNode) {
+    if (!canEdit && detailMember) {
       return (
-        <HierarchyNodeDetail
-          node={detailNode}
-          isAdmin={false}
-          onClose={() => setDetailNode(null)}
-          onEdit={() => { }}
-          onAddSubordinate={() => { }}
-        />
+        <MemberDetail member={detailMember} onClose={() => setDetailMember(null)} />
       );
     }
     return null;
-  }, [canEdit, quickEdit, config, defaultElectionId, detailNode, refresh]);
+  }, [canEdit, editorTarget, config, defaultElectionId, detailMember, refresh]);
+
+  const verticalSelect = (
+    <Select
+      value={toOptionalSelectValue(verticalId)}
+      onValueChange={(v) => setUrlParams({ vertical: fromOptionalSelectValue(v) })}
+    >
+      <SelectTrigger className="h-9 w-auto gap-1 rounded-full">
+        <SelectValue placeholder="All Verticals" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={SELECT_NONE_VALUE}>All Verticals</SelectItem>
+        {activeVerticals.map((v) => (
+          <SelectItem key={v.id} value={v.id}>
+            {v.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
+  const wardSelect = (
+    <Select
+      value={toOptionalSelectValue(wardGeoId)}
+      onValueChange={(v) =>
+        setUrlParams({ ward: fromOptionalSelectValue(v), booth: '' })
+      }
+    >
+      <SelectTrigger className="h-9 w-auto gap-1 rounded-full">
+        <SelectValue placeholder={wardSummary} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={SELECT_NONE_VALUE}>{wardSummary}</SelectItem>
+        {wardOptions.map((w) => (
+          <SelectItem key={w.id} value={w.id}>
+            {w.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 
   return (
-    <div className="flex h-[calc(100dvh-5.5rem)] max-md:h-[calc(100dvh-9rem)] min-h-[400px] flex-col gap-2 md:gap-2">
+    <div className="relative flex h-[calc(100dvh-5.5rem)] max-md:h-[calc(100dvh-9rem)] min-h-[400px] flex-col gap-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <ModulePageHeader title="NCP 172 Anushakti Nagar Vidhan Sabha" />
+        <ModulePageHeader title="MLA Hierarchy" />
         {isAdmin && (
           <div className="flex flex-wrap items-center gap-2">
-            <Button size="sm" variant="outline" onClick={openNewVertical}>
-              <Plus className="size-4 mr-1" /> New vertical
-            </Button>
             <Button
               size="sm"
               variant="outline"
               onClick={() => {
                 void ensureReferenceCounts();
+                setEditVertical(null);
+                setVerticalDialogOpen(true);
+              }}
+            >
+              <Plus className="mr-1 size-4" /> New vertical
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              aria-label="Configuration"
+              onClick={() => {
+                void ensureReferenceCounts();
                 setConfigOpen(true);
               }}
-              aria-label="Configuration"
             >
               <Settings className="size-4" />
             </Button>
@@ -773,91 +352,58 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         )}
       </div>
 
-      {isMobile ? (
-        <div className="flex flex-col gap-2">
-          <div className="w-full">
-            <Label className="text-xs text-muted-foreground">Search by name</Label>
-            <Input
-              className="h-9 w-full"
-              value={searchDraft}
-              onChange={(e) => setSearchDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitSearch();
-              }}
-              onBlur={commitSearch}
-              placeholder="Person name"
-            />
-          </div>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-9 w-full gap-1.5"
-            onClick={() => setFiltersOpen(true)}
-          >
-            <SlidersHorizontal className="size-4" />
-            Filters
-            {activeFilterCount > 0 && (
-              <Badge variant="secondary" className="h-5 min-w-5 justify-center px-1.5">
-                {activeFilterCount}
-              </Badge>
-            )}
-          </Button>
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          className="h-11 w-full rounded-xl pl-9"
+          value={searchDraft}
+          onChange={(e) => setSearchDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commitSearch();
+          }}
+          onBlur={commitSearch}
+          placeholder="Search by name, position, or Voter ID..."
+        />
+      </div>
 
-          {activeFilterChips.length > 0 && (
-            <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-              {activeFilterChips.map((chip) => (
-                <Badge
-                  key={chip.key}
-                  variant="outline"
-                  className="shrink-0 gap-1 pr-1 font-normal"
-                >
-                  <span className="max-w-40 truncate">{chip.label}</span>
-                  <button
-                    type="button"
-                    className="rounded-full p-0.5 hover:bg-muted"
-                    aria-label={`Clear ${chip.label}`}
-                    onClick={chip.onClear}
-                  >
-                    <X className="size-3" />
-                  </button>
-                </Badge>
-              ))}
-            </div>
+      <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-9 shrink-0 gap-1.5 rounded-full"
+          onClick={() => setFiltersOpen(true)}
+        >
+          <SlidersHorizontal className="size-4" />
+          Filters
+          {activeFilterCount > 0 && (
+            <Badge variant="secondary" className="h-5 min-w-5 justify-center px-1.5">
+              {activeFilterCount}
+            </Badge>
           )}
+        </Button>
+        <div className="shrink-0">{verticalSelect}</div>
+        <div className="shrink-0">{wardSelect}</div>
+      </div>
 
-          <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-            <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto rounded-t-xl">
-              <SheetHeader>
-                <SheetTitle>Map filters</SheetTitle>
-              </SheetHeader>
-              <div className="mt-4 flex flex-col gap-3">
-                {navSelects}
-              </div>
-            </SheetContent>
-          </Sheet>
-        </div>
-      ) : (
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="w-48">
-            <Label className="text-xs text-muted-foreground">Search by name</Label>
-            <Input
-              className="h-9"
-              value={searchDraft}
-              onChange={(e) => setSearchDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitSearch();
-              }}
-              onBlur={commitSearch}
-              placeholder="Person name"
-            />
-          </div>
+      <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+        {breadcrumb.map((segment, i) => {
+          const isLast = i === breadcrumb.length - 1;
+          return (
+            <span
+              key={breadcrumb.slice(0, i + 1).join(' / ')}
+              className="flex items-center gap-1"
+            >
+              {i > 0 && <ChevronRight className="size-3 opacity-60" />}
+              <span className={isLast ? 'font-semibold text-amber-600 dark:text-amber-400' : ''}>
+                {segment}
+              </span>
+            </span>
+          );
+        })}
+      </div>
 
-          {navSelects}
-        </div>
-      )}
-
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-muted/20">
             <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -879,49 +425,81 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             </Button>
           </div>
         ) : (
-          <HierarchyMap
-            nodes={mapNodes}
-            matchIds={matchIds}
-            hasActiveSearchFilter={hasActiveFilter}
-            selectedId={
-              quickEdit?.mode === 'edit'
-                ? quickEdit.node.id
-                : quickEdit?.mode === 'create'
-                  ? quickEdit.prefillFrom?.id ?? quickEdit.parent?.id ?? null
-                  : detailNode?.id ?? null
-            }
-            expandedVerticalIds={expandedVerticalIds}
-            expandedIds={effectiveExpandedIds}
-            childCountById={childCountById}
-            hasChildrenById={hasChildrenById}
-            onToggleExpand={handleToggleExpand}
-            hubStats={navigableForest.hubStats}
-            onNodeClick={handleNodeClick}
-            onHubToggle={toggleVertical}
-            onEditNode={
-              canEdit
-                ? (node) => {
-                  if (isVerticalHubNode(node)) {
-                    if (!isAdmin) return;
-                    const vertical = activeVerticals.find(
-                      (v) => v.id === node.verticalId,
-                    );
-                    if (vertical) {
-                      void ensureReferenceCounts();
-                      setEditVertical(vertical);
-                      setVerticalDialogOpen(true);
-                    }
-                    return;
-                  }
-                  setQuickEdit({ mode: 'edit', node });
-                }
-                : undefined
-            }
-            onAddChild={canEdit ? handleAddChild : undefined}
-            overlay={overlay}
+          <MemberList
+            members={visibleMembers}
+            canEdit={canEdit}
+            onSelect={handleSelect}
+            onEdit={canEdit ? handleEdit : undefined}
           />
         )}
       </div>
+
+      {canEdit && (
+        <Button
+          type="button"
+          size="icon"
+          aria-label="Add member"
+          className="absolute bottom-4 right-4 z-10 size-14 rounded-full bg-orange-500 text-white shadow-lg hover:bg-orange-600"
+          onClick={openCreateMember}
+        >
+          <Plus className="size-6" />
+        </Button>
+      )}
+
+      {overlay && (
+        <div className="absolute inset-x-2 bottom-2 z-20 max-h-[min(80dvh,calc(100%-1rem))] overflow-hidden md:inset-x-auto md:bottom-3 md:right-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:max-w-[min(24rem,calc(100%-1.5rem))]">
+          {overlay}
+        </div>
+      )}
+
+      <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+        <SheetContent side="bottom" className="max-h-[85dvh] overflow-y-auto rounded-t-xl">
+          <SheetHeader>
+            <SheetTitle>Filters</SheetTitle>
+          </SheetHeader>
+          <div className="mt-4 flex flex-col gap-3">
+            <div>
+              <Label className="text-xs text-muted-foreground">Vertical</Label>
+              {verticalSelect}
+            </div>
+            <div>
+              <Label className="text-xs text-muted-foreground">Ward</Label>
+              {wardSelect}
+            </div>
+            {boothOptions.length > 0 && (
+              <div>
+                <Label className="text-xs text-muted-foreground">Booth</Label>
+                <Select
+                  value={toOptionalSelectValue(boothNo)}
+                  onValueChange={(v) => setUrlParams({ booth: fromOptionalSelectValue(v) })}
+                >
+                  <SelectTrigger className="h-9">
+                    <SelectValue placeholder="All booths" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={SELECT_NONE_VALUE}>All booths</SelectItem>
+                    {boothOptions.map((b) => (
+                      <SelectItem key={b} value={b}>
+                        Booth {b}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {activeFilterCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setUrlParams({ vertical: '', ward: '', booth: '' })}
+              >
+                <X className="size-4" /> Clear filters
+              </Button>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {config && (
         <VerticalDialog
@@ -930,16 +508,16 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
           config={config}
           referenceCounts={referenceCounts}
           vertical={editVertical}
-          onSaved={(verticalId) => {
+          onSaved={(savedId) => {
             refresh();
-            if (verticalId) setUrlParams({ expand: verticalId });
+            if (savedId) setUrlParams({ vertical: savedId });
           }}
         />
       )}
 
       {config && (
         <Sheet open={configOpen} onOpenChange={setConfigOpen}>
-          <SheetContent side="right" className="w-full sm:max-w-3xl overflow-y-auto">
+          <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-3xl">
             <SheetHeader>
               <SheetTitle>Hierarchy configuration</SheetTitle>
             </SheetHeader>
