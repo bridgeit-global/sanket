@@ -1,3 +1,4 @@
+import { getPostBreadcrumbItems } from './geo-navigation';
 import type { CadreMemberCard, CadreMemberPostDetail } from './types';
 
 const TALUKA_LEVELS = new Set(['taluka', 'taluka_committee']);
@@ -23,13 +24,7 @@ export function getPostGeoChip(post: CadreMemberPostDetail): string | null {
 
 /** Uppercase-friendly breadcrumb segments, e.g. ["Constituency", "Ward 140", "Booth 12"]. */
 export function getPostBreadcrumb(post: CadreMemberPostDetail): string[] {
-  const segments: string[] = ['Constituency'];
-  if (post.talukaName && TALUKA_LEVELS.has(post.positionLevelKey)) {
-    segments.push(post.talukaName);
-  }
-  if (post.wardGeoName) segments.push(post.wardGeoName);
-  if (post.boothNo) segments.push(`Booth ${post.boothNo}`);
-  return segments;
+  return getPostBreadcrumbItems(post).map((item) => item.label);
 }
 
 /** Single-line geo context, e.g. "Ward 140 · Booth 12". */

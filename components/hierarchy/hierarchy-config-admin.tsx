@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/tooltip';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { toast } from '@/components/toast';
+import { VerticalDialog } from './vertical-dialog';
 import {
   CADRE_GEOGRAPHIC_UNIT_TYPE_LABELS,
   CADRE_GEOGRAPHIC_UNIT_TYPES,
@@ -44,7 +45,7 @@ import {
   type CadreGeographicUnitType,
 } from '@/lib/hierarchy/types';
 
-// Categories and verticals are managed directly from the map (vertical dialog).
+// Categories and verticals are managed in the Verticals tab (vertical dialog).
 type ConfigKind = 'position' | 'level' | 'geo';
 
 type EditState = {
@@ -68,6 +69,8 @@ interface HierarchyConfigAdminProps {
   config: CadreConfig;
   referenceCounts: CadreConfigReferenceCounts | null;
   onRefresh: () => void;
+  onMembersRefresh?: () => void;
+  onVerticalSaved?: (verticalId: string | null) => void;
 }
 
 const EMPTY_REFERENCE_COUNTS: CadreConfigReferenceCounts = {
@@ -188,12 +191,18 @@ export function HierarchyConfigAdmin({
   config,
   referenceCounts,
   onRefresh,
+  onMembersRefresh,
+  onVerticalSaved,
 }: HierarchyConfigAdminProps) {
   const counts = referenceCounts ?? EMPTY_REFERENCE_COUNTS;
   const [editState, setEditState] = useState<EditState | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [verticalDialogOpen, setVerticalDialogOpen] = useState(false);
+  const [editVertical, setEditVertical] = useState<
+    CadreConfig['verticals'][number] | null
+  >(null);
 
   const openCreate = (kind: ConfigKind) => {
     setEditState(defaultEditState(kind));
@@ -334,6 +343,7 @@ export function HierarchyConfigAdmin({
             <TabsTrigger value="positions">Positions</TabsTrigger>
             <TabsTrigger value="levels">Position Levels</TabsTrigger>
             <TabsTrigger value="geo">Geographic</TabsTrigger>
+            <TabsTrigger value="verticals">Verticals</TabsTrigger>
           </TabsList>
 
           <TabsContent value="positions" className="space-y-4">
@@ -441,6 +451,52 @@ export function HierarchyConfigAdmin({
                             setDeleteTarget({ kind: 'geo', id: g.id, name: g.name })
                           }
                         />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="verticals" className="space-y-4">
+            <Button
+              onClick={() => {
+                setEditVertical(null);
+                setVerticalDialogOpen(true);
+              }}
+            >
+              <Plus className="mr-1 size-4" /> New vertical
+            </Button>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Order</TableHead>
+                    <TableHead>Active</TableHead>
+                    <TableHead className="w-24">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {config.verticals.map((vertical) => (
+                    <TableRow key={vertical.id}>
+                      <TableCell>{vertical.name}</TableCell>
+                      <TableCell>{vertical.categoryName}</TableCell>
+                      <TableCell>{vertical.sortOrder}</TableCell>
+                      <TableCell>{vertical.isActive ? 'Yes' : 'No'}</TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setEditVertical(vertical);
+                            setVerticalDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="size-4" />
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -596,6 +652,19 @@ export function HierarchyConfigAdmin({
           cancelText="Cancel"
           variant="destructive"
           onConfirm={confirmDelete}
+        />
+
+        <VerticalDialog
+          open={verticalDialogOpen}
+          onOpenChange={setVerticalDialogOpen}
+          config={config}
+          referenceCounts={referenceCounts}
+          vertical={editVertical}
+          onSaved={(savedId) => {
+            onRefresh();
+            onMembersRefresh?.();
+            onVerticalSaved?.(savedId);
+          }}
         />
       </div>
     </TooltipProvider>

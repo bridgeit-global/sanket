@@ -7,6 +7,7 @@ export const HIERARCHY_URL_PARAMS = {
   position: 'position',
   ward: 'ward',
   booth: 'boothNo',
+  member: 'member',
   page: 'page',
 } as const;
 
@@ -107,6 +108,7 @@ export type MemberFilterState = {
   positionId?: string;
   wardGeoId?: string;
   boothNo?: string;
+  memberId?: string;
 };
 
 export function filterMembers(
@@ -118,8 +120,10 @@ export function filterMembers(
   const positionId = filters.positionId?.trim() ?? '';
   const wardGeoId = filters.wardGeoId?.trim() ?? '';
   const boothNo = filters.boothNo?.trim() ?? '';
+  const memberId = filters.memberId?.trim() ?? '';
 
   return members.filter((member) => {
+    if (memberId && member.id !== memberId) return false;
     if (search && !memberMatchesSearch(member, search)) return false;
     if (verticalId && !memberHasVertical(member, verticalId)) return false;
     if (positionId && !memberMatchesPosition(member, positionId)) return false;

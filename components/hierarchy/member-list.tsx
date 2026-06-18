@@ -2,8 +2,8 @@
 
 import { MemberCard } from './member-card';
 import { TablePagination } from '@/components/table-pagination';
-import { cn } from '@/lib/utils';
 import { MEMBER_PAGE_SIZE_OPTIONS } from '@/lib/hierarchy/member-list';
+import type { GeoBreadcrumbTarget } from '@/lib/hierarchy/geo-navigation';
 import type { CadreMemberCard } from '@/lib/hierarchy/types';
 
 export interface MemberListPaginationProps {
@@ -17,17 +17,19 @@ export interface MemberListPaginationProps {
 
 interface MemberListProps {
   members: CadreMemberCard[];
+  allMembers: CadreMemberCard[];
   canEdit?: boolean;
-  onSelect?: (member: CadreMemberCard) => void;
   onEdit?: (member: CadreMemberCard) => void;
+  onNavigateToGeo?: (target: GeoBreadcrumbTarget) => void;
   pagination: MemberListPaginationProps;
 }
 
 export function MemberList({
   members,
+  allMembers,
   canEdit,
-  onSelect,
   onEdit,
+  onNavigateToGeo,
   pagination,
 }: MemberListProps) {
   if (pagination.totalItems === 0) {
@@ -44,19 +46,15 @@ export function MemberList({
   }
 
   return (
-    <div
-      className={cn(
-        'flex flex-col gap-3',
-        canEdit && 'pb-4 pr-16',
-      )}
-    >
+    <div className="flex flex-col gap-3">
       {members.map((member) => (
         <MemberCard
           key={member.id}
           member={member}
+          members={allMembers}
           canEdit={canEdit}
-          onSelect={onSelect}
           onEdit={onEdit}
+          onNavigateToGeo={onNavigateToGeo}
         />
       ))}
       <TablePagination

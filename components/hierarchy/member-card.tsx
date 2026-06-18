@@ -9,9 +9,13 @@ import { MemberAvatar } from './member-avatar';
 import {
   getMemberDisplayName,
   getMemberPhone,
-  getPostBreadcrumb,
   getPostGeoChip,
 } from '@/lib/hierarchy/geo-attribution';
+import {
+  findSeniorMemberForGeo,
+  getPostBreadcrumbItems,
+  type GeoBreadcrumbTarget,
+} from '@/lib/hierarchy/geo-navigation';
 import {
   getAltPosts,
   getPostTitle,
@@ -22,48 +26,62 @@ import type { CadreMemberCard } from '@/lib/hierarchy/types';
 
 interface MemberCardProps {
   member: CadreMemberCard;
+  members: CadreMemberCard[];
   canEdit?: boolean;
-  onSelect?: (member: CadreMemberCard) => void;
   onEdit?: (member: CadreMemberCard) => void;
+  onNavigateToGeo?: (target: GeoBreadcrumbTarget) => void;
 }
 
 export const MemberCard = memo(function MemberCard({
   member,
+  members,
   canEdit,
-  onSelect,
   onEdit,
+  onNavigateToGeo,
 }: MemberCardProps) {
   const name = getMemberDisplayName(member);
   const phone = getMemberPhone(member);
   const primary = getPrimaryPost(member);
   const altPosts = getAltPosts(member);
   const geoChip = primary ? getPostGeoChip(primary) : null;
-  const breadcrumb = primary ? getPostBreadcrumb(primary) : [];
+  const breadcrumbItems = primary ? getPostBreadcrumbItems(primary) : [];
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={() => onSelect?.(member)}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          onSelect?.(member);
-        }
-      }}
-      className="relative rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      id={`member-card-${member.id}`}
+      className="relative rounded-xl border border-border bg-card p-4 shadow-sm"
     >
-      {breadcrumb.length > 1 && (
+      {breadcrumbItems.length > 1 && (
         <div className="mb-2 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          {breadcrumb.map((segment, i) => (
-            <span
-              key={breadcrumb.slice(0, i + 1).join(' / ')}
-              className="flex items-center gap-1"
-            >
-              {i > 0 && <ChevronRight className="size-3 opacity-60" />}
-              <span className="truncate">{segment}</span>
-            </span>
-          ))}
+          {breadcrumbItems.map((item, i) => {
+            const targetMember = onNavigateToGeo
+              ? findSeniorMemberForGeo(members, item.target)
+              : null;
+            const isClickable = Boolean(targetMember && targetMember.id !== member.id);
+
+            return (
+              <span
+                key={breadcrumbItems.slice(0, i + 1).map((b) => b.label).join(' / ')}
+                className="flex items-center gap-1"
+              >
+                {i > 0 && <ChevronRight className="size-3 opacity-60" />}
+                {isClickable && targetMember ? (
+                  <button
+                    type="button"
+                    className="truncate text-left hover:text-foreground hover:underline"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onNavigateToGeo?.(item.target);
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ) : (
+                  <span className="truncate">{item.label}</span>
+                )}
+              </span>
+            );
+          })}
         </div>
       )}
 
