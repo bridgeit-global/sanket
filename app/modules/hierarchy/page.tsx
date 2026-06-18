@@ -20,7 +20,7 @@ export default async function HierarchyPage() {
   const isAdmin = await isUserAdmin(session.user.id);
 
   return (
-    <div className="mx-auto w-full max-w-[1600px] p-4 sm:py-6">
+    <div className="mx-auto h-full w-full max-w-[1600px] p-4 sm:py-6">
       <Suspense fallback={<p className="text-muted-foreground py-12 text-center">Loading...</p>}>
         <HierarchyModule canEdit={hasAccess} isAdmin={isAdmin} />
       </Suspense>

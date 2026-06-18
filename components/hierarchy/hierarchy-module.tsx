@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronRight, Plus, Search, Settings, SlidersHorizontal, X } from 'lucide-react';
 import { ModulePageHeader } from '@/components/module-page-header';
@@ -32,9 +32,12 @@ import type {
   CadreMemberCard,
 } from '@/lib/hierarchy/types';
 import {
+  DEFAULT_MEMBER_PAGE_SIZE,
   HIERARCHY_URL_PARAMS,
   extractWardNumber,
   filterMembers,
+  paginateMembers,
+  parseMemberPageParam,
   sortMembers,
 } from '@/lib/hierarchy/member-list';
 import {
@@ -48,6 +51,8 @@ import {
 } from '@/lib/hierarchy/select-utils';
 
 const DEFAULT_CONSTITUENCY_ID = '172';
+
+const FILTER_URL_KEYS = ['search', 'vertical', 'position', 'ward', 'booth'] as const;
 
 interface HierarchyModuleProps {
   canEdit: boolean;
@@ -75,11 +80,15 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   >(null);
   const [configOpen, setConfigOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [pageSize, setPageSize] = useState(DEFAULT_MEMBER_PAGE_SIZE);
+  const listScrollRef = useRef<HTMLDivElement>(null);
 
   const searchQuery = searchParams.get(HIERARCHY_URL_PARAMS.search) ?? '';
   const verticalId = searchParams.get(HIERARCHY_URL_PARAMS.vertical) ?? '';
+  const positionId = searchParams.get(HIERARCHY_URL_PARAMS.position) ?? '';
   const wardGeoId = searchParams.get(HIERARCHY_URL_PARAMS.ward) ?? '';
   const boothNo = searchParams.get(HIERARCHY_URL_PARAMS.booth) ?? '';
+  const pageFromUrl = parseMemberPageParam(searchParams.get(HIERARCHY_URL_PARAMS.page));
 
   useEffect(() => {
     setSearchDraft(searchQuery);
@@ -89,24 +98,33 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     (updates: {
       search?: string;
       vertical?: string;
+      position?: string;
       ward?: string;
       booth?: string;
+      page?: number;
     }) => {
+      const hasFilterUpdate = FILTER_URL_KEYS.some((key) => key in updates);
       const next = {
         search: updates.search ?? searchQuery,
         vertical: updates.vertical ?? verticalId,
+        position: updates.position ?? positionId,
         ward: updates.ward ?? wardGeoId,
         booth: updates.booth ?? boothNo,
       };
+      const nextPage = hasFilterUpdate
+        ? 1
+        : (updates.page ?? pageFromUrl);
       const params = new URLSearchParams();
       if (next.search.trim()) params.set(HIERARCHY_URL_PARAMS.search, next.search.trim());
       if (next.vertical.trim()) params.set(HIERARCHY_URL_PARAMS.vertical, next.vertical.trim());
+      if (next.position.trim()) params.set(HIERARCHY_URL_PARAMS.position, next.position.trim());
       if (next.ward.trim()) params.set(HIERARCHY_URL_PARAMS.ward, next.ward.trim());
       if (next.booth.trim()) params.set(HIERARCHY_URL_PARAMS.booth, next.booth.trim());
+      if (nextPage > 1) params.set(HIERARCHY_URL_PARAMS.page, String(nextPage));
       const qs = params.toString();
       router.replace(qs ? `?${qs}` : '?', { scroll: false });
     },
-    [router, searchQuery, verticalId, wardGeoId, boothNo],
+    [router, searchQuery, verticalId, positionId, wardGeoId, boothNo, pageFromUrl],
   );
 
   const loadConfig = useCallback(async () => {
@@ -176,6 +194,14 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     [config?.verticals],
   );
 
+  const activePositions = useMemo(
+    () =>
+      (config?.positions ?? [])
+        .filter((p) => p.isActive)
+        .sort((a, b) => a.sortOrder - b.sortOrder),
+    [config?.positions],
+  );
+
   const wardOptions = useMemo(
     () =>
       (config?.geoUnits ?? [])
@@ -210,11 +236,40 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         filterMembers(members, {
           search: searchQuery,
           verticalId,
+          positionId,
           wardGeoId,
           boothNo,
         }),
       ),
-    [members, searchQuery, verticalId, wardGeoId, boothNo],
+    [members, searchQuery, verticalId, positionId, wardGeoId, boothNo],
+  );
+
+  const memberPagination = useMemo(
+    () => paginateMembers(visibleMembers, pageFromUrl, pageSize),
+    [visibleMembers, pageFromUrl, pageSize],
+  );
+
+  useEffect(() => {
+    if (pageFromUrl !== memberPagination.currentPage) {
+      setUrlParams({ page: memberPagination.currentPage });
+    }
+  }, [pageFromUrl, memberPagination.currentPage, setUrlParams]);
+
+  const handleMemberPageChange = useCallback(
+    (page: number) => {
+      setUrlParams({ page });
+      listScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    [setUrlParams],
+  );
+
+  const handleMemberPageSizeChange = useCallback(
+    (size: number) => {
+      setPageSize(size);
+      setUrlParams({ page: 1 });
+      listScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+    },
+    [setUrlParams],
   );
 
   const breadcrumb = useMemo(() => {
@@ -227,17 +282,23 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       segments.push(wardSummary);
     }
     if (boothNo) segments.push(`Booth ${boothNo}`);
+    if (positionId) {
+      segments.push(
+        activePositions.find((p) => p.id === positionId)?.name ?? 'Position',
+      );
+    }
     segments.push('Organization Tree');
     return segments;
-  }, [wardGeoId, wardOptions, wardSummary, boothNo]);
+  }, [wardGeoId, wardOptions, wardSummary, boothNo, positionId, activePositions]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (verticalId) count += 1;
+    if (positionId) count += 1;
     if (wardGeoId) count += 1;
     if (boothNo) count += 1;
     return count;
-  }, [verticalId, wardGeoId, boothNo]);
+  }, [verticalId, positionId, wardGeoId, boothNo]);
 
   const commitSearch = () => setUrlParams({ search: searchDraft });
 
@@ -307,10 +368,10 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       }
     >
       <SelectTrigger className="h-9 w-auto gap-1 rounded-full">
-        <SelectValue placeholder={wardSummary} />
+        <SelectValue placeholder="All wards" />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={SELECT_NONE_VALUE}>{wardSummary}</SelectItem>
+        <SelectItem value={SELECT_NONE_VALUE}>All wards</SelectItem>
         {wardOptions.map((w) => (
           <SelectItem key={w.id} value={w.id}>
             {w.name}
@@ -320,8 +381,27 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     </Select>
   );
 
+  const positionSelect = (
+    <Select
+      value={toOptionalSelectValue(positionId)}
+      onValueChange={(v) => setUrlParams({ position: fromOptionalSelectValue(v) })}
+    >
+      <SelectTrigger className="h-9 w-auto gap-1 rounded-full">
+        <SelectValue placeholder="All positions" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={SELECT_NONE_VALUE}>All positions</SelectItem>
+        {activePositions.map((p) => (
+          <SelectItem key={p.id} value={p.id}>
+            {p.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
   return (
-    <div className="relative flex h-[calc(100dvh-5.5rem)] max-md:h-[calc(100dvh-9rem)] min-h-[400px] flex-col gap-3">
+    <div className="relative flex h-full max-md:h-[calc(100dvh-9rem)] min-h-[400px] flex-col gap-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <ModulePageHeader title="MLA Hierarchy" />
         {isAdmin && (
@@ -403,7 +483,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         })}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
+      <div ref={listScrollRef} className="min-h-0 flex-1 overflow-y-auto">
         {loading ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-muted/20">
             <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -426,10 +506,18 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
           </div>
         ) : (
           <MemberList
-            members={visibleMembers}
+            members={memberPagination.items}
             canEdit={canEdit}
             onSelect={handleSelect}
             onEdit={canEdit ? handleEdit : undefined}
+            pagination={{
+              currentPage: memberPagination.currentPage,
+              totalPages: memberPagination.totalPages,
+              pageSize,
+              totalItems: memberPagination.totalItems,
+              onPageChange: handleMemberPageChange,
+              onPageSizeChange: handleMemberPageSizeChange,
+            }}
           />
         )}
       </div>
@@ -463,6 +551,10 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               {verticalSelect}
             </div>
             <div>
+              <Label className="text-xs text-muted-foreground">Position</Label>
+              {positionSelect}
+            </div>
+            <div>
               <Label className="text-xs text-muted-foreground">Ward</Label>
               {wardSelect}
             </div>
@@ -492,7 +584,9 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
                 variant="ghost"
                 size="sm"
                 className="gap-1.5"
-                onClick={() => setUrlParams({ vertical: '', ward: '', booth: '' })}
+                onClick={() =>
+                  setUrlParams({ vertical: '', position: '', ward: '', booth: '' })
+                }
               >
                 <X className="size-4" /> Clear filters
               </Button>

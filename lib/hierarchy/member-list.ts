@@ -4,9 +4,41 @@ import type { CadreMemberCard, CadreMemberPostDetail } from './types';
 export const HIERARCHY_URL_PARAMS = {
   search: 'search',
   vertical: 'vertical',
+  position: 'position',
   ward: 'ward',
   booth: 'boothNo',
+  page: 'page',
 } as const;
+
+export const DEFAULT_MEMBER_PAGE_SIZE = 30;
+export const MEMBER_PAGE_SIZE_OPTIONS = [20, 30, 50] as const;
+
+export function parseMemberPageParam(value: string | null): number {
+  const parsed = Number.parseInt(value ?? '1', 10);
+  return Number.isFinite(parsed) && parsed >= 1 ? parsed : 1;
+}
+
+export function paginateMembers<T>(
+  items: T[],
+  page: number,
+  pageSize: number,
+): {
+  items: T[];
+  totalPages: number;
+  currentPage: number;
+  totalItems: number;
+} {
+  const totalItems = items.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * pageSize;
+  return {
+    items: items.slice(start, start + pageSize),
+    totalPages,
+    currentPage,
+    totalItems,
+  };
+}
 
 /** Headline post shown big on the card (primary flag, then sort order, then level). */
 export function getPrimaryPost(
@@ -65,9 +97,14 @@ function memberMatchesBooth(member: CadreMemberCard, boothNo: string): boolean {
   return member.posts.some((p) => p.boothNo === boothNo);
 }
 
+function memberMatchesPosition(member: CadreMemberCard, positionId: string): boolean {
+  return member.posts.some((p) => p.positionId === positionId);
+}
+
 export type MemberFilterState = {
   search?: string;
   verticalId?: string;
+  positionId?: string;
   wardGeoId?: string;
   boothNo?: string;
 };
@@ -78,12 +115,14 @@ export function filterMembers(
 ): CadreMemberCard[] {
   const search = filters.search?.trim() ?? '';
   const verticalId = filters.verticalId?.trim() ?? '';
+  const positionId = filters.positionId?.trim() ?? '';
   const wardGeoId = filters.wardGeoId?.trim() ?? '';
   const boothNo = filters.boothNo?.trim() ?? '';
 
   return members.filter((member) => {
     if (search && !memberMatchesSearch(member, search)) return false;
     if (verticalId && !memberHasVertical(member, verticalId)) return false;
+    if (positionId && !memberMatchesPosition(member, positionId)) return false;
     if (wardGeoId && !memberMatchesWard(member, wardGeoId)) return false;
     if (boothNo && !memberMatchesBooth(member, boothNo)) return false;
     return true;
