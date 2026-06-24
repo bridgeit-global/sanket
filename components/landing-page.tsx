@@ -571,6 +571,14 @@ export function LandingPage() {
             <Button
               variant="ghost"
               size="sm"
+              className="shrink-0 rounded-full border border-transparent px-3 text-xs font-semibold text-muted-foreground hover:border-primary/20 hover:bg-primary/5"
+              asChild
+            >
+              <Link href="/login">{locale === 'en' ? 'Login' : 'लॉगिन'}</Link>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
               className="gap-1.5 rounded-full border border-transparent text-muted-foreground hover:border-primary/20 hover:bg-primary/5"
               onClick={() => setLocale(locale === 'en' ? 'mr' : 'en')}
               aria-label={t('userNav.language')}

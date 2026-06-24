@@ -428,7 +428,7 @@ function SortableProgrammeRow({
       </TableCell>
       <TableCell className="w-[300px]" data-label={t('dailyProgramme.reference')}>
         {item.remarks ? (
-          <div className="text-sm">
+          <div className="text-sm whitespace-pre-line">
             {item.remarks}
           </div>
         ) : (
@@ -1635,7 +1635,7 @@ export function DailyProgramme({
                             </td>
                             <td className="pdf-col-ref">
                               {it.remarks ? (
-                                <div>{it.remarks}</div>
+                                <div className="whitespace-pre-line">{it.remarks}</div>
                               ) : (
                                 <div className="pdf-muted">—</div>
                               )}

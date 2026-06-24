@@ -231,6 +231,10 @@ html.pdf-export .pdf-daily-programme .pdf-col-ref {
     width: 31%;
 }
 
+html.pdf-export .pdf-daily-programme .pdf-col-ref > div {
+    white-space: pre-line;
+}
+
 html.pdf-export .pdf-daily-programme .pdf-time-main {
     font-weight: 700;
     font-size: 18px;
@@ -1193,6 +1197,7 @@ html.pdf-export .print-schedule thead {
     /* Reference column text */
     .print-schedule td:nth-child(4) .text-sm {
         font-size: 11pt !important;
+        white-space: pre-line;
     }
 
     /* Serial number column */
