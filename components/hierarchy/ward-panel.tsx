@@ -59,8 +59,8 @@ function verticalHeadLabel(verticalName: string): string {
 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-t-xl border border-b-0 border-violet-200 bg-violet-50 px-4 py-2.5 dark:border-violet-800/50 dark:bg-violet-950/25">
-      <p className="text-[11px] font-semibold tracking-[0.14em] text-violet-800 uppercase dark:text-violet-200">
+    <div className="rounded-t-xl border border-b-0 border-primary/20 bg-primary/5 px-4 py-2.5 dark:border-primary/50 dark:bg-primary/10">
+      <p className="text-[11px] font-semibold tracking-[0.14em] text-primary uppercase">
         {children}
       </p>
     </div>
@@ -77,7 +77,7 @@ function PanelActionLink({
   return (
     <button
       type="button"
-      className="shrink-0 text-[11px] font-semibold tracking-[0.08em] text-violet-700 uppercase hover:underline dark:text-violet-300"
+      className="shrink-0 text-[11px] font-semibold tracking-[0.08em] text-primary uppercase hover:underline"
       onClick={onClick}
     >
       {children}
@@ -147,9 +147,9 @@ export function WardPanel({
         </h2>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-violet-200 dark:border-violet-800/50">
+      <div className="overflow-hidden rounded-xl border border-primary/20 dark:border-primary/50">
         <SectionHeader>Ward Leadership</SectionHeader>
-        <div className="divide-y border border-t-0 border-violet-200 bg-card dark:border-violet-800/50">
+        <div className="divide-y border border-t-0 border-primary/20 bg-card dark:border-primary/50">
           {leadershipEntries.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-muted-foreground">
               No ward leadership assigned for this ward yet.
@@ -178,9 +178,9 @@ export function WardPanel({
         </div>
       </div>
 
-      <div className="overflow-hidden rounded-xl border border-violet-200 dark:border-violet-800/50">
+      <div className="overflow-hidden rounded-xl border border-primary/20 dark:border-primary/50">
         <SectionHeader>Mobile Booth Management</SectionHeader>
-        <div className="border border-t-0 border-violet-200 bg-card dark:border-violet-800/50">
+        <div className="border border-t-0 border-primary/20 bg-card dark:border-primary/50">
           {boothNumbers.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-muted-foreground">
               No booths configured for this ward.
@@ -229,8 +229,10 @@ export function WardPanel({
                           <Label className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
                             BLA Contact Number
                           </Label>
-                          <span>{boothHeadPhone ?? '—'}</span>
-                          {boothHeadPhone && <PhoneCallButton phone={boothHeadPhone} />}
+                          <div className="flex items-center gap-2 py-1.5 text-sm">
+                            <span>{boothHeadPhone ?? '—'}</span>
+                            {boothHeadPhone && <PhoneCallButton phone={boothHeadPhone} />}
+                          </div>
                         </div>
                       </div>
 

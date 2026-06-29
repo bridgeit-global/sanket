@@ -105,14 +105,14 @@ function draftFromTarget(target: MemberEditorTarget): Draft {
       posts:
         m.posts.length > 0
           ? m.posts.map((p) => ({
-              key: newPostKey(),
-              positionId: p.positionId,
-              talukaId: p.talukaId ?? '',
-              wardGeoId: p.wardGeoId ?? '',
-              boothNo: p.boothNo ?? '',
-              label: p.label ?? '',
-              isPrimary: p.isPrimary,
-            }))
+            key: newPostKey(),
+            positionId: p.positionId,
+            talukaId: p.talukaId ?? '',
+            wardGeoId: p.wardGeoId ?? '',
+            boothNo: p.boothNo ?? '',
+            label: p.label ?? '',
+            isPrimary: p.isPrimary,
+          }))
           : [emptyPost()],
     };
   }
@@ -339,281 +339,280 @@ export function MemberEditor({
             </DialogTitle>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-6 text-sm">
-        <Tabs defaultValue="manual">
-          <TabsList className="grid h-8 w-full grid-cols-3">
-            <TabsTrigger value="manual" className="text-xs">
-              Manual
-            </TabsTrigger>
-            <TabsTrigger value="user" className="text-xs">
-              Link user
-            </TabsTrigger>
-            <TabsTrigger value="voter" className="text-xs">
-              Link voter
-            </TabsTrigger>
-          </TabsList>
-          <TabsContent value="manual" className="space-y-2 pt-2">
-            <Input
-              placeholder="Name"
-              className="h-9"
-              value={draft.personName}
-              onChange={(e) => setDraft({ ...draft, personName: e.target.value })}
-            />
-            <Input
-              placeholder="Phone"
-              className="h-9"
-              value={draft.personPhone}
-              onChange={(e) => setDraft({ ...draft, personPhone: e.target.value })}
-            />
-            <Input
-              placeholder="Email"
-              className="h-9"
-              value={draft.personEmail}
-              onChange={(e) => setDraft({ ...draft, personEmail: e.target.value })}
-            />
-            <Input
-              placeholder="Voter ID / EPIC"
-              className="h-9"
-              value={draft.epicNumber ?? ''}
-              onChange={(e) =>
-                setDraft({ ...draft, epicNumber: e.target.value.trim() || null })
-              }
-            />
-            <Input
-              placeholder="Photo URL"
-              className="h-9"
-              value={draft.photoUrl}
-              onChange={(e) => setDraft({ ...draft, photoUrl: e.target.value })}
-            />
-          </TabsContent>
-          <TabsContent value="user" className="pt-2">
-            <UserPickerCombobox
-              value={draft.userId}
-              onSelect={(u) =>
-                setDraft({
-                  ...draft,
-                  userId: u?.id ?? null,
-                  personName: u ? u.userId : draft.personName,
-                })
-              }
-            />
-          </TabsContent>
-          <TabsContent value="voter" className="pt-2">
-            <VoterPickerCombobox
-              value={draft.epicNumber}
-              onSelect={(v) =>
-                setDraft({
-                  ...draft,
-                  epicNumber: v?.epicNumber ?? null,
-                  personName: v ? v.fullName : draft.personName,
-                })
-              }
-            />
-          </TabsContent>
-        </Tabs>
+            <Tabs defaultValue="manual">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="manual" className="text-xs">
+                  Manual
+                </TabsTrigger>
+                <TabsTrigger value="user" className="text-xs">
+                  Link user
+                </TabsTrigger>
+                <TabsTrigger value="voter" className="text-xs">
+                  Link voter
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="manual" className="space-y-2 pt-2">
+                <Input
+                  placeholder="Name"
+                  className="h-9"
+                  value={draft.personName}
+                  onChange={(e) => setDraft({ ...draft, personName: e.target.value })}
+                />
+                <Input
+                  placeholder="Phone"
+                  className="h-9"
+                  value={draft.personPhone}
+                  onChange={(e) => setDraft({ ...draft, personPhone: e.target.value })}
+                />
+                <Input
+                  placeholder="Email"
+                  className="h-9"
+                  value={draft.personEmail}
+                  onChange={(e) => setDraft({ ...draft, personEmail: e.target.value })}
+                />
+                <Input
+                  placeholder="Voter ID / EPIC"
+                  className="h-9"
+                  value={draft.epicNumber ?? ''}
+                  onChange={(e) =>
+                    setDraft({ ...draft, epicNumber: e.target.value.trim() || null })
+                  }
+                />
+                <Input
+                  placeholder="Photo URL"
+                  className="h-9"
+                  value={draft.photoUrl}
+                  onChange={(e) => setDraft({ ...draft, photoUrl: e.target.value })}
+                />
+              </TabsContent>
+              <TabsContent value="user" className="pt-2">
+                <UserPickerCombobox
+                  value={draft.userId}
+                  onSelect={(u) =>
+                    setDraft({
+                      ...draft,
+                      userId: u?.id ?? null,
+                      personName: u ? u.userId : draft.personName,
+                    })
+                  }
+                />
+              </TabsContent>
+              <TabsContent value="voter" className="pt-2">
+                <VoterPickerCombobox
+                  value={draft.epicNumber}
+                  onSelect={(v) =>
+                    setDraft({
+                      ...draft,
+                      epicNumber: v?.epicNumber ?? null,
+                      personName: v ? v.fullName : draft.personName,
+                    })
+                  }
+                />
+              </TabsContent>
+            </Tabs>
 
-        <div>
-          <Label className="text-xs">Verticals</Label>
-          <div className="mt-1 max-h-32 space-y-1 overflow-y-auto rounded-md border p-2">
-            {config.verticals
-              .filter((v) => v.isActive)
-              .map((v) => {
-                const checked = draft.verticalIds.includes(v.id);
+            <div>
+              <Label className="text-xs">Verticals</Label>
+              <div className="mt-1 max-h-32 space-y-1 overflow-y-auto rounded-md border p-2">
+                {config.verticals
+                  .filter((v) => v.isActive)
+                  .map((v) => {
+                    const checked = draft.verticalIds.includes(v.id);
+                    return (
+                      <div key={v.id} className="flex items-center justify-between gap-2">
+                        <span className="flex items-center gap-2 text-xs">
+                          <Checkbox
+                            checked={checked}
+                            onChange={(e) => toggleVertical(v.id, e.target.checked)}
+                          />
+                          {v.name}
+                        </span>
+                        {checked && (
+                          <button
+                            type="button"
+                            className={`text-[10px] uppercase tracking-wide ${draft.primaryVerticalId === v.id
+                                ? 'font-semibold text-primary'
+                                : 'text-muted-foreground hover:text-foreground'
+                              }`}
+                            onClick={() =>
+                              setDraft({ ...draft, primaryVerticalId: v.id })
+                            }
+                          >
+                            {draft.primaryVerticalId === v.id ? 'Primary' : 'Set primary'}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs">Posts</Label>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2 text-xs"
+                  onClick={addPost}
+                >
+                  <Plus className="mr-1 size-3.5" /> Add post
+                </Button>
+              </div>
+              {draft.posts.map((post) => {
+                const levelKey = levelKeyFor(post.positionId);
+                const needsWard = positionNeedsWard(levelKey);
+                const needsBooth = positionNeedsBooth(levelKey);
+                const needsTaluka = positionNeedsTaluka(levelKey);
                 return (
-                  <div key={v.id} className="flex items-center justify-between gap-2">
-                    <span className="flex items-center gap-2 text-xs">
-                      <Checkbox
-                        checked={checked}
-                        onChange={(e) => toggleVertical(v.id, e.target.checked)}
-                      />
-                      {v.name}
-                    </span>
-                    {checked && (
-                      <button
-                        type="button"
-                        className={`text-[10px] uppercase tracking-wide ${
-                          draft.primaryVerticalId === v.id
-                            ? 'font-semibold text-primary'
-                            : 'text-muted-foreground hover:text-foreground'
-                        }`}
-                        onClick={() =>
-                          setDraft({ ...draft, primaryVerticalId: v.id })
+                  <div key={post.key} className="space-y-2 rounded-md border p-2">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <Checkbox
+                          checked={post.isPrimary}
+                          onChange={() => setPrimaryPost(post.key)}
+                        />
+                        Primary post
+                      </span>
+                      {draft.posts.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="size-6"
+                          aria-label="Remove post"
+                          onClick={() => removePost(post.key)}
+                        >
+                          <Trash2 className="size-3.5 text-destructive" />
+                        </Button>
+                      )}
+                    </div>
+                    <Select
+                      value={toControlledSelectValue(post.positionId)}
+                      onValueChange={(v) => updatePost(post.key, { positionId: v })}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Select position" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {positions.map((p) => (
+                          <SelectItem key={p.id} value={p.id}>
+                            {p.name} ({p.levelName})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {needsTaluka && (
+                      <Select
+                        value={toOptionalSelectValue(post.talukaId)}
+                        onValueChange={(v) =>
+                          updatePost(post.key, { talukaId: fromOptionalSelectValue(v) })
                         }
                       >
-                        {draft.primaryVerticalId === v.id ? 'Primary' : 'Set primary'}
-                      </button>
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select taluka" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={SELECT_NONE_VALUE}>None</SelectItem>
+                          {talukaUnits.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     )}
+                    {needsWard && (
+                      <Select
+                        value={toOptionalSelectValue(post.wardGeoId)}
+                        onValueChange={(v) =>
+                          updatePost(post.key, {
+                            wardGeoId: fromOptionalSelectValue(v),
+                            boothNo: '',
+                          })
+                        }
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Select ward" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={SELECT_NONE_VALUE}>None</SelectItem>
+                          {wardUnits.map((w) => (
+                            <SelectItem key={w.id} value={w.id}>
+                              {w.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {needsBooth && (
+                      <Select
+                        value={toOptionalSelectValue(post.boothNo)}
+                        onValueChange={(v) =>
+                          updatePost(post.key, { boothNo: fromOptionalSelectValue(v) })
+                        }
+                        disabled={!post.wardGeoId}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue
+                            placeholder={
+                              post.wardGeoId ? 'Select booth' : 'Select ward first'
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={SELECT_NONE_VALUE}>None</SelectItem>
+                          {boothOptionsForPost(post).map((b) => (
+                            <SelectItem key={b.boothNo} value={b.boothNo}>
+                              {b.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                    <Input
+                      placeholder="Custom label (optional, e.g. Mandal Head)"
+                      className="h-9"
+                      value={post.label}
+                      onChange={(e) => updatePost(post.key, { label: e.target.value })}
+                    />
                   </div>
                 );
               })}
-          </div>
-        </div>
+            </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <Label className="text-xs">Posts</Label>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-7 px-2 text-xs"
-              onClick={addPost}
-            >
-              <Plus className="mr-1 size-3.5" /> Add post
-            </Button>
-          </div>
-          {draft.posts.map((post) => {
-            const levelKey = levelKeyFor(post.positionId);
-            const needsWard = positionNeedsWard(levelKey);
-            const needsBooth = positionNeedsBooth(levelKey);
-            const needsTaluka = positionNeedsTaluka(levelKey);
-            return (
-              <div key={post.key} className="space-y-2 rounded-md border p-2">
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <Checkbox
-                      checked={post.isPrimary}
-                      onChange={() => setPrimaryPost(post.key)}
-                    />
-                    Primary post
-                  </span>
-                  {draft.posts.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-6"
-                      aria-label="Remove post"
-                      onClick={() => removePost(post.key)}
-                    >
-                      <Trash2 className="size-3.5 text-destructive" />
-                    </Button>
-                  )}
-                </div>
-                <Select
-                  value={toControlledSelectValue(post.positionId)}
-                  onValueChange={(v) => updatePost(post.key, { positionId: v })}
+            <div>
+              <Label className="text-xs">Notes</Label>
+              <Input
+                className="h-9"
+                placeholder="Optional"
+                value={draft.notes}
+                onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+              />
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                size="sm"
+                className="flex-1"
+                disabled={saving || !canSave}
+                onClick={save}
+              >
+                {saving ? 'Saving...' : 'Save'}
+              </Button>
+              {isEdit && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={saving}
+                  onClick={() => setConfirmDelete(true)}
+                  aria-label="Delete member"
                 >
-                  <SelectTrigger className="h-9">
-                    <SelectValue placeholder="Select position" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {positions.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        {p.name} ({p.levelName})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {needsTaluka && (
-                  <Select
-                    value={toOptionalSelectValue(post.talukaId)}
-                    onValueChange={(v) =>
-                      updatePost(post.key, { talukaId: fromOptionalSelectValue(v) })
-                    }
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Select taluka" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SELECT_NONE_VALUE}>None</SelectItem>
-                      {talukaUnits.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                {needsWard && (
-                  <Select
-                    value={toOptionalSelectValue(post.wardGeoId)}
-                    onValueChange={(v) =>
-                      updatePost(post.key, {
-                        wardGeoId: fromOptionalSelectValue(v),
-                        boothNo: '',
-                      })
-                    }
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue placeholder="Select ward" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SELECT_NONE_VALUE}>None</SelectItem>
-                      {wardUnits.map((w) => (
-                        <SelectItem key={w.id} value={w.id}>
-                          {w.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                {needsBooth && (
-                  <Select
-                    value={toOptionalSelectValue(post.boothNo)}
-                    onValueChange={(v) =>
-                      updatePost(post.key, { boothNo: fromOptionalSelectValue(v) })
-                    }
-                    disabled={!post.wardGeoId}
-                  >
-                    <SelectTrigger className="h-9">
-                      <SelectValue
-                        placeholder={
-                          post.wardGeoId ? 'Select booth' : 'Select ward first'
-                        }
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={SELECT_NONE_VALUE}>None</SelectItem>
-                      {boothOptionsForPost(post).map((b) => (
-                        <SelectItem key={b.boothNo} value={b.boothNo}>
-                          {b.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                <Input
-                  placeholder="Custom label (optional, e.g. Mandal Head)"
-                  className="h-9"
-                  value={post.label}
-                  onChange={(e) => updatePost(post.key, { label: e.target.value })}
-                />
-              </div>
-            );
-          })}
-        </div>
-
-        <div>
-          <Label className="text-xs">Notes</Label>
-          <Input
-            className="h-9"
-            placeholder="Optional"
-            value={draft.notes}
-            onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
-          />
-        </div>
-
-        <div className="flex gap-2 pt-1">
-          <Button
-            size="sm"
-            className="flex-1"
-            disabled={saving || !canSave}
-            onClick={save}
-          >
-            {saving ? 'Saving...' : 'Save'}
-          </Button>
-          {isEdit && (
-            <Button
-              size="sm"
-              variant="ghost"
-              disabled={saving}
-              onClick={() => setConfirmDelete(true)}
-              aria-label="Delete member"
-            >
-              <Trash2 className="size-4 text-destructive" />
-            </Button>
-          )}
-        </div>
+                  <Trash2 className="size-4 text-destructive" />
+                </Button>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

@@ -823,7 +823,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
           </div>
         ) : showOverview ? (
           <div className="flex flex-col gap-3">
-            <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 dark:border-violet-800/50 dark:bg-violet-950/25">
+            <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 dark:border-primary/50 dark:bg-primary/10">
               <p className="text-sm">
                 Taluka Adhyaksh ({selectedVerticalName}): {talukaAdhyakshName}
               </p>
@@ -832,7 +832,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               </div>
               <button
                 type="button"
-                className="mt-2 text-xs font-semibold tracking-[0.08em] text-violet-700 uppercase hover:underline dark:text-violet-300"
+                className="mt-2 text-xs font-semibold tracking-[0.08em] text-primary uppercase hover:underline"
                 onClick={openTalukaCommittee}
               >
                 View Taluka Committee
@@ -880,7 +880,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         ) : (
           <div className="flex flex-col gap-3">
             {showWardPanel && (showWardCommittee || showBoothCommittee) && (
-              <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 dark:border-violet-800/50 dark:bg-violet-950/25">
+              <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 dark:border-primary/50 dark:bg-primary/10">
                 <p className="text-sm font-medium">
                   {showBoothCommittee
                     ? `Booth ${boothNo} Committee`
@@ -892,7 +892,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               </div>
             )}
             {showTalukaCommittee && (
-              <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 dark:border-violet-800/50 dark:bg-violet-950/25">
+              <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 dark:border-primary/50 dark:bg-primary/10">
                 <p className="text-sm font-medium">Taluka Committee</p>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {selectedVerticalName} vertical · committee members
