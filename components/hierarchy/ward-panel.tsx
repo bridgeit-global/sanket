@@ -77,7 +77,7 @@ function PanelActionLink({
   return (
     <button
       type="button"
-      className="shrink-0 text-[11px] font-semibold tracking-[0.08em] text-primary uppercase hover:underline"
+      className="shrink-0 text-left text-[11px] font-semibold tracking-[0.08em] text-primary uppercase hover:underline sm:text-right"
       onClick={onClick}
     >
       {children}
@@ -205,7 +205,7 @@ export function WardPanel({
                   key={boothNo}
                   className="border-b border-border last:border-b-0"
                 >
-                  <div className="flex items-center justify-between gap-3 px-4 py-3">
+                  <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm font-semibold">
                       Booth No. {formatBoothLabel(boothNo)}
                     </p>

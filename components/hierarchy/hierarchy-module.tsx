@@ -580,9 +580,10 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       onValueChange={(v) => setUrlParams({ vertical: v })}
     >
       <SelectTrigger className="h-11 w-full rounded-xl border border-input bg-muted/40 px-3 shadow-none [&>svg]:hidden">
-        <span className="flex w-full items-center justify-between text-sm">
-          <span>
-            Vertical Category:{' '}
+        <span className="flex w-full min-w-0 items-center justify-between gap-2 text-sm">
+          <span className="min-w-0 truncate">
+            <span className="hidden sm:inline">Vertical Category: </span>
+            <span className="sm:hidden">Vertical: </span>
             <span className="font-medium">{selectedVerticalName}</span>
           </span>
           <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
@@ -720,16 +721,25 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const selectedWardLabel = formatWardLabel(selectedWardName);
 
   return (
-    <div className="relative flex h-full max-md:h-[calc(100dvh-9rem)] min-h-[400px] flex-col gap-3">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
+    <div className="relative flex min-h-0 flex-1 flex-col gap-2 overflow-hidden sm:gap-3">
+      <div className="flex shrink-0 items-start justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-2">
           <SidebarToggle />
-          <h1 className="text-lg font-bold tracking-tight sm:text-xl">{CONSTITUENCY_TITLE}</h1>
+          <h1 className="truncate text-base font-bold tracking-tight sm:text-xl">
+            {CONSTITUENCY_TITLE}
+          </h1>
         </div>
-        <div className="flex shrink-0 items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
           {canEdit && (
-            <Button size="sm" variant="outline" className="rounded-xl" onClick={openCreateMember}>
-              <Plus className="mr-1 size-4" /> Add member
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-xl px-2.5 sm:px-3"
+              onClick={openCreateMember}
+            >
+              <Plus className="size-4 sm:mr-1" />
+              <span className="hidden sm:inline">Add member</span>
+              <span className="sr-only sm:hidden">Add member</span>
             </Button>
           )}
           {isAdmin && (
@@ -749,7 +759,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         </div>
       </div>
 
-      <div>
+      <div className="shrink-0">
         <div className="mb-1.5 flex items-center justify-between gap-2">
           <Label
             htmlFor="hierarchy-search"
@@ -795,28 +805,31 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
           </div>
           <Button
             type="button"
-            className="h-11 shrink-0 gap-1.5 rounded-xl px-4"
+            className="h-11 shrink-0 gap-1.5 rounded-xl px-3 sm:px-4"
             disabled={isSearching}
             onClick={commitSearch}
+            aria-label={isSearching ? 'Searching' : 'Search'}
           >
             {isSearching ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
               <Search className="size-4" />
             )}
-            {isSearching ? 'Searching…' : 'Search'}
+            <span className="hidden sm:inline">
+              {isSearching ? 'Searching…' : 'Search'}
+            </span>
           </Button>
         </div>
       </div>
 
-      {!showWardPanelMain && verticalSelect}
+      {!showWardPanelMain && <div className="shrink-0">{verticalSelect}</div>}
 
       {!showOverview && (
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 w-fit gap-1.5 text-muted-foreground hover:text-foreground"
+          className="h-8 w-fit shrink-0 gap-1.5 text-muted-foreground hover:text-foreground"
           onClick={
             showWardPanel && (showWardCommittee || showBoothCommittee)
               ? backToWardPanel
@@ -833,7 +846,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       )}
 
       {showWardPanel && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+        <div className="flex shrink-0 items-center gap-2 overflow-x-auto pb-0.5">
           <Button
             type="button"
             variant="outline"
@@ -853,7 +866,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       )}
 
       {showWardPanel && activeFilterChips.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           {activeFilterChips.map((chip) => (
             <Badge
               key={chip.key}
@@ -874,7 +887,10 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         </div>
       )}
 
-      <div ref={listScrollRef} className="min-h-0 flex-1 overflow-y-auto">
+      <div
+        ref={listScrollRef}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-[max(0.5rem,env(safe-area-inset-bottom))] [-webkit-overflow-scrolling:touch]"
+      >
         {loading ? (
           <div className="flex h-full flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-muted/20">
             <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />

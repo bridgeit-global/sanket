@@ -31,9 +31,9 @@ export function ContactWithCall({ phone }: { phone: string | null }) {
   }
 
   return (
-    <span className="inline-flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
       <PhoneCallButton phone={phone} />
-      <span className="text-muted-foreground">: {phone}</span>
-    </span>
+      <span className="min-w-0 break-all text-muted-foreground">{phone}</span>
+    </div>
   );
 }
