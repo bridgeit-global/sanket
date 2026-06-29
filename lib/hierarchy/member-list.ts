@@ -14,7 +14,47 @@ export const HIERARCHY_URL_PARAMS = {
 
 export const HIERARCHY_VIEWS = {
   talukaCommittee: 'taluka-committee',
+  wardCommittee: 'ward-committee',
+  boothCommittee: 'booth-committee',
 } as const;
+
+export function memberHasVertical(member: CadreMemberCard, verticalId: string): boolean {
+  return member.verticals.some((v) => v.id === verticalId);
+}
+
+export function filterWardCommitteeMembers(
+  members: CadreMemberCard[],
+  wardGeoId: string,
+  verticalId: string,
+): CadreMemberCard[] {
+  if (!wardGeoId || !verticalId) return [];
+  return members.filter(
+    (member) =>
+      memberHasVertical(member, verticalId) &&
+      member.posts.some(
+        (post) =>
+          post.positionLevelKey === 'ward_committee' && post.wardGeoId === wardGeoId,
+      ),
+  );
+}
+
+export function filterBoothCommitteeMembers(
+  members: CadreMemberCard[],
+  wardGeoId: string,
+  boothNo: string,
+  verticalId?: string,
+): CadreMemberCard[] {
+  if (!wardGeoId || !boothNo) return [];
+  return members.filter((member) => {
+    if (verticalId && !memberHasVertical(member, verticalId)) return false;
+    return member.posts.some(
+      (post) =>
+        post.positionLevelKey === 'booth_committee' &&
+        post.wardGeoId === wardGeoId &&
+        post.boothNo === boothNo,
+    );
+  });
+}
 
 export const DEFAULT_MEMBER_PAGE_SIZE = 30;
 export const MEMBER_PAGE_SIZE_OPTIONS = [20, 30, 50] as const;
@@ -89,10 +129,6 @@ function memberMatchesSearch(member: CadreMemberCard, query: string): boolean {
       p.positionName.toLowerCase().includes(q) ||
       (p.label ?? '').toLowerCase().includes(q),
   );
-}
-
-function memberHasVertical(member: CadreMemberCard, verticalId: string): boolean {
-  return member.verticals.some((v) => v.id === verticalId);
 }
 
 function memberMatchesWard(member: CadreMemberCard, wardGeoId: string): boolean {

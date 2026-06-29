@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { MemberList } from './member-list';
+import { WardPanel } from './ward-panel';
 import { MemberEditor, type MemberEditorTarget } from './member-editor';
 import { HierarchyConfigAdmin } from './hierarchy-config-admin';
 import type {
@@ -35,6 +36,8 @@ import {
 } from '@/lib/hierarchy/geo-attribution';
 import {
   DEFAULT_MEMBER_PAGE_SIZE,
+  filterWardCommitteeMembers,
+  filterBoothCommitteeMembers,
   HIERARCHY_URL_PARAMS,
   HIERARCHY_VIEWS,
   extractWardNumber,
@@ -241,9 +244,13 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const selectedVerticalName =
     activeVerticals.find((v) => v.id === effectiveVerticalId)?.name ?? 'Basic';
 
+  const showWardPanel = Boolean(wardGeoId);
   const showOverview = !wardGeoId && viewMode !== HIERARCHY_VIEWS.talukaCommittee;
   const showTalukaCommittee = viewMode === HIERARCHY_VIEWS.talukaCommittee;
-  const showWardPanel = Boolean(wardGeoId);
+  const showWardCommittee = showWardPanel && viewMode === HIERARCHY_VIEWS.wardCommittee;
+  const showBoothCommittee = showWardPanel && viewMode === HIERARCHY_VIEWS.boothCommittee;
+  const showWardPanelMain =
+    showWardPanel && !showWardCommittee && !showBoothCommittee;
 
   const activePositions = useMemo(
     () =>
@@ -285,6 +292,35 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       );
     }
 
+    if (showWardCommittee) {
+      const committeeMembers = filterWardCommitteeMembers(
+        members,
+        wardGeoId,
+        effectiveVerticalId,
+      );
+      return sortMembers(
+        filterMembers(committeeMembers, {
+          search: searchQuery,
+          memberId: focusMemberId,
+        }),
+      );
+    }
+
+    if (showBoothCommittee) {
+      const committeeMembers = filterBoothCommitteeMembers(
+        members,
+        wardGeoId,
+        boothNo,
+        effectiveVerticalId,
+      );
+      return sortMembers(
+        filterMembers(committeeMembers, {
+          search: searchQuery,
+          memberId: focusMemberId,
+        }),
+      );
+    }
+
     return sortMembers(
       filterMembers(members, {
         search: searchQuery,
@@ -304,6 +340,8 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     boothNo,
     focusMemberId,
     showTalukaCommittee,
+    showWardCommittee,
+    showBoothCommittee,
   ]);
 
   const memberPagination = useMemo(
@@ -617,10 +655,50 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     listScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const backToWardPanel = () => {
+    setUrlParams({
+      booth: '',
+      member: '',
+      position: '',
+      view: '',
+      page: 1,
+    });
+    listScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const openViewWardCommittee = (verticalId: string) => {
+    setUrlParams({
+      vertical: verticalId,
+      view: HIERARCHY_VIEWS.wardCommittee,
+      booth: '',
+      member: '',
+      position: '',
+      page: 1,
+    });
+    listScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const openViewBoothCommittee = (booth: string) => {
+    setUrlParams({
+      booth,
+      view: HIERARCHY_VIEWS.boothCommittee,
+      member: '',
+      position: '',
+      page: 1,
+    });
+    listScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const openAddBoothCommitteeMember = (booth: string) => {
+    setUrlParams({ booth });
+    setEditorTarget({ mode: 'create' });
+  };
+
   const talukaAdhyakshName = talukaAdhyaksh ? getMemberDisplayName(talukaAdhyaksh) : '—';
   const talukaAdhyakshPhone = talukaAdhyaksh ? getMemberPhone(talukaAdhyaksh) : null;
   const selectedWardName =
     wardOptions.find((w) => w.id === wardGeoId)?.name ?? 'Ward';
+  const selectedWardLabel = formatWardLabel(selectedWardName);
 
   return (
     <div className="relative flex h-full max-md:h-[calc(100dvh-9rem)] min-h-[400px] flex-col gap-3">
@@ -672,7 +750,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         />
       </div>
 
-      {verticalSelect}
+      {!showWardPanelMain && verticalSelect}
 
       {!showOverview && (
         <Button
@@ -680,10 +758,18 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
           variant="ghost"
           size="sm"
           className="h-8 w-fit gap-1.5 px-0 text-muted-foreground hover:text-foreground"
-          onClick={backToOverview}
+          onClick={
+            showWardPanel && (showWardCommittee || showBoothCommittee)
+              ? backToWardPanel
+              : backToOverview
+          }
         >
           <ArrowLeft className="size-4" />
-          Back to constituency
+          {showWardPanel && (showWardCommittee || showBoothCommittee)
+            ? 'Back to ward panel'
+            : showWardPanel
+              ? 'Back to all wards'
+              : 'Back to constituency'}
         </Button>
       )}
 
@@ -793,13 +879,30 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               ))
             )}
           </div>
+        ) : showWardPanelMain ? (
+          <WardPanel
+            wardGeoId={wardGeoId}
+            wardLabel={selectedWardLabel}
+            members={members}
+            activeVerticals={activeVerticals}
+            boothNumbers={boothOptions}
+            canEdit={canEdit}
+            initialExpandedBooth={boothNo || undefined}
+            onViewWardCommittee={openViewWardCommittee}
+            onViewBoothCommittee={openViewBoothCommittee}
+            onAddBoothCommitteeMember={openAddBoothCommitteeMember}
+          />
         ) : (
           <div className="flex flex-col gap-3">
-            {showWardPanel && (
+            {showWardPanel && (showWardCommittee || showBoothCommittee) && (
               <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 dark:border-violet-800/50 dark:bg-violet-950/25">
-                <p className="text-sm font-medium">{selectedWardName} Control Panel</p>
+                <p className="text-sm font-medium">
+                  {showBoothCommittee
+                    ? `Booth ${boothNo} Committee`
+                    : `${selectedWardName} Ward Committee`}
+                </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {selectedVerticalName} vertical · members and booths for this ward
+                  {selectedVerticalName} vertical · committee members
                 </p>
               </div>
             )}
