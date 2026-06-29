@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,11 @@ import { RegisterSkeleton } from '@/components/module-skeleton';
 import { TablePagination, usePagination } from '@/components/table-pagination';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { useTranslations } from '@/hooks/use-translations';
+import {
+  buildRegisterSearchParams,
+  parseRegisterFiltersFromSearchParams,
+  type RegisterFilterState,
+} from '@/lib/register/url-params';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -68,6 +74,11 @@ interface Project {
 
 export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
   const { t } = useTranslations();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlState = parseRegisterFiltersFromSearchParams(searchParams);
+
   const [entries, setEntries] = useState<RegisterEntry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,15 +104,53 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Search state
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState(urlState.search);
+  const [listPage, setListPage] = useState(urlState.page);
+  const [listLimit, setListLimit] = useState(urlState.limit);
 
-  // Filter state
   const [filters, setFilters] = useState({
-    startDate: '',
-    endDate: '',
-    projectIds: [] as string[],
-    projectStatus: 'all' as 'all' | 'Concept' | 'Proposal' | 'In Progress' | 'Completed',
+    startDate: urlState.startDate,
+    endDate: urlState.endDate,
+    projectIds: urlState.projectIds,
+    projectStatus: urlState.projectStatus,
   });
+
+  const syncRegisterUrl = useCallback(
+    (updates: Partial<RegisterFilterState>, resetPage = false) => {
+      const params = buildRegisterSearchParams(
+        {
+          startDate: updates.startDate ?? filters.startDate,
+          endDate: updates.endDate ?? filters.endDate,
+          projectIds: updates.projectIds ?? filters.projectIds,
+          projectStatus: updates.projectStatus ?? filters.projectStatus,
+          search: updates.search ?? searchTerm,
+          page: resetPage ? 1 : (updates.page ?? listPage),
+          limit: updates.limit ?? listLimit,
+        },
+        new URLSearchParams(searchParams.toString()),
+      );
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams, filters, searchTerm, listPage, listLimit],
+  );
+
+  const updateFilters = (
+    next: typeof filters,
+    options?: { resetPage?: boolean },
+  ) => {
+    setFilters(next);
+    syncRegisterUrl(
+      {
+        startDate: next.startDate,
+        endDate: next.endDate,
+        projectIds: next.projectIds,
+        projectStatus: next.projectStatus,
+      },
+      options?.resetPage ?? true,
+    );
+    if (options?.resetPage ?? true) setListPage(1);
+  };
 
   useEffect(() => {
     loadData();
@@ -425,7 +474,19 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
     totalItems,
     handlePageChange,
     handlePageSizeChange,
-  } = usePagination(filteredEntries, 10);
+  } = usePagination(filteredEntries, listLimit, {
+    page: listPage,
+    pageSize: listLimit,
+    onPageChange: (page) => {
+      setListPage(page);
+      syncRegisterUrl({ page });
+    },
+    onPageSizeChange: (size) => {
+      setListLimit(size);
+      setListPage(1);
+      syncRegisterUrl({ limit: size, page: 1 });
+    },
+  });
 
   if (loading) {
     return <RegisterSkeleton />;
@@ -679,7 +740,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                   id="startDate"
                   type="date"
                   value={filters.startDate}
-                  onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+                  onChange={(e) => updateFilters({ ...filters, startDate: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
@@ -688,16 +749,19 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                   id="endDate"
                   type="date"
                   value={filters.endDate}
-                  onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+                  onChange={(e) => updateFilters({ ...filters, endDate: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="projectStatus" className="text-xs text-muted-foreground">Project Status</Label>
                 <Select
                   value={filters.projectStatus}
-                  onValueChange={(value) =>
-                    setFilters({ ...filters, projectStatus: value as typeof filters.projectStatus })
-                  }
+                  onValueChange={(value) => {
+                    updateFilters({
+                      ...filters,
+                      projectStatus: value as typeof filters.projectStatus,
+                    });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="All Statuses" />
@@ -718,7 +782,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                     value="__placeholder__"
                     onValueChange={(value) => {
                       if (value && value !== '__placeholder__' && !filters.projectIds.includes(value)) {
-                        setFilters({
+                        updateFilters({
                           ...filters,
                           projectIds: [...filters.projectIds, value],
                         });
@@ -756,7 +820,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                       variant="secondary"
                       className="text-xs cursor-pointer"
                       onClick={() =>
-                        setFilters({
+                        updateFilters({
                           ...filters,
                           projectIds: filters.projectIds.filter((id) => id !== projectId),
                         })
@@ -773,14 +837,17 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() =>
-                  setFilters({
+                onClick={() => {
+                  const cleared = {
                     startDate: '',
                     endDate: '',
-                    projectIds: [],
-                    projectStatus: 'all',
-                  })
-                }
+                    projectIds: [] as string[],
+                    projectStatus: 'all' as const,
+                  };
+                  setFilters(cleared);
+                  setListPage(1);
+                  syncRegisterUrl({ ...cleared, page: 1 }, true);
+                }}
                 className="h-8"
               >
                 Clear Filters
@@ -793,7 +860,12 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
             <Input
               placeholder="Search by sender, subject, project, mode..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSearchTerm(value);
+                setListPage(1);
+                syncRegisterUrl({ search: value, page: 1 }, true);
+              }}
               className="pl-9"
             />
           </div>

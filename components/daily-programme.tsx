@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, type CSSProperties } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,6 +33,10 @@ import { ModulePageHeader } from '@/components/module-page-header';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTranslations } from '@/hooks/use-translations';
+import {
+  buildDailyProgrammeSearchParams,
+  parseDailyProgrammeFiltersFromSearchParams,
+} from '@/lib/daily-programme/url-params';
 import { exportElementToPdf } from '@/lib/pdf/export-element-to-pdf';
 import {
   closestCenter,
@@ -532,7 +537,27 @@ export function DailyProgramme({
   initialDateRange,
 }: DailyProgrammeProps) {
   const { t, locale } = useTranslations();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlFilters = parseDailyProgrammeFiltersFromSearchParams(searchParams);
   const pdfHostRef = useRef<HTMLDivElement | null>(null);
+
+  const syncProgrammeUrl = useCallback(
+    (updates: { start?: string; end?: string; type?: string }) => {
+      const params = buildDailyProgrammeSearchParams(
+        {
+          start: updates.start,
+          end: updates.end,
+          type: updates.type as 'ALL' | 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY' | undefined,
+        },
+        new URLSearchParams(searchParams.toString()),
+      );
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams],
+  );
 
   // Generate duration options with localization
   const DURATION_OPTIONS = useMemo(
@@ -549,9 +574,12 @@ export function DailyProgramme({
 
   const [allItems, setAllItems] = useState<ProgrammeItem[]>(initialItems);
   const [loading, setLoading] = useState(initialItems.length === 0);
-  const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() =>
-    initialDateRange || getDefaultDateRange(),
-  );
+  const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() => {
+    if (urlFilters.start && urlFilters.end) {
+      return { start: urlFilters.start, end: urlFilters.end };
+    }
+    return initialDateRange || getDefaultDateRange();
+  });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState({
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -591,7 +619,7 @@ export function DailyProgramme({
 
   const [programmeTypeFilter, setProgrammeTypeFilter] = useState<
     'ALL' | 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY'
-  >('ALL');
+  >(urlFilters.type ?? 'ALL');
 
   const [isExportingPdf, setIsExportingPdf] = useState(false);
 
@@ -1022,13 +1050,13 @@ export function DailyProgramme({
   const handleResetRange = () => {
     const next = getDefaultDateRange();
     setDateRange(next);
-    // Always refetch: the load effect skips when range matches initialDateRange with SSR items,
-    // but allItems may still reflect a previously selected range.
+    syncProgrammeUrl({ start: '', end: '' });
     void loadItems(next.start, next.end);
   };
 
   const handleDateRangeChange = (start: string, end: string) => {
     setDateRange({ start, end });
+    syncProgrammeUrl({ start, end });
   };
 
   const handleAttendanceChange = async (item: ProgrammeItem, attended: boolean | null) => {
@@ -1362,8 +1390,11 @@ export function DailyProgramme({
                       <Label htmlFor="programmeTypeFilter">{t('dailyProgramme.programmeFilter')}</Label>
                       <Select
                         value={programmeTypeFilter}
-                        onValueChange={(value) =>
-                          setProgrammeTypeFilter(value as 'ALL' | 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY')}
+                        onValueChange={(value) => {
+                          const typed = value as 'ALL' | 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
+                          setProgrammeTypeFilter(typed);
+                          syncProgrammeUrl({ type: typed });
+                        }}
                       >
                         <SelectTrigger id="programmeTypeFilter">
                           <SelectValue />

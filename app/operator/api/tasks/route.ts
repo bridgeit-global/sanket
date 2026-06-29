@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
         const limit = Number.parseInt(searchParams.get('limit') || '10');
         const assignedTo = searchParams.get('assignedTo');
         const serviceType = searchParams.get('serviceType') as 'individual' | 'community' | undefined;
+        const serviceName = searchParams.get('serviceName');
 
         // Validate pagination parameters
         if (page < 1) {
@@ -45,7 +46,8 @@ export async function GET(request: NextRequest) {
             page,
             limit,
             assignedTo: assignedTo || undefined,
-            serviceType: serviceType || undefined,
+            serviceType: serviceType || 'individual',
+            serviceName: serviceName || undefined,
         });
 
         return NextResponse.json(result);

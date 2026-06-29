@@ -40,7 +40,9 @@
   "sidebar": {
     "title": "eOffice",
     "toggleSidebar": "Toggle Sidebar",
-    "version": "Version"
+    "version": "Version",
+    "more": "More",
+    "moreCount": "More ({count})"
   },
   "userNav": {
     "toggleTheme": "Toggle {theme} mode",
@@ -333,6 +335,29 @@
     "dailyProgramme": "Daily Programme",
     "inward": "Inward",
     "outward": "Outward"
+  },
+  "hierarchyModule": {
+    "searchPlaceholder": "Search name, phone, or EPIC…",
+    "globalSearchTitle": "Search results for \"{query}\"",
+    "globalSearchSubtitle": "{count} members across the hierarchy",
+    "noSearchResults": "No members match your search",
+    "noSearchResultsHint": "Try a different name, phone number, or EPIC.",
+    "addMember": "Enroll member",
+    "stepPartyMember": "Step 1: Enroll as party member",
+    "stepPartyMemberHint": "Search and select a voter, then choose their vertical category.",
+    "stepAssignPost": "Step 2: Assign post",
+    "stepAssignPostHint": "Choose a position and geographic scope for this party member.",
+    "partyMembership": "Party membership",
+    "postAssignment": "Post assignment",
+    "enrollAndContinue": "Enroll & continue",
+    "assignPost": "Assign post",
+    "assignLater": "Assign later",
+    "enrolledAs": "Enrolled: {name}",
+    "editMember": "Edit member",
+    "enrollMember": "Enroll member",
+    "memberUpdated": "Member updated",
+    "memberCreated": "Party member enrolled",
+    "postAssigned": "Post assigned"
   },
   "dailyProgramme": {
     "title": "Daily Programme",
@@ -994,6 +1019,8 @@
       "enterToken": "Enter service token...",
       "enterMobile": "Enter mobile number...",
       "enterVoterId": "Enter voter ID...",
+      "serviceName": "Service Name",
+      "allServices": "All Services",
       "allTasks": "All Tasks",
       "allPriorities": "All Priorities",
       "itemsPerPage": "Items per page",

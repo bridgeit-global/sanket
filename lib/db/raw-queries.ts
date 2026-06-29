@@ -1986,6 +1986,7 @@ export async function getTasksWithFilters({
   limit = 10,
   assignedTo,
   serviceType,
+  serviceName,
 }: {
   status?: string;
   priority?: string;
@@ -1996,6 +1997,7 @@ export async function getTasksWithFilters({
   limit?: number;
   assignedTo?: string;
   serviceType?: 'individual' | 'community';
+  serviceName?: string;
 }): Promise<{
   tasks: Array<
     VoterTask & {
@@ -2037,6 +2039,7 @@ export async function getTasksWithFilters({
     const voterIdVal = voterId ?? '';
     const tokenPattern = token ? `%${token}%` : '';
     const mobilePattern = mobileNo ? `%${mobileNo}%` : '';
+    const serviceNameVal = serviceName ?? '';
 
     if (serviceType === 'individual' || !serviceType) {
       const [countRow] = await pgSql`
@@ -2048,6 +2051,7 @@ export async function getTasksWithFilters({
           AND (${assignedToVal}::text IS NULL OR bs.assigned_to = ${assignedToVal})
           AND (${voterIdVal} = '' OR bs.voter_id = ${voterIdVal})
           AND (${tokenPattern} = '' OR bs.token ILIKE ${tokenPattern})
+          AND (${serviceNameVal} = '' OR bs.service_name = ${serviceNameVal})
           AND (
             ${mobilePattern} = ''
             OR EXISTS (
@@ -2097,6 +2101,7 @@ export async function getTasksWithFilters({
           AND (${assignedToVal}::text IS NULL OR bs.assigned_to = ${assignedToVal})
           AND (${voterIdVal} = '' OR bs.voter_id = ${voterIdVal})
           AND (${tokenPattern} = '' OR bs.token ILIKE ${tokenPattern})
+          AND (${serviceNameVal} = '' OR bs.service_name = ${serviceNameVal})
           AND (
             ${mobilePattern} = ''
             OR EXISTS (

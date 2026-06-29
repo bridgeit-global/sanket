@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -37,6 +38,10 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import {
+  buildDataExportSearchParams,
+  parseDataExportStateFromSearchParams,
+} from '@/lib/data-export/url-params';
 
 interface ExportJob {
   id: string;
@@ -93,8 +98,24 @@ const DEFAULT_COLUMNS = AVAILABLE_COLUMNS.map(col => col.key);
 
 export function DataExport() {
   const { t } = useTranslations();
-  const [exportFormat, setExportFormat] = useState<'excel' | 'csv' | 'pdf'>('excel');
-  const [filters, setFilters] = useState<ExportFilters>({});
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlState = parseDataExportStateFromSearchParams(searchParams);
+
+  const [exportFormat, setExportFormat] = useState<'excel' | 'csv' | 'pdf'>(
+    urlState.format ?? 'excel',
+  );
+  const [filters, setFilters] = useState<ExportFilters>({
+    wardNo: urlState.wardNo,
+    partNo: urlState.partNo,
+    gender: urlState.gender,
+    minAge: urlState.minAge,
+    maxAge: urlState.maxAge,
+    hasPhone: urlState.hasPhone,
+    religion: urlState.religion,
+    isVoted2024: urlState.isVoted2024,
+  });
   const [isExporting, setIsExporting] = useState(false);
   const [jobs, setJobs] = useState<ExportJob[]>([]);
   const [loadingJobs, setLoadingJobs] = useState(true);
@@ -106,7 +127,50 @@ export function DataExport() {
   const [loadingParts, setLoadingParts] = useState(false);
   const [loadingReligions, setLoadingReligions] = useState(true);
   const [processedWards, setProcessedWards] = useState<Set<string>>(new Set());
-  const [selectedColumns, setSelectedColumns] = useState<string[]>(DEFAULT_COLUMNS);
+  const [selectedColumns, setSelectedColumns] = useState<string[]>(
+    urlState.columns ?? DEFAULT_COLUMNS,
+  );
+
+  const syncExportUrl = useCallback(
+    (
+      next: {
+        format?: 'excel' | 'csv' | 'pdf';
+        filters?: ExportFilters;
+        columns?: string[];
+      },
+    ) => {
+      const f = next.filters ?? filters;
+      const params = buildDataExportSearchParams(
+        {
+          format: next.format ?? exportFormat,
+          wardNo: f.wardNo,
+          partNo: f.partNo,
+          gender: f.gender,
+          minAge: f.minAge,
+          maxAge: f.maxAge,
+          hasPhone: f.hasPhone,
+          religion: f.religion,
+          isVoted2024: f.isVoted2024,
+          columns: next.columns ?? selectedColumns,
+        },
+        new URLSearchParams(searchParams.toString()),
+      );
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams, exportFormat, filters, selectedColumns],
+  );
+
+  const updateFilters = useCallback(
+    (updater: (prev: ExportFilters) => ExportFilters) => {
+      setFilters((prev) => {
+        const next = updater(prev);
+        syncExportUrl({ filters: next });
+        return next;
+      });
+    },
+    [syncExportUrl],
+  );
 
   // Prepare ward and part options for MultiCombobox
   const wardOptions = useMemo(() => {
@@ -139,7 +203,7 @@ export function DataExport() {
 
     if (checked) {
       // Add ward - parts will be auto-selected by useEffect
-      setFilters(prev => ({
+      updateFilters(prev => ({
         ...prev,
         wardNo: [...currentWards, wardValue]
       }));
@@ -155,7 +219,7 @@ export function DataExport() {
         return newSet;
       });
 
-      setFilters(prev => ({
+      updateFilters(prev => ({
         ...prev,
         wardNo: newWards,
         partNo: newParts
@@ -172,7 +236,7 @@ export function DataExport() {
     );
 
     if (checked) {
-      setFilters(prev => ({
+      updateFilters(prev => ({
         ...prev,
         partNo: [...currentParts, partValue]
       }));
@@ -184,7 +248,7 @@ export function DataExport() {
         const wardParts = partsByWard[wardForPart] || [];
         const remainingWardParts = wardParts.filter(p => newParts.includes(p));
 
-        setFilters(prev => ({
+        updateFilters(prev => ({
           ...prev,
           partNo: newParts,
           wardNo: remainingWardParts.length === 0
@@ -192,7 +256,7 @@ export function DataExport() {
             : prev.wardNo
         }));
       } else {
-        setFilters(prev => ({
+        updateFilters(prev => ({
           ...prev,
           partNo: newParts
         }));
@@ -321,7 +385,7 @@ export function DataExport() {
 
             // Only add new parts if there are newly selected wards
             if (newParts.length > 0) {
-              setFilters(prev => ({
+              updateFilters(prev => ({
                 ...prev,
                 partNo: [...currentParts, ...newParts]
               }));
@@ -495,7 +559,10 @@ export function DataExport() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <button
                   type="button"
-                  onClick={() => setExportFormat('excel')}
+                  onClick={() => {
+                    setExportFormat('excel');
+                    syncExportUrl({ format: 'excel' });
+                  }}
                   className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${exportFormat === 'excel'
                     ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
                     : 'border-muted hover:border-muted-foreground/30 hover:bg-muted/50'
@@ -510,7 +577,10 @@ export function DataExport() {
 
                 <button
                   type="button"
-                  onClick={() => setExportFormat('csv')}
+                  onClick={() => {
+                    setExportFormat('csv');
+                    syncExportUrl({ format: 'csv' });
+                  }}
                   className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${exportFormat === 'csv'
                     ? 'border-blue-500 bg-blue-50 text-blue-700'
                     : 'border-muted hover:border-muted-foreground/30 hover:bg-muted/50'
@@ -525,7 +595,10 @@ export function DataExport() {
 
                 <button
                   type="button"
-                  onClick={() => setExportFormat('pdf')}
+                  onClick={() => {
+                    setExportFormat('pdf');
+                    syncExportUrl({ format: 'pdf' });
+                  }}
                   className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${exportFormat === 'pdf'
                     ? 'border-rose-500 bg-rose-50 text-rose-700'
                     : 'border-muted hover:border-muted-foreground/30 hover:bg-muted/50'
@@ -576,7 +649,7 @@ export function DataExport() {
                   <Label htmlFor="gender" className="text-xs text-muted-foreground">Gender</Label>
                   <Select
                     value={filters.gender || 'all'}
-                    onValueChange={(value) => setFilters(prev => ({ ...prev, gender: value }))}
+                    onValueChange={(value) => updateFilters(prev => ({ ...prev, gender: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="All" />
@@ -592,7 +665,7 @@ export function DataExport() {
                   <Label htmlFor="religion" className="text-xs text-muted-foreground">Religion</Label>
                   <Select
                     value={filters.religion || 'all'}
-                    onValueChange={(value) => setFilters(prev => ({ ...prev, religion: value }))}
+                    onValueChange={(value) => updateFilters(prev => ({ ...prev, religion: value }))}
                     disabled={loadingReligions}
                   >
                     <SelectTrigger>
@@ -617,7 +690,7 @@ export function DataExport() {
                     min={18}
                     max={120}
                     value={filters.minAge || ''}
-                    onChange={(e) => setFilters(prev => ({ ...prev, minAge: e.target.value }))}
+                    onChange={(e) => updateFilters(prev => ({ ...prev, minAge: e.target.value }))}
                   />
                 </div>
                 <div>
@@ -629,14 +702,14 @@ export function DataExport() {
                     min={18}
                     max={120}
                     value={filters.maxAge || ''}
-                    onChange={(e) => setFilters(prev => ({ ...prev, maxAge: e.target.value }))}
+                    onChange={(e) => updateFilters(prev => ({ ...prev, maxAge: e.target.value }))}
                   />
                 </div>
                 <div>
                   <Label htmlFor="hasPhone" className="text-xs text-muted-foreground">Phone Available</Label>
                   <Select
                     value={filters.hasPhone || 'all'}
-                    onValueChange={(value) => setFilters(prev => ({ ...prev, hasPhone: value }))}
+                    onValueChange={(value) => updateFilters(prev => ({ ...prev, hasPhone: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="All" />
@@ -652,7 +725,7 @@ export function DataExport() {
                   <Label htmlFor="isVoted2024" className="text-xs text-muted-foreground">Is Voted 2024</Label>
                   <Select
                     value={filters.isVoted2024 || 'all'}
-                    onValueChange={(value) => setFilters(prev => ({ ...prev, isVoted2024: value }))}
+                    onValueChange={(value) => updateFilters(prev => ({ ...prev, isVoted2024: value }))}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="All" />
@@ -691,14 +764,20 @@ export function DataExport() {
                       <div className="flex gap-2">
                         <button
                           type="button"
-                          onClick={() => setSelectedColumns(DEFAULT_COLUMNS)}
+                          onClick={() => {
+                            setSelectedColumns(DEFAULT_COLUMNS);
+                            syncExportUrl({ columns: DEFAULT_COLUMNS });
+                          }}
                           className="text-xs text-primary hover:underline"
                         >
                           Select All
                         </button>
                         <button
                           type="button"
-                          onClick={() => setSelectedColumns([])}
+                          onClick={() => {
+                            setSelectedColumns([]);
+                            syncExportUrl({ columns: [] });
+                          }}
                           className="text-xs text-primary hover:underline"
                         >
                           Clear All
@@ -717,9 +796,17 @@ export function DataExport() {
                               checked={isSelected}
                               onChange={(e) => {
                                 if (e.target.checked) {
-                                  setSelectedColumns(prev => [...prev, column.key]);
+                                  setSelectedColumns((prev) => {
+                                    const next = [...prev, column.key];
+                                    syncExportUrl({ columns: next });
+                                    return next;
+                                  });
                                 } else {
-                                  setSelectedColumns(prev => prev.filter(key => key !== column.key));
+                                  setSelectedColumns((prev) => {
+                                    const next = prev.filter((key) => key !== column.key);
+                                    syncExportUrl({ columns: next });
+                                    return next;
+                                  });
                                 }
                               }}
                             />
@@ -728,9 +815,17 @@ export function DataExport() {
                               className="text-sm cursor-pointer flex-1"
                               onClick={() => {
                                 if (isSelected) {
-                                  setSelectedColumns(prev => prev.filter(key => key !== column.key));
+                                  setSelectedColumns((prev) => {
+                                    const next = prev.filter((key) => key !== column.key);
+                                    syncExportUrl({ columns: next });
+                                    return next;
+                                  });
                                 } else {
-                                  setSelectedColumns(prev => [...prev, column.key]);
+                                  setSelectedColumns((prev) => {
+                                    const next = [...prev, column.key];
+                                    syncExportUrl({ columns: next });
+                                    return next;
+                                  });
                                 }
                               }}
                             >
@@ -781,8 +876,9 @@ export function DataExport() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setFilters({});
+                  updateFilters(() => ({}));
                   setSelectedColumns(DEFAULT_COLUMNS);
+                  syncExportUrl({ filters: {}, columns: DEFAULT_COLUMNS });
                 }}
                 className="text-muted-foreground"
               >

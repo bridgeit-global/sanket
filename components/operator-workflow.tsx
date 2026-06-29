@@ -208,7 +208,15 @@ function VoterSearchResultsVirtualList({
     );
 }
 
-export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 'create' | 'manage' }) {
+export function BeneficiaryManagement({
+    initialTab = 'create',
+    initialManageState,
+    initialTaskId,
+}: {
+    initialTab?: 'create' | 'manage';
+    initialManageState?: import('@/lib/operator/manage-url-params').ManageFilterState;
+    initialTaskId?: string;
+}) {
     const { t } = useTranslations();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -245,9 +253,8 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
     const [workflowStep, setWorkflowStep] = useState<'search' | 'phoneUpdate' | 'service' | 'confirmation' | 'completed' | 'tasks'>(
         initialTab === 'manage' ? 'tasks' : 'search',
     );
-    const deepLinkTaskId = searchParams.get('taskId');
-    const deepLinkServiceId = searchParams.get('serviceId');
-    const hasDeepLink = Boolean(deepLinkTaskId || deepLinkServiceId);
+    const deepLinkTaskId = searchParams.get('taskId') ?? initialTaskId ?? null;
+    const hasDeepLink = Boolean(deepLinkTaskId);
     const activeTab = hasDeepLink
         ? 'manage'
         : ((searchParams.get('tab') as 'create' | 'manage' | null) ?? initialTab);
@@ -915,7 +922,7 @@ export function BeneficiaryManagement({ initialTab = 'create' }: { initialTab?: 
             {activeTab === 'manage' && (
                 <TaskManagement
                     initialTaskId={deepLinkTaskId ?? undefined}
-                    initialServiceId={deepLinkServiceId ?? undefined}
+                    initialManageState={initialManageState}
                 />
             )}
 

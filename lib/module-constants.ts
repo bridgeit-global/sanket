@@ -160,6 +160,77 @@ export function getAllModuleKeys(): string[] {
   return ALL_MODULES.map((m) => m.key);
 }
 
+export const PRIMARY_MODULE_KEYS = [
+  'dashboard',
+  'daily-programme',
+  'operator',
+  'chat',
+] as const;
+
+export const PINNED_BOTTOM_MODULE_KEYS = ['profile'] as const;
+
+export const MODULE_DISPLAY_ORDER = [
+  'dashboard',
+  'daily-programme',
+  'back-office',
+  'operator',
+  'field-visitor',
+  'hierarchy',
+  'data-export',
+  'projects',
+  'inward',
+  'outward',
+  'voting-participation',
+  'chat',
+  'user-management',
+  'profile',
+] as const;
+
+export function sortModulesByDisplayOrder(
+  mods: ModuleDefinition[],
+): ModuleDefinition[] {
+  return [...mods].sort((a, b) => {
+    const indexA = MODULE_DISPLAY_ORDER.indexOf(
+      a.key as (typeof MODULE_DISPLAY_ORDER)[number],
+    );
+    const indexB = MODULE_DISPLAY_ORDER.indexOf(
+      b.key as (typeof MODULE_DISPLAY_ORDER)[number],
+    );
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+    if (indexA !== -1) return -1;
+    if (indexB !== -1) return 1;
+    return 0;
+  });
+}
+
+export function partitionModulesForNav(modules: ModuleDefinition[]): {
+  primary: ModuleDefinition[];
+  more: ModuleDefinition[];
+  pinned: ModuleDefinition[];
+  useFlatList: boolean;
+} {
+  const sorted = sortModulesByDisplayOrder(modules);
+  const primaryKeySet = new Set<string>(PRIMARY_MODULE_KEYS);
+  const pinnedKeySet = new Set<string>(PINNED_BOTTOM_MODULE_KEYS);
+
+  const pinned = sorted.filter((m) => pinnedKeySet.has(m.key));
+  const navigable = sorted.filter((m) => !pinnedKeySet.has(m.key));
+
+  if (navigable.length <= 4) {
+    return {
+      primary: navigable,
+      more: [],
+      pinned,
+      useFlatList: true,
+    };
+  }
+
+  const primary = navigable.filter((m) => primaryKeySet.has(m.key));
+  const more = navigable.filter((m) => !primaryKeySet.has(m.key));
+
+  return { primary, more, pinned, useFlatList: false };
+}
+
 // Module keys as constants for type safety
 export const MODULE_KEYS = {
   USER_MANAGEMENT: 'user-management',

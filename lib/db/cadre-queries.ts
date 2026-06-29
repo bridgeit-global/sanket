@@ -820,9 +820,6 @@ export async function createCadreMember(
   if (!input.verticalIds || input.verticalIds.length === 0) {
     throw new Error('At least one vertical is required');
   }
-  if (!input.posts || input.posts.length === 0) {
-    throw new Error('At least one post is required');
-  }
 
   const person = await resolveMemberPersonFields(input);
 

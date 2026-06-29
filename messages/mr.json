@@ -40,7 +40,9 @@
   "sidebar": {
     "title": "eOffice",
     "toggleSidebar": "साइडबार टॉगल करा",
-    "version": "आवृत्ती"
+    "version": "आवृत्ती",
+    "more": "अधिक",
+    "moreCount": "अधिक ({count})"
   },
   "userNav": {
     "toggleTheme": "{theme} मोड टॉगल करा",
@@ -333,6 +335,29 @@
     "dailyProgramme": "दैनंदिन कार्यक्रम",
     "inward": "आंतरिक",
     "outward": "बाह्य"
+  },
+  "hierarchyModule": {
+    "searchPlaceholder": "नाव, फोन किंवा EPIC शोधा…",
+    "globalSearchTitle": "\"{query}\" साठी शोध निकाल",
+    "globalSearchSubtitle": "संपूर्ण श्रेणीत {count} सदस्य",
+    "noSearchResults": "आपल्या शोधाशी जुळणारे सदस्य नाहीत",
+    "noSearchResultsHint": "वेगळे नाव, फोन किंवा EPIC वापरून पहा.",
+    "addMember": "सदस्य नोंदणी",
+    "stepPartyMember": "पायरी १: पक्ष सदस्य म्हणून नोंदणी",
+    "stepPartyMemberHint": "मतदार शोधा आणि निवडा, नंतर त्यांची अनुलंब श्रेणी निवडा.",
+    "stepAssignPost": "पायरी २: पद नियुक्त करा",
+    "stepAssignPostHint": "या पक्ष सदस्यासाठी पद आणि भौगोलिक व्याप्ती निवडा.",
+    "partyMembership": "पक्ष सदस्यत्व",
+    "postAssignment": "पद नियुक्ती",
+    "enrollAndContinue": "नोंदणी करा आणि पुढे जा",
+    "assignPost": "पद नियुक्त करा",
+    "assignLater": "नंतर नियुक्त करा",
+    "enrolledAs": "नोंदणी: {name}",
+    "editMember": "सदस्य संपादित करा",
+    "enrollMember": "सदस्य नोंदणी",
+    "memberUpdated": "सदस्य अपडेट केला",
+    "memberCreated": "पक्ष सदस्य नोंदणी झाली",
+    "postAssigned": "पद नियुक्त केले"
   },
   "dailyProgramme": {
     "title": "दैनंदिन कार्यक्रम",
@@ -996,6 +1021,8 @@
       "enterToken": "सेवा टोकन प्रविष्ट करा...",
       "enterMobile": "मोबाइल नंबर प्रविष्ट करा...",
       "enterVoterId": "मतदार आयडी प्रविष्ट करा...",
+      "serviceName": "सेवेचे नाव",
+      "allServices": "सर्व सेवा",
       "allTasks": "सर्व कार्ये",
       "allPriorities": "सर्व प्राधान्ये",
       "itemsPerPage": "प्रति पृष्ठ आयटम",

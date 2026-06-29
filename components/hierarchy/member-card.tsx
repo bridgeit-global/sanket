@@ -11,11 +11,7 @@ import {
   getMemberPhone,
   getPostGeoChip,
 } from '@/lib/hierarchy/geo-attribution';
-import {
-  findSeniorMemberForGeo,
-  getPostBreadcrumbItems,
-  type GeoBreadcrumbTarget,
-} from '@/lib/hierarchy/geo-navigation';
+import { getPostBreadcrumbItems } from '@/lib/hierarchy/geo-navigation';
 import {
   getAltPosts,
   getPostTitle,
@@ -26,18 +22,14 @@ import type { CadreMemberCard } from '@/lib/hierarchy/types';
 
 interface MemberCardProps {
   member: CadreMemberCard;
-  members: CadreMemberCard[];
   canEdit?: boolean;
   onEdit?: (member: CadreMemberCard) => void;
-  onNavigateToGeo?: (target: GeoBreadcrumbTarget) => void;
 }
 
 export const MemberCard = memo(function MemberCard({
   member,
-  members,
   canEdit,
   onEdit,
-  onNavigateToGeo,
 }: MemberCardProps) {
   const name = getMemberDisplayName(member);
   const phone = getMemberPhone(member);
@@ -53,35 +45,15 @@ export const MemberCard = memo(function MemberCard({
     >
       {breadcrumbItems.length > 1 && (
         <div className="mb-2 flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-          {breadcrumbItems.map((item, i) => {
-            const targetMember = onNavigateToGeo
-              ? findSeniorMemberForGeo(members, item.target)
-              : null;
-            const isClickable = Boolean(targetMember && targetMember.id !== member.id);
-
-            return (
-              <span
-                key={breadcrumbItems.slice(0, i + 1).map((b) => b.label).join(' / ')}
-                className="flex items-center gap-1"
-              >
-                {i > 0 && <ChevronRight className="size-3 opacity-60" />}
-                {isClickable && targetMember ? (
-                  <button
-                    type="button"
-                    className="truncate text-left hover:text-foreground hover:underline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onNavigateToGeo?.(item.target);
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                ) : (
-                  <span className="truncate">{item.label}</span>
-                )}
-              </span>
-            );
-          })}
+          {breadcrumbItems.map((item, i) => (
+            <span
+              key={breadcrumbItems.slice(0, i + 1).map((b) => b.label).join(' / ')}
+              className="flex items-center gap-1"
+            >
+              {i > 0 && <ChevronRight className="size-3 opacity-60" />}
+              <span className="truncate">{item.label}</span>
+            </span>
+          ))}
         </div>
       )}
 

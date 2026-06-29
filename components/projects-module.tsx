@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,6 +29,10 @@ import { TablePagination, usePagination } from '@/components/table-pagination';
 import { projectFormSchema, validateForm } from '@/lib/validations';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { useTranslations } from '@/hooks/use-translations';
+import {
+  buildProjectsSearchParams,
+  parseProjectsFiltersFromSearchParams,
+} from '@/lib/projects/url-params';
 import { WardBeatCombobox } from '@/components/ui/ward-beat-combobox';
 
 interface Project {
@@ -41,6 +45,9 @@ interface Project {
 
 export function ProjectsModule() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlState = parseProjectsFiltersFromSearchParams(searchParams);
   const { t } = useTranslations();
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,8 +64,27 @@ export function ProjectsModule() {
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
 
   // Search and filter state
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState(urlState.search);
+  const [statusFilter, setStatusFilter] = useState<string>(urlState.status);
+  const [listPage, setListPage] = useState(urlState.page);
+  const [listLimit, setListLimit] = useState(urlState.limit);
+
+  const syncProjectsUrl = useCallback(
+    (updates: Partial<typeof urlState>, resetPage = false) => {
+      const params = buildProjectsSearchParams(
+        {
+          search: updates.search ?? searchTerm,
+          status: updates.status ?? statusFilter,
+          page: resetPage ? 1 : (updates.page ?? listPage),
+          limit: updates.limit ?? listLimit,
+        },
+        new URLSearchParams(searchParams.toString()),
+      );
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams, searchTerm, statusFilter, listPage, listLimit],
+  );
 
   // Form validation errors
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -229,7 +255,19 @@ export function ProjectsModule() {
     totalItems,
     handlePageChange,
     handlePageSizeChange,
-  } = usePagination(filteredProjects, 10);
+  } = usePagination(filteredProjects, listLimit, {
+    page: listPage,
+    pageSize: listLimit,
+    onPageChange: (page) => {
+      setListPage(page);
+      syncProjectsUrl({ page });
+    },
+    onPageSizeChange: (size) => {
+      setListLimit(size);
+      setListPage(1);
+      syncProjectsUrl({ limit: size, page: 1 });
+    },
+  });
 
   if (loading) {
     return <ProjectsSkeleton />;
@@ -335,11 +373,23 @@ export function ProjectsModule() {
               <Input
                 placeholder={t('projects.searchPlaceholder')}
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setSearchTerm(value);
+                  setListPage(1);
+                  syncProjectsUrl({ search: value, page: 1 }, true);
+                }}
                 className="pl-9"
               />
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <Select
+              value={statusFilter}
+              onValueChange={(value) => {
+                setStatusFilter(value);
+                setListPage(1);
+                syncProjectsUrl({ status: value, page: 1 }, true);
+              }}
+            >
               <SelectTrigger className="w-full md:w-[180px]">
                 <SelectValue placeholder={t('projects.filterByStatus')} />
               </SelectTrigger>

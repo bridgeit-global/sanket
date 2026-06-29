@@ -90,38 +90,3 @@ export function findSeniorMemberForGeo(
 
   return best?.member ?? null;
 }
-
-/** URL filter updates for breadcrumb navigation to a geography's senior member. */
-export function geoTargetToFilterUpdates(
-  target: GeoBreadcrumbTarget,
-  seniorMember: CadreMemberCard,
-): {
-  search: string;
-  vertical: string;
-  position: string;
-  ward: string;
-  booth: string;
-  member: string;
-} {
-  const matchingPost = seniorMember.posts.find((p) => postMatchesGeoScope(p, target));
-  const position = matchingPost?.positionId ?? '';
-  const member = seniorMember.id;
-
-  switch (target.scope) {
-    case 'constituency':
-      return { search: '', vertical: '', position, ward: '', booth: '', member };
-    case 'taluka':
-      return { search: '', vertical: '', position, ward: '', booth: '', member };
-    case 'ward':
-      return { search: '', vertical: '', position, ward: target.wardGeoId, booth: '', member };
-    case 'booth':
-      return {
-        search: '',
-        vertical: '',
-        position,
-        ward: target.wardGeoId ?? '',
-        booth: target.boothNo,
-        member,
-      };
-  }
-}

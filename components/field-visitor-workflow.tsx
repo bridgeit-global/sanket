@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -10,6 +11,11 @@ import { FieldProfilingForm } from '@/components/field-profiling-form';
 import { FamilyProfilingDialog } from '@/components/family-profiling-dialog';
 import { MapPin, Users, CheckCircle, Clock } from 'lucide-react';
 import { toast } from '@/components/toast';
+import {
+  buildFieldVisitorSearchParams,
+  parseFieldVisitorFiltersFromSearchParams,
+  type FieldVisitorFilterValue,
+} from '@/lib/field-visitor/url-params';
 
 interface Assignment {
   id: string;
@@ -48,8 +54,13 @@ interface Stats {
 }
 
 export function FieldVisitorWorkflow() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const urlFilters = parseFieldVisitorFiltersFromSearchParams(searchParams);
+
   const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [selectedBooth, setSelectedBooth] = useState<string | null>(null);
+  const [selectedBooth, setSelectedBooth] = useState<string | null>(urlFilters.booth ?? null);
   const [voters, setVoters] = useState<Voter[]>([]);
   const [stats, setStats] = useState<Stats>({ total: 0, profiled: 0, pending: 0 });
   const [loading, setLoading] = useState(true);
@@ -57,8 +68,23 @@ export function FieldVisitorWorkflow() {
   const [selectedVoter, setSelectedVoter] = useState<Voter | null>(null);
   const [showFamilyDialog, setShowFamilyDialog] = useState(false);
   const [profiledVoterForFamily, setProfiledVoterForFamily] = useState<Voter | null>(null);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'profiled'>('all');
+  const [filter, setFilter] = useState<FieldVisitorFilterValue>(urlFilters.filter ?? 'all');
   const [electionId, setElectionId] = useState<string | null>(null);
+
+  const syncFieldVisitorUrl = useCallback(
+    (updates: { booth?: string; filter?: FieldVisitorFilterValue }) => {
+      const params = buildFieldVisitorSearchParams(
+        {
+          booth: updates.booth ?? selectedBooth ?? undefined,
+          filter: updates.filter ?? filter,
+        },
+        new URLSearchParams(searchParams.toString()),
+      );
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [router, pathname, searchParams, selectedBooth, filter],
+  );
 
   // Fetch user's assigned booths
   useEffect(() => {
@@ -72,7 +98,16 @@ export function FieldVisitorWorkflow() {
         setElectionId(data.electionId);
         
         if (data.assignments?.length > 0) {
-          setSelectedBooth(data.assignments[0].boothNo);
+          const boothFromUrl = urlFilters.booth;
+          const validBooth =
+            boothFromUrl &&
+            data.assignments.some((a: Assignment) => a.boothNo === boothFromUrl)
+              ? boothFromUrl
+              : data.assignments[0].boothNo;
+          setSelectedBooth(validBooth);
+          if (validBooth !== boothFromUrl) {
+            syncFieldVisitorUrl({ booth: validBooth });
+          }
         }
       } catch (error) {
         console.error('Error fetching assignments:', error);
@@ -240,7 +275,13 @@ export function FieldVisitorWorkflow() {
             <CardTitle className="text-sm font-medium">Select Booth</CardTitle>
           </CardHeader>
           <CardContent>
-            <Select value={selectedBooth || ''} onValueChange={setSelectedBooth}>
+            <Select
+              value={selectedBooth || ''}
+              onValueChange={(value) => {
+                setSelectedBooth(value);
+                syncFieldVisitorUrl({ booth: value });
+              }}
+            >
               <SelectTrigger>
                 <SelectValue placeholder="Select booth" />
               </SelectTrigger>
@@ -312,21 +353,30 @@ export function FieldVisitorWorkflow() {
               <Button
                 variant={filter === 'all' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setFilter('all')}
+                onClick={() => {
+                  setFilter('all');
+                  syncFieldVisitorUrl({ filter: 'all' });
+                }}
               >
                 All
               </Button>
               <Button
                 variant={filter === 'pending' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setFilter('pending')}
+                onClick={() => {
+                  setFilter('pending');
+                  syncFieldVisitorUrl({ filter: 'pending' });
+                }}
               >
                 Pending
               </Button>
               <Button
                 variant={filter === 'profiled' ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setFilter('profiled')}
+                onClick={() => {
+                  setFilter('profiled');
+                  syncFieldVisitorUrl({ filter: 'profiled' });
+                }}
               >
                 Profiled
               </Button>

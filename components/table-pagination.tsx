@@ -112,31 +112,55 @@ export function TablePagination({
 export function usePagination<T>(
   items: T[],
   initialPageSize = 10,
+  options?: {
+    page?: number;
+    pageSize?: number;
+    onPageChange?: (page: number) => void;
+    onPageSizeChange?: (size: number) => void;
+  },
 ) {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(initialPageSize);
+  const [internalPage, setInternalPage] = useState(1);
+  const [internalPageSize, setInternalPageSize] = useState(initialPageSize);
 
-  const totalPages = Math.ceil(items.length / pageSize);
-  
-  // Reset to page 1 when items or pageSize changes
+  const isControlled = options?.page !== undefined;
+  const currentPage = isControlled ? options.page! : internalPage;
+  const pageSize = options?.pageSize ?? internalPageSize;
+
+  const totalPages = Math.max(1, Math.ceil(items.length / pageSize));
+
   useEffect(() => {
     if (currentPage > totalPages && totalPages > 0) {
-      setCurrentPage(totalPages);
+      const nextPage = totalPages;
+      if (isControlled) {
+        options?.onPageChange?.(nextPage);
+      } else {
+        setInternalPage(nextPage);
+      }
     }
-  }, [items.length, pageSize, currentPage, totalPages]);
+  }, [items.length, pageSize, currentPage, totalPages, isControlled, options]);
 
   const paginatedItems = items.slice(
     (currentPage - 1) * pageSize,
-    currentPage * pageSize
+    currentPage * pageSize,
   );
 
   const handlePageChange = (page: number) => {
-    setCurrentPage(Math.max(1, Math.min(page, totalPages)));
+    const next = Math.max(1, Math.min(page, totalPages));
+    if (isControlled) {
+      options?.onPageChange?.(next);
+    } else {
+      setInternalPage(next);
+    }
   };
 
   const handlePageSizeChange = (size: number) => {
-    setPageSize(size);
-    setCurrentPage(1);
+    if (isControlled) {
+      options?.onPageSizeChange?.(size);
+      options?.onPageChange?.(1);
+    } else {
+      setInternalPageSize(size);
+      setInternalPage(1);
+    }
   };
 
   return {

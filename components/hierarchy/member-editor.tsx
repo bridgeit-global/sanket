@@ -22,6 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { toast } from '@/components/toast';
+import { useTranslations } from '@/hooks/use-translations';
 import { UserPickerCombobox } from './user-picker-combobox';
 import { VoterPickerCombobox } from './voter-picker-combobox';
 import type { CadreConfig, CadreMemberCard } from '@/lib/hierarchy/types';
@@ -127,7 +128,7 @@ function draftFromTarget(target: MemberEditorTarget): Draft {
     notes: '',
     verticalIds: [],
     primaryVerticalId: null,
-    posts: [{ ...emptyPost(), isPrimary: true }],
+    posts: [],
   };
 }
 
@@ -150,15 +151,21 @@ export function MemberEditor({
   electionId,
   onSaved,
 }: MemberEditorProps) {
+  const { t } = useTranslations();
   const [draft, setDraft] = useState<Draft>(() => draftFromTarget(target));
+  const [enrollStep, setEnrollStep] = useState<1 | 2>(1);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     setDraft(draftFromTarget(target));
+    setEnrollStep(target.mode === 'create' ? 1 : 2);
   }, [target]);
 
   const isEdit = draft.memberId !== null;
+  const isCreateWizard = target.mode === 'create';
+  const showPartyStep = isCreateWizard ? enrollStep === 1 : true;
+  const showPostStep = isCreateWizard ? enrollStep === 2 : true;
   const positions = config.positions.filter(
     (p) => p.isActive && isValidSelectItemValue(p.id),
   );
@@ -237,41 +244,80 @@ export function MemberEditor({
     draft.personName.trim() || draft.userId || draft.epicNumber,
   );
   const validPosts = draft.posts.filter((p) => p.positionId);
-  const canSave =
-    hasPerson && draft.verticalIds.length > 0 && validPosts.length > 0;
+  const canEnrollPartyMember =
+    hasPerson && draft.verticalIds.length > 0 && !saving;
+  const canAssignPost = validPosts.length > 0 && !saving;
+  const canSaveEdit =
+    hasPerson && draft.verticalIds.length > 0 && !saving;
+
+  const buildPayload = (includePosts: boolean) => ({
+    constituencyId,
+    personName: draft.personName.trim() || null,
+    personPhone: draft.personPhone.trim() || null,
+    personEmail: draft.personEmail.trim() || null,
+    photoUrl: draft.photoUrl.trim() || null,
+    userId: draft.userId,
+    epicNumber: draft.epicNumber,
+    notes: draft.notes.trim() || null,
+    verticalIds: draft.verticalIds,
+    primaryVerticalId: draft.primaryVerticalId,
+    posts: includePosts
+      ? validPosts.map((p, index) => {
+        const levelKey = levelKeyFor(p.positionId);
+        const needsWard = positionNeedsWard(levelKey);
+        const needsBooth = positionNeedsBooth(levelKey);
+        const needsTaluka = positionNeedsTaluka(levelKey);
+        return {
+          positionId: p.positionId,
+          talukaId: needsTaluka && p.talukaId ? p.talukaId : null,
+          wardGeoId: needsWard && p.wardGeoId ? p.wardGeoId : null,
+          boothNo: needsBooth && p.boothNo.trim() ? p.boothNo.trim() : null,
+          electionId: needsBooth && p.boothNo.trim() ? electionId : null,
+          label: p.label.trim() || null,
+          isPrimary: p.isPrimary,
+          sortOrder: index,
+        };
+      })
+      : [],
+  });
+
+  const enrollPartyMember = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/hierarchy/members', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildPayload(false)),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? 'Save failed');
+      const memberId = data.member?.id as string | undefined;
+      if (!memberId) throw new Error('Save failed');
+      setDraft((prev) => ({
+        ...prev,
+        memberId,
+        posts:
+          prev.posts.length > 0
+            ? prev.posts
+            : [{ ...emptyPost(), isPrimary: true }],
+      }));
+      toast({ type: 'success', description: t('hierarchyModule.memberCreated') });
+      onSaved();
+      setEnrollStep(2);
+    } catch (e) {
+      toast({
+        type: 'error',
+        description: e instanceof Error ? e.message : 'Save failed',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
     try {
-      const payload = {
-        constituencyId,
-        personName: draft.personName.trim() || null,
-        personPhone: draft.personPhone.trim() || null,
-        personEmail: draft.personEmail.trim() || null,
-        photoUrl: draft.photoUrl.trim() || null,
-        userId: draft.userId,
-        epicNumber: draft.epicNumber,
-        notes: draft.notes.trim() || null,
-        verticalIds: draft.verticalIds,
-        primaryVerticalId: draft.primaryVerticalId,
-        posts: validPosts.map((p, index) => {
-          const levelKey = levelKeyFor(p.positionId);
-          const needsWard = positionNeedsWard(levelKey);
-          const needsBooth = positionNeedsBooth(levelKey);
-          const needsTaluka = positionNeedsTaluka(levelKey);
-          return {
-            positionId: p.positionId,
-            talukaId: needsTaluka && p.talukaId ? p.talukaId : null,
-            wardGeoId: needsWard && p.wardGeoId ? p.wardGeoId : null,
-            boothNo: needsBooth && p.boothNo.trim() ? p.boothNo.trim() : null,
-            electionId: needsBooth && p.boothNo.trim() ? electionId : null,
-            label: p.label.trim() || null,
-            isPrimary: p.isPrimary,
-            sortOrder: index,
-          };
-        }),
-      };
-
+      const payload = buildPayload(true);
       const url = isEdit
         ? `/api/hierarchy/members/${draft.memberId}`
         : '/api/hierarchy/members';
@@ -284,7 +330,11 @@ export function MemberEditor({
       if (!res.ok) throw new Error(data.error ?? 'Save failed');
       toast({
         type: 'success',
-        description: isEdit ? 'Member updated' : 'Member created',
+        description: isCreateWizard && enrollStep === 2
+          ? t('hierarchyModule.postAssigned')
+          : isEdit
+            ? t('hierarchyModule.memberUpdated')
+            : t('hierarchyModule.memberCreated'),
       });
       onSaved();
       onOpenChange(false);
@@ -329,288 +379,419 @@ export function MemberEditor({
             <DialogTitle className="inline-flex items-center gap-1.5 text-base leading-tight">
               {isEdit ? (
                 <>
-                  <Pencil className="size-3.5" /> Edit member
+                  <Pencil className="size-3.5" /> {t('hierarchyModule.editMember')}
                 </>
               ) : (
                 <>
-                  <UserPlus className="size-3.5" /> Add member
+                  <UserPlus className="size-3.5" /> {t('hierarchyModule.enrollMember')}
                 </>
               )}
             </DialogTitle>
+            {isCreateWizard && (
+              <div className="mt-3 flex gap-2">
+                <div
+                  className={`flex-1 rounded-lg border px-2 py-1.5 text-center text-[11px] font-medium ${
+                    enrollStep === 1
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground'
+                  }`}
+                >
+                  1. {t('hierarchyModule.partyMembership')}
+                </div>
+                <div
+                  className={`flex-1 rounded-lg border px-2 py-1.5 text-center text-[11px] font-medium ${
+                    enrollStep === 2
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border text-muted-foreground'
+                  }`}
+                >
+                  2. {t('hierarchyModule.postAssignment')}
+                </div>
+              </div>
+            )}
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-6 text-sm">
-            <Tabs defaultValue="manual">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="manual" className="text-xs">
-                  Manual
-                </TabsTrigger>
-                <TabsTrigger value="user" className="text-xs">
-                  Link user
-                </TabsTrigger>
-                <TabsTrigger value="voter" className="text-xs">
-                  Link voter
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="manual" className="space-y-2 pt-2">
-                <Input
-                  placeholder="Name"
-                  className="h-9"
-                  value={draft.personName}
-                  onChange={(e) => setDraft({ ...draft, personName: e.target.value })}
-                />
-                <Input
-                  placeholder="Phone"
-                  className="h-9"
-                  value={draft.personPhone}
-                  onChange={(e) => setDraft({ ...draft, personPhone: e.target.value })}
-                />
-                <Input
-                  placeholder="Email"
-                  className="h-9"
-                  value={draft.personEmail}
-                  onChange={(e) => setDraft({ ...draft, personEmail: e.target.value })}
-                />
-                <Input
-                  placeholder="Voter ID / EPIC"
-                  className="h-9"
-                  value={draft.epicNumber ?? ''}
-                  onChange={(e) =>
-                    setDraft({ ...draft, epicNumber: e.target.value.trim() || null })
-                  }
-                />
-                <Input
-                  placeholder="Photo URL"
-                  className="h-9"
-                  value={draft.photoUrl}
-                  onChange={(e) => setDraft({ ...draft, photoUrl: e.target.value })}
-                />
-              </TabsContent>
-              <TabsContent value="user" className="pt-2">
-                <UserPickerCombobox
-                  value={draft.userId}
-                  onSelect={(u) =>
-                    setDraft({
-                      ...draft,
-                      userId: u?.id ?? null,
-                      personName: u ? u.userId : draft.personName,
-                    })
-                  }
-                />
-              </TabsContent>
-              <TabsContent value="voter" className="pt-2">
-                <VoterPickerCombobox
-                  value={draft.epicNumber}
-                  onSelect={(v) =>
-                    setDraft({
-                      ...draft,
-                      epicNumber: v?.epicNumber ?? null,
-                      personName: v ? v.fullName : draft.personName,
-                    })
-                  }
-                />
-              </TabsContent>
-            </Tabs>
+            {showPartyStep && (
+              <div className="space-y-3">
+                {isCreateWizard ? (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                    <p className="text-xs font-semibold">{t('hierarchyModule.stepPartyMember')}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {t('hierarchyModule.stepPartyMemberHint')}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    {t('hierarchyModule.partyMembership')}
+                  </p>
+                )}
+                <Tabs defaultValue={isCreateWizard ? 'voter' : 'manual'}>
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="manual" className="text-xs">
+                      Manual
+                    </TabsTrigger>
+                    <TabsTrigger value="user" className="text-xs">
+                      Link user
+                    </TabsTrigger>
+                    <TabsTrigger value="voter" className="text-xs">
+                      Link voter
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="manual" className="space-y-2 pt-2">
+                    <Input
+                      placeholder="Name"
+                      className="h-9"
+                      value={draft.personName}
+                      onChange={(e) => setDraft({ ...draft, personName: e.target.value })}
+                    />
+                    <Input
+                      placeholder="Phone"
+                      className="h-9"
+                      value={draft.personPhone}
+                      onChange={(e) => setDraft({ ...draft, personPhone: e.target.value })}
+                    />
+                    <Input
+                      placeholder="Email"
+                      className="h-9"
+                      value={draft.personEmail}
+                      onChange={(e) => setDraft({ ...draft, personEmail: e.target.value })}
+                    />
+                    <Input
+                      placeholder="Voter ID / EPIC"
+                      className="h-9"
+                      value={draft.epicNumber ?? ''}
+                      onChange={(e) =>
+                        setDraft({ ...draft, epicNumber: e.target.value.trim() || null })
+                      }
+                    />
+                    <Input
+                      placeholder="Photo URL"
+                      className="h-9"
+                      value={draft.photoUrl}
+                      onChange={(e) => setDraft({ ...draft, photoUrl: e.target.value })}
+                    />
+                  </TabsContent>
+                  <TabsContent value="user" className="pt-2">
+                    <UserPickerCombobox
+                      value={draft.userId}
+                      onSelect={(u) =>
+                        setDraft({
+                          ...draft,
+                          userId: u?.id ?? null,
+                          personName: u ? u.userId : draft.personName,
+                        })
+                      }
+                    />
+                  </TabsContent>
+                  <TabsContent value="voter" className="pt-2">
+                    <VoterPickerCombobox
+                      value={draft.epicNumber}
+                      onSelect={(v) =>
+                        setDraft({
+                          ...draft,
+                          epicNumber: v?.epicNumber ?? null,
+                          personName: v ? v.fullName : draft.personName,
+                        })
+                      }
+                    />
+                  </TabsContent>
+                </Tabs>
 
-            <div>
-              <Label className="text-xs">Verticals</Label>
-              <div className="mt-1 max-h-32 space-y-1 overflow-y-auto rounded-md border p-2">
-                {config.verticals
-                  .filter((v) => v.isActive)
-                  .map((v) => {
-                    const checked = draft.verticalIds.includes(v.id);
+                <div>
+                  <Label className="text-xs">Verticals</Label>
+                  <div className="mt-1 max-h-32 space-y-1 overflow-y-auto rounded-md border p-2">
+                    {config.verticals
+                      .filter((v) => v.isActive)
+                      .map((v) => {
+                        const checked = draft.verticalIds.includes(v.id);
+                        return (
+                          <div key={v.id} className="flex items-center justify-between gap-2">
+                            <span className="flex items-center gap-2 text-xs">
+                              <Checkbox
+                                checked={checked}
+                                onChange={(e) => toggleVertical(v.id, e.target.checked)}
+                              />
+                              {v.name}
+                            </span>
+                            {checked && (
+                              <button
+                                type="button"
+                                className={`text-[10px] uppercase tracking-wide ${draft.primaryVerticalId === v.id
+                                    ? 'font-semibold text-primary'
+                                    : 'text-muted-foreground hover:text-foreground'
+                                  }`}
+                                onClick={() =>
+                                  setDraft({ ...draft, primaryVerticalId: v.id })
+                                }
+                              >
+                                {draft.primaryVerticalId === v.id ? 'Primary' : 'Set primary'}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+
+                {!isCreateWizard && (
+                  <div>
+                    <Label className="text-xs">Notes</Label>
+                    <Input
+                      className="h-9"
+                      placeholder="Optional"
+                      value={draft.notes}
+                      onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {showPostStep && (
+              <div className="space-y-3">
+                {isCreateWizard ? (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+                    <p className="text-xs font-semibold">{t('hierarchyModule.stepAssignPost')}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {t('hierarchyModule.stepAssignPostHint')}
+                    </p>
+                    {draft.personName.trim() && (
+                      <p className="mt-1 text-[11px] font-medium">
+                        {t('hierarchyModule.enrolledAs', { name: draft.personName.trim() })}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    {t('hierarchyModule.postAssignment')}
+                  </p>
+                )}
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Posts</Label>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 px-2 text-xs"
+                      onClick={addPost}
+                    >
+                      <Plus className="mr-1 size-3.5" /> Add post
+                    </Button>
+                  </div>
+                  {draft.posts.length === 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={() =>
+                        setDraft((prev) => ({
+                          ...prev,
+                          posts: [{ ...emptyPost(), isPrimary: true }],
+                        }))
+                      }
+                    >
+                      <Plus className="mr-1 size-3.5" /> Add post
+                    </Button>
+                  )}
+                  {draft.posts.map((post) => {
+                    const levelKey = levelKeyFor(post.positionId);
+                    const needsWard = positionNeedsWard(levelKey);
+                    const needsBooth = positionNeedsBooth(levelKey);
+                    const needsTaluka = positionNeedsTaluka(levelKey);
                     return (
-                      <div key={v.id} className="flex items-center justify-between gap-2">
-                        <span className="flex items-center gap-2 text-xs">
-                          <Checkbox
-                            checked={checked}
-                            onChange={(e) => toggleVertical(v.id, e.target.checked)}
-                          />
-                          {v.name}
-                        </span>
-                        {checked && (
-                          <button
-                            type="button"
-                            className={`text-[10px] uppercase tracking-wide ${draft.primaryVerticalId === v.id
-                                ? 'font-semibold text-primary'
-                                : 'text-muted-foreground hover:text-foreground'
-                              }`}
-                            onClick={() =>
-                              setDraft({ ...draft, primaryVerticalId: v.id })
+                      <div key={post.key} className="space-y-2 rounded-md border p-2">
+                        <div className="flex items-center justify-between">
+                          <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                            <Checkbox
+                              checked={post.isPrimary}
+                              onChange={() => setPrimaryPost(post.key)}
+                            />
+                            Primary post
+                          </span>
+                          {draft.posts.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="size-6"
+                              aria-label="Remove post"
+                              onClick={() => removePost(post.key)}
+                            >
+                              <Trash2 className="size-3.5 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                        <Select
+                          value={toControlledSelectValue(post.positionId)}
+                          onValueChange={(v) => updatePost(post.key, { positionId: v })}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select position" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {positions.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.name} ({p.levelName})
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {needsTaluka && (
+                          <Select
+                            value={toOptionalSelectValue(post.talukaId)}
+                            onValueChange={(v) =>
+                              updatePost(post.key, { talukaId: fromOptionalSelectValue(v) })
                             }
                           >
-                            {draft.primaryVerticalId === v.id ? 'Primary' : 'Set primary'}
-                          </button>
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Select taluka" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={SELECT_NONE_VALUE}>None</SelectItem>
+                              {talukaUnits.map((taluka) => (
+                                <SelectItem key={taluka.id} value={taluka.id}>
+                                  {taluka.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         )}
+                        {needsWard && (
+                          <Select
+                            value={toOptionalSelectValue(post.wardGeoId)}
+                            onValueChange={(v) =>
+                              updatePost(post.key, {
+                                wardGeoId: fromOptionalSelectValue(v),
+                                boothNo: '',
+                              })
+                            }
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue placeholder="Select ward" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={SELECT_NONE_VALUE}>None</SelectItem>
+                              {wardUnits.map((w) => (
+                                <SelectItem key={w.id} value={w.id}>
+                                  {w.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        {needsBooth && (
+                          <Select
+                            value={toOptionalSelectValue(post.boothNo)}
+                            onValueChange={(v) =>
+                              updatePost(post.key, { boothNo: fromOptionalSelectValue(v) })
+                            }
+                            disabled={!post.wardGeoId}
+                          >
+                            <SelectTrigger className="h-9">
+                              <SelectValue
+                                placeholder={
+                                  post.wardGeoId ? 'Select booth' : 'Select ward first'
+                                }
+                              />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value={SELECT_NONE_VALUE}>None</SelectItem>
+                              {boothOptionsForPost(post).map((b) => (
+                                <SelectItem key={b.boothNo} value={b.boothNo}>
+                                  {b.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        <Input
+                          placeholder="Custom label (optional, e.g. Mandal Head)"
+                          className="h-9"
+                          value={post.label}
+                          onChange={(e) => updatePost(post.key, { label: e.target.value })}
+                        />
                       </div>
                     );
                   })}
-              </div>
-            </div>
+                </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">Posts</Label>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 px-2 text-xs"
-                  onClick={addPost}
-                >
-                  <Plus className="mr-1 size-3.5" /> Add post
-                </Button>
-              </div>
-              {draft.posts.map((post) => {
-                const levelKey = levelKeyFor(post.positionId);
-                const needsWard = positionNeedsWard(levelKey);
-                const needsBooth = positionNeedsBooth(levelKey);
-                const needsTaluka = positionNeedsTaluka(levelKey);
-                return (
-                  <div key={post.key} className="space-y-2 rounded-md border p-2">
-                    <div className="flex items-center justify-between">
-                      <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                        <Checkbox
-                          checked={post.isPrimary}
-                          onChange={() => setPrimaryPost(post.key)}
-                        />
-                        Primary post
-                      </span>
-                      {draft.posts.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="size-6"
-                          aria-label="Remove post"
-                          onClick={() => removePost(post.key)}
-                        >
-                          <Trash2 className="size-3.5 text-destructive" />
-                        </Button>
-                      )}
-                    </div>
-                    <Select
-                      value={toControlledSelectValue(post.positionId)}
-                      onValueChange={(v) => updatePost(post.key, { positionId: v })}
-                    >
-                      <SelectTrigger className="h-9">
-                        <SelectValue placeholder="Select position" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {positions.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name} ({p.levelName})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {needsTaluka && (
-                      <Select
-                        value={toOptionalSelectValue(post.talukaId)}
-                        onValueChange={(v) =>
-                          updatePost(post.key, { talukaId: fromOptionalSelectValue(v) })
-                        }
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Select taluka" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={SELECT_NONE_VALUE}>None</SelectItem>
-                          {talukaUnits.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>
-                              {t.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    {needsWard && (
-                      <Select
-                        value={toOptionalSelectValue(post.wardGeoId)}
-                        onValueChange={(v) =>
-                          updatePost(post.key, {
-                            wardGeoId: fromOptionalSelectValue(v),
-                            boothNo: '',
-                          })
-                        }
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Select ward" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={SELECT_NONE_VALUE}>None</SelectItem>
-                          {wardUnits.map((w) => (
-                            <SelectItem key={w.id} value={w.id}>
-                              {w.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                    {needsBooth && (
-                      <Select
-                        value={toOptionalSelectValue(post.boothNo)}
-                        onValueChange={(v) =>
-                          updatePost(post.key, { boothNo: fromOptionalSelectValue(v) })
-                        }
-                        disabled={!post.wardGeoId}
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue
-                            placeholder={
-                              post.wardGeoId ? 'Select booth' : 'Select ward first'
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={SELECT_NONE_VALUE}>None</SelectItem>
-                          {boothOptionsForPost(post).map((b) => (
-                            <SelectItem key={b.boothNo} value={b.boothNo}>
-                              {b.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
+                {isCreateWizard && (
+                  <div>
+                    <Label className="text-xs">Notes</Label>
                     <Input
-                      placeholder="Custom label (optional, e.g. Mandal Head)"
                       className="h-9"
-                      value={post.label}
-                      onChange={(e) => updatePost(post.key, { label: e.target.value })}
+                      placeholder="Optional"
+                      value={draft.notes}
+                      onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
                     />
                   </div>
-                );
-              })}
-            </div>
-
-            <div>
-              <Label className="text-xs">Notes</Label>
-              <Input
-                className="h-9"
-                placeholder="Optional"
-                value={draft.notes}
-                onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
-              />
-            </div>
+                )}
+              </div>
+            )}
 
             <div className="flex gap-2 pt-1">
-              <Button
-                size="sm"
-                className="flex-1"
-                disabled={saving || !canSave}
-                onClick={save}
-              >
-                {saving ? 'Saving...' : 'Save'}
-              </Button>
-              {isEdit && (
+              {isCreateWizard && enrollStep === 1 ? (
                 <Button
                   size="sm"
-                  variant="ghost"
-                  disabled={saving}
-                  onClick={() => setConfirmDelete(true)}
-                  aria-label="Delete member"
+                  className="flex-1"
+                  disabled={!canEnrollPartyMember}
+                  onClick={enrollPartyMember}
                 >
-                  <Trash2 className="size-4 text-destructive" />
+                  {saving ? 'Saving...' : t('hierarchyModule.enrollAndContinue')}
                 </Button>
+              ) : isCreateWizard && enrollStep === 2 ? (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={saving}
+                    onClick={() => setEnrollStep(1)}
+                  >
+                    Back
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                    disabled={saving}
+                    onClick={() => onOpenChange(false)}
+                  >
+                    {t('hierarchyModule.assignLater')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    disabled={!canAssignPost}
+                    onClick={save}
+                  >
+                    {saving ? 'Saving...' : t('hierarchyModule.assignPost')}
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    size="sm"
+                    className="flex-1"
+                    disabled={saving || !canSaveEdit}
+                    onClick={save}
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </Button>
+                  {isEdit && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={saving}
+                      onClick={() => setConfirmDelete(true)}
+                      aria-label="Delete member"
+                    >
+                      <Trash2 className="size-4 text-destructive" />
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </div>

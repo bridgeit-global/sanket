@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,11 +13,16 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { toast } from '@/components/toast';
 import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
 import { useTranslations } from '@/hooks/use-translations';
-import type { VoterTask, BeneficiaryService, CommunityServiceArea } from '@/lib/db/schema';
+import type { VoterTask, BeneficiaryService } from '@/lib/db/schema';
 import { TablePagination } from '@/components/table-pagination';
 import { QrCode, Share2 } from 'lucide-react';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
+import {
+  buildManageSearchParams,
+  parseManageFiltersFromSearchParams,
+  type ManageFilterState,
+} from '@/lib/operator/manage-url-params';
 
 interface TaskVoter {
     epicNumber: string;
@@ -42,15 +48,9 @@ interface TaskResponse {
     currentPage: number;
 }
 
-interface CommunityServiceWithAreas extends BeneficiaryService {
-    areas: Array<CommunityServiceArea>;
-}
-
-interface CommunityServicesResponse {
-    services: CommunityServiceWithAreas[];
-    totalCount: number;
-    totalPages: number;
-    currentPage: number;
+interface ServiceCatalogOption {
+    id: string;
+    name: string;
 }
 
 function extractTokenFromQrPayload(payload: string): string | null {
@@ -314,30 +314,46 @@ function formatTaskType(taskType?: string) {
 
 export function TaskManagement({
     initialTaskId,
-    initialServiceId,
+    initialManageState,
 }: {
     initialTaskId?: string;
-    initialServiceId?: string;
+    initialManageState?: Partial<ManageFilterState>;
 } = {}) {
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
     const { t } = useTranslations();
+
+    const urlFilters = parseManageFiltersFromSearchParams(searchParams);
+    const mergedInitial: ManageFilterState = {
+        status: initialManageState?.status ?? urlFilters.status,
+        priority: initialManageState?.priority ?? urlFilters.priority,
+        serviceName: initialManageState?.serviceName ?? urlFilters.serviceName,
+        token: initialManageState?.token ?? urlFilters.token,
+        mobile: initialManageState?.mobile ?? urlFilters.mobile,
+        voterId: initialManageState?.voterId ?? urlFilters.voterId,
+        page: initialManageState?.page ?? urlFilters.page,
+        limit: initialManageState?.limit ?? urlFilters.limit,
+        taskId: initialManageState?.taskId ?? urlFilters.taskId,
+    };
+
     const [tasks, setTasks] = useState<TaskWithService[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isLoadingCommunityServices, setIsLoadingCommunityServices] = useState(false);
     const [selectedTask, setSelectedTask] = useState<TaskWithService | null>(null);
-    const [selectedCommunityService, setSelectedCommunityService] = useState<CommunityServiceWithAreas | null>(null);
     const [showTaskDialog, setShowTaskDialog] = useState(false);
     const [showEscalationDialog, setShowEscalationDialog] = useState(false);
     const [escalationReason, setEscalationReason] = useState('');
     const [escalationPriority, setEscalationPriority] = useState<'high' | 'urgent'>('high');
-    const [filterStatus, setFilterStatus] = useState<string>('all');
-    const [filterPriority, setFilterPriority] = useState<string>('all');
-    const [filterServiceType, setFilterServiceType] = useState<string>('all'); // all, individual, community
-    const [filterToken, setFilterToken] = useState<string>('');
-    const [filterMobile, setFilterMobile] = useState<string>('');
-    const [filterVoterId, setFilterVoterId] = useState<string>('');
-    const [filterTokenInput, setFilterTokenInput] = useState<string>('');
-    const [filterMobileInput, setFilterMobileInput] = useState<string>('');
-    const [filterVoterIdInput, setFilterVoterIdInput] = useState<string>('');
+    const [filterStatus, setFilterStatus] = useState<string>(mergedInitial.status);
+    const [filterPriority, setFilterPriority] = useState<string>(mergedInitial.priority);
+    const [filterServiceName, setFilterServiceName] = useState<string>(mergedInitial.serviceName || 'all');
+    const [filterToken, setFilterToken] = useState<string>(mergedInitial.token);
+    const [filterMobile, setFilterMobile] = useState<string>(mergedInitial.mobile);
+    const [filterVoterId, setFilterVoterId] = useState<string>(mergedInitial.voterId);
+    const [filterTokenInput, setFilterTokenInput] = useState<string>(mergedInitial.token);
+    const [filterMobileInput, setFilterMobileInput] = useState<string>(mergedInitial.mobile);
+    const [filterVoterIdInput, setFilterVoterIdInput] = useState<string>(mergedInitial.voterId);
+    const [serviceCatalog, setServiceCatalog] = useState<ServiceCatalogOption[]>([]);
     const [showQrScanner, setShowQrScanner] = useState(false);
     const [pendingAutoFocusToken, setPendingAutoFocusToken] = useState<string | null>(null);
     const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
@@ -355,67 +371,84 @@ export function TaskManagement({
         };
     }, []);
 
-    // Community services state
-    const [communityServices, setCommunityServices] = useState<CommunityServiceWithAreas[]>([]);
-    const [communityServicesPage, setCommunityServicesPage] = useState(1);
-    const [communityServicesTotalPages, setCommunityServicesTotalPages] = useState(1);
-    const [communityServicesTotalCount, setCommunityServicesTotalCount] = useState(0);
-
-    // Pagination state
-    const [currentPage, setCurrentPage] = useState(1);
+    const [currentPage, setCurrentPage] = useState(mergedInitial.page);
     const [totalPages, setTotalPages] = useState(1);
     const [totalCount, setTotalCount] = useState(0);
-    const [pageSize, setPageSize] = useState(10);
+    const [pageSize, setPageSize] = useState(mergedInitial.limit);
 
-    const fetchCommunityServices = useCallback(async () => {
-        try {
-            setIsLoadingCommunityServices(true);
-            // Build query parameters
-            const params = new URLSearchParams();
-            if (filterStatus !== 'all') params.append('status', filterStatus);
-            if (filterPriority !== 'all') params.append('priority', filterPriority);
-            if (filterToken) params.append('token', filterToken);
-            params.append('page', communityServicesPage.toString());
-            params.append('limit', pageSize.toString());
+    const syncManageUrl = useCallback(
+        (updates: Partial<ManageFilterState> & { tab?: string }, resetPage = false) => {
+            const next: Partial<ManageFilterState> & { tab?: string } = {
+                status: updates.status ?? filterStatus,
+                priority: updates.priority ?? filterPriority,
+                serviceName:
+                    updates.serviceName !== undefined
+                        ? updates.serviceName
+                        : filterServiceName === 'all'
+                          ? ''
+                          : filterServiceName,
+                token: updates.token ?? filterToken,
+                mobile: updates.mobile ?? filterMobile,
+                voterId: updates.voterId ?? filterVoterId,
+                page: resetPage ? 1 : (updates.page ?? currentPage),
+                limit: updates.limit ?? pageSize,
+                taskId: updates.taskId ?? (searchParams.get('taskId') ?? ''),
+                tab: updates.tab ?? searchParams.get('tab') ?? 'manage',
+            };
+            const params = buildManageSearchParams(next, new URLSearchParams(searchParams.toString()));
+            const qs = params.toString();
+            router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+        },
+        [
+            router,
+            pathname,
+            searchParams,
+            filterStatus,
+            filterPriority,
+            filterServiceName,
+            filterToken,
+            filterMobile,
+            filterVoterId,
+            currentPage,
+            pageSize,
+        ],
+    );
 
-            const response = await fetch(`/operator/api/community-services?${params.toString()}`);
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch community services');
+    useEffect(() => {
+        const loadCatalog = async () => {
+            try {
+                const res = await fetch('/operator/api/individual-services');
+                if (res.ok) {
+                    const data = await res.json();
+                    setServiceCatalog(
+                        (Array.isArray(data) ? data : data.services ?? []).map(
+                            (s: { id: string; name: string }) => ({
+                            id: s.id,
+                            name: s.name,
+                        })),
+                    );
+                }
+            } catch {
+                // ignore
             }
-
-            const data: CommunityServicesResponse = await response.json();
-            setCommunityServices(data.services);
-            setCommunityServicesTotalPages(data.totalPages);
-            setCommunityServicesTotalCount(data.totalCount);
-            // Only update communityServicesPage if it actually changed to prevent unnecessary re-renders
-            if (data.currentPage !== communityServicesPage) {
-                setCommunityServicesPage(data.currentPage);
-            }
-        } catch (error) {
-            console.error('Error fetching community services:', error);
-            toast({
-                type: 'error',
-                description: 'Failed to fetch community services',
-            });
-        } finally {
-            setIsLoadingCommunityServices(false);
-        }
-    }, [communityServicesPage, pageSize, filterStatus, filterPriority, filterToken]);
+        };
+        void loadCatalog();
+    }, []);
 
     const fetchTasks = useCallback(async () => {
         try {
             setIsLoading(true);
 
-            // Build query parameters
             const params = new URLSearchParams();
             if (filterStatus !== 'all') params.append('status', filterStatus);
             if (filterPriority !== 'all') params.append('priority', filterPriority);
             if (filterToken) params.append('token', filterToken);
             if (filterMobile) params.append('mobileNo', filterMobile);
             if (filterVoterId) params.append('voterId', filterVoterId);
-            if (filterServiceType === 'individual') params.append('serviceType', 'individual');
-            if (filterServiceType === 'community') params.append('serviceType', 'community');
+            if (filterServiceName && filterServiceName !== 'all') {
+                params.append('serviceName', filterServiceName);
+            }
+            params.append('serviceType', 'individual');
             params.append('page', currentPage.toString());
             params.append('limit', pageSize.toString());
 
@@ -429,7 +462,6 @@ export function TaskManagement({
             setTasks(data.tasks);
             setTotalPages(data.totalPages);
             setTotalCount(data.totalCount);
-            // Only update currentPage if it actually changed to prevent unnecessary re-renders
             if (data.currentPage !== currentPage) {
                 setCurrentPage(data.currentPage);
             }
@@ -442,46 +474,20 @@ export function TaskManagement({
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceType, t]);
+    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, t]);
 
-    // Separate useEffect for tasks to avoid infinite loops
     useEffect(() => {
-        if (filterServiceType === 'all' || filterServiceType === 'individual') {
-            fetchTasks();
-        } else {
-            setTasks([]);
-            setTotalCount(0);
-            setTotalPages(1);
-            setIsLoading(false);
-        }
+        fetchTasks();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filterServiceType, currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId]);
-
-    // Separate useEffect for community services to avoid infinite loops
-    useEffect(() => {
-        if (filterServiceType === 'all' || filterServiceType === 'community') {
-            fetchCommunityServices();
-        } else {
-            setCommunityServices([]);
-            setCommunityServicesTotalCount(0);
-            setCommunityServicesTotalPages(1);
-            setIsLoadingCommunityServices(false);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filterServiceType, communityServicesPage, pageSize, filterStatus, filterPriority, filterToken]);
+    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName]);
 
     useEffect(() => {
         if (!pendingAutoFocusToken) return;
-        const loading =
-            (filterServiceType === 'community' && isLoadingCommunityServices) ||
-            (filterServiceType === 'individual' && isLoading) ||
-            (filterServiceType === 'all' && (isLoading || isLoadingCommunityServices));
-        if (loading) return;
+        if (isLoading) return;
 
         const token = pendingAutoFocusToken;
         const matchTask = tasks.find((t) => (t.service?.token ?? '').toLowerCase() === token.toLowerCase());
-        const matchService = communityServices.find((s) => (s.token ?? '').toLowerCase() === token.toLowerCase());
-        const matchId = matchTask?.id ?? matchService?.id ?? null;
+        const matchId = matchTask?.id ?? null;
 
         if (!matchId) {
             toast({ type: 'error', description: `No item found for token: ${token}` });
@@ -490,11 +496,11 @@ export function TaskManagement({
         }
 
         const el = itemRefs.current.get(matchId);
-        if (!el) return; // wait for refs to attach
+        if (!el) return;
 
         el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        if (typeof (el as any).focus === 'function') {
-            (el as any).focus({ preventScroll: true });
+        if (typeof (el as HTMLElement & { focus?: (opts?: object) => void }).focus === 'function') {
+            (el as HTMLElement & { focus: (opts?: object) => void }).focus({ preventScroll: true });
         }
 
         setHighlightedItemId(matchId);
@@ -502,14 +508,7 @@ export function TaskManagement({
         highlightTimeoutRef.current = window.setTimeout(() => setHighlightedItemId(null), 2500);
 
         setPendingAutoFocusToken(null);
-    }, [
-        pendingAutoFocusToken,
-        tasks,
-        communityServices,
-        isLoading,
-        isLoadingCommunityServices,
-        filterServiceType,
-    ]);
+    }, [pendingAutoFocusToken, tasks, isLoading]);
 
     useEffect(() => {
         return () => {
@@ -518,7 +517,7 @@ export function TaskManagement({
     }, []);
 
     useEffect(() => {
-        const targetId = initialServiceId ?? initialTaskId;
+        const targetId = initialTaskId ?? mergedInitial.taskId;
         if (!targetId) return;
 
         let cancelled = false;
@@ -530,14 +529,7 @@ export function TaskManagement({
                 const { task } = await response.json();
                 if (cancelled || !task) return;
 
-                if (task.service?.serviceType === 'community') {
-                    setSelectedCommunityService(task.service);
-                    setSelectedTask(null);
-                } else {
-                    setSelectedTask(task);
-                    setSelectedCommunityService(null);
-                }
-
+                setSelectedTask(task);
                 setNewStatus(task.status);
                 setNewNote('');
                 setShowTaskDialog(true);
@@ -552,7 +544,7 @@ export function TaskManagement({
         return () => {
             cancelled = true;
         };
-    }, [initialTaskId, initialServiceId]);
+    }, [initialTaskId, mergedInitial.taskId]);
 
     // Debounce the "typing" inputs before applying filters (prevents frequent fetches while typing).
     useEffect(() => {
@@ -582,7 +574,12 @@ export function TaskManagement({
                 nextToken !== filterToken || appliedMobile !== filterMobile || nextVoter !== filterVoterId;
             if (changed) {
                 setCurrentPage(1);
-                setCommunityServicesPage(1);
+                syncManageUrl({
+                    token: nextToken,
+                    mobile: appliedMobile,
+                    voterId: nextVoter,
+                    page: 1,
+                });
             }
 
             setFilterToken(nextToken);
@@ -591,17 +588,18 @@ export function TaskManagement({
         }, 400);
 
         return () => window.clearTimeout(handle);
-    }, [filterTokenInput, filterMobileInput, filterVoterIdInput, filterToken, filterMobile, filterVoterId, t]);
+    }, [filterTokenInput, filterMobileInput, filterVoterIdInput, filterToken, filterMobile, filterVoterId, t, syncManageUrl]);
 
     const handleSearch = () => {
-        setCurrentPage(1); // Reset to first page when searching
+        setCurrentPage(1);
+        syncManageUrl({ page: 1 });
         fetchTasks();
     };
 
     const handleClearFilters = () => {
         setFilterStatus('all');
         setFilterPriority('all');
-        setFilterServiceType('all');
+        setFilterServiceName('all');
         setFilterToken('');
         setFilterMobile('');
         setFilterVoterId('');
@@ -610,7 +608,17 @@ export function TaskManagement({
         setFilterVoterIdInput('');
         invalidMobileFilterToastSentRef.current = false;
         setCurrentPage(1);
-        setCommunityServicesPage(1);
+        setPageSize(10);
+        syncManageUrl({
+            status: 'all',
+            priority: 'all',
+            serviceName: '',
+            token: '',
+            mobile: '',
+            voterId: '',
+            page: 1,
+            limit: 10,
+        });
     };
 
     const handleStatusUpdate = async (taskId: string, status: string, notes?: string) => {
@@ -648,46 +656,15 @@ export function TaskManagement({
         }
     };
 
-    const handleCommunityServiceStatusUpdate = async (serviceId: string, status: string, notes?: string) => {
-        try {
-            const response = await fetch(`/operator/api/community-services/${serviceId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    status,
-                    notes: notes || undefined,
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to update community service status');
-            }
-
-            toast({
-                type: 'success',
-                description: t('taskManagement.messages.updateSuccess'),
-            });
-
-            fetchCommunityServices();
-            setShowTaskDialog(false);
-            setNewNote('');
-            setNewStatus('');
-        } catch (error) {
-            console.error('Error updating community service status:', error);
-            toast({
-                type: 'error',
-                description: t('taskManagement.messages.updateFailed'),
-            });
-        }
+    const handleCommunityServiceStatusUpdate = async (_serviceId: string, _status: string, _notes?: string) => {
+        // Community services removed from manage view
     };
 
     const handleEscalation = async () => {
         const taskId = selectedTask?.id;
-        const serviceId = selectedTask?.serviceId || selectedCommunityService?.id;
+        const serviceId = selectedTask?.serviceId;
 
-        if ((!selectedTask && !selectedCommunityService) || !escalationReason.trim()) {
+        if (!selectedTask || !escalationReason.trim()) {
             toast({
                 type: 'error',
                 description: t('taskManagement.messages.escalationReasonRequired'),
@@ -721,12 +698,7 @@ export function TaskManagement({
             setShowEscalationDialog(false);
             setEscalationReason('');
             setEscalationPriority('high');
-            if (selectedTask) {
-                fetchTasks();
-            }
-            if (selectedCommunityService) {
-                fetchCommunityServices();
-            }
+            fetchTasks();
         } catch (error) {
             console.error('Error escalating request:', error);
             toast({
@@ -821,7 +793,7 @@ export function TaskManagement({
                     setFilterTokenInput(token);
                     setPendingAutoFocusToken(token);
                     setCurrentPage(1);
-                    setCommunityServicesPage(1);
+                    syncManageUrl({ token, page: 1 });
                 }}
             />
 
@@ -839,22 +811,42 @@ export function TaskManagement({
                     <div className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                             <div>
-                                <Label htmlFor="service-type-filter">Service Type</Label>
-                                <Select value={filterServiceType} onValueChange={setFilterServiceType}>
+                                <Label htmlFor="service-name-filter">{t('taskManagement.filters.serviceName')}</Label>
+                                <Select
+                                    value={filterServiceName}
+                                    onValueChange={(value) => {
+                                        setFilterServiceName(value);
+                                        setCurrentPage(1);
+                                        syncManageUrl({
+                                            serviceName: value === 'all' ? '' : value,
+                                            page: 1,
+                                        }, true);
+                                    }}
+                                >
                                     <SelectTrigger>
-                                        <SelectValue placeholder="Select service type" />
+                                        <SelectValue placeholder={t('taskManagement.filters.allServices')} />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">All Services</SelectItem>
-                                        <SelectItem value="individual">Individual</SelectItem>
-                                        <SelectItem value="community">Community</SelectItem>
+                                        <SelectItem value="all">{t('taskManagement.filters.allServices')}</SelectItem>
+                                        {serviceCatalog.map((service) => (
+                                            <SelectItem key={service.id} value={service.name}>
+                                                {service.name}
+                                            </SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
 
                             <div>
                                 <Label htmlFor="status-filter">{t('taskManagement.filters.status')}</Label>
-                                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                                <Select
+                                    value={filterStatus}
+                                    onValueChange={(value) => {
+                                        setFilterStatus(value);
+                                        setCurrentPage(1);
+                                        syncManageUrl({ status: value, page: 1 }, true);
+                                    }}
+                                >
                                     <SelectTrigger>
                                         <SelectValue placeholder={t('taskManagement.filters.selectStatus')} />
                                     </SelectTrigger>
@@ -870,7 +862,14 @@ export function TaskManagement({
 
                             <div>
                                 <Label htmlFor="priority-filter">{t('taskManagement.filters.priority')}</Label>
-                                <Select value={filterPriority} onValueChange={setFilterPriority}>
+                                <Select
+                                    value={filterPriority}
+                                    onValueChange={(value) => {
+                                        setFilterPriority(value);
+                                        setCurrentPage(1);
+                                        syncManageUrl({ priority: value, page: 1 }, true);
+                                    }}
+                                >
                                     <SelectTrigger>
                                         <SelectValue placeholder={t('taskManagement.filters.selectPriority')} />
                                     </SelectTrigger>
@@ -954,10 +953,15 @@ export function TaskManagement({
                             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                                 <div>
                                     <Label htmlFor="page-size">{t('taskManagement.filters.itemsPerPage')}</Label>
-                                    <Select value={pageSize.toString()} onValueChange={(value) => {
-                                        setPageSize(Number.parseInt(value));
-                                        setCurrentPage(1);
-                                    }}>
+                                    <Select
+                                        value={pageSize.toString()}
+                                        onValueChange={(value) => {
+                                            const size = Number.parseInt(value);
+                                            setPageSize(size);
+                                            setCurrentPage(1);
+                                            syncManageUrl({ limit: size, page: 1 });
+                                        }}
+                                    >
                                         <SelectTrigger className="w-20">
                                             <SelectValue />
                                         </SelectTrigger>
@@ -970,12 +974,7 @@ export function TaskManagement({
                                     </Select>
                                 </div>
                                 <div className="text-sm text-muted-foreground">
-                                    {filterServiceType === 'all'
-                                        ? `Showing ${tasks.length + communityServices.length} of ${totalCount + communityServicesTotalCount} items`
-                                        : filterServiceType === 'community'
-                                            ? `Showing ${communityServices.length} of ${communityServicesTotalCount} community services`
-                                            : t('taskManagement.filters.showing', { count: tasks.length, total: totalCount })
-                                    }
+                                    {t('taskManagement.filters.showing', { count: tasks.length, total: totalCount })}
                                 </div>
                             </div>
 
@@ -993,13 +992,7 @@ export function TaskManagement({
             </Card>
 
             {/* is Loading */}
-            {(() => {
-                const shouldShowLoading =
-                    (filterServiceType === 'community' && isLoadingCommunityServices) ||
-                    (filterServiceType === 'individual' && isLoading) ||
-                    (filterServiceType === 'all' && (isLoading || isLoadingCommunityServices));
-                return shouldShowLoading;
-            })() ? (
+            {isLoading ? (
                 <div className="min-h-[60vh] bg-background flex items-center justify-center">
                     <div className="text-center">
                         <div className="animate-spin rounded-full size-8 border-b-2 border-gray-900 mx-auto" />
@@ -1008,10 +1001,8 @@ export function TaskManagement({
                 </div>
             ) : (
                 <div className="space-y-3 pb-10">
-                    {/* Tasks Section */}
-                    {(filterServiceType === 'all' || filterServiceType === 'individual') && (
-                        <div>
-                            {tasks.length === 0 ? (
+                    <div>
+                        {tasks.length === 0 ? (
                                 <Card>
                                     <CardContent className="pt-4 sm:pt-6">
                                         <div className="text-center py-8">
@@ -1137,7 +1128,6 @@ export function TaskManagement({
                                                                 size="default"
                                                                 onClick={() => {
                                                                     setSelectedTask(task);
-                                                                    setSelectedCommunityService(null);
                                                                     setNewStatus(task.status);
                                                                     setNewNote('');
                                                                     setShowTaskDialog(true);
@@ -1165,207 +1155,26 @@ export function TaskManagement({
                                     ))}
                                 </div>
                             )}
-                            {/* Pagination for Individual Tasks */}
-                            {tasks.length > 0 && (filterServiceType === 'all' || filterServiceType === 'individual') && (
+                            {tasks.length > 0 && (
                                 <div className="mt-4">
                                     <TablePagination
                                         currentPage={currentPage}
                                         totalPages={totalPages}
                                         pageSize={pageSize}
                                         totalItems={totalCount}
-                                        onPageChange={setCurrentPage}
+                                        onPageChange={(page) => {
+                                            setCurrentPage(page);
+                                            syncManageUrl({ page });
+                                        }}
                                         onPageSizeChange={(size) => {
                                             setPageSize(size);
                                             setCurrentPage(1);
+                                            syncManageUrl({ limit: size, page: 1 });
                                         }}
                                     />
                                 </div>
                             )}
-                        </div>
-                    )}
-
-                    {/* Services Section */}
-                    {(filterServiceType === 'all' || filterServiceType === 'community') && (
-                        <div>
-                            {communityServices.length === 0 && (filterServiceType === 'community' || (filterServiceType === 'all' && tasks.length === 0)) ? (
-                                <Card>
-                                    <CardContent className="pt-4 sm:pt-6">
-                                        <div className="text-center py-8">
-                                            <p className="text-muted-foreground">No services found</p>
-                                            <p className="text-sm text-muted-foreground mt-2">
-                                                Try adjusting your filters to find services
-                                            </p>
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            ) : (
-                                <div>
-                                    {filterServiceType === 'all' && communityServices.length > 0 && (
-                                        <div className="mb-4">
-                                            <h2 className="text-xl sm:text-2xl font-semibold mb-4">Services</h2>
-                                        </div>
-                                    )}
-                                    <div className="space-y-4">
-                                        {communityServices.map((service) => (
-                                            <div
-                                                key={service.id}
-                                                ref={setItemRef(service.id)}
-                                                tabIndex={-1}
-                                                className="outline-none"
-                                            >
-                                                <Card
-                                                    className={[
-                                                        'hover:shadow-md transition-shadow border-l-4 border-l-blue-500',
-                                                        highlightedItemId === service.id ? 'ring-2 ring-primary ring-offset-2' : '',
-                                                    ].join(' ')}
-                                                >
-                                                    <CardContent className="pt-4 sm:pt-6">
-                                                        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4">
-                                                            <div className="flex-1">
-                                                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mb-2">
-                                                                    <h3 className="text-lg font-semibold">{service.serviceName}</h3>
-                                                                    <div className="flex flex-wrap gap-2">
-                                                                        <Badge className={getStatusColor(service.status || 'pending')}>
-                                                                            {service.status?.replace('_', ' ') || 'pending'}
-                                                                        </Badge>
-                                                                        <Badge className={getPriorityColor(service.priority || 'medium')}>
-                                                                            <div className="flex items-center gap-1">
-                                                                                {getPriorityIcon(service.priority || 'medium')}
-                                                                                {service.priority || 'medium'}
-                                                                            </div>
-                                                                        </Badge>
-                                                                    </div>
-                                                                </div>
-
-                                                                {service.description && (
-                                                                    <p className="text-muted-foreground mb-3">{service.description}</p>
-                                                                )}
-
-                                                                {service.token && (
-                                                                    <div className="text-sm text-muted-foreground mb-3">
-                                                                        <strong>{t('taskManagement.token')}</strong> {service.token}
-                                                                    </div>
-                                                                )}
-
-                                                                {service.areas && service.areas.length > 0 && (
-                                                                    <div className="bg-blue-50 p-3 rounded-lg mb-3">
-                                                                        <div className="text-sm font-medium text-blue-900 mb-2">
-                                                                            Service Areas
-                                                                        </div>
-                                                                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-sm text-blue-700">
-                                                                            {service.areas.map((area) => (
-                                                                                <div key={`${area.boothNo || ''}-${area.wardNo || ''}-${area.acNo || ''}`} className="flex flex-wrap gap-1">
-                                                                                    {area.boothNo && <span><strong>Booth/Part:</strong> {area.boothNo}</span>}
-                                                                                    {area.wardNo && <span><strong>Ward:</strong> {area.wardNo}</span>}
-                                                                                    {area.acNo && <span><strong>AC:</strong> {area.acNo}</span>}
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-
-                                                                <div className="text-sm text-muted-foreground flex flex-col sm:flex-row sm:flex-wrap gap-1">
-                                                                    <span>
-                                                                        <strong>Created:</strong> {new Date(service.createdAt).toLocaleDateString()}
-                                                                    </span>
-                                                                    {service.updatedAt && service.updatedAt !== service.createdAt && (
-                                                                        <span><strong>Updated:</strong> {new Date(service.updatedAt).toLocaleDateString()}</span>
-                                                                    )}
-                                                                </div>
-
-                                                                {service.notes && (
-                                                                    <div className="mt-2 p-2 bg-muted rounded text-sm">
-                                                                        <strong>Notes:</strong> {service.notes}
-                                                                    </div>
-                                                                )}
-                                                            </div>
-
-                                                            <div className="flex flex-col sm:flex-row gap-2 lg:ml-4">
-                                                                {service.token && (
-                                                                    <Button
-                                                                        variant="outline"
-                                                                        size="default"
-                                                                        onClick={() =>
-                                                                            shareExistingTicket({
-                                                                                token: service.token,
-                                                                                createdAt: service.createdAt,
-                                                                                serviceName: service.serviceName,
-                                                                                name: service.serviceName,
-                                                                            })
-                                                                        }
-                                                                        className="w-full sm:w-auto"
-                                                                    >
-                                                                        <Share2 className="mr-2 h-4 w-4" />
-                                                                        Reprint Thermal
-                                                                    </Button>
-                                                                )}
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="default"
-                                                                    onClick={() => {
-                                                                        setSelectedCommunityService(service);
-                                                                        setSelectedTask(null);
-                                                                        setNewStatus(service.status || 'pending');
-                                                                        setNewNote('');
-                                                                        setShowTaskDialog(true);
-                                                                    }}
-                                                                    className="w-full sm:w-auto"
-                                                                >
-                                                                    {t('taskManagement.actions.manage')}
-                                                                </Button>
-                                                                <Button
-                                                                    variant="outline"
-                                                                    size="default"
-                                                                    onClick={() => {
-                                                                        setSelectedCommunityService(service);
-                                                                        setSelectedTask(null);
-                                                                        setShowEscalationDialog(true);
-                                                                    }}
-                                                                    className="w-full sm:w-auto"
-                                                                >
-                                                                    {t('taskManagement.actions.escalate')}
-                                                                </Button>
-                                                            </div>
-                                                        </div>
-                                                    </CardContent>
-                                                </Card>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    {/* Pagination for Services */}
-                                    {communityServices.length > 0 && (filterServiceType === 'all' || filterServiceType === 'community') && (
-                                        <div className="mt-4">
-                                            <TablePagination
-                                                currentPage={communityServicesPage}
-                                                totalPages={communityServicesTotalPages}
-                                                pageSize={pageSize}
-                                                totalItems={communityServicesTotalCount}
-                                                onPageChange={setCommunityServicesPage}
-                                                onPageSizeChange={(size) => {
-                                                    setPageSize(size);
-                                                    setCommunityServicesPage(1);
-                                                }}
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Show message if no results at all */}
-                    {filterServiceType === 'all' && tasks.length === 0 && communityServices.length === 0 && (
-                        <Card>
-                            <CardContent className="pt-4 sm:pt-6">
-                                <div className="text-center py-8">
-                                    <p className="text-muted-foreground">No tasks or services found</p>
-                                    <p className="text-sm text-muted-foreground mt-2">
-                                        Try adjusting your filters
-                                    </p>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    )}
+                    </div>
                 </div>
             )}
 
@@ -1380,16 +1189,13 @@ export function TaskManagement({
                         </DialogDescription>
                     </DialogHeader>
 
-                    {(selectedTask || selectedCommunityService) && (
+                    {selectedTask && (
                         <div className="space-y-4">
                             <div>
                                 <Label>{t('taskManagement.dialog.taskType')}</Label>
                                 <p className="text-sm text-muted-foreground">
-                                    {selectedTask
-                                        ? formatTaskType(selectedTask.taskType)
-                                        : (formatTaskType(selectedCommunityService?.serviceName) || 'Service')}
+                                    {formatTaskType(selectedTask.taskType)}
                                 </p>
-
                             </div>
 
                             <div>
@@ -1423,12 +1229,6 @@ export function TaskManagement({
                                     onClick={() => {
                                         if (selectedTask) {
                                             handleStatusUpdate(selectedTask.id, newStatus || selectedTask.status, newNote);
-                                        } else if (selectedCommunityService) {
-                                            handleCommunityServiceStatusUpdate(
-                                                selectedCommunityService.id,
-                                                newStatus || selectedCommunityService.status || 'pending',
-                                                newNote
-                                            );
                                         }
                                     }}
                                     disabled={!newStatus && !newNote.trim()}
@@ -1439,7 +1239,6 @@ export function TaskManagement({
                                 <Button variant="outline" onClick={() => {
                                     setShowTaskDialog(false);
                                     setSelectedTask(null);
-                                    setSelectedCommunityService(null);
                                 }} className="w-full sm:w-auto">
                                     {t('common.cancel')}
                                 </Button>
@@ -1459,12 +1258,12 @@ export function TaskManagement({
                         </DialogDescription>
                     </DialogHeader>
 
-                    {(selectedTask || selectedCommunityService) && (
+                    {selectedTask && (
                         <div className="space-y-4">
                             <div>
                                 <Label>{t('taskManagement.dialog.task')}</Label>
                                 <p className="text-sm text-muted-foreground">
-                                    {selectedTask ? selectedTask.taskType : (selectedCommunityService?.serviceName || 'Service')}
+                                    {selectedTask.taskType}
                                 </p>
                             </div>
 
@@ -1499,7 +1298,6 @@ export function TaskManagement({
                                 <Button variant="outline" onClick={() => {
                                     setShowEscalationDialog(false);
                                     setSelectedTask(null);
-                                    setSelectedCommunityService(null);
                                 }} className="w-full sm:w-auto">
                                     {t('common.cancel')}
                                 </Button>

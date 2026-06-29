@@ -11,9 +11,10 @@ import {
   SidebarMenu,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { Separator } from '@/components/ui/separator';
 import Link from 'next/link';
 import type { ModuleDefinition } from '@/lib/module-constants';
-import { ModuleNavigation } from './module-navigation';
+import { ModuleNavigation, ModuleNavigationPinned } from './module-navigation';
 import { useTranslations } from '@/hooks/use-translations';
 
 interface AppSidebarProps {
@@ -49,13 +50,15 @@ export function AppSidebar({ user, modules }: AppSidebarProps) {
           </div>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
-        {/* Navigation Menu */}
-        <div className="px-2 py-4">
+      <SidebarContent className="flex flex-col">
+        <div className="flex-1 px-2 py-4">
           <SidebarMenu>
-            {/* All Modules - Dynamically loaded and ordered based on permissions */}
             <ModuleNavigation user={user} modules={modules} />
           </SidebarMenu>
+        </div>
+        <div className="px-2 pb-2">
+          <Separator className="mb-2" />
+          <ModuleNavigationPinned modules={modules} />
         </div>
       </SidebarContent>
       <SidebarFooter>{user && <SidebarUserNav user={user} />}</SidebarFooter>
