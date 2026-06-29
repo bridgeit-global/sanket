@@ -742,7 +742,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
           type="button"
           variant="ghost"
           size="sm"
-          className="h-8 w-fit gap-1.5 px-0 text-muted-foreground hover:text-foreground"
+          className="h-8 w-fit gap-1.5 text-muted-foreground hover:text-foreground"
           onClick={
             showWardPanel && (showWardCommittee || showBoothCommittee)
               ? backToWardPanel
@@ -848,8 +848,8 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
                 <div key={entry.ward.id} className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
                   <div className="px-4 py-3">
                     <p className="font-bold">Ward No. {entry.wardLabel}</p>
-                    <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
-                      <span>Head: {entry.headName}</span>
+                    <div className="mt-1 space-y-1 text-sm">
+                      <p>Head: {entry.headName}</p>
                       <ContactWithCall phone={entry.headPhone} />
                     </div>
                   </div>

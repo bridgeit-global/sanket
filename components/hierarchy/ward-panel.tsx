@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { ContactWithCall, PhoneCallButton } from './contact-with-call';
+import { ContactWithCall } from './contact-with-call';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -229,9 +229,12 @@ export function WardPanel({
                           <Label className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
                             BLA Contact Number
                           </Label>
-                          <div className="flex items-center gap-2 py-1.5 text-sm">
-                            <span>{boothHeadPhone ?? '—'}</span>
-                            {boothHeadPhone && <PhoneCallButton phone={boothHeadPhone} />}
+                          <div className="py-1.5 text-sm">
+                            {boothHeadPhone ? (
+                              <ContactWithCall phone={boothHeadPhone} />
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -247,15 +250,16 @@ export function WardPanel({
                               return (
                                 <div
                                   key={member.id}
-                                  className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm"
+                                  className="space-y-1 px-3 py-2.5 text-sm"
                                 >
-                                  <span className="font-medium">
+                                  <p className="font-medium">
                                     {getMemberDisplayName(member)}
-                                  </span>
-                                  <span className="flex flex-wrap items-center gap-2 text-muted-foreground">
-                                    <span>{memberPhone ?? '—'}</span>
-                                    {memberPhone && <PhoneCallButton phone={memberPhone} />}
-                                  </span>
+                                  </p>
+                                  {memberPhone ? (
+                                    <ContactWithCall phone={memberPhone} />
+                                  ) : (
+                                    <span className="text-muted-foreground">—</span>
+                                  )}
                                 </div>
                               );
                             })}
