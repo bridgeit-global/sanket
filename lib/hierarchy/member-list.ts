@@ -9,6 +9,11 @@ export const HIERARCHY_URL_PARAMS = {
   booth: 'boothNo',
   member: 'member',
   page: 'page',
+  view: 'view',
+} as const;
+
+export const HIERARCHY_VIEWS = {
+  talukaCommittee: 'taluka-committee',
 } as const;
 
 export const DEFAULT_MEMBER_PAGE_SIZE = 30;
