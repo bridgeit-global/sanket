@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ContactWithCall } from './contact-with-call';
 import { MemberList } from './member-list';
 import { WardPanel } from './ward-panel';
 import { MemberEditor, type MemberEditorTarget } from './member-editor';
@@ -841,8 +842,10 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             <div className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 dark:border-violet-800/50 dark:bg-violet-950/25">
               <p className="text-sm">
                 Taluka Adhyaksh ({selectedVerticalName}): {talukaAdhyakshName}
-                {talukaAdhyakshPhone ? ` (${talukaAdhyakshPhone})` : ''}
               </p>
+              <div className="mt-1">
+                <ContactWithCall phone={talukaAdhyakshPhone} />
+              </div>
               <button
                 type="button"
                 className="mt-2 text-xs font-semibold tracking-[0.08em] text-violet-700 uppercase hover:underline dark:text-violet-300"
@@ -863,9 +866,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
                     <p className="font-bold">Ward No. {entry.wardLabel}</p>
                     <div className="mt-1 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-sm">
                       <span>Head: {entry.headName}</span>
-                      <span className="text-muted-foreground">
-                        Contact: {entry.headPhone ?? '—'}
-                      </span>
+                      <ContactWithCall phone={entry.headPhone} />
                     </div>
                   </div>
                   <button

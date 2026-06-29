@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
+import { ContactWithCall, PhoneCallButton } from './contact-with-call';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
@@ -164,9 +165,9 @@ export function WardPanel({
                     {verticalHeadLabel(entry.vertical.name)}
                   </p>
                   <p className="mt-1 text-sm font-medium">{entry.headName}</p>
-                  {entry.headPhone && (
-                    <p className="text-sm text-muted-foreground">{entry.headPhone}</p>
-                  )}
+                  <div className="mt-1 text-sm">
+                    <ContactWithCall phone={entry.headPhone} />
+                  </div>
                 </div>
                 <PanelActionLink onClick={() => onViewWardCommittee(entry.vertical.id)}>
                   [View Committee]
@@ -197,6 +198,7 @@ export function WardPanel({
                 wardGeoId,
                 boothNo,
               );
+              const boothHeadPhone = boothHead ? getMemberPhone(boothHead) : null;
 
               return (
                 <div
@@ -227,9 +229,10 @@ export function WardPanel({
                           <Label className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
                             BLA Contact Number
                           </Label>
-                          <p className="rounded-xl border border-input bg-background px-3 py-2.5 text-sm">
-                            {boothHead ? getMemberPhone(boothHead) ?? '—' : '—'}
-                          </p>
+                          <div className="flex items-center justify-between gap-2 rounded-xl border border-input bg-background px-3 py-2.5 text-sm">
+                            <span>{boothHeadPhone ?? '—'}</span>
+                            {boothHeadPhone && <PhoneCallButton phone={boothHeadPhone} />}
+                          </div>
                         </div>
                       </div>
 
@@ -239,19 +242,23 @@ export function WardPanel({
                             Booth Committee Members ({committeeMembers.length})
                           </Label>
                           <div className="divide-y overflow-hidden rounded-xl border border-border bg-background">
-                            {committeeMembers.map((member) => (
-                              <div
-                                key={member.id}
-                                className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm"
-                              >
-                                <span className="font-medium">
-                                  {getMemberDisplayName(member)}
-                                </span>
-                                <span className="text-muted-foreground">
-                                  {getMemberPhone(member) ?? '—'}
-                                </span>
-                              </div>
-                            ))}
+                            {committeeMembers.map((member) => {
+                              const memberPhone = getMemberPhone(member);
+                              return (
+                                <div
+                                  key={member.id}
+                                  className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm"
+                                >
+                                  <span className="font-medium">
+                                    {getMemberDisplayName(member)}
+                                  </span>
+                                  <span className="flex flex-wrap items-center gap-2 text-muted-foreground">
+                                    <span>{memberPhone ?? '—'}</span>
+                                    {memberPhone && <PhoneCallButton phone={memberPhone} />}
+                                  </span>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
