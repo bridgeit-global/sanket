@@ -1,9 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Pencil, Plus, Trash2, UserPlus, X } from 'lucide-react';
+import { Pencil, Plus, Trash2, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -127,20 +132,22 @@ function draftFromTarget(target: MemberEditorTarget): Draft {
 }
 
 interface MemberEditorProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   target: MemberEditorTarget;
   config: CadreConfig;
   constituencyId: string;
   electionId: string;
-  onClose: () => void;
   onSaved: () => void;
 }
 
 export function MemberEditor({
+  open,
+  onOpenChange,
   target,
   config,
   constituencyId,
   electionId,
-  onClose,
   onSaved,
 }: MemberEditorProps) {
   const [draft, setDraft] = useState<Draft>(() => draftFromTarget(target));
@@ -280,7 +287,7 @@ export function MemberEditor({
         description: isEdit ? 'Member updated' : 'Member created',
       });
       onSaved();
-      onClose();
+      onOpenChange(false);
     } catch (e) {
       toast({
         type: 'error',
@@ -302,7 +309,7 @@ export function MemberEditor({
       if (!res.ok) throw new Error(data.error ?? 'Delete failed');
       toast({ type: 'success', description: 'Member deleted' });
       onSaved();
-      onClose();
+      onOpenChange(false);
     } catch (e) {
       toast({
         type: 'error',
@@ -315,29 +322,23 @@ export function MemberEditor({
   };
 
   return (
-    <Card className="flex max-h-full w-[360px] max-w-full flex-col overflow-hidden border-2 shadow-xl">
-      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-        <CardTitle className="inline-flex items-center gap-1.5 text-base leading-tight">
-          {isEdit ? (
-            <>
-              <Pencil className="size-3.5" /> Edit member
-            </>
-          ) : (
-            <>
-              <UserPlus className="size-3.5" /> Add member
-            </>
-          )}
-        </CardTitle>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 shrink-0"
-          onClick={onClose}
-        >
-          <X className="size-4" />
-        </Button>
-      </CardHeader>
-      <CardContent className="space-y-4 overflow-y-auto text-sm">
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="flex max-h-[85dvh] max-w-md flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
+          <DialogHeader className="shrink-0 px-6 pt-6 pb-2">
+            <DialogTitle className="inline-flex items-center gap-1.5 text-base leading-tight">
+              {isEdit ? (
+                <>
+                  <Pencil className="size-3.5" /> Edit member
+                </>
+              ) : (
+                <>
+                  <UserPlus className="size-3.5" /> Add member
+                </>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-6 text-sm">
         <Tabs defaultValue="manual">
           <TabsList className="grid h-8 w-full grid-cols-3">
             <TabsTrigger value="manual" className="text-xs">
@@ -613,7 +614,9 @@ export function MemberEditor({
             </Button>
           )}
         </div>
-      </CardContent>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={confirmDelete}
@@ -625,6 +628,6 @@ export function MemberEditor({
         variant="destructive"
         onConfirm={handleDelete}
       />
-    </Card>
+    </>
   );
 }

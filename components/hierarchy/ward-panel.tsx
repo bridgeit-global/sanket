@@ -229,10 +229,8 @@ export function WardPanel({
                           <Label className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
                             BLA Contact Number
                           </Label>
-                          <div className="flex items-center justify-between gap-2 rounded-xl border border-input bg-background px-3 py-2.5 text-sm">
-                            <span>{boothHeadPhone ?? '—'}</span>
-                            {boothHeadPhone && <PhoneCallButton phone={boothHeadPhone} />}
-                          </div>
+                          <span>{boothHeadPhone ?? '—'}</span>
+                          {boothHeadPhone && <PhoneCallButton phone={boothHeadPhone} />}
                         </div>
                       </div>
 

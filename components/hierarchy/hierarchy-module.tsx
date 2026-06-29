@@ -521,22 +521,6 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     [members, setUrlParams],
   );
 
-  const overlay = useMemo(() => {
-    if (canEdit && editorTarget && config) {
-      return (
-        <MemberEditor
-          target={editorTarget}
-          config={config}
-          constituencyId={DEFAULT_CONSTITUENCY_ID}
-          electionId={defaultElectionId}
-          onClose={() => setEditorTarget(null)}
-          onSaved={refresh}
-        />
-      );
-    }
-    return null;
-  }, [canEdit, editorTarget, config, defaultElectionId, refresh]);
-
   const filterVerticalSelect = (
     <Select
       value={toOptionalSelectValue(verticalId || effectiveVerticalId)}
@@ -934,10 +918,18 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         )}
       </div>
 
-      {overlay && (
-        <div className="absolute inset-x-2 bottom-2 z-20 max-h-[min(80dvh,calc(100%-1rem))] overflow-hidden md:inset-x-auto md:bottom-3 md:right-3 md:top-3 md:max-h-[calc(100%-1.5rem)] md:max-w-[min(24rem,calc(100%-1.5rem))]">
-          {overlay}
-        </div>
+      {canEdit && editorTarget && config && (
+        <MemberEditor
+          open
+          onOpenChange={(open) => {
+            if (!open) setEditorTarget(null);
+          }}
+          target={editorTarget}
+          config={config}
+          constituencyId={DEFAULT_CONSTITUENCY_ID}
+          electionId={defaultElectionId}
+          onSaved={refresh}
+        />
       )}
 
       <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
