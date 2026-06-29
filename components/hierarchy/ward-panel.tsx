@@ -216,26 +216,21 @@ export function WardPanel({
 
                   {isExpanded && (
                     <div className="space-y-4 border-t border-border bg-muted/20 px-4 py-4">
-                      <div className="grid gap-3 sm:grid-cols-2">
+                      <Label className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                        BLA
+                      </Label>
+                      <div className="divide-y overflow-hidden rounded-xl border border-border bg-background px-3 py-2.5">
                         <div className="space-y-1.5">
-                          <Label className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                            BLA – Sir Name
-                          </Label>
-                          <p className="rounded-xl border border-input bg-background px-3 py-2.5 text-sm">
+                          <p className="text-sm">
                             {boothHead ? getMemberDisplayName(boothHead) : '—'}
+                            <div className="py-1.5 text-sm">
+                              {boothHeadPhone ? (
+                                <ContactWithCall phone={boothHeadPhone} />
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </div>
                           </p>
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                            BLA Contact Number
-                          </Label>
-                          <div className="py-1.5 text-sm">
-                            {boothHeadPhone ? (
-                              <ContactWithCall phone={boothHeadPhone} />
-                            ) : (
-                              <span className="text-muted-foreground">—</span>
-                            )}
-                          </div>
                         </div>
                       </div>
 

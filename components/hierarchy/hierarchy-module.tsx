@@ -1,8 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, ChevronDown, Plus, Settings, SlidersHorizontal, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { ArrowLeft, ChevronDown, Loader2, Plus, Search, Settings, SlidersHorizontal, X } from 'lucide-react';
 import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -101,7 +101,9 @@ interface HierarchyModuleProps {
 
 export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [isNavigating, startSearchTransition] = useTransition();
 
   const [config, setConfig] = useState<CadreConfig | null>(null);
   const [referenceCounts, setReferenceCounts] =
@@ -111,6 +113,8 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [searchDraft, setSearchDraft] = useState('');
+  const [isSearchPending, setIsSearchPending] = useState(false);
+  const pendingSearchRef = useRef<string | null>(null);
 
   const [editorTarget, setEditorTarget] = useState<MemberEditorTarget | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
@@ -129,7 +133,22 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
 
   useEffect(() => {
     setSearchDraft(searchQuery);
+    if (pendingSearchRef.current !== null && searchQuery.trim() === pendingSearchRef.current) {
+      pendingSearchRef.current = null;
+      setIsSearchPending(false);
+    }
   }, [searchQuery]);
+
+  useEffect(() => {
+    if (!isSearchPending) return;
+    const timeoutId = window.setTimeout(() => {
+      pendingSearchRef.current = null;
+      setIsSearchPending(false);
+    }, 2000);
+    return () => window.clearTimeout(timeoutId);
+  }, [isSearchPending]);
+
+  const isSearching = isNavigating || isSearchPending;
 
   const setUrlParams = useCallback(
     (updates: {
@@ -169,10 +188,20 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       if (next.view.trim()) params.set(HIERARCHY_URL_PARAMS.view, next.view.trim());
       if (nextPage > 1) params.set(HIERARCHY_URL_PARAMS.page, String(nextPage));
       const qs = params.toString();
-      router.replace(qs ? `?${qs}` : '?', { scroll: false });
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
-    [router, searchQuery, verticalId, positionId, wardGeoId, boothNo, focusMemberId, pageFromUrl, viewMode],
+    [router, pathname, searchQuery, verticalId, positionId, wardGeoId, boothNo, focusMemberId, pageFromUrl, viewMode],
   );
+
+  const commitSearch = useCallback(() => {
+    const trimmed = searchDraft.trim();
+    if (trimmed === searchQuery.trim()) return;
+    pendingSearchRef.current = trimmed;
+    setIsSearchPending(true);
+    startSearchTransition(() => {
+      setUrlParams({ search: searchDraft });
+    });
+  }, [searchDraft, searchQuery, setUrlParams, startSearchTransition]);
 
   const loadConfig = useCallback(async () => {
     const res = await fetch('/api/hierarchy/config');
@@ -434,7 +463,12 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     return count;
   }, [verticalId, positionId, wardGeoId, boothNo]);
 
-  const commitSearch = () => setUrlParams({ search: searchDraft });
+  const clearSearch = useCallback(() => {
+    setSearchDraft('');
+    setUrlParams({ search: '' });
+  }, [setUrlParams]);
+
+  const hasSearch = Boolean(searchDraft.trim() || searchQuery.trim());
 
   const activeFilterChips = useMemo(() => {
     const chips: Array<{ key: string; label: string; onRemove: () => void }> = [];
@@ -716,23 +750,63 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       </div>
 
       <div>
-        <Label
-          htmlFor="hierarchy-search"
-          className="mb-1.5 block text-[11px] font-semibold tracking-[0.12em] text-muted-foreground"
-        >
-          SEARCH
-        </Label>
-        <Input
-          id="hierarchy-search"
-          className="h-11 rounded-xl border border-input bg-muted/40 px-3 shadow-none focus-visible:ring-1"
-          value={searchDraft}
-          onChange={(e) => setSearchDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') commitSearch();
-          }}
-          onBlur={commitSearch}
-          placeholder="Search name/number..."
-        />
+        <div className="mb-1.5 flex items-center justify-between gap-2">
+          <Label
+            htmlFor="hierarchy-search"
+            className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground"
+          >
+            SEARCH
+          </Label>
+          {hasSearch && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+              onClick={clearSearch}
+            >
+              Clear all
+            </Button>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <div className="relative min-w-0 flex-1">
+            <Input
+              id="hierarchy-search"
+              className="h-11 rounded-xl border border-input bg-muted/40 px-3 shadow-none focus-visible:ring-1 pr-10"
+              value={searchDraft}
+              onChange={(e) => setSearchDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') commitSearch();
+              }}
+              placeholder="Search name/number..."
+            />
+            {hasSearch && (
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+                aria-label="Clear search"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={clearSearch}
+              >
+                <X className="size-4" />
+              </button>
+            )}
+          </div>
+          <Button
+            type="button"
+            className="h-11 shrink-0 gap-1.5 rounded-xl px-4"
+            disabled={isSearching}
+            onClick={commitSearch}
+          >
+            {isSearching ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Search className="size-4" />
+            )}
+            {isSearching ? 'Searching…' : 'Search'}
+          </Button>
+        </div>
       </div>
 
       {!showWardPanelMain && verticalSelect}

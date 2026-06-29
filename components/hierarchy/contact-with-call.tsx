@@ -32,8 +32,8 @@ export function ContactWithCall({ phone }: { phone: string | null }) {
 
   return (
     <span className="inline-flex items-center gap-2">
-      <span className="text-muted-foreground">Contact: {phone}</span>
       <PhoneCallButton phone={phone} />
+      <span className="text-muted-foreground">: {phone}</span>
     </span>
   );
 }
