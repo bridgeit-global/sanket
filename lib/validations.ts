@@ -20,8 +20,8 @@ export const registerEntryFormSchema = z.object({
   fromTo: z.string().min(1, 'Sender/recipient is required').max(500, 'Name is too long'),
   subject: z.string().min(1, 'Subject is required').max(1000, 'Subject is too long'),
   projectId: z.string().optional(),
-  mode: z.string().max(100, 'Mode is too long').optional(),
-  refNo: z.string().max(100, 'Reference number is too long').optional(),
+  mode: z.string().max(255, 'Mode is too long').optional(),
+  refNo: z.string().max(255, 'Reference number is too long').optional(),
   officer: z.string().max(255, 'Officer name is too long').optional(),
 });
 
