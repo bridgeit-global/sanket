@@ -44,6 +44,12 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { LimitedFormField } from '@/components/ui/limited-form-field';
+import {
+  REGISTER_ENTRY_FIELD_LIMITS,
+  registerEntryFormSchema,
+  validateForm,
+} from '@/lib/validations';
 
 interface Attachment {
   id: string;
@@ -97,6 +103,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
   const [editingEntry, setEditingEntry] = useState<RegisterEntry | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // File upload state for new entries
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -197,9 +204,40 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
     }
   };
 
+  const clearFieldError = (field: string) => {
+    setFormErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const validateRegisterForm = () => {
+    const validation = validateForm(registerEntryFormSchema, {
+      date: form.date,
+      fromTo: form.fromTo,
+      subject: form.subject,
+      projectId: form.projectId || undefined,
+      mode: form.mode || undefined,
+      refNo: form.refNo || undefined,
+      officer: form.officer || undefined,
+    });
+
+    if (!validation.success) {
+      setFormErrors(validation.errors);
+      const firstError = Object.values(validation.errors)[0];
+      if (firstError) toast.error(firstError);
+      return false;
+    }
+
+    setFormErrors({});
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.date || !form.subject) return;
+    if (!validateRegisterForm()) return;
 
     try {
       // Create the entry first
@@ -377,6 +415,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
   const handleUpdateEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEntry) return;
+    if (!validateRegisterForm()) return;
 
     try {
       const response = await fetch(`/api/register/${editingEntry.id}`, {
@@ -589,22 +628,33 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="fromTo">{labelFromTo}</Label>
-              <Input
+              <LimitedFormField
                 id="fromTo"
+                label={labelFromTo}
                 placeholder={t('forms.placeholder.fromTo')}
                 value={form.fromTo}
-                onChange={(e) => setForm({ ...form, fromTo: e.target.value })}
+                maxLength={REGISTER_ENTRY_FIELD_LIMITS.fromTo}
+                error={formErrors.fromTo}
+                required
+                onChange={(value) => {
+                  setForm({ ...form, fromTo: value });
+                  clearFieldError('fromTo');
+                }}
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="subject">{t('forms.subject')}</Label>
-              <Input
+              <LimitedFormField
                 id="subject"
+                label={t('forms.subject')}
                 placeholder={t('forms.placeholder.subject')}
                 value={form.subject}
-                onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                maxLength={REGISTER_ENTRY_FIELD_LIMITS.subject}
+                error={formErrors.subject}
                 required
+                onChange={(value) => {
+                  setForm({ ...form, subject: value });
+                  clearFieldError('subject');
+                }}
               />
             </div>
             <div className="space-y-2 md:col-span-2">
@@ -629,30 +679,45 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
               </Select>
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="mode">Mode</Label>
-              <Input
+              <LimitedFormField
                 id="mode"
+                label="Mode"
                 placeholder="Hand / Email / Dak / Courier..."
                 value={form.mode}
-                onChange={(e) => setForm({ ...form, mode: e.target.value })}
+                maxLength={REGISTER_ENTRY_FIELD_LIMITS.mode}
+                error={formErrors.mode}
+                onChange={(value) => {
+                  setForm({ ...form, mode: value });
+                  clearFieldError('mode');
+                }}
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="refNo">Reference No.</Label>
-              <Input
+              <LimitedFormField
                 id="refNo"
+                label="Reference No."
                 placeholder="Diary no., email id, dak no..."
                 value={form.refNo}
-                onChange={(e) => setForm({ ...form, refNo: e.target.value })}
+                maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
+                error={formErrors.refNo}
+                onChange={(value) => {
+                  setForm({ ...form, refNo: value });
+                  clearFieldError('refNo');
+                }}
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="officer">Marked to Officer</Label>
-              <Input
+              <LimitedFormField
                 id="officer"
+                label="Marked to Officer"
                 placeholder="PA, PRO, Office staff..."
                 value={form.officer}
-                onChange={(e) => setForm({ ...form, officer: e.target.value })}
+                maxLength={REGISTER_ENTRY_FIELD_LIMITS.officer}
+                error={formErrors.officer}
+                onChange={(value) => {
+                  setForm({ ...form, officer: value });
+                  clearFieldError('officer');
+                }}
               />
             </div>
             <div className="space-y-2 md:col-span-6">
@@ -972,6 +1037,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
       {/* Edit Entry Dialog */}
       <Dialog open={!!editingEntry} onOpenChange={() => {
         setEditingEntry(null);
+        setFormErrors({});
         // Reset form when closing
         setForm({
           documentType: 'General',
@@ -1027,23 +1093,31 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-fromTo">
-                {editingEntry?.type === 'inward' ? 'From' : 'To'} *
-              </Label>
-              <Input
+              <LimitedFormField
                 id="edit-fromTo"
+                label={editingEntry?.type === 'inward' ? 'From' : 'To'}
                 value={form.fromTo}
-                onChange={(e) => setForm({ ...form, fromTo: e.target.value })}
+                maxLength={REGISTER_ENTRY_FIELD_LIMITS.fromTo}
+                error={formErrors.fromTo}
                 required
+                onChange={(value) => {
+                  setForm({ ...form, fromTo: value });
+                  clearFieldError('fromTo');
+                }}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-subject">Subject *</Label>
-              <Input
+              <LimitedFormField
                 id="edit-subject"
+                label="Subject"
                 value={form.subject}
-                onChange={(e) => setForm({ ...form, subject: e.target.value })}
+                maxLength={REGISTER_ENTRY_FIELD_LIMITS.subject}
+                error={formErrors.subject}
                 required
+                onChange={(value) => {
+                  setForm({ ...form, subject: value });
+                  clearFieldError('subject');
+                }}
               />
             </div>
             <div className="space-y-2">
@@ -1069,27 +1143,42 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
-                <Label htmlFor="edit-mode">Mode</Label>
-                <Input
+                <LimitedFormField
                   id="edit-mode"
+                  label="Mode"
                   value={form.mode}
-                  onChange={(e) => setForm({ ...form, mode: e.target.value })}
+                  maxLength={REGISTER_ENTRY_FIELD_LIMITS.mode}
+                  error={formErrors.mode}
+                  onChange={(value) => {
+                    setForm({ ...form, mode: value });
+                    clearFieldError('mode');
+                  }}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-refNo">Reference No</Label>
-                <Input
+                <LimitedFormField
                   id="edit-refNo"
+                  label="Reference No"
                   value={form.refNo}
-                  onChange={(e) => setForm({ ...form, refNo: e.target.value })}
+                  maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
+                  error={formErrors.refNo}
+                  onChange={(value) => {
+                    setForm({ ...form, refNo: value });
+                    clearFieldError('refNo');
+                  }}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-officer">Officer</Label>
-                <Input
+                <LimitedFormField
                   id="edit-officer"
+                  label="Officer"
                   value={form.officer}
-                  onChange={(e) => setForm({ ...form, officer: e.target.value })}
+                  maxLength={REGISTER_ENTRY_FIELD_LIMITS.officer}
+                  error={formErrors.officer}
+                  onChange={(value) => {
+                    setForm({ ...form, officer: value });
+                    clearFieldError('officer');
+                  }}
                 />
               </div>
             </div>

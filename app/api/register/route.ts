@@ -6,6 +6,7 @@ import {
   createRegisterEntry,
 } from '@/lib/db/queries';
 import { hasModuleAccess } from '@/lib/db/queries';
+import { registerEntryFormSchema, validateForm } from '@/lib/validations';
 
 export async function GET(request: NextRequest) {
   try {
@@ -107,16 +108,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    const validation = validateForm(registerEntryFormSchema, {
+      date,
+      fromTo,
+      subject,
+      projectId: projectId || undefined,
+      mode: mode || undefined,
+      refNo: refNo || undefined,
+      officer: officer || undefined,
+    });
+    if (!validation.success) {
+      const firstError = Object.values(validation.errors)[0];
+      return NextResponse.json({ error: firstError }, { status: 400 });
+    }
+
     const entry = await createRegisterEntry({
       type,
       documentType: documentType || 'General',
       date: new Date(date),
-      fromTo,
-      subject,
+      fromTo: validation.data.fromTo,
+      subject: validation.data.subject,
       projectId,
-      mode,
-      refNo,
-      officer,
+      mode: validation.data.mode,
+      refNo: validation.data.refNo,
+      officer: validation.data.officer,
       createdBy: session.user.id,
     });
 

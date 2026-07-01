@@ -43,6 +43,12 @@ import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ProjectsSkeleton } from '@/components/module-skeleton';
 import { RegisterAttachmentDialog } from '@/components/register-attachment-dialog';
 import { WardBeatCombobox } from '@/components/ui/ward-beat-combobox';
+import { LimitedFormField } from '@/components/ui/limited-form-field';
+import {
+  REGISTER_ENTRY_FIELD_LIMITS,
+  registerEntryFormSchema,
+  validateForm,
+} from '@/lib/validations';
 
 interface Attachment {
   id: string;
@@ -117,6 +123,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   // Delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
+  const [entryFormErrors, setEntryFormErrors] = useState<Record<string, string>>({});
 
   // Attachment dialog
   const [attachmentDialogEntry, setAttachmentDialogEntry] = useState<RegisterEntry | null>(null);
@@ -245,12 +252,39 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     }
   };
 
+  const clearEntryFieldError = (field: string) => {
+    setEntryFormErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const validateEntryForm = () => {
+    const validation = validateForm(registerEntryFormSchema, {
+      date: entryForm.date,
+      fromTo: entryForm.fromTo,
+      subject: entryForm.subject,
+      mode: entryForm.mode || undefined,
+      refNo: entryForm.refNo || undefined,
+      officer: entryForm.officer || undefined,
+    });
+
+    if (!validation.success) {
+      setEntryFormErrors(validation.errors);
+      const firstError = Object.values(validation.errors)[0];
+      if (firstError) toast.error(firstError);
+      return false;
+    }
+
+    setEntryFormErrors({});
+    return true;
+  };
+
   const handleAddEntry = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!entryForm.date || !entryForm.fromTo || !entryForm.subject) {
-      toast.error('Please fill all required fields');
-      return;
-    }
+    if (!validateEntryForm()) return;
 
     try {
       // Create the entry first
@@ -385,6 +419,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const handleUpdateEntry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingEntry) return;
+    if (!validateEntryForm()) return;
 
     try {
       const response = await fetch(`/api/register/${editingEntry.id}`, {
@@ -887,51 +922,74 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="entry-fromTo">
-                  {entryForm.type === 'inward' ? 'From' : 'To'} *
-                </Label>
-                <Input
+                <LimitedFormField
                   id="entry-fromTo"
+                  label={entryForm.type === 'inward' ? 'From' : 'To'}
                   placeholder="Name, designation, department..."
                   value={entryForm.fromTo}
-                  onChange={(e) => setEntryForm({ ...entryForm, fromTo: e.target.value })}
+                  maxLength={REGISTER_ENTRY_FIELD_LIMITS.fromTo}
+                  error={entryFormErrors.fromTo}
                   required
+                  onChange={(value) => {
+                    setEntryForm({ ...entryForm, fromTo: value });
+                    clearEntryFieldError('fromTo');
+                  }}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="entry-subject">Subject *</Label>
-                <Input
+                <LimitedFormField
                   id="entry-subject"
+                  label="Subject"
                   placeholder="Short description..."
                   value={entryForm.subject}
-                  onChange={(e) => setEntryForm({ ...entryForm, subject: e.target.value })}
+                  maxLength={REGISTER_ENTRY_FIELD_LIMITS.subject}
+                  error={entryFormErrors.subject}
                   required
+                  onChange={(value) => {
+                    setEntryForm({ ...entryForm, subject: value });
+                    clearEntryFieldError('subject');
+                  }}
                 />
               </div>
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="space-y-2">
-                  <Label htmlFor="entry-mode">Mode</Label>
-                  <Input
+                  <LimitedFormField
                     id="entry-mode"
+                    label="Mode"
                     placeholder="Hand, Email, Dak..."
                     value={entryForm.mode}
-                    onChange={(e) => setEntryForm({ ...entryForm, mode: e.target.value })}
+                    maxLength={REGISTER_ENTRY_FIELD_LIMITS.mode}
+                    error={entryFormErrors.mode}
+                    onChange={(value) => {
+                      setEntryForm({ ...entryForm, mode: value });
+                      clearEntryFieldError('mode');
+                    }}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="entry-refNo">Reference No</Label>
-                  <Input
+                  <LimitedFormField
                     id="entry-refNo"
+                    label="Reference No"
                     value={entryForm.refNo}
-                    onChange={(e) => setEntryForm({ ...entryForm, refNo: e.target.value })}
+                    maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
+                    error={entryFormErrors.refNo}
+                    onChange={(value) => {
+                      setEntryForm({ ...entryForm, refNo: value });
+                      clearEntryFieldError('refNo');
+                    }}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="entry-officer">Officer</Label>
-                  <Input
+                  <LimitedFormField
                     id="entry-officer"
+                    label="Officer"
                     value={entryForm.officer}
-                    onChange={(e) => setEntryForm({ ...entryForm, officer: e.target.value })}
+                    maxLength={REGISTER_ENTRY_FIELD_LIMITS.officer}
+                    error={entryFormErrors.officer}
+                    onChange={(value) => {
+                      setEntryForm({ ...entryForm, officer: value });
+                      clearEntryFieldError('officer');
+                    }}
                   />
                 </div>
               </div>
@@ -1345,50 +1403,71 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-fromTo">
-                {editingEntry?.type === 'inward' ? 'From' : 'To'} *
-              </Label>
-              <Input
+              <LimitedFormField
                 id="edit-fromTo"
+                label={editingEntry?.type === 'inward' ? 'From' : 'To'}
                 value={entryForm.fromTo}
-                onChange={(e) => setEntryForm({ ...entryForm, fromTo: e.target.value })}
+                maxLength={REGISTER_ENTRY_FIELD_LIMITS.fromTo}
+                error={entryFormErrors.fromTo}
                 required
+                onChange={(value) => {
+                  setEntryForm({ ...entryForm, fromTo: value });
+                  clearEntryFieldError('fromTo');
+                }}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-subject">Subject *</Label>
-              <Input
+              <LimitedFormField
                 id="edit-subject"
+                label="Subject"
                 value={entryForm.subject}
-                onChange={(e) => setEntryForm({ ...entryForm, subject: e.target.value })}
+                maxLength={REGISTER_ENTRY_FIELD_LIMITS.subject}
+                error={entryFormErrors.subject}
                 required
+                onChange={(value) => {
+                  setEntryForm({ ...entryForm, subject: value });
+                  clearEntryFieldError('subject');
+                }}
               />
             </div>
             <div className="grid gap-4 md:grid-cols-3">
               <div className="space-y-2">
-                <Label htmlFor="edit-mode">Mode</Label>
-                <Input
+                <LimitedFormField
                   id="edit-mode"
+                  label="Mode"
                   value={entryForm.mode}
-                  onChange={(e) => setEntryForm({ ...entryForm, mode: e.target.value })}
+                  maxLength={REGISTER_ENTRY_FIELD_LIMITS.mode}
+                  error={entryFormErrors.mode}
+                  onChange={(value) => {
+                    setEntryForm({ ...entryForm, mode: value });
+                    clearEntryFieldError('mode');
+                  }}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-refNo">Reference No</Label>
-                <Input
+                <LimitedFormField
                   id="edit-refNo"
+                  label="Reference No"
                   value={entryForm.refNo}
-                  onChange={(e) => setEntryForm({ ...entryForm, refNo: e.target.value })}
+                  maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
+                  error={entryFormErrors.refNo}
+                  onChange={(value) => {
+                    setEntryForm({ ...entryForm, refNo: value });
+                    clearEntryFieldError('refNo');
+                  }}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-officer">Officer</Label>
-                <Input
+                <LimitedFormField
                   id="edit-officer"
+                  label="Officer"
                   value={entryForm.officer}
-                  onChange={(e) =>
-                    setEntryForm({ ...entryForm, officer: e.target.value })
-                  }
+                  maxLength={REGISTER_ENTRY_FIELD_LIMITS.officer}
+                  error={entryFormErrors.officer}
+                  onChange={(value) => {
+                    setEntryForm({ ...entryForm, officer: value });
+                    clearEntryFieldError('officer');
+                  }}
                 />
               </div>
             </div>

@@ -8,6 +8,7 @@ import {
   getRegisterAttachments,
 } from '@/lib/db/queries';
 import { hasModuleAccess } from '@/lib/db/queries';
+import { registerEntryFormSchema, validateForm } from '@/lib/validations';
 
 export async function GET(
   request: NextRequest,
@@ -110,16 +111,29 @@ export async function POST(
       );
     }
 
+    const validation = validateForm(registerEntryFormSchema, {
+      date,
+      fromTo,
+      subject,
+      mode: mode || undefined,
+      refNo: refNo || undefined,
+      officer: officer || undefined,
+    });
+    if (!validation.success) {
+      const firstError = Object.values(validation.errors)[0];
+      return NextResponse.json({ error: firstError }, { status: 400 });
+    }
+
     const entry = await createRegisterEntry({
       type,
       documentType: documentType || 'General',
       date,
-      fromTo,
-      subject,
+      fromTo: validation.data.fromTo,
+      subject: validation.data.subject,
       projectId: id,
-      mode,
-      refNo,
-      officer,
+      mode: validation.data.mode,
+      refNo: validation.data.refNo,
+      officer: validation.data.officer,
       createdBy: session.user.id,
     });
 

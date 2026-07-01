@@ -14,15 +14,53 @@ export const projectFormSchema = z.object({
 
 export type ProjectFormData = z.infer<typeof projectFormSchema>;
 
+export const REGISTER_ENTRY_FIELD_LIMITS = {
+  fromTo: 500,
+  subject: 1000,
+  mode: 255,
+  refNo: 255,
+  officer: 255,
+} as const;
+
 // Register entry form validation
 export const registerEntryFormSchema = z.object({
   date: z.string().min(1, 'Date is required'),
-  fromTo: z.string().min(1, 'Sender/recipient is required').max(500, 'Name is too long'),
-  subject: z.string().min(1, 'Subject is required').max(1000, 'Subject is too long'),
+  fromTo: z
+    .string()
+    .min(1, 'Sender/recipient is required')
+    .max(
+      REGISTER_ENTRY_FIELD_LIMITS.fromTo,
+      `Maximum ${REGISTER_ENTRY_FIELD_LIMITS.fromTo} characters`,
+    ),
+  subject: z
+    .string()
+    .min(1, 'Subject is required')
+    .max(
+      REGISTER_ENTRY_FIELD_LIMITS.subject,
+      `Maximum ${REGISTER_ENTRY_FIELD_LIMITS.subject} characters`,
+    ),
   projectId: z.string().optional(),
-  mode: z.string().max(255, 'Mode is too long').optional(),
-  refNo: z.string().max(255, 'Reference number is too long').optional(),
-  officer: z.string().max(255, 'Officer name is too long').optional(),
+  mode: z
+    .string()
+    .max(
+      REGISTER_ENTRY_FIELD_LIMITS.mode,
+      `Maximum ${REGISTER_ENTRY_FIELD_LIMITS.mode} characters`,
+    )
+    .optional(),
+  refNo: z
+    .string()
+    .max(
+      REGISTER_ENTRY_FIELD_LIMITS.refNo,
+      `Maximum ${REGISTER_ENTRY_FIELD_LIMITS.refNo} characters`,
+    )
+    .optional(),
+  officer: z
+    .string()
+    .max(
+      REGISTER_ENTRY_FIELD_LIMITS.officer,
+      `Maximum ${REGISTER_ENTRY_FIELD_LIMITS.officer} characters`,
+    )
+    .optional(),
 });
 
 export type RegisterEntryFormData = z.infer<typeof registerEntryFormSchema>;

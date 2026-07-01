@@ -8,6 +8,7 @@ import {
   getRegisterAttachments,
 } from '@/lib/db/queries';
 import { hasModuleAccess } from '@/lib/db/queries';
+import { registerEntryFormSchema, validateForm } from '@/lib/validations';
 
 export async function GET(
   request: NextRequest,
@@ -70,19 +71,39 @@ export async function PUT(
     }
 
     const body = await request.json();
-    const updateData: any = {};
+
+    const validation = validateForm(registerEntryFormSchema, {
+      date: body.date ?? entry.date,
+      fromTo: body.fromTo ?? entry.fromTo,
+      subject: body.subject ?? entry.subject,
+      projectId:
+        body.projectId !== undefined
+          ? body.projectId === ''
+            ? undefined
+            : body.projectId
+          : entry.projectId ?? undefined,
+      mode: body.mode !== undefined ? body.mode || undefined : entry.mode ?? undefined,
+      refNo: body.refNo !== undefined ? body.refNo || undefined : entry.refNo ?? undefined,
+      officer:
+        body.officer !== undefined ? body.officer || undefined : entry.officer ?? undefined,
+    });
+    if (!validation.success) {
+      const firstError = Object.values(validation.errors)[0];
+      return NextResponse.json({ error: firstError }, { status: 400 });
+    }
+
+    const updateData: Record<string, unknown> = {};
 
     // Date should remain as string (YYYY-MM-DD format) as per schema
-    if (body.date !== undefined) updateData.date = body.date;
-    if (body.fromTo !== undefined) updateData.fromTo = body.fromTo;
-    if (body.subject !== undefined) updateData.subject = body.subject;
+    if (body.date !== undefined) updateData.date = validation.data.date;
+    if (body.fromTo !== undefined) updateData.fromTo = validation.data.fromTo;
+    if (body.subject !== undefined) updateData.subject = validation.data.subject;
     if (body.projectId !== undefined) {
-      // Convert empty string to null for optional projectId
       updateData.projectId = body.projectId === '' ? null : body.projectId;
     }
-    if (body.mode !== undefined) updateData.mode = body.mode || null;
-    if (body.refNo !== undefined) updateData.refNo = body.refNo || null;
-    if (body.officer !== undefined) updateData.officer = body.officer || null;
+    if (body.mode !== undefined) updateData.mode = validation.data.mode || null;
+    if (body.refNo !== undefined) updateData.refNo = validation.data.refNo || null;
+    if (body.officer !== undefined) updateData.officer = validation.data.officer || null;
     if (body.documentType !== undefined) {
       // Validate documentType
       if (!['VIP', 'Department', 'General'].includes(body.documentType)) {
