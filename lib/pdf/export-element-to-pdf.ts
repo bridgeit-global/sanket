@@ -3,12 +3,20 @@ import { jsPDF } from 'jspdf';
 
 type PdfPageFormat = 'a4';
 
+/** Printable content width for A4 portrait with 15mm side margins at 96dpi. */
+export const A4_PORTRAIT_CONTENT_WIDTH_PX = Math.round((180 * 96) / 25.4);
+
 export type ExportElementToPdfOptions = {
   element: HTMLElement;
   fileName: string;
   format?: PdfPageFormat;
   orientation?: 'portrait' | 'landscape';
   marginMm?: number;
+  /**
+   * Render capture at a fixed CSS width (off-screen) so PDF layout is identical
+   * across mobile and desktop viewports.
+   */
+  captureWidthPx?: number;
   header?: {
     lines: string[];
     /** Space reserved for header content (inside margins). */
@@ -27,6 +35,13 @@ export type ExportElementToPdfOptions = {
    * If omitted, defaults to 2, clamped for extremely tall content.
    */
   scale?: number;
+  /** Draw a rectangular border on each PDF page (independent of html2canvas). */
+  pageBorder?: {
+    /** Line width in mm. Default 0.6 */
+    widthMm?: number;
+    /** Inset from page edges in mm. Defaults to marginMm. */
+    insetMm?: number;
+  };
 };
 
 function clampScale(scale: number, element: HTMLElement): number {
@@ -96,6 +111,61 @@ async function waitForFontsReady(): Promise<void> {
   }
 }
 
+const PDF_FONT_FAMILY =
+  '"Noto Sans Devanagari","Nirmala UI","Mangal",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif';
+
+function prepareCaptureElement(
+  source: HTMLElement,
+  captureWidthPx?: number,
+): { element: HTMLElement; cleanup: () => void } {
+  if (!captureWidthPx) {
+    return { element: source, cleanup: () => {} };
+  }
+
+  const host = document.createElement('div');
+  host.setAttribute('data-pdf-capture', 'true');
+  host.style.position = 'fixed';
+  host.style.left = '-10000px';
+  host.style.top = '0';
+  host.style.width = `${captureWidthPx}px`;
+  host.style.background = '#ffffff';
+  host.style.color = '#000000';
+  host.style.boxSizing = 'border-box';
+  host.style.fontFamily = PDF_FONT_FAMILY;
+
+  const clone = source.cloneNode(true) as HTMLElement;
+  clone.className = '';
+  clone.style.width = '100%';
+  clone.style.maxWidth = '100%';
+  clone.style.boxSizing = 'border-box';
+  clone.style.boxShadow = 'none';
+  clone.style.borderRadius = '0';
+  clone.style.background = '#ffffff';
+  clone.style.color = '#000000';
+  clone.style.padding = '24px';
+  clone.style.fontSize = '15px';
+  clone.style.lineHeight = '1.75';
+  clone.style.fontFamily = PDF_FONT_FAMILY;
+
+  const pre = clone.querySelector('pre');
+  if (pre instanceof HTMLElement) {
+    pre.style.margin = '0';
+    pre.style.whiteSpace = 'pre-wrap';
+    pre.style.fontSize = '15px';
+    pre.style.lineHeight = '1.75';
+    pre.style.fontFamily = PDF_FONT_FAMILY;
+    pre.style.color = '#000000';
+  }
+
+  host.appendChild(clone);
+  document.body.appendChild(host);
+
+  return {
+    element: host,
+    cleanup: () => host.remove(),
+  };
+}
+
 export async function exportElementToPdf(options: ExportElementToPdfOptions): Promise<void> {
   const {
     element,
@@ -106,10 +176,15 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
     header,
     footer,
     scale: rawScale = 2,
+    captureWidthPx,
   } = options;
 
   const marginMm = Math.max(0, Math.min(25, rawMarginMm));
-  const scale = clampScale(rawScale, element);
+  const { element: captureElement, cleanup: cleanupCapture } = prepareCaptureElement(
+    element,
+    captureWidthPx,
+  );
+  const scale = clampScale(rawScale, captureElement);
 
   const root = document.documentElement;
   const body = document.body;
@@ -145,7 +220,7 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
       headerHost.style.position = 'fixed';
       headerHost.style.left = '-10000px';
       headerHost.style.top = '0';
-      headerHost.style.width = `${Math.ceil(element.scrollWidth)}px`;
+      headerHost.style.width = `${Math.ceil(captureElement.scrollWidth)}px`;
       headerHost.style.background = '#ffffff';
       headerHost.style.color = '#000000';
       // Extra bottom padding prevents html2canvas from clipping Devanagari glyph descenders
@@ -201,16 +276,16 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
 
     // Render DOM -> canvas
     await waitForFontsReady();
-    const canvas = await html2canvas(element, {
+    const canvas = await html2canvas(captureElement, {
       backgroundColor: '#ffffff',
       scale,
       useCORS: true,
       logging: false,
       // Ensure we capture the full element, not just the viewport.
-      windowWidth: Math.ceil(element.scrollWidth),
-      windowHeight: Math.ceil(element.scrollHeight),
+      windowWidth: Math.ceil(captureElement.scrollWidth),
+      windowHeight: Math.ceil(captureElement.scrollHeight),
       scrollX: 0,
-      scrollY: -window.scrollY,
+      scrollY: 0,
     });
 
     // Convert pixels -> mm at the chosen width.
@@ -220,8 +295,10 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
     // Compute breakpoints so we don't cut table rows across pages.
     // This relies on the DOM layout (before html2canvas) and works well for table-based PDFs.
     const domToCanvasScale =
-      element.scrollWidth > 0 ? canvas.width / element.scrollWidth : scale;
-    const rowBreakpointsPx = getRowBottomBreakpointsPx(element, domToCanvasScale);
+      captureElement.scrollWidth > 0
+        ? canvas.width / captureElement.scrollWidth
+        : scale;
+    const rowBreakpointsPx = getRowBottomBreakpointsPx(captureElement, domToCanvasScale);
 
     let renderedPx = 0;
     let pageIndex = 0;
@@ -322,6 +399,7 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
 
     doc.save(fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`);
   } finally {
+    cleanupCapture();
     root.classList.remove('pdf-export');
     body.classList.remove('pdf-export');
   }

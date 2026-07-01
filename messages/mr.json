@@ -395,7 +395,8 @@
       "rationOfficeAddress": "शिधावाटप कार्यालय पत्ता",
       "idType": "ओळखपत्र प्रकार (आधार / रेशन)",
       "idNumber": "ओळख क्रमांक",
-      "income": "वार्षिक उत्पन्न (₹)"
+      "income": "वार्षिक उत्पन्न (₹)",
+      "letterLanguage": "पत्राची भाषा"
     },
     "placeholders": {
       "referenceNo": "उदा. ६९४",
@@ -409,6 +410,10 @@
     "gender": {
       "male": "पुरुष (याला)",
       "female": "स्त्री (हिला)"
+    },
+    "letterLanguage": {
+      "en": "इंग्रजी",
+      "mr": "मराठी"
     },
     "rationPurpose": {
       "new": "नवीन शिधापत्रिका",

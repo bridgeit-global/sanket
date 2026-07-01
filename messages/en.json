@@ -395,7 +395,8 @@
       "rationOfficeAddress": "Ration Office Address",
       "idType": "ID Type (Aadhaar / Ration)",
       "idNumber": "ID Number",
-      "income": "Annual Income (₹)"
+      "income": "Annual Income (₹)",
+      "letterLanguage": "Letter Language"
     },
     "placeholders": {
       "referenceNo": "e.g. 694",
@@ -407,8 +408,12 @@
       "income": "e.g. 1,50,000"
     },
     "gender": {
-      "male": "Male (याला)",
-      "female": "Female (हिला)"
+      "male": "Male",
+      "female": "Female"
+    },
+    "letterLanguage": {
+      "en": "English",
+      "mr": "Marathi"
     },
     "rationPurpose": {
       "new": "New ration card",

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { FileDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -32,10 +32,12 @@ import {
   type DomicileLetterFields,
   type FeesLetterFields,
   type IncomeLetterFields,
+  type LetterLocale,
   type LetterType,
   type RationLetterFields,
 } from '@/lib/letters/templates';
-import { exportElementToPdf } from '@/lib/pdf/export-element-to-pdf';
+import { exportElementToPdf, A4_PORTRAIT_CONTENT_WIDTH_PX } from '@/lib/pdf/export-element-to-pdf';
+import { SidebarToggle } from './sidebar-toggle';
 
 const todayDisplay = () =>
   new Date().toLocaleDateString('en-IN', {
@@ -44,17 +46,17 @@ const todayDisplay = () =>
     year: 'numeric',
   });
 
-function commonDefaults() {
+function commonDefaults(locale: LetterLocale) {
   return {
     referenceNo: '',
     date: todayDisplay(),
-    signatory: DEFAULT_SIGNATORY,
+    signatory: DEFAULT_SIGNATORY[locale],
   };
 }
 
-function feesDefaults(): FeesLetterFields {
+function feesDefaults(locale: LetterLocale): FeesLetterFields {
   return {
-    ...commonDefaults(),
+    ...commonDefaults(locale),
     schoolName: '',
     schoolAddress: '',
     standard: '',
@@ -63,54 +65,57 @@ function feesDefaults(): FeesLetterFields {
   };
 }
 
-function rationDefaults(): RationLetterFields {
+function rationDefaults(locale: LetterLocale): RationLetterFields {
   return {
-    ...commonDefaults(),
-    salutation: 'श्रीमती',
+    ...commonDefaults(locale),
+    salutation: locale === 'en' ? 'Smt.' : 'श्रीमती',
     fullName: '',
     address: '',
     purpose: 'new',
     familyMembers: '',
-    rationOfficeAddress: DEFAULT_RATION_OFFICE_ADDRESS,
+    rationOfficeAddress: DEFAULT_RATION_OFFICE_ADDRESS[locale],
   };
 }
 
-function incomeDefaults(): IncomeLetterFields {
+function incomeDefaults(locale: LetterLocale): IncomeLetterFields {
   return {
-    ...commonDefaults(),
-    salutation: 'श्री',
+    ...commonDefaults(locale),
+    salutation: locale === 'en' ? 'Shri' : 'श्री',
     fullName: '',
     address: '',
-    idType: 'आधार',
+    idType: locale === 'en' ? 'Aadhaar' : 'आधार',
     idNumber: '',
     income: '',
   };
 }
 
-function domicileDefaults(): DomicileLetterFields {
+function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
   return {
-    ...commonDefaults(),
-    salutation: 'श्री',
+    ...commonDefaults(locale),
+    salutation: locale === 'en' ? 'Shri' : 'श्री',
     fullName: '',
     address: '',
-    idType: 'आधार',
+    idType: locale === 'en' ? 'Aadhaar' : 'आधार',
     idNumber: '',
   };
 }
 
 function LetterPreview({
   body,
-  title,
+  previewRef,
 }: {
   body: string;
-  title: string;
+  previewRef?: RefObject<HTMLDivElement>;
 }) {
   return (
-    <div className="rounded-lg border bg-white p-6 text-black shadow-sm">
-      <div className="mb-4 border-b pb-3 text-center text-sm font-semibold text-muted-foreground">
-        {title}
-      </div>
-      <pre className="whitespace-pre-wrap font-[inherit] text-[15px] leading-7 text-black">
+    <div
+      ref={previewRef}
+      className="rounded-lg bg-white p-6 text-black shadow-sm"
+    >
+      <pre
+        className="whitespace-pre-wrap font-[inherit] text-[15px] leading-7 text-black"
+        style={{ margin: 0 }}
+      >
         {body}
       </pre>
     </div>
@@ -135,33 +140,50 @@ function FieldGroup({
 }
 
 export function LetterGeneration() {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const previewRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<LetterType>('fees');
+  const [letterLanguage, setLetterLanguage] = useState<LetterLocale>(locale);
   const [isExporting, setIsExporting] = useState(false);
 
-  const [feesFields, setFeesFields] = useState<FeesLetterFields>(feesDefaults);
-  const [rationFields, setRationFields] =
-    useState<RationLetterFields>(rationDefaults);
-  const [incomeFields, setIncomeFields] =
-    useState<IncomeLetterFields>(incomeDefaults);
-  const [domicileFields, setDomicileFields] =
-    useState<DomicileLetterFields>(domicileDefaults);
+  const [feesFields, setFeesFields] = useState<FeesLetterFields>(() =>
+    feesDefaults(locale),
+  );
+  const [rationFields, setRationFields] = useState<RationLetterFields>(() =>
+    rationDefaults(locale),
+  );
+  const [incomeFields, setIncomeFields] = useState<IncomeLetterFields>(() =>
+    incomeDefaults(locale),
+  );
+  const [domicileFields, setDomicileFields] = useState<DomicileLetterFields>(
+    () => domicileDefaults(locale),
+  );
+
+  useEffect(() => {
+    setLetterLanguage(locale);
+  }, [locale]);
 
   const activeBody = useMemo(() => {
     switch (activeTab) {
       case 'fees':
-        return buildLetterBody('fees', feesFields);
+        return buildLetterBody('fees', feesFields, letterLanguage);
       case 'ration':
-        return buildLetterBody('ration', rationFields);
+        return buildLetterBody('ration', rationFields, letterLanguage);
       case 'income':
-        return buildLetterBody('income', incomeFields);
+        return buildLetterBody('income', incomeFields, letterLanguage);
       case 'domicile':
-        return buildLetterBody('domicile', domicileFields);
+        return buildLetterBody('domicile', domicileFields, letterLanguage);
       default:
         return '';
     }
-  }, [activeTab, feesFields, rationFields, incomeFields, domicileFields]);
+  }, [
+    activeTab,
+    letterLanguage,
+    feesFields,
+    rationFields,
+    incomeFields,
+    domicileFields,
+  ]);
 
   const activeTitle = t(`letterGeneration.tabs.${activeTab}`);
 
@@ -199,6 +221,7 @@ export function LetterGeneration() {
         orientation: 'portrait',
         marginMm: 15,
         scale: 2,
+        captureWidthPx: A4_PORTRAIT_CONTENT_WIDTH_PX,
       });
       toast.success(t('letterGeneration.pdfSuccess'));
     } catch (error) {
@@ -243,13 +266,14 @@ export function LetterGeneration() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          {t('letterGeneration.title')}
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {t('letterGeneration.description')}
-        </p>
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <SidebarToggle />
+          <div>
+            <h1 className="text-3xl font-bold">{t('letterGeneration.title')}</h1>
+            <p className="text-muted-foreground mt-2">{t('letterGeneration.description')}</p>
+          </div>
+        </div>
       </div>
 
       <Tabs
@@ -280,6 +304,27 @@ export function LetterGeneration() {
               </CardDescription>
             </CardHeader>
             <CardContent>
+              <FieldGroup label={t('letterGeneration.fields.letterLanguage')} className="mb-4">
+                <Select
+                  value={letterLanguage}
+                  onValueChange={(value: LetterLocale) =>
+                    setLetterLanguage(value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="en">
+                      {t('letterGeneration.letterLanguage.en')}
+                    </SelectItem>
+                    <SelectItem value="mr">
+                      {t('letterGeneration.letterLanguage.mr')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </FieldGroup>
+
               <TabsContent value="fees" className="mt-0 space-y-4">
                 {renderCommonFields(feesFields, setFeesFields)}
                 <FieldGroup label={t('letterGeneration.fields.schoolName')}>
@@ -579,9 +624,7 @@ export function LetterGeneration() {
                 {t('letterGeneration.generatePdf')}
               </Button>
             </div>
-            <div ref={previewRef}>
-              <LetterPreview body={activeBody} title={activeTitle} />
-            </div>
+            <LetterPreview body={activeBody} previewRef={previewRef} />
           </div>
         </div>
       </Tabs>
