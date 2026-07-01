@@ -95,6 +95,10 @@
       "label": "बाह्य नोंद",
       "description": "बाह्य पत्रव्यवहार आणि दस्तऐवज व्यवस्थापित करा"
     },
+    "letterGeneration": {
+      "label": "पत्र निर्मिती",
+      "description": "अधिकृत पत्रे PDF स्वरूपात तयार करा"
+    },
     "votingParticipation": {
       "label": "मतदान सहभाग",
       "description": "निवडणुकीसाठी मतदान सहभाग चिन्हांकित करा आणि ट्रॅक करा"
@@ -358,6 +362,58 @@
     "memberUpdated": "सदस्य अपडेट केला",
     "memberCreated": "पक्ष सदस्य नोंदणी झाली",
     "postAssigned": "पद नियुक्त केले"
+  },
+  "letterGeneration": {
+    "title": "पत्र निर्मिती",
+    "description": "तपशील भरा आणि अधिकृत पत्रे PDF स्वरूपात तयार करा.",
+    "formTitle": "पत्राचा तपशील",
+    "formDescription": "निवडलेल्या पत्रासाठी सर्व आवश्यक माहिती भरा.",
+    "previewTitle": "पूर्वावलोकन",
+    "generatePdf": "PDF तयार करा",
+    "pdfSuccess": "PDF यशस्वीरित्या डाउनलोड झाला",
+    "pdfError": "PDF तयार करण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा.",
+    "tabs": {
+      "fees": "शुल्क सवलत पत्र",
+      "ration": "शिधापत्रिका पत्र",
+      "income": "उत्पन्न दाखला पत्र",
+      "domicile": "अधिवास दाखला पत्र"
+    },
+    "fields": {
+      "referenceNo": "संदर्भ क्र.",
+      "date": "दिनांक",
+      "signatory": "स्वाक्षरीकर्ता नाव",
+      "schoolName": "शाळा / कॉलेज नाव",
+      "schoolAddress": "शाळा / कॉलेज पत्ता",
+      "standard": "इयत्ता / वर्ग",
+      "studentName": "विद्यार्थी नाव",
+      "studentGender": "विद्यार्थी लिंग",
+      "salutation": "संबोधन",
+      "fullName": "पूर्ण नाव",
+      "address": "पत्ता",
+      "rationPurpose": "पत्राचा उद्देश",
+      "familyMembers": "कुटुंबियांची नावे",
+      "rationOfficeAddress": "शिधावाटप कार्यालय पत्ता",
+      "idType": "ओळखपत्र प्रकार (आधार / रेशन)",
+      "idNumber": "ओळख क्रमांक",
+      "income": "वार्षिक उत्पन्न (₹)"
+    },
+    "placeholders": {
+      "referenceNo": "उदा. ६९४",
+      "date": "उदा. ०५.१२.२०२५",
+      "standard": "उदा. १० वी",
+      "salutation": "उदा. श्री / श्रीमती",
+      "familyMembers": "प्रत्येक सदस्य एका ओळीत\nउदा. १- श्री अब्दुल रशीद  जावई  ३४ वर्षे",
+      "idType": "आधार किंवा रेशन",
+      "income": "उदा. १,५०,०००"
+    },
+    "gender": {
+      "male": "पुरुष (याला)",
+      "female": "स्त्री (हिला)"
+    },
+    "rationPurpose": {
+      "new": "नवीन शिधापत्रिका",
+      "addMembers": "शिधापत्रिकेत कुटुंबियांची नावे जोडणे"
+    }
   },
   "dailyProgramme": {
     "title": "दैनंदिन कार्यक्रम",

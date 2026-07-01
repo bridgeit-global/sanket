@@ -18,6 +18,7 @@ import {
   MapPin,
   Network,
   ChevronDown,
+  FileText,
 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { ModuleDefinition } from '@/lib/module-constants';
@@ -39,6 +40,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   projects: FolderKanban,
   inward: Inbox,
   outward: Send,
+  'letter-generation': FileText,
   'voting-participation': Vote,
   chat: MessageSquare,
   'user-management': Users,
@@ -58,6 +60,7 @@ const getModuleTranslationKey = (moduleKey: string): string => {
     projects: 'modules.projects.label',
     inward: 'modules.inward.label',
     outward: 'modules.outward.label',
+    'letter-generation': 'modules.letterGeneration.label',
     'voting-participation': 'modules.votingParticipation.label',
     chat: 'modules.chat.label',
     'user-management': 'modules.userManagement.label',
