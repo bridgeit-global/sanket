@@ -335,7 +335,9 @@ export function LetterGeneration() {
     }
     setTemplateDraft(getDefaultTemplateHtml(activeTab, locale));
     setTemplateNameDraft(t(`letterGeneration.tabs.${activeTab}`));
-  }, [activeLetterMaster, activeTab, locale, t]);
+    // Only reset draft when letter type/locale/master changes — not when `t` is recreated.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeLetterMaster, activeTab, locale]);
 
   const activeTemplateHtml = templateDraft;
 
