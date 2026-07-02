@@ -15,6 +15,19 @@ type LetterFields =
 
 const PLACEHOLDER_PATTERN = /\{\{(\w+)\}\}/g;
 
+export function wrapLetterWithLetterhead(
+  contentHtml: string,
+  letterheadUrl: string | null | undefined,
+): string {
+  const trimmedUrl = letterheadUrl?.trim();
+  if (!trimmedUrl) {
+    return contentHtml;
+  }
+
+  const letterhead = `<div class="letter-letterhead" style="margin-bottom: 1rem;"><img src="${trimmedUrl}" alt="Letterhead" style="width: 100%; height: auto; display: block;" /></div>`;
+  return `${letterhead}${contentHtml}`;
+}
+
 export function renderLetterTemplate(
   templateHtml: string,
   fields: Record<string, string>,
@@ -72,7 +85,9 @@ export function buildRenderedLetterHtml(
   templateHtml: string,
   fields: LetterFields,
   locale: LetterLocale,
+  letterheadUrl?: string | null,
 ): string {
   const renderFields = buildRenderFields(type, fields, locale);
-  return renderLetterTemplate(templateHtml, renderFields);
+  const contentHtml = renderLetterTemplate(templateHtml, renderFields);
+  return wrapLetterWithLetterhead(contentHtml, letterheadUrl);
 }

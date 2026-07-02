@@ -1,7 +1,19 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Eye, FileDown, Loader2, RefreshCw, Save, Trash2 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  FileDown,
+  ImageIcon,
+  Loader2,
+  RefreshCw,
+  Save,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -228,6 +240,7 @@ type LetterMasterRow = {
   letterType: LetterType;
   letterLocale: LetterLocale;
   templateHtml: string;
+  letterheadUrl: string | null;
   updatedAt: string | Date;
 };
 
@@ -257,6 +270,9 @@ export function LetterGeneration() {
   const [letterMastersLoading, setLetterMastersLoading] = useState(false);
   const [templateDraft, setTemplateDraft] = useState('');
   const [templateNameDraft, setTemplateNameDraft] = useState('');
+  const [letterheadDraft, setLetterheadDraft] = useState<string | null>(null);
+  const [isUploadingLetterhead, setIsUploadingLetterhead] = useState(false);
+  const letterheadInputRef = useRef<HTMLInputElement>(null);
   const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [regeneratingLetterId, setRegeneratingLetterId] = useState<string | null>(null);
@@ -331,10 +347,12 @@ export function LetterGeneration() {
     if (activeLetterMaster) {
       setTemplateDraft(activeLetterMaster.templateHtml);
       setTemplateNameDraft(activeLetterMaster.name);
+      setLetterheadDraft(activeLetterMaster.letterheadUrl);
       return;
     }
     setTemplateDraft(getDefaultTemplateHtml(activeTab, locale));
     setTemplateNameDraft(t(`letterGeneration.tabs.${activeTab}`));
+    setLetterheadDraft(null);
     // Only reset draft when letter type/locale/master changes — not when `t` is recreated.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeLetterMaster, activeTab, locale]);
@@ -357,7 +375,13 @@ export function LetterGeneration() {
             : domicileFields;
 
     if (activeTemplateHtml.trim()) {
-      return buildRenderedLetterHtml(activeTab, activeTemplateHtml, fields, locale);
+      return buildRenderedLetterHtml(
+        activeTab,
+        activeTemplateHtml,
+        fields,
+        locale,
+        letterheadDraft,
+      );
     }
 
     return buildLetterBody(activeTab, fields, locale);
@@ -369,6 +393,7 @@ export function LetterGeneration() {
     incomeFields,
     domicileFields,
     activeTemplateHtml,
+    letterheadDraft,
   ]);
 
   const activeTitle = t(`letterGeneration.tabs.${activeTab}`);
@@ -446,6 +471,39 @@ export function LetterGeneration() {
     return true;
   };
 
+  const handleUploadLetterhead = async (file: File) => {
+    if (!['image/jpeg', 'image/png'].includes(file.type)) {
+      toast.error(t('letterGeneration.templates.letterheadInvalidType'));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error(t('letterGeneration.templates.letterheadTooLarge'));
+      return;
+    }
+
+    setIsUploadingLetterhead(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/files/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Upload failed');
+      setLetterheadDraft(json.url ?? null);
+      toast.success(t('letterGeneration.templates.letterheadUploadSuccess'));
+    } catch (error) {
+      console.error('Failed to upload letterhead', error);
+      toast.error(t('letterGeneration.templates.letterheadUploadError'));
+    } finally {
+      setIsUploadingLetterhead(false);
+      if (letterheadInputRef.current) {
+        letterheadInputRef.current.value = '';
+      }
+    }
+  };
+
   const handleSaveTemplate = async () => {
     if (!activeLetterMaster) {
       toast.error(t('letterGeneration.templates.saveError'));
@@ -466,6 +524,7 @@ export function LetterGeneration() {
           body: JSON.stringify({
             name: templateNameDraft.trim(),
             templateHtml: templateDraft,
+            letterheadUrl: letterheadDraft,
           }),
         },
       );
@@ -1190,6 +1249,68 @@ export function LetterGeneration() {
                 />
               </FieldGroup>
             </div>
+            <FieldGroup label={t('letterGeneration.templates.letterhead')}>
+              <div className="space-y-3">
+                {letterheadDraft ? (
+                  <div className="overflow-hidden rounded-lg border bg-white p-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={letterheadDraft}
+                      alt={t('letterGeneration.templates.letterheadPreviewAlt')}
+                      className="mx-auto block max-h-40 w-full object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex min-h-24 items-center justify-center rounded-lg border border-dashed bg-muted/30 px-4 text-center text-sm text-muted-foreground">
+                    <ImageIcon className="mr-2 size-4 shrink-0" aria-hidden />
+                    {t('letterGeneration.templates.letterheadEmpty')}
+                  </div>
+                )}
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    ref={letterheadInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleUploadLetterhead(file);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => letterheadInputRef.current?.click()}
+                    disabled={isUploadingLetterhead}
+                  >
+                    {isUploadingLetterhead ? (
+                      <Loader2 className="mr-2 size-4 animate-spin" />
+                    ) : (
+                      <Upload className="mr-2 size-4" />
+                    )}
+                    {letterheadDraft
+                      ? t('letterGeneration.templates.letterheadReplace')
+                      : t('letterGeneration.templates.letterheadUpload')}
+                  </Button>
+                  {letterheadDraft ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() => setLetterheadDraft(null)}
+                      disabled={isUploadingLetterhead}
+                    >
+                      <X className="mr-2 size-4" />
+                      {t('letterGeneration.templates.letterheadRemove')}
+                    </Button>
+                  ) : null}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {t('letterGeneration.templates.letterheadHint')}
+                </p>
+              </div>
+            </FieldGroup>
             <FieldGroup label={t('letterGeneration.templates.html')}>
               <Textarea
                 value={templateDraft}

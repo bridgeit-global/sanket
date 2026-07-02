@@ -224,6 +224,7 @@ export function mapLetterMasterRow(row: Row): LetterMaster {
     letterType: String(row.letter_type ?? row.letterType),
     letterLocale: String(row.letter_locale ?? row.letterLocale),
     templateHtml: String(row.template_html ?? row.templateHtml),
+    letterheadUrl: toStringOrNull(row.letterhead_url ?? row.letterheadUrl),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),
     updatedBy: toStringOrNull(row.updated_by ?? row.updatedBy),
     createdAt: toDate(row.created_at ?? row.createdAt),

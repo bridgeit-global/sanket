@@ -43,7 +43,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { name, templateHtml } = body ?? {};
+    const { name, templateHtml, letterheadUrl } = body ?? {};
 
     if (!name || !templateHtml) {
       return NextResponse.json(
@@ -61,6 +61,12 @@ export async function PUT(
       id,
       name: String(name),
       templateHtml: String(templateHtml),
+      letterheadUrl:
+        letterheadUrl === undefined
+          ? existing.letterheadUrl
+          : letterheadUrl
+            ? String(letterheadUrl)
+            : null,
       updatedBy: session.user.id,
     });
 

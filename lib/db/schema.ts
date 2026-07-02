@@ -146,6 +146,7 @@ export type LetterMaster = {
   letterType: string;
   letterLocale: string;
   templateHtml: string;
+  letterheadUrl: string | null;
   createdBy: string | null;
   updatedBy: string | null;
   createdAt: Date;

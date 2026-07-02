@@ -2283,11 +2283,13 @@ export async function updateLetterMaster({
   id,
   name,
   templateHtml,
+  letterheadUrl,
   updatedBy,
 }: {
   id: string;
   name: string;
   templateHtml: string;
+  letterheadUrl?: string | null;
   updatedBy?: string | null;
 }): Promise<LetterMaster> {
   try {
@@ -2298,6 +2300,7 @@ export async function updateLetterMaster({
         toSnakeCaseKeys({
           name,
           templateHtml,
+          letterheadUrl: letterheadUrl ?? null,
           updatedBy: updatedBy || null,
           updatedAt: now,
         }),
