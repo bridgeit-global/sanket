@@ -14,6 +14,7 @@ export const TABLES = {
   suggestion: 'Suggestion',
   stream: 'Stream',
   letter: 'Letter',
+  letterMaster: 'LetterMaster',
   voterMaster: 'VoterMaster',
   electionMaster: 'ElectionMaster',
   boothMaster: 'BoothMaster',
@@ -139,14 +140,27 @@ export type Stream = {
   createdAt: Date;
 };
 
+export type LetterMaster = {
+  id: string;
+  name: string;
+  letterType: string;
+  letterLocale: string;
+  templateHtml: string;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 export type Letter = {
   id: string;
+  letterMasterId: string | null;
   letterType: string;
   letterLocale: string;
   referenceNo: string;
   title: string;
   fields: unknown;
-  body: string;
+  renderedHtml: string;
   createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;

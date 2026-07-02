@@ -38,15 +38,16 @@ export async function POST(request: NextRequest) {
     const {
       letterType,
       letterLocale,
+      letterMasterId,
       referenceNo,
       title,
       fields,
-      body: letterBody,
+      renderedHtml,
     } = body ?? {};
 
-    if (!letterType || !letterLocale || !title || !letterBody) {
+    if (!letterType || !letterLocale || !title || !renderedHtml) {
       return NextResponse.json(
-        { error: 'letterType, letterLocale, title, and body are required' },
+        { error: 'letterType, letterLocale, title, and renderedHtml are required' },
         { status: 400 },
       );
     }
@@ -69,12 +70,13 @@ export async function POST(request: NextRequest) {
     }
 
     const letter = await createLetter({
+      letterMasterId: letterMasterId ? String(letterMasterId) : null,
       letterType: String(letterType),
       letterLocale: String(letterLocale),
       referenceNo: normalizedReferenceNo,
       title: String(title),
       fields: fields ?? {},
-      body: String(letterBody),
+      renderedHtml: String(renderedHtml),
       createdBy: session.user.id,
     });
 

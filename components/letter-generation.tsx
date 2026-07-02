@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Eye, FileDown, Loader2, Save, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eye, FileDown, Loader2, RefreshCw, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -52,6 +52,8 @@ import {
   type LetterType,
   type RationLetterFields,
 } from '@/lib/letters/templates';
+import { buildRenderedLetterHtml } from '@/lib/letters/render-template';
+import { getDefaultTemplateHtml } from '@/lib/letters/default-template-html';
 import { exportElementToPdf, A4_PORTRAIT_CONTENT_WIDTH_PX } from '@/lib/pdf/export-element-to-pdf';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { ModulePageHeader } from '@/components/module-page-header';
@@ -140,27 +142,20 @@ function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
   };
 }
 
-function createLetterExportElement(body: string): HTMLDivElement {
+function createLetterExportElement(html: string): HTMLDivElement {
   const host = document.createElement('div');
   host.className = 'rounded-lg bg-white p-6 text-black shadow-sm';
-  const pre = document.createElement('pre');
-  pre.className = 'whitespace-pre-wrap font-[inherit] text-[15px] leading-7 text-black';
-  pre.style.margin = '0';
-  pre.textContent = body;
-  host.appendChild(pre);
+  host.innerHTML = html;
   return host;
 }
 
-function LetterPreview({ body }: { body: string }) {
+function LetterPreview({ html }: { html: string }) {
   return (
-    <div className="rounded-lg bg-white p-4 text-black shadow-sm sm:p-6">
-      <pre
-        className="whitespace-pre-wrap font-[inherit] text-sm leading-6 text-black sm:text-[15px] sm:leading-7"
-        style={{ margin: 0 }}
-      >
-        {body}
-      </pre>
-    </div>
+    <div
+      className="rounded-lg bg-white p-4 text-black shadow-sm sm:p-6 [&_.letter-content]:whitespace-pre-wrap [&_.letter-content]:font-[inherit] [&_.letter-content]:text-sm [&_.letter-content]:leading-6 [&_.letter-content]:text-black sm:[&_.letter-content]:text-[15px] sm:[&_.letter-content]:leading-7"
+      // Letter HTML is generated from admin-editable templates stored in our database.
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
   );
 }
 
@@ -217,13 +212,23 @@ function validateRequiredCommonFields(
 
 type SavedLetterRow = {
   id: string;
+  letterMasterId: string | null;
   letterType: LetterType;
   letterLocale: LetterLocale;
   referenceNo: string;
   title: string;
   fields: unknown;
-  body: string;
+  renderedHtml: string;
   createdAt: string | Date;
+};
+
+type LetterMasterRow = {
+  id: string;
+  name: string;
+  letterType: LetterType;
+  letterLocale: LetterLocale;
+  templateHtml: string;
+  updatedAt: string | Date;
 };
 
 export function LetterGeneration() {
@@ -248,6 +253,13 @@ export function LetterGeneration() {
 
   const [savedLetters, setSavedLetters] = useState<SavedLetterRow[]>([]);
   const [savedLettersLoading, setSavedLettersLoading] = useState(false);
+  const [letterMasters, setLetterMasters] = useState<LetterMasterRow[]>([]);
+  const [letterMastersLoading, setLetterMastersLoading] = useState(false);
+  const [templateDraft, setTemplateDraft] = useState('');
+  const [templateNameDraft, setTemplateNameDraft] = useState('');
+  const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
+  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+  const [regeneratingLetterId, setRegeneratingLetterId] = useState<string | null>(null);
   const [selectedSavedLetterId, setSelectedSavedLetterId] = useState<string | null>(
     null,
   );
@@ -271,6 +283,21 @@ export function LetterGeneration() {
     setDomicileFields((prev) => ({ ...prev, signatory }));
   }, [locale]);
 
+  const refreshLetterMasters = async () => {
+    setLetterMastersLoading(true);
+    try {
+      const res = await fetch('/api/letter-masters');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch letter masters');
+      setLetterMasters((json?.letterMasters ?? []) as LetterMasterRow[]);
+    } catch (error) {
+      console.error('Failed to fetch letter masters', error);
+      toast.error(t('letterGeneration.templates.fetchError'));
+    } finally {
+      setLetterMastersLoading(false);
+    }
+  };
+
   const refreshSavedLetters = async () => {
     setSavedLettersLoading(true);
     try {
@@ -288,8 +315,29 @@ export function LetterGeneration() {
 
   useEffect(() => {
     void refreshSavedLetters();
+    void refreshLetterMasters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const activeLetterMaster = useMemo(() => {
+    return (
+      letterMasters.find(
+        (master) => master.letterType === activeTab && master.letterLocale === locale,
+      ) ?? null
+    );
+  }, [letterMasters, activeTab, locale]);
+
+  useEffect(() => {
+    if (activeLetterMaster) {
+      setTemplateDraft(activeLetterMaster.templateHtml);
+      setTemplateNameDraft(activeLetterMaster.name);
+      return;
+    }
+    setTemplateDraft(getDefaultTemplateHtml(activeTab, locale));
+    setTemplateNameDraft(t(`letterGeneration.tabs.${activeTab}`));
+  }, [activeLetterMaster, activeTab, locale, t]);
+
+  const activeTemplateHtml = templateDraft;
 
   const existingReferenceNos = useMemo(
     () => savedLetters.map((letter) => letter.referenceNo),
@@ -297,18 +345,20 @@ export function LetterGeneration() {
   );
 
   const activeBody = useMemo(() => {
-    switch (activeTab) {
-      case 'fees':
-        return buildLetterBody('fees', feesFields, locale);
-      case 'ration':
-        return buildLetterBody('ration', rationFields, locale);
-      case 'income':
-        return buildLetterBody('income', incomeFields, locale);
-      case 'domicile':
-        return buildLetterBody('domicile', domicileFields, locale);
-      default:
-        return '';
+    const fields =
+      activeTab === 'fees'
+        ? feesFields
+        : activeTab === 'ration'
+          ? rationFields
+          : activeTab === 'income'
+            ? incomeFields
+            : domicileFields;
+
+    if (activeTemplateHtml.trim()) {
+      return buildRenderedLetterHtml(activeTab, activeTemplateHtml, fields, locale);
     }
+
+    return buildLetterBody(activeTab, fields, locale);
   }, [
     activeTab,
     locale,
@@ -316,6 +366,7 @@ export function LetterGeneration() {
     rationFields,
     incomeFields,
     domicileFields,
+    activeTemplateHtml,
   ]);
 
   const activeTitle = t(`letterGeneration.tabs.${activeTab}`);
@@ -393,6 +444,41 @@ export function LetterGeneration() {
     return true;
   };
 
+  const handleSaveTemplate = async () => {
+    if (!activeLetterMaster) {
+      toast.error(t('letterGeneration.templates.saveError'));
+      return;
+    }
+    if (!templateNameDraft.trim() || !templateDraft.trim()) {
+      toast.error(t('letterGeneration.templates.validationRequired'));
+      return;
+    }
+
+    setIsSavingTemplate(true);
+    try {
+      const res = await fetch(
+        `/api/letter-masters/${encodeURIComponent(activeLetterMaster.id)}`,
+        {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            name: templateNameDraft.trim(),
+            templateHtml: templateDraft,
+          }),
+        },
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to save template');
+      toast.success(t('letterGeneration.templates.saveSuccess'));
+      await refreshLetterMasters();
+    } catch (error) {
+      console.error('Failed to save letter template', error);
+      toast.error(t('letterGeneration.templates.saveError'));
+    } finally {
+      setIsSavingTemplate(false);
+    }
+  };
+
   const handleSaveLetter = async () => {
     if (!validateActiveCommonFields()) return;
 
@@ -404,10 +490,11 @@ export function LetterGeneration() {
         body: JSON.stringify({
           letterType: activeTab,
           letterLocale: locale,
+          letterMasterId: activeLetterMaster?.id ?? null,
           referenceNo: activeReferenceNo.trim(),
           title: activeTitle,
           fields: activeFields,
-          body: activeBody,
+          renderedHtml: activeBody,
         }),
       });
       const json = await res.json();
@@ -436,6 +523,28 @@ export function LetterGeneration() {
     }
   };
 
+  const handleRegenerateSavedLetter = async (letter: SavedLetterRow) => {
+    setRegeneratingLetterId(letter.id);
+    try {
+      const res = await fetch(
+        `/api/letters/${encodeURIComponent(letter.id)}/regenerate`,
+        { method: 'POST' },
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to regenerate letter');
+      toast.success(t('letterGeneration.savedLetters.regenerateSuccess'));
+      const updated = json.letter as SavedLetterRow;
+      setSavedLetters((prev) =>
+        prev.map((item) => (item.id === letter.id ? { ...item, ...updated } : item)),
+      );
+    } catch (error) {
+      console.error('Failed to regenerate letter', error);
+      toast.error(t('letterGeneration.savedLetters.regenerateError'));
+    } finally {
+      setRegeneratingLetterId(null);
+    }
+  };
+
   const handleDeleteSavedLetter = async (id: string) => {
     try {
       const res = await fetch(`/api/letters/${encodeURIComponent(id)}`, {
@@ -456,7 +565,7 @@ export function LetterGeneration() {
     setDownloadingLetterId(letter.id);
     let exportHost: HTMLDivElement | null = null;
     try {
-      exportHost = createLetterExportElement(letter.body);
+      exportHost = createLetterExportElement(letter.renderedHtml);
       document.body.appendChild(exportHost);
       await exportElementToPdf({
         element: exportHost,
@@ -561,6 +670,20 @@ export function LetterGeneration() {
       >
         <Eye className="mr-2 size-4" />
         {t('letterGeneration.savedLetters.actions.preview')}
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+        onClick={() => void handleRegenerateSavedLetter(letter)}
+        disabled={regeneratingLetterId === letter.id}
+      >
+        {regeneratingLetterId === letter.id ? (
+          <Loader2 className="mr-2 size-4 animate-spin" />
+        ) : (
+          <RefreshCw className="mr-2 size-4" />
+        )}
+        {t('letterGeneration.savedLetters.actions.regenerate')}
       </Button>
       <Button
         size="sm"
@@ -1010,12 +1133,97 @@ export function LetterGeneration() {
                       </Button>
                     </div>
                   </div>
-                  <LetterPreview body={activeBody} />
+                  <LetterPreview html={activeBody} />
                 </div>
               </div>
             </Tabs>
           </CardContent>
         )}
+      </Card>
+
+      <Card>
+        <CardHeader
+          className="cursor-pointer select-none p-4 transition-colors hover:bg-muted/50 sm:p-6 rounded-t-lg"
+          onClick={() => setIsTemplateEditorOpen((value) => !value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setIsTemplateEditorOpen((value) => !value);
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-expanded={isTemplateEditorOpen}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <CardTitle className="text-lg">
+                {t('letterGeneration.templates.title')}
+              </CardTitle>
+              <CardDescription>
+                {t('letterGeneration.templates.description')}
+              </CardDescription>
+            </div>
+            {isTemplateEditorOpen ? (
+              <ChevronUp className="mt-1 size-5 shrink-0 text-muted-foreground" aria-hidden />
+            ) : (
+              <ChevronDown className="mt-1 size-5 shrink-0 text-muted-foreground" aria-hidden />
+            )}
+          </div>
+        </CardHeader>
+        {isTemplateEditorOpen ? (
+          <CardContent className="space-y-4 p-4 sm:p-6">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FieldGroup label={t('letterGeneration.templates.name')}>
+                <Input
+                  value={templateNameDraft}
+                  onChange={(e) => setTemplateNameDraft(e.target.value)}
+                  placeholder={t('letterGeneration.templates.namePlaceholder')}
+                />
+              </FieldGroup>
+              <FieldGroup label={t('letterGeneration.templates.activeTemplate')}>
+                <Input
+                  value={t(`letterGeneration.tabs.${activeTab}`)}
+                  disabled
+                />
+              </FieldGroup>
+            </div>
+            <FieldGroup label={t('letterGeneration.templates.html')}>
+              <Textarea
+                value={templateDraft}
+                onChange={(e) => setTemplateDraft(e.target.value)}
+                rows={16}
+                className="font-mono text-xs sm:text-sm"
+                placeholder={t('letterGeneration.templates.htmlPlaceholder')}
+              />
+            </FieldGroup>
+            <p className="text-xs text-muted-foreground">
+              {t('letterGeneration.templates.placeholderHint')}
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => void refreshLetterMasters()}
+                disabled={letterMastersLoading}
+              >
+                {t('letterGeneration.savedLetters.refresh')}
+              </Button>
+              <Button
+                className="w-full sm:w-auto"
+                onClick={() => void handleSaveTemplate()}
+                disabled={isSavingTemplate || !activeLetterMaster}
+              >
+                {isSavingTemplate ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 size-4" />
+                )}
+                {t('letterGeneration.templates.save')}
+              </Button>
+            </div>
+          </CardContent>
+        ) : null}
       </Card>
 
       <Card>
@@ -1211,7 +1419,7 @@ export function LetterGeneration() {
                           )}
                         </DialogDescription>
                       </DialogHeader>
-                      <LetterPreview body={selectedSavedLetter.body} />
+                      <LetterPreview html={selectedSavedLetter.renderedHtml} />
                       <DialogFooter className="flex-col gap-2 sm:flex-row sm:gap-0">
                         <Button
                           variant="outline"

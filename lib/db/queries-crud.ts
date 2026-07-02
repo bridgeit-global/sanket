@@ -14,6 +14,7 @@ import {
   mapDocumentRow,
   mapElectionMappingRow,
   mapExportJobRow,
+  mapLetterMasterRow,
   mapLetterRow,
   mapMessageRow,
   mapMlaProjectRow,
@@ -53,6 +54,7 @@ import type {
   ElectionMaster,
   ExportJob,
   Letter,
+  LetterMaster,
   MlaProject,
   RegisterAttachment,
   RegisterEntry,
@@ -2187,6 +2189,131 @@ export async function getDailyProgrammeAttachmentById(
 }
 
 // ---------------------------------------------------------------------------
+// Letter masters
+// ---------------------------------------------------------------------------
+
+export async function ensureLetterMasterDefaults(): Promise<void> {
+  try {
+    const { count, error: countError } = await supabase
+      .from(TABLES.letterMaster)
+      .select('*', { count: 'exact', head: true });
+    throwOnSupabaseError(countError, 'Failed to count letter masters');
+    if ((count ?? 0) > 0) return;
+
+    const { getAllDefaultLetterMasters } = await import(
+      '@/lib/letters/default-template-html'
+    );
+    const defaults = getAllDefaultLetterMasters();
+    const now = new Date().toISOString();
+
+    const { error } = await supabase.from(TABLES.letterMaster).insert(
+      defaults.map((item) =>
+        toSnakeCaseKeys({
+          name: item.name,
+          letterType: item.letterType,
+          letterLocale: item.letterLocale,
+          templateHtml: item.templateHtml,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      ),
+    );
+    throwOnSupabaseError(error, 'Failed to seed letter masters');
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to seed letter masters');
+  }
+}
+
+export async function getLetterMasters(): Promise<Array<LetterMaster>> {
+  try {
+    await ensureLetterMasterDefaults();
+    const { data, error } = await supabase
+      .from(TABLES.letterMaster)
+      .select('*')
+      .order('letter_type', { ascending: true })
+      .order('letter_locale', { ascending: true });
+    throwOnSupabaseError(error, 'Failed to get letter masters');
+    return (data ?? []).map(mapLetterMasterRow);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get letter masters');
+  }
+}
+
+export async function getLetterMasterByTypeAndLocale({
+  letterType,
+  letterLocale,
+}: {
+  letterType: string;
+  letterLocale: string;
+}): Promise<LetterMaster | null> {
+  try {
+    await ensureLetterMasterDefaults();
+    const { data, error } = await supabase
+      .from(TABLES.letterMaster)
+      .select('*')
+      .eq('letter_type', letterType)
+      .eq('letter_locale', letterLocale)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get letter master');
+    return data ? mapLetterMasterRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get letter master');
+  }
+}
+
+export async function getLetterMasterById(id: string): Promise<LetterMaster | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.letterMaster)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get letter master by id');
+    return data ? mapLetterMasterRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get letter master by id');
+  }
+}
+
+export async function updateLetterMaster({
+  id,
+  name,
+  templateHtml,
+  updatedBy,
+}: {
+  id: string;
+  name: string;
+  templateHtml: string;
+  updatedBy?: string | null;
+}): Promise<LetterMaster> {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.letterMaster)
+      .update(
+        toSnakeCaseKeys({
+          name,
+          templateHtml,
+          updatedBy: updatedBy || null,
+          updatedAt: now,
+        }),
+      )
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to update letter master');
+    return mapLetterMasterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to update letter master');
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Letters
 // ---------------------------------------------------------------------------
 
@@ -2208,20 +2335,22 @@ export async function getLetterByReferenceNo(
 }
 
 export async function createLetter({
+  letterMasterId,
   letterType,
   letterLocale,
   referenceNo,
   title,
   fields,
-  body,
+  renderedHtml,
   createdBy,
 }: {
+  letterMasterId?: string | null;
   letterType: string;
   letterLocale: string;
   referenceNo: string;
   title: string;
   fields: unknown;
-  body: string;
+  renderedHtml: string;
   createdBy?: string | null;
 }): Promise<Letter> {
   try {
@@ -2230,12 +2359,13 @@ export async function createLetter({
       .from(TABLES.letter)
       .insert(
         toSnakeCaseKeys({
+          letterMasterId: letterMasterId || null,
           letterType,
           letterLocale,
           referenceNo,
           title,
           fields,
-          body,
+          renderedHtml,
           createdBy: createdBy || null,
           createdAt: now,
           updatedAt: now,
@@ -2267,6 +2397,52 @@ export async function getLetters({
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to get letters');
+  }
+}
+
+export async function getLetterById(id: string): Promise<Letter | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.letter)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get letter by id');
+    return data ? mapLetterRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get letter by id');
+  }
+}
+
+export async function updateLetterRenderedHtml({
+  id,
+  renderedHtml,
+  letterMasterId,
+}: {
+  id: string;
+  renderedHtml: string;
+  letterMasterId?: string | null;
+}): Promise<Letter> {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.letter)
+      .update(
+        toSnakeCaseKeys({
+          renderedHtml,
+          letterMasterId: letterMasterId ?? undefined,
+          updatedAt: now,
+        }),
+      )
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to update letter rendered html');
+    return mapLetterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to update letter rendered html');
   }
 }
 

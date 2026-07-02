@@ -18,6 +18,7 @@ import type {
   ElectionMaster,
   ExportJob,
   Letter,
+  LetterMaster,
   MlaProject,
   PhoneUpdateHistory,
   ProjectAttachment,
@@ -216,15 +217,32 @@ export function mapStreamRow(row: Row): Stream {
   };
 }
 
+export function mapLetterMasterRow(row: Row): LetterMaster {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    letterType: String(row.letter_type ?? row.letterType),
+    letterLocale: String(row.letter_locale ?? row.letterLocale),
+    templateHtml: String(row.template_html ?? row.templateHtml),
+    createdBy: toStringOrNull(row.created_by ?? row.createdBy),
+    updatedBy: toStringOrNull(row.updated_by ?? row.updatedBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
 export function mapLetterRow(row: Row): Letter {
   return {
     id: String(row.id),
+    letterMasterId: toStringOrNull(row.letter_master_id ?? row.letterMasterId),
     letterType: String(row.letter_type ?? row.letterType),
     letterLocale: String(row.letter_locale ?? row.letterLocale),
     referenceNo: String(row.reference_no ?? row.referenceNo ?? ''),
     title: String(row.title),
     fields: row.fields ?? null,
-    body: String(row.body),
+    renderedHtml: String(
+      row.rendered_html ?? row.renderedHtml ?? row.body ?? '',
+    ),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),

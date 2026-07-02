@@ -378,6 +378,21 @@
     "generatePdf": "Generate PDF",
     "pdfSuccess": "PDF downloaded successfully",
     "pdfError": "Failed to generate PDF. Please try again.",
+    "templates": {
+      "title": "Letter Templates",
+      "description": "Edit the HTML template stored in the database. Use {{fieldName}} placeholders for dynamic values.",
+      "name": "Template name",
+      "namePlaceholder": "e.g. Fees Concession Letter",
+      "activeTemplate": "Current letter type",
+      "html": "Template HTML",
+      "htmlPlaceholder": "<div class=\"letter-content\">...</div>",
+      "placeholderHint": "Use placeholders like {{referenceNo}}, {{date}}, {{fullName}}, {{signatory}}. Saved letters can be regenerated from the latest template.",
+      "save": "Save Template",
+      "saveSuccess": "Template saved",
+      "saveError": "Failed to save template",
+      "fetchError": "Failed to load letter templates",
+      "validationRequired": "Template name and HTML are required"
+    },
     "savedLetters": {
       "title": "Saved Letters",
       "description": "Save generated letters to the database and reuse them later.",
@@ -412,8 +427,11 @@
         "load": "Load",
         "download": "Download PDF",
         "delete": "Delete",
+        "regenerate": "Regenerate",
         "closePreview": "Close preview"
-      }
+      },
+      "regenerateSuccess": "Letter regenerated from template",
+      "regenerateError": "Failed to regenerate letter"
     },
     "tabs": {
       "fees": "Fees Concession Letter",

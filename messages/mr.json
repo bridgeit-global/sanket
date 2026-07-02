@@ -378,6 +378,21 @@
     "generatePdf": "PDF तयार करा",
     "pdfSuccess": "PDF यशस्वीरित्या डाउनलोड झाला",
     "pdfError": "PDF तयार करण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा.",
+    "templates": {
+      "title": "पत्र साचा",
+      "description": "डेटाबेसमध्ये साठवलेला HTML साचा संपादित करा. गतिमान मूल्यांसाठी {{fieldName}} प्लेसहोल्डर वापरा.",
+      "name": "साच्याचे नाव",
+      "namePlaceholder": "उदा. शुल्क सवलत पत्र",
+      "activeTemplate": "सध्याचा पत्र प्रकार",
+      "html": "साचा HTML",
+      "htmlPlaceholder": "<div class=\"letter-content\">...</div>",
+      "placeholderHint": "{{referenceNo}}, {{date}}, {{fullName}}, {{signatory}} सारखे प्लेसहोल्डर वापरा. साठवलेली पत्रे नवीनतम साच्यावरून पुन्हा तयार केली जाऊ शकतात.",
+      "save": "साचा साठवा",
+      "saveSuccess": "साचा साठवला",
+      "saveError": "साचा साठवण्यात अयशस्वी",
+      "fetchError": "पत्र साचे लोड करण्यात अयशस्वी",
+      "validationRequired": "साच्याचे नाव आणि HTML आवश्यक आहे"
+    },
     "savedLetters": {
       "title": "साठवलेली पत्रे",
       "description": "तयार केलेली पत्रे डेटाबेसमध्ये साठवा आणि नंतर पुन्हा वापरा.",
@@ -412,8 +427,11 @@
         "load": "लोड करा",
         "download": "PDF डाउनलोड",
         "delete": "हटवा",
+        "regenerate": "पुन्हा तयार करा",
         "closePreview": "पूर्वावलोकन बंद"
-      }
+      },
+      "regenerateSuccess": "साच्यावरून पत्र पुन्हा तयार केले",
+      "regenerateError": "पत्र पुन्हा तयार करण्यात अयशस्वी"
     },
     "tabs": {
       "fees": "शुल्क सवलत पत्र",
