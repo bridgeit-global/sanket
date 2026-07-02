@@ -432,6 +432,7 @@
       "idType": "ID Type (Aadhaar / Ration)",
       "idNumber": "ID Number",
       "income": "Annual Income (₹)",
+      "letterType": "Letter Type",
       "letterLanguage": "Letter Language"
     },
     "placeholders": {
@@ -441,7 +442,8 @@
       "salutation": "e.g. Shri / Smt.",
       "familyMembers": "One member per line\ne.g. 1- Shri Abdul Rashid  Jawai  34 years",
       "idType": "Aadhaar or Ration",
-      "income": "e.g. 1,50,000"
+      "income": "e.g. 1,50,000",
+      "letterType": "Choose a letter type…"
     },
     "gender": {
       "male": "Male",

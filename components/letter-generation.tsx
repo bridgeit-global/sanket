@@ -444,18 +444,28 @@ export function LetterGeneration() {
               value={activeTab}
               onValueChange={(value) => setActiveTab(value as LetterType)}
             >
-              <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
-                <TabsTrigger value="fees">{t('letterGeneration.tabs.fees')}</TabsTrigger>
-                <TabsTrigger value="ration">
-                  {t('letterGeneration.tabs.ration')}
-                </TabsTrigger>
-                <TabsTrigger value="income">
-                  {t('letterGeneration.tabs.income')}
-                </TabsTrigger>
-                <TabsTrigger value="domicile">
-                  {t('letterGeneration.tabs.domicile')}
-                </TabsTrigger>
-              </TabsList>
+              <div className="max-w-md">
+                <FieldGroup label={t('letterGeneration.fields.letterType')}>
+                  <Select
+                    value={activeTab}
+                    onValueChange={(value: LetterType) => setActiveTab(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={t('letterGeneration.placeholders.letterType')}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="fees">{t('letterGeneration.tabs.fees')}</SelectItem>
+                      <SelectItem value="ration">{t('letterGeneration.tabs.ration')}</SelectItem>
+                      <SelectItem value="income">{t('letterGeneration.tabs.income')}</SelectItem>
+                      <SelectItem value="domicile">
+                        {t('letterGeneration.tabs.domicile')}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FieldGroup>
+              </div>
 
               <div className="mt-6 grid gap-6 lg:grid-cols-2">
                 <Card>
