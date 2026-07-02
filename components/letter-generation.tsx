@@ -12,14 +12,16 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
 import {
   Select,
   SelectContent,
@@ -35,7 +37,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useTranslations } from '@/hooks/use-translations';
 import {
@@ -51,7 +53,30 @@ import {
   type RationLetterFields,
 } from '@/lib/letters/templates';
 import { exportElementToPdf, A4_PORTRAIT_CONTENT_WIDTH_PX } from '@/lib/pdf/export-element-to-pdf';
+import { DateRangePicker } from '@/components/date-range-picker';
 import { SidebarToggle } from './sidebar-toggle';
+
+const ALL_LETTER_TYPES = 'all' as const;
+type SavedLetterTypeFilter = LetterType | typeof ALL_LETTER_TYPES;
+
+function isLetterWithinDateRange(
+  createdAt: string | Date,
+  startDate: string,
+  endDate: string,
+): boolean {
+  const date = new Date(createdAt);
+  if (startDate) {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    if (date < start) return false;
+  }
+  if (endDate) {
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    if (date > end) return false;
+  }
+  return true;
+}
 
 const todayDisplay = () =>
   new Date().toLocaleDateString('en-IN', {
@@ -114,6 +139,17 @@ function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
   };
 }
 
+function createLetterExportElement(body: string): HTMLDivElement {
+  const host = document.createElement('div');
+  host.className = 'rounded-lg bg-white p-6 text-black shadow-sm';
+  const pre = document.createElement('pre');
+  pre.className = 'whitespace-pre-wrap font-[inherit] text-[15px] leading-7 text-black';
+  pre.style.margin = '0';
+  pre.textContent = body;
+  host.appendChild(pre);
+  return host;
+}
+
 function LetterPreview({
   body,
   previewRef,
@@ -140,17 +176,45 @@ function FieldGroup({
   label,
   children,
   className,
+  required,
+  error,
 }: {
   label: string;
   children: React.ReactNode;
   className?: string;
+  required?: boolean;
+  error?: string;
 }) {
   return (
     <div className={className}>
-      <Label className="mb-1.5 block text-sm">{label}</Label>
+      <Label className="mb-1.5 block text-sm">
+        {label}
+        {required ? ' *' : null}
+      </Label>
       {children}
+      {error ? <p className="mt-1 text-xs text-destructive">{error}</p> : null}
     </div>
   );
+}
+
+type CommonFieldErrors = {
+  referenceNo?: string;
+  date?: string;
+};
+
+function validateRequiredCommonFields(
+  referenceNo: string,
+  date: string,
+  t: (key: string) => string,
+): CommonFieldErrors {
+  const errors: CommonFieldErrors = {};
+  if (!referenceNo.trim()) {
+    errors.referenceNo = t('letterGeneration.validation.referenceNoRequired');
+  }
+  if (!date.trim()) {
+    errors.date = t('letterGeneration.validation.dateRequired');
+  }
+  return errors;
 }
 
 type SavedLetterRow = {
@@ -168,9 +232,9 @@ export function LetterGeneration() {
   const { t, locale } = useTranslations();
   const previewRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<LetterType>('fees');
-  const [letterLanguage, setLetterLanguage] = useState<LetterLocale>(locale);
   const [isExporting, setIsExporting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [downloadingLetterId, setDownloadingLetterId] = useState<string | null>(null);
   const [isGeneratorCollapsed, setIsGeneratorCollapsed] = useState(false);
 
   const [feesFields, setFeesFields] = useState<FeesLetterFields>(() =>
@@ -191,10 +255,17 @@ export function LetterGeneration() {
   const [selectedSavedLetterId, setSelectedSavedLetterId] = useState<string | null>(
     null,
   );
+  const [filterLetterType, setFilterLetterType] =
+    useState<SavedLetterTypeFilter>(ALL_LETTER_TYPES);
+  const [filterReference, setFilterReference] = useState('');
+  const [filterStartDate, setFilterStartDate] = useState('');
+  const [filterEndDate, setFilterEndDate] = useState('');
+  const [commonFieldErrors, setCommonFieldErrors] = useState<CommonFieldErrors>({});
+
 
   useEffect(() => {
-    setLetterLanguage(locale);
-  }, [locale]);
+    setCommonFieldErrors({});
+  }, [activeTab]);
 
   const refreshSavedLetters = async () => {
     setSavedLettersLoading(true);
@@ -219,19 +290,19 @@ export function LetterGeneration() {
   const activeBody = useMemo(() => {
     switch (activeTab) {
       case 'fees':
-        return buildLetterBody('fees', feesFields, letterLanguage);
+        return buildLetterBody('fees', feesFields, locale);
       case 'ration':
-        return buildLetterBody('ration', rationFields, letterLanguage);
+        return buildLetterBody('ration', rationFields, locale);
       case 'income':
-        return buildLetterBody('income', incomeFields, letterLanguage);
+        return buildLetterBody('income', incomeFields, locale);
       case 'domicile':
-        return buildLetterBody('domicile', domicileFields, letterLanguage);
+        return buildLetterBody('domicile', domicileFields, locale);
       default:
         return '';
     }
   }, [
     activeTab,
-    letterLanguage,
+    locale,
     feesFields,
     rationFields,
     incomeFields,
@@ -276,7 +347,41 @@ export function LetterGeneration() {
     domicileFields.referenceNo,
   ]);
 
+  const activeDate = useMemo(() => {
+    switch (activeTab) {
+      case 'fees':
+        return feesFields.date;
+      case 'ration':
+        return rationFields.date;
+      case 'income':
+        return incomeFields.date;
+      case 'domicile':
+        return domicileFields.date;
+      default:
+        return '';
+    }
+  }, [
+    activeTab,
+    feesFields.date,
+    rationFields.date,
+    incomeFields.date,
+    domicileFields.date,
+  ]);
+
+  const validateActiveCommonFields = () => {
+    const errors = validateRequiredCommonFields(activeReferenceNo, activeDate, t);
+    setCommonFieldErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      const firstError = errors.referenceNo ?? errors.date;
+      if (firstError) toast.error(firstError);
+      return false;
+    }
+    return true;
+  };
+
   const handleExportPdf = async () => {
+    if (!validateActiveCommonFields()) return;
+
     const target = previewRef.current;
     if (!target) return;
 
@@ -301,6 +406,8 @@ export function LetterGeneration() {
   };
 
   const handleSaveLetter = async () => {
+    if (!validateActiveCommonFields()) return;
+
     setIsSaving(true);
     try {
       const res = await fetch('/api/letters', {
@@ -308,8 +415,8 @@ export function LetterGeneration() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           letterType: activeTab,
-          letterLocale: letterLanguage,
-          referenceNo: activeReferenceNo || null,
+          letterLocale: locale,
+          referenceNo: activeReferenceNo.trim(),
           title: activeTitle,
           fields: activeFields,
           body: activeBody,
@@ -329,7 +436,6 @@ export function LetterGeneration() {
   };
 
   const handleLoadSavedLetter = (letter: SavedLetterRow) => {
-    setLetterLanguage(letter.letterLocale);
     setActiveTab(letter.letterType);
     switch (letter.letterType) {
       case 'fees':
@@ -364,10 +470,80 @@ export function LetterGeneration() {
     }
   };
 
+  const handleDownloadSavedLetter = async (letter: SavedLetterRow) => {
+    setDownloadingLetterId(letter.id);
+    let exportHost: HTMLDivElement | null = null;
+    try {
+      exportHost = createLetterExportElement(letter.body);
+      document.body.appendChild(exportHost);
+      await exportElementToPdf({
+        element: exportHost,
+        fileName: `${letter.title}-${letter.referenceNo || 'letter'}`,
+        format: 'a4',
+        orientation: 'portrait',
+        marginMm: 15,
+        scale: 2,
+        captureWidthPx: A4_PORTRAIT_CONTENT_WIDTH_PX,
+      });
+      toast.success(t('letterGeneration.pdfSuccess'));
+    } catch (error) {
+      console.error('Saved letter PDF export failed', error);
+      toast.error(t('letterGeneration.pdfError'));
+    } finally {
+      exportHost?.remove();
+      setDownloadingLetterId(null);
+    }
+  };
+
+  const filteredSavedLetters = useMemo(() => {
+    const referenceQuery = filterReference.trim().toLowerCase();
+    return savedLetters.filter((letter) => {
+      if (
+        filterLetterType !== ALL_LETTER_TYPES &&
+        letter.letterType !== filterLetterType
+      ) {
+        return false;
+      }
+      if (
+        referenceQuery &&
+        !(letter.referenceNo ?? '').toLowerCase().includes(referenceQuery)
+      ) {
+        return false;
+      }
+      if (
+        !isLetterWithinDateRange(letter.createdAt, filterStartDate, filterEndDate)
+      ) {
+        return false;
+      }
+      return true;
+    });
+  }, [
+    savedLetters,
+    filterLetterType,
+    filterReference,
+    filterStartDate,
+    filterEndDate,
+  ]);
+
+  const hasActiveSavedLetterFilters =
+    filterLetterType !== ALL_LETTER_TYPES ||
+    filterReference.trim() !== '' ||
+    filterStartDate !== '' ||
+    filterEndDate !== '';
+
+  useEffect(() => {
+    if (
+      selectedSavedLetterId &&
+      !filteredSavedLetters.some((letter) => letter.id === selectedSavedLetterId)
+    ) {
+      setSelectedSavedLetterId(null);
+    }
+  }, [filteredSavedLetters, selectedSavedLetterId]);
+
   const selectedSavedLetter = useMemo(() => {
     if (!selectedSavedLetterId) return null;
-    return savedLetters.find((l) => l.id === selectedSavedLetterId) ?? null;
-  }, [savedLetters, selectedSavedLetterId]);
+    return filteredSavedLetters.find((l) => l.id === selectedSavedLetterId) ?? null;
+  }, [filteredSavedLetters, selectedSavedLetterId]);
 
   const renderCommonFields = <T extends CommonLetterFields>(
     fields: T,
@@ -375,20 +551,40 @@ export function LetterGeneration() {
   ) => (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
-        <FieldGroup label={t('letterGeneration.fields.referenceNo')}>
+        <FieldGroup
+          label={t('letterGeneration.fields.referenceNo')}
+          required
+          error={commonFieldErrors.referenceNo}
+        >
           <Input
             value={fields.referenceNo}
-            onChange={(e) =>
-              setFields({ ...fields, referenceNo: e.target.value })
-            }
+            onChange={(e) => {
+              setFields({ ...fields, referenceNo: e.target.value });
+              if (commonFieldErrors.referenceNo) {
+                setCommonFieldErrors((prev) => ({ ...prev, referenceNo: undefined }));
+              }
+            }}
             placeholder={t('letterGeneration.placeholders.referenceNo')}
+            required
+            aria-invalid={!!commonFieldErrors.referenceNo}
           />
         </FieldGroup>
-        <FieldGroup label={t('letterGeneration.fields.date')}>
+        <FieldGroup
+          label={t('letterGeneration.fields.date')}
+          required
+          error={commonFieldErrors.date}
+        >
           <Input
             value={fields.date}
-            onChange={(e) => setFields({ ...fields, date: e.target.value })}
+            onChange={(e) => {
+              setFields({ ...fields, date: e.target.value });
+              if (commonFieldErrors.date) {
+                setCommonFieldErrors((prev) => ({ ...prev, date: undefined }));
+              }
+            }}
             placeholder={t('letterGeneration.placeholders.date')}
+            required
+            aria-invalid={!!commonFieldErrors.date}
           />
         </FieldGroup>
       </div>
@@ -414,32 +610,39 @@ export function LetterGeneration() {
       </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader
+          className="cursor-pointer select-none hover:bg-muted/50 transition-colors rounded-t-lg"
+          onClick={() => setIsGeneratorCollapsed((v) => !v)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setIsGeneratorCollapsed((v) => !v);
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-expanded={!isGeneratorCollapsed}
+          aria-controls="letter-generator-content"
+          id="letter-generator-header"
+        >
           <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
               <CardTitle className="text-lg">{t('letterGeneration.title')}</CardTitle>
               <CardDescription>{t('letterGeneration.formDescription')}</CardDescription>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setIsGeneratorCollapsed((v) => !v)}
-            >
-              {isGeneratorCollapsed ? (
-                <ChevronDown className="mr-2 size-4" />
-              ) : (
-                <ChevronUp className="mr-2 size-4" />
-              )}
-              {isGeneratorCollapsed
-                ? t('letterGeneration.generator.actions.expand')
-                : t('letterGeneration.generator.actions.collapse')}
-            </Button>
+            {isGeneratorCollapsed ? (
+              <ChevronDown className="mt-1 size-5 shrink-0 text-muted-foreground" aria-hidden />
+            ) : (
+              <ChevronUp className="mt-1 size-5 shrink-0 text-muted-foreground" aria-hidden />
+            )}
           </div>
         </CardHeader>
 
         {isGeneratorCollapsed ? null : (
-          <CardContent>
+          <CardContent
+            id="letter-generator-content"
+            aria-labelledby="letter-generator-header"
+          >
             <Tabs
               value={activeTab}
               onValueChange={(value) => setActiveTab(value as LetterType)}
@@ -478,28 +681,6 @@ export function LetterGeneration() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <FieldGroup
-                      label={t('letterGeneration.fields.letterLanguage')}
-                      className="mb-4"
-                    >
-                      <Select
-                        value={letterLanguage}
-                        onValueChange={(value: LetterLocale) => setLetterLanguage(value)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="en">
-                            {t('letterGeneration.letterLanguage.en')}
-                          </SelectItem>
-                          <SelectItem value="mr">
-                            {t('letterGeneration.letterLanguage.mr')}
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FieldGroup>
-
                     <TabsContent value="fees" className="mt-0 space-y-4">
                       {renderCommonFields(feesFields, setFeesFields)}
                       <FieldGroup label={t('letterGeneration.fields.schoolName')}>
@@ -836,7 +1017,14 @@ export function LetterGeneration() {
             <div className="text-sm text-muted-foreground">
               {savedLettersLoading
                 ? t('common.loading')
-                : t('letterGeneration.savedLetters.count', { count: savedLetters.length })}
+                : hasActiveSavedLetterFilters
+                  ? t('letterGeneration.savedLetters.filteredCount', {
+                      filtered: filteredSavedLetters.length,
+                      total: savedLetters.length,
+                    })
+                  : t('letterGeneration.savedLetters.count', {
+                      count: savedLetters.length,
+                    })}
             </div>
           </div>
         </CardHeader>
@@ -848,48 +1036,74 @@ export function LetterGeneration() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="grid gap-2 sm:grid-cols-3 sm:items-end">
-                <FieldGroup
-                  label={t('letterGeneration.savedLetters.dropdownLabel')}
-                  className="sm:col-span-2"
-                >
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <FieldGroup label={t('letterGeneration.fields.letterType')}>
                   <Select
-                    value={selectedSavedLetterId ?? ''}
-                    onValueChange={(value) => setSelectedSavedLetterId(value || null)}
+                    value={filterLetterType}
+                    onValueChange={(value: SavedLetterTypeFilter) =>
+                      setFilterLetterType(value)
+                    }
                   >
                     <SelectTrigger>
-                      <SelectValue
-                        placeholder={t(
-                          'letterGeneration.savedLetters.dropdownPlaceholder',
-                        )}
-                      />
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {savedLetters.map((letter) => {
-                        const refPart = letter.referenceNo ? ` - ${letter.referenceNo}` : '';
-                        const when = new Date(letter.createdAt).toLocaleString('en-IN');
-                        const label = `${t(
-                          `letterGeneration.tabs.${letter.letterType}`,
-                        )}${refPart} (${when})`;
-                        return (
-                          <SelectItem key={letter.id} value={letter.id}>
-                            {label}
-                          </SelectItem>
-                        );
-                      })}
+                      <SelectItem value={ALL_LETTER_TYPES}>
+                        {t('letterGeneration.savedLetters.filters.allTypes')}
+                      </SelectItem>
+                      <SelectItem value="fees">
+                        {t('letterGeneration.tabs.fees')}
+                      </SelectItem>
+                      <SelectItem value="ration">
+                        {t('letterGeneration.tabs.ration')}
+                      </SelectItem>
+                      <SelectItem value="income">
+                        {t('letterGeneration.tabs.income')}
+                      </SelectItem>
+                      <SelectItem value="domicile">
+                        {t('letterGeneration.tabs.domicile')}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </FieldGroup>
 
-                <div className="flex gap-2 sm:justify-end">
-                  <Button
-                    variant="outline"
-                    onClick={() => void refreshSavedLetters()}
-                    disabled={savedLettersLoading}
-                  >
-                    {t('letterGeneration.savedLetters.refresh')}
-                  </Button>
+                <FieldGroup label={t('letterGeneration.fields.referenceNo')}>
+                  <Input
+                    value={filterReference}
+                    onChange={(e) => setFilterReference(e.target.value)}
+                    placeholder={t('letterGeneration.placeholders.referenceNo')}
+                  />
+                </FieldGroup>
+
+                <FieldGroup
+                  label={t('letterGeneration.savedLetters.filters.dateRange')}
+                  className="sm:col-span-2"
+                >
+                  <DateRangePicker
+                    startDate={filterStartDate}
+                    endDate={filterEndDate}
+                    onDateRangeChange={(start, end) => {
+                      setFilterStartDate(start);
+                      setFilterEndDate(end);
+                    }}
+                  />
+                </FieldGroup>
+              </div>
+
+              {filteredSavedLetters.length === 0 ? (
+                <div className="py-6 text-sm text-muted-foreground">
+                  {t('letterGeneration.savedLetters.noFilterResults')}
                 </div>
+              ) : (
+                <>
+              <div className="flex justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => void refreshSavedLetters()}
+                  disabled={savedLettersLoading}
+                >
+                  {t('letterGeneration.savedLetters.refresh')}
+                </Button>
               </div>
 
               <Table>
@@ -911,7 +1125,7 @@ export function LetterGeneration() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {savedLetters.map((letter) => (
+                  {filteredSavedLetters.map((letter) => (
                     <TableRow key={letter.id}>
                       <TableCell className="font-medium">
                         {letter.referenceNo || '—'}
@@ -925,6 +1139,19 @@ export function LetterGeneration() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void handleDownloadSavedLetter(letter)}
+                            disabled={downloadingLetterId === letter.id}
+                          >
+                            {downloadingLetterId === letter.id ? (
+                              <Loader2 className="mr-2 size-4 animate-spin" />
+                            ) : (
+                              <FileDown className="mr-2 size-4" />
+                            )}
+                            {t('letterGeneration.savedLetters.actions.download')}
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"
@@ -955,41 +1182,56 @@ export function LetterGeneration() {
                 </TableBody>
               </Table>
 
-              {selectedSavedLetter ? (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-base">
-                      {selectedSavedLetter.title}{' '}
-                      {selectedSavedLetter.referenceNo
-                        ? `- ${selectedSavedLetter.referenceNo}`
-                        : ''}
-                    </CardTitle>
-                    <CardDescription>
-                      {t(`letterGeneration.tabs.${selectedSavedLetter.letterType}`)} ·{' '}
-                      {t(
-                        `letterGeneration.letterLanguage.${selectedSavedLetter.letterLocale}`,
-                      )}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex flex-wrap gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => handleLoadSavedLetter(selectedSavedLetter)}
-                      >
-                        {t('letterGeneration.savedLetters.actions.load')}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => setSelectedSavedLetterId(null)}
-                      >
-                        {t('letterGeneration.savedLetters.actions.closePreview')}
-                      </Button>
-                    </div>
-                    <LetterPreview body={selectedSavedLetter.body} />
-                  </CardContent>
-                </Card>
-              ) : null}
+              <Dialog
+                open={!!selectedSavedLetter}
+                onOpenChange={(open) => {
+                  if (!open) setSelectedSavedLetterId(null);
+                }}
+              >
+                <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
+                  {selectedSavedLetter ? (
+                    <>
+                      <DialogHeader>
+                        <DialogTitle>
+                          {selectedSavedLetter.title}{' '}
+                          {selectedSavedLetter.referenceNo
+                            ? `- ${selectedSavedLetter.referenceNo}`
+                            : ''}
+                        </DialogTitle>
+                        <DialogDescription>
+                          {t(`letterGeneration.tabs.${selectedSavedLetter.letterType}`)} ·{' '}
+                          {t(
+                            `letterGeneration.letterLanguage.${selectedSavedLetter.letterLocale}`,
+                          )}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <LetterPreview body={selectedSavedLetter.body} />
+                      <DialogFooter className="gap-2 sm:gap-0">
+                        <Button
+                          variant="outline"
+                          onClick={() => void handleDownloadSavedLetter(selectedSavedLetter)}
+                          disabled={downloadingLetterId === selectedSavedLetter.id}
+                        >
+                          {downloadingLetterId === selectedSavedLetter.id ? (
+                            <Loader2 className="mr-2 size-4 animate-spin" />
+                          ) : (
+                            <FileDown className="mr-2 size-4" />
+                          )}
+                          {t('letterGeneration.savedLetters.actions.download')}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => handleLoadSavedLetter(selectedSavedLetter)}
+                        >
+                          {t('letterGeneration.savedLetters.actions.load')}
+                        </Button>
+                      </DialogFooter>
+                    </>
+                  ) : null}
+                </DialogContent>
+              </Dialog>
+                </>
+              )}
             </div>
           )}
         </CardContent>

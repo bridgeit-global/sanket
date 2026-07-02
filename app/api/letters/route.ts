@@ -51,10 +51,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const normalizedReferenceNo =
+      referenceNo != null ? String(referenceNo).trim() : '';
+    if (!normalizedReferenceNo) {
+      return NextResponse.json(
+        { error: 'referenceNo is required' },
+        { status: 400 },
+      );
+    }
+
     const letter = await createLetter({
       letterType: String(letterType),
       letterLocale: String(letterLocale),
-      referenceNo: referenceNo != null ? String(referenceNo) : null,
+      referenceNo: normalizedReferenceNo,
       title: String(title),
       fields: fields ?? {},
       body: String(letterBody),

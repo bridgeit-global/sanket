@@ -387,6 +387,12 @@
       "dropdownLabel": "साठवलेले पत्र निवडा",
       "dropdownPlaceholder": "साठवलेले पत्र निवडा…",
       "count": "{count} साठवले",
+      "filteredCount": "{total} पैकी {filtered} साठवले",
+      "noFilterResults": "सध्याच्या फिल्टरशी जुळणारी साठवलेली पत्रे नाहीत.",
+      "filters": {
+        "allTypes": "सर्व पत्र प्रकार",
+        "dateRange": "साठवलेल्या तारखेची श्रेणी"
+      },
       "empty": "अजून कोणतेही साठवलेले पत्र नाही. सध्याचे पत्र साठवण्यासाठी \"पत्र साठवा\" वर क्लिक करा.",
       "saveSuccess": "पत्र साठवले",
       "saveError": "पत्र साठवण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा.",
@@ -404,6 +410,7 @@
       "actions": {
         "preview": "पूर्वावलोकन",
         "load": "लोड करा",
+        "download": "PDF डाउनलोड",
         "delete": "हटवा",
         "closePreview": "पूर्वावलोकन बंद"
       }
@@ -456,6 +463,10 @@
     "rationPurpose": {
       "new": "नवीन शिधापत्रिका",
       "addMembers": "शिधापत्रिकेत कुटुंबियांची नावे जोडणे"
+    },
+    "validation": {
+      "referenceNoRequired": "संदर्भ क्र. आवश्यक आहे",
+      "dateRequired": "दिनांक आवश्यक आहे"
     }
   },
   "dailyProgramme": {

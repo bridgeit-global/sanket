@@ -387,6 +387,12 @@
       "dropdownLabel": "Select saved letter",
       "dropdownPlaceholder": "Choose a saved letter…",
       "count": "{count} saved",
+      "filteredCount": "{filtered} of {total} saved",
+      "noFilterResults": "No saved letters match the current filters.",
+      "filters": {
+        "allTypes": "All letter types",
+        "dateRange": "Saved date range"
+      },
       "empty": "No saved letters yet. Click \"Save Letter\" to store the current letter.",
       "saveSuccess": "Letter saved",
       "saveError": "Failed to save letter. Please try again.",
@@ -404,6 +410,7 @@
       "actions": {
         "preview": "Preview",
         "load": "Load",
+        "download": "Download PDF",
         "delete": "Delete",
         "closePreview": "Close preview"
       }
@@ -456,6 +463,10 @@
     "rationPurpose": {
       "new": "New ration card",
       "addMembers": "Add family members to ration card"
+    },
+    "validation": {
+      "referenceNoRequired": "Reference No. is required",
+      "dateRequired": "Date is required"
     }
   },
   "dailyProgramme": {
