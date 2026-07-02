@@ -150,18 +150,9 @@ function createLetterExportElement(body: string): HTMLDivElement {
   return host;
 }
 
-function LetterPreview({
-  body,
-  previewRef,
-}: {
-  body: string;
-  previewRef?: RefObject<HTMLDivElement>;
-}) {
+function LetterPreview({ body }: { body: string }) {
   return (
-    <div
-      ref={previewRef}
-      className="rounded-lg bg-white p-6 text-black shadow-sm"
-    >
+    <div className="rounded-lg bg-white p-6 text-black shadow-sm">
       <pre
         className="whitespace-pre-wrap font-[inherit] text-[15px] leading-7 text-black"
         style={{ margin: 0 }}
@@ -236,9 +227,7 @@ type SavedLetterRow = {
 
 export function LetterGeneration() {
   const { t, locale } = useTranslations();
-  const previewRef = useRef<HTMLDivElement>(null);
   const [activeTab, setActiveTab] = useState<LetterType>('fees');
-  const [isExporting, setIsExporting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [downloadingLetterId, setDownloadingLetterId] = useState<string | null>(null);
   const [isGeneratorCollapsed, setIsGeneratorCollapsed] = useState(false);
@@ -395,32 +384,6 @@ export function LetterGeneration() {
     return true;
   };
 
-  const handleExportPdf = async () => {
-    if (!validateActiveCommonFields()) return;
-
-    const target = previewRef.current;
-    if (!target) return;
-
-    setIsExporting(true);
-    try {
-      await exportElementToPdf({
-        element: target,
-        fileName: `${activeTitle}-${activeReferenceNo || 'letter'}`,
-        format: 'a4',
-        orientation: 'portrait',
-        marginMm: 15,
-        scale: 2,
-        captureWidthPx: A4_PORTRAIT_CONTENT_WIDTH_PX,
-      });
-      toast.success(t('letterGeneration.pdfSuccess'));
-    } catch (error) {
-      console.error('Letter PDF export failed', error);
-      toast.error(t('letterGeneration.pdfError'));
-    } finally {
-      setIsExporting(false);
-    }
-  };
-
   const handleSaveLetter = async () => {
     if (!validateActiveCommonFields()) return;
 
@@ -462,25 +425,6 @@ export function LetterGeneration() {
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleLoadSavedLetter = (letter: SavedLetterRow) => {
-    setActiveTab(letter.letterType);
-    switch (letter.letterType) {
-      case 'fees':
-        setFeesFields(letter.fields as FeesLetterFields);
-        break;
-      case 'ration':
-        setRationFields(letter.fields as RationLetterFields);
-        break;
-      case 'income':
-        setIncomeFields(letter.fields as IncomeLetterFields);
-        break;
-      case 'domicile':
-        setDomicileFields(letter.fields as DomicileLetterFields);
-        break;
-    }
-    toast.success(t('letterGeneration.savedLetters.loaded'));
   };
 
   const handleDeleteSavedLetter = async (id: string) => {
@@ -1014,17 +958,9 @@ export function LetterGeneration() {
                         )}
                         {t('letterGeneration.savedLetters.save')}
                       </Button>
-                      <Button onClick={handleExportPdf} disabled={isExporting}>
-                        {isExporting ? (
-                          <Loader2 className="mr-2 size-4 animate-spin" />
-                        ) : (
-                          <FileDown className="mr-2 size-4" />
-                        )}
-                        {t('letterGeneration.generatePdf')}
-                      </Button>
                     </div>
                   </div>
-                  <LetterPreview body={activeBody} previewRef={previewRef} />
+                  <LetterPreview body={activeBody} />
                 </div>
               </div>
             </Tabs>
@@ -1191,13 +1127,6 @@ export function LetterGeneration() {
                           </Button>
                           <Button
                             size="sm"
-                            variant="outline"
-                            onClick={() => handleLoadSavedLetter(letter)}
-                          >
-                            {t('letterGeneration.savedLetters.actions.load')}
-                          </Button>
-                          <Button
-                            size="sm"
                             variant="destructive"
                             onClick={() => void handleDeleteSavedLetter(letter.id)}
                           >
@@ -1247,12 +1176,6 @@ export function LetterGeneration() {
                             <FileDown className="mr-2 size-4" />
                           )}
                           {t('letterGeneration.savedLetters.actions.download')}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() => handleLoadSavedLetter(selectedSavedLetter)}
-                        >
-                          {t('letterGeneration.savedLetters.actions.load')}
                         </Button>
                       </DialogFooter>
                     </>
