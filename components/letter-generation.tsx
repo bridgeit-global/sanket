@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { Eye, FileDown, Loader2, Save, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Eye, FileDown, Loader2, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -171,6 +171,7 @@ export function LetterGeneration() {
   const [letterLanguage, setLetterLanguage] = useState<LetterLocale>(locale);
   const [isExporting, setIsExporting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeneratorCollapsed, setIsGeneratorCollapsed] = useState(false);
 
   const [feesFields, setFeesFields] = useState<FeesLetterFields>(() =>
     feesDefaults(locale),
@@ -412,565 +413,577 @@ export function LetterGeneration() {
         </div>
       </div>
 
-      <Tabs
-        value={activeTab}
-        onValueChange={(value) => setActiveTab(value as LetterType)}
-      >
-        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
-          <TabsTrigger value="fees">{t('letterGeneration.tabs.fees')}</TabsTrigger>
-          <TabsTrigger value="ration">
-            {t('letterGeneration.tabs.ration')}
-          </TabsTrigger>
-          <TabsTrigger value="income">
-            {t('letterGeneration.tabs.income')}
-          </TabsTrigger>
-          <TabsTrigger value="domicile">
-            {t('letterGeneration.tabs.domicile')}
-          </TabsTrigger>
-        </TabsList>
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
+              <CardTitle className="text-lg">{t('letterGeneration.title')}</CardTitle>
+              <CardDescription>{t('letterGeneration.formDescription')}</CardDescription>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsGeneratorCollapsed((v) => !v)}
+            >
+              {isGeneratorCollapsed ? (
+                <ChevronDown className="mr-2 size-4" />
+              ) : (
+                <ChevronUp className="mr-2 size-4" />
+              )}
+              {isGeneratorCollapsed
+                ? t('letterGeneration.generator.actions.expand')
+                : t('letterGeneration.generator.actions.collapse')}
+            </Button>
+          </div>
+        </CardHeader>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
+        {isGeneratorCollapsed ? null : (
+          <CardContent>
+            <Tabs
+              value={activeTab}
+              onValueChange={(value) => setActiveTab(value as LetterType)}
+            >
+              <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
+                <TabsTrigger value="fees">{t('letterGeneration.tabs.fees')}</TabsTrigger>
+                <TabsTrigger value="ration">
+                  {t('letterGeneration.tabs.ration')}
+                </TabsTrigger>
+                <TabsTrigger value="income">
+                  {t('letterGeneration.tabs.income')}
+                </TabsTrigger>
+                <TabsTrigger value="domicile">
+                  {t('letterGeneration.tabs.domicile')}
+                </TabsTrigger>
+              </TabsList>
+
+              <div className="mt-6 grid gap-6 lg:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">
+                      {t('letterGeneration.formTitle')}
+                    </CardTitle>
+                    <CardDescription>
+                      {t('letterGeneration.formDescription')}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <FieldGroup
+                      label={t('letterGeneration.fields.letterLanguage')}
+                      className="mb-4"
+                    >
+                      <Select
+                        value={letterLanguage}
+                        onValueChange={(value: LetterLocale) => setLetterLanguage(value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="en">
+                            {t('letterGeneration.letterLanguage.en')}
+                          </SelectItem>
+                          <SelectItem value="mr">
+                            {t('letterGeneration.letterLanguage.mr')}
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FieldGroup>
+
+                    <TabsContent value="fees" className="mt-0 space-y-4">
+                      {renderCommonFields(feesFields, setFeesFields)}
+                      <FieldGroup label={t('letterGeneration.fields.schoolName')}>
+                        <Input
+                          value={feesFields.schoolName}
+                          onChange={(e) =>
+                            setFeesFields({ ...feesFields, schoolName: e.target.value })
+                          }
+                        />
+                      </FieldGroup>
+                      <FieldGroup label={t('letterGeneration.fields.schoolAddress')}>
+                        <Textarea
+                          value={feesFields.schoolAddress}
+                          onChange={(e) =>
+                            setFeesFields({
+                              ...feesFields,
+                              schoolAddress: e.target.value,
+                            })
+                          }
+                          rows={2}
+                        />
+                      </FieldGroup>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <FieldGroup label={t('letterGeneration.fields.standard')}>
+                          <Input
+                            value={feesFields.standard}
+                            onChange={(e) =>
+                              setFeesFields({ ...feesFields, standard: e.target.value })
+                            }
+                            placeholder={t('letterGeneration.placeholders.standard')}
+                          />
+                        </FieldGroup>
+                        <FieldGroup label={t('letterGeneration.fields.studentName')}>
+                          <Input
+                            value={feesFields.studentName}
+                            onChange={(e) =>
+                              setFeesFields({
+                                ...feesFields,
+                                studentName: e.target.value,
+                              })
+                            }
+                          />
+                        </FieldGroup>
+                      </div>
+                      <FieldGroup label={t('letterGeneration.fields.studentGender')}>
+                        <Select
+                          value={feesFields.studentGender}
+                          onValueChange={(value: 'male' | 'female') =>
+                            setFeesFields({ ...feesFields, studentGender: value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="male">
+                              {t('letterGeneration.gender.male')}
+                            </SelectItem>
+                            <SelectItem value="female">
+                              {t('letterGeneration.gender.female')}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FieldGroup>
+                    </TabsContent>
+
+                    <TabsContent value="ration" className="mt-0 space-y-4">
+                      {renderCommonFields(rationFields, setRationFields)}
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <FieldGroup label={t('letterGeneration.fields.salutation')}>
+                          <Input
+                            value={rationFields.salutation}
+                            onChange={(e) =>
+                              setRationFields({
+                                ...rationFields,
+                                salutation: e.target.value,
+                              })
+                            }
+                            placeholder={t('letterGeneration.placeholders.salutation')}
+                          />
+                        </FieldGroup>
+                        <FieldGroup label={t('letterGeneration.fields.fullName')}>
+                          <Input
+                            value={rationFields.fullName}
+                            onChange={(e) =>
+                              setRationFields({
+                                ...rationFields,
+                                fullName: e.target.value,
+                              })
+                            }
+                          />
+                        </FieldGroup>
+                      </div>
+                      <FieldGroup label={t('letterGeneration.fields.address')}>
+                        <Textarea
+                          value={rationFields.address}
+                          onChange={(e) =>
+                            setRationFields({ ...rationFields, address: e.target.value })
+                          }
+                          rows={2}
+                        />
+                      </FieldGroup>
+                      <FieldGroup label={t('letterGeneration.fields.rationPurpose')}>
+                        <Select
+                          value={rationFields.purpose}
+                          onValueChange={(value: 'new' | 'add-members') =>
+                            setRationFields({ ...rationFields, purpose: value })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="new">
+                              {t('letterGeneration.rationPurpose.new')}
+                            </SelectItem>
+                            <SelectItem value="add-members">
+                              {t('letterGeneration.rationPurpose.addMembers')}
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </FieldGroup>
+                      <FieldGroup label={t('letterGeneration.fields.familyMembers')}>
+                        <Textarea
+                          value={rationFields.familyMembers}
+                          onChange={(e) =>
+                            setRationFields({
+                              ...rationFields,
+                              familyMembers: e.target.value,
+                            })
+                          }
+                          rows={4}
+                          placeholder={t('letterGeneration.placeholders.familyMembers')}
+                        />
+                      </FieldGroup>
+                      <FieldGroup label={t('letterGeneration.fields.rationOfficeAddress')}>
+                        <Textarea
+                          value={rationFields.rationOfficeAddress}
+                          onChange={(e) =>
+                            setRationFields({
+                              ...rationFields,
+                              rationOfficeAddress: e.target.value,
+                            })
+                          }
+                          rows={2}
+                        />
+                      </FieldGroup>
+                    </TabsContent>
+
+                    <TabsContent value="income" className="mt-0 space-y-4">
+                      {renderCommonFields(incomeFields, setIncomeFields)}
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <FieldGroup label={t('letterGeneration.fields.salutation')}>
+                          <Input
+                            value={incomeFields.salutation}
+                            onChange={(e) =>
+                              setIncomeFields({
+                                ...incomeFields,
+                                salutation: e.target.value,
+                              })
+                            }
+                          />
+                        </FieldGroup>
+                        <FieldGroup label={t('letterGeneration.fields.fullName')}>
+                          <Input
+                            value={incomeFields.fullName}
+                            onChange={(e) =>
+                              setIncomeFields({
+                                ...incomeFields,
+                                fullName: e.target.value,
+                              })
+                            }
+                          />
+                        </FieldGroup>
+                      </div>
+                      <FieldGroup label={t('letterGeneration.fields.address')}>
+                        <Textarea
+                          value={incomeFields.address}
+                          onChange={(e) =>
+                            setIncomeFields({ ...incomeFields, address: e.target.value })
+                          }
+                          rows={2}
+                        />
+                      </FieldGroup>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <FieldGroup label={t('letterGeneration.fields.idType')}>
+                          <Input
+                            value={incomeFields.idType}
+                            onChange={(e) =>
+                              setIncomeFields({
+                                ...incomeFields,
+                                idType: e.target.value,
+                              })
+                            }
+                            placeholder={t('letterGeneration.placeholders.idType')}
+                          />
+                        </FieldGroup>
+                        <FieldGroup label={t('letterGeneration.fields.idNumber')}>
+                          <Input
+                            value={incomeFields.idNumber}
+                            onChange={(e) =>
+                              setIncomeFields({
+                                ...incomeFields,
+                                idNumber: e.target.value,
+                              })
+                            }
+                          />
+                        </FieldGroup>
+                      </div>
+                      <FieldGroup label={t('letterGeneration.fields.income')}>
+                        <Input
+                          value={incomeFields.income}
+                          onChange={(e) =>
+                            setIncomeFields({ ...incomeFields, income: e.target.value })
+                          }
+                          placeholder={t('letterGeneration.placeholders.income')}
+                        />
+                      </FieldGroup>
+                    </TabsContent>
+
+                    <TabsContent value="domicile" className="mt-0 space-y-4">
+                      {renderCommonFields(domicileFields, setDomicileFields)}
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <FieldGroup label={t('letterGeneration.fields.salutation')}>
+                          <Input
+                            value={domicileFields.salutation}
+                            onChange={(e) =>
+                              setDomicileFields({
+                                ...domicileFields,
+                                salutation: e.target.value,
+                              })
+                            }
+                          />
+                        </FieldGroup>
+                        <FieldGroup label={t('letterGeneration.fields.fullName')}>
+                          <Input
+                            value={domicileFields.fullName}
+                            onChange={(e) =>
+                              setDomicileFields({
+                                ...domicileFields,
+                                fullName: e.target.value,
+                              })
+                            }
+                          />
+                        </FieldGroup>
+                      </div>
+                      <FieldGroup label={t('letterGeneration.fields.address')}>
+                        <Textarea
+                          value={domicileFields.address}
+                          onChange={(e) =>
+                            setDomicileFields({
+                              ...domicileFields,
+                              address: e.target.value,
+                            })
+                          }
+                          rows={2}
+                        />
+                      </FieldGroup>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <FieldGroup label={t('letterGeneration.fields.idType')}>
+                          <Input
+                            value={domicileFields.idType}
+                            onChange={(e) =>
+                              setDomicileFields({
+                                ...domicileFields,
+                                idType: e.target.value,
+                              })
+                            }
+                          />
+                        </FieldGroup>
+                        <FieldGroup label={t('letterGeneration.fields.idNumber')}>
+                          <Input
+                            value={domicileFields.idNumber}
+                            onChange={(e) =>
+                              setDomicileFields({
+                                ...domicileFields,
+                                idNumber: e.target.value,
+                              })
+                            }
+                          />
+                        </FieldGroup>
+                      </div>
+                    </TabsContent>
+                  </CardContent>
+                </Card>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h2 className="text-lg font-semibold">
+                      {t('letterGeneration.previewTitle')}
+                    </h2>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={handleSaveLetter}
+                        disabled={isSaving}
+                      >
+                        {isSaving ? (
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                        ) : (
+                          <Save className="mr-2 size-4" />
+                        )}
+                        {t('letterGeneration.savedLetters.save')}
+                      </Button>
+                      <Button onClick={handleExportPdf} disabled={isExporting}>
+                        {isExporting ? (
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                        ) : (
+                          <FileDown className="mr-2 size-4" />
+                        )}
+                        {t('letterGeneration.generatePdf')}
+                      </Button>
+                    </div>
+                  </div>
+                  <LetterPreview body={activeBody} previewRef={previewRef} />
+                </div>
+              </div>
+            </Tabs>
+          </CardContent>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-start justify-between gap-3">
+            <div className="space-y-1">
               <CardTitle className="text-lg">
-                {t('letterGeneration.formTitle')}
+                {t('letterGeneration.savedLetters.title')}
               </CardTitle>
               <CardDescription>
-                {t('letterGeneration.formDescription')}
+                {t('letterGeneration.savedLetters.description')}
               </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <FieldGroup label={t('letterGeneration.fields.letterLanguage')} className="mb-4">
-                <Select
-                  value={letterLanguage}
-                  onValueChange={(value: LetterLocale) =>
-                    setLetterLanguage(value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="en">
-                      {t('letterGeneration.letterLanguage.en')}
-                    </SelectItem>
-                    <SelectItem value="mr">
-                      {t('letterGeneration.letterLanguage.mr')}
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </FieldGroup>
-
-              <TabsContent value="fees" className="mt-0 space-y-4">
-                {renderCommonFields(feesFields, setFeesFields)}
-                <FieldGroup label={t('letterGeneration.fields.schoolName')}>
-                  <Input
-                    value={feesFields.schoolName}
-                    onChange={(e) =>
-                      setFeesFields({ ...feesFields, schoolName: e.target.value })
-                    }
-                  />
-                </FieldGroup>
-                <FieldGroup label={t('letterGeneration.fields.schoolAddress')}>
-                  <Textarea
-                    value={feesFields.schoolAddress}
-                    onChange={(e) =>
-                      setFeesFields({
-                        ...feesFields,
-                        schoolAddress: e.target.value,
-                      })
-                    }
-                    rows={2}
-                  />
-                </FieldGroup>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FieldGroup label={t('letterGeneration.fields.standard')}>
-                    <Input
-                      value={feesFields.standard}
-                      onChange={(e) =>
-                        setFeesFields({ ...feesFields, standard: e.target.value })
-                      }
-                      placeholder={t('letterGeneration.placeholders.standard')}
-                    />
-                  </FieldGroup>
-                  <FieldGroup label={t('letterGeneration.fields.studentName')}>
-                    <Input
-                      value={feesFields.studentName}
-                      onChange={(e) =>
-                        setFeesFields({
-                          ...feesFields,
-                          studentName: e.target.value,
-                        })
-                      }
-                    />
-                  </FieldGroup>
-                </div>
-                <FieldGroup label={t('letterGeneration.fields.studentGender')}>
-                  <Select
-                    value={feesFields.studentGender}
-                    onValueChange={(value: 'male' | 'female') =>
-                      setFeesFields({ ...feesFields, studentGender: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="male">
-                        {t('letterGeneration.gender.male')}
-                      </SelectItem>
-                      <SelectItem value="female">
-                        {t('letterGeneration.gender.female')}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FieldGroup>
-              </TabsContent>
-
-              <TabsContent value="ration" className="mt-0 space-y-4">
-                {renderCommonFields(rationFields, setRationFields)}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FieldGroup label={t('letterGeneration.fields.salutation')}>
-                    <Input
-                      value={rationFields.salutation}
-                      onChange={(e) =>
-                        setRationFields({
-                          ...rationFields,
-                          salutation: e.target.value,
-                        })
-                      }
-                      placeholder={t('letterGeneration.placeholders.salutation')}
-                    />
-                  </FieldGroup>
-                  <FieldGroup label={t('letterGeneration.fields.fullName')}>
-                    <Input
-                      value={rationFields.fullName}
-                      onChange={(e) =>
-                        setRationFields({
-                          ...rationFields,
-                          fullName: e.target.value,
-                        })
-                      }
-                    />
-                  </FieldGroup>
-                </div>
-                <FieldGroup label={t('letterGeneration.fields.address')}>
-                  <Textarea
-                    value={rationFields.address}
-                    onChange={(e) =>
-                      setRationFields({ ...rationFields, address: e.target.value })
-                    }
-                    rows={2}
-                  />
-                </FieldGroup>
-                <FieldGroup label={t('letterGeneration.fields.rationPurpose')}>
-                  <Select
-                    value={rationFields.purpose}
-                    onValueChange={(value: 'new' | 'add-members') =>
-                      setRationFields({ ...rationFields, purpose: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="new">
-                        {t('letterGeneration.rationPurpose.new')}
-                      </SelectItem>
-                      <SelectItem value="add-members">
-                        {t('letterGeneration.rationPurpose.addMembers')}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FieldGroup>
-                <FieldGroup label={t('letterGeneration.fields.familyMembers')}>
-                  <Textarea
-                    value={rationFields.familyMembers}
-                    onChange={(e) =>
-                      setRationFields({
-                        ...rationFields,
-                        familyMembers: e.target.value,
-                      })
-                    }
-                    rows={4}
-                    placeholder={t('letterGeneration.placeholders.familyMembers')}
-                  />
-                </FieldGroup>
-                <FieldGroup
-                  label={t('letterGeneration.fields.rationOfficeAddress')}
-                >
-                  <Textarea
-                    value={rationFields.rationOfficeAddress}
-                    onChange={(e) =>
-                      setRationFields({
-                        ...rationFields,
-                        rationOfficeAddress: e.target.value,
-                      })
-                    }
-                    rows={2}
-                  />
-                </FieldGroup>
-              </TabsContent>
-
-              <TabsContent value="income" className="mt-0 space-y-4">
-                {renderCommonFields(incomeFields, setIncomeFields)}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FieldGroup label={t('letterGeneration.fields.salutation')}>
-                    <Input
-                      value={incomeFields.salutation}
-                      onChange={(e) =>
-                        setIncomeFields({
-                          ...incomeFields,
-                          salutation: e.target.value,
-                        })
-                      }
-                    />
-                  </FieldGroup>
-                  <FieldGroup label={t('letterGeneration.fields.fullName')}>
-                    <Input
-                      value={incomeFields.fullName}
-                      onChange={(e) =>
-                        setIncomeFields({
-                          ...incomeFields,
-                          fullName: e.target.value,
-                        })
-                      }
-                    />
-                  </FieldGroup>
-                </div>
-                <FieldGroup label={t('letterGeneration.fields.address')}>
-                  <Textarea
-                    value={incomeFields.address}
-                    onChange={(e) =>
-                      setIncomeFields({ ...incomeFields, address: e.target.value })
-                    }
-                    rows={2}
-                  />
-                </FieldGroup>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FieldGroup label={t('letterGeneration.fields.idType')}>
-                    <Input
-                      value={incomeFields.idType}
-                      onChange={(e) =>
-                        setIncomeFields({ ...incomeFields, idType: e.target.value })
-                      }
-                      placeholder={t('letterGeneration.placeholders.idType')}
-                    />
-                  </FieldGroup>
-                  <FieldGroup label={t('letterGeneration.fields.idNumber')}>
-                    <Input
-                      value={incomeFields.idNumber}
-                      onChange={(e) =>
-                        setIncomeFields({
-                          ...incomeFields,
-                          idNumber: e.target.value,
-                        })
-                      }
-                    />
-                  </FieldGroup>
-                </div>
-                <FieldGroup label={t('letterGeneration.fields.income')}>
-                  <Input
-                    value={incomeFields.income}
-                    onChange={(e) =>
-                      setIncomeFields({ ...incomeFields, income: e.target.value })
-                    }
-                    placeholder={t('letterGeneration.placeholders.income')}
-                  />
-                </FieldGroup>
-              </TabsContent>
-
-              <TabsContent value="domicile" className="mt-0 space-y-4">
-                {renderCommonFields(domicileFields, setDomicileFields)}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FieldGroup label={t('letterGeneration.fields.salutation')}>
-                    <Input
-                      value={domicileFields.salutation}
-                      onChange={(e) =>
-                        setDomicileFields({
-                          ...domicileFields,
-                          salutation: e.target.value,
-                        })
-                      }
-                    />
-                  </FieldGroup>
-                  <FieldGroup label={t('letterGeneration.fields.fullName')}>
-                    <Input
-                      value={domicileFields.fullName}
-                      onChange={(e) =>
-                        setDomicileFields({
-                          ...domicileFields,
-                          fullName: e.target.value,
-                        })
-                      }
-                    />
-                  </FieldGroup>
-                </div>
-                <FieldGroup label={t('letterGeneration.fields.address')}>
-                  <Textarea
-                    value={domicileFields.address}
-                    onChange={(e) =>
-                      setDomicileFields({
-                        ...domicileFields,
-                        address: e.target.value,
-                      })
-                    }
-                    rows={2}
-                  />
-                </FieldGroup>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FieldGroup label={t('letterGeneration.fields.idType')}>
-                    <Input
-                      value={domicileFields.idType}
-                      onChange={(e) =>
-                        setDomicileFields({
-                          ...domicileFields,
-                          idType: e.target.value,
-                        })
-                      }
-                    />
-                  </FieldGroup>
-                  <FieldGroup label={t('letterGeneration.fields.idNumber')}>
-                    <Input
-                      value={domicileFields.idNumber}
-                      onChange={(e) =>
-                        setDomicileFields({
-                          ...domicileFields,
-                          idNumber: e.target.value,
-                        })
-                      }
-                    />
-                  </FieldGroup>
-                </div>
-              </TabsContent>
-            </CardContent>
-          </Card>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold">
-                {t('letterGeneration.previewTitle')}
-              </h2>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={handleSaveLetter}
-                  disabled={isSaving}
-                >
-                  {isSaving ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  ) : (
-                    <Save className="mr-2 size-4" />
-                  )}
-                  {t('letterGeneration.savedLetters.save')}
-                </Button>
-                <Button onClick={handleExportPdf} disabled={isExporting}>
-                  {isExporting ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                  ) : (
-                    <FileDown className="mr-2 size-4" />
-                  )}
-                  {t('letterGeneration.generatePdf')}
-                </Button>
-              </div>
             </div>
-            <LetterPreview body={activeBody} previewRef={previewRef} />
+            <div className="text-sm text-muted-foreground">
+              {savedLettersLoading
+                ? t('common.loading')
+                : t('letterGeneration.savedLetters.count', { count: savedLetters.length })}
+            </div>
           </div>
-        </div>
+        </CardHeader>
 
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="text-lg">
-              {t('letterGeneration.savedLetters.title')}
-            </CardTitle>
-            <CardDescription>
-              {t('letterGeneration.savedLetters.description')}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Accordion type="single" defaultValue="saved-letters">
-              <AccordionItem value="saved-letters">
-                <AccordionTrigger>
-                  <div className="flex w-full items-center justify-between pr-2">
-                    <span className="font-medium">
-                      {t('letterGeneration.savedLetters.sectionTitle')}
-                    </span>
-                    <span className="text-sm text-muted-foreground">
-                      {savedLettersLoading
-                        ? t('common.loading')
-                        : t('letterGeneration.savedLetters.count', {
-                            count: savedLetters.length,
-                          })}
-                    </span>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  {savedLetters.length === 0 ? (
-                    <div className="py-6 text-sm text-muted-foreground">
-                      {t('letterGeneration.savedLetters.empty')}
-                    </div>
-                  ) : (
-                    <div className="space-y-4 pt-2">
-                      <div className="grid gap-2 sm:grid-cols-3 sm:items-end">
-                        <FieldGroup
-                          label={t('letterGeneration.savedLetters.dropdownLabel')}
-                          className="sm:col-span-2"
-                        >
-                          <Select
-                            value={selectedSavedLetterId ?? ''}
-                            onValueChange={(value) =>
-                              setSelectedSavedLetterId(value || null)
-                            }
-                          >
-                            <SelectTrigger>
-                              <SelectValue
-                                placeholder={t(
-                                  'letterGeneration.savedLetters.dropdownPlaceholder',
-                                )}
-                              />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {savedLetters.map((letter) => {
-                                const refPart = letter.referenceNo
-                                  ? ` - ${letter.referenceNo}`
-                                  : '';
-                                const when = new Date(letter.createdAt).toLocaleString(
-                                  'en-IN',
-                                );
-                                const label = `${t(
-                                  `letterGeneration.tabs.${letter.letterType}`,
-                                )}${refPart} (${when})`;
-                                return (
-                                  <SelectItem key={letter.id} value={letter.id}>
-                                    {label}
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
-                        </FieldGroup>
+        <CardContent>
+          {savedLetters.length === 0 ? (
+            <div className="py-6 text-sm text-muted-foreground">
+              {t('letterGeneration.savedLetters.empty')}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="grid gap-2 sm:grid-cols-3 sm:items-end">
+                <FieldGroup
+                  label={t('letterGeneration.savedLetters.dropdownLabel')}
+                  className="sm:col-span-2"
+                >
+                  <Select
+                    value={selectedSavedLetterId ?? ''}
+                    onValueChange={(value) => setSelectedSavedLetterId(value || null)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue
+                        placeholder={t(
+                          'letterGeneration.savedLetters.dropdownPlaceholder',
+                        )}
+                      />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {savedLetters.map((letter) => {
+                        const refPart = letter.referenceNo ? ` - ${letter.referenceNo}` : '';
+                        const when = new Date(letter.createdAt).toLocaleString('en-IN');
+                        const label = `${t(
+                          `letterGeneration.tabs.${letter.letterType}`,
+                        )}${refPart} (${when})`;
+                        return (
+                          <SelectItem key={letter.id} value={letter.id}>
+                            {label}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                </FieldGroup>
 
-                        <div className="flex gap-2 sm:justify-end">
+                <div className="flex gap-2 sm:justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => void refreshSavedLetters()}
+                    disabled={savedLettersLoading}
+                  >
+                    {t('letterGeneration.savedLetters.refresh')}
+                  </Button>
+                </div>
+              </div>
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>
+                      {t('letterGeneration.savedLetters.columns.referenceNo')}
+                    </TableHead>
+                    <TableHead>{t('letterGeneration.savedLetters.columns.type')}</TableHead>
+                    <TableHead>
+                      {t('letterGeneration.savedLetters.columns.locale')}
+                    </TableHead>
+                    <TableHead>
+                      {t('letterGeneration.savedLetters.columns.createdAt')}
+                    </TableHead>
+                    <TableHead className="text-right">
+                      {t('letterGeneration.savedLetters.columns.actions')}
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {savedLetters.map((letter) => (
+                    <TableRow key={letter.id}>
+                      <TableCell className="font-medium">
+                        {letter.referenceNo || '—'}
+                      </TableCell>
+                      <TableCell>{t(`letterGeneration.tabs.${letter.letterType}`)}</TableCell>
+                      <TableCell>
+                        {t(`letterGeneration.letterLanguage.${letter.letterLocale}`)}
+                      </TableCell>
+                      <TableCell>
+                        {new Date(letter.createdAt).toLocaleString('en-IN')}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
                           <Button
+                            size="sm"
                             variant="outline"
-                            onClick={() => void refreshSavedLetters()}
-                            disabled={savedLettersLoading}
+                            onClick={() => setSelectedSavedLetterId(letter.id)}
                           >
-                            {t('letterGeneration.savedLetters.refresh')}
+                            <Eye className="mr-2 size-4" />
+                            {t('letterGeneration.savedLetters.actions.preview')}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleLoadSavedLetter(letter)}
+                          >
+                            {t('letterGeneration.savedLetters.actions.load')}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => void handleDeleteSavedLetter(letter.id)}
+                          >
+                            <Trash2 className="mr-2 size-4" />
+                            {t('letterGeneration.savedLetters.actions.delete')}
                           </Button>
                         </div>
-                      </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
 
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>
-                              {t('letterGeneration.savedLetters.columns.referenceNo')}
-                            </TableHead>
-                            <TableHead>
-                              {t('letterGeneration.savedLetters.columns.type')}
-                            </TableHead>
-                            <TableHead>
-                              {t('letterGeneration.savedLetters.columns.locale')}
-                            </TableHead>
-                            <TableHead>
-                              {t('letterGeneration.savedLetters.columns.createdAt')}
-                            </TableHead>
-                            <TableHead className="text-right">
-                              {t('letterGeneration.savedLetters.columns.actions')}
-                            </TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {savedLetters.map((letter) => (
-                            <TableRow key={letter.id}>
-                              <TableCell className="font-medium">
-                                {letter.referenceNo || '—'}
-                              </TableCell>
-                              <TableCell>{t(`letterGeneration.tabs.${letter.letterType}`)}</TableCell>
-                              <TableCell>
-                                {t(
-                                  `letterGeneration.letterLanguage.${letter.letterLocale}`,
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {new Date(letter.createdAt).toLocaleString('en-IN')}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex justify-end gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => setSelectedSavedLetterId(letter.id)}
-                                  >
-                                    <Eye className="mr-2 size-4" />
-                                    {t('letterGeneration.savedLetters.actions.preview')}
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleLoadSavedLetter(letter)}
-                                  >
-                                    {t('letterGeneration.savedLetters.actions.load')}
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => void handleDeleteSavedLetter(letter.id)}
-                                  >
-                                    <Trash2 className="mr-2 size-4" />
-                                    {t('letterGeneration.savedLetters.actions.delete')}
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-
-                      {selectedSavedLetter ? (
-                        <Card>
-                          <CardHeader>
-                            <CardTitle className="text-base">
-                              {selectedSavedLetter.title}{' '}
-                              {selectedSavedLetter.referenceNo
-                                ? `- ${selectedSavedLetter.referenceNo}`
-                                : ''}
-                            </CardTitle>
-                            <CardDescription>
-                              {t(`letterGeneration.tabs.${selectedSavedLetter.letterType}`)} ·{' '}
-                              {t(
-                                `letterGeneration.letterLanguage.${selectedSavedLetter.letterLocale}`,
-                              )}
-                            </CardDescription>
-                          </CardHeader>
-                          <CardContent className="space-y-3">
-                            <div className="flex flex-wrap gap-2">
-                              <Button
-                                variant="outline"
-                                onClick={() => handleLoadSavedLetter(selectedSavedLetter)}
-                              >
-                                {t('letterGeneration.savedLetters.actions.load')}
-                              </Button>
-                              <Button
-                                variant="outline"
-                                onClick={() => setSelectedSavedLetterId(null)}
-                              >
-                                {t('letterGeneration.savedLetters.actions.closePreview')}
-                              </Button>
-                            </div>
-                            <LetterPreview body={selectedSavedLetter.body} />
-                          </CardContent>
-                        </Card>
-                      ) : null}
+              {selectedSavedLetter ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      {selectedSavedLetter.title}{' '}
+                      {selectedSavedLetter.referenceNo
+                        ? `- ${selectedSavedLetter.referenceNo}`
+                        : ''}
+                    </CardTitle>
+                    <CardDescription>
+                      {t(`letterGeneration.tabs.${selectedSavedLetter.letterType}`)} ·{' '}
+                      {t(
+                        `letterGeneration.letterLanguage.${selectedSavedLetter.letterLocale}`,
+                      )}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleLoadSavedLetter(selectedSavedLetter)}
+                      >
+                        {t('letterGeneration.savedLetters.actions.load')}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setSelectedSavedLetterId(null)}
+                      >
+                        {t('letterGeneration.savedLetters.actions.closePreview')}
+                      </Button>
                     </div>
-                  )}
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-          </CardContent>
-        </Card>
-      </Tabs>
+                    <LetterPreview body={selectedSavedLetter.body} />
+                  </CardContent>
+                </Card>
+              ) : null}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

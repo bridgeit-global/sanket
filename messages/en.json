@@ -366,6 +366,12 @@
   "letterGeneration": {
     "title": "Letter Generation",
     "description": "Fill in the details manually and generate official letters as PDF.",
+    "generator": {
+      "actions": {
+        "collapse": "Collapse",
+        "expand": "Expand"
+      }
+    },
     "formTitle": "Letter Details",
     "formDescription": "Enter all required information for the selected letter type.",
     "previewTitle": "Preview",

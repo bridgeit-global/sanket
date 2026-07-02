@@ -366,6 +366,12 @@
   "letterGeneration": {
     "title": "पत्र निर्मिती",
     "description": "तपशील भरा आणि अधिकृत पत्रे PDF स्वरूपात तयार करा.",
+    "generator": {
+      "actions": {
+        "collapse": "आकुंचित करा",
+        "expand": "विस्तारित करा"
+      }
+    },
     "formTitle": "पत्राचा तपशील",
     "formDescription": "निवडलेल्या पत्रासाठी सर्व आवश्यक माहिती भरा.",
     "previewTitle": "पूर्वावलोकन",
