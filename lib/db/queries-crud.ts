@@ -14,6 +14,7 @@ import {
   mapDocumentRow,
   mapElectionMappingRow,
   mapExportJobRow,
+  mapLetterRow,
   mapMessageRow,
   mapMlaProjectRow,
   mapRegisterAttachmentRow,
@@ -51,6 +52,7 @@ import type {
   ElectionMapping,
   ElectionMaster,
   ExportJob,
+  Letter,
   MlaProject,
   RegisterAttachment,
   RegisterEntry,
@@ -2181,6 +2183,83 @@ export async function getDailyProgrammeAttachmentById(
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to get daily programme attachment');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Letters
+// ---------------------------------------------------------------------------
+
+export async function createLetter({
+  letterType,
+  letterLocale,
+  referenceNo,
+  title,
+  fields,
+  body,
+  createdBy,
+}: {
+  letterType: string;
+  letterLocale: string;
+  referenceNo?: string | null;
+  title: string;
+  fields: unknown;
+  body: string;
+  createdBy?: string | null;
+}): Promise<Letter> {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.letter)
+      .insert(
+        toSnakeCaseKeys({
+          letterType,
+          letterLocale,
+          referenceNo: referenceNo || null,
+          title,
+          fields,
+          body,
+          createdBy: createdBy || null,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create letter');
+    return mapLetterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to create letter');
+  }
+}
+
+export async function getLetters({
+  limit = 50,
+}: {
+  limit?: number;
+} = {}): Promise<Array<Letter>> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.letter)
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    throwOnSupabaseError(error, 'Failed to get letters');
+    return (data ?? []).map(mapLetterRow);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get letters');
+  }
+}
+
+export async function deleteLetter(id: string): Promise<void> {
+  try {
+    const { error } = await supabase.from(TABLES.letter).delete().eq('id', id);
+    throwOnSupabaseError(error, 'Failed to delete letter');
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to delete letter');
   }
 }
 

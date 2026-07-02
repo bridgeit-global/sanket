@@ -372,6 +372,36 @@
     "generatePdf": "Generate PDF",
     "pdfSuccess": "PDF downloaded successfully",
     "pdfError": "Failed to generate PDF. Please try again.",
+    "savedLetters": {
+      "title": "Saved Letters",
+      "description": "Save generated letters to the database and reuse them later.",
+      "sectionTitle": "Letter history",
+      "save": "Save Letter",
+      "refresh": "Refresh",
+      "dropdownLabel": "Select saved letter",
+      "dropdownPlaceholder": "Choose a saved letter…",
+      "count": "{count} saved",
+      "empty": "No saved letters yet. Click \"Save Letter\" to store the current letter.",
+      "saveSuccess": "Letter saved",
+      "saveError": "Failed to save letter. Please try again.",
+      "fetchError": "Failed to load saved letters.",
+      "loaded": "Letter loaded",
+      "deleteSuccess": "Letter deleted",
+      "deleteError": "Failed to delete letter.",
+      "columns": {
+        "referenceNo": "Reference No.",
+        "type": "Type",
+        "locale": "Language",
+        "createdAt": "Saved at",
+        "actions": "Actions"
+      },
+      "actions": {
+        "preview": "Preview",
+        "load": "Load",
+        "delete": "Delete",
+        "closePreview": "Close preview"
+      }
+    },
     "tabs": {
       "fees": "Fees Concession Letter",
       "ration": "Ration Card Letter",

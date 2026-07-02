@@ -17,6 +17,7 @@ import type {
   ElectionMapping,
   ElectionMaster,
   ExportJob,
+  Letter,
   MlaProject,
   PhoneUpdateHistory,
   ProjectAttachment,
@@ -212,6 +213,21 @@ export function mapStreamRow(row: Row): Stream {
     id: String(row.id),
     chatId: String(row.chatId),
     createdAt: toDate(row.createdAt),
+  };
+}
+
+export function mapLetterRow(row: Row): Letter {
+  return {
+    id: String(row.id),
+    letterType: String(row.letter_type ?? row.letterType),
+    letterLocale: String(row.letter_locale ?? row.letterLocale),
+    referenceNo: toStringOrNull(row.reference_no ?? row.referenceNo),
+    title: String(row.title),
+    fields: row.fields ?? null,
+    body: String(row.body),
+    createdBy: toStringOrNull(row.created_by ?? row.createdBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
   };
 }
 

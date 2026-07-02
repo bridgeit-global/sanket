@@ -13,6 +13,7 @@ export const TABLES = {
   document: 'Document',
   suggestion: 'Suggestion',
   stream: 'Stream',
+  letter: 'Letter',
   voterMaster: 'VoterMaster',
   electionMaster: 'ElectionMaster',
   boothMaster: 'BoothMaster',
@@ -136,6 +137,19 @@ export type Stream = {
   id: string;
   chatId: string;
   createdAt: Date;
+};
+
+export type Letter = {
+  id: string;
+  letterType: string;
+  letterLocale: string;
+  referenceNo: string | null;
+  title: string;
+  fields: unknown;
+  body: string;
+  createdBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export type VoterMaster = {
