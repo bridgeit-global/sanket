@@ -2190,6 +2190,23 @@ export async function getDailyProgrammeAttachmentById(
 // Letters
 // ---------------------------------------------------------------------------
 
+export async function getLetterByReferenceNo(
+  referenceNo: string,
+): Promise<Letter | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.letter)
+      .select('*')
+      .eq('reference_no', referenceNo)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get letter by reference no');
+    return data ? mapLetterRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get letter by reference no');
+  }
+}
+
 export async function createLetter({
   letterType,
   letterLocale,
@@ -2201,7 +2218,7 @@ export async function createLetter({
 }: {
   letterType: string;
   letterLocale: string;
-  referenceNo?: string | null;
+  referenceNo: string;
   title: string;
   fields: unknown;
   body: string;
@@ -2215,7 +2232,7 @@ export async function createLetter({
         toSnakeCaseKeys({
           letterType,
           letterLocale,
-          referenceNo: referenceNo || null,
+          referenceNo,
           title,
           fields,
           body,

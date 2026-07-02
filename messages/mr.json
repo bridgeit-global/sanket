@@ -466,6 +466,7 @@
     },
     "validation": {
       "referenceNoRequired": "संदर्भ क्र. आवश्यक आहे",
+      "referenceNoDuplicate": "संदर्भ क्र. आधीच अस्तित्वात आहे",
       "dateRequired": "दिनांक आवश्यक आहे"
     }
   },

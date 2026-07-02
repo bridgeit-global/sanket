@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { createLetter, getLetters } from '@/lib/db/queries';
+import { createLetter, getLetterByReferenceNo, getLetters } from '@/lib/db/queries';
 
 export async function GET(request: NextRequest) {
   try {
@@ -60,6 +60,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const existingLetter = await getLetterByReferenceNo(normalizedReferenceNo);
+    if (existingLetter) {
+      return NextResponse.json(
+        { error: 'referenceNo already exists' },
+        { status: 409 },
+      );
+    }
+
     const letter = await createLetter({
       letterType: String(letterType),
       letterLocale: String(letterLocale),
@@ -73,6 +81,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ letter }, { status: 201 });
   } catch (error) {
     console.error('Error creating letter:', error);
+    const message = error instanceof Error ? error.message : '';
+    if (message.includes('duplicate key') || message.includes('unique')) {
+      return NextResponse.json(
+        { error: 'referenceNo already exists' },
+        { status: 409 },
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to create letter' },
       { status: 500 },

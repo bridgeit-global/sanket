@@ -143,7 +143,7 @@ export type Letter = {
   id: string;
   letterType: string;
   letterLocale: string;
-  referenceNo: string | null;
+  referenceNo: string;
   title: string;
   fields: unknown;
   body: string;

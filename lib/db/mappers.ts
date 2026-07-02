@@ -221,7 +221,7 @@ export function mapLetterRow(row: Row): Letter {
     id: String(row.id),
     letterType: String(row.letter_type ?? row.letterType),
     letterLocale: String(row.letter_locale ?? row.letterLocale),
-    referenceNo: toStringOrNull(row.reference_no ?? row.referenceNo),
+    referenceNo: String(row.reference_no ?? row.referenceNo ?? ''),
     title: String(row.title),
     fields: row.fields ?? null,
     body: String(row.body),

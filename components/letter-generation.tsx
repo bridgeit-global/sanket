@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Eye, FileDown, Loader2, Save, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -206,10 +206,16 @@ function validateRequiredCommonFields(
   referenceNo: string,
   date: string,
   t: (key: string) => string,
+  existingReferenceNos: string[] = [],
 ): CommonFieldErrors {
   const errors: CommonFieldErrors = {};
-  if (!referenceNo.trim()) {
+  const trimmedReferenceNo = referenceNo.trim();
+  if (!trimmedReferenceNo) {
     errors.referenceNo = t('letterGeneration.validation.referenceNoRequired');
+  } else if (
+    existingReferenceNos.some((existing) => existing.trim() === trimmedReferenceNo)
+  ) {
+    errors.referenceNo = t('letterGeneration.validation.referenceNoDuplicate');
   }
   if (!date.trim()) {
     errors.date = t('letterGeneration.validation.dateRequired');
@@ -221,7 +227,7 @@ type SavedLetterRow = {
   id: string;
   letterType: LetterType;
   letterLocale: LetterLocale;
-  referenceNo: string | null;
+  referenceNo: string;
   title: string;
   fields: unknown;
   body: string;
@@ -286,6 +292,11 @@ export function LetterGeneration() {
     void refreshSavedLetters();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const existingReferenceNos = useMemo(
+    () => savedLetters.map((letter) => letter.referenceNo),
+    [savedLetters],
+  );
 
   const activeBody = useMemo(() => {
     switch (activeTab) {
@@ -369,7 +380,12 @@ export function LetterGeneration() {
   ]);
 
   const validateActiveCommonFields = () => {
-    const errors = validateRequiredCommonFields(activeReferenceNo, activeDate, t);
+    const errors = validateRequiredCommonFields(
+      activeReferenceNo,
+      activeDate,
+      t,
+      existingReferenceNos,
+    );
     setCommonFieldErrors(errors);
     if (Object.keys(errors).length > 0) {
       const firstError = errors.referenceNo ?? errors.date;
@@ -423,7 +439,20 @@ export function LetterGeneration() {
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || 'Failed to save letter');
+      if (!res.ok) {
+        if (res.status === 409 || json?.error === 'referenceNo already exists') {
+          const duplicateMessage = t(
+            'letterGeneration.validation.referenceNoDuplicate',
+          );
+          setCommonFieldErrors((prev) => ({
+            ...prev,
+            referenceNo: duplicateMessage,
+          }));
+          toast.error(duplicateMessage);
+          return;
+        }
+        throw new Error(json?.error || 'Failed to save letter');
+      }
       toast.success(t('letterGeneration.savedLetters.saveSuccess'));
       await refreshSavedLetters();
       setSelectedSavedLetterId(json?.letter?.id ?? null);

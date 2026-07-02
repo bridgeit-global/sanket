@@ -74,6 +74,7 @@ export {
   createStreamId,
   getStreamIdsByChatId,
   createLetter,
+  getLetterByReferenceNo,
   getLetters,
   deleteLetter,
   getElectionMasters,

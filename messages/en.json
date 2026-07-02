@@ -466,6 +466,7 @@
     },
     "validation": {
       "referenceNoRequired": "Reference No. is required",
+      "referenceNoDuplicate": "Reference No. already exists",
       "dateRequired": "Date is required"
     }
   },
