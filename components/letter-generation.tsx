@@ -263,6 +263,14 @@ export function LetterGeneration() {
     setCommonFieldErrors({});
   }, [activeTab]);
 
+  useEffect(() => {
+    const signatory = DEFAULT_SIGNATORY[locale];
+    setFeesFields((prev) => ({ ...prev, signatory }));
+    setRationFields((prev) => ({ ...prev, signatory }));
+    setIncomeFields((prev) => ({ ...prev, signatory }));
+    setDomicileFields((prev) => ({ ...prev, signatory }));
+  }, [locale]);
+
   const refreshSavedLetters = async () => {
     setSavedLettersLoading(true);
     try {
@@ -610,10 +618,7 @@ export function LetterGeneration() {
         </FieldGroup>
       </div>
       <FieldGroup label={t('letterGeneration.fields.signatory')}>
-        <Input
-          value={fields.signatory}
-          onChange={(e) => setFields({ ...fields, signatory: e.target.value })}
-        />
+        <Input value={DEFAULT_SIGNATORY[locale]} disabled />
       </FieldGroup>
     </>
   );
