@@ -15,16 +15,33 @@ type LetterFields =
 
 const PLACEHOLDER_PATTERN = /\{\{(\w+)\}\}/g;
 
+export type LetterheadMode = 'half' | 'full';
+
+export function normalizeLetterheadMode(value: unknown): LetterheadMode {
+  return value === 'half' ? 'half' : 'full';
+}
+
 export function wrapLetterWithLetterhead(
   contentHtml: string,
   letterheadUrl: string | null | undefined,
+  letterheadMode: LetterheadMode = 'full',
 ): string {
   const trimmedUrl = letterheadUrl?.trim();
   if (!trimmedUrl) {
     return contentHtml;
   }
 
-  const letterhead = `<div class="letter-letterhead" style="margin-bottom: 1rem;"><img src="${trimmedUrl}" alt="Letterhead" style="width: 100%; height: auto; display: block;" /></div>`;
+  const mode = normalizeLetterheadMode(letterheadMode);
+  const isFull = mode === 'full';
+  const wrapperStyle = isFull
+    ? 'margin: -1.5rem -1.5rem 1rem -1.5rem; width: calc(100% + 3rem);'
+    : 'margin-bottom: 1rem; text-align: center;';
+  const imgStyle = isFull
+    ? 'width: 100%; max-width: 100%; height: auto; display: block;'
+    : 'width: 50%; max-width: 50%; height: auto; display: block; margin: 0 auto;';
+  const modeClass = isFull ? 'letter-letterhead--full' : 'letter-letterhead--half';
+
+  const letterhead = `<div class="letter-letterhead ${modeClass}" style="${wrapperStyle}"><img src="${trimmedUrl}" alt="Letterhead" style="${imgStyle}" /></div>`;
   return `${letterhead}${contentHtml}`;
 }
 
@@ -86,8 +103,9 @@ export function buildRenderedLetterHtml(
   fields: LetterFields,
   locale: LetterLocale,
   letterheadUrl?: string | null,
+  letterheadMode: LetterheadMode = 'full',
 ): string {
   const renderFields = buildRenderFields(type, fields, locale);
   const contentHtml = renderLetterTemplate(templateHtml, renderFields);
-  return wrapLetterWithLetterhead(contentHtml, letterheadUrl);
+  return wrapLetterWithLetterhead(contentHtml, letterheadUrl, letterheadMode);
 }

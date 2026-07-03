@@ -225,6 +225,8 @@ export function mapLetterMasterRow(row: Row): LetterMaster {
     letterLocale: String(row.letter_locale ?? row.letterLocale),
     templateHtml: String(row.template_html ?? row.templateHtml),
     letterheadUrl: toStringOrNull(row.letterhead_url ?? row.letterheadUrl),
+    letterheadMode:
+      (row.letterhead_mode ?? row.letterheadMode) === 'half' ? 'half' : 'full',
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),
     updatedBy: toStringOrNull(row.updated_by ?? row.updatedBy),
     createdAt: toDate(row.created_at ?? row.createdAt),

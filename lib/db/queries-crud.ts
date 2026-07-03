@@ -2279,17 +2279,72 @@ export async function getLetterMasterById(id: string): Promise<LetterMaster | nu
   }
 }
 
+export async function createLetterMaster({
+  name,
+  letterType,
+  letterLocale,
+  templateHtml,
+  letterheadUrl,
+  letterheadMode,
+  createdBy,
+}: {
+  name: string;
+  letterType: string;
+  letterLocale: string;
+  templateHtml: string;
+  letterheadUrl?: string | null;
+  letterheadMode?: 'half' | 'full';
+  createdBy?: string | null;
+}): Promise<LetterMaster> {
+  try {
+    const existing = await getLetterMasterByTypeAndLocale({ letterType, letterLocale });
+    if (existing) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'A template already exists for this letter type and locale',
+      );
+    }
+
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.letterMaster)
+      .insert(
+        toSnakeCaseKeys({
+          name,
+          letterType,
+          letterLocale,
+          templateHtml,
+          letterheadUrl: letterheadUrl ?? null,
+          letterheadMode: letterheadMode === 'half' ? 'half' : 'full',
+          createdBy: createdBy || null,
+          updatedBy: createdBy || null,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create letter master');
+    return mapLetterMasterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to create letter master');
+  }
+}
+
 export async function updateLetterMaster({
   id,
   name,
   templateHtml,
   letterheadUrl,
+  letterheadMode,
   updatedBy,
 }: {
   id: string;
   name: string;
   templateHtml: string;
   letterheadUrl?: string | null;
+  letterheadMode?: 'half' | 'full';
   updatedBy?: string | null;
 }): Promise<LetterMaster> {
   try {
@@ -2301,6 +2356,7 @@ export async function updateLetterMaster({
           name,
           templateHtml,
           letterheadUrl: letterheadUrl ?? null,
+          letterheadMode: letterheadMode === 'half' ? 'half' : 'full',
           updatedBy: updatedBy || null,
           updatedAt: now,
         }),

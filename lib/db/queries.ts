@@ -83,6 +83,7 @@ export {
   getLetterMasters,
   getLetterMasterByTypeAndLocale,
   getLetterMasterById,
+  createLetterMaster,
   updateLetterMaster,
   getElectionMasters,
   getVoterByEpicNumber,

@@ -1,7 +1,12 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { getLetterMasters } from '@/lib/db/queries';
+import { createLetterMaster, getLetterMasters } from '@/lib/db/queries';
+import { normalizeLetterheadMode } from '@/lib/letters/render-template';
+import type { LetterLocale, LetterType } from '@/lib/letters/templates';
+
+const LETTER_TYPES: LetterType[] = ['fees', 'ration', 'income', 'domicile'];
+const LETTER_LOCALES: LetterLocale[] = ['en', 'mr'];
 
 export async function GET(_request: NextRequest) {
   try {
@@ -19,5 +24,53 @@ export async function GET(_request: NextRequest) {
       { error: 'Failed to fetch letter masters' },
       { status: 500 },
     );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await auth();
+    const modules = (session?.user?.modules as string[]) || [];
+    if (!session?.user || !modules.includes('letter-generation')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { name, letterType, letterLocale, templateHtml, letterheadUrl, letterheadMode } =
+      body ?? {};
+
+    if (!name || !letterType || !letterLocale || !templateHtml) {
+      return NextResponse.json(
+        { error: 'name, letterType, letterLocale, and templateHtml are required' },
+        { status: 400 },
+      );
+    }
+
+    if (!LETTER_TYPES.includes(letterType)) {
+      return NextResponse.json({ error: 'Invalid letter type' }, { status: 400 });
+    }
+
+    if (!LETTER_LOCALES.includes(letterLocale)) {
+      return NextResponse.json({ error: 'Invalid letter locale' }, { status: 400 });
+    }
+
+    const letterMaster = await createLetterMaster({
+      name: String(name),
+      letterType: String(letterType),
+      letterLocale: String(letterLocale),
+      templateHtml: String(templateHtml),
+      letterheadUrl: letterheadUrl ? String(letterheadUrl) : null,
+      letterheadMode: normalizeLetterheadMode(letterheadMode),
+      createdBy: session.user.id,
+    });
+
+    return NextResponse.json({ letterMaster }, { status: 201 });
+  } catch (error) {
+    console.error('Error creating letter master:', error);
+    const message =
+      error instanceof Error && error.message.includes('already exists')
+        ? 'A template already exists for this letter type and locale'
+        : 'Failed to create letter master';
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -64,7 +64,7 @@ import {
   type LetterType,
   type RationLetterFields,
 } from '@/lib/letters/templates';
-import { buildRenderedLetterHtml } from '@/lib/letters/render-template';
+import { buildRenderedLetterHtml, type LetterheadMode } from '@/lib/letters/render-template';
 import { getDefaultTemplateHtml } from '@/lib/letters/default-template-html';
 import { exportElementToPdf, A4_PORTRAIT_CONTENT_WIDTH_PX } from '@/lib/pdf/export-element-to-pdf';
 import { DateRangePicker } from '@/components/date-range-picker';
@@ -164,7 +164,7 @@ function createLetterExportElement(html: string): HTMLDivElement {
 function LetterPreview({ html }: { html: string }) {
   return (
     <div
-      className="rounded-lg bg-white p-4 text-black shadow-sm sm:p-6 [&_.letter-content]:whitespace-pre-wrap [&_.letter-content]:font-[inherit] [&_.letter-content]:text-sm [&_.letter-content]:leading-6 [&_.letter-content]:text-black sm:[&_.letter-content]:text-[15px] sm:[&_.letter-content]:leading-7"
+      className="overflow-hidden rounded-lg bg-white p-4 text-black shadow-sm sm:p-6 [&_.letter-content]:whitespace-pre-wrap [&_.letter-content]:font-[inherit] [&_.letter-content]:text-sm [&_.letter-content]:leading-6 [&_.letter-content]:text-black sm:[&_.letter-content]:text-[15px] sm:[&_.letter-content]:leading-7 [&_.letter-letterhead--full]:-mx-4 [&_.letter-letterhead--full]:-mt-4 [&_.letter-letterhead--full]:mb-4 [&_.letter-letterhead--full]:w-[calc(100%+2rem)] sm:[&_.letter-letterhead--full]:-mx-6 sm:[&_.letter-letterhead--full]:-mt-6 sm:[&_.letter-letterhead--full]:w-[calc(100%+3rem)] [&_.letter-letterhead--full_img]:w-full [&_.letter-letterhead--half]:mb-4 [&_.letter-letterhead--half_img]:mx-auto [&_.letter-letterhead--half_img]:w-1/2"
       // Letter HTML is generated from admin-editable templates stored in our database.
       dangerouslySetInnerHTML={{ __html: html }}
     />
@@ -241,6 +241,7 @@ type LetterMasterRow = {
   letterLocale: LetterLocale;
   templateHtml: string;
   letterheadUrl: string | null;
+  letterheadMode: LetterheadMode;
   updatedAt: string | Date;
 };
 
@@ -271,6 +272,7 @@ export function LetterGeneration() {
   const [templateDraft, setTemplateDraft] = useState('');
   const [templateNameDraft, setTemplateNameDraft] = useState('');
   const [letterheadDraft, setLetterheadDraft] = useState<string | null>(null);
+  const [letterheadModeDraft, setLetterheadModeDraft] = useState<LetterheadMode>('full');
   const [isUploadingLetterhead, setIsUploadingLetterhead] = useState(false);
   const letterheadInputRef = useRef<HTMLInputElement>(null);
   const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
@@ -348,11 +350,13 @@ export function LetterGeneration() {
       setTemplateDraft(activeLetterMaster.templateHtml);
       setTemplateNameDraft(activeLetterMaster.name);
       setLetterheadDraft(activeLetterMaster.letterheadUrl);
+      setLetterheadModeDraft(activeLetterMaster.letterheadMode);
       return;
     }
     setTemplateDraft(getDefaultTemplateHtml(activeTab, locale));
     setTemplateNameDraft(t(`letterGeneration.tabs.${activeTab}`));
     setLetterheadDraft(null);
+    setLetterheadModeDraft('full');
     // Only reset draft when letter type/locale/master changes — not when `t` is recreated.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeLetterMaster, activeTab, locale]);
@@ -381,6 +385,7 @@ export function LetterGeneration() {
         fields,
         locale,
         letterheadDraft,
+        letterheadModeDraft,
       );
     }
 
@@ -394,6 +399,7 @@ export function LetterGeneration() {
     domicileFields,
     activeTemplateHtml,
     letterheadDraft,
+    letterheadModeDraft,
   ]);
 
   const activeTitle = t(`letterGeneration.tabs.${activeTab}`);
@@ -505,10 +511,6 @@ export function LetterGeneration() {
   };
 
   const handleSaveTemplate = async () => {
-    if (!activeLetterMaster) {
-      toast.error(t('letterGeneration.templates.saveError'));
-      return;
-    }
     if (!templateNameDraft.trim() || !templateDraft.trim()) {
       toast.error(t('letterGeneration.templates.validationRequired'));
       return;
@@ -516,25 +518,51 @@ export function LetterGeneration() {
 
     setIsSavingTemplate(true);
     try {
-      const res = await fetch(
-        `/api/letter-masters/${encodeURIComponent(activeLetterMaster.id)}`,
-        {
-          method: 'PUT',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            name: templateNameDraft.trim(),
-            templateHtml: templateDraft,
-            letterheadUrl: letterheadDraft,
-          }),
-        },
-      );
+      const payload = {
+        name: templateNameDraft.trim(),
+        templateHtml: templateDraft,
+        letterheadUrl: letterheadDraft,
+        letterheadMode: letterheadModeDraft,
+      };
+
+      const res = activeLetterMaster
+        ? await fetch(
+            `/api/letter-masters/${encodeURIComponent(activeLetterMaster.id)}`,
+            {
+              method: 'PUT',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify(payload),
+            },
+          )
+        : await fetch('/api/letter-masters', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              ...payload,
+              letterType: activeTab,
+              letterLocale: locale,
+            }),
+          });
+
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to save template');
-      toast.success(t('letterGeneration.templates.saveSuccess'));
+      toast.success(
+        t(
+          activeLetterMaster
+            ? 'letterGeneration.templates.saveSuccess'
+            : 'letterGeneration.templates.createSuccess',
+        ),
+      );
       await refreshLetterMasters();
     } catch (error) {
       console.error('Failed to save letter template', error);
-      toast.error(t('letterGeneration.templates.saveError'));
+      toast.error(
+        t(
+          activeLetterMaster
+            ? 'letterGeneration.templates.saveError'
+            : 'letterGeneration.templates.createError',
+        ),
+      );
     } finally {
       setIsSavingTemplate(false);
     }
@@ -1234,6 +1262,11 @@ export function LetterGeneration() {
         </CardHeader>
         {isTemplateEditorOpen ? (
           <CardContent className="space-y-4 p-4 sm:p-6">
+            {!activeLetterMaster ? (
+              <p className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                {t('letterGeneration.templates.noTemplateHint')}
+              </p>
+            ) : null}
             <div className="grid gap-4 sm:grid-cols-2">
               <FieldGroup label={t('letterGeneration.templates.name')}>
                 <Input
@@ -1257,7 +1290,12 @@ export function LetterGeneration() {
                     <img
                       src={letterheadDraft}
                       alt={t('letterGeneration.templates.letterheadPreviewAlt')}
-                      className="mx-auto block max-h-40 w-full object-contain"
+                      className={cn(
+                        'mx-auto block object-contain',
+                        letterheadModeDraft === 'full'
+                          ? 'w-full'
+                          : 'w-1/2',
+                      )}
                     />
                   </div>
                 ) : (
@@ -1266,6 +1304,28 @@ export function LetterGeneration() {
                     {t('letterGeneration.templates.letterheadEmpty')}
                   </div>
                 )}
+                {letterheadDraft ? (
+                  <FieldGroup label={t('letterGeneration.templates.letterheadMode')}>
+                    <Select
+                      value={letterheadModeDraft}
+                      onValueChange={(value: LetterheadMode) =>
+                        setLetterheadModeDraft(value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="full">
+                          {t('letterGeneration.templates.letterheadModeFull')}
+                        </SelectItem>
+                        <SelectItem value="half">
+                          {t('letterGeneration.templates.letterheadModeHalf')}
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FieldGroup>
+                ) : null}
                 <div className="flex flex-col gap-2 sm:flex-row">
                   <input
                     ref={letterheadInputRef}
@@ -1298,7 +1358,10 @@ export function LetterGeneration() {
                       type="button"
                       variant="outline"
                       className="w-full sm:w-auto"
-                      onClick={() => setLetterheadDraft(null)}
+                      onClick={() => {
+                        setLetterheadDraft(null);
+                        setLetterheadModeDraft('full');
+                      }}
                       disabled={isUploadingLetterhead}
                     >
                       <X className="mr-2 size-4" />
@@ -1335,14 +1398,20 @@ export function LetterGeneration() {
               <Button
                 className="w-full sm:w-auto"
                 onClick={() => void handleSaveTemplate()}
-                disabled={isSavingTemplate || !activeLetterMaster}
+                disabled={
+                  isSavingTemplate ||
+                  !templateNameDraft.trim() ||
+                  !templateDraft.trim()
+                }
               >
                 {isSavingTemplate ? (
                   <Loader2 className="mr-2 size-4 animate-spin" />
                 ) : (
                   <Save className="mr-2 size-4" />
                 )}
-                {t('letterGeneration.templates.save')}
+                {activeLetterMaster
+                  ? t('letterGeneration.templates.save')
+                  : t('letterGeneration.templates.create')}
               </Button>
             </div>
           </CardContent>

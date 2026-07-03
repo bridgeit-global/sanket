@@ -50,6 +50,7 @@ export async function POST(
       letter.fields as Parameters<typeof buildRenderedLetterHtml>[2],
       letter.letterLocale as LetterLocale,
       master.letterheadUrl,
+      master.letterheadMode,
     );
 
     const updatedLetter = await updateLetterRenderedHtml({
