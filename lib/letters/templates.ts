@@ -45,7 +45,7 @@ export type DomicileLetterFields = CommonLetterFields & {
 
 export const DEFAULT_SIGNATORY: Record<LetterLocale, string> = {
   mr: 'सना मलिक शेख',
-  en: 'Sana Malik Sheikh',
+  en: 'Sana Malik Shaikh',
 };
 
 export const DEFAULT_RATION_OFFICE_ADDRESS: Record<LetterLocale, string> = {

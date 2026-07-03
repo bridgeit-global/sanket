@@ -154,9 +154,13 @@ function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
   };
 }
 
+const LETTER_PREVIEW_CONTENT_CLASSES =
+  '[&_.letter-content]:whitespace-pre-wrap [&_.letter-content]:font-[inherit] [&_.letter-content]:text-sm [&_.letter-content]:leading-6 [&_.letter-content]:text-black sm:[&_.letter-content]:text-[15px] sm:[&_.letter-content]:leading-7 [&_.letter-letterhead--full]:-mx-4 [&_.letter-letterhead--full]:-mt-4 [&_.letter-letterhead--full]:mb-4 [&_.letter-letterhead--full]:w-[calc(100%+2rem)] sm:[&_.letter-letterhead--full]:-mx-6 sm:[&_.letter-letterhead--full]:-mt-6 sm:[&_.letter-letterhead--full]:w-[calc(100%+3rem)] [&_.letter-letterhead--full_img]:w-full [&_.letter-letterhead--half]:mb-4 [&_.letter-letterhead--half_img]:mx-auto [&_.letter-letterhead--half_img]:w-1/2';
+
 function createLetterExportElement(html: string): HTMLDivElement {
   const host = document.createElement('div');
-  host.className = 'rounded-lg bg-white p-6 text-black shadow-sm';
+  // PDF export: no border/shadow — only letter content is captured.
+  host.className = 'bg-white p-6 text-black';
   host.innerHTML = html;
   return host;
 }
@@ -164,7 +168,7 @@ function createLetterExportElement(html: string): HTMLDivElement {
 function LetterPreview({ html }: { html: string }) {
   return (
     <div
-      className="overflow-hidden rounded-lg bg-white p-4 text-black shadow-sm sm:p-6 [&_.letter-content]:whitespace-pre-wrap [&_.letter-content]:font-[inherit] [&_.letter-content]:text-sm [&_.letter-content]:leading-6 [&_.letter-content]:text-black sm:[&_.letter-content]:text-[15px] sm:[&_.letter-content]:leading-7 [&_.letter-letterhead--full]:-mx-4 [&_.letter-letterhead--full]:-mt-4 [&_.letter-letterhead--full]:mb-4 [&_.letter-letterhead--full]:w-[calc(100%+2rem)] sm:[&_.letter-letterhead--full]:-mx-6 sm:[&_.letter-letterhead--full]:-mt-6 sm:[&_.letter-letterhead--full]:w-[calc(100%+3rem)] [&_.letter-letterhead--full_img]:w-full [&_.letter-letterhead--half]:mb-4 [&_.letter-letterhead--half_img]:mx-auto [&_.letter-letterhead--half_img]:w-1/2"
+      className={`overflow-hidden rounded-lg border bg-white p-4 text-black sm:p-6 ${LETTER_PREVIEW_CONTENT_CLASSES}`}
       // Letter HTML is generated from admin-editable templates stored in our database.
       dangerouslySetInnerHTML={{ __html: html }}
     />
@@ -527,22 +531,22 @@ export function LetterGeneration() {
 
       const res = activeLetterMaster
         ? await fetch(
-            `/api/letter-masters/${encodeURIComponent(activeLetterMaster.id)}`,
-            {
-              method: 'PUT',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify(payload),
-            },
-          )
-        : await fetch('/api/letter-masters', {
-            method: 'POST',
+          `/api/letter-masters/${encodeURIComponent(activeLetterMaster.id)}`,
+          {
+            method: 'PUT',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-              ...payload,
-              letterType: activeTab,
-              letterLocale: locale,
-            }),
-          });
+            body: JSON.stringify(payload),
+          },
+        )
+        : await fetch('/api/letter-masters', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            ...payload,
+            letterType: activeTab,
+            letterLocale: locale,
+          }),
+        });
 
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to save template');
@@ -760,7 +764,7 @@ export function LetterGeneration() {
         <Eye className="mr-2 size-4" />
         {t('letterGeneration.savedLetters.actions.preview')}
       </Button>
-      <Button
+      {/* <Button
         size="sm"
         variant="outline"
         className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
@@ -773,7 +777,7 @@ export function LetterGeneration() {
           <RefreshCw className="mr-2 size-4" />
         )}
         {t('letterGeneration.savedLetters.actions.regenerate')}
-      </Button>
+      </Button> */}
       <Button
         size="sm"
         variant="destructive"
@@ -1434,12 +1438,12 @@ export function LetterGeneration() {
                 ? t('common.loading')
                 : hasActiveSavedLetterFilters
                   ? t('letterGeneration.savedLetters.filteredCount', {
-                      filtered: filteredSavedLetters.length,
-                      total: savedLetters.length,
-                    })
+                    filtered: filteredSavedLetters.length,
+                    total: savedLetters.length,
+                  })
                   : t('letterGeneration.savedLetters.count', {
-                      count: savedLetters.length,
-                    })}
+                    count: savedLetters.length,
+                  })}
             </div>
           </div>
         </CardHeader>
@@ -1511,126 +1515,126 @@ export function LetterGeneration() {
                 </div>
               ) : (
                 <>
-              <div className="flex justify-stretch sm:justify-end">
-                <Button
-                  variant="outline"
-                  className="w-full sm:w-auto"
-                  onClick={() => void refreshSavedLetters()}
-                  disabled={savedLettersLoading}
-                >
-                  {t('letterGeneration.savedLetters.refresh')}
-                </Button>
-              </div>
-
-              <div className="space-y-3 lg:hidden">
-                {filteredSavedLetters.map((letter) => (
-                  <div
-                    key={letter.id}
-                    className="space-y-3 rounded-lg border bg-card p-4 shadow-sm"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 space-y-1">
-                        <p className="truncate font-medium">
-                          {letter.referenceNo || '—'}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {t(`letterGeneration.tabs.${letter.letterType}`)} ·{' '}
-                          {t(`letterGeneration.letterLanguage.${letter.letterLocale}`)}
-                        </p>
-                      </div>
-                      <p className="shrink-0 text-xs text-muted-foreground">
-                        {new Date(letter.createdAt).toLocaleString('en-IN')}
-                      </p>
-                    </div>
-                    {renderSavedLetterActions(letter, 'stack')}
+                  <div className="flex justify-stretch sm:justify-end">
+                    <Button
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                      onClick={() => void refreshSavedLetters()}
+                      disabled={savedLettersLoading}
+                    >
+                      {t('letterGeneration.savedLetters.refresh')}
+                    </Button>
                   </div>
-                ))}
-              </div>
 
-              <div className="hidden overflow-x-auto lg:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>
-                        {t('letterGeneration.savedLetters.columns.referenceNo')}
-                      </TableHead>
-                      <TableHead>{t('letterGeneration.savedLetters.columns.type')}</TableHead>
-                      <TableHead>
-                        {t('letterGeneration.savedLetters.columns.locale')}
-                      </TableHead>
-                      <TableHead>
-                        {t('letterGeneration.savedLetters.columns.createdAt')}
-                      </TableHead>
-                      <TableHead className="text-right">
-                        {t('letterGeneration.savedLetters.columns.actions')}
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                  <div className="space-y-3 lg:hidden">
                     {filteredSavedLetters.map((letter) => (
-                      <TableRow key={letter.id}>
-                        <TableCell className="font-medium">
-                          {letter.referenceNo || '—'}
-                        </TableCell>
-                        <TableCell>{t(`letterGeneration.tabs.${letter.letterType}`)}</TableCell>
-                        <TableCell>
-                          {t(`letterGeneration.letterLanguage.${letter.letterLocale}`)}
-                        </TableCell>
-                        <TableCell>
-                          {new Date(letter.createdAt).toLocaleString('en-IN')}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {renderSavedLetterActions(letter)}
-                        </TableCell>
-                      </TableRow>
+                      <div
+                        key={letter.id}
+                        className="space-y-3 rounded-lg border bg-card p-4 shadow-sm"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 space-y-1">
+                            <p className="truncate font-medium">
+                              {letter.referenceNo || '—'}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              {t(`letterGeneration.tabs.${letter.letterType}`)} ·{' '}
+                              {t(`letterGeneration.letterLanguage.${letter.letterLocale}`)}
+                            </p>
+                          </div>
+                          <p className="shrink-0 text-xs text-muted-foreground">
+                            {new Date(letter.createdAt).toLocaleString('en-IN')}
+                          </p>
+                        </div>
+                        {renderSavedLetterActions(letter, 'stack')}
+                      </div>
                     ))}
-                  </TableBody>
-                </Table>
-              </div>
+                  </div>
 
-              <Dialog
-                open={!!selectedSavedLetter}
-                onOpenChange={(open) => {
-                  if (!open) setSelectedSavedLetterId(null);
-                }}
-              >
-                <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto p-4 sm:w-full sm:p-6">
-                  {selectedSavedLetter ? (
-                    <>
-                      <DialogHeader>
-                        <DialogTitle>
-                          {selectedSavedLetter.title}{' '}
-                          {selectedSavedLetter.referenceNo
-                            ? `- ${selectedSavedLetter.referenceNo}`
-                            : ''}
-                        </DialogTitle>
-                        <DialogDescription>
-                          {t(`letterGeneration.tabs.${selectedSavedLetter.letterType}`)} ·{' '}
-                          {t(
-                            `letterGeneration.letterLanguage.${selectedSavedLetter.letterLocale}`,
-                          )}
-                        </DialogDescription>
-                      </DialogHeader>
-                      <LetterPreview html={selectedSavedLetter.renderedHtml} />
-                      <DialogFooter className="flex-col gap-2 sm:flex-row sm:gap-0">
-                        <Button
-                          variant="outline"
-                          className="w-full sm:w-auto"
-                          onClick={() => void handleDownloadSavedLetter(selectedSavedLetter)}
-                          disabled={downloadingLetterId === selectedSavedLetter.id}
-                        >
-                          {downloadingLetterId === selectedSavedLetter.id ? (
-                            <Loader2 className="mr-2 size-4 animate-spin" />
-                          ) : (
-                            <FileDown className="mr-2 size-4" />
-                          )}
-                          {t('letterGeneration.savedLetters.actions.download')}
-                        </Button>
-                      </DialogFooter>
-                    </>
-                  ) : null}
-                </DialogContent>
-              </Dialog>
+                  <div className="hidden overflow-x-auto lg:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>
+                            {t('letterGeneration.savedLetters.columns.referenceNo')}
+                          </TableHead>
+                          <TableHead>{t('letterGeneration.savedLetters.columns.type')}</TableHead>
+                          <TableHead>
+                            {t('letterGeneration.savedLetters.columns.locale')}
+                          </TableHead>
+                          <TableHead>
+                            {t('letterGeneration.savedLetters.columns.createdAt')}
+                          </TableHead>
+                          <TableHead className="text-right">
+                            {t('letterGeneration.savedLetters.columns.actions')}
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredSavedLetters.map((letter) => (
+                          <TableRow key={letter.id}>
+                            <TableCell className="font-medium">
+                              {letter.referenceNo || '—'}
+                            </TableCell>
+                            <TableCell>{t(`letterGeneration.tabs.${letter.letterType}`)}</TableCell>
+                            <TableCell>
+                              {t(`letterGeneration.letterLanguage.${letter.letterLocale}`)}
+                            </TableCell>
+                            <TableCell>
+                              {new Date(letter.createdAt).toLocaleString('en-IN')}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {renderSavedLetterActions(letter)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  <Dialog
+                    open={!!selectedSavedLetter}
+                    onOpenChange={(open) => {
+                      if (!open) setSelectedSavedLetterId(null);
+                    }}
+                  >
+                    <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto p-4 sm:w-full sm:p-6">
+                      {selectedSavedLetter ? (
+                        <>
+                          <DialogHeader>
+                            <DialogTitle>
+                              {selectedSavedLetter.title}{' '}
+                              {selectedSavedLetter.referenceNo
+                                ? `- ${selectedSavedLetter.referenceNo}`
+                                : ''}
+                            </DialogTitle>
+                            <DialogDescription>
+                              {t(`letterGeneration.tabs.${selectedSavedLetter.letterType}`)} ·{' '}
+                              {t(
+                                `letterGeneration.letterLanguage.${selectedSavedLetter.letterLocale}`,
+                              )}
+                            </DialogDescription>
+                          </DialogHeader>
+                          <LetterPreview html={selectedSavedLetter.renderedHtml} />
+                          <DialogFooter className="flex-col gap-2 sm:flex-row sm:gap-0">
+                            <Button
+                              variant="outline"
+                              className="w-full sm:w-auto"
+                              onClick={() => void handleDownloadSavedLetter(selectedSavedLetter)}
+                              disabled={downloadingLetterId === selectedSavedLetter.id}
+                            >
+                              {downloadingLetterId === selectedSavedLetter.id ? (
+                                <Loader2 className="mr-2 size-4 animate-spin" />
+                              ) : (
+                                <FileDown className="mr-2 size-4" />
+                              )}
+                              {t('letterGeneration.savedLetters.actions.download')}
+                            </Button>
+                          </DialogFooter>
+                        </>
+                      ) : null}
+                    </DialogContent>
+                  </Dialog>
                 </>
               )}
             </div>
