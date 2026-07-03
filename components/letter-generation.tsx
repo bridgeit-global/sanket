@@ -8,6 +8,7 @@ import {
   FileDown,
   ImageIcon,
   Loader2,
+  Printer,
   RefreshCw,
   Save,
   Trash2,
@@ -28,7 +29,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -163,6 +163,84 @@ function createLetterExportElement(html: string): HTMLDivElement {
   host.className = 'bg-white p-6 text-black';
   host.innerHTML = html;
   return host;
+}
+
+const LETTER_PRINT_STYLES = `
+  @page { margin: 15mm; size: A4 portrait; }
+  * { color: #000 !important; }
+  body { margin: 0; padding: 24px; font-family: system-ui, -apple-system, sans-serif; background: #fff; }
+  .letter-content { white-space: pre-wrap; font-size: 15px; line-height: 1.75; }
+  .letter-letterhead--full { margin: -24px -24px 16px -24px; width: calc(100% + 48px); }
+  .letter-letterhead--full img { width: 100%; display: block; }
+  .letter-letterhead--half { margin-bottom: 16px; text-align: center; }
+  .letter-letterhead--half img { width: 50%; margin: 0 auto; display: block; }
+  img { max-width: 100%; height: auto; }
+`;
+
+function printLetterHtml(html: string, title: string): boolean {
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('aria-hidden', 'true');
+  iframe.style.cssText =
+    'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+  document.body.appendChild(iframe);
+
+  const printFrame = iframe.contentWindow;
+  const doc = printFrame?.document;
+  if (!doc || !printFrame) {
+    iframe.remove();
+    return false;
+  }
+
+  doc.open();
+  doc.write(
+    `<!DOCTYPE html><html><head><title>${title}</title><style>${LETTER_PRINT_STYLES}</style></head><body>${html}</body></html>`,
+  );
+  doc.close();
+
+  const cleanup = () => {
+    iframe.remove();
+  };
+
+  const waitForImagesAndPrint = () => {
+    const images = Array.from(doc.images);
+
+    const print = () => {
+      printFrame.focus();
+      printFrame.print();
+      if ('onafterprint' in printFrame) {
+        printFrame.addEventListener('afterprint', cleanup, { once: true });
+      } else {
+        setTimeout(cleanup, 1000);
+      }
+    };
+
+    if (images.length === 0) {
+      print();
+      return;
+    }
+
+    void Promise.all(
+      images.map(
+        (img) =>
+          new Promise<void>((resolve) => {
+            if (img.complete) {
+              resolve();
+              return;
+            }
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+          }),
+      ),
+    ).then(print);
+  };
+
+  if (doc.readyState === 'complete') {
+    waitForImagesAndPrint();
+  } else {
+    iframe.addEventListener('load', waitForImagesAndPrint, { once: true });
+  }
+
+  return true;
 }
 
 function LetterPreview({ html }: { html: string }) {
@@ -651,6 +729,14 @@ export function LetterGeneration() {
     } catch (error) {
       console.error('Failed to delete letter', error);
       toast.error(t('letterGeneration.savedLetters.deleteError'));
+    }
+  };
+
+  const handlePrintSavedLetter = (letter: SavedLetterRow) => {
+    const title = `${letter.title}${letter.referenceNo ? ` - ${letter.referenceNo}` : ''}`;
+    const opened = printLetterHtml(letter.renderedHtml, title);
+    if (!opened) {
+      toast.error(t('letterGeneration.printPopupBlocked'));
     }
   };
 
@@ -1601,36 +1687,50 @@ export function LetterGeneration() {
                     <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto p-4 sm:w-full sm:p-6">
                       {selectedSavedLetter ? (
                         <>
-                          <DialogHeader>
-                            <DialogTitle>
-                              {selectedSavedLetter.title}{' '}
-                              {selectedSavedLetter.referenceNo
-                                ? `- ${selectedSavedLetter.referenceNo}`
-                                : ''}
-                            </DialogTitle>
-                            <DialogDescription>
-                              {t(`letterGeneration.tabs.${selectedSavedLetter.letterType}`)} ·{' '}
-                              {t(
-                                `letterGeneration.letterLanguage.${selectedSavedLetter.letterLocale}`,
-                              )}
-                            </DialogDescription>
+                          <DialogHeader className="space-y-4">
+                            <div className="flex flex-col gap-3 pr-8 sm:flex-row sm:items-start sm:justify-between">
+                              <div className="space-y-1.5 text-left">
+                                <DialogTitle>
+                                  {selectedSavedLetter.title}{' '}
+                                  {selectedSavedLetter.referenceNo
+                                    ? `- ${selectedSavedLetter.referenceNo}`
+                                    : ''}
+                                </DialogTitle>
+                                <DialogDescription>
+                                  {t(`letterGeneration.tabs.${selectedSavedLetter.letterType}`)} ·{' '}
+                                  {t(
+                                    `letterGeneration.letterLanguage.${selectedSavedLetter.letterLocale}`,
+                                  )}
+                                </DialogDescription>
+                              </div>
+                              <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full sm:w-auto"
+                                  onClick={() => handlePrintSavedLetter(selectedSavedLetter)}
+                                >
+                                  <Printer className="mr-2 size-4" />
+                                  {t('letterGeneration.savedLetters.actions.print')}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full sm:w-auto"
+                                  onClick={() => void handleDownloadSavedLetter(selectedSavedLetter)}
+                                  disabled={downloadingLetterId === selectedSavedLetter.id}
+                                >
+                                  {downloadingLetterId === selectedSavedLetter.id ? (
+                                    <Loader2 className="mr-2 size-4 animate-spin" />
+                                  ) : (
+                                    <FileDown className="mr-2 size-4" />
+                                  )}
+                                  {t('letterGeneration.savedLetters.actions.download')}
+                                </Button>
+                              </div>
+                            </div>
                           </DialogHeader>
                           <LetterPreview html={selectedSavedLetter.renderedHtml} />
-                          <DialogFooter className="flex-col gap-2 sm:flex-row sm:gap-0">
-                            <Button
-                              variant="outline"
-                              className="w-full sm:w-auto"
-                              onClick={() => void handleDownloadSavedLetter(selectedSavedLetter)}
-                              disabled={downloadingLetterId === selectedSavedLetter.id}
-                            >
-                              {downloadingLetterId === selectedSavedLetter.id ? (
-                                <Loader2 className="mr-2 size-4 animate-spin" />
-                              ) : (
-                                <FileDown className="mr-2 size-4" />
-                              )}
-                              {t('letterGeneration.savedLetters.actions.download')}
-                            </Button>
-                          </DialogFooter>
                         </>
                       ) : null}
                     </DialogContent>

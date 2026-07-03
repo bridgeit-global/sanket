@@ -378,6 +378,7 @@
     "generatePdf": "Generate PDF",
     "pdfSuccess": "PDF downloaded successfully",
     "pdfError": "Failed to generate PDF. Please try again.",
+    "printPopupBlocked": "Unable to print letter. Please try again.",
     "templates": {
       "title": "Letter Templates",
       "description": "Edit the HTML template stored in the database. Use {{fieldName}} placeholders for dynamic values.",
@@ -443,6 +444,7 @@
       "actions": {
         "preview": "Preview",
         "load": "Load",
+        "print": "Print Letter",
         "download": "Download PDF",
         "delete": "Delete",
         "regenerate": "Regenerate",
