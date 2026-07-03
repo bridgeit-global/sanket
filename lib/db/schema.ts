@@ -45,6 +45,8 @@ export const TABLES = {
   cadreMember: 'CadreMember',
   cadreMemberVertical: 'CadreMemberVertical',
   cadreMemberPost: 'CadreMemberPost',
+  admFundingCategory: 'AdmFundingCategory',
+  admWork: 'AdmWork',
 } as const;
 
 export type Role = {
@@ -548,4 +550,45 @@ export type CadreMemberPost = {
   sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type AdmPhysicalStatus = 'WNS' | 'WIP' | 'WC';
+
+export type AdmFundingCategory = {
+  id: string;
+  code: string;
+  name: string;
+  masterBudget: number;
+  displayOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type AdmWork = {
+  id: string;
+  categoryId: string;
+  projectId: string | null;
+  name: string;
+  workBudget: number;
+  physicalStatus: AdmPhysicalStatus;
+  bhoomiPujanDone: boolean;
+  bhoomiPujanDate: string | null;
+  lokarpanDone: boolean;
+  lokarpanDate: string | null;
+  beforePhotoUrl: string | null;
+  beforePhotoName: string | null;
+  afterPhotoUrl: string | null;
+  afterPhotoName: string | null;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type AdmWorkWithProject = AdmWork & {
+  projectName: string | null;
+};
+
+export type AdmFundingCategoryWithWorks = AdmFundingCategory & {
+  works: AdmWorkWithProject[];
+  allocatedBudget: number;
 };

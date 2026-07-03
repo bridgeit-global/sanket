@@ -309,3 +309,34 @@ export function ProfileUpdateSkeleton() {
   );
 }
 
+export function AdmSkeleton() {
+  return (
+    <div className="flex flex-col gap-4 md:gap-6">
+      <div className="flex items-center gap-3">
+        <Skeleton className="h-10 w-10 rounded-md" />
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-56" />
+          <Skeleton className="h-4 w-80" />
+        </div>
+      </div>
+
+      <Card>
+        <CardContent className="p-4">
+          <Skeleton className="h-5 w-72" />
+        </CardContent>
+      </Card>
+
+      {[1, 2, 3].map((i) => (
+        <Card key={i}>
+          <CardHeader>
+            <Skeleton className="h-6 w-full max-w-md" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-32 w-full rounded-lg" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+

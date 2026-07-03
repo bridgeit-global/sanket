@@ -39,6 +39,11 @@ import type {
   VoterMobileNumber,
   VoterProfile,
   VoterTask,
+  AdmFundingCategory,
+  AdmWork,
+  AdmWorkWithProject,
+  AdmFundingCategoryWithWorks,
+  AdmPhysicalStatus,
 } from './schema';
 
 type Row = Record<string, unknown>;
@@ -434,6 +439,44 @@ export function mapMlaProjectRow(row: Row): MlaProject {
     ward: toStringOrNull(row.ward),
     type: toStringOrNull(row.type),
     status: row.status as MlaProject['status'],
+    createdBy: String(row.created_by ?? row.createdBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapAdmFundingCategoryRow(row: Row): AdmFundingCategory {
+  return {
+    id: String(row.id),
+    code: String(row.code),
+    name: String(row.name),
+    masterBudget: Number(row.master_budget ?? row.masterBudget ?? 0),
+    displayOrder: Number(row.display_order ?? row.displayOrder ?? 0),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapAdmWorkRow(row: Row): AdmWork {
+  return {
+    id: String(row.id),
+    categoryId: String(row.category_id ?? row.categoryId),
+    projectId: toStringOrNull(row.project_id ?? row.projectId),
+    name: String(row.name),
+    workBudget: Number(row.work_budget ?? row.workBudget ?? 0),
+    physicalStatus: (row.physical_status ?? row.physicalStatus ?? 'WNS') as AdmPhysicalStatus,
+    bhoomiPujanDone: Boolean(row.bhoomi_pujan_done ?? row.bhoomiPujanDone),
+    bhoomiPujanDate: row.bhoomi_pujan_date ?? row.bhoomiPujanDate
+      ? formatDateField(row.bhoomi_pujan_date ?? row.bhoomiPujanDate)
+      : null,
+    lokarpanDone: Boolean(row.lokarpan_done ?? row.lokarpanDone),
+    lokarpanDate: row.lokarpan_date ?? row.lokarpanDate
+      ? formatDateField(row.lokarpan_date ?? row.lokarpanDate)
+      : null,
+    beforePhotoUrl: toStringOrNull(row.before_photo_url ?? row.beforePhotoUrl),
+    beforePhotoName: toStringOrNull(row.before_photo_name ?? row.beforePhotoName),
+    afterPhotoUrl: toStringOrNull(row.after_photo_url ?? row.afterPhotoUrl),
+    afterPhotoName: toStringOrNull(row.after_photo_name ?? row.afterPhotoName),
     createdBy: String(row.created_by ?? row.createdBy),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),
