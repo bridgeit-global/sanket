@@ -379,6 +379,15 @@
     "formTitle": "Letter Details",
     "formDescription": "Enter all required information for the selected letter type.",
     "previewTitle": "Preview",
+    "paperSize": {
+      "label": "Paper size: {size}",
+      "hint": "Change size above to customize",
+      "options": {
+        "a4": "A4 — VIP / formal letters",
+        "a5": "A5 — Small subjects",
+        "b5": "B5 — Ration card"
+      }
+    },
     "generatePdf": "Generate PDF",
     "pdfSuccess": "PDF downloaded successfully",
     "pdfError": "Failed to generate PDF. Please try again.",
@@ -482,7 +491,8 @@
       "idNumber": "ID Number",
       "income": "Annual Income (₹)",
       "letterType": "Letter Type",
-      "letterLanguage": "Letter Language"
+      "letterLanguage": "Letter Language",
+      "paperSize": "Paper Size"
     },
     "placeholders": {
       "referenceNo": "e.g. 694",

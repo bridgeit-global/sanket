@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import { createLetter, getLetterByReferenceNo, getLetters } from '@/lib/db/queries';
+import { resolveLetterPaperSize } from '@/lib/letters/paper-size';
 
 export async function GET(request: NextRequest) {
   try {
@@ -43,6 +44,7 @@ export async function POST(request: NextRequest) {
       title,
       fields,
       renderedHtml,
+      paperSize,
     } = body ?? {};
 
     if (!letterType || !letterLocale || !title || !renderedHtml) {
@@ -77,6 +79,7 @@ export async function POST(request: NextRequest) {
       title: String(title),
       fields: fields ?? {},
       renderedHtml: String(renderedHtml),
+      paperSize: resolveLetterPaperSize(paperSize, letterType),
       createdBy: session.user.id,
     });
 

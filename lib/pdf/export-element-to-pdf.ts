@@ -1,10 +1,15 @@
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
-type PdfPageFormat = 'a4';
+import {
+  getLetterPaperContentWidthPx,
+  type LetterPaperSize,
+} from '@/lib/letters/paper-size';
+
+type PdfPageFormat = LetterPaperSize;
 
 /** Printable content width for A4 portrait with 15mm side margins at 96dpi. */
-export const A4_PORTRAIT_CONTENT_WIDTH_PX = Math.round((180 * 96) / 25.4);
+export const A4_PORTRAIT_CONTENT_WIDTH_PX = getLetterPaperContentWidthPx('a4');
 
 export type ExportElementToPdfOptions = {
   element: HTMLElement;

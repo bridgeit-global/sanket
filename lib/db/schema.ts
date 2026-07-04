@@ -150,6 +150,7 @@ export type LetterMaster = {
   templateHtml: string;
   letterheadUrl: string | null;
   letterheadMode: 'half' | 'full';
+  paperSize: 'a4' | 'a5' | 'b5';
   createdBy: string | null;
   updatedBy: string | null;
   createdAt: Date;
@@ -165,6 +166,7 @@ export type Letter = {
   title: string;
   fields: unknown;
   renderedHtml: string;
+  paperSize: 'a4' | 'a5' | 'b5';
   createdBy: string | null;
   createdAt: Date;
   updatedAt: Date;

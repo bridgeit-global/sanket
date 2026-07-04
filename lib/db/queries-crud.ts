@@ -2212,6 +2212,7 @@ export async function ensureLetterMasterDefaults(): Promise<void> {
     const defaults = getAllDefaultLetterMasters();
     const now = new Date().toISOString();
 
+    const { getDefaultLetterPaperSize } = await import('@/lib/letters/paper-size');
     const { error } = await supabase.from(TABLES.letterMaster).insert(
       defaults.map((item) =>
         toSnakeCaseKeys({
@@ -2219,6 +2220,7 @@ export async function ensureLetterMasterDefaults(): Promise<void> {
           letterType: item.letterType,
           letterLocale: item.letterLocale,
           templateHtml: item.templateHtml,
+          paperSize: getDefaultLetterPaperSize(item.letterType),
           createdAt: now,
           updatedAt: now,
         }),
@@ -2292,6 +2294,7 @@ export async function createLetterMaster({
   templateHtml,
   letterheadUrl,
   letterheadMode,
+  paperSize,
   createdBy,
 }: {
   name: string;
@@ -2300,6 +2303,7 @@ export async function createLetterMaster({
   templateHtml: string;
   letterheadUrl?: string | null;
   letterheadMode?: 'half' | 'full';
+  paperSize?: 'a4' | 'a5' | 'b5';
   createdBy?: string | null;
 }): Promise<LetterMaster> {
   try {
@@ -2311,6 +2315,7 @@ export async function createLetterMaster({
       );
     }
 
+    const { resolveLetterPaperSize } = await import('@/lib/letters/paper-size');
     const now = new Date().toISOString();
     const { data, error } = await supabase
       .from(TABLES.letterMaster)
@@ -2322,6 +2327,7 @@ export async function createLetterMaster({
           templateHtml,
           letterheadUrl: letterheadUrl ?? null,
           letterheadMode: letterheadMode === 'half' ? 'half' : 'full',
+          paperSize: resolveLetterPaperSize(paperSize, letterType),
           createdBy: createdBy || null,
           updatedBy: createdBy || null,
           createdAt: now,
@@ -2344,6 +2350,7 @@ export async function updateLetterMaster({
   templateHtml,
   letterheadUrl,
   letterheadMode,
+  paperSize,
   updatedBy,
 }: {
   id: string;
@@ -2351,6 +2358,7 @@ export async function updateLetterMaster({
   templateHtml: string;
   letterheadUrl?: string | null;
   letterheadMode?: 'half' | 'full';
+  paperSize?: 'a4' | 'a5' | 'b5';
   updatedBy?: string | null;
 }): Promise<LetterMaster> {
   try {
@@ -2363,6 +2371,9 @@ export async function updateLetterMaster({
           templateHtml,
           letterheadUrl: letterheadUrl ?? null,
           letterheadMode: letterheadMode === 'half' ? 'half' : 'full',
+          paperSize: paperSize === 'a4' || paperSize === 'a5' || paperSize === 'b5'
+            ? paperSize
+            : undefined,
           updatedBy: updatedBy || null,
           updatedAt: now,
         }),
@@ -2407,6 +2418,7 @@ export async function createLetter({
   title,
   fields,
   renderedHtml,
+  paperSize,
   createdBy,
 }: {
   letterMasterId?: string | null;
@@ -2416,9 +2428,11 @@ export async function createLetter({
   title: string;
   fields: unknown;
   renderedHtml: string;
+  paperSize?: 'a4' | 'a5' | 'b5';
   createdBy?: string | null;
 }): Promise<Letter> {
   try {
+    const { resolveLetterPaperSize } = await import('@/lib/letters/paper-size');
     const now = new Date().toISOString();
     const { data, error } = await supabase
       .from(TABLES.letter)
@@ -2431,6 +2445,7 @@ export async function createLetter({
           title,
           fields,
           renderedHtml,
+          paperSize: resolveLetterPaperSize(paperSize, letterType),
           createdBy: createdBy || null,
           createdAt: now,
           updatedAt: now,
