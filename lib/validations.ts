@@ -14,6 +14,43 @@ export const projectFormSchema = z.object({
 
 export type ProjectFormData = z.infer<typeof projectFormSchema>;
 
+export const admWorkFormSchema = z
+  .object({
+    name: z.string().min(1, 'Work name is required').max(500, 'Work name is too long'),
+    categoryId: z.string().uuid('Invalid category'),
+    workBudget: z.number().int().min(0, 'Budget must be zero or positive'),
+    projectId: z.string().uuid().nullable().optional(),
+    physicalStatus: z.enum(['WNS', 'WIP', 'WC']),
+    bhoomiPujanDone: z.boolean().optional(),
+    bhoomiPujanDate: z.string().nullable().optional(),
+    lokarpanDone: z.boolean().optional(),
+    lokarpanDate: z.string().nullable().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.bhoomiPujanDone && !data.bhoomiPujanDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Bhoomi Pujan date is required when marked done',
+        path: ['bhoomiPujanDate'],
+      });
+    }
+    if (data.lokarpanDone && !data.lokarpanDate) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Lokarpan date is required when marked done',
+        path: ['lokarpanDate'],
+      });
+    }
+  });
+
+export type AdmWorkFormData = z.infer<typeof admWorkFormSchema>;
+
+export const admCategoryBudgetSchema = z.object({
+  masterBudget: z.number().int().min(0, 'Budget must be zero or positive'),
+});
+
+export type AdmCategoryBudgetData = z.infer<typeof admCategoryBudgetSchema>;
+
 export const REGISTER_ENTRY_FIELD_LIMITS = {
   fromTo: 500,
   subject: 1000,

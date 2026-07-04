@@ -19,6 +19,7 @@ import {
   Network,
   ChevronDown,
   FileText,
+  Landmark,
 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { ModuleDefinition } from '@/lib/module-constants';
@@ -38,6 +39,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'field-visitor': MapPin,
   'data-export': FileDown,
   projects: FolderKanban,
+  adm: Landmark,
   inward: Inbox,
   outward: Send,
   'letter-generation': FileText,
@@ -58,6 +60,7 @@ const getModuleTranslationKey = (moduleKey: string): string => {
     hierarchy: 'modules.hierarchy.label',
     'data-export': 'modules.dataExport.label',
     projects: 'modules.projects.label',
+    adm: 'modules.adm.label',
     inward: 'modules.inward.label',
     outward: 'modules.outward.label',
     'letter-generation': 'modules.letterGeneration.label',

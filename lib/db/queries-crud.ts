@@ -18,6 +18,8 @@ import {
   mapLetterRow,
   mapMessageRow,
   mapMlaProjectRow,
+  mapAdmFundingCategoryRow,
+  mapAdmWorkRow,
   mapRegisterAttachmentRow,
   mapRegisterEntryRow,
   mapRoleModulePermissionRow,
@@ -56,6 +58,10 @@ import type {
   Letter,
   LetterMaster,
   MlaProject,
+  AdmFundingCategory,
+  AdmWork,
+  AdmFundingCategoryWithWorks,
+  AdmPhysicalStatus,
   RegisterAttachment,
   RegisterEntry,
   Role,
@@ -3972,5 +3978,183 @@ export async function getDashboardCounts(todayStr: string): Promise<{
     outwardCount: Number(outwardResult[0]?.count) || 0,
     projectsCount: Number(projectsResult[0]?.count) || 0,
   };
+}
+
+// ─── ADM (Asset Development & Fund Management) ───────────────────────────────
+
+export async function getAdmDashboard(): Promise<AdmFundingCategoryWithWorks[]> {
+  try {
+    const { data: categories, error: catError } = await supabase
+      .from(TABLES.admFundingCategory)
+      .select('*')
+      .order('display_order', { ascending: true });
+    throwOnSupabaseError(catError, 'Failed to get ADM categories');
+
+    const { data: works, error: workError } = await supabase
+      .from(TABLES.admWork)
+      .select('*')
+      .order('created_at', { ascending: true });
+    throwOnSupabaseError(workError, 'Failed to get ADM works');
+
+    const projectIds = [
+      ...new Set(
+        (works ?? [])
+          .map((row) => row.project_id as string | null)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+
+    const projectNameById = new Map<string, string>();
+    if (projectIds.length > 0) {
+      const { data: projects, error: projectError } = await supabase
+        .from(TABLES.mlaProject)
+        .select('id, name')
+        .in('id', projectIds);
+      throwOnSupabaseError(projectError, 'Failed to get linked projects');
+      for (const project of projects ?? []) {
+        projectNameById.set(String(project.id), String(project.name));
+      }
+    }
+
+    const worksByCategory = new Map<string, AdmFundingCategoryWithWorks['works']>();
+
+    for (const row of works ?? []) {
+      const work = mapAdmWorkRow(row);
+      const enriched = {
+        ...work,
+        projectName: work.projectId ? projectNameById.get(work.projectId) ?? null : null,
+      };
+      const list = worksByCategory.get(work.categoryId) ?? [];
+      list.push(enriched);
+      worksByCategory.set(work.categoryId, list);
+    }
+
+    return (categories ?? []).map((row) => {
+      const category = mapAdmFundingCategoryRow(row);
+      const categoryWorks = worksByCategory.get(category.id) ?? [];
+      const allocatedBudget = categoryWorks.reduce((sum, w) => sum + w.workBudget, 0);
+      return {
+        ...category,
+        works: categoryWorks,
+        allocatedBudget,
+      };
+    });
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get ADM dashboard');
+  }
+}
+
+export async function getAdmWorkById(id: string): Promise<AdmWork | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.admWork)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get ADM work');
+    return data ? mapAdmWorkRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get ADM work');
+  }
+}
+
+export async function updateAdmCategoryBudget(
+  id: string,
+  masterBudget: number,
+): Promise<AdmFundingCategory | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.admFundingCategory)
+      .update({
+        master_budget: masterBudget,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select('*')
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to update ADM category budget');
+    return data ? mapAdmFundingCategoryRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to update ADM category budget');
+  }
+}
+
+export async function createAdmWork({
+  categoryId,
+  name,
+  workBudget,
+  projectId,
+  physicalStatus,
+  createdBy,
+}: {
+  categoryId: string;
+  name: string;
+  workBudget: number;
+  projectId?: string | null;
+  physicalStatus?: AdmPhysicalStatus;
+  createdBy: string;
+}): Promise<AdmWork> {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.admWork)
+      .insert(
+        toSnakeCaseKeys({
+          categoryId,
+          name,
+          workBudget,
+          projectId: projectId ?? null,
+          physicalStatus: physicalStatus ?? 'WNS',
+          bhoomiPujanDone: false,
+          lokarpanDone: false,
+          createdBy,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create ADM work');
+    return mapAdmWorkRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to create ADM work');
+  }
+}
+
+export async function updateAdmWork(
+  id: string,
+  data: Partial<
+    Omit<AdmWork, 'id' | 'createdBy' | 'createdAt'>
+  >,
+): Promise<AdmWork | null> {
+  try {
+    const snakePatch = toSnakeCaseKeys({ ...data, updatedAt: new Date().toISOString() });
+    const { data: updated, error } = await supabase
+      .from(TABLES.admWork)
+      .update(snakePatch)
+      .eq('id', id)
+      .select('*')
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to update ADM work');
+    return updated ? mapAdmWorkRow(updated) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to update ADM work');
+  }
+}
+
+export async function deleteAdmWork(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from(TABLES.admWork).delete().eq('id', id);
+    throwOnSupabaseError(error, 'Failed to delete ADM work');
+    return true;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to delete ADM work');
+  }
 }
 

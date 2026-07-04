@@ -6,6 +6,8 @@ import { cn } from '@/lib/utils';
 
 interface AccordionItemProps {
   value: string;
+  id?: string;
+  className?: string;
   children: React.ReactNode;
 }
 
@@ -31,10 +33,12 @@ export function Accordion({
   children,
   defaultValue,
   type = 'single',
+  onValueChange,
 }: {
   children: React.ReactNode;
   defaultValue?: string | string[];
   type?: 'single' | 'multiple';
+  onValueChange?: (value: string) => void;
 }) {
   const [openItems, setOpenItems] = React.useState<Set<string>>(
     () => new Set(Array.isArray(defaultValue) ? defaultValue : defaultValue ? [defaultValue] : [])
@@ -45,15 +49,17 @@ export function Accordion({
       const next = new Set(prev);
       if (next.has(value)) {
         next.delete(value);
+        onValueChange?.('');
       } else {
         if (type === 'single') {
           next.clear();
         }
         next.add(value);
+        onValueChange?.(value);
       }
       return next;
     });
-  }, [type]);
+  }, [type, onValueChange]);
 
   return (
     <AccordionContext.Provider value={{ openItems, toggleItem }}>
@@ -62,12 +68,12 @@ export function Accordion({
   );
 }
 
-export function AccordionItem({ value, children }: AccordionItemProps) {
+export function AccordionItem({ value, id, className, children }: AccordionItemProps) {
   const { openItems, toggleItem } = React.useContext(AccordionContext);
   const isOpen = openItems.has(value);
 
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div id={id} className={cn('border rounded-lg overflow-hidden', className)}>
       {React.Children.map(children, (child) => {
         if (React.isValidElement(child)) {
           return React.cloneElement(child, { ...child.props, isOpen, value, toggleItem } as any);
