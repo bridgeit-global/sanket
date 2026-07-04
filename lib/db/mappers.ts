@@ -217,16 +217,30 @@ export function mapStreamRow(row: Row): Stream {
   };
 }
 
+function mapLetterPaperSize(
+  value: unknown,
+  letterType: string,
+): 'a4' | 'a5' | 'b5' {
+  if (value === 'a4' || value === 'a5' || value === 'b5') return value;
+  if (letterType === 'ration') return 'b5';
+  if (letterType === 'fees' || letterType === 'income' || letterType === 'domicile') {
+    return 'a5';
+  }
+  return 'a4';
+}
+
 export function mapLetterMasterRow(row: Row): LetterMaster {
+  const letterType = String(row.letter_type ?? row.letterType);
   return {
     id: String(row.id),
     name: String(row.name),
-    letterType: String(row.letter_type ?? row.letterType),
+    letterType,
     letterLocale: String(row.letter_locale ?? row.letterLocale),
     templateHtml: String(row.template_html ?? row.templateHtml),
     letterheadUrl: toStringOrNull(row.letterhead_url ?? row.letterheadUrl),
     letterheadMode:
       (row.letterhead_mode ?? row.letterheadMode) === 'half' ? 'half' : 'full',
+    paperSize: mapLetterPaperSize(row.paper_size ?? row.paperSize, letterType),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),
     updatedBy: toStringOrNull(row.updated_by ?? row.updatedBy),
     createdAt: toDate(row.created_at ?? row.createdAt),
@@ -235,10 +249,11 @@ export function mapLetterMasterRow(row: Row): LetterMaster {
 }
 
 export function mapLetterRow(row: Row): Letter {
+  const letterType = String(row.letter_type ?? row.letterType);
   return {
     id: String(row.id),
     letterMasterId: toStringOrNull(row.letter_master_id ?? row.letterMasterId),
-    letterType: String(row.letter_type ?? row.letterType),
+    letterType,
     letterLocale: String(row.letter_locale ?? row.letterLocale),
     referenceNo: String(row.reference_no ?? row.referenceNo ?? ''),
     title: String(row.title),
@@ -246,6 +261,7 @@ export function mapLetterRow(row: Row): Letter {
     renderedHtml: String(
       row.rendered_html ?? row.renderedHtml ?? row.body ?? '',
     ),
+    paperSize: mapLetterPaperSize(row.paper_size ?? row.paperSize, letterType),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),

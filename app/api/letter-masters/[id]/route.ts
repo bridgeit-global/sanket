@@ -2,6 +2,7 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import { getLetterMasterById, updateLetterMaster } from '@/lib/db/queries';
+import { resolveLetterPaperSize } from '@/lib/letters/paper-size';
 import { normalizeLetterheadMode } from '@/lib/letters/render-template';
 
 export async function GET(
@@ -44,7 +45,7 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
-    const { name, templateHtml, letterheadUrl, letterheadMode } = body ?? {};
+    const { name, templateHtml, letterheadUrl, letterheadMode, paperSize } = body ?? {};
 
     if (!name || !templateHtml) {
       return NextResponse.json(
@@ -72,6 +73,10 @@ export async function PUT(
         letterheadMode === undefined
           ? existing.letterheadMode
           : normalizeLetterheadMode(letterheadMode),
+      paperSize:
+        paperSize === undefined
+          ? existing.paperSize
+          : resolveLetterPaperSize(paperSize, existing.letterType),
       updatedBy: session.user.id,
     });
 

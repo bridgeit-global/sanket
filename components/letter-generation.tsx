@@ -66,7 +66,16 @@ import {
 } from '@/lib/letters/templates';
 import { buildRenderedLetterHtml, type LetterheadMode } from '@/lib/letters/render-template';
 import { getDefaultTemplateHtml } from '@/lib/letters/default-template-html';
-import { exportElementToPdf, A4_PORTRAIT_CONTENT_WIDTH_PX } from '@/lib/pdf/export-element-to-pdf';
+import {
+  getDefaultLetterPaperSize,
+  getLetterPaperContentWidthPx,
+  getLetterPaperLabel,
+  LETTER_PAPER_MARGIN_MM,
+  LETTER_PAPER_SIZES,
+  resolveLetterPaperSize,
+  type LetterPaperSize,
+} from '@/lib/letters/paper-size';
+import { exportElementToPdf } from '@/lib/pdf/export-element-to-pdf';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { cn } from '@/lib/utils';
@@ -165,19 +174,36 @@ function createLetterExportElement(html: string): HTMLDivElement {
   return host;
 }
 
-const LETTER_PRINT_STYLES = `
-  @page { margin: 15mm; size: A4 portrait; }
+const LETTER_PRINT_FONT_SIZE_PX: Record<LetterPaperSize, number> = {
+  a4: 15,
+  a5: 13,
+  b5: 14,
+};
+
+function buildLetterPrintStyles(paperSize: LetterPaperSize): string {
+  const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
+  const fontSizePx = LETTER_PRINT_FONT_SIZE_PX[paperSize];
+  const pageLabel = getLetterPaperLabel(paperSize);
+  const paddingPx = paperSize === 'a4' ? 24 : 18;
+
+  return `
+  @page { margin: ${marginMm}mm; size: ${pageLabel} portrait; }
   * { color: #000 !important; }
-  body { margin: 0; padding: 24px; font-family: system-ui, -apple-system, sans-serif; background: #fff; }
-  .letter-content { white-space: pre-wrap; font-size: 15px; line-height: 1.75; }
-  .letter-letterhead--full { margin: -24px -24px 16px -24px; width: calc(100% + 48px); }
+  body { margin: 0; padding: ${paddingPx}px; font-family: system-ui, -apple-system, sans-serif; background: #fff; }
+  .letter-content { white-space: pre-wrap; font-size: ${fontSizePx}px; line-height: 1.75; }
+  .letter-letterhead--full { margin: -${paddingPx}px -${paddingPx}px 16px -${paddingPx}px; width: calc(100% + ${paddingPx * 2}px); }
   .letter-letterhead--full img { width: 100%; display: block; }
   .letter-letterhead--half { margin-bottom: 16px; text-align: center; }
   .letter-letterhead--half img { width: 50%; margin: 0 auto; display: block; }
   img { max-width: 100%; height: auto; }
 `;
+}
 
-function printLetterHtml(html: string, title: string): boolean {
+function printLetterHtml(
+  html: string,
+  title: string,
+  paperSize: LetterPaperSize = 'a4',
+): boolean {
   const iframe = document.createElement('iframe');
   iframe.setAttribute('aria-hidden', 'true');
   iframe.style.cssText =
@@ -193,7 +219,7 @@ function printLetterHtml(html: string, title: string): boolean {
 
   doc.open();
   doc.write(
-    `<!DOCTYPE html><html><head><title>${title}</title><style>${LETTER_PRINT_STYLES}</style></head><body>${html}</body></html>`,
+    `<!DOCTYPE html><html><head><title>${title}</title><style>${buildLetterPrintStyles(paperSize)}</style></head><body>${html}</body></html>`,
   );
   doc.close();
 
@@ -243,10 +269,26 @@ function printLetterHtml(html: string, title: string): boolean {
   return true;
 }
 
-function LetterPreview({ html }: { html: string }) {
+const LETTER_PREVIEW_MAX_WIDTH_CLASS: Record<LetterPaperSize, string> = {
+  a4: 'max-w-[680px]',
+  a5: 'max-w-[470px]',
+  b5: 'max-w-[575px]',
+};
+
+function LetterPreview({
+  html,
+  paperSize = 'a4',
+}: {
+  html: string;
+  paperSize?: LetterPaperSize;
+}) {
   return (
     <div
-      className={`overflow-hidden rounded-lg border bg-white p-4 text-black sm:p-6 ${LETTER_PREVIEW_CONTENT_CLASSES}`}
+      className={cn(
+        'mx-auto overflow-hidden rounded-lg border bg-white p-4 text-black sm:p-6',
+        LETTER_PREVIEW_MAX_WIDTH_CLASS[paperSize],
+        LETTER_PREVIEW_CONTENT_CLASSES,
+      )}
       // Letter HTML is generated from admin-editable templates stored in our database.
       dangerouslySetInnerHTML={{ __html: html }}
     />
@@ -313,6 +355,7 @@ type SavedLetterRow = {
   title: string;
   fields: unknown;
   renderedHtml: string;
+  paperSize: LetterPaperSize;
   createdAt: string | Date;
 };
 
@@ -324,6 +367,7 @@ type LetterMasterRow = {
   templateHtml: string;
   letterheadUrl: string | null;
   letterheadMode: LetterheadMode;
+  paperSize: LetterPaperSize;
   updatedAt: string | Date;
 };
 
@@ -355,6 +399,9 @@ export function LetterGeneration() {
   const [templateNameDraft, setTemplateNameDraft] = useState('');
   const [letterheadDraft, setLetterheadDraft] = useState<string | null>(null);
   const [letterheadModeDraft, setLetterheadModeDraft] = useState<LetterheadMode>('full');
+  const [paperSizeDraft, setPaperSizeDraft] = useState<LetterPaperSize>(() =>
+    getDefaultLetterPaperSize('fees'),
+  );
   const [isUploadingLetterhead, setIsUploadingLetterhead] = useState(false);
   const letterheadInputRef = useRef<HTMLInputElement>(null);
   const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
@@ -433,12 +480,16 @@ export function LetterGeneration() {
       setTemplateNameDraft(activeLetterMaster.name);
       setLetterheadDraft(activeLetterMaster.letterheadUrl);
       setLetterheadModeDraft(activeLetterMaster.letterheadMode);
+      setPaperSizeDraft(
+        resolveLetterPaperSize(activeLetterMaster.paperSize, activeTab),
+      );
       return;
     }
     setTemplateDraft(getDefaultTemplateHtml(activeTab, locale));
     setTemplateNameDraft(t(`letterGeneration.tabs.${activeTab}`));
     setLetterheadDraft(null);
     setLetterheadModeDraft('full');
+    setPaperSizeDraft(getDefaultLetterPaperSize(activeTab));
     // Only reset draft when letter type/locale/master changes — not when `t` is recreated.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeLetterMaster, activeTab, locale]);
@@ -485,6 +536,8 @@ export function LetterGeneration() {
   ]);
 
   const activeTitle = t(`letterGeneration.tabs.${activeTab}`);
+  const activePaperSize = paperSizeDraft;
+  const activePaperLabel = getLetterPaperLabel(activePaperSize);
 
   const activeFields = useMemo(() => {
     switch (activeTab) {
@@ -605,6 +658,7 @@ export function LetterGeneration() {
         templateHtml: templateDraft,
         letterheadUrl: letterheadDraft,
         letterheadMode: letterheadModeDraft,
+        paperSize: paperSizeDraft,
       };
 
       const res = activeLetterMaster
@@ -666,6 +720,7 @@ export function LetterGeneration() {
           title: activeTitle,
           fields: activeFields,
           renderedHtml: activeBody,
+          paperSize: paperSizeDraft,
         }),
       });
       const json = await res.json();
@@ -732,9 +787,13 @@ export function LetterGeneration() {
     }
   };
 
+  const resolveSavedLetterPaperSize = (letter: SavedLetterRow): LetterPaperSize =>
+    resolveLetterPaperSize(letter.paperSize, letter.letterType);
+
   const handlePrintSavedLetter = (letter: SavedLetterRow) => {
     const title = `${letter.title}${letter.referenceNo ? ` - ${letter.referenceNo}` : ''}`;
-    const opened = printLetterHtml(letter.renderedHtml, title);
+    const paperSize = resolveSavedLetterPaperSize(letter);
+    const opened = printLetterHtml(letter.renderedHtml, title, paperSize);
     if (!opened) {
       toast.error(t('letterGeneration.printPopupBlocked'));
     }
@@ -744,16 +803,17 @@ export function LetterGeneration() {
     setDownloadingLetterId(letter.id);
     let exportHost: HTMLDivElement | null = null;
     try {
+      const paperSize = resolveSavedLetterPaperSize(letter);
       exportHost = createLetterExportElement(letter.renderedHtml);
       document.body.appendChild(exportHost);
       await exportElementToPdf({
         element: exportHost,
         fileName: `${letter.title}-${letter.referenceNo || 'letter'}`,
-        format: 'a4',
+        format: paperSize,
         orientation: 'portrait',
-        marginMm: 15,
+        marginMm: LETTER_PAPER_MARGIN_MM[paperSize],
         scale: 2,
-        captureWidthPx: A4_PORTRAIT_CONTENT_WIDTH_PX,
+        captureWidthPx: getLetterPaperContentWidthPx(paperSize),
       });
       toast.success(t('letterGeneration.pdfSuccess'));
     } catch (error) {
@@ -971,7 +1031,7 @@ export function LetterGeneration() {
               value={activeTab}
               onValueChange={(value) => setActiveTab(value as LetterType)}
             >
-              <div className="w-full max-w-md">
+              <div className="grid w-full max-w-2xl gap-4 sm:grid-cols-2">
                 <FieldGroup label={t('letterGeneration.fields.letterType')}>
                   <Select
                     value={activeTab}
@@ -989,6 +1049,23 @@ export function LetterGeneration() {
                       <SelectItem value="domicile">
                         {t('letterGeneration.tabs.domicile')}
                       </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FieldGroup>
+                <FieldGroup label={t('letterGeneration.fields.paperSize')}>
+                  <Select
+                    value={paperSizeDraft}
+                    onValueChange={(value: LetterPaperSize) => setPaperSizeDraft(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LETTER_PAPER_SIZES.map((size) => (
+                        <SelectItem key={size} value={size}>
+                          {t(`letterGeneration.paperSize.options.${size}`)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </FieldGroup>
@@ -1293,9 +1370,18 @@ export function LetterGeneration() {
 
                 <div className="space-y-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <h2 className="text-lg font-semibold">
-                      {t('letterGeneration.previewTitle')}
-                    </h2>
+                    <div className="space-y-1">
+                      <h2 className="text-lg font-semibold">
+                        {t('letterGeneration.previewTitle')}
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        {t('letterGeneration.paperSize.label', {
+                          size: activePaperLabel,
+                        })}
+                        {' · '}
+                        {t('letterGeneration.paperSize.hint')}
+                      </p>
+                    </div>
                     <div className="flex items-center gap-2">
                       <Button
                         variant="outline"
@@ -1312,7 +1398,7 @@ export function LetterGeneration() {
                       </Button>
                     </div>
                   </div>
-                  <LetterPreview html={activeBody} />
+                  <LetterPreview html={activeBody} paperSize={activePaperSize} />
                 </div>
               </div>
             </Tabs>
@@ -1357,7 +1443,7 @@ export function LetterGeneration() {
                 {t('letterGeneration.templates.noTemplateHint')}
               </p>
             ) : null}
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               <FieldGroup label={t('letterGeneration.templates.name')}>
                 <Input
                   value={templateNameDraft}
@@ -1370,6 +1456,23 @@ export function LetterGeneration() {
                   value={t(`letterGeneration.tabs.${activeTab}`)}
                   disabled
                 />
+              </FieldGroup>
+              <FieldGroup label={t('letterGeneration.fields.paperSize')}>
+                <Select
+                  value={paperSizeDraft}
+                  onValueChange={(value: LetterPaperSize) => setPaperSizeDraft(value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LETTER_PAPER_SIZES.map((size) => (
+                      <SelectItem key={size} value={size}>
+                        {t(`letterGeneration.paperSize.options.${size}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </FieldGroup>
             </div>
             <FieldGroup label={t('letterGeneration.templates.letterhead')}>
@@ -1625,7 +1728,9 @@ export function LetterGeneration() {
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {t(`letterGeneration.tabs.${letter.letterType}`)} ·{' '}
-                              {t(`letterGeneration.letterLanguage.${letter.letterLocale}`)}
+                              {t(`letterGeneration.letterLanguage.${letter.letterLocale}`)}{' '}
+                              ·{' '}
+                              {getLetterPaperLabel(resolveSavedLetterPaperSize(letter))}
                             </p>
                           </div>
                           <p className="shrink-0 text-xs text-muted-foreground">
@@ -1662,7 +1767,12 @@ export function LetterGeneration() {
                             <TableCell className="font-medium">
                               {letter.referenceNo || '—'}
                             </TableCell>
-                            <TableCell>{t(`letterGeneration.tabs.${letter.letterType}`)}</TableCell>
+                            <TableCell>
+                              {t(`letterGeneration.tabs.${letter.letterType}`)}{' '}
+                              <span className="text-muted-foreground">
+                                ({getLetterPaperLabel(resolveSavedLetterPaperSize(letter))})
+                              </span>
+                            </TableCell>
                             <TableCell>
                               {t(`letterGeneration.letterLanguage.${letter.letterLocale}`)}
                             </TableCell>
@@ -1700,7 +1810,13 @@ export function LetterGeneration() {
                                   {t(`letterGeneration.tabs.${selectedSavedLetter.letterType}`)} ·{' '}
                                   {t(
                                     `letterGeneration.letterLanguage.${selectedSavedLetter.letterLocale}`,
-                                  )}
+                                  )}{' '}
+                                  ·{' '}
+                                  {t('letterGeneration.paperSize.label', {
+                                    size: getLetterPaperLabel(
+                                      resolveSavedLetterPaperSize(selectedSavedLetter),
+                                    ),
+                                  })}
                                 </DialogDescription>
                               </div>
                               <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row">
@@ -1730,7 +1846,10 @@ export function LetterGeneration() {
                               </div>
                             </div>
                           </DialogHeader>
-                          <LetterPreview html={selectedSavedLetter.renderedHtml} />
+                          <LetterPreview
+                            html={selectedSavedLetter.renderedHtml}
+                            paperSize={resolveSavedLetterPaperSize(selectedSavedLetter)}
+                          />
                         </>
                       ) : null}
                     </DialogContent>
