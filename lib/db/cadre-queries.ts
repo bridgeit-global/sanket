@@ -443,6 +443,7 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
     usersRes,
     votersRes,
     mobilesRes,
+    whatsappRes,
   ] = await Promise.all([
     supabase
       .from(TABLES.cadreMemberVertical)
@@ -470,6 +471,10 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
           .in('epic_number', epicNumbers)
           .eq('sort_order', 1)
       : Promise.resolve({ data: [], error: null }),
+    supabase
+      .from(TABLES.cadreMemberWhatsApp)
+      .select('member_id, whatsapp_phone')
+      .in('member_id', memberIds),
   ]);
 
   throwOnSupabaseError(verticalLinksRes.error, 'Failed to load member verticals');
@@ -477,6 +482,7 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
   throwOnSupabaseError(usersRes.error, 'Failed to load linked users');
   throwOnSupabaseError(votersRes.error, 'Failed to load linked voters');
   throwOnSupabaseError(mobilesRes.error, 'Failed to load voter mobiles');
+  throwOnSupabaseError(whatsappRes.error, 'Failed to load member WhatsApp numbers');
 
   const verticalLinks = verticalLinksRes.data ?? [];
   const postRows = postRowsRes.data ?? [];
@@ -634,6 +640,13 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
     }
   }
 
+  const whatsappByMember = new Map(
+    (whatsappRes.data ?? []).map((row) => [
+      String(row.member_id),
+      row.whatsapp_phone ? String(row.whatsapp_phone) : null,
+    ]),
+  );
+
   return members.map((member) => ({
     id: member.id,
     constituencyId: member.constituencyId,
@@ -649,6 +662,7 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
     posts: postsByMember.get(member.id) ?? [],
     linkedUser: member.userId ? userById.get(member.userId) ?? null : null,
     linkedVoter: member.epicNumber ? voterByEpic.get(member.epicNumber) ?? null : null,
+    whatsappPhone: whatsappByMember.get(member.id) ?? null,
   }));
 }
 
@@ -728,6 +742,8 @@ export type CadreMemberInput = {
   /** Which vertical id is primary (first badge); defaults to first. */
   primaryVerticalId?: string | null;
   posts?: CadreMemberPostInput[];
+  /** WhatsApp number; stored in CadreMemberWhatsApp. */
+  whatsappPhone?: string | null;
 };
 
 async function resolveMemberPersonFields(
@@ -810,6 +826,32 @@ function buildPostRows(memberId: string, input: CadreMemberInput) {
   });
 }
 
+async function syncCadreMemberWhatsApp(
+  memberId: string,
+  input: CadreMemberInput,
+  updatedBy: string,
+): Promise<void> {
+  if (input.whatsappPhone === undefined) return;
+
+  const trimmed = input.whatsappPhone?.trim() || null;
+  if (!trimmed) {
+    const { error } = await supabase
+      .from(TABLES.cadreMemberWhatsApp)
+      .delete()
+      .eq('member_id', memberId);
+    throwOnSupabaseError(error, 'Failed to remove member WhatsApp number');
+    return;
+  }
+
+  const { error } = await supabase.from(TABLES.cadreMemberWhatsApp).upsert({
+    member_id: memberId,
+    whatsapp_phone: trimmed,
+    updated_by: updatedBy,
+    updated_at: new Date().toISOString(),
+  });
+  throwOnSupabaseError(error, 'Failed to save member WhatsApp number');
+}
+
 export async function createCadreMember(
   input: CadreMemberInput,
   createdBy: string,
@@ -859,6 +901,8 @@ export async function createCadreMember(
       .insert(postRows);
     throwOnSupabaseError(pErr, 'Failed to assign posts');
   }
+
+  await syncCadreMemberWhatsApp(member.id, input, createdBy);
 
   return member;
 }
@@ -937,6 +981,8 @@ export async function updateCadreMember(
       throwOnSupabaseError(insP, 'Failed to update posts');
     }
   }
+
+  await syncCadreMemberWhatsApp(id, input, updatedBy);
 
   return member;
 }

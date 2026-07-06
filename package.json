@@ -10,6 +10,7 @@
     "lint:fix": "next lint --fix && biome lint --write --unsafe",
     "format": "biome format --write",
     "supabase:db:push": "bash scripts/supabase-db-push.sh",
+    "supabase:types": "bash scripts/supabase-gen-types.sh",
     "db:verify": "npx tsx scripts/verify-db-connection.ts",
     "test": "export PLAYWRIGHT=True && pnpm exec playwright test"
   },

@@ -4,6 +4,9 @@ import type {
   CadreGeographicUnit,
   CadreMember,
   CadreMemberPost,
+  CadreMemberWhatsApp,
+  CadreWhatsAppMessage,
+  CadreWhatsAppMessageImage,
   CadrePosition,
   CadrePositionLevel,
   CadreVertical,
@@ -721,6 +724,53 @@ export function mapCadreMemberPostRow(row: Row): CadreMemberPost {
     sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapCadreMemberWhatsAppRow(row: Row): CadreMemberWhatsApp {
+  return {
+    memberId: String(row.member_id ?? row.memberId),
+    whatsappPhone: String(row.whatsapp_phone ?? row.whatsappPhone),
+    updatedBy: toStringOrNull(row.updated_by ?? row.updatedBy),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+function mapCadreWhatsAppMessageImages(value: unknown): CadreWhatsAppMessageImage[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const row = item as Record<string, unknown>;
+      const url = row.url ?? row.fileUrl;
+      const fileName = row.fileName ?? row.file_name;
+      const mimeType = row.mimeType ?? row.mime_type;
+      if (typeof url !== 'string' || !url.trim()) return null;
+      return {
+        url: url.trim(),
+        fileName: typeof fileName === 'string' && fileName.trim() ? fileName.trim() : 'image',
+        mimeType:
+          typeof mimeType === 'string' && mimeType.trim()
+            ? mimeType.trim()
+            : 'image/jpeg',
+      };
+    })
+    .filter((item): item is CadreWhatsAppMessageImage => item !== null);
+}
+
+export function mapCadreWhatsAppMessageRow(row: Row): CadreWhatsAppMessage {
+  return {
+    id: String(row.id),
+    memberId: toStringOrNull(row.member_id ?? row.memberId),
+    whatsappPhone: String(row.whatsapp_phone ?? row.whatsappPhone),
+    message: String(row.message ?? ''),
+    images: mapCadreWhatsAppMessageImages(row.image_urls ?? row.imageUrls),
+    status: String(row.status) as CadreWhatsAppMessage['status'],
+    errorMessage: toStringOrNull(row.error_message ?? row.errorMessage),
+    createdBy: toStringOrNull(row.created_by ?? row.createdBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+    processedAt: toDateOrNull(row.processed_at ?? row.processedAt),
   };
 }
 

@@ -365,7 +365,19 @@
     "enrollMember": "Enroll member",
     "memberUpdated": "Member updated",
     "memberCreated": "Party member enrolled",
-    "postAssigned": "Post assigned"
+    "postAssigned": "Post assigned",
+    "whatsappLabel": "WhatsApp number",
+    "whatsappPlaceholder": "WhatsApp number",
+    "whatsappMessageLabel": "Queue WhatsApp message",
+    "whatsappMessagePlaceholder": "Type the message to send…",
+    "whatsappQueue": "Queue message",
+    "whatsappQueueing": "Queueing…",
+    "whatsappQueued": "Message queued for delivery",
+    "whatsappQueueTitle": "Message queue",
+    "whatsappQueueEmpty": "No messages queued yet.",
+    "whatsappAddImage": "Add image",
+    "whatsappUploading": "Uploading…",
+    "whatsappRemoveImage": "Remove image"
   },
   "letterGeneration": {
     "title": "Letter Generation",

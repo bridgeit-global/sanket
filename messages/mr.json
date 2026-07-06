@@ -365,7 +365,19 @@
     "enrollMember": "सदस्य नोंदणी",
     "memberUpdated": "सदस्य अपडेट केला",
     "memberCreated": "पक्ष सदस्य नोंदणी झाली",
-    "postAssigned": "पद नियुक्त केले"
+    "postAssigned": "पद नियुक्त केले",
+    "whatsappLabel": "WhatsApp क्रमांक",
+    "whatsappPlaceholder": "WhatsApp क्रमांक",
+    "whatsappMessageLabel": "WhatsApp संदेश रांगेत टाका",
+    "whatsappMessagePlaceholder": "पाठवायचा संदेश लिहा…",
+    "whatsappQueue": "संदेश रांगेत टाका",
+    "whatsappQueueing": "रांगेत टाकत आहे…",
+    "whatsappQueued": "संदेश पाठवण्यासाठी रांगेत टाकला",
+    "whatsappQueueTitle": "संदेश रांग",
+    "whatsappQueueEmpty": "अद्याप कोणतेही संदेश रांगेत नाहीत.",
+    "whatsappAddImage": "प्रतिमा जोडा",
+    "whatsappUploading": "अपलोड होत आहे…",
+    "whatsappRemoveImage": "प्रतिमा काढा"
   },
   "letterGeneration": {
     "title": "पत्र निर्मिती",

@@ -45,6 +45,8 @@ export const TABLES = {
   cadreMember: 'CadreMember',
   cadreMemberVertical: 'CadreMemberVertical',
   cadreMemberPost: 'CadreMemberPost',
+  cadreMemberWhatsApp: 'CadreMemberWhatsApp',
+  cadreWhatsAppMessage: 'CadreWhatsAppMessage',
   admFundingCategory: 'AdmFundingCategory',
   admWork: 'AdmWork',
 } as const;
@@ -593,4 +595,33 @@ export type AdmWorkWithProject = AdmWork & {
 export type AdmFundingCategoryWithWorks = AdmFundingCategory & {
   works: AdmWorkWithProject[];
   allocatedBudget: number;
+};
+
+export type CadreMemberWhatsApp = {
+  memberId: string;
+  whatsappPhone: string;
+  updatedBy: string | null;
+  updatedAt: Date;
+};
+
+export type CadreWhatsAppMessageStatus = 'pending' | 'success' | 'failure';
+
+export type CadreWhatsAppMessageImage = {
+  url: string;
+  fileName: string;
+  mimeType: string;
+};
+
+export type CadreWhatsAppMessage = {
+  id: string;
+  memberId: string | null;
+  whatsappPhone: string;
+  message: string;
+  images: CadreWhatsAppMessageImage[];
+  status: CadreWhatsAppMessageStatus;
+  errorMessage: string | null;
+  createdBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  processedAt: Date | null;
 };

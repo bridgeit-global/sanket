@@ -61,6 +61,7 @@ type Draft = {
   memberId: string | null;
   personName: string;
   personPhone: string;
+  personWhatsapp: string;
   personEmail: string;
   photoUrl: string;
   userId: string | null;
@@ -96,6 +97,7 @@ function draftFromTarget(target: MemberEditorTarget): Draft {
       memberId: m.id,
       personName: m.personName ?? '',
       personPhone: m.personPhone ?? '',
+      personWhatsapp: m.whatsappPhone ?? '',
       personEmail: m.personEmail ?? '',
       photoUrl: m.photoUrl ?? '',
       userId: m.userId,
@@ -121,6 +123,7 @@ function draftFromTarget(target: MemberEditorTarget): Draft {
     memberId: null,
     personName: '',
     personPhone: '',
+    personWhatsapp: '',
     personEmail: '',
     photoUrl: '',
     userId: null,
@@ -255,6 +258,7 @@ export function MemberEditor({
     personName: draft.personName.trim() || null,
     personPhone: draft.personPhone.trim() || null,
     personEmail: draft.personEmail.trim() || null,
+    whatsappPhone: draft.personWhatsapp.trim() || null,
     photoUrl: draft.photoUrl.trim() || null,
     userId: draft.userId,
     epicNumber: draft.epicNumber,
@@ -449,6 +453,14 @@ export function MemberEditor({
                       className="h-9"
                       value={draft.personPhone}
                       onChange={(e) => setDraft({ ...draft, personPhone: e.target.value })}
+                    />
+                    <Input
+                      placeholder={t('hierarchyModule.whatsappPlaceholder')}
+                      className="h-9"
+                      value={draft.personWhatsapp}
+                      onChange={(e) =>
+                        setDraft({ ...draft, personWhatsapp: e.target.value })
+                      }
                     />
                     <Input
                       placeholder="Email"

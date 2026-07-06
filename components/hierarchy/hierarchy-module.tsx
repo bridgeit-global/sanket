@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ContactWithCall } from './contact-with-call';
+import { WhatsAppMessagePanel } from './whatsapp-message-panel';
 import { MemberList } from './member-list';
 import { WardPanel } from './ward-panel';
 import { MemberEditor, type MemberEditorTarget } from './member-editor';
@@ -34,6 +35,7 @@ import {
   getMemberDisplayName,
   getMemberPhone,
 } from '@/lib/hierarchy/geo-attribution';
+import { getMemberWhatsAppForContext } from '@/lib/hierarchy/contact-channels';
 import {
   DEFAULT_MEMBER_PAGE_SIZE,
   filterWardCommitteeMembers,
@@ -574,6 +576,9 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
 
   const talukaAdhyakshName = talukaAdhyaksh ? getMemberDisplayName(talukaAdhyaksh) : '—';
   const talukaAdhyakshPhone = talukaAdhyaksh ? getMemberPhone(talukaAdhyaksh) : null;
+  const talukaAdhyakshWhatsApp = talukaAdhyaksh
+    ? getMemberWhatsAppForContext(talukaAdhyaksh, 'taluka_overview')
+    : null;
   const selectedWardName =
     wardOptions.find((w) => w.id === wardGeoId)?.name ?? 'Ward';
   const selectedWardLabel = formatWardLabel(selectedWardName);
@@ -759,7 +764,10 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
                 Taluka Adhyaksh ({selectedVerticalName}): {talukaAdhyakshName}
               </p>
               <div className="mt-1">
-                <ContactWithCall phone={talukaAdhyakshPhone} />
+                <ContactWithCall
+                  phone={talukaAdhyakshPhone}
+                  whatsapp={talukaAdhyakshWhatsApp}
+                />
               </div>
               <button
                 type="button"
@@ -768,6 +776,11 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               >
                 View Taluka Committee
               </button>
+              <WhatsAppMessagePanel
+                memberId={talukaAdhyaksh?.id ?? null}
+                whatsappPhone={talukaAdhyakshWhatsApp}
+                canSend={canEdit}
+              />
             </div>
 
             {wardEntries.length === 0 ? (

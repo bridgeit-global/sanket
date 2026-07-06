@@ -75,6 +75,8 @@ export type CadreMemberCard = {
   posts: CadreMemberPostDetail[];
   linkedUser: { id: string; userId: string } | null;
   linkedVoter: { epicNumber: string; fullName: string; mobile: string | null } | null;
+  /** WhatsApp number stored in CadreMemberWhatsApp. */
+  whatsappPhone: string | null;
 };
 
 export type CadreConfigReferenceCounts = {

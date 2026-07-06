@@ -7,6 +7,11 @@ import {
   validateSupabaseEnv,
 } from './config';
 
+import type { Database } from './database.types';
+
+export type { Database } from './database.types';
+export type AppSupabaseClient = SupabaseClient<Database>;
+
 let client: SupabaseClient | undefined;
 
 function getClient(): SupabaseClient {
