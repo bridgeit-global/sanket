@@ -377,7 +377,22 @@
     "whatsappQueueEmpty": "अद्याप कोणतेही संदेश रांगेत नाहीत.",
     "whatsappAddImage": "प्रतिमा जोडा",
     "whatsappUploading": "अपलोड होत आहे…",
-    "whatsappRemoveImage": "प्रतिमा काढा"
+    "whatsappRemoveImage": "प्रतिमा काढा",
+    "whatsappBroadcastTitle": "मोठ्या प्रमाणात WhatsApp संदेश",
+    "whatsappBroadcastTargetLabel": "यांना पाठवा",
+    "whatsappBroadcastTargetPlaceholder": "श्रेणी लक्ष्य निवडा",
+    "whatsappBroadcastMessageLabel": "सर्व प्राप्तकर्त्यांसाठी संदेश",
+    "whatsappBroadcastQueue": "प्रसारण रांगेत टाका",
+    "whatsappBroadcastQueueing": "प्रसारण रांगेत टाकत आहे…",
+    "whatsappBroadcastQueued": "{count} प्राप्तकर्त्यांसाठी प्रसारण रांगेत टाकले",
+    "whatsappBroadcastPreviewLoading": "प्राप्तकर्ते मोजत आहे…",
+    "whatsappBroadcastPreviewUnavailable": "या लक्ष्यासाठी प्राप्तकर्ते पूर्वावलोकन करता आले नाहीत.",
+    "whatsappBroadcastPreview": "{count} सदस्यांना पाठवले जाईल ({skipped} वगळले — WhatsApp नाही)",
+    "whatsappBroadcastHistoryTitle": "प्रसारण इतिहास",
+    "whatsappBroadcastHistoryEmpty": "अद्याप कोणतेही प्रसारण रांगेत नाही.",
+    "whatsappBroadcastConfirmTitle": "प्रसारण रांगेत टाकायचे?",
+    "whatsappBroadcastConfirmDescription": "\"{label}\" मधील {count} सदस्यांना हा संदेश पाठवायचा?",
+    "whatsappBroadcastConfirmAction": "प्रसारण रांगेत टाका"
   },
   "letterGeneration": {
     "title": "पत्र निर्मिती",

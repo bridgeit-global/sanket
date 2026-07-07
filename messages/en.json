@@ -377,7 +377,22 @@
     "whatsappQueueEmpty": "No messages queued yet.",
     "whatsappAddImage": "Add image",
     "whatsappUploading": "Uploading…",
-    "whatsappRemoveImage": "Remove image"
+    "whatsappRemoveImage": "Remove image",
+    "whatsappBroadcastTitle": "Bulk WhatsApp messaging",
+    "whatsappBroadcastTargetLabel": "Send to",
+    "whatsappBroadcastTargetPlaceholder": "Select hierarchy target",
+    "whatsappBroadcastMessageLabel": "Message for all recipients",
+    "whatsappBroadcastQueue": "Queue broadcast",
+    "whatsappBroadcastQueueing": "Queueing broadcast…",
+    "whatsappBroadcastQueued": "Broadcast queued for {count} recipients",
+    "whatsappBroadcastPreviewLoading": "Calculating recipients…",
+    "whatsappBroadcastPreviewUnavailable": "Unable to preview recipients for this target.",
+    "whatsappBroadcastPreview": "Will send to {count} members ({skipped} skipped — no WhatsApp)",
+    "whatsappBroadcastHistoryTitle": "Broadcast history",
+    "whatsappBroadcastHistoryEmpty": "No broadcasts queued yet.",
+    "whatsappBroadcastConfirmTitle": "Queue broadcast?",
+    "whatsappBroadcastConfirmDescription": "Send this message to {count} members in \"{label}\"?",
+    "whatsappBroadcastConfirmAction": "Queue broadcast"
   },
   "letterGeneration": {
     "title": "Letter Generation",

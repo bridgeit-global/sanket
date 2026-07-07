@@ -25,6 +25,7 @@ import type {
   CadreGeographicUnitType,
   CadreMemberCard,
 } from '@/lib/hierarchy/types';
+import type { CadreWhatsAppBroadcastTarget } from './schema';
 
 export async function getCadreConfig() {
   // Sequential reads — avoids pool deadlock when max pool size is 1 (session pooler).
@@ -666,20 +667,34 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
   }));
 }
 
+export type CadreMembersPage = {
+  members: CadreMemberCard[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+};
+
+async function resolveCadreMemberIdsForVertical(
+  verticalId: string,
+): Promise<string[] | null> {
+  const { data, error } = await supabase
+    .from(TABLES.cadreMemberVertical)
+    .select('member_id')
+    .eq('vertical_id', verticalId);
+  throwOnSupabaseError(error, 'Failed to filter members by vertical');
+  const memberIds = (data ?? []).map((row) => String(row.member_id));
+  return memberIds.length > 0 ? memberIds : null;
+}
+
 export async function getCadreMembers(filters: {
   verticalId?: string;
   constituencyId?: string;
 }): Promise<CadreMemberCard[]> {
-  let memberIds: string[] | undefined;
-  if (filters.verticalId) {
-    const { data, error } = await supabase
-      .from(TABLES.cadreMemberVertical)
-      .select('member_id')
-      .eq('vertical_id', filters.verticalId);
-    throwOnSupabaseError(error, 'Failed to filter members by vertical');
-    memberIds = (data ?? []).map((row) => String(row.member_id));
-    if (memberIds.length === 0) return [];
-  }
+  const memberIds = filters.verticalId
+    ? await resolveCadreMemberIdsForVertical(filters.verticalId)
+    : undefined;
+  if (memberIds === null) return [];
 
   let query = supabase
     .from(TABLES.cadreMember)
@@ -699,6 +714,49 @@ export async function getCadreMembers(filters: {
   const { data, error } = await query;
   throwOnSupabaseError(error, 'Failed to load cadre members');
   return buildMemberCards((data ?? []).map(mapCadreMemberRow));
+}
+
+export async function getCadreMembersPaginated(filters: {
+  verticalId?: string;
+  constituencyId?: string;
+  page: number;
+  pageSize: number;
+}): Promise<CadreMembersPage> {
+  const page = Math.max(1, filters.page);
+  const pageSize = Math.max(1, filters.pageSize);
+
+  const memberIds = filters.verticalId
+    ? await resolveCadreMemberIdsForVertical(filters.verticalId)
+    : undefined;
+  if (memberIds === null) {
+    return { members: [], total: 0, page, pageSize, totalPages: 1 };
+  }
+
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
+
+  let query = supabase
+    .from(TABLES.cadreMember)
+    .select('*', { count: 'exact' })
+    .eq('is_active', true)
+    .order('person_name', { ascending: true });
+
+  if (memberIds) {
+    query = query.in('id', memberIds);
+  }
+  if (filters.constituencyId) {
+    query = query.or(
+      `constituency_id.eq.${filters.constituencyId},constituency_id.is.null`,
+    );
+  }
+
+  const { data, error, count } = await query.range(from, to);
+  throwOnSupabaseError(error, 'Failed to load cadre members');
+  const total = count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const members = await buildMemberCards((data ?? []).map(mapCadreMemberRow));
+
+  return { members, total, page, pageSize, totalPages };
 }
 
 export async function getCadreMemberById(
@@ -1036,4 +1094,108 @@ export async function getBoothsForWard(
     boothNo: String(row.booth_no),
     boothName: row.booth_name != null ? String(row.booth_name) : null,
   }));
+}
+
+function intersectMemberIdSets(a: Set<string>, b: Set<string>): Set<string> {
+  const result = new Set<string>();
+  for (const id of a) {
+    if (b.has(id)) result.add(id);
+  }
+  return result;
+}
+
+export type BroadcastRecipient = {
+  memberId: string;
+  whatsappPhone: string;
+};
+
+export async function getCadreMembersForBroadcast(
+  target: CadreWhatsAppBroadcastTarget,
+): Promise<{
+  recipients: BroadcastRecipient[];
+  skippedNoWhatsapp: number;
+  matchedMemberCount: number;
+}> {
+  const empty = {
+    recipients: [] as BroadcastRecipient[],
+    skippedNoWhatsapp: 0,
+    matchedMemberCount: 0,
+  };
+
+  let memberIds: Set<string> | null = null;
+
+  if (target.verticalId) {
+    const verticalIds = await resolveCadreMemberIdsForVertical(target.verticalId);
+    if (!verticalIds || verticalIds.length === 0) return empty;
+    memberIds = new Set(verticalIds);
+  }
+
+  if (target.wardGeoId || target.boothNo || target.positionId) {
+    let postQuery = supabase.from(TABLES.cadreMemberPost).select('member_id');
+    if (target.wardGeoId) {
+      postQuery = postQuery.eq('ward_geo_id', target.wardGeoId);
+    }
+    if (target.boothNo) {
+      postQuery = postQuery.eq('booth_no', target.boothNo);
+    }
+    if (target.positionId) {
+      postQuery = postQuery.eq('position_id', target.positionId);
+    }
+
+    const { data: postRows, error: postError } = await postQuery;
+    throwOnSupabaseError(postError, 'Failed to filter members by post');
+    const postMemberIds = new Set(
+      (postRows ?? []).map((row) => String(row.member_id)),
+    );
+    if (postMemberIds.size === 0) return empty;
+    memberIds = memberIds
+      ? intersectMemberIdSets(memberIds, postMemberIds)
+      : postMemberIds;
+    if (memberIds.size === 0) return empty;
+  }
+
+  let memberQuery = supabase.from(TABLES.cadreMember).select('id').eq('is_active', true);
+  if (memberIds) {
+    memberQuery = memberQuery.in('id', Array.from(memberIds));
+  }
+  if (target.constituencyId) {
+    memberQuery = memberQuery.or(
+      `constituency_id.eq.${target.constituencyId},constituency_id.is.null`,
+    );
+  }
+
+  const { data: memberRows, error: memberError } = await memberQuery;
+  throwOnSupabaseError(memberError, 'Failed to load broadcast members');
+  const matchedIds = (memberRows ?? []).map((row) => String(row.id));
+  if (matchedIds.length === 0) return empty;
+
+  const { data: whatsappRows, error: whatsappError } = await supabase
+    .from(TABLES.cadreMemberWhatsApp)
+    .select('member_id, whatsapp_phone')
+    .in('member_id', matchedIds);
+  throwOnSupabaseError(whatsappError, 'Failed to load member WhatsApp numbers');
+
+  const phoneByMember = new Map(
+    (whatsappRows ?? []).map((row) => [
+      String(row.member_id),
+      String(row.whatsapp_phone).trim(),
+    ]),
+  );
+
+  const recipients: BroadcastRecipient[] = [];
+  let skippedNoWhatsapp = 0;
+  for (const memberId of matchedIds) {
+    const phone = phoneByMember.get(memberId);
+    if (!phone) {
+      skippedNoWhatsapp += 1;
+      continue;
+    }
+    recipients.push({ memberId, whatsappPhone: phone });
+  }
+
+  return {
+    recipients,
+    skippedNoWhatsapp,
+    matchedMemberCount: matchedIds.length,
+  };
 }

@@ -5,6 +5,8 @@ import type {
   CadreMember,
   CadreMemberPost,
   CadreMemberWhatsApp,
+  CadreWhatsAppBroadcast,
+  CadreWhatsAppBroadcastTarget,
   CadreWhatsAppMessage,
   CadreWhatsAppMessageImage,
   CadrePosition,
@@ -758,10 +760,57 @@ function mapCadreWhatsAppMessageImages(value: unknown): CadreWhatsAppMessageImag
     .filter((item): item is CadreWhatsAppMessageImage => item !== null);
 }
 
+function mapCadreWhatsAppBroadcastTarget(value: unknown): CadreWhatsAppBroadcastTarget {
+  if (!value || typeof value !== 'object') return {};
+  const row = value as Record<string, unknown>;
+  const result: CadreWhatsAppBroadcastTarget = {};
+  if (typeof row.constituencyId === 'string' && row.constituencyId.trim()) {
+    result.constituencyId = row.constituencyId.trim();
+  } else if (typeof row.constituency_id === 'string' && row.constituency_id.trim()) {
+    result.constituencyId = row.constituency_id.trim();
+  }
+  if (typeof row.verticalId === 'string' && row.verticalId.trim()) {
+    result.verticalId = row.verticalId.trim();
+  } else if (typeof row.vertical_id === 'string' && row.vertical_id.trim()) {
+    result.verticalId = row.vertical_id.trim();
+  }
+  if (typeof row.wardGeoId === 'string' && row.wardGeoId.trim()) {
+    result.wardGeoId = row.wardGeoId.trim();
+  } else if (typeof row.ward_geo_id === 'string' && row.ward_geo_id.trim()) {
+    result.wardGeoId = row.ward_geo_id.trim();
+  }
+  if (typeof row.boothNo === 'string' && row.boothNo.trim()) {
+    result.boothNo = row.boothNo.trim();
+  } else if (typeof row.booth_no === 'string' && row.booth_no.trim()) {
+    result.boothNo = row.booth_no.trim();
+  }
+  if (typeof row.positionId === 'string' && row.positionId.trim()) {
+    result.positionId = row.positionId.trim();
+  } else if (typeof row.position_id === 'string' && row.position_id.trim()) {
+    result.positionId = row.position_id.trim();
+  }
+  return result;
+}
+
+export function mapCadreWhatsAppBroadcastRow(row: Row): CadreWhatsAppBroadcast {
+  return {
+    id: String(row.id),
+    message: String(row.message ?? ''),
+    images: mapCadreWhatsAppMessageImages(row.image_urls ?? row.imageUrls),
+    target: mapCadreWhatsAppBroadcastTarget(row.target),
+    targetLabel: String(row.target_label ?? row.targetLabel ?? ''),
+    recipientCount: Number(row.recipient_count ?? row.recipientCount ?? 0),
+    skippedNoWhatsapp: Number(row.skipped_no_whatsapp ?? row.skippedNoWhatsapp ?? 0),
+    createdBy: toStringOrNull(row.created_by ?? row.createdBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+  };
+}
+
 export function mapCadreWhatsAppMessageRow(row: Row): CadreWhatsAppMessage {
   return {
     id: String(row.id),
     memberId: toStringOrNull(row.member_id ?? row.memberId),
+    broadcastId: toStringOrNull(row.broadcast_id ?? row.broadcastId),
     whatsappPhone: String(row.whatsapp_phone ?? row.whatsappPhone),
     message: String(row.message ?? ''),
     images: mapCadreWhatsAppMessageImages(row.image_urls ?? row.imageUrls),

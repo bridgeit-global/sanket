@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/select';
 import { ContactWithCall } from './contact-with-call';
 import { WhatsAppMessagePanel } from './whatsapp-message-panel';
+import { WhatsAppBroadcastPanel } from './whatsapp-broadcast-panel';
 import { MemberList } from './member-list';
 import { WardPanel } from './ward-panel';
 import { MemberEditor, type MemberEditorTarget } from './member-editor';
@@ -38,6 +39,7 @@ import {
 import { getMemberWhatsAppForContext } from '@/lib/hierarchy/contact-channels';
 import {
   DEFAULT_MEMBER_PAGE_SIZE,
+  BOOTSTRAP_MEMBER_PAGE_SIZE,
   filterWardCommitteeMembers,
   filterBoothCommitteeMembers,
   HIERARCHY_URL_PARAMS,
@@ -111,6 +113,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const [members, setMembers] = useState<CadreMemberCard[]>([]);
   const [defaultElectionId, setDefaultElectionId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMembersProgress, setLoadingMembersProgress] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [searchDraft, setSearchDraft] = useState('');
   const [isSearchPending, setIsSearchPending] = useState(false);
@@ -220,32 +223,68 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   }, []);
 
   const loadBootstrap = useCallback(async (signal?: AbortSignal) => {
-    const params = new URLSearchParams({ constituencyId: DEFAULT_CONSTITUENCY_ID });
-    let res: Response;
+    const baseParams = new URLSearchParams({
+      constituencyId: DEFAULT_CONSTITUENCY_ID,
+      memberPageSize: String(BOOTSTRAP_MEMBER_PAGE_SIZE),
+    });
+
+    const fetchPage = async (memberPage: number, membersOnly: boolean) => {
+      const params = new URLSearchParams(baseParams);
+      params.set('memberPage', String(memberPage));
+      if (membersOnly) params.set('membersOnly', 'true');
+      const res = await fetch(`/api/hierarchy/bootstrap?${params}`, { signal });
+      if (!res.ok) {
+        let message = `Failed to load hierarchy (${res.status})`;
+        const text = await res.text();
+        try {
+          const body = JSON.parse(text) as { error?: string };
+          if (typeof body.error === 'string' && body.error.trim()) message = body.error.trim();
+        } catch {
+          if (text.trim()) message = text.trim();
+        }
+        throw new Error(message);
+      }
+      return res.json() as Promise<{
+        config?: CadreConfig;
+        members?: CadreMemberCard[];
+        defaultElectionId?: string;
+        membersPagination?: {
+          page: number;
+          pageSize: number;
+          total: number;
+          totalPages: number;
+        };
+      }>;
+    };
+
     try {
-      res = await fetch(`/api/hierarchy/bootstrap?${params}`, { signal });
+      const first = await fetchPage(1, false);
+      if (signal?.aborted) return;
+
+      if (first.config) setConfig(first.config);
+      setDefaultElectionId(first.defaultElectionId ?? '');
+
+      const totalPages = first.membersPagination?.totalPages ?? 1;
+      const allMembers = [...(first.members ?? [])];
+      setLoadingMembersProgress(
+        totalPages > 1 ? `Loading members (1 of ${totalPages})…` : null,
+      );
+
+      for (let page = 2; page <= totalPages; page += 1) {
+        const next = await fetchPage(page, true);
+        if (signal?.aborted) return;
+        allMembers.push(...(next.members ?? []));
+        setLoadingMembersProgress(`Loading members (${page} of ${totalPages})…`);
+      }
+
+      setMembers(allMembers);
+      setLoadError(null);
+      setLoadingMembersProgress(null);
     } catch (err) {
       if (signal?.aborted) return;
       setLoadError(err instanceof Error ? err.message : 'Failed to load hierarchy data');
-      return;
+      setLoadingMembersProgress(null);
     }
-    if (!res.ok) {
-      let message = `Failed to load hierarchy (${res.status})`;
-      const text = await res.text();
-      try {
-        const body = JSON.parse(text) as { error?: string };
-        if (typeof body.error === 'string' && body.error.trim()) message = body.error.trim();
-      } catch {
-        if (text.trim()) message = text.trim();
-      }
-      setLoadError(message);
-      return;
-    }
-    const data = await res.json();
-    if (data.config) setConfig(data.config);
-    setMembers(data.members ?? []);
-    setDefaultElectionId(data.defaultElectionId ?? '');
-    setLoadError(null);
   }, []);
 
   useEffect(() => {
@@ -687,6 +726,22 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
 
       {!isGlobalSearch && !showWardPanelMain && <div className="shrink-0">{verticalSelect}</div>}
 
+      {config && !isGlobalSearch && !loading ? (
+        <div className="shrink-0">
+          <WhatsAppBroadcastPanel
+            config={config}
+            constituencyId={DEFAULT_CONSTITUENCY_ID}
+            constituencyLabel={CONSTITUENCY_TITLE}
+            verticalId={effectiveVerticalId || undefined}
+            wardGeoId={wardGeoId || undefined}
+            boothNo={boothNo || undefined}
+            positionId={positionId || undefined}
+            boothNumbers={boothOptions}
+            canSend={canEdit}
+          />
+        </div>
+      ) : null}
+
       {!isGlobalSearch && !showOverview && (
         <Button
           type="button"
@@ -712,7 +767,9 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         {loading ? (
           <div className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-muted/20 py-12">
             <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            <p className="text-sm text-muted-foreground">Loading hierarchy…</p>
+            <p className="text-sm text-muted-foreground">
+              {loadingMembersProgress ?? 'Loading hierarchy…'}
+            </p>
           </div>
         ) : loadError ? (
           <div className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-destructive/40 bg-destructive/5 px-4 py-12 text-center">

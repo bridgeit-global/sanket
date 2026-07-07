@@ -1,10 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ImagePlus, Loader2, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { useCallback, useEffect, useState } from 'react';
 import { toast } from '@/components/toast';
 import { useTranslations } from '@/hooks/use-translations';
 import type {
@@ -12,6 +8,7 @@ import type {
   CadreWhatsAppMessageStatus,
 } from '@/lib/db/schema';
 import { cn } from '@/lib/utils';
+import { WhatsAppComposeFields } from './whatsapp-compose-fields';
 
 type QueueMessage = {
   id: string;
@@ -56,7 +53,6 @@ export function WhatsAppMessagePanel({
   canSend,
 }: WhatsAppMessagePanelProps) {
   const { t } = useTranslations();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState('');
   const [images, setImages] = useState<CadreWhatsAppMessageImage[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -91,45 +87,6 @@ export function WhatsAppMessagePanel({
   useEffect(() => {
     void loadMessages();
   }, [loadMessages]);
-
-  const uploadImage = async (file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    const res = await fetch('/api/hierarchy/whatsapp-messages/upload', {
-      method: 'POST',
-      body: formData,
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error ?? 'Failed to upload image');
-    return data.image as CadreWhatsAppMessageImage;
-  };
-
-  const handleImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
-    event.target.value = '';
-    if (files.length === 0) return;
-
-    setUploading(true);
-    try {
-      const uploaded: CadreWhatsAppMessageImage[] = [];
-      for (const file of files) {
-        uploaded.push(await uploadImage(file));
-      }
-      setImages((prev) => [...prev, ...uploaded]);
-    } catch (error) {
-      toast({
-        type: 'error',
-        description:
-          error instanceof Error ? error.message : 'Failed to upload image',
-      });
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const removeImage = (url: string) => {
-    setImages((prev) => prev.filter((image) => image.url !== url));
-  };
 
   const sendMessage = async () => {
     if (!memberId || (!draft.trim() && images.length === 0)) return;
@@ -168,86 +125,25 @@ export function WhatsAppMessagePanel({
   return (
     <div className="mt-3 space-y-3 border-t border-primary/10 pt-3">
       {canSend ? (
-        <div className="space-y-2">
-          <Label className="text-xs text-muted-foreground">
-            {t('hierarchyModule.whatsappMessageLabel')}
-          </Label>
-          <Textarea
-            rows={3}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            placeholder={t('hierarchyModule.whatsappMessagePlaceholder')}
-            className="min-h-[72px] resize-y text-sm"
-          />
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            multiple
-            className="hidden"
-            onChange={handleImageSelect}
-          />
-
-          {images.length > 0 ? (
-            <ul className="flex flex-wrap gap-2">
-              {images.map((image) => (
-                <li key={image.url} className="relative">
-                  <img
-                    src={image.url}
-                    alt={image.fileName}
-                    className="size-16 rounded-md border border-border object-cover"
-                  />
-                  <button
-                    type="button"
-                    className="absolute -top-1.5 -right-1.5 rounded-full border border-border bg-background p-0.5 text-muted-foreground hover:text-foreground"
-                    aria-label={t('hierarchyModule.whatsappRemoveImage')}
-                    onClick={() => removeImage(image.url)}
-                  >
-                    <X className="size-3" />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={uploading || sending}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {uploading ? (
-                <>
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                  {t('hierarchyModule.whatsappUploading')}
-                </>
-              ) : (
-                <>
-                  <ImagePlus className="mr-1.5 size-3.5" />
-                  {t('hierarchyModule.whatsappAddImage')}
-                </>
-              )}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              disabled={!canQueue || sending || uploading}
-              onClick={sendMessage}
-            >
-              {sending ? (
-                <>
-                  <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                  {t('hierarchyModule.whatsappQueueing')}
-                </>
-              ) : (
-                t('hierarchyModule.whatsappQueue')
-              )}
-            </Button>
-          </div>
-        </div>
+        <WhatsAppComposeFields
+          draft={draft}
+          onDraftChange={setDraft}
+          images={images}
+          onImagesChange={setImages}
+          uploading={uploading}
+          sending={sending}
+          onUploadingChange={setUploading}
+          onUploadError={(description) => toast({ type: 'error', description })}
+          messageLabel={t('hierarchyModule.whatsappMessageLabel')}
+          messagePlaceholder={t('hierarchyModule.whatsappMessagePlaceholder')}
+          addImageLabel={t('hierarchyModule.whatsappAddImage')}
+          uploadingLabel={t('hierarchyModule.whatsappUploading')}
+          removeImageLabel={t('hierarchyModule.whatsappRemoveImage')}
+          queueLabel={t('hierarchyModule.whatsappQueue')}
+          queueingLabel={t('hierarchyModule.whatsappQueueing')}
+          canQueue={canQueue}
+          onQueue={sendMessage}
+        />
       ) : null}
 
       <div className="space-y-2">

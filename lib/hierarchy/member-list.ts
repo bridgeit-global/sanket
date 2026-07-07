@@ -60,6 +60,9 @@ export function filterBoothCommitteeMembers(
 export const DEFAULT_MEMBER_PAGE_SIZE = 30;
 export const MEMBER_PAGE_SIZE_OPTIONS = [20, 30, 50] as const;
 
+/** Server-side bootstrap chunk size — keeps Supabase `.in()` URLs under header limits. */
+export const BOOTSTRAP_MEMBER_PAGE_SIZE = 50;
+
 export function parseMemberPageSizeParam(value: string | null): number {
   const parsed = Number.parseInt(value ?? String(DEFAULT_MEMBER_PAGE_SIZE), 10);
   if (!Number.isFinite(parsed)) return DEFAULT_MEMBER_PAGE_SIZE;

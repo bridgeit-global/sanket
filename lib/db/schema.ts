@@ -46,6 +46,7 @@ export const TABLES = {
   cadreMemberVertical: 'CadreMemberVertical',
   cadreMemberPost: 'CadreMemberPost',
   cadreMemberWhatsApp: 'CadreMemberWhatsApp',
+  cadreWhatsAppBroadcast: 'CadreWhatsAppBroadcast',
   cadreWhatsAppMessage: 'CadreWhatsAppMessage',
   admFundingCategory: 'AdmFundingCategory',
   admWork: 'AdmWork',
@@ -612,9 +613,36 @@ export type CadreWhatsAppMessageImage = {
   mimeType: string;
 };
 
+export type CadreWhatsAppBroadcastTarget = {
+  constituencyId?: string;
+  verticalId?: string;
+  wardGeoId?: string;
+  boothNo?: string;
+  positionId?: string;
+};
+
+export type CadreWhatsAppBroadcast = {
+  id: string;
+  message: string;
+  images: CadreWhatsAppMessageImage[];
+  target: CadreWhatsAppBroadcastTarget;
+  targetLabel: string;
+  recipientCount: number;
+  skippedNoWhatsapp: number;
+  createdBy: string | null;
+  createdAt: Date;
+};
+
+export type CadreWhatsAppBroadcastWithStats = CadreWhatsAppBroadcast & {
+  pendingCount: number;
+  successCount: number;
+  failureCount: number;
+};
+
 export type CadreWhatsAppMessage = {
   id: string;
   memberId: string | null;
+  broadcastId: string | null;
   whatsappPhone: string;
   message: string;
   images: CadreWhatsAppMessageImage[];

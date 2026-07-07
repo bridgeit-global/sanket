@@ -675,8 +675,53 @@ export type Database = {
         }
         Relationships: []
       }
+      CadreWhatsAppBroadcast: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          image_urls: Json
+          message: string
+          recipient_count: number
+          skipped_no_whatsapp: number
+          target: Json
+          target_label: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          image_urls?: Json
+          message: string
+          recipient_count?: number
+          skipped_no_whatsapp?: number
+          target: Json
+          target_label: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          image_urls?: Json
+          message?: string
+          recipient_count?: number
+          skipped_no_whatsapp?: number
+          target?: Json
+          target_label?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "CadreWhatsAppBroadcast_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "User"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       CadreWhatsAppMessage: {
         Row: {
+          broadcast_id: string | null
           created_at: string
           created_by: string | null
           error_message: string | null
@@ -690,6 +735,7 @@ export type Database = {
           whatsapp_phone: string
         }
         Insert: {
+          broadcast_id?: string | null
           created_at?: string
           created_by?: string | null
           error_message?: string | null
@@ -703,6 +749,7 @@ export type Database = {
           whatsapp_phone: string
         }
         Update: {
+          broadcast_id?: string | null
           created_at?: string
           created_by?: string | null
           error_message?: string | null
@@ -716,6 +763,13 @@ export type Database = {
           whatsapp_phone?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "CadreWhatsAppMessage_broadcast_id_fkey"
+            columns: ["broadcast_id"]
+            isOneToOne: false
+            referencedRelation: "CadreWhatsAppBroadcast"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "CadreWhatsAppMessage_created_by_fkey"
             columns: ["created_by"]
