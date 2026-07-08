@@ -27,26 +27,17 @@ export function PhoneCallButton({
 
 export function ContactWithCall({
   phone,
-  whatsapp,
 }: {
   phone: string | null;
-  whatsapp?: string | null;
 }) {
-  if (!phone && !whatsapp) {
+  if (!phone) {
     return <span className="text-muted-foreground">Contact: —</span>;
   }
 
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-      {phone ? <PhoneCallButton phone={phone} /> : null}
-      {phone ? (
-        <span className="min-w-0 break-all text-muted-foreground">{phone}</span>
-      ) : null}
-      {whatsapp ? (
-        <span className="min-w-0 break-all text-muted-foreground">
-          WhatsApp: {whatsapp}
-        </span>
-      ) : null}
+      <PhoneCallButton phone={phone} />
+      <span className="min-w-0 break-all text-muted-foreground">{phone}</span>
     </div>
   );
 }

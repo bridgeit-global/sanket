@@ -14,10 +14,23 @@ export const HIERARCHY_URL_PARAMS = {
 } as const;
 
 export const HIERARCHY_VIEWS = {
+  canvas: 'canvas',
   talukaCommittee: 'taluka-committee',
   wardCommittee: 'ward-committee',
   boothCommittee: 'booth-committee',
 } as const;
+
+export function filterTalukaCommitteeMembers(
+  members: CadreMemberCard[],
+  verticalId: string,
+): CadreMemberCard[] {
+  if (!verticalId) return [];
+  return members.filter(
+    (member) =>
+      memberHasVertical(member, verticalId) &&
+      member.posts.some((post) => post.positionLevelKey === 'taluka_committee'),
+  );
+}
 
 export function memberHasVertical(member: CadreMemberCard, verticalId: string): boolean {
   return member.verticals.some((v) => v.id === verticalId);

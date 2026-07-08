@@ -57,6 +57,17 @@ function buildPreviewQuery(target: BroadcastTarget): string {
   return params.toString();
 }
 
+function resolveSelectedBroadcastOption(
+  targetOptions: BroadcastTargetOption[],
+  selectedOptionId: string,
+): BroadcastTargetOption | null {
+  return (
+    targetOptions.find((option) => option.id === selectedOptionId) ??
+    targetOptions[0] ??
+    null
+  );
+}
+
 function formatBroadcastStatus(
   item: BroadcastHistoryItem,
   t: (key: string, params?: Record<string, string | number>) => string,
@@ -104,6 +115,7 @@ export function WhatsAppBroadcastPanel({
   const [broadcasts, setBroadcasts] = useState<BroadcastHistoryItem[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
 
+  /* eslint-disable react-hooks/exhaustive-deps -- `t` is recreated each render; `locale` drives label refresh */
   const targetOptions = useMemo(
     () =>
       buildBroadcastTargetOptions({
@@ -127,31 +139,77 @@ export function WhatsAppBroadcastPanel({
       positionId,
       boothNumbers,
       locale,
-      t,
     ],
   );
+  /* eslint-enable react-hooks/exhaustive-deps */
+
+  const targetOptionIds = useMemo(() => {
+    const options = buildBroadcastTargetOptions({
+      config,
+      constituencyId,
+      constituencyLabel,
+      verticalId,
+      wardGeoId,
+      boothNo,
+      positionId,
+      boothNumbers,
+    });
+    return options.map((option) => option.id).join(',');
+  }, [
+    config,
+    constituencyId,
+    constituencyLabel,
+    verticalId,
+    wardGeoId,
+    boothNo,
+    positionId,
+    boothNumbers,
+  ]);
 
   const [selectedOptionId, setSelectedOptionId] = useState('');
 
   useEffect(() => {
-    if (targetOptions.length === 0) {
+    if (!targetOptionIds) {
       setSelectedOptionId('');
       return;
     }
-    setSelectedOptionId((current) =>
-      targetOptions.some((option) => option.id === current)
-        ? current
-        : targetOptions[0].id,
-    );
-  }, [targetOptions]);
+    const ids = targetOptionIds.split(',');
+    setSelectedOptionId((current) => (ids.includes(current) ? current : ids[0]));
+  }, [targetOptionIds]);
 
-  const selectedOption: BroadcastTargetOption | null =
-    targetOptions.find((option) => option.id === selectedOptionId) ??
-    targetOptions[0] ??
-    null;
+  const selectedOption: BroadcastTargetOption | null = useMemo(
+    () => resolveSelectedBroadcastOption(targetOptions, selectedOptionId),
+    [targetOptions, selectedOptionId],
+  );
 
-  const loadPreview = useCallback(async () => {
-    if (!selectedOption) {
+  const previewQueryString = useMemo(() => {
+    const options = buildBroadcastTargetOptions({
+      config,
+      constituencyId,
+      constituencyLabel,
+      verticalId,
+      wardGeoId,
+      boothNo,
+      positionId,
+      boothNumbers,
+    });
+    const option = resolveSelectedBroadcastOption(options, selectedOptionId);
+    if (!option) return '';
+    return buildPreviewQuery(option.target);
+  }, [
+    config,
+    constituencyId,
+    constituencyLabel,
+    verticalId,
+    wardGeoId,
+    boothNo,
+    positionId,
+    boothNumbers,
+    selectedOptionId,
+  ]);
+
+  const loadPreview = useCallback(async (signal?: AbortSignal) => {
+    if (!previewQueryString) {
       setRecipientCount(null);
       setSkippedNoWhatsapp(0);
       setPreviewLabel('');
@@ -160,14 +218,18 @@ export function WhatsAppBroadcastPanel({
 
     setLoadingPreview(true);
     try {
-      const query = buildPreviewQuery(selectedOption.target);
-      const res = await fetch(`/api/hierarchy/whatsapp-broadcasts/preview?${query}`);
+      const res = await fetch(
+        `/api/hierarchy/whatsapp-broadcasts/preview?${previewQueryString}`,
+        { signal },
+      );
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Failed to load preview');
+      if (signal?.aborted) return;
       setRecipientCount(data.recipientCount ?? 0);
       setSkippedNoWhatsapp(data.skippedNoWhatsapp ?? 0);
-      setPreviewLabel(selectedOption.label);
+      setPreviewLabel(selectedOption?.label ?? '');
     } catch (error) {
+      if (signal?.aborted) return;
       setRecipientCount(null);
       setSkippedNoWhatsapp(0);
       toast({
@@ -176,9 +238,9 @@ export function WhatsAppBroadcastPanel({
           error instanceof Error ? error.message : 'Failed to load preview',
       });
     } finally {
-      setLoadingPreview(false);
+      if (!signal?.aborted) setLoadingPreview(false);
     }
-  }, [selectedOption]);
+  }, [previewQueryString, selectedOption?.label]);
 
   const loadHistory = useCallback(async () => {
     setLoadingHistory(true);
@@ -199,8 +261,18 @@ export function WhatsAppBroadcastPanel({
   }, []);
 
   useEffect(() => {
-    void loadPreview();
-  }, [loadPreview]);
+    const controller = new AbortController();
+    void loadPreview(controller.signal);
+    return () => controller.abort();
+    // Fetch only when the preview query changes, not when `loadPreview` identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewQueryString]);
+
+  useEffect(() => {
+    if (!selectedOption) return;
+    setPreviewLabel(selectedOption.label);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedOption?.id, selectedOption?.label]);
 
   useEffect(() => {
     void loadHistory();

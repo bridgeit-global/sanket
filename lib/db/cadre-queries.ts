@@ -24,7 +24,13 @@ import type {
 import type {
   CadreGeographicUnitType,
   CadreMemberCard,
+  CadreMemberPostDetail,
 } from '@/lib/hierarchy/types';
+import {
+  buildStubMembersFromPosts,
+  resolveHierarchyLeaders,
+  type HierarchyLeaders,
+} from '@/lib/hierarchy/leaders';
 import type { CadreWhatsAppBroadcastTarget } from './schema';
 
 export async function getCadreConfig() {
@@ -1197,5 +1203,180 @@ export async function getCadreMembersForBroadcast(
     recipients,
     skippedNoWhatsapp,
     matchedMemberCount: matchedIds.length,
+  };
+}
+
+const POST_FETCH_CHUNK = 100;
+
+function chunkIds(ids: string[], size: number): string[][] {
+  const chunks: string[][] = [];
+  for (let i = 0; i < ids.length; i += size) {
+    chunks.push(ids.slice(i, i + size));
+  }
+  return chunks;
+}
+
+async function fetchPostRowsForMemberIds(memberIds: string[]) {
+  const rows: Record<string, unknown>[] = [];
+  for (const chunk of chunkIds(memberIds, POST_FETCH_CHUNK)) {
+    const { data, error } = await supabase
+      .from(TABLES.cadreMemberPost)
+      .select('*')
+      .in('member_id', chunk);
+    throwOnSupabaseError(error, 'Failed to load member posts');
+    rows.push(...(data ?? []));
+  }
+  return rows;
+}
+
+async function mapPostRowsToDetails(
+  postRows: Record<string, unknown>[],
+): Promise<Map<string, CadreMemberPostDetail[]>> {
+  const positionIds = [
+    ...new Set(postRows.map((row) => String(row.position_id))),
+  ];
+  const geoIds = [
+    ...new Set(
+      postRows
+        .flatMap((row) => [
+          row.taluka_id ? String(row.taluka_id) : null,
+          row.ward_geo_id ? String(row.ward_geo_id) : null,
+        ])
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+
+  const [positionsRes, geoRes] = await Promise.all([
+    positionIds.length > 0
+      ? supabase
+          .from(TABLES.cadrePosition)
+          .select('id, name, sort_order, level_id')
+          .in('id', positionIds)
+      : Promise.resolve({ data: [], error: null }),
+    geoIds.length > 0
+      ? supabase
+          .from(TABLES.cadreGeographicUnit)
+          .select('id, name')
+          .in('id', geoIds)
+      : Promise.resolve({ data: [], error: null }),
+  ]);
+  throwOnSupabaseError(positionsRes.error, 'Failed to load positions');
+  throwOnSupabaseError(geoRes.error, 'Failed to load geographic units');
+
+  const levelIds = [
+    ...new Set((positionsRes.data ?? []).map((row) => String(row.level_id))),
+  ];
+  const levelsRes =
+    levelIds.length > 0
+      ? await supabase
+          .from(TABLES.cadrePositionLevel)
+          .select('id, key, name, sort_order')
+          .in('id', levelIds)
+      : { data: [], error: null };
+  throwOnSupabaseError(levelsRes.error, 'Failed to load position levels');
+
+  const levelById = new Map(
+    (levelsRes.data ?? []).map((row) => [
+      String(row.id),
+      {
+        key: String(row.key),
+        name: String(row.name),
+        sortOrder: Number(row.sort_order ?? 0),
+      },
+    ]),
+  );
+  const positionById = new Map<string, PositionMeta>();
+  for (const row of positionsRes.data ?? []) {
+    const level = levelById.get(String(row.level_id));
+    positionById.set(String(row.id), {
+      name: String(row.name),
+      sortOrder: Number(row.sort_order ?? 0),
+      levelKey: level?.key ?? '',
+      levelName: level?.name ?? '',
+      levelSortOrder: level?.sortOrder ?? 0,
+    });
+  }
+  const geoById = new Map(
+    (geoRes.data ?? []).map((row) => [String(row.id), String(row.name)]),
+  );
+
+  const postsByMember = new Map<string, CadreMemberPostDetail[]>();
+  for (const row of postRows) {
+    const position = positionById.get(String(row.position_id));
+    const list = postsByMember.get(String(row.member_id)) ?? [];
+    list.push({
+      id: String(row.id),
+      positionId: String(row.position_id),
+      positionName: position?.name ?? '',
+      positionLevelKey: position?.levelKey ?? '',
+      positionLevelName: position?.levelName ?? '',
+      positionSortOrder: position?.sortOrder ?? 0,
+      positionLevelSortOrder: position?.levelSortOrder ?? 0,
+      talukaId: row.taluka_id ? String(row.taluka_id) : null,
+      talukaName: row.taluka_id ? geoById.get(String(row.taluka_id)) ?? null : null,
+      wardGeoId: row.ward_geo_id ? String(row.ward_geo_id) : null,
+      wardGeoName: row.ward_geo_id ? geoById.get(String(row.ward_geo_id)) ?? null : null,
+      electionId: row.election_id ? String(row.election_id) : null,
+      boothNo: row.booth_no ? String(row.booth_no) : null,
+      label: row.label ? String(row.label) : null,
+      isPrimary: Boolean(row.is_primary),
+      sortOrder: Number(row.sort_order ?? 0),
+    });
+    postsByMember.set(String(row.member_id), list);
+  }
+
+  return postsByMember;
+}
+
+export async function getCadreHierarchyLeaders(filters: {
+  constituencyId: string;
+  verticalId: string;
+  wardGeoIds: string[];
+}): Promise<HierarchyLeaders> {
+  const emptyWardHeads = filters.wardGeoIds.map((wardGeoId) => ({
+    wardGeoId,
+    member: null,
+  }));
+
+  const memberIds = await resolveCadreMemberIdsForVertical(filters.verticalId);
+  if (!memberIds) {
+    return { talukaAdhyaksh: null, wardHeads: emptyWardHeads };
+  }
+
+  const postRows = await fetchPostRowsForMemberIds(memberIds);
+  const postsByMember = await mapPostRowsToDetails(postRows);
+  const stubMembers = buildStubMembersFromPosts(postsByMember);
+  const resolved = resolveHierarchyLeaders(stubMembers, filters.wardGeoIds);
+
+  const leaderIds = new Set<string>();
+  if (resolved.talukaAdhyaksh) leaderIds.add(resolved.talukaAdhyaksh.id);
+  for (const ward of resolved.wardHeads) {
+    if (ward.member) leaderIds.add(ward.member.id);
+  }
+
+  if (leaderIds.size === 0) {
+    return { talukaAdhyaksh: null, wardHeads: emptyWardHeads };
+  }
+
+  const { data, error } = await supabase
+    .from(TABLES.cadreMember)
+    .select('*')
+    .in('id', Array.from(leaderIds))
+    .eq('is_active', true)
+    .or(
+      `constituency_id.eq.${filters.constituencyId},constituency_id.is.null`,
+    );
+  throwOnSupabaseError(error, 'Failed to load hierarchy leaders');
+  const leaderMembers = await buildMemberCards((data ?? []).map(mapCadreMemberRow));
+  const byId = new Map(leaderMembers.map((member) => [member.id, member]));
+
+  return {
+    talukaAdhyaksh: resolved.talukaAdhyaksh
+      ? byId.get(resolved.talukaAdhyaksh.id) ?? null
+      : null,
+    wardHeads: resolved.wardHeads.map((ward) => ({
+      wardGeoId: ward.wardGeoId,
+      member: ward.member ? byId.get(ward.member.id) ?? null : null,
+    })),
   };
 }
