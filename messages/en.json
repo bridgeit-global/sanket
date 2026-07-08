@@ -392,7 +392,13 @@
     "whatsappBroadcastHistoryEmpty": "No broadcasts queued yet.",
     "whatsappBroadcastConfirmTitle": "Queue broadcast?",
     "whatsappBroadcastConfirmDescription": "Send this message to {count} members in \"{label}\"?",
-    "whatsappBroadcastConfirmAction": "Queue broadcast"
+    "whatsappBroadcastConfirmAction": "Queue broadcast",
+    "whatsappBroadcastTargetAllVertical": "All {vertical} members in {constituency}",
+    "whatsappBroadcastTargetAllMembers": "All members in {constituency}",
+    "whatsappBroadcastTargetBooth": "Booth {booth}",
+    "whatsappBroadcastStatusSent": "{sent}/{total} sent",
+    "whatsappBroadcastStatusPending": "{sent}/{total} sent · {pending} pending",
+    "whatsappBroadcastStatusFailed": "{sent}/{total} sent · {failed} failed"
   },
   "letterGeneration": {
     "title": "Letter Generation",

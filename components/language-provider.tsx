@@ -2,6 +2,8 @@
 
 import * as React from 'react';
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import enMessages from '@/messages/en.json';
+import mrMessages from '@/messages/mr.json';
 
 const LOCALE_COOKIE_NAME = 'locale';
 const LOCALE_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
@@ -16,18 +18,14 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-// Load messages dynamically
-const loadMessages = async (locale: Locale): Promise<Record<string, any>> => {
-  try {
-    const messages = await import(`@/messages/${locale}.json`);
-    return messages.default;
-  } catch (error) {
-    console.error(`Failed to load messages for locale: ${locale}`, error);
-    // Fallback to English
-    const fallback = await import('@/messages/en.json');
-    return fallback.default;
-  }
+const MESSAGE_CATALOG: Record<Locale, Record<string, unknown>> = {
+  en: enMessages,
+  mr: mrMessages,
 };
+
+function getMessagesForLocale(locale: Locale): Record<string, unknown> {
+  return MESSAGE_CATALOG[locale] ?? MESSAGE_CATALOG.en;
+}
 
 interface LanguageProviderProps {
   children: React.ReactNode;
@@ -39,8 +37,9 @@ export function LanguageProvider({
   defaultLocale = 'en',
 }: LanguageProviderProps) {
   const [locale, setLocaleState] = useState<Locale>(defaultLocale);
-  const [messages, setMessages] = useState<Record<string, any>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [messages, setMessages] = useState<Record<string, unknown>>(() =>
+    getMessagesForLocale(defaultLocale),
+  );
 
   // Initialize locale from cookie on mount
   useEffect(() => {
@@ -64,18 +63,11 @@ export function LanguageProvider({
 
     const initialLocale = getLocaleFromCookie();
     setLocaleState(initialLocale);
+    setMessages(getMessagesForLocale(initialLocale));
   }, [defaultLocale]);
 
-  // Load messages when locale changes
   useEffect(() => {
-    const loadMessagesForLocale = async () => {
-      setIsLoading(true);
-      const loadedMessages = await loadMessages(locale);
-      setMessages(loadedMessages);
-      setIsLoading(false);
-    };
-
-    loadMessagesForLocale();
+    setMessages(getMessagesForLocale(locale));
   }, [locale]);
 
   // Update HTML lang attribute
@@ -87,6 +79,7 @@ export function LanguageProvider({
 
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);
+    setMessages(getMessagesForLocale(newLocale));
 
     // Save to cookie
     if (typeof document !== 'undefined') {

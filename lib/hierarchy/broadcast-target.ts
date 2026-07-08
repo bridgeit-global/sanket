@@ -4,10 +4,43 @@ import type { CadreConfig, CadreMemberCard } from './types';
 
 export type { BroadcastTarget };
 
+export type BroadcastTranslateFn = (
+  key: string,
+  params?: Record<string, string | number>,
+) => string;
+
+const TARGET_SEPARATOR = ' · ';
+
+function englishFallback(
+  key: string,
+  params: Record<string, string | number> = {},
+): string {
+  switch (key) {
+    case 'whatsappBroadcastTargetAllVertical':
+      return `All ${params.vertical} members in ${params.constituency}`;
+    case 'whatsappBroadcastTargetAllMembers':
+      return `All members in ${params.constituency}`;
+    case 'whatsappBroadcastTargetBooth':
+      return `Booth ${params.booth}`;
+    default:
+      return Object.values(params).join(TARGET_SEPARATOR) || String(params.constituency ?? '');
+  }
+}
+
+function translateTarget(
+  t: BroadcastTranslateFn | undefined,
+  key: string,
+  params: Record<string, string | number>,
+): string {
+  if (t) return t(`hierarchyModule.${key}`, params);
+  return englishFallback(key, params);
+}
+
 export function buildBroadcastTargetLabel(
   target: BroadcastTarget,
   config: CadreConfig,
   constituencyLabel = 'AC 172',
+  t?: BroadcastTranslateFn,
 ): string {
   if (
     target.verticalId &&
@@ -17,7 +50,10 @@ export function buildBroadcastTargetLabel(
     !target.positionId
   ) {
     const vertical = config.verticals.find((v) => v.id === target.verticalId);
-    return `All ${vertical?.name ?? 'vertical'} members in ${constituencyLabel}`;
+    return translateTarget(t, 'whatsappBroadcastTargetAllVertical', {
+      vertical: vertical?.name ?? 'vertical',
+      constituency: constituencyLabel,
+    });
   }
 
   if (
@@ -27,7 +63,9 @@ export function buildBroadcastTargetLabel(
     !target.boothNo &&
     !target.positionId
   ) {
-    return `All members in ${constituencyLabel}`;
+    return translateTarget(t, 'whatsappBroadcastTargetAllMembers', {
+      constituency: constituencyLabel,
+    });
   }
 
   const parts: string[] = [];
@@ -36,7 +74,11 @@ export function buildBroadcastTargetLabel(
     parts.push(ward?.name ?? 'Ward');
   }
   if (target.boothNo) {
-    parts.push(`Booth ${target.boothNo}`);
+    parts.push(
+      translateTarget(t, 'whatsappBroadcastTargetBooth', {
+        booth: target.boothNo,
+      }),
+    );
   }
   if (target.verticalId) {
     const vertical = config.verticals.find((v) => v.id === target.verticalId);
@@ -47,7 +89,7 @@ export function buildBroadcastTargetLabel(
     parts.push(position?.name ?? 'Position');
   }
 
-  return parts.length > 0 ? parts.join(' · ') : constituencyLabel;
+  return parts.length > 0 ? parts.join(TARGET_SEPARATOR) : constituencyLabel;
 }
 
 export type BroadcastTargetOption = {
@@ -65,6 +107,7 @@ export function buildBroadcastTargetOptions(input: {
   boothNo?: string;
   positionId?: string;
   boothNumbers?: string[];
+  t?: BroadcastTranslateFn;
 }): BroadcastTargetOption[] {
   const constituencyLabel = input.constituencyLabel ?? `AC ${input.constituencyId}`;
   const options: BroadcastTargetOption[] = [];
@@ -76,7 +119,7 @@ export function buildBroadcastTargetOptions(input: {
     };
     options.push({
       id: 'vertical-constituency',
-      label: buildBroadcastTargetLabel(target, input.config, constituencyLabel),
+      label: buildBroadcastTargetLabel(target, input.config, constituencyLabel, input.t),
       target,
     });
   }
@@ -85,7 +128,7 @@ export function buildBroadcastTargetOptions(input: {
     const wardTarget: BroadcastTarget = { wardGeoId: input.wardGeoId };
     options.push({
       id: 'ward',
-      label: buildBroadcastTargetLabel(wardTarget, input.config, constituencyLabel),
+      label: buildBroadcastTargetLabel(wardTarget, input.config, constituencyLabel, input.t),
       target: wardTarget,
     });
 
@@ -96,7 +139,12 @@ export function buildBroadcastTargetOptions(input: {
       };
       options.push({
         id: 'ward-vertical',
-        label: buildBroadcastTargetLabel(wardVerticalTarget, input.config, constituencyLabel),
+        label: buildBroadcastTargetLabel(
+          wardVerticalTarget,
+          input.config,
+          constituencyLabel,
+          input.t,
+        ),
         target: wardVerticalTarget,
       });
     }
@@ -111,7 +159,7 @@ export function buildBroadcastTargetOptions(input: {
       };
       options.push({
         id: `booth-${booth}`,
-        label: buildBroadcastTargetLabel(boothTarget, input.config, constituencyLabel),
+        label: buildBroadcastTargetLabel(boothTarget, input.config, constituencyLabel, input.t),
         target: boothTarget,
       });
 
@@ -127,6 +175,7 @@ export function buildBroadcastTargetOptions(input: {
             boothVerticalTarget,
             input.config,
             constituencyLabel,
+            input.t,
           ),
           target: boothVerticalTarget,
         });
@@ -141,7 +190,7 @@ export function buildBroadcastTargetOptions(input: {
     if (input.verticalId) positionTarget.verticalId = input.verticalId;
     options.push({
       id: 'position',
-      label: buildBroadcastTargetLabel(positionTarget, input.config, constituencyLabel),
+      label: buildBroadcastTargetLabel(positionTarget, input.config, constituencyLabel, input.t),
       target: positionTarget,
     });
   }
@@ -150,7 +199,12 @@ export function buildBroadcastTargetOptions(input: {
     const constituencyTarget: BroadcastTarget = { constituencyId: input.constituencyId };
     options.push({
       id: 'constituency',
-      label: buildBroadcastTargetLabel(constituencyTarget, input.config, constituencyLabel),
+      label: buildBroadcastTargetLabel(
+        constituencyTarget,
+        input.config,
+        constituencyLabel,
+        input.t,
+      ),
       target: constituencyTarget,
     });
   }

@@ -57,16 +57,27 @@ function buildPreviewQuery(target: BroadcastTarget): string {
   return params.toString();
 }
 
-function formatBroadcastStatus(item: BroadcastHistoryItem): string {
+function formatBroadcastStatus(
+  item: BroadcastHistoryItem,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
   const sent = item.successCount;
   const total = item.recipientCount;
   if (item.pendingCount > 0) {
-    return `${sent}/${total} sent · ${item.pendingCount} pending`;
+    return t('hierarchyModule.whatsappBroadcastStatusPending', {
+      sent,
+      total,
+      pending: item.pendingCount,
+    });
   }
   if (item.failureCount > 0) {
-    return `${sent}/${total} sent · ${item.failureCount} failed`;
+    return t('hierarchyModule.whatsappBroadcastStatusFailed', {
+      sent,
+      total,
+      failed: item.failureCount,
+    });
   }
-  return `${sent}/${total} sent`;
+  return t('hierarchyModule.whatsappBroadcastStatusSent', { sent, total });
 }
 
 export function WhatsAppBroadcastPanel({
@@ -80,7 +91,7 @@ export function WhatsAppBroadcastPanel({
   boothNumbers,
   canSend,
 }: WhatsAppBroadcastPanelProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const [draft, setDraft] = useState('');
   const [images, setImages] = useState<CadreWhatsAppMessageImage[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -104,6 +115,7 @@ export function WhatsAppBroadcastPanel({
         boothNo,
         positionId,
         boothNumbers,
+        t,
       }),
     [
       config,
@@ -114,6 +126,8 @@ export function WhatsAppBroadcastPanel({
       boothNo,
       positionId,
       boothNumbers,
+      locale,
+      t,
     ],
   );
 
@@ -152,7 +166,7 @@ export function WhatsAppBroadcastPanel({
       if (!res.ok) throw new Error(data.error ?? 'Failed to load preview');
       setRecipientCount(data.recipientCount ?? 0);
       setSkippedNoWhatsapp(data.skippedNoWhatsapp ?? 0);
-      setPreviewLabel(data.targetLabel ?? selectedOption.label);
+      setPreviewLabel(selectedOption.label);
     } catch (error) {
       setRecipientCount(null);
       setSkippedNoWhatsapp(0);
@@ -349,7 +363,7 @@ export function WhatsAppBroadcastPanel({
                           : 'bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200',
                     )}
                   >
-                    {formatBroadcastStatus(item)}
+                    {formatBroadcastStatus(item, t)}
                   </span>
                 </div>
               </li>

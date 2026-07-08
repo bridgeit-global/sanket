@@ -392,7 +392,13 @@
     "whatsappBroadcastHistoryEmpty": "अद्याप कोणतेही प्रसारण रांगेत नाही.",
     "whatsappBroadcastConfirmTitle": "प्रसारण रांगेत टाकायचे?",
     "whatsappBroadcastConfirmDescription": "\"{label}\" मधील {count} सदस्यांना हा संदेश पाठवायचा?",
-    "whatsappBroadcastConfirmAction": "प्रसारण रांगेत टाका"
+    "whatsappBroadcastConfirmAction": "प्रसारण रांगेत टाका",
+    "whatsappBroadcastTargetAllVertical": "{constituency} मधील सर्व {vertical} सदस्य",
+    "whatsappBroadcastTargetAllMembers": "{constituency} मधील सर्व सदस्य",
+    "whatsappBroadcastTargetBooth": "बूथ {booth}",
+    "whatsappBroadcastStatusSent": "{sent}/{total} पाठवले",
+    "whatsappBroadcastStatusPending": "{sent}/{total} पाठवले · {pending} प्रलंबित",
+    "whatsappBroadcastStatusFailed": "{sent}/{total} पाठवले · {failed} अयशस्वी"
   },
   "letterGeneration": {
     "title": "पत्र निर्मिती",
