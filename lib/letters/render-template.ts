@@ -65,7 +65,6 @@ function resolveGenderTokens(gender: PersonGender | undefined, locale: LetterLoc
       genderPronounSubject: resolvedGender === 'female' ? 'या' : 'हे',
     };
   }
-  // English (kept minimal since EN templates currently reuse MR structure).
   return {
     genderPronounSubject:
       resolvedGender === 'male' ? 'he' : resolvedGender === 'female' ? 'she' : 'they',

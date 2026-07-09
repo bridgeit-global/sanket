@@ -1,3 +1,4 @@
+import { EN_TEMPLATE_HTML } from '@/lib/letters/en-template-html';
 import { MR_TEMPLATE_HTML } from '@/lib/letters/mr-template-html';
 import {
   LETTER_TYPES,
@@ -31,11 +32,6 @@ const DEFAULT_TEMPLATE_NAMES: Record<LetterType, Record<LetterLocale, string>> =
   income: { en: 'Income Certificate', mr: 'उत्पन्न प्रमाणपत्र' },
   domicile: { en: 'Domicile Certificate', mr: 'अधिवास प्रमाणपत्र' },
 };
-
-/** English templates reuse Marathi HTML structure with English placeholder labels for now. */
-const EN_TEMPLATE_HTML: Record<LetterType, string> = Object.fromEntries(
-  LETTER_TYPES.map((type) => [type, MR_TEMPLATE_HTML[type]]),
-) as Record<LetterType, string>;
 
 const DEFAULT_TEMPLATE_HTML: Record<LetterType, Record<LetterLocale, string>> =
   Object.fromEntries(

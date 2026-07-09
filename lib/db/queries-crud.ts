@@ -2200,15 +2200,17 @@ export async function getDailyProgrammeAttachmentById(
 
 export async function ensureLetterMasterDefaults(): Promise<void> {
   try {
-    const { getAllDefaultLetterMasters } = await import(
-      '@/lib/letters/default-template-html'
-    );
+    const {
+      getAllDefaultLetterMasters,
+      getDefaultTemplateHtml,
+      getDefaultTemplateName,
+    } = await import('@/lib/letters/default-template-html');
     const { getDefaultLetterPaperSize } = await import('@/lib/letters/paper-size');
     const defaults = getAllDefaultLetterMasters();
 
     const { data: existingRows, error: existingError } = await supabase
       .from(TABLES.letterMaster)
-      .select('letter_type, letter_locale');
+      .select('id, name, letter_type, letter_locale, template_html');
     throwOnSupabaseError(existingError, 'Failed to list letter masters');
 
     const existingKeys = new Set(
@@ -2220,23 +2222,58 @@ export async function ensureLetterMasterDefaults(): Promise<void> {
     const missing = defaults.filter(
       (item) => !existingKeys.has(`${item.letterType}:${item.letterLocale}`),
     );
-    if (missing.length === 0) return;
 
     const now = new Date().toISOString();
-    const { error } = await supabase.from(TABLES.letterMaster).insert(
-      missing.map((item) =>
-        toSnakeCaseKeys({
-          name: item.name,
-          letterType: item.letterType,
-          letterLocale: item.letterLocale,
-          templateHtml: item.templateHtml,
-          paperSize: getDefaultLetterPaperSize(item.letterType),
-          createdAt: now,
-          updatedAt: now,
-        }),
+
+    if (missing.length > 0) {
+      const { error } = await supabase.from(TABLES.letterMaster).insert(
+        missing.map((item) =>
+          toSnakeCaseKeys({
+            name: item.name,
+            letterType: item.letterType,
+            letterLocale: item.letterLocale,
+            templateHtml: item.templateHtml,
+            paperSize: getDefaultLetterPaperSize(item.letterType),
+            createdAt: now,
+            updatedAt: now,
+          }),
+        ),
+      );
+      throwOnSupabaseError(error, 'Failed to seed letter masters');
+    }
+
+    const staleDefaults = (existingRows ?? []).filter((row) => {
+      const letterType = String(row.letter_type);
+      const letterLocale = String(row.letter_locale);
+      const expectedName = getDefaultTemplateName(
+        letterType as import('@/lib/letters/templates').LetterType,
+        letterLocale as import('@/lib/letters/templates').LetterLocale,
+      );
+      const expectedHtml = getDefaultTemplateHtml(
+        letterType as import('@/lib/letters/templates').LetterType,
+        letterLocale as import('@/lib/letters/templates').LetterLocale,
+      );
+      return row.name === expectedName && row.template_html !== expectedHtml;
+    });
+
+    if (staleDefaults.length === 0) return;
+
+    await Promise.all(
+      staleDefaults.map((row) =>
+        supabase
+          .from(TABLES.letterMaster)
+          .update(
+            toSnakeCaseKeys({
+              templateHtml: getDefaultTemplateHtml(
+                String(row.letter_type) as import('@/lib/letters/templates').LetterType,
+                String(row.letter_locale) as import('@/lib/letters/templates').LetterLocale,
+              ),
+              updatedAt: now,
+            }),
+          )
+          .eq('id', row.id),
       ),
     );
-    throwOnSupabaseError(error, 'Failed to seed letter masters');
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to seed letter masters');
