@@ -82,6 +82,7 @@ import { cn } from '@/lib/utils';
 
 const ALL_LETTER_TYPES = 'all' as const;
 type SavedLetterTypeFilter = LetterType | typeof ALL_LETTER_TYPES;
+const LETTER_LOCALES: LetterLocale[] = ['en', 'mr'];
 
 function isLetterWithinDateRange(
   createdAt: string | Date,
@@ -373,6 +374,7 @@ type LetterMasterRow = {
 
 export function LetterGeneration() {
   const { t, locale } = useTranslations();
+  const [letterLocale, setLetterLocale] = useState<LetterLocale>(locale);
   const [activeTab, setActiveTab] = useState<LetterType>('fees');
   const [isSaving, setIsSaving] = useState(false);
   const [downloadingLetterId, setDownloadingLetterId] = useState<string | null>(null);
@@ -423,12 +425,27 @@ export function LetterGeneration() {
   }, [activeTab]);
 
   useEffect(() => {
-    const signatory = DEFAULT_SIGNATORY[locale];
+    const signatory = DEFAULT_SIGNATORY[letterLocale];
     setFeesFields((prev) => ({ ...prev, signatory }));
-    setRationFields((prev) => ({ ...prev, signatory }));
-    setIncomeFields((prev) => ({ ...prev, signatory }));
-    setDomicileFields((prev) => ({ ...prev, signatory }));
-  }, [locale]);
+    setRationFields((prev) => ({
+      ...prev,
+      signatory,
+      salutation: letterLocale === 'en' ? 'Smt.' : 'श्रीमती',
+      rationOfficeAddress: DEFAULT_RATION_OFFICE_ADDRESS[letterLocale],
+    }));
+    setIncomeFields((prev) => ({
+      ...prev,
+      signatory,
+      salutation: letterLocale === 'en' ? 'Shri' : 'श्री',
+      idType: letterLocale === 'en' ? 'Aadhaar' : 'आधार',
+    }));
+    setDomicileFields((prev) => ({
+      ...prev,
+      signatory,
+      salutation: letterLocale === 'en' ? 'Shri' : 'श्री',
+      idType: letterLocale === 'en' ? 'Aadhaar' : 'आधार',
+    }));
+  }, [letterLocale]);
 
   const refreshLetterMasters = async () => {
     setLetterMastersLoading(true);
@@ -469,10 +486,11 @@ export function LetterGeneration() {
   const activeLetterMaster = useMemo(() => {
     return (
       letterMasters.find(
-        (master) => master.letterType === activeTab && master.letterLocale === locale,
+        (master) =>
+          master.letterType === activeTab && master.letterLocale === letterLocale,
       ) ?? null
     );
-  }, [letterMasters, activeTab, locale]);
+  }, [letterMasters, activeTab, letterLocale]);
 
   useEffect(() => {
     if (activeLetterMaster) {
@@ -485,14 +503,14 @@ export function LetterGeneration() {
       );
       return;
     }
-    setTemplateDraft(getDefaultTemplateHtml(activeTab, locale));
+    setTemplateDraft(getDefaultTemplateHtml(activeTab, letterLocale));
     setTemplateNameDraft(t(`letterGeneration.tabs.${activeTab}`));
     setLetterheadDraft(null);
     setLetterheadModeDraft('full');
     setPaperSizeDraft(getDefaultLetterPaperSize(activeTab));
     // Only reset draft when letter type/locale/master changes — not when `t` is recreated.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeLetterMaster, activeTab, locale]);
+  }, [activeLetterMaster, activeTab, letterLocale]);
 
   const activeTemplateHtml = templateDraft;
 
@@ -516,16 +534,16 @@ export function LetterGeneration() {
         activeTab,
         activeTemplateHtml,
         fields,
-        locale,
+        letterLocale,
         letterheadDraft,
         letterheadModeDraft,
       );
     }
 
-    return buildLetterBody(activeTab, fields, locale);
+    return buildLetterBody(activeTab, fields, letterLocale);
   }, [
     activeTab,
-    locale,
+    letterLocale,
     feesFields,
     rationFields,
     incomeFields,
@@ -676,7 +694,7 @@ export function LetterGeneration() {
           body: JSON.stringify({
             ...payload,
             letterType: activeTab,
-            letterLocale: locale,
+            letterLocale,
           }),
         });
 
@@ -714,7 +732,7 @@ export function LetterGeneration() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           letterType: activeTab,
-          letterLocale: locale,
+          letterLocale,
           letterMasterId: activeLetterMaster?.id ?? null,
           referenceNo: activeReferenceNo.trim(),
           title: activeTitle,
@@ -979,9 +997,6 @@ export function LetterGeneration() {
           />
         </FieldGroup>
       </div>
-      <FieldGroup label={t('letterGeneration.fields.signatory')}>
-        <Input value={DEFAULT_SIGNATORY[locale]} disabled />
-      </FieldGroup>
     </>
   );
 
@@ -1031,7 +1046,7 @@ export function LetterGeneration() {
               value={activeTab}
               onValueChange={(value) => setActiveTab(value as LetterType)}
             >
-              <div className="grid w-full max-w-2xl gap-4 sm:grid-cols-2">
+              <div className="grid w-full max-w-3xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <FieldGroup label={t('letterGeneration.fields.letterType')}>
                   <Select
                     value={activeTab}
@@ -1049,6 +1064,23 @@ export function LetterGeneration() {
                       <SelectItem value="domicile">
                         {t('letterGeneration.tabs.domicile')}
                       </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </FieldGroup>
+                <FieldGroup label={t('letterGeneration.fields.letterLanguage')}>
+                  <Select
+                    value={letterLocale}
+                    onValueChange={(value: LetterLocale) => setLetterLocale(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LETTER_LOCALES.map((lang) => (
+                        <SelectItem key={lang} value={lang}>
+                          {t(`letterGeneration.letterLanguage.${lang}`)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </FieldGroup>
