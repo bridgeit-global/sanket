@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -45,6 +46,8 @@ import {
   EMPTY_ADDRESS_PARTS,
   formatAddressMaster,
   hasAddressContent,
+  mergeAddressParts,
+  parseFreeTextAddressForLocale,
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
 
@@ -53,29 +56,23 @@ type AddressFormState = {
   addressType: AddressType;
   isActive: boolean;
   sortOrder: string;
+  freeTextAddress: string;
 } & AddressMasterAddressParts;
 
 const EMPTY_FORM: AddressFormState = {
   name: '',
   addressType: 'general',
   ...EMPTY_ADDRESS_PARTS,
+  freeTextAddress: '',
   isActive: true,
   sortOrder: '0',
 };
 
-type TranslatableField =
-  | 'houseNumberEn'
-  | 'houseNumberMr'
-  | 'localityStreetEn'
-  | 'localityStreetMr'
-  | 'townVillageEn'
-  | 'townVillageMr';
-
-const FIELD_PAIRS: Array<{ en: TranslatableField; mr: TranslatableField }> = [
-  { en: 'houseNumberEn', mr: 'houseNumberMr' },
-  { en: 'localityStreetEn', mr: 'localityStreetMr' },
-  { en: 'townVillageEn', mr: 'townVillageMr' },
-];
+function inferLocaleFromText(text: string): 'en' | 'mr' {
+  // Devanagari block detection -> treat as Marathi.
+  // If the string is mixed, Marathi wins to avoid lossy transliteration.
+  return /[\u0900-\u097F]/.test(text) ? 'mr' : 'en';
+}
 
 type AddressMasterManagerProps = {
   addresses: AddressMasterRow[];
@@ -94,9 +91,8 @@ export function AddressMasterManager({
   const [form, setForm] = useState<AddressFormState>(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const translateTimerRef = useRef<Partial<Record<TranslatableField, number>>>({});
-  const translateReqIdRef = useRef<Partial<Record<TranslatableField, number>>>({});
-  const lastEditAtRef = useRef<Partial<Record<TranslatableField, number>>>({});
+  const translateTimerRef = useRef<number | null>(null);
+  const translateReqIdRef = useRef(0);
 
   const sortedAddresses = useMemo(
     () =>
@@ -111,7 +107,6 @@ export function AddressMasterManager({
   const openCreateDialog = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
-    lastEditAtRef.current = {};
     setIsDialogOpen(true);
   };
 
@@ -127,43 +122,27 @@ export function AddressMasterManager({
       townVillageEn: address.townVillageEn,
       townVillageMr: address.townVillageMr,
       pincode: address.pincode,
+      freeTextAddress: formatAddressMaster(address, 'en') || formatAddressMaster(address, 'mr'),
       isActive: address.isActive,
       sortOrder: String(address.sortOrder),
     });
-    const now = Date.now();
-    lastEditAtRef.current = {
-      houseNumberEn: now,
-      houseNumberMr: now,
-      localityStreetEn: now,
-      localityStreetMr: now,
-      townVillageEn: now,
-      townVillageMr: now,
-    };
     setIsDialogOpen(true);
   };
 
-  const scheduleTranslate = (sourceField: TranslatableField, sourceText: string) => {
-    const pair = FIELD_PAIRS.find(
-      (item) => item.en === sourceField || item.mr === sourceField,
-    );
-    if (!pair) return;
-
-    const targetField: TranslatableField =
-      sourceField === pair.en ? pair.mr : pair.en;
-    const targetLocale: 'en' | 'mr' = targetField.endsWith('Mr') ? 'mr' : 'en';
+  const scheduleTranslateFreeText = (sourceText: string) => {
     const trimmed = sourceText.trim();
     if (!trimmed) return;
 
-    translateReqIdRef.current[sourceField] =
-      (translateReqIdRef.current[sourceField] ?? 0) + 1;
-    const reqId = translateReqIdRef.current[sourceField]!;
-    const requestStartedAt = Date.now();
+    translateReqIdRef.current += 1;
+    const reqId = translateReqIdRef.current;
 
-    const existingTimer = translateTimerRef.current[sourceField];
-    if (existingTimer) window.clearTimeout(existingTimer);
+    if (translateTimerRef.current) window.clearTimeout(translateTimerRef.current);
 
-    translateTimerRef.current[sourceField] = window.setTimeout(async () => {
+    translateTimerRef.current = window.setTimeout(async () => {
       try {
+        const inferredSourceLocale = inferLocaleFromText(sourceText);
+        const targetLocale: 'en' | 'mr' = inferredSourceLocale === 'mr' ? 'en' : 'mr';
+
         const res = await fetch('/api/translate', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
@@ -171,34 +150,36 @@ export function AddressMasterManager({
         });
         const json = await res.json();
         if (!res.ok) throw new Error(json?.error || 'Failed to translate');
-
-        if (translateReqIdRef.current[sourceField] !== reqId) return;
+        if (translateReqIdRef.current !== reqId) return;
 
         const translated = String(json?.translated ?? '').trim();
         if (!translated) return;
 
-        if ((lastEditAtRef.current[targetField] ?? 0) > requestStartedAt) return;
-
-        setForm((prev) => ({ ...prev, [targetField]: translated }));
+        setForm((prev) => {
+          const primary = parseFreeTextAddressForLocale(sourceText, inferredSourceLocale);
+          const secondary = parseFreeTextAddressForLocale(translated, targetLocale);
+          const merged = mergeAddressParts(primary, secondary);
+          return { ...prev, ...merged };
+        });
       } catch (error) {
-        console.error('Failed to auto-translate address master value', error);
+        console.error('Failed to auto-translate address master free text', error);
       }
     }, 450);
   };
 
   const updateField = (field: keyof AddressFormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
-    if (
-      field === 'houseNumberEn' ||
-      field === 'houseNumberMr' ||
-      field === 'localityStreetEn' ||
-      field === 'localityStreetMr' ||
-      field === 'townVillageEn' ||
-      field === 'townVillageMr'
-    ) {
-      lastEditAtRef.current[field] = Date.now();
-      scheduleTranslate(field, value);
-    }
+  };
+
+  const updateFreeTextAddress = (value: string) => {
+    const inferredLocale = inferLocaleFromText(value);
+    const primary = parseFreeTextAddressForLocale(value, inferredLocale);
+    setForm((prev) => ({
+      ...prev,
+      freeTextAddress: value,
+      ...mergeAddressParts(prev, primary),
+    }));
+    scheduleTranslateFreeText(value);
   };
 
   const handleSave = async () => {
@@ -278,36 +259,6 @@ export function AddressMasterManager({
       setDeletingId(null);
     }
   };
-
-  const renderBilingualField = (
-    labelKey: string,
-    enField: 'houseNumberEn' | 'localityStreetEn' | 'townVillageEn',
-    mrField: 'houseNumberMr' | 'localityStreetMr' | 'townVillageMr',
-  ) => (
-    <div className="space-y-3 rounded-md border p-3">
-      <Label>{t(labelKey)}</Label>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            {t('letterGeneration.addresses.columns.english')}
-          </Label>
-          <Input
-            value={form[enField]}
-            onChange={(event) => updateField(enField, event.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">
-            {t('letterGeneration.addresses.columns.marathi')}
-          </Label>
-          <Input
-            value={form[mrField]}
-            onChange={(event) => updateField(mrField, event.target.value)}
-          />
-        </div>
-      </div>
-    </div>
-  );
 
   return (
     <>
@@ -454,29 +405,19 @@ export function AddressMasterManager({
               </Select>
             </div>
 
-            {renderBilingualField(
-              'letterGeneration.addresses.fields.houseNumber',
-              'houseNumberEn',
-              'houseNumberMr',
-            )}
-            {renderBilingualField(
-              'letterGeneration.addresses.fields.localityStreet',
-              'localityStreetEn',
-              'localityStreetMr',
-            )}
-            {renderBilingualField(
-              'letterGeneration.addresses.fields.townVillage',
-              'townVillageEn',
-              'townVillageMr',
-            )}
-
             <div className="space-y-2">
-              <Label>{t('letterGeneration.addresses.fields.pincode')}</Label>
-              <Input
-                value={form.pincode}
-                onChange={(event) => updateField('pincode', event.target.value)}
-                maxLength={10}
+              <Label>{t('letterGeneration.addresses.formDescription')}</Label>
+              <Textarea
+                value={form.freeTextAddress}
+                onChange={(event) => updateFreeTextAddress(event.target.value)}
+                placeholder="House/Plot, Street/Area, Town/Village - Pincode"
+                className="min-h-[120px]"
               />
+              <div className="text-xs text-muted-foreground">
+                {t('letterGeneration.addresses.columns.english')}: {formatAddressMaster(form, 'en')}
+                <br />
+                {t('letterGeneration.addresses.columns.marathi')}: {formatAddressMaster(form, 'mr')}
+              </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
