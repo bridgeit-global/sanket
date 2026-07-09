@@ -47,6 +47,11 @@ export type ExportElementToPdfOptions = {
     /** Inset from page edges in mm. Defaults to marginMm. */
     insetMm?: number;
   };
+  /**
+   * Draw a horizontal rule at the top of continuation pages (page 2+).
+   * Useful for multi-page tables; off by default for prose documents like letters.
+   */
+  drawContinuationRule?: boolean;
 };
 
 function clampScale(scale: number, element: HTMLElement): number {
@@ -182,6 +187,7 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
     footer,
     scale: rawScale = 2,
     captureWidthPx,
+    drawContinuationRule = false,
   } = options;
 
   const marginMm = Math.max(0, Math.min(25, rawMarginMm));
@@ -345,7 +351,7 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
       // When slicing a long table across multiple pages, the next slice starts mid-table.
       // Overlay a top rule for subsequent pages so the table doesn't look borderless at the top.
       // Must be drawn AFTER drawImage so it remains visible.
-      if (pageIndex > 0) {
+      if (drawContinuationRule && pageIndex > 0) {
         ctx.strokeStyle = '#1f2937';
         ctx.lineWidth = 3;
         ctx.beginPath();

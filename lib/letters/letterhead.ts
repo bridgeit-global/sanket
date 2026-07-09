@@ -5,9 +5,9 @@ import {
 
 /** Built-in letterhead images by paper size. */
 export const DEFAULT_LETTERHEAD_URLS: Record<LetterPaperSize, string> = {
-  a4: '/images/letterheads/sana-malik-a4.png',
-  a5: '/images/letterheads/sana-malik-a5.png',
-  b5: '/images/letterheads/sana-malik-b5.png',
+  a4: '/images/letterheads/sana-malik-a4.jpg',
+  a5: '/images/letterheads/sana-malik-a5.jpg',
+  b5: '/images/letterheads/sana-malik-b5.jpg',
 };
 
 /** Fraction of page height reserved for the letterhead header area. */

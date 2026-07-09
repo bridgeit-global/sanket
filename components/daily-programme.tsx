@@ -1036,6 +1036,7 @@ export function DailyProgramme({
           drawRule: true,
         },
         footer: { heightMm: 12, showPageNumbers: true },
+        drawContinuationRule: true,
         scale: 2,
       });
       toast.success('PDF downloaded');
