@@ -5,6 +5,7 @@ import type {
   LetterFields,
   LetterLocale,
   LetterType,
+  PersonGender,
   RationLetterFields,
   SchoolAdmissionLetterFields,
   SchoolTransferLetterFields,
@@ -55,6 +56,22 @@ function toFieldRecord(fields: LetterFields): Record<string, string> {
   );
 }
 
+function resolveGenderTokens(gender: PersonGender | undefined, locale: LetterLocale) {
+  const resolvedGender: PersonGender = gender ?? 'other';
+  if (locale === 'mr') {
+    // Marathi honorific demonstratives used in our default templates.
+    // male => "हे", female => "या", other => "हे"
+    return {
+      genderPronounSubject: resolvedGender === 'female' ? 'या' : 'हे',
+    };
+  }
+  // English (kept minimal since EN templates currently reuse MR structure).
+  return {
+    genderPronounSubject:
+      resolvedGender === 'male' ? 'he' : resolvedGender === 'female' ? 'she' : 'they',
+  };
+}
+
 export function buildRenderFields(
   type: LetterType,
   fields: LetterFields,
@@ -68,6 +85,7 @@ export function buildRenderFields(
     const familyMembersBlock = familyMembers ? familyMembers : '';
     return {
       ...base,
+      ...resolveGenderTokens(rationFields.gender, locale),
       familyMembersBlock,
       rationCardNo: rationFields.rationCardNo ?? '',
       fromRationOffice: rationFields.fromRationOffice ?? '',
@@ -79,6 +97,7 @@ export function buildRenderFields(
     const incomeFields = fields as IncomeLetterFields;
     return {
       ...base,
+      ...resolveGenderTokens(incomeFields.gender, locale),
       aadhaarNo: incomeFields.aadhaarNo,
       annualIncome: incomeFields.annualIncome,
       officeAddress: incomeFields.officeAddress,
@@ -89,6 +108,7 @@ export function buildRenderFields(
     const domicileFields = fields as DomicileLetterFields;
     return {
       ...base,
+      ...resolveGenderTokens(domicileFields.gender, locale),
       aadhaarNo: domicileFields.aadhaarNo,
       officeAddress: domicileFields.officeAddress,
     };

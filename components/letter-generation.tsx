@@ -65,6 +65,7 @@ import {
   type IncomeLetterFields,
   type LetterLocale,
   type LetterType,
+  type PersonGender,
   type RationLetterFields,
   type SchoolAdmissionLetterFields,
   type SchoolTransferLetterFields,
@@ -158,17 +159,18 @@ function isLetterWithinDateRange(
   return true;
 }
 
-const todayDisplay = () =>
-  new Date().toLocaleDateString('en-IN', {
+function todayDisplay(letterLocale: LetterLocale) {
+  return new Date().toLocaleDateString(letterLocale === 'mr' ? 'mr-IN' : 'en-IN', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
   });
+}
 
 function commonDefaults(locale: LetterLocale) {
   return {
     referenceNo: '',
-    date: todayDisplay(),
+    date: todayDisplay(locale),
     signatory: DEFAULT_SIGNATORY[locale],
   };
 }
@@ -214,6 +216,7 @@ function schoolTransferDefaults(locale: LetterLocale): SchoolTransferLetterField
 function rationDefaults(locale: LetterLocale): RationLetterFields {
   return {
     ...commonDefaults(locale),
+    gender: 'female',
     salutation: locale === 'en' ? 'Smt.' : 'श्रीमती',
     fullName: '',
     address: '',
@@ -228,6 +231,7 @@ function rationDefaults(locale: LetterLocale): RationLetterFields {
 function incomeDefaults(locale: LetterLocale): IncomeLetterFields {
   return {
     ...commonDefaults(locale),
+    gender: 'male',
     salutation: locale === 'en' ? 'Shri' : 'श्री',
     fullName: '',
     address: '',
@@ -240,6 +244,7 @@ function incomeDefaults(locale: LetterLocale): IncomeLetterFields {
 function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
   return {
     ...commonDefaults(locale),
+    gender: 'male',
     salutation: locale === 'en' ? 'Shri' : 'श्री',
     fullName: '',
     address: '',
@@ -248,8 +253,34 @@ function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
   };
 }
 
+function resolveSalutation(locale: LetterLocale, gender: PersonGender): string {
+  if (locale === 'en') {
+    if (gender === 'female') return 'Smt.';
+    if (gender === 'male') return 'Shri';
+    return 'Shri/Smt.';
+  }
+  if (gender === 'female') return 'श्रीमती';
+  if (gender === 'male') return 'श्री';
+  return 'श्री/श्रीमती';
+}
+
 const LETTER_PREVIEW_CONTENT_CLASSES =
-  '[&_.letter-content]:whitespace-pre-wrap [&_.letter-content]:font-[inherit] [&_.letter-content]:text-sm [&_.letter-content]:leading-6 [&_.letter-content]:text-black sm:[&_.letter-content]:text-[15px] sm:[&_.letter-content]:leading-7';
+  '[&_.letter-content]:whitespace-pre-wrap [&_.letter-content]:font-[inherit] [&_.letter-content]:text-black';
+
+const LETTER_FONT_STACK: Record<LetterLocale, string> = {
+  en: `system-ui, -apple-system, sans-serif`,
+  mr: `"Noto Sans Devanagari", "Nirmala UI", system-ui, -apple-system, sans-serif`,
+};
+
+function getLetterPreviewContentClasses(letterLocale: LetterLocale): string {
+  // Templates often define their own inline font-size/line-height; keep our outer spacing script-aware.
+  return cn(
+    LETTER_PREVIEW_CONTENT_CLASSES,
+    letterLocale === 'mr'
+      ? '[&_.letter-content]:text-sm [&_.letter-content]:leading-6 sm:[&_.letter-content]:text-[15px] sm:[&_.letter-content]:leading-7'
+      : '[&_.letter-content]:text-sm [&_.letter-content]:leading-6 sm:[&_.letter-content]:text-[15px] sm:[&_.letter-content]:leading-6',
+  );
+}
 
 function createLetterExportElement(
   html: string,
@@ -257,6 +288,7 @@ function createLetterExportElement(
     paperSize?: LetterPaperSize;
     letterheadUrl?: string | null;
     includeLetterhead?: boolean;
+    letterLocale?: LetterLocale;
   },
 ): HTMLDivElement {
   const host = document.createElement('div');
@@ -267,6 +299,9 @@ function createLetterExportElement(
       : null;
 
   host.className = 'relative bg-white text-black';
+  if (options?.letterLocale) {
+    host.style.fontFamily = LETTER_FONT_STACK[options.letterLocale];
+  }
   if (options?.paperSize) {
     host.style.width = `${getLetterPaperContentWidthPx(options.paperSize)}px`;
   }
@@ -292,7 +327,7 @@ const LETTER_PRINT_FONT_SIZE_PX: Record<LetterPaperSize, number> = {
 
 function buildLetterPrintStyles(
   paperSize: LetterPaperSize,
-  options?: { letterheadUrl?: string | null },
+  options?: { letterheadUrl?: string | null; letterLocale?: LetterLocale },
 ): string {
   const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
   const fontSizePx = LETTER_PRINT_FONT_SIZE_PX[paperSize];
@@ -300,14 +335,15 @@ function buildLetterPrintStyles(
   const paddingPx = paperSize === 'a4' ? 24 : 18;
   const letterheadUrl = options?.letterheadUrl;
   const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);
+  const fontFamily = LETTER_FONT_STACK[options?.letterLocale ?? 'mr'];
 
   const bodyStyles = letterheadUrl
-    ? `margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif;
+    ? `margin: 0; padding: 0; font-family: ${fontFamily};
        background: #fff url("${letterheadUrl}") no-repeat;
        background-size: 100% 100%;
        -webkit-print-color-adjust: exact;
        print-color-adjust: exact;`
-    : `margin: 0; padding: ${paddingPx}px; font-family: system-ui, -apple-system, sans-serif; background: #fff;`;
+    : `margin: 0; padding: ${paddingPx}px; font-family: ${fontFamily}; background: #fff;`;
 
   const contentPadding = letterheadUrl
     ? `padding: ${headerPaddingMm}mm ${marginMm}mm ${marginMm}mm ${marginMm}mm;`
@@ -327,7 +363,11 @@ function printLetterHtml(
   html: string,
   title: string,
   paperSize: LetterPaperSize = 'a4',
-  options?: { includeLetterhead?: boolean; letterheadUrl?: string | null },
+  options?: {
+    includeLetterhead?: boolean;
+    letterheadUrl?: string | null;
+    letterLocale?: LetterLocale;
+  },
 ): boolean {
   const iframe = document.createElement('iframe');
   iframe.setAttribute('aria-hidden', 'true');
@@ -353,7 +393,7 @@ function printLetterHtml(
 
   doc.open();
   doc.write(
-    `<!DOCTYPE html><html><head><title>${title}</title><style>${buildLetterPrintStyles(paperSize, { letterheadUrl })}</style></head><body>${bodyHtml}</body></html>`,
+    `<!DOCTYPE html><html><head><title>${title}</title><style>${buildLetterPrintStyles(paperSize, { letterheadUrl, letterLocale: options?.letterLocale })}</style></head><body>${bodyHtml}</body></html>`,
   );
   doc.close();
 
@@ -413,10 +453,12 @@ function LetterPreview({
   html,
   paperSize = 'a4',
   letterheadUrl,
+  letterLocale,
 }: {
   html: string;
   paperSize?: LetterPaperSize;
   letterheadUrl?: string | null;
+  letterLocale: LetterLocale;
 }) {
   const resolvedLetterhead = resolveLetterheadUrl(paperSize, letterheadUrl);
   const contentHtml = stripLetterheadFromHtml(html);
@@ -428,7 +470,10 @@ function LetterPreview({
         'relative mx-auto overflow-hidden rounded-lg border bg-white text-black',
         LETTER_PREVIEW_MAX_WIDTH_CLASS[paperSize],
       )}
-      style={{ aspectRatio: LETTER_PAPER_ASPECT_RATIO[paperSize] }}
+      style={{
+        aspectRatio: LETTER_PAPER_ASPECT_RATIO[paperSize],
+        fontFamily: LETTER_FONT_STACK[letterLocale],
+      }}
     >
       {resolvedLetterhead ? (
         <div
@@ -443,7 +488,7 @@ function LetterPreview({
       <div
         className={cn(
           'absolute inset-x-0 bottom-0 overflow-y-auto p-4 sm:p-6',
-          LETTER_PREVIEW_CONTENT_CLASSES,
+          getLetterPreviewContentClasses(letterLocale),
         )}
         style={resolvedLetterhead ? { top: headerTop } : { inset: 0 }}
         // Letter HTML is generated from admin-editable templates stored in our database.
@@ -532,6 +577,7 @@ type LetterMasterRow = {
 export function LetterGeneration() {
   const { t, locale } = useTranslations();
   const [letterLocale, setLetterLocale] = useState<LetterLocale>(locale);
+  const prevLetterLocaleRef = useRef<LetterLocale>(locale);
   const [activeTab, setActiveTab] = useState<LetterType>('fees');
   const [isSaving, setIsSaving] = useState(false);
   const [downloadingLetterId, setDownloadingLetterId] = useState<string | null>(null);
@@ -587,28 +633,49 @@ export function LetterGeneration() {
   }, [activeTab]);
 
   useEffect(() => {
+    const prevLocale = prevLetterLocaleRef.current;
+    const prevAutoDate = todayDisplay(prevLocale);
+    const nextAutoDate = todayDisplay(letterLocale);
+
     const signatory = DEFAULT_SIGNATORY[letterLocale];
-    setFeesFields((prev) => ({ ...prev, signatory }));
-    setSchoolAdmissionFields((prev) => ({ ...prev, signatory }));
-    setSchoolTransferFields((prev) => ({ ...prev, signatory }));
+    setFeesFields((prev) => ({
+      ...prev,
+      signatory,
+      date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+    }));
+    setSchoolAdmissionFields((prev) => ({
+      ...prev,
+      signatory,
+      date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+    }));
+    setSchoolTransferFields((prev) => ({
+      ...prev,
+      signatory,
+      date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+    }));
     setRationFields((prev) => ({
       ...prev,
       signatory,
-      salutation: letterLocale === 'en' ? 'Smt.' : 'श्रीमती',
+      date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+      salutation: resolveSalutation(letterLocale, prev.gender),
       rationOfficeAddress: DEFAULT_RATION_OFFICE_ADDRESS[letterLocale],
     }));
     setIncomeFields((prev) => ({
       ...prev,
       signatory,
-      salutation: letterLocale === 'en' ? 'Shri' : 'श्री',
+      date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+      salutation: resolveSalutation(letterLocale, prev.gender),
       officeAddress: DEFAULT_OFFICE_ADDRESS[letterLocale],
     }));
     setDomicileFields((prev) => ({
       ...prev,
       signatory,
-      salutation: letterLocale === 'en' ? 'Shri' : 'श्री',
+      date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+      salutation: resolveSalutation(letterLocale, prev.gender),
       officeAddress: DEFAULT_OFFICE_ADDRESS[letterLocale],
     }));
+
+    prevLetterLocaleRef.current = letterLocale;
   }, [letterLocale]);
 
   const refreshLetterMasters = async () => {
@@ -946,6 +1013,7 @@ export function LetterGeneration() {
     const opened = printLetterHtml(letter.renderedHtml, title, paperSize, {
       includeLetterhead: printWithLetterhead,
       letterheadUrl,
+      letterLocale: letter.letterLocale,
     });
     if (!opened) {
       toast.error(t('letterGeneration.printPopupBlocked'));
@@ -963,6 +1031,7 @@ export function LetterGeneration() {
         paperSize,
         letterheadUrl,
         includeLetterhead: printWithLetterhead,
+        letterLocale: letter.letterLocale,
       });
       document.body.appendChild(exportHost);
       await exportElementToPdf({
@@ -1506,6 +1575,33 @@ export function LetterGeneration() {
                       <TabsContent key={rationType} value={rationType} className="mt-0 space-y-4">
                         {renderCommonFields(rationFields, setRationFields)}
                         <div className="grid gap-4 sm:grid-cols-2">
+                          <FieldGroup label={t('letterGeneration.fields.gender')}>
+                            <Select
+                              value={rationFields.gender}
+                              onValueChange={(value: PersonGender) =>
+                                setRationFields((prev) => ({
+                                  ...prev,
+                                  gender: value,
+                                  salutation: resolveSalutation(letterLocale, value),
+                                }))
+                              }
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="male">
+                                  {t('letterGeneration.gender.male')}
+                                </SelectItem>
+                                <SelectItem value="female">
+                                  {t('letterGeneration.gender.female')}
+                                </SelectItem>
+                                <SelectItem value="other">
+                                  {t('letterGeneration.gender.other')}
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </FieldGroup>
                           <FieldGroup label={t('letterGeneration.fields.salutation')}>
                             <Input
                               value={rationFields.salutation}
@@ -1608,6 +1704,33 @@ export function LetterGeneration() {
                     <TabsContent value="income" className="mt-0 space-y-4">
                       {renderCommonFields(incomeFields, setIncomeFields)}
                       <div className="grid gap-4 sm:grid-cols-2">
+                        <FieldGroup label={t('letterGeneration.fields.gender')}>
+                          <Select
+                            value={incomeFields.gender}
+                            onValueChange={(value: PersonGender) =>
+                              setIncomeFields((prev) => ({
+                                ...prev,
+                                gender: value,
+                                salutation: resolveSalutation(letterLocale, value),
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="male">
+                                {t('letterGeneration.gender.male')}
+                              </SelectItem>
+                              <SelectItem value="female">
+                                {t('letterGeneration.gender.female')}
+                              </SelectItem>
+                              <SelectItem value="other">
+                                {t('letterGeneration.gender.other')}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FieldGroup>
                         <FieldGroup label={t('letterGeneration.fields.salutation')}>
                           <Input
                             value={incomeFields.salutation}
@@ -1680,6 +1803,33 @@ export function LetterGeneration() {
                     <TabsContent value="domicile" className="mt-0 space-y-4">
                       {renderCommonFields(domicileFields, setDomicileFields)}
                       <div className="grid gap-4 sm:grid-cols-2">
+                        <FieldGroup label={t('letterGeneration.fields.gender')}>
+                          <Select
+                            value={domicileFields.gender}
+                            onValueChange={(value: PersonGender) =>
+                              setDomicileFields((prev) => ({
+                                ...prev,
+                                gender: value,
+                                salutation: resolveSalutation(letterLocale, value),
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="male">
+                                {t('letterGeneration.gender.male')}
+                              </SelectItem>
+                              <SelectItem value="female">
+                                {t('letterGeneration.gender.female')}
+                              </SelectItem>
+                              <SelectItem value="other">
+                                {t('letterGeneration.gender.other')}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FieldGroup>
                         <FieldGroup label={t('letterGeneration.fields.salutation')}>
                           <Input
                             value={domicileFields.salutation}
@@ -1783,6 +1933,7 @@ export function LetterGeneration() {
                     html={activeBody}
                     paperSize={activePaperSize}
                     letterheadUrl={activeLetterheadUrl}
+                    letterLocale={letterLocale}
                   />
                 </div>
               </div>
@@ -2243,6 +2394,7 @@ export function LetterGeneration() {
                                 (m) => m.id === selectedSavedLetter.letterMasterId,
                               )?.letterheadUrl,
                             )}
+                            letterLocale={selectedSavedLetter.letterLocale}
                           />
                         </>
                       ) : null}

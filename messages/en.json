@@ -541,6 +541,7 @@
       "previousSchoolName": "Previous School Name",
       "currentStandard": "Current Standard / Class",
       "transferReason": "Transfer Reason",
+      "gender": "Gender",
       "salutation": "Salutation",
       "fullName": "Full Name",
       "address": "Address",
@@ -568,7 +569,8 @@
     },
     "gender": {
       "male": "Male",
-      "female": "Female"
+      "female": "Female",
+      "other": "Other"
     },
     "letterLanguage": {
       "en": "English",

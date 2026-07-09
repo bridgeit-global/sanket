@@ -52,7 +52,10 @@ export type SchoolTransferLetterFields = CommonLetterFields & {
   transferReason: string;
 };
 
+export type PersonGender = 'male' | 'female' | 'other';
+
 export type RationLetterFields = CommonLetterFields & {
+  gender: PersonGender;
   salutation: string;
   fullName: string;
   address: string;
@@ -64,6 +67,7 @@ export type RationLetterFields = CommonLetterFields & {
 };
 
 export type IncomeLetterFields = CommonLetterFields & {
+  gender: PersonGender;
   salutation: string;
   fullName: string;
   address: string;
@@ -73,6 +77,7 @@ export type IncomeLetterFields = CommonLetterFields & {
 };
 
 export type DomicileLetterFields = CommonLetterFields & {
+  gender: PersonGender;
   salutation: string;
   fullName: string;
   address: string;

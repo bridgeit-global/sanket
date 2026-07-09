@@ -541,6 +541,7 @@
       "previousSchoolName": "मागील शाळेचे नाव",
       "currentStandard": "सध्याची इयत्ता / वर्ग",
       "transferReason": "स्थानांतरणाचे कारण",
+      "gender": "लिंग",
       "salutation": "संबोधन",
       "fullName": "पूर्ण नाव",
       "address": "पत्ता",
@@ -568,7 +569,8 @@
     },
     "gender": {
       "male": "पुरुष (याला)",
-      "female": "स्त्री (हिला)"
+      "female": "स्त्री (हिला)",
+      "other": "इतर"
     },
     "letterLanguage": {
       "en": "इंग्रजी",
