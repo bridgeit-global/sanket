@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -50,6 +50,7 @@ import {
   parseFreeTextAddressForLocale,
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
+import { usePincodeLookup } from '@/lib/letters/use-pincode-lookup';
 
 type AddressFormState = {
   name: string;
@@ -167,6 +168,21 @@ export function AddressMasterManager({
     }, 450);
   };
 
+  const applyEnrichedAddress = useCallback((enrichedText: string) => {
+    const inferredLocale = inferLocaleFromText(enrichedText);
+    const primary = parseFreeTextAddressForLocale(enrichedText, inferredLocale);
+    setForm((prev) => ({
+      ...prev,
+      freeTextAddress: enrichedText,
+      ...mergeAddressParts(prev, primary),
+    }));
+    scheduleTranslateFreeText(enrichedText);
+  }, []);
+
+  const { schedulePincodeLookup } = usePincodeLookup({
+    onEnriched: applyEnrichedAddress,
+  });
+
   const updateField = (field: keyof AddressFormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
   };
@@ -180,6 +196,9 @@ export function AddressMasterManager({
       ...mergeAddressParts(prev, primary),
     }));
     scheduleTranslateFreeText(value);
+    if (primary.pincode) {
+      schedulePincodeLookup(value, primary.pincode);
+    }
   };
 
   const handleSave = async () => {

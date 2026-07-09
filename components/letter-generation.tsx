@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type Dispatch, type SetStateAction } from 'react';
 import {
   ChevronDown,
   ChevronUp,
@@ -104,6 +104,7 @@ import {
   type AddressMasterRow,
 } from '@/components/letter-address-field';
 import { formatAddressMaster, mergeAddressParts, parseFreeTextAddressForLocale } from '@/lib/letters/format-address-master';
+import { usePincodeLookup } from '@/lib/letters/use-pincode-lookup';
 import { cn } from '@/lib/utils';
 
 const ALL_LETTER_TYPES = 'all' as const;
@@ -828,6 +829,7 @@ export function LetterGeneration() {
   }));
   const translateTimersRef = useRef<Partial<Record<ManualAddressKey, number>>>({});
   const translateReqIdRef = useRef<Partial<Record<ManualAddressKey, number>>>({});
+  const pendingPincodeKeyRef = useRef<ManualAddressKey | null>(null);
   const [templateDraft, setTemplateDraft] = useState('');
   const [templateNameDraft, setTemplateNameDraft] = useState('');
   const [letterheadDraft, setLetterheadDraft] = useState<string | null>(null);
@@ -1053,6 +1055,53 @@ export function LetterGeneration() {
     }, 450);
   };
 
+  const applyManualAddressToLetterFields = useCallback(
+    (key: ManualAddressKey, value: string) => {
+      switch (key) {
+        case 'school':
+          setFeesFields((prev) => ({ ...prev, schoolAddress: value }));
+          setSchoolAdmissionFields((prev) => ({ ...prev, schoolAddress: value }));
+          setSchoolTransferFields((prev) => ({ ...prev, schoolAddress: value }));
+          break;
+        case 'applicant':
+          setSchoolAdmissionFields((prev) => ({ ...prev, address: value }));
+          setSchoolTransferFields((prev) => ({ ...prev, address: value }));
+          setRationFields((prev) => ({ ...prev, address: value }));
+          setIncomeFields((prev) => ({ ...prev, address: value }));
+          setDomicileFields((prev) => ({ ...prev, address: value }));
+          break;
+        case 'rationOffice':
+          setRationFields((prev) => ({ ...prev, rationOfficeAddress: value }));
+          break;
+        case 'office':
+          setIncomeFields((prev) => ({ ...prev, officeAddress: value }));
+          setDomicileFields((prev) => ({ ...prev, officeAddress: value }));
+          break;
+      }
+    },
+    [],
+  );
+
+  const applyEnrichedManualAddress = useCallback(
+    (enrichedText: string) => {
+      const key = pendingPincodeKeyRef.current;
+      if (!key) return;
+
+      const sourceLocale = letterLocale;
+      setManualAddressDrafts((prev) => ({
+        ...prev,
+        [key]: { ...prev[key], [sourceLocale]: enrichedText },
+      }));
+      applyManualAddressToLetterFields(key, enrichedText);
+      triggerAutoTranslateManualAddress(key, enrichedText);
+    },
+    [applyManualAddressToLetterFields, letterLocale],
+  );
+
+  const { schedulePincodeLookup } = usePincodeLookup({
+    onEnriched: applyEnrichedManualAddress,
+  });
+
   const handleManualAddressChange = (key: ManualAddressKey, value: string) => {
     const sourceLocale = letterLocale;
     setManualAddressDrafts((prev) => ({
@@ -1060,6 +1109,12 @@ export function LetterGeneration() {
       [key]: { ...prev[key], [sourceLocale]: value },
     }));
     triggerAutoTranslateManualAddress(key, value);
+
+    pendingPincodeKeyRef.current = key;
+    const parsed = parseFreeTextAddressForLocale(value, sourceLocale);
+    if (parsed.pincode) {
+      schedulePincodeLookup(value, parsed.pincode);
+    }
   };
 
   const refreshLetterMasters = async () => {
