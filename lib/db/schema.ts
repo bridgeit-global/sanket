@@ -15,6 +15,7 @@ export const TABLES = {
   stream: 'Stream',
   letter: 'Letter',
   letterMaster: 'LetterMaster',
+  addressMaster: 'AddressMaster',
   voterMaster: 'VoterMaster',
   electionMaster: 'ElectionMaster',
   boothMaster: 'BoothMaster',
@@ -154,6 +155,20 @@ export type LetterMaster = {
   letterheadUrl: string | null;
   letterheadMode: 'half' | 'full';
   paperSize: 'a4' | 'a5' | 'b5';
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type AddressMaster = {
+  id: string;
+  name: string;
+  addressType: 'school' | 'office' | 'ration_office' | 'general';
+  addressEn: string;
+  addressMr: string;
+  isActive: boolean;
+  sortOrder: number;
   createdBy: string | null;
   updatedBy: string | null;
   createdAt: Date;

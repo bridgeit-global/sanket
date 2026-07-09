@@ -15,6 +15,7 @@ import {
   mapElectionMappingRow,
   mapExportJobRow,
   mapLetterMasterRow,
+  mapAddressMasterRow,
   mapLetterRow,
   mapMessageRow,
   mapMlaProjectRow,
@@ -57,6 +58,7 @@ import type {
   ExportJob,
   Letter,
   LetterMaster,
+  AddressMaster,
   MlaProject,
   AdmFundingCategory,
   AdmWork,
@@ -2433,6 +2435,193 @@ export async function updateLetterMaster({
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to update letter master');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Address masters
+// ---------------------------------------------------------------------------
+
+export async function ensureAddressMasterDefaults(): Promise<void> {
+  try {
+    const { getDefaultAddressSeeds } = await import('@/lib/letters/default-addresses');
+    const defaults = getDefaultAddressSeeds();
+
+    const { data: existingRows, error: existingError } = await supabase
+      .from(TABLES.addressMaster)
+      .select('name');
+    throwOnSupabaseError(existingError, 'Failed to list address masters');
+
+    const existingNames = new Set((existingRows ?? []).map((row) => String(row.name)));
+    const missing = defaults.filter((item) => !existingNames.has(item.name));
+    if (missing.length === 0) return;
+
+    const now = new Date().toISOString();
+    const { error } = await supabase.from(TABLES.addressMaster).insert(
+      missing.map((item) =>
+        toSnakeCaseKeys({
+          name: item.name,
+          addressType: item.addressType,
+          addressEn: item.addressEn,
+          addressMr: item.addressMr,
+          sortOrder: item.sortOrder,
+          isActive: true,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      ),
+    );
+    throwOnSupabaseError(error, 'Failed to seed address masters');
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to seed address masters');
+  }
+}
+
+export async function getAddressMasters({
+  addressType,
+  activeOnly = true,
+}: {
+  addressType?: AddressMaster['addressType'];
+  activeOnly?: boolean;
+} = {}): Promise<Array<AddressMaster>> {
+  try {
+    await ensureAddressMasterDefaults();
+    let query = supabase
+      .from(TABLES.addressMaster)
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('name', { ascending: true });
+
+    if (addressType) {
+      query = query.eq('address_type', addressType);
+    }
+    if (activeOnly) {
+      query = query.eq('is_active', true);
+    }
+
+    const { data, error } = await query;
+    throwOnSupabaseError(error, 'Failed to get address masters');
+    return (data ?? []).map(mapAddressMasterRow);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get address masters');
+  }
+}
+
+export async function getAddressMasterById(id: string): Promise<AddressMaster | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.addressMaster)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get address master by id');
+    return data ? mapAddressMasterRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get address master by id');
+  }
+}
+
+export async function createAddressMaster({
+  name,
+  addressType,
+  addressEn,
+  addressMr,
+  isActive = true,
+  sortOrder = 0,
+  createdBy,
+}: {
+  name: string;
+  addressType: AddressMaster['addressType'];
+  addressEn: string;
+  addressMr: string;
+  isActive?: boolean;
+  sortOrder?: number;
+  createdBy?: string | null;
+}): Promise<AddressMaster> {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.addressMaster)
+      .insert(
+        toSnakeCaseKeys({
+          name,
+          addressType,
+          addressEn,
+          addressMr,
+          isActive,
+          sortOrder,
+          createdBy: createdBy || null,
+          updatedBy: createdBy || null,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create address master');
+    return mapAddressMasterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to create address master');
+  }
+}
+
+export async function updateAddressMaster({
+  id,
+  name,
+  addressType,
+  addressEn,
+  addressMr,
+  isActive,
+  sortOrder,
+  updatedBy,
+}: {
+  id: string;
+  name: string;
+  addressType: AddressMaster['addressType'];
+  addressEn: string;
+  addressMr: string;
+  isActive: boolean;
+  sortOrder: number;
+  updatedBy?: string | null;
+}): Promise<AddressMaster> {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.addressMaster)
+      .update(
+        toSnakeCaseKeys({
+          name,
+          addressType,
+          addressEn,
+          addressMr,
+          isActive,
+          sortOrder,
+          updatedBy: updatedBy || null,
+          updatedAt: now,
+        }),
+      )
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to update address master');
+    return mapAddressMasterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to update address master');
+  }
+}
+
+export async function deleteAddressMaster(id: string): Promise<void> {
+  try {
+    const { error } = await supabase.from(TABLES.addressMaster).delete().eq('id', id);
+    throwOnSupabaseError(error, 'Failed to delete address master');
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to delete address master');
   }
 }
 

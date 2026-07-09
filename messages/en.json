@@ -475,6 +475,43 @@
       "fetchError": "Failed to load letter templates",
       "validationRequired": "Template name and HTML are required"
     },
+    "addresses": {
+      "title": "Address Master",
+      "description": "Manage reusable addresses for schools, offices, and applicants. Use them when generating letters.",
+      "add": "Add Address",
+      "addTitle": "Add Address",
+      "editTitle": "Edit Address",
+      "formDescription": "Enter the address in both English and Marathi for letter generation.",
+      "save": "Save Address",
+      "create": "Create Address",
+      "createSuccess": "Address created",
+      "updateSuccess": "Address updated",
+      "createError": "Failed to create address",
+      "updateError": "Failed to update address",
+      "deleteSuccess": "Address deleted",
+      "deleteError": "Failed to delete address",
+      "fetchError": "Failed to load addresses",
+      "validationRequired": "Name and both language addresses are required",
+      "empty": "No addresses yet. Add school, office, or other addresses to reuse in letters.",
+      "selectPlaceholder": "Choose a saved address…",
+      "manualEntry": "Enter manually",
+      "activeYes": "Active",
+      "activeNo": "Inactive",
+      "columns": {
+        "name": "Name",
+        "type": "Type",
+        "english": "English Address",
+        "marathi": "Marathi Address",
+        "active": "Active",
+        "sortOrder": "Sort Order"
+      },
+      "types": {
+        "school": "School / College",
+        "office": "Government Office",
+        "ration_office": "Ration Office",
+        "general": "General / Applicant"
+      }
+    },
     "savedLetters": {
       "title": "Saved Letters",
       "description": "Save generated letters to the database and reuse them later.",

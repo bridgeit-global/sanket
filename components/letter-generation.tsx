@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import {
   ChevronDown,
   ChevronUp,
@@ -91,6 +91,13 @@ import {
 import { exportElementToPdf } from '@/lib/pdf/export-element-to-pdf';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { ModulePageHeader } from '@/components/module-page-header';
+import { AddressMasterManager } from '@/components/address-master-manager';
+import {
+  findDefaultAddress,
+  LetterAddressField,
+  type AddressMasterRow,
+} from '@/components/letter-address-field';
+import { getAddressTextForLocale } from '@/lib/letters/default-addresses';
 import { cn } from '@/lib/utils';
 
 const ALL_LETTER_TYPES = 'all' as const;
@@ -549,6 +556,83 @@ function validateRequiredCommonFields(
   return errors;
 }
 
+type AddressSelectionState = {
+  school: string | null;
+  applicant: string | null;
+  rationOffice: string | null;
+  office: string | null;
+};
+
+function getAddressTextFromMaster(
+  addresses: AddressMasterRow[],
+  masterId: string | null,
+  locale: LetterLocale,
+): string | null {
+  if (!masterId) return null;
+  const address = addresses.find((item) => item.id === masterId);
+  if (!address) return null;
+  return getAddressTextForLocale(address.addressEn, address.addressMr, locale);
+}
+
+function applyMasterAddressToFields(
+  addresses: AddressMasterRow[],
+  selections: AddressSelectionState,
+  locale: LetterLocale,
+  setters: {
+    setFeesFields: Dispatch<SetStateAction<FeesLetterFields>>;
+    setSchoolAdmissionFields: Dispatch<SetStateAction<SchoolAdmissionLetterFields>>;
+    setSchoolTransferFields: Dispatch<SetStateAction<SchoolTransferLetterFields>>;
+    setRationFields: Dispatch<SetStateAction<RationLetterFields>>;
+    setIncomeFields: Dispatch<SetStateAction<IncomeLetterFields>>;
+    setDomicileFields: Dispatch<SetStateAction<DomicileLetterFields>>;
+  },
+) {
+  const schoolText = getAddressTextFromMaster(addresses, selections.school, locale);
+  const applicantText = getAddressTextFromMaster(
+    addresses,
+    selections.applicant,
+    locale,
+  );
+  const rationOfficeText = getAddressTextFromMaster(
+    addresses,
+    selections.rationOffice,
+    locale,
+  );
+  const officeText = getAddressTextFromMaster(addresses, selections.office, locale);
+
+  if (schoolText) {
+    setters.setFeesFields((prev) => ({ ...prev, schoolAddress: schoolText }));
+    setters.setSchoolAdmissionFields((prev) => ({
+      ...prev,
+      schoolAddress: schoolText,
+    }));
+    setters.setSchoolTransferFields((prev) => ({
+      ...prev,
+      schoolAddress: schoolText,
+    }));
+  }
+
+  if (applicantText) {
+    setters.setSchoolAdmissionFields((prev) => ({ ...prev, address: applicantText }));
+    setters.setSchoolTransferFields((prev) => ({ ...prev, address: applicantText }));
+    setters.setRationFields((prev) => ({ ...prev, address: applicantText }));
+    setters.setIncomeFields((prev) => ({ ...prev, address: applicantText }));
+    setters.setDomicileFields((prev) => ({ ...prev, address: applicantText }));
+  }
+
+  if (rationOfficeText) {
+    setters.setRationFields((prev) => ({
+      ...prev,
+      rationOfficeAddress: rationOfficeText,
+    }));
+  }
+
+  if (officeText) {
+    setters.setIncomeFields((prev) => ({ ...prev, officeAddress: officeText }));
+    setters.setDomicileFields((prev) => ({ ...prev, officeAddress: officeText }));
+  }
+}
+
 type SavedLetterRow = {
   id: string;
   letterMasterId: string | null;
@@ -604,6 +688,14 @@ export function LetterGeneration() {
   const [savedLettersLoading, setSavedLettersLoading] = useState(false);
   const [letterMasters, setLetterMasters] = useState<LetterMasterRow[]>([]);
   const [letterMastersLoading, setLetterMastersLoading] = useState(false);
+  const [addresses, setAddresses] = useState<AddressMasterRow[]>([]);
+  const [addressesLoading, setAddressesLoading] = useState(false);
+  const [addressSelections, setAddressSelections] = useState<AddressSelectionState>({
+    school: null,
+    applicant: null,
+    rationOffice: null,
+    office: null,
+  });
   const [templateDraft, setTemplateDraft] = useState('');
   const [templateNameDraft, setTemplateNameDraft] = useState('');
   const [letterheadDraft, setLetterheadDraft] = useState<string | null>(null);
@@ -657,25 +749,48 @@ export function LetterGeneration() {
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
-      rationOfficeAddress: DEFAULT_RATION_OFFICE_ADDRESS[letterLocale],
     }));
     setIncomeFields((prev) => ({
       ...prev,
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
-      officeAddress: DEFAULT_OFFICE_ADDRESS[letterLocale],
     }));
     setDomicileFields((prev) => ({
       ...prev,
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
-      officeAddress: DEFAULT_OFFICE_ADDRESS[letterLocale],
     }));
 
+    applyMasterAddressToFields(addresses, addressSelections, letterLocale, {
+      setFeesFields,
+      setSchoolAdmissionFields,
+      setSchoolTransferFields,
+      setRationFields,
+      setIncomeFields,
+      setDomicileFields,
+    });
+
+    if (!addressSelections.rationOffice) {
+      setRationFields((prev) => ({
+        ...prev,
+        rationOfficeAddress: DEFAULT_RATION_OFFICE_ADDRESS[letterLocale],
+      }));
+    }
+    if (!addressSelections.office) {
+      setIncomeFields((prev) => ({
+        ...prev,
+        officeAddress: DEFAULT_OFFICE_ADDRESS[letterLocale],
+      }));
+      setDomicileFields((prev) => ({
+        ...prev,
+        officeAddress: DEFAULT_OFFICE_ADDRESS[letterLocale],
+      }));
+    }
+
     prevLetterLocaleRef.current = letterLocale;
-  }, [letterLocale]);
+  }, [letterLocale, addresses, addressSelections]);
 
   const refreshLetterMasters = async () => {
     setLetterMastersLoading(true);
@@ -689,6 +804,21 @@ export function LetterGeneration() {
       toast.error(t('letterGeneration.templates.fetchError'));
     } finally {
       setLetterMastersLoading(false);
+    }
+  };
+
+  const refreshAddresses = async () => {
+    setAddressesLoading(true);
+    try {
+      const res = await fetch('/api/addresses?includeInactive=true');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch addresses');
+      setAddresses((json?.addresses ?? []) as AddressMasterRow[]);
+    } catch (error) {
+      console.error('Failed to fetch addresses', error);
+      toast.error(t('letterGeneration.addresses.fetchError'));
+    } finally {
+      setAddressesLoading(false);
     }
   };
 
@@ -710,8 +840,59 @@ export function LetterGeneration() {
   useEffect(() => {
     void refreshSavedLetters();
     void refreshLetterMasters();
+    void refreshAddresses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (addresses.length === 0) return;
+
+    const defaultOffice = findDefaultAddress(addresses, 'office');
+    const defaultRationOffice = findDefaultAddress(addresses, 'ration_office');
+
+    setAddressSelections((prev) => ({
+      school: prev.school,
+      applicant: prev.applicant,
+      rationOffice: prev.rationOffice ?? defaultRationOffice?.id ?? null,
+      office: prev.office ?? defaultOffice?.id ?? null,
+    }));
+
+    if (defaultRationOffice) {
+      const rationOfficeText = getAddressTextForLocale(
+        defaultRationOffice.addressEn,
+        defaultRationOffice.addressMr,
+        letterLocale,
+      );
+      setRationFields((prev) =>
+        prev.rationOfficeAddress === DEFAULT_RATION_OFFICE_ADDRESS[letterLocale] ||
+        !prev.rationOfficeAddress.trim()
+          ? { ...prev, rationOfficeAddress: rationOfficeText }
+          : prev,
+      );
+    }
+
+    if (defaultOffice) {
+      const officeText = getAddressTextForLocale(
+        defaultOffice.addressEn,
+        defaultOffice.addressMr,
+        letterLocale,
+      );
+      setIncomeFields((prev) =>
+        prev.officeAddress === DEFAULT_OFFICE_ADDRESS[letterLocale] ||
+        !prev.officeAddress.trim()
+          ? { ...prev, officeAddress: officeText }
+          : prev,
+      );
+      setDomicileFields((prev) =>
+        prev.officeAddress === DEFAULT_OFFICE_ADDRESS[letterLocale] ||
+        !prev.officeAddress.trim()
+          ? { ...prev, officeAddress: officeText }
+          : prev,
+      );
+    }
+    // Apply defaults once when addresses are first loaded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addresses]);
 
   const activeLetterMaster = useMemo(() => {
     return (
@@ -1332,18 +1513,34 @@ export function LetterGeneration() {
                           }
                         />
                       </FieldGroup>
-                      <FieldGroup label={t('letterGeneration.fields.schoolAddress')}>
-                        <Textarea
-                          value={feesFields.schoolAddress}
-                          onChange={(e) =>
-                            setFeesFields({
-                              ...feesFields,
-                              schoolAddress: e.target.value,
-                            })
+                      <LetterAddressField
+                        label={t('letterGeneration.fields.schoolAddress')}
+                        addressType="school"
+                        locale={letterLocale}
+                        value={feesFields.schoolAddress}
+                        selectedAddressId={addressSelections.school}
+                        addresses={addresses}
+                        onValueChange={(value) =>
+                          setFeesFields({ ...feesFields, schoolAddress: value })
+                        }
+                        onSelectedAddressIdChange={(id) => {
+                          setAddressSelections((prev) => ({ ...prev, school: id }));
+                          if (id) {
+                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
+                            if (text) {
+                              setFeesFields((prev) => ({ ...prev, schoolAddress: text }));
+                              setSchoolAdmissionFields((prev) => ({
+                                ...prev,
+                                schoolAddress: text,
+                              }));
+                              setSchoolTransferFields((prev) => ({
+                                ...prev,
+                                schoolAddress: text,
+                              }));
+                            }
                           }
-                          rows={2}
-                        />
-                      </FieldGroup>
+                        }}
+                      />
                       <div className="grid gap-4 sm:grid-cols-2">
                         <FieldGroup label={t('letterGeneration.fields.standard')}>
                           <Input
@@ -1381,18 +1578,37 @@ export function LetterGeneration() {
                           }
                         />
                       </FieldGroup>
-                      <FieldGroup label={t('letterGeneration.fields.schoolAddress')}>
-                        <Textarea
-                          value={schoolAdmissionFields.schoolAddress}
-                          onChange={(e) =>
-                            setSchoolAdmissionFields({
-                              ...schoolAdmissionFields,
-                              schoolAddress: e.target.value,
-                            })
+                      <LetterAddressField
+                        label={t('letterGeneration.fields.schoolAddress')}
+                        addressType="school"
+                        locale={letterLocale}
+                        value={schoolAdmissionFields.schoolAddress}
+                        selectedAddressId={addressSelections.school}
+                        addresses={addresses}
+                        onValueChange={(value) =>
+                          setSchoolAdmissionFields({
+                            ...schoolAdmissionFields,
+                            schoolAddress: value,
+                          })
+                        }
+                        onSelectedAddressIdChange={(id) => {
+                          setAddressSelections((prev) => ({ ...prev, school: id }));
+                          if (id) {
+                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
+                            if (text) {
+                              setFeesFields((prev) => ({ ...prev, schoolAddress: text }));
+                              setSchoolAdmissionFields((prev) => ({
+                                ...prev,
+                                schoolAddress: text,
+                              }));
+                              setSchoolTransferFields((prev) => ({
+                                ...prev,
+                                schoolAddress: text,
+                              }));
+                            }
                           }
-                          rows={2}
-                        />
-                      </FieldGroup>
+                        }}
+                      />
                       <div className="grid gap-4 sm:grid-cols-2">
                         <FieldGroup label={t('letterGeneration.fields.standard')}>
                           <Input
@@ -1428,18 +1644,33 @@ export function LetterGeneration() {
                           }
                         />
                       </FieldGroup>
-                      <FieldGroup label={t('letterGeneration.fields.address')}>
-                        <Textarea
-                          value={schoolAdmissionFields.address}
-                          onChange={(e) =>
-                            setSchoolAdmissionFields({
-                              ...schoolAdmissionFields,
-                              address: e.target.value,
-                            })
+                      <LetterAddressField
+                        label={t('letterGeneration.fields.address')}
+                        addressType="general"
+                        locale={letterLocale}
+                        value={schoolAdmissionFields.address}
+                        selectedAddressId={addressSelections.applicant}
+                        addresses={addresses}
+                        onValueChange={(value) =>
+                          setSchoolAdmissionFields({
+                            ...schoolAdmissionFields,
+                            address: value,
+                          })
+                        }
+                        onSelectedAddressIdChange={(id) => {
+                          setAddressSelections((prev) => ({ ...prev, applicant: id }));
+                          if (id) {
+                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
+                            if (text) {
+                              setSchoolAdmissionFields((prev) => ({ ...prev, address: text }));
+                              setSchoolTransferFields((prev) => ({ ...prev, address: text }));
+                              setRationFields((prev) => ({ ...prev, address: text }));
+                              setIncomeFields((prev) => ({ ...prev, address: text }));
+                              setDomicileFields((prev) => ({ ...prev, address: text }));
+                            }
                           }
-                          rows={2}
-                        />
-                      </FieldGroup>
+                        }}
+                      />
                       <FieldGroup label={t('letterGeneration.fields.reasonText')}>
                         <Textarea
                           value={schoolAdmissionFields.reasonText}
@@ -1467,18 +1698,37 @@ export function LetterGeneration() {
                           }
                         />
                       </FieldGroup>
-                      <FieldGroup label={t('letterGeneration.fields.schoolAddress')}>
-                        <Textarea
-                          value={schoolTransferFields.schoolAddress}
-                          onChange={(e) =>
-                            setSchoolTransferFields({
-                              ...schoolTransferFields,
-                              schoolAddress: e.target.value,
-                            })
+                      <LetterAddressField
+                        label={t('letterGeneration.fields.schoolAddress')}
+                        addressType="school"
+                        locale={letterLocale}
+                        value={schoolTransferFields.schoolAddress}
+                        selectedAddressId={addressSelections.school}
+                        addresses={addresses}
+                        onValueChange={(value) =>
+                          setSchoolTransferFields({
+                            ...schoolTransferFields,
+                            schoolAddress: value,
+                          })
+                        }
+                        onSelectedAddressIdChange={(id) => {
+                          setAddressSelections((prev) => ({ ...prev, school: id }));
+                          if (id) {
+                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
+                            if (text) {
+                              setFeesFields((prev) => ({ ...prev, schoolAddress: text }));
+                              setSchoolAdmissionFields((prev) => ({
+                                ...prev,
+                                schoolAddress: text,
+                              }));
+                              setSchoolTransferFields((prev) => ({
+                                ...prev,
+                                schoolAddress: text,
+                              }));
+                            }
                           }
-                          rows={2}
-                        />
-                      </FieldGroup>
+                        }}
+                      />
                       <div className="grid gap-4 sm:grid-cols-2">
                         <FieldGroup label={t('letterGeneration.fields.standard')}>
                           <Input
@@ -1514,18 +1764,33 @@ export function LetterGeneration() {
                           }
                         />
                       </FieldGroup>
-                      <FieldGroup label={t('letterGeneration.fields.address')}>
-                        <Textarea
-                          value={schoolTransferFields.address}
-                          onChange={(e) =>
-                            setSchoolTransferFields({
-                              ...schoolTransferFields,
-                              address: e.target.value,
-                            })
+                      <LetterAddressField
+                        label={t('letterGeneration.fields.address')}
+                        addressType="general"
+                        locale={letterLocale}
+                        value={schoolTransferFields.address}
+                        selectedAddressId={addressSelections.applicant}
+                        addresses={addresses}
+                        onValueChange={(value) =>
+                          setSchoolTransferFields({
+                            ...schoolTransferFields,
+                            address: value,
+                          })
+                        }
+                        onSelectedAddressIdChange={(id) => {
+                          setAddressSelections((prev) => ({ ...prev, applicant: id }));
+                          if (id) {
+                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
+                            if (text) {
+                              setSchoolAdmissionFields((prev) => ({ ...prev, address: text }));
+                              setSchoolTransferFields((prev) => ({ ...prev, address: text }));
+                              setRationFields((prev) => ({ ...prev, address: text }));
+                              setIncomeFields((prev) => ({ ...prev, address: text }));
+                              setDomicileFields((prev) => ({ ...prev, address: text }));
+                            }
                           }
-                          rows={2}
-                        />
-                      </FieldGroup>
+                        }}
+                      />
                       <FieldGroup label={t('letterGeneration.fields.previousSchoolName')}>
                         <Input
                           value={schoolTransferFields.previousSchoolName}
@@ -1624,15 +1889,40 @@ export function LetterGeneration() {
                             />
                           </FieldGroup>
                         </div>
-                        <FieldGroup label={t('letterGeneration.fields.address')}>
-                          <Textarea
-                            value={rationFields.address}
-                            onChange={(e) =>
-                              setRationFields({ ...rationFields, address: e.target.value })
+                        <LetterAddressField
+                          label={t('letterGeneration.fields.address')}
+                          addressType="general"
+                          locale={letterLocale}
+                          value={rationFields.address}
+                          selectedAddressId={addressSelections.applicant}
+                          addresses={addresses}
+                          onValueChange={(value) =>
+                            setRationFields({ ...rationFields, address: value })
+                          }
+                          onSelectedAddressIdChange={(id) => {
+                            setAddressSelections((prev) => ({ ...prev, applicant: id }));
+                            if (id) {
+                              const text = getAddressTextFromMaster(
+                                addresses,
+                                id,
+                                letterLocale,
+                              );
+                              if (text) {
+                                setSchoolAdmissionFields((prev) => ({
+                                  ...prev,
+                                  address: text,
+                                }));
+                                setSchoolTransferFields((prev) => ({
+                                  ...prev,
+                                  address: text,
+                                }));
+                                setRationFields((prev) => ({ ...prev, address: text }));
+                                setIncomeFields((prev) => ({ ...prev, address: text }));
+                                setDomicileFields((prev) => ({ ...prev, address: text }));
+                              }
                             }
-                            rows={2}
-                          />
-                        </FieldGroup>
+                          }}
+                        />
                         {rationType !== 'ration-new' ? (
                           <FieldGroup label={t('letterGeneration.fields.rationCardNo')}>
                             <Input
@@ -1685,18 +1975,36 @@ export function LetterGeneration() {
                             placeholder={t('letterGeneration.placeholders.familyMembers')}
                           />
                         </FieldGroup>
-                        <FieldGroup label={t('letterGeneration.fields.rationOfficeAddress')}>
-                          <Textarea
-                            value={rationFields.rationOfficeAddress}
-                            onChange={(e) =>
-                              setRationFields({
-                                ...rationFields,
-                                rationOfficeAddress: e.target.value,
-                              })
+                        <LetterAddressField
+                          label={t('letterGeneration.fields.rationOfficeAddress')}
+                          addressType="ration_office"
+                          locale={letterLocale}
+                          value={rationFields.rationOfficeAddress}
+                          selectedAddressId={addressSelections.rationOffice}
+                          addresses={addresses}
+                          onValueChange={(value) =>
+                            setRationFields({
+                              ...rationFields,
+                              rationOfficeAddress: value,
+                            })
+                          }
+                          onSelectedAddressIdChange={(id) => {
+                            setAddressSelections((prev) => ({ ...prev, rationOffice: id }));
+                            if (id) {
+                              const text = getAddressTextFromMaster(
+                                addresses,
+                                id,
+                                letterLocale,
+                              );
+                              if (text) {
+                                setRationFields((prev) => ({
+                                  ...prev,
+                                  rationOfficeAddress: text,
+                                }));
+                              }
                             }
-                            rows={2}
-                          />
-                        </FieldGroup>
+                          }}
+                        />
                       </TabsContent>
                     ))}
 
@@ -1753,27 +2061,54 @@ export function LetterGeneration() {
                           />
                         </FieldGroup>
                       </div>
-                      <FieldGroup label={t('letterGeneration.fields.address')}>
-                        <Textarea
-                          value={incomeFields.address}
-                          onChange={(e) =>
-                            setIncomeFields({ ...incomeFields, address: e.target.value })
+                      <LetterAddressField
+                        label={t('letterGeneration.fields.address')}
+                        addressType="general"
+                        locale={letterLocale}
+                        value={incomeFields.address}
+                        selectedAddressId={addressSelections.applicant}
+                        addresses={addresses}
+                        onValueChange={(value) =>
+                          setIncomeFields({ ...incomeFields, address: value })
+                        }
+                        onSelectedAddressIdChange={(id) => {
+                          setAddressSelections((prev) => ({ ...prev, applicant: id }));
+                          if (id) {
+                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
+                            if (text) {
+                              setSchoolAdmissionFields((prev) => ({ ...prev, address: text }));
+                              setSchoolTransferFields((prev) => ({ ...prev, address: text }));
+                              setRationFields((prev) => ({ ...prev, address: text }));
+                              setIncomeFields((prev) => ({ ...prev, address: text }));
+                              setDomicileFields((prev) => ({ ...prev, address: text }));
+                            }
                           }
-                          rows={2}
-                        />
-                      </FieldGroup>
-                      <FieldGroup label={t('letterGeneration.fields.officeAddress')}>
-                        <Textarea
-                          value={incomeFields.officeAddress}
-                          onChange={(e) =>
-                            setIncomeFields({
-                              ...incomeFields,
-                              officeAddress: e.target.value,
-                            })
+                        }}
+                      />
+                      <LetterAddressField
+                        label={t('letterGeneration.fields.officeAddress')}
+                        addressType="office"
+                        locale={letterLocale}
+                        value={incomeFields.officeAddress}
+                        selectedAddressId={addressSelections.office}
+                        addresses={addresses}
+                        onValueChange={(value) =>
+                          setIncomeFields({ ...incomeFields, officeAddress: value })
+                        }
+                        onSelectedAddressIdChange={(id) => {
+                          setAddressSelections((prev) => ({ ...prev, office: id }));
+                          if (id) {
+                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
+                            if (text) {
+                              setIncomeFields((prev) => ({ ...prev, officeAddress: text }));
+                              setDomicileFields((prev) => ({
+                                ...prev,
+                                officeAddress: text,
+                              }));
+                            }
                           }
-                          rows={2}
-                        />
-                      </FieldGroup>
+                        }}
+                      />
                       <FieldGroup label={t('letterGeneration.fields.aadhaarNo')}>
                         <Input
                           value={incomeFields.aadhaarNo}
@@ -1852,30 +2187,54 @@ export function LetterGeneration() {
                           />
                         </FieldGroup>
                       </div>
-                      <FieldGroup label={t('letterGeneration.fields.address')}>
-                        <Textarea
-                          value={domicileFields.address}
-                          onChange={(e) =>
-                            setDomicileFields({
-                              ...domicileFields,
-                              address: e.target.value,
-                            })
+                      <LetterAddressField
+                        label={t('letterGeneration.fields.address')}
+                        addressType="general"
+                        locale={letterLocale}
+                        value={domicileFields.address}
+                        selectedAddressId={addressSelections.applicant}
+                        addresses={addresses}
+                        onValueChange={(value) =>
+                          setDomicileFields({ ...domicileFields, address: value })
+                        }
+                        onSelectedAddressIdChange={(id) => {
+                          setAddressSelections((prev) => ({ ...prev, applicant: id }));
+                          if (id) {
+                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
+                            if (text) {
+                              setSchoolAdmissionFields((prev) => ({ ...prev, address: text }));
+                              setSchoolTransferFields((prev) => ({ ...prev, address: text }));
+                              setRationFields((prev) => ({ ...prev, address: text }));
+                              setIncomeFields((prev) => ({ ...prev, address: text }));
+                              setDomicileFields((prev) => ({ ...prev, address: text }));
+                            }
                           }
-                          rows={2}
-                        />
-                      </FieldGroup>
-                      <FieldGroup label={t('letterGeneration.fields.officeAddress')}>
-                        <Textarea
-                          value={domicileFields.officeAddress}
-                          onChange={(e) =>
-                            setDomicileFields({
-                              ...domicileFields,
-                              officeAddress: e.target.value,
-                            })
+                        }}
+                      />
+                      <LetterAddressField
+                        label={t('letterGeneration.fields.officeAddress')}
+                        addressType="office"
+                        locale={letterLocale}
+                        value={domicileFields.officeAddress}
+                        selectedAddressId={addressSelections.office}
+                        addresses={addresses}
+                        onValueChange={(value) =>
+                          setDomicileFields({ ...domicileFields, officeAddress: value })
+                        }
+                        onSelectedAddressIdChange={(id) => {
+                          setAddressSelections((prev) => ({ ...prev, office: id }));
+                          if (id) {
+                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
+                            if (text) {
+                              setIncomeFields((prev) => ({ ...prev, officeAddress: text }));
+                              setDomicileFields((prev) => ({
+                                ...prev,
+                                officeAddress: text,
+                              }));
+                            }
                           }
-                          rows={2}
-                        />
-                      </FieldGroup>
+                        }}
+                      />
                       <FieldGroup label={t('letterGeneration.fields.aadhaarNo')}>
                         <Input
                           value={domicileFields.aadhaarNo}
@@ -1933,6 +2292,12 @@ export function LetterGeneration() {
           </CardContent>
         )}
       </Card>
+
+      <AddressMasterManager
+        addresses={addresses}
+        loading={addressesLoading}
+        onRefresh={refreshAddresses}
+      />
 
       <Card>
         <CardHeader

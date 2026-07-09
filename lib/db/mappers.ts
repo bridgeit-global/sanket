@@ -24,6 +24,7 @@ import type {
   ExportJob,
   Letter,
   LetterMaster,
+  AddressMaster,
   MlaProject,
   PhoneUpdateHistory,
   ProjectAttachment,
@@ -51,6 +52,7 @@ import type {
   AdmPhysicalStatus,
 } from './schema';
 import { getDefaultLetterPaperSize } from '@/lib/letters/paper-size';
+import { isAddressType } from '@/lib/letters/address-types';
 
 type Row = Record<string, unknown>;
 
@@ -248,6 +250,26 @@ export function mapLetterMasterRow(row: Row): LetterMaster {
     letterheadMode:
       (row.letterhead_mode ?? row.letterheadMode) === 'half' ? 'half' : 'full',
     paperSize: mapLetterPaperSize(row.paper_size ?? row.paperSize, letterType),
+    createdBy: toStringOrNull(row.created_by ?? row.createdBy),
+    updatedBy: toStringOrNull(row.updated_by ?? row.updatedBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+function mapAddressType(value: unknown): AddressMaster['addressType'] {
+  return isAddressType(value) ? value : 'general';
+}
+
+export function mapAddressMasterRow(row: Row): AddressMaster {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    addressType: mapAddressType(row.address_type ?? row.addressType),
+    addressEn: String(row.address_en ?? row.addressEn ?? ''),
+    addressMr: String(row.address_mr ?? row.addressMr ?? ''),
+    isActive: Boolean(row.is_active ?? row.isActive ?? true),
+    sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),
     updatedBy: toStringOrNull(row.updated_by ?? row.updatedBy),
     createdAt: toDate(row.created_at ?? row.createdAt),
