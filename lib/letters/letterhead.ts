@@ -11,7 +11,7 @@ export const DEFAULT_LETTERHEAD_URLS: Record<LetterPaperSize, string> = {
 };
 
 /** Fraction of page height reserved for the letterhead header area. */
-export const LETTERHEAD_HEADER_HEIGHT_RATIO = 0.32;
+export const LETTERHEAD_HEADER_HEIGHT_RATIO = 0.18;
 
 const LETTERHEAD_STRIP_PATTERN =
   /<div[^>]*class="[^"]*letter-letterhead[^"]*"[^>]*>[\s\S]*?<\/div>/i;
