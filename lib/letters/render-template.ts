@@ -2,16 +2,13 @@ import type {
   DomicileLetterFields,
   FeesLetterFields,
   IncomeLetterFields,
+  LetterFields,
   LetterLocale,
   LetterType,
   RationLetterFields,
+  SchoolAdmissionLetterFields,
+  SchoolTransferLetterFields,
 } from '@/lib/letters/templates';
-
-type LetterFields =
-  | FeesLetterFields
-  | RationLetterFields
-  | IncomeLetterFields
-  | DomicileLetterFields;
 
 const PLACEHOLDER_PATTERN = /\{\{(\w+)\}\}/g;
 
@@ -65,35 +62,51 @@ export function buildRenderFields(
 ): Record<string, string> {
   const base = toFieldRecord(fields);
 
-  if (type === 'fees') {
-    const feesFields = fields as FeesLetterFields;
-    return {
-      ...base,
-      genderPossessive: feesFields.studentGender === 'female' ? 'her' : 'his',
-      genderSuffix: feesFields.studentGender === 'female' ? 'हिला' : 'याला',
-    };
-  }
-
-  if (type === 'ration') {
+  if (type.startsWith('ration-')) {
     const rationFields = fields as RationLetterFields;
     const familyMembers = rationFields.familyMembers.trim();
-    const familyMembersBlock = familyMembers ? `\n${familyMembers}\n` : '\n';
-    const purposeText =
-      rationFields.purpose === 'new'
-        ? locale === 'en'
-          ? 'obtaining a new ration card in the names of their family members'
-          : 'त्यांच्या कुटुंबियांच्या नावे नवीन शिधापत्रिका मिळणेकरिता'
-        : locale === 'en'
-          ? 'including the names of their family members in the ration card'
-          : 'त्यांच्या कुटुंबियांची नावे शिधापत्रिकेमध्ये समाविष्ट करणेकरिता';
-
+    const familyMembersBlock = familyMembers ? familyMembers : '';
     return {
       ...base,
       familyMembersBlock,
-      purposeText,
+      rationCardNo: rationFields.rationCardNo ?? '',
+      fromRationOffice: rationFields.fromRationOffice ?? '',
+      toRationOffice: rationFields.toRationOffice ?? '',
     };
   }
 
+  if (type === 'income') {
+    const incomeFields = fields as IncomeLetterFields;
+    return {
+      ...base,
+      aadhaarNo: incomeFields.aadhaarNo,
+      annualIncome: incomeFields.annualIncome,
+      officeAddress: incomeFields.officeAddress,
+    };
+  }
+
+  if (type === 'domicile') {
+    const domicileFields = fields as DomicileLetterFields;
+    return {
+      ...base,
+      aadhaarNo: domicileFields.aadhaarNo,
+      officeAddress: domicileFields.officeAddress,
+    };
+  }
+
+  if (type === 'school-admission') {
+    return { ...base, ...(fields as SchoolAdmissionLetterFields) };
+  }
+
+  if (type === 'school-transfer') {
+    return { ...base, ...(fields as SchoolTransferLetterFields) };
+  }
+
+  if (type === 'fees') {
+    return { ...base, ...(fields as FeesLetterFields) };
+  }
+
+  void locale;
   return base;
 }
 

@@ -30,9 +30,15 @@ export function getDefaultLetterPaperSize(
   letterType: LetterType | string,
 ): LetterPaperSize {
   switch (letterType) {
+    case 'ration-new':
+    case 'ration-add-members':
+    case 'ration-delete-members':
+    case 'ration-transfer':
     case 'ration':
       return 'b5';
     case 'fees':
+    case 'school-admission':
+    case 'school-transfer':
     case 'income':
     case 'domicile':
       return 'a5';

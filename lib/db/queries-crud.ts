@@ -2200,21 +2200,31 @@ export async function getDailyProgrammeAttachmentById(
 
 export async function ensureLetterMasterDefaults(): Promise<void> {
   try {
-    const { count, error: countError } = await supabase
-      .from(TABLES.letterMaster)
-      .select('*', { count: 'exact', head: true });
-    throwOnSupabaseError(countError, 'Failed to count letter masters');
-    if ((count ?? 0) > 0) return;
-
     const { getAllDefaultLetterMasters } = await import(
       '@/lib/letters/default-template-html'
     );
-    const defaults = getAllDefaultLetterMasters();
-    const now = new Date().toISOString();
-
     const { getDefaultLetterPaperSize } = await import('@/lib/letters/paper-size');
+    const defaults = getAllDefaultLetterMasters();
+
+    const { data: existingRows, error: existingError } = await supabase
+      .from(TABLES.letterMaster)
+      .select('letter_type, letter_locale');
+    throwOnSupabaseError(existingError, 'Failed to list letter masters');
+
+    const existingKeys = new Set(
+      (existingRows ?? []).map(
+        (row) => `${String(row.letter_type)}:${String(row.letter_locale)}`,
+      ),
+    );
+
+    const missing = defaults.filter(
+      (item) => !existingKeys.has(`${item.letterType}:${item.letterLocale}`),
+    );
+    if (missing.length === 0) return;
+
+    const now = new Date().toISOString();
     const { error } = await supabase.from(TABLES.letterMaster).insert(
-      defaults.map((item) =>
+      missing.map((item) =>
         toSnakeCaseKeys({
           name: item.name,
           letterType: item.letterType,

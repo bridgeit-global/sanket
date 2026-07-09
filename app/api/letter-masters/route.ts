@@ -4,9 +4,7 @@ import { auth } from '@/app/(auth)/auth';
 import { createLetterMaster, getLetterMasters } from '@/lib/db/queries';
 import { resolveLetterPaperSize } from '@/lib/letters/paper-size';
 import { normalizeLetterheadMode } from '@/lib/letters/render-template';
-import type { LetterLocale, LetterType } from '@/lib/letters/templates';
-
-const LETTER_TYPES: LetterType[] = ['fees', 'ration', 'income', 'domicile'];
+import { LETTER_TYPES, type LetterLocale, type LetterType } from '@/lib/letters/templates';
 const LETTER_LOCALES: LetterLocale[] = ['en', 'mr'];
 
 export async function GET(_request: NextRequest) {

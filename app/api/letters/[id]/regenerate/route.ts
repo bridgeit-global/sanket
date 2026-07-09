@@ -7,7 +7,11 @@ import {
   updateLetterRenderedHtml,
 } from '@/lib/db/queries';
 import { buildRenderedLetterHtml } from '@/lib/letters/render-template';
-import type { LetterLocale, LetterType } from '@/lib/letters/templates';
+import {
+  resolveLegacyRationLetterType,
+  type LetterLocale,
+  type LetterType,
+} from '@/lib/letters/templates';
 
 export async function POST(
   _request: Request,
@@ -30,10 +34,19 @@ export async function POST(
       return NextResponse.json({ error: 'Letter not found' }, { status: 404 });
     }
 
+    const letterFields = letter.fields as Record<string, unknown> | null;
+    const resolvedLetterType =
+      letter.letterType === 'ration'
+        ? resolveLegacyRationLetterType(
+            letter.letterType,
+            letterFields?.purpose,
+          )
+        : (letter.letterType as LetterType);
+
     const master = letter.letterMasterId
       ? await getLetterMasterById(letter.letterMasterId)
       : await getLetterMasterByTypeAndLocale({
-          letterType: letter.letterType,
+          letterType: resolvedLetterType,
           letterLocale: letter.letterLocale,
         });
 
@@ -45,7 +58,7 @@ export async function POST(
     }
 
     const renderedHtml = buildRenderedLetterHtml(
-      letter.letterType as LetterType,
+      resolvedLetterType,
       master.templateHtml,
       letter.fields as Parameters<typeof buildRenderedLetterHtml>[2],
       letter.letterLocale as LetterLocale,

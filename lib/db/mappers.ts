@@ -50,6 +50,7 @@ import type {
   AdmFundingCategoryWithWorks,
   AdmPhysicalStatus,
 } from './schema';
+import { getDefaultLetterPaperSize } from '@/lib/letters/paper-size';
 
 type Row = Record<string, unknown>;
 
@@ -232,11 +233,7 @@ function mapLetterPaperSize(
   letterType: string,
 ): 'a4' | 'a5' | 'b5' {
   if (value === 'a4' || value === 'a5' || value === 'b5') return value;
-  if (letterType === 'ration') return 'b5';
-  if (letterType === 'fees' || letterType === 'income' || letterType === 'domicile') {
-    return 'a5';
-  }
-  return 'a4';
+  return getDefaultLetterPaperSize(letterType);
 }
 
 export function mapLetterMasterRow(row: Row): LetterMaster {

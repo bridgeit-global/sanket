@@ -55,8 +55,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { useTranslations } from '@/hooks/use-translations';
 import {
   buildLetterBody,
+  DEFAULT_OFFICE_ADDRESS,
   DEFAULT_RATION_OFFICE_ADDRESS,
   DEFAULT_SIGNATORY,
+  LETTER_TYPES,
   type CommonLetterFields,
   type DomicileLetterFields,
   type FeesLetterFields,
@@ -64,6 +66,8 @@ import {
   type LetterLocale,
   type LetterType,
   type RationLetterFields,
+  type SchoolAdmissionLetterFields,
+  type SchoolTransferLetterFields,
 } from '@/lib/letters/templates';
 import {
   getLetterheadContentPaddingMm,
@@ -89,8 +93,51 @@ import { ModulePageHeader } from '@/components/module-page-header';
 import { cn } from '@/lib/utils';
 
 const ALL_LETTER_TYPES = 'all' as const;
-type SavedLetterTypeFilter = LetterType | typeof ALL_LETTER_TYPES;
+type SavedLetterTypeFilter = LetterType | typeof ALL_LETTER_TYPES | 'ration';
 const LETTER_LOCALES: LetterLocale[] = ['en', 'mr'];
+
+function isRationLetterType(type: LetterType): boolean {
+  return type.startsWith('ration-');
+}
+
+function matchesSavedLetterTypeFilter(
+  letterType: string,
+  filter: SavedLetterTypeFilter,
+): boolean {
+  if (filter === ALL_LETTER_TYPES) return true;
+  if (filter === 'ration') {
+    return letterType === 'ration' || letterType.startsWith('ration-');
+  }
+  return letterType === filter;
+}
+
+function getFieldsForLetterType(
+  type: LetterType,
+  fields: {
+    feesFields: FeesLetterFields;
+    schoolAdmissionFields: SchoolAdmissionLetterFields;
+    schoolTransferFields: SchoolTransferLetterFields;
+    rationFields: RationLetterFields;
+    incomeFields: IncomeLetterFields;
+    domicileFields: DomicileLetterFields;
+  },
+) {
+  switch (type) {
+    case 'fees':
+      return fields.feesFields;
+    case 'school-admission':
+      return fields.schoolAdmissionFields;
+    case 'school-transfer':
+      return fields.schoolTransferFields;
+    case 'income':
+      return fields.incomeFields;
+    case 'domicile':
+      return fields.domicileFields;
+    default:
+      if (isRationLetterType(type)) return fields.rationFields;
+      return fields.feesFields;
+  }
+}
 
 function isLetterWithinDateRange(
   createdAt: string | Date,
@@ -133,7 +180,34 @@ function feesDefaults(locale: LetterLocale): FeesLetterFields {
     schoolAddress: '',
     standard: '',
     studentName: '',
-    studentGender: 'male',
+  };
+}
+
+function schoolAdmissionDefaults(locale: LetterLocale): SchoolAdmissionLetterFields {
+  return {
+    ...commonDefaults(locale),
+    schoolName: '',
+    schoolAddress: '',
+    standard: '',
+    studentName: '',
+    parentName: '',
+    address: '',
+    reasonText: '',
+  };
+}
+
+function schoolTransferDefaults(locale: LetterLocale): SchoolTransferLetterFields {
+  return {
+    ...commonDefaults(locale),
+    schoolName: '',
+    schoolAddress: '',
+    standard: '',
+    studentName: '',
+    parentName: '',
+    address: '',
+    previousSchoolName: '',
+    currentStandard: '',
+    transferReason: '',
   };
 }
 
@@ -143,9 +217,11 @@ function rationDefaults(locale: LetterLocale): RationLetterFields {
     salutation: locale === 'en' ? 'Smt.' : 'श्रीमती',
     fullName: '',
     address: '',
-    purpose: 'new',
     familyMembers: '',
     rationOfficeAddress: DEFAULT_RATION_OFFICE_ADDRESS[locale],
+    rationCardNo: '',
+    fromRationOffice: '',
+    toRationOffice: '',
   };
 }
 
@@ -155,9 +231,9 @@ function incomeDefaults(locale: LetterLocale): IncomeLetterFields {
     salutation: locale === 'en' ? 'Shri' : 'श्री',
     fullName: '',
     address: '',
-    idType: locale === 'en' ? 'Aadhaar' : 'आधार',
-    idNumber: '',
-    income: '',
+    officeAddress: DEFAULT_OFFICE_ADDRESS[locale],
+    aadhaarNo: '',
+    annualIncome: '',
   };
 }
 
@@ -167,8 +243,8 @@ function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
     salutation: locale === 'en' ? 'Shri' : 'श्री',
     fullName: '',
     address: '',
-    idType: locale === 'en' ? 'Aadhaar' : 'आधार',
-    idNumber: '',
+    officeAddress: DEFAULT_OFFICE_ADDRESS[locale],
+    aadhaarNo: '',
   };
 }
 
@@ -464,6 +540,10 @@ export function LetterGeneration() {
   const [feesFields, setFeesFields] = useState<FeesLetterFields>(() =>
     feesDefaults(locale),
   );
+  const [schoolAdmissionFields, setSchoolAdmissionFields] =
+    useState<SchoolAdmissionLetterFields>(() => schoolAdmissionDefaults(locale));
+  const [schoolTransferFields, setSchoolTransferFields] =
+    useState<SchoolTransferLetterFields>(() => schoolTransferDefaults(locale));
   const [rationFields, setRationFields] = useState<RationLetterFields>(() =>
     rationDefaults(locale),
   );
@@ -509,6 +589,8 @@ export function LetterGeneration() {
   useEffect(() => {
     const signatory = DEFAULT_SIGNATORY[letterLocale];
     setFeesFields((prev) => ({ ...prev, signatory }));
+    setSchoolAdmissionFields((prev) => ({ ...prev, signatory }));
+    setSchoolTransferFields((prev) => ({ ...prev, signatory }));
     setRationFields((prev) => ({
       ...prev,
       signatory,
@@ -519,13 +601,13 @@ export function LetterGeneration() {
       ...prev,
       signatory,
       salutation: letterLocale === 'en' ? 'Shri' : 'श्री',
-      idType: letterLocale === 'en' ? 'Aadhaar' : 'आधार',
+      officeAddress: DEFAULT_OFFICE_ADDRESS[letterLocale],
     }));
     setDomicileFields((prev) => ({
       ...prev,
       signatory,
       salutation: letterLocale === 'en' ? 'Shri' : 'श्री',
-      idType: letterLocale === 'en' ? 'Aadhaar' : 'आधार',
+      officeAddress: DEFAULT_OFFICE_ADDRESS[letterLocale],
     }));
   }, [letterLocale]);
 
@@ -602,14 +684,14 @@ export function LetterGeneration() {
   );
 
   const activeBody = useMemo(() => {
-    const fields =
-      activeTab === 'fees'
-        ? feesFields
-        : activeTab === 'ration'
-          ? rationFields
-          : activeTab === 'income'
-            ? incomeFields
-            : domicileFields;
+    const fields = getFieldsForLetterType(activeTab, {
+      feesFields,
+      schoolAdmissionFields,
+      schoolTransferFields,
+      rationFields,
+      incomeFields,
+      domicileFields,
+    });
 
     if (activeTemplateHtml.trim()) {
       return buildRenderedLetterHtml(
@@ -625,6 +707,8 @@ export function LetterGeneration() {
     activeTab,
     letterLocale,
     feesFields,
+    schoolAdmissionFields,
+    schoolTransferFields,
     rationFields,
     incomeFields,
     domicileFields,
@@ -636,62 +720,29 @@ export function LetterGeneration() {
   const activePaperLabel = getLetterPaperLabel(activePaperSize);
   const activeLetterheadUrl = resolveLetterheadUrl(activePaperSize, letterheadDraft);
 
-  const activeFields = useMemo(() => {
-    switch (activeTab) {
-      case 'fees':
-        return feesFields;
-      case 'ration':
-        return rationFields;
-      case 'income':
-        return incomeFields;
-      case 'domicile':
-        return domicileFields;
-      default:
-        return feesFields;
-    }
-  }, [activeTab, domicileFields, feesFields, incomeFields, rationFields]);
+  const activeFields = useMemo(
+    () =>
+      getFieldsForLetterType(activeTab, {
+        feesFields,
+        schoolAdmissionFields,
+        schoolTransferFields,
+        rationFields,
+        incomeFields,
+        domicileFields,
+      }),
+    [
+      activeTab,
+      domicileFields,
+      feesFields,
+      incomeFields,
+      rationFields,
+      schoolAdmissionFields,
+      schoolTransferFields,
+    ],
+  );
 
-  const activeReferenceNo = useMemo(() => {
-    switch (activeTab) {
-      case 'fees':
-        return feesFields.referenceNo;
-      case 'ration':
-        return rationFields.referenceNo;
-      case 'income':
-        return incomeFields.referenceNo;
-      case 'domicile':
-        return domicileFields.referenceNo;
-      default:
-        return '';
-    }
-  }, [
-    activeTab,
-    feesFields.referenceNo,
-    rationFields.referenceNo,
-    incomeFields.referenceNo,
-    domicileFields.referenceNo,
-  ]);
-
-  const activeDate = useMemo(() => {
-    switch (activeTab) {
-      case 'fees':
-        return feesFields.date;
-      case 'ration':
-        return rationFields.date;
-      case 'income':
-        return incomeFields.date;
-      case 'domicile':
-        return domicileFields.date;
-      default:
-        return '';
-    }
-  }, [
-    activeTab,
-    feesFields.date,
-    rationFields.date,
-    incomeFields.date,
-    domicileFields.date,
-  ]);
+  const activeReferenceNo = activeFields.referenceNo;
+  const activeDate = activeFields.date;
 
   const validateActiveCommonFields = () => {
     const errors = validateRequiredCommonFields(
@@ -938,7 +989,7 @@ export function LetterGeneration() {
     return savedLetters.filter((letter) => {
       if (
         filterLetterType !== ALL_LETTER_TYPES &&
-        letter.letterType !== filterLetterType
+        !matchesSavedLetterTypeFilter(letter.letterType, filterLetterType)
       ) {
         return false;
       }
@@ -1148,12 +1199,11 @@ export function LetterGeneration() {
                       />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="fees">{t('letterGeneration.tabs.fees')}</SelectItem>
-                      <SelectItem value="ration">{t('letterGeneration.tabs.ration')}</SelectItem>
-                      <SelectItem value="income">{t('letterGeneration.tabs.income')}</SelectItem>
-                      <SelectItem value="domicile">
-                        {t('letterGeneration.tabs.domicile')}
-                      </SelectItem>
+                      {LETTER_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {t(`letterGeneration.tabs.${type}`)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </FieldGroup>
@@ -1248,110 +1298,312 @@ export function LetterGeneration() {
                           />
                         </FieldGroup>
                       </div>
-                      <FieldGroup label={t('letterGeneration.fields.studentGender')}>
-                        <Select
-                          value={feesFields.studentGender}
-                          onValueChange={(value: 'male' | 'female') =>
-                            setFeesFields({ ...feesFields, studentGender: value })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="male">
-                              {t('letterGeneration.gender.male')}
-                            </SelectItem>
-                            <SelectItem value="female">
-                              {t('letterGeneration.gender.female')}
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FieldGroup>
                     </TabsContent>
 
-                    <TabsContent value="ration" className="mt-0 space-y-4">
-                      {renderCommonFields(rationFields, setRationFields)}
+                    <TabsContent value="school-admission" className="mt-0 space-y-4">
+                      {renderCommonFields(schoolAdmissionFields, setSchoolAdmissionFields)}
+                      <FieldGroup label={t('letterGeneration.fields.schoolName')}>
+                        <Input
+                          value={schoolAdmissionFields.schoolName}
+                          onChange={(e) =>
+                            setSchoolAdmissionFields({
+                              ...schoolAdmissionFields,
+                              schoolName: e.target.value,
+                            })
+                          }
+                        />
+                      </FieldGroup>
+                      <FieldGroup label={t('letterGeneration.fields.schoolAddress')}>
+                        <Textarea
+                          value={schoolAdmissionFields.schoolAddress}
+                          onChange={(e) =>
+                            setSchoolAdmissionFields({
+                              ...schoolAdmissionFields,
+                              schoolAddress: e.target.value,
+                            })
+                          }
+                          rows={2}
+                        />
+                      </FieldGroup>
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <FieldGroup label={t('letterGeneration.fields.salutation')}>
+                        <FieldGroup label={t('letterGeneration.fields.standard')}>
                           <Input
-                            value={rationFields.salutation}
+                            value={schoolAdmissionFields.standard}
                             onChange={(e) =>
-                              setRationFields({
-                                ...rationFields,
-                                salutation: e.target.value,
+                              setSchoolAdmissionFields({
+                                ...schoolAdmissionFields,
+                                standard: e.target.value,
                               })
                             }
-                            placeholder={t('letterGeneration.placeholders.salutation')}
                           />
                         </FieldGroup>
-                        <FieldGroup label={t('letterGeneration.fields.fullName')}>
+                        <FieldGroup label={t('letterGeneration.fields.studentName')}>
                           <Input
-                            value={rationFields.fullName}
+                            value={schoolAdmissionFields.studentName}
                             onChange={(e) =>
-                              setRationFields({
-                                ...rationFields,
-                                fullName: e.target.value,
+                              setSchoolAdmissionFields({
+                                ...schoolAdmissionFields,
+                                studentName: e.target.value,
                               })
                             }
                           />
                         </FieldGroup>
                       </div>
+                      <FieldGroup label={t('letterGeneration.fields.parentName')}>
+                        <Input
+                          value={schoolAdmissionFields.parentName}
+                          onChange={(e) =>
+                            setSchoolAdmissionFields({
+                              ...schoolAdmissionFields,
+                              parentName: e.target.value,
+                            })
+                          }
+                        />
+                      </FieldGroup>
                       <FieldGroup label={t('letterGeneration.fields.address')}>
                         <Textarea
-                          value={rationFields.address}
+                          value={schoolAdmissionFields.address}
                           onChange={(e) =>
-                            setRationFields({ ...rationFields, address: e.target.value })
+                            setSchoolAdmissionFields({
+                              ...schoolAdmissionFields,
+                              address: e.target.value,
+                            })
                           }
                           rows={2}
                         />
                       </FieldGroup>
-                      <FieldGroup label={t('letterGeneration.fields.rationPurpose')}>
-                        <Select
-                          value={rationFields.purpose}
-                          onValueChange={(value: 'new' | 'add-members') =>
-                            setRationFields({ ...rationFields, purpose: value })
-                          }
-                        >
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="new">
-                              {t('letterGeneration.rationPurpose.new')}
-                            </SelectItem>
-                            <SelectItem value="add-members">
-                              {t('letterGeneration.rationPurpose.addMembers')}
-                            </SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </FieldGroup>
-                      <FieldGroup label={t('letterGeneration.fields.familyMembers')}>
+                      <FieldGroup label={t('letterGeneration.fields.reasonText')}>
                         <Textarea
-                          value={rationFields.familyMembers}
+                          value={schoolAdmissionFields.reasonText}
                           onChange={(e) =>
-                            setRationFields({
-                              ...rationFields,
-                              familyMembers: e.target.value,
+                            setSchoolAdmissionFields({
+                              ...schoolAdmissionFields,
+                              reasonText: e.target.value,
                             })
                           }
-                          rows={4}
-                          placeholder={t('letterGeneration.placeholders.familyMembers')}
-                        />
-                      </FieldGroup>
-                      <FieldGroup label={t('letterGeneration.fields.rationOfficeAddress')}>
-                        <Textarea
-                          value={rationFields.rationOfficeAddress}
-                          onChange={(e) =>
-                            setRationFields({
-                              ...rationFields,
-                              rationOfficeAddress: e.target.value,
-                            })
-                          }
-                          rows={2}
+                          rows={3}
                         />
                       </FieldGroup>
                     </TabsContent>
+
+                    <TabsContent value="school-transfer" className="mt-0 space-y-4">
+                      {renderCommonFields(schoolTransferFields, setSchoolTransferFields)}
+                      <FieldGroup label={t('letterGeneration.fields.schoolName')}>
+                        <Input
+                          value={schoolTransferFields.schoolName}
+                          onChange={(e) =>
+                            setSchoolTransferFields({
+                              ...schoolTransferFields,
+                              schoolName: e.target.value,
+                            })
+                          }
+                        />
+                      </FieldGroup>
+                      <FieldGroup label={t('letterGeneration.fields.schoolAddress')}>
+                        <Textarea
+                          value={schoolTransferFields.schoolAddress}
+                          onChange={(e) =>
+                            setSchoolTransferFields({
+                              ...schoolTransferFields,
+                              schoolAddress: e.target.value,
+                            })
+                          }
+                          rows={2}
+                        />
+                      </FieldGroup>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <FieldGroup label={t('letterGeneration.fields.standard')}>
+                          <Input
+                            value={schoolTransferFields.standard}
+                            onChange={(e) =>
+                              setSchoolTransferFields({
+                                ...schoolTransferFields,
+                                standard: e.target.value,
+                              })
+                            }
+                          />
+                        </FieldGroup>
+                        <FieldGroup label={t('letterGeneration.fields.studentName')}>
+                          <Input
+                            value={schoolTransferFields.studentName}
+                            onChange={(e) =>
+                              setSchoolTransferFields({
+                                ...schoolTransferFields,
+                                studentName: e.target.value,
+                              })
+                            }
+                          />
+                        </FieldGroup>
+                      </div>
+                      <FieldGroup label={t('letterGeneration.fields.parentName')}>
+                        <Input
+                          value={schoolTransferFields.parentName}
+                          onChange={(e) =>
+                            setSchoolTransferFields({
+                              ...schoolTransferFields,
+                              parentName: e.target.value,
+                            })
+                          }
+                        />
+                      </FieldGroup>
+                      <FieldGroup label={t('letterGeneration.fields.address')}>
+                        <Textarea
+                          value={schoolTransferFields.address}
+                          onChange={(e) =>
+                            setSchoolTransferFields({
+                              ...schoolTransferFields,
+                              address: e.target.value,
+                            })
+                          }
+                          rows={2}
+                        />
+                      </FieldGroup>
+                      <FieldGroup label={t('letterGeneration.fields.previousSchoolName')}>
+                        <Input
+                          value={schoolTransferFields.previousSchoolName}
+                          onChange={(e) =>
+                            setSchoolTransferFields({
+                              ...schoolTransferFields,
+                              previousSchoolName: e.target.value,
+                            })
+                          }
+                        />
+                      </FieldGroup>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <FieldGroup label={t('letterGeneration.fields.currentStandard')}>
+                          <Input
+                            value={schoolTransferFields.currentStandard}
+                            onChange={(e) =>
+                              setSchoolTransferFields({
+                                ...schoolTransferFields,
+                                currentStandard: e.target.value,
+                              })
+                            }
+                          />
+                        </FieldGroup>
+                        <FieldGroup label={t('letterGeneration.fields.transferReason')}>
+                          <Input
+                            value={schoolTransferFields.transferReason}
+                            onChange={(e) =>
+                              setSchoolTransferFields({
+                                ...schoolTransferFields,
+                                transferReason: e.target.value,
+                              })
+                            }
+                          />
+                        </FieldGroup>
+                      </div>
+                    </TabsContent>
+
+                    {(
+                      [
+                        'ration-new',
+                        'ration-add-members',
+                        'ration-delete-members',
+                        'ration-transfer',
+                      ] as const
+                    ).map((rationType) => (
+                      <TabsContent key={rationType} value={rationType} className="mt-0 space-y-4">
+                        {renderCommonFields(rationFields, setRationFields)}
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <FieldGroup label={t('letterGeneration.fields.salutation')}>
+                            <Input
+                              value={rationFields.salutation}
+                              onChange={(e) =>
+                                setRationFields({
+                                  ...rationFields,
+                                  salutation: e.target.value,
+                                })
+                              }
+                            />
+                          </FieldGroup>
+                          <FieldGroup label={t('letterGeneration.fields.fullName')}>
+                            <Input
+                              value={rationFields.fullName}
+                              onChange={(e) =>
+                                setRationFields({
+                                  ...rationFields,
+                                  fullName: e.target.value,
+                                })
+                              }
+                            />
+                          </FieldGroup>
+                        </div>
+                        <FieldGroup label={t('letterGeneration.fields.address')}>
+                          <Textarea
+                            value={rationFields.address}
+                            onChange={(e) =>
+                              setRationFields({ ...rationFields, address: e.target.value })
+                            }
+                            rows={2}
+                          />
+                        </FieldGroup>
+                        {rationType !== 'ration-new' ? (
+                          <FieldGroup label={t('letterGeneration.fields.rationCardNo')}>
+                            <Input
+                              value={rationFields.rationCardNo ?? ''}
+                              onChange={(e) =>
+                                setRationFields({
+                                  ...rationFields,
+                                  rationCardNo: e.target.value,
+                                })
+                              }
+                            />
+                          </FieldGroup>
+                        ) : null}
+                        {rationType === 'ration-transfer' ? (
+                          <div className="grid gap-4 sm:grid-cols-2">
+                            <FieldGroup label={t('letterGeneration.fields.fromRationOffice')}>
+                              <Input
+                                value={rationFields.fromRationOffice ?? ''}
+                                onChange={(e) =>
+                                  setRationFields({
+                                    ...rationFields,
+                                    fromRationOffice: e.target.value,
+                                  })
+                                }
+                              />
+                            </FieldGroup>
+                            <FieldGroup label={t('letterGeneration.fields.toRationOffice')}>
+                              <Input
+                                value={rationFields.toRationOffice ?? ''}
+                                onChange={(e) =>
+                                  setRationFields({
+                                    ...rationFields,
+                                    toRationOffice: e.target.value,
+                                  })
+                                }
+                              />
+                            </FieldGroup>
+                          </div>
+                        ) : null}
+                        <FieldGroup label={t('letterGeneration.fields.familyMembers')}>
+                          <Textarea
+                            value={rationFields.familyMembers}
+                            onChange={(e) =>
+                              setRationFields({
+                                ...rationFields,
+                                familyMembers: e.target.value,
+                              })
+                            }
+                            rows={4}
+                            placeholder={t('letterGeneration.placeholders.familyMembers')}
+                          />
+                        </FieldGroup>
+                        <FieldGroup label={t('letterGeneration.fields.rationOfficeAddress')}>
+                          <Textarea
+                            value={rationFields.rationOfficeAddress}
+                            onChange={(e) =>
+                              setRationFields({
+                                ...rationFields,
+                                rationOfficeAddress: e.target.value,
+                              })
+                            }
+                            rows={2}
+                          />
+                        </FieldGroup>
+                      </TabsContent>
+                    ))}
 
                     <TabsContent value="income" className="mt-0 space-y-4">
                       {renderCommonFields(incomeFields, setIncomeFields)}
@@ -1388,36 +1640,37 @@ export function LetterGeneration() {
                           rows={2}
                         />
                       </FieldGroup>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <FieldGroup label={t('letterGeneration.fields.idType')}>
-                          <Input
-                            value={incomeFields.idType}
-                            onChange={(e) =>
-                              setIncomeFields({
-                                ...incomeFields,
-                                idType: e.target.value,
-                              })
-                            }
-                            placeholder={t('letterGeneration.placeholders.idType')}
-                          />
-                        </FieldGroup>
-                        <FieldGroup label={t('letterGeneration.fields.idNumber')}>
-                          <Input
-                            value={incomeFields.idNumber}
-                            onChange={(e) =>
-                              setIncomeFields({
-                                ...incomeFields,
-                                idNumber: e.target.value,
-                              })
-                            }
-                          />
-                        </FieldGroup>
-                      </div>
-                      <FieldGroup label={t('letterGeneration.fields.income')}>
-                        <Input
-                          value={incomeFields.income}
+                      <FieldGroup label={t('letterGeneration.fields.officeAddress')}>
+                        <Textarea
+                          value={incomeFields.officeAddress}
                           onChange={(e) =>
-                            setIncomeFields({ ...incomeFields, income: e.target.value })
+                            setIncomeFields({
+                              ...incomeFields,
+                              officeAddress: e.target.value,
+                            })
+                          }
+                          rows={2}
+                        />
+                      </FieldGroup>
+                      <FieldGroup label={t('letterGeneration.fields.aadhaarNo')}>
+                        <Input
+                          value={incomeFields.aadhaarNo}
+                          onChange={(e) =>
+                            setIncomeFields({
+                              ...incomeFields,
+                              aadhaarNo: e.target.value,
+                            })
+                          }
+                        />
+                      </FieldGroup>
+                      <FieldGroup label={t('letterGeneration.fields.annualIncome')}>
+                        <Input
+                          value={incomeFields.annualIncome}
+                          onChange={(e) =>
+                            setIncomeFields({
+                              ...incomeFields,
+                              annualIncome: e.target.value,
+                            })
                           }
                           placeholder={t('letterGeneration.placeholders.income')}
                         />
@@ -1462,30 +1715,29 @@ export function LetterGeneration() {
                           rows={2}
                         />
                       </FieldGroup>
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <FieldGroup label={t('letterGeneration.fields.idType')}>
-                          <Input
-                            value={domicileFields.idType}
-                            onChange={(e) =>
-                              setDomicileFields({
-                                ...domicileFields,
-                                idType: e.target.value,
-                              })
-                            }
-                          />
-                        </FieldGroup>
-                        <FieldGroup label={t('letterGeneration.fields.idNumber')}>
-                          <Input
-                            value={domicileFields.idNumber}
-                            onChange={(e) =>
-                              setDomicileFields({
-                                ...domicileFields,
-                                idNumber: e.target.value,
-                              })
-                            }
-                          />
-                        </FieldGroup>
-                      </div>
+                      <FieldGroup label={t('letterGeneration.fields.officeAddress')}>
+                        <Textarea
+                          value={domicileFields.officeAddress}
+                          onChange={(e) =>
+                            setDomicileFields({
+                              ...domicileFields,
+                              officeAddress: e.target.value,
+                            })
+                          }
+                          rows={2}
+                        />
+                      </FieldGroup>
+                      <FieldGroup label={t('letterGeneration.fields.aadhaarNo')}>
+                        <Input
+                          value={domicileFields.aadhaarNo}
+                          onChange={(e) =>
+                            setDomicileFields({
+                              ...domicileFields,
+                              aadhaarNo: e.target.value,
+                            })
+                          }
+                        />
+                      </FieldGroup>
                     </TabsContent>
                   </CardContent>
                 </Card>
@@ -1792,17 +2044,13 @@ export function LetterGeneration() {
                       <SelectItem value={ALL_LETTER_TYPES}>
                         {t('letterGeneration.savedLetters.filters.allTypes')}
                       </SelectItem>
-                      <SelectItem value="fees">
-                        {t('letterGeneration.tabs.fees')}
-                      </SelectItem>
+                      {LETTER_TYPES.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {t(`letterGeneration.tabs.${type}`)}
+                        </SelectItem>
+                      ))}
                       <SelectItem value="ration">
                         {t('letterGeneration.tabs.ration')}
-                      </SelectItem>
-                      <SelectItem value="income">
-                        {t('letterGeneration.tabs.income')}
-                      </SelectItem>
-                      <SelectItem value="domicile">
-                        {t('letterGeneration.tabs.domicile')}
                       </SelectItem>
                     </SelectContent>
                   </Select>
