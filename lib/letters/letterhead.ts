@@ -3,10 +3,11 @@ import {
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
 
-/** Built-in letterhead images by paper size (A4 / A5). B5 has no default. */
-export const DEFAULT_LETTERHEAD_URLS: Partial<Record<LetterPaperSize, string>> = {
+/** Built-in letterhead images by paper size. */
+export const DEFAULT_LETTERHEAD_URLS: Record<LetterPaperSize, string> = {
   a4: '/images/letterheads/sana-malik-a4.png',
   a5: '/images/letterheads/sana-malik-a5.png',
+  b5: '/images/letterheads/sana-malik-b5.png',
 };
 
 /** Fraction of page height reserved for the letterhead header area. */
@@ -21,7 +22,7 @@ export function resolveLetterheadUrl(
 ): string | null {
   const trimmed = customUrl?.trim();
   if (trimmed) return trimmed;
-  return DEFAULT_LETTERHEAD_URLS[paperSize] ?? null;
+  return DEFAULT_LETTERHEAD_URLS[paperSize];
 }
 
 export function stripLetterheadFromHtml(html: string): string {
