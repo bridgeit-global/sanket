@@ -467,7 +467,7 @@ function LetterPreview({
   return (
     <div
       className={cn(
-        'relative mx-auto overflow-hidden rounded-lg border bg-white text-black',
+        'relative mx-auto w-full overflow-hidden rounded-lg border bg-white text-black',
         LETTER_PREVIEW_MAX_WIDTH_CLASS[paperSize],
       )}
       style={{
@@ -2370,17 +2370,19 @@ export function LetterGeneration() {
                               </div>
                             </div>
                           </DialogHeader>
-                          <LetterPreview
-                            html={selectedSavedLetter.renderedHtml}
-                            paperSize={resolveSavedLetterPaperSize(selectedSavedLetter)}
-                            letterheadUrl={resolveLetterheadUrl(
-                              resolveSavedLetterPaperSize(selectedSavedLetter),
-                              letterMasters.find(
-                                (m) => m.id === selectedSavedLetter.letterMasterId,
-                              )?.letterheadUrl,
-                            )}
-                            letterLocale={selectedSavedLetter.letterLocale}
-                          />
+                          <div className="min-h-[60vh]">
+                            <LetterPreview
+                              html={selectedSavedLetter.renderedHtml}
+                              paperSize={resolveSavedLetterPaperSize(selectedSavedLetter)}
+                              letterheadUrl={resolveLetterheadUrl(
+                                resolveSavedLetterPaperSize(selectedSavedLetter),
+                                letterMasters.find(
+                                  (m) => m.id === selectedSavedLetter.letterMasterId,
+                                )?.letterheadUrl,
+                              )}
+                              letterLocale={selectedSavedLetter.letterLocale}
+                            />
+                          </div>
                         </>
                       ) : null}
                     </DialogContent>
