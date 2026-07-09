@@ -1,41 +1,49 @@
 import type { AddressType } from '@/lib/letters/address-types';
+import type { AddressMasterAddressParts } from '@/lib/letters/format-address-master';
 import {
   DEFAULT_OFFICE_ADDRESS,
   DEFAULT_RATION_OFFICE_ADDRESS,
-  type LetterLocale,
 } from '@/lib/letters/templates';
 
 export type DefaultAddressSeed = {
   name: string;
   addressType: AddressType;
-  addressEn: string;
-  addressMr: string;
   sortOrder: number;
-};
+} & AddressMasterAddressParts;
 
 export function getDefaultAddressSeeds(): DefaultAddressSeed[] {
   return [
     {
       name: 'Tahsildar Office, Kurla',
       addressType: 'office',
-      addressEn: DEFAULT_OFFICE_ADDRESS.en,
-      addressMr: DEFAULT_OFFICE_ADDRESS.mr,
+      houseNumberEn: '',
+      houseNumberMr: '',
+      localityStreetEn: 'Tahsildar Office, Kurla',
+      localityStreetMr: 'तहसीलदार कार्यालय, कुर्ला',
+      townVillageEn: 'Mumbai',
+      townVillageMr: 'मुंबई',
+      pincode: '',
       sortOrder: 1,
     },
     {
       name: 'Shivajinagar Ration Office',
       addressType: 'ration_office',
-      addressEn: DEFAULT_RATION_OFFICE_ADDRESS.en,
-      addressMr: DEFAULT_RATION_OFFICE_ADDRESS.mr,
+      houseNumberEn: 'Shivajinagar 44-E Office',
+      houseNumberMr: 'शिवाजीनगर ४४ ई कार्यालय',
+      localityStreetEn: 'Shivajinagar, Govandi',
+      localityStreetMr: 'शिवाजीनगर, गोवंडी',
+      townVillageEn: 'Mumbai',
+      townVillageMr: 'मुंबई',
+      pincode: '400043',
       sortOrder: 2,
     },
   ];
 }
 
-export function getAddressTextForLocale(
-  addressEn: string,
-  addressMr: string,
-  locale: LetterLocale,
+export function getLegacyDefaultAddressText(
+  addressType: 'office' | 'ration_office',
+  locale: 'en' | 'mr',
 ): string {
-  return locale === 'mr' ? addressMr : addressEn;
+  if (addressType === 'office') return DEFAULT_OFFICE_ADDRESS[locale];
+  return DEFAULT_RATION_OFFICE_ADDRESS[locale];
 }

@@ -38,28 +38,44 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
 import { useTranslations } from '@/hooks/use-translations';
 import { ADDRESS_TYPES, type AddressType } from '@/lib/letters/address-types';
 import type { AddressMasterRow } from '@/components/letter-address-field';
+import {
+  EMPTY_ADDRESS_PARTS,
+  formatAddressMaster,
+  hasAddressContent,
+  type AddressMasterAddressParts,
+} from '@/lib/letters/format-address-master';
 
 type AddressFormState = {
   name: string;
   addressType: AddressType;
-  addressEn: string;
-  addressMr: string;
   isActive: boolean;
   sortOrder: string;
-};
+} & AddressMasterAddressParts;
 
 const EMPTY_FORM: AddressFormState = {
   name: '',
   addressType: 'general',
-  addressEn: '',
-  addressMr: '',
+  ...EMPTY_ADDRESS_PARTS,
   isActive: true,
   sortOrder: '0',
 };
+
+type TranslatableField =
+  | 'houseNumberEn'
+  | 'houseNumberMr'
+  | 'localityStreetEn'
+  | 'localityStreetMr'
+  | 'townVillageEn'
+  | 'townVillageMr';
+
+const FIELD_PAIRS: Array<{ en: TranslatableField; mr: TranslatableField }> = [
+  { en: 'houseNumberEn', mr: 'houseNumberMr' },
+  { en: 'localityStreetEn', mr: 'localityStreetMr' },
+  { en: 'townVillageEn', mr: 'townVillageMr' },
+];
 
 type AddressMasterManagerProps = {
   addresses: AddressMasterRow[];
@@ -78,9 +94,9 @@ export function AddressMasterManager({
   const [form, setForm] = useState<AddressFormState>(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const translateTimerRef = useRef<{ en?: number; mr?: number }>({});
-  const translateReqIdRef = useRef<{ en: number; mr: number }>({ en: 0, mr: 0 });
-  const lastEditAtRef = useRef<{ en: number; mr: number }>({ en: 0, mr: 0 });
+  const translateTimerRef = useRef<Partial<Record<TranslatableField, number>>>({});
+  const translateReqIdRef = useRef<Partial<Record<TranslatableField, number>>>({});
+  const lastEditAtRef = useRef<Partial<Record<TranslatableField, number>>>({});
 
   const sortedAddresses = useMemo(
     () =>
@@ -95,7 +111,7 @@ export function AddressMasterManager({
   const openCreateDialog = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
-    lastEditAtRef.current = { en: 0, mr: 0 };
+    lastEditAtRef.current = {};
     setIsDialogOpen(true);
   };
 
@@ -104,28 +120,49 @@ export function AddressMasterManager({
     setForm({
       name: address.name,
       addressType: address.addressType,
-      addressEn: address.addressEn,
-      addressMr: address.addressMr,
+      houseNumberEn: address.houseNumberEn,
+      houseNumberMr: address.houseNumberMr,
+      localityStreetEn: address.localityStreetEn,
+      localityStreetMr: address.localityStreetMr,
+      townVillageEn: address.townVillageEn,
+      townVillageMr: address.townVillageMr,
+      pincode: address.pincode,
       isActive: address.isActive,
       sortOrder: String(address.sortOrder),
     });
-    lastEditAtRef.current = { en: Date.now(), mr: Date.now() };
+    const now = Date.now();
+    lastEditAtRef.current = {
+      houseNumberEn: now,
+      houseNumberMr: now,
+      localityStreetEn: now,
+      localityStreetMr: now,
+      townVillageEn: now,
+      townVillageMr: now,
+    };
     setIsDialogOpen(true);
   };
 
-  const scheduleTranslate = (sourceLocale: 'en' | 'mr', sourceText: string) => {
-    const targetLocale: 'en' | 'mr' = sourceLocale === 'en' ? 'mr' : 'en';
+  const scheduleTranslate = (sourceField: TranslatableField, sourceText: string) => {
+    const pair = FIELD_PAIRS.find(
+      (item) => item.en === sourceField || item.mr === sourceField,
+    );
+    if (!pair) return;
+
+    const targetField: TranslatableField =
+      sourceField === pair.en ? pair.mr : pair.en;
+    const targetLocale: 'en' | 'mr' = targetField.endsWith('Mr') ? 'mr' : 'en';
     const trimmed = sourceText.trim();
     if (!trimmed) return;
 
-    translateReqIdRef.current[sourceLocale] += 1;
-    const reqId = translateReqIdRef.current[sourceLocale];
+    translateReqIdRef.current[sourceField] =
+      (translateReqIdRef.current[sourceField] ?? 0) + 1;
+    const reqId = translateReqIdRef.current[sourceField]!;
     const requestStartedAt = Date.now();
 
-    const existingTimer = translateTimerRef.current[sourceLocale];
+    const existingTimer = translateTimerRef.current[sourceField];
     if (existingTimer) window.clearTimeout(existingTimer);
 
-    translateTimerRef.current[sourceLocale] = window.setTimeout(async () => {
+    translateTimerRef.current[sourceField] = window.setTimeout(async () => {
       try {
         const res = await fetch('/api/translate', {
           method: 'POST',
@@ -135,29 +172,47 @@ export function AddressMasterManager({
         const json = await res.json();
         if (!res.ok) throw new Error(json?.error || 'Failed to translate');
 
-        // Ignore stale responses.
-        if (translateReqIdRef.current[sourceLocale] !== reqId) return;
+        if (translateReqIdRef.current[sourceField] !== reqId) return;
 
         const translated = String(json?.translated ?? '').trim();
         if (!translated) return;
 
-        // If user started editing the target box after this request, don't overwrite.
-        if (lastEditAtRef.current[targetLocale] > requestStartedAt) return;
+        if ((lastEditAtRef.current[targetField] ?? 0) > requestStartedAt) return;
 
-        setForm((prev) =>
-          targetLocale === 'en'
-            ? { ...prev, addressEn: translated }
-            : { ...prev, addressMr: translated },
-        );
+        setForm((prev) => ({ ...prev, [targetField]: translated }));
       } catch (error) {
-        // Non-blocking: user can still save manually entered values.
         console.error('Failed to auto-translate address master value', error);
       }
     }, 450);
   };
 
+  const updateField = (field: keyof AddressFormState, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    if (
+      field === 'houseNumberEn' ||
+      field === 'houseNumberMr' ||
+      field === 'localityStreetEn' ||
+      field === 'localityStreetMr' ||
+      field === 'townVillageEn' ||
+      field === 'townVillageMr'
+    ) {
+      lastEditAtRef.current[field] = Date.now();
+      scheduleTranslate(field, value);
+    }
+  };
+
   const handleSave = async () => {
-    if (!form.name.trim() || !form.addressEn.trim() || !form.addressMr.trim()) {
+    const parts: AddressMasterAddressParts = {
+      houseNumberEn: form.houseNumberEn.trim(),
+      houseNumberMr: form.houseNumberMr.trim(),
+      localityStreetEn: form.localityStreetEn.trim(),
+      localityStreetMr: form.localityStreetMr.trim(),
+      townVillageEn: form.townVillageEn.trim(),
+      townVillageMr: form.townVillageMr.trim(),
+      pincode: form.pincode.trim(),
+    };
+
+    if (!form.name.trim() || !hasAddressContent(parts)) {
       toast.error(t('letterGeneration.addresses.validationRequired'));
       return;
     }
@@ -167,8 +222,7 @@ export function AddressMasterManager({
       const payload = {
         name: form.name.trim(),
         addressType: form.addressType,
-        addressEn: form.addressEn.trim(),
-        addressMr: form.addressMr.trim(),
+        ...parts,
         isActive: form.isActive,
         sortOrder: Number(form.sortOrder) || 0,
       };
@@ -224,6 +278,36 @@ export function AddressMasterManager({
       setDeletingId(null);
     }
   };
+
+  const renderBilingualField = (
+    labelKey: string,
+    enField: 'houseNumberEn' | 'localityStreetEn' | 'townVillageEn',
+    mrField: 'houseNumberMr' | 'localityStreetMr' | 'townVillageMr',
+  ) => (
+    <div className="space-y-3 rounded-md border p-3">
+      <Label>{t(labelKey)}</Label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            {t('letterGeneration.addresses.columns.english')}
+          </Label>
+          <Input
+            value={form[enField]}
+            onChange={(event) => updateField(enField, event.target.value)}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">
+            {t('letterGeneration.addresses.columns.marathi')}
+          </Label>
+          <Input
+            value={form[mrField]}
+            onChange={(event) => updateField(mrField, event.target.value)}
+          />
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <>
@@ -283,10 +367,10 @@ export function AddressMasterManager({
                         {t(`letterGeneration.addresses.types.${address.addressType}`)}
                       </TableCell>
                       <TableCell className="max-w-[220px] whitespace-pre-wrap text-sm">
-                        {address.addressEn}
+                        {formatAddressMaster(address, 'en')}
                       </TableCell>
                       <TableCell className="max-w-[220px] whitespace-pre-wrap text-sm">
-                        {address.addressMr}
+                        {formatAddressMaster(address, 'mr')}
                       </TableCell>
                       <TableCell>
                         {address.isActive
@@ -328,7 +412,7 @@ export function AddressMasterManager({
       </Card>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>
               {editingId
@@ -370,31 +454,28 @@ export function AddressMasterManager({
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>{t('letterGeneration.addresses.columns.english')}</Label>
-              <Textarea
-                value={form.addressEn}
-                onChange={(event) => {
-                  const next = event.target.value;
-                  lastEditAtRef.current.en = Date.now();
-                  setForm((prev) => ({ ...prev, addressEn: next }));
-                  scheduleTranslate('en', next);
-                }}
-                rows={3}
-              />
-            </div>
+            {renderBilingualField(
+              'letterGeneration.addresses.fields.houseNumber',
+              'houseNumberEn',
+              'houseNumberMr',
+            )}
+            {renderBilingualField(
+              'letterGeneration.addresses.fields.localityStreet',
+              'localityStreetEn',
+              'localityStreetMr',
+            )}
+            {renderBilingualField(
+              'letterGeneration.addresses.fields.townVillage',
+              'townVillageEn',
+              'townVillageMr',
+            )}
 
             <div className="space-y-2">
-              <Label>{t('letterGeneration.addresses.columns.marathi')}</Label>
-              <Textarea
-                value={form.addressMr}
-                onChange={(event) => {
-                  const next = event.target.value;
-                  lastEditAtRef.current.mr = Date.now();
-                  setForm((prev) => ({ ...prev, addressMr: next }));
-                  scheduleTranslate('mr', next);
-                }}
-                rows={3}
+              <Label>{t('letterGeneration.addresses.fields.pincode')}</Label>
+              <Input
+                value={form.pincode}
+                onChange={(event) => updateField('pincode', event.target.value)}
+                maxLength={10}
               />
             </div>
 

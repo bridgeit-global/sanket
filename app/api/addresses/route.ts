@@ -6,6 +6,42 @@ import {
   getAddressMasters,
 } from '@/lib/db/queries';
 import { isAddressType } from '@/lib/letters/address-types';
+import { hasAddressContent } from '@/lib/letters/format-address-master';
+
+function parseAddressBody(body: Record<string, unknown> | null | undefined) {
+  const {
+    name,
+    addressType,
+    houseNumberEn,
+    houseNumberMr,
+    localityStreetEn,
+    localityStreetMr,
+    townVillageEn,
+    townVillageMr,
+    pincode,
+    isActive,
+    sortOrder,
+  } = body ?? {};
+
+  const parts = {
+    houseNumberEn: String(houseNumberEn ?? '').trim(),
+    houseNumberMr: String(houseNumberMr ?? '').trim(),
+    localityStreetEn: String(localityStreetEn ?? '').trim(),
+    localityStreetMr: String(localityStreetMr ?? '').trim(),
+    townVillageEn: String(townVillageEn ?? '').trim(),
+    townVillageMr: String(townVillageMr ?? '').trim(),
+    pincode: String(pincode ?? '').trim(),
+  };
+
+  return {
+    name: String(name ?? '').trim(),
+    addressType,
+    ...parts,
+    isActive: isActive !== false,
+    sortOrder: Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0,
+    hasContent: hasAddressContent(parts),
+  };
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,26 +82,34 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, addressType, addressEn, addressMr, isActive, sortOrder } = body ?? {};
+    const parsed = parseAddressBody(body);
 
-    if (!name || !addressType || !addressEn || !addressMr) {
+    if (!parsed.name || !parsed.addressType || !parsed.hasContent) {
       return NextResponse.json(
-        { error: 'name, addressType, addressEn, and addressMr are required' },
+        {
+          error:
+            'name, addressType, and at least one structured address field in English or Marathi are required',
+        },
         { status: 400 },
       );
     }
 
-    if (!isAddressType(addressType)) {
+    if (!isAddressType(parsed.addressType)) {
       return NextResponse.json({ error: 'Invalid address type' }, { status: 400 });
     }
 
     const address = await createAddressMaster({
-      name: String(name),
-      addressType,
-      addressEn: String(addressEn),
-      addressMr: String(addressMr),
-      isActive: isActive !== false,
-      sortOrder: Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0,
+      name: parsed.name,
+      addressType: parsed.addressType,
+      houseNumberEn: parsed.houseNumberEn,
+      houseNumberMr: parsed.houseNumberMr,
+      localityStreetEn: parsed.localityStreetEn,
+      localityStreetMr: parsed.localityStreetMr,
+      townVillageEn: parsed.townVillageEn,
+      townVillageMr: parsed.townVillageMr,
+      pincode: parsed.pincode,
+      isActive: parsed.isActive,
+      sortOrder: parsed.sortOrder,
       createdBy: session.user.id,
     });
 

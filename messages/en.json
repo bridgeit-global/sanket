@@ -481,7 +481,7 @@
       "add": "Add Address",
       "addTitle": "Add Address",
       "editTitle": "Edit Address",
-      "formDescription": "Enter the address in both English and Marathi for letter generation.",
+      "formDescription": "Enter structured address fields in English and Marathi. The formatted address is composed when generating letters.",
       "save": "Save Address",
       "create": "Create Address",
       "createSuccess": "Address created",
@@ -491,7 +491,7 @@
       "deleteSuccess": "Address deleted",
       "deleteError": "Failed to delete address",
       "fetchError": "Failed to load addresses",
-      "validationRequired": "Name and both language addresses are required",
+      "validationRequired": "Name and at least one address field in English or Marathi are required",
       "empty": "No addresses yet. Add school, office, or other addresses to reuse in letters.",
       "selectPlaceholder": "Choose a saved address…",
       "manualEntry": "Enter manually",
@@ -504,6 +504,12 @@
         "marathi": "Marathi Address",
         "active": "Active",
         "sortOrder": "Sort Order"
+      },
+      "fields": {
+        "houseNumber": "Building / Office",
+        "localityStreet": "Locality / Street",
+        "townVillage": "Town / Village",
+        "pincode": "Pincode"
       },
       "types": {
         "school": "School / College",

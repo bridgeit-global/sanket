@@ -165,8 +165,13 @@ export type AddressMaster = {
   id: string;
   name: string;
   addressType: 'school' | 'office' | 'ration_office' | 'general';
-  addressEn: string;
-  addressMr: string;
+  houseNumberEn: string;
+  houseNumberMr: string;
+  localityStreetEn: string;
+  localityStreetMr: string;
+  townVillageEn: string;
+  townVillageMr: string;
+  pincode: string;
   isActive: boolean;
   sortOrder: number;
   createdBy: string | null;

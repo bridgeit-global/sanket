@@ -3,7 +3,7 @@
 import { Combobox } from '@/components/ui/combobox';
 import { Textarea } from '@/components/ui/textarea';
 import { useTranslations } from '@/hooks/use-translations';
-import { getAddressTextForLocale } from '@/lib/letters/default-addresses';
+import { formatAddressMaster } from '@/lib/letters/format-address-master';
 import type { AddressType } from '@/lib/letters/address-types';
 import type { LetterLocale } from '@/lib/letters/templates';
 
@@ -11,8 +11,13 @@ export type AddressMasterRow = {
   id: string;
   name: string;
   addressType: AddressType;
-  addressEn: string;
-  addressMr: string;
+  houseNumberEn: string;
+  houseNumberMr: string;
+  localityStreetEn: string;
+  localityStreetMr: string;
+  townVillageEn: string;
+  townVillageMr: string;
+  pincode: string;
   isActive: boolean;
   sortOrder: number;
 };
@@ -57,7 +62,7 @@ export function LetterAddressField({
     if (!selected) return;
 
     onSelectedAddressIdChange(selected.id);
-    onValueChange(getAddressTextForLocale(selected.addressEn, selected.addressMr, locale));
+    onValueChange(formatAddressMaster(selected, locale));
   };
 
   const comboboxOptions = [

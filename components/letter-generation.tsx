@@ -103,7 +103,7 @@ import {
   LetterAddressField,
   type AddressMasterRow,
 } from '@/components/letter-address-field';
-import { getAddressTextForLocale } from '@/lib/letters/default-addresses';
+import { formatAddressMaster, mergeAddressParts, parseFreeTextAddressForLocale } from '@/lib/letters/format-address-master';
 import { cn } from '@/lib/utils';
 
 const ALL_LETTER_TYPES = 'all' as const;
@@ -695,7 +695,7 @@ function getAddressTextFromMaster(
   if (!masterId) return null;
   const address = addresses.find((item) => item.id === masterId);
   if (!address) return null;
-  return getAddressTextForLocale(address.addressEn, address.addressMr, locale);
+  return formatAddressMaster(address, locale);
 }
 
 function applyMasterAddressToFields(
@@ -876,6 +876,11 @@ export function LetterGeneration() {
     const trimmedMr = addressMr.trim();
     if (!trimmedName || (!trimmedEn && !trimmedMr)) return null;
 
+    const parts = mergeAddressParts(
+      parseFreeTextAddressForLocale(trimmedEn || trimmedMr, 'en'),
+      parseFreeTextAddressForLocale(trimmedMr || trimmedEn, 'mr'),
+    );
+
     try {
       const res = await fetch('/api/addresses', {
         method: 'POST',
@@ -883,9 +888,7 @@ export function LetterGeneration() {
         body: JSON.stringify({
           name: trimmedName,
           addressType,
-          // Manual entry is auto-translated; fall back to whichever side is present.
-          addressEn: trimmedEn || trimmedMr,
-          addressMr: trimmedMr || trimmedEn,
+          ...parts,
           isActive: true,
           sortOrder: 0,
         }),
@@ -1125,11 +1128,7 @@ export function LetterGeneration() {
     }));
 
     if (defaultRationOffice) {
-      const rationOfficeText = getAddressTextForLocale(
-        defaultRationOffice.addressEn,
-        defaultRationOffice.addressMr,
-        letterLocale,
-      );
+      const rationOfficeText = formatAddressMaster(defaultRationOffice, letterLocale);
       setRationFields((prev) =>
         prev.rationOfficeAddress === DEFAULT_RATION_OFFICE_ADDRESS[letterLocale] ||
         !prev.rationOfficeAddress.trim()
@@ -1139,11 +1138,7 @@ export function LetterGeneration() {
     }
 
     if (defaultOffice) {
-      const officeText = getAddressTextForLocale(
-        defaultOffice.addressEn,
-        defaultOffice.addressMr,
-        letterLocale,
-      );
+      const officeText = formatAddressMaster(defaultOffice, letterLocale);
       setIncomeFields((prev) =>
         prev.officeAddress === DEFAULT_OFFICE_ADDRESS[letterLocale] ||
         !prev.officeAddress.trim()

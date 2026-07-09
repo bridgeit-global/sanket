@@ -2479,8 +2479,13 @@ export async function ensureAddressMasterDefaults(): Promise<void> {
         toSnakeCaseKeys({
           name: item.name,
           addressType: item.addressType,
-          addressEn: item.addressEn,
-          addressMr: item.addressMr,
+          houseNumberEn: item.houseNumberEn,
+          houseNumberMr: item.houseNumberMr,
+          localityStreetEn: item.localityStreetEn,
+          localityStreetMr: item.localityStreetMr,
+          townVillageEn: item.townVillageEn,
+          townVillageMr: item.townVillageMr,
+          pincode: item.pincode,
           sortOrder: item.sortOrder,
           isActive: true,
           createdAt: now,
@@ -2544,16 +2549,26 @@ export async function getAddressMasterById(id: string): Promise<AddressMaster | 
 export async function createAddressMaster({
   name,
   addressType,
-  addressEn,
-  addressMr,
+  houseNumberEn,
+  houseNumberMr,
+  localityStreetEn,
+  localityStreetMr,
+  townVillageEn,
+  townVillageMr,
+  pincode,
   isActive = true,
   sortOrder = 0,
   createdBy,
 }: {
   name: string;
   addressType: AddressMaster['addressType'];
-  addressEn: string;
-  addressMr: string;
+  houseNumberEn?: string;
+  houseNumberMr?: string;
+  localityStreetEn: string;
+  localityStreetMr: string;
+  townVillageEn?: string;
+  townVillageMr?: string;
+  pincode?: string;
   isActive?: boolean;
   sortOrder?: number;
   createdBy?: string | null;
@@ -2566,8 +2581,13 @@ export async function createAddressMaster({
         toSnakeCaseKeys({
           name,
           addressType,
-          addressEn,
-          addressMr,
+          houseNumberEn: houseNumberEn ?? '',
+          houseNumberMr: houseNumberMr ?? '',
+          localityStreetEn,
+          localityStreetMr,
+          townVillageEn: townVillageEn ?? '',
+          townVillageMr: townVillageMr ?? '',
+          pincode: pincode ?? '',
           isActive,
           sortOrder,
           createdBy: createdBy || null,
@@ -2590,8 +2610,13 @@ export async function updateAddressMaster({
   id,
   name,
   addressType,
-  addressEn,
-  addressMr,
+  houseNumberEn,
+  houseNumberMr,
+  localityStreetEn,
+  localityStreetMr,
+  townVillageEn,
+  townVillageMr,
+  pincode,
   isActive,
   sortOrder,
   updatedBy,
@@ -2599,8 +2624,13 @@ export async function updateAddressMaster({
   id: string;
   name: string;
   addressType: AddressMaster['addressType'];
-  addressEn: string;
-  addressMr: string;
+  houseNumberEn?: string;
+  houseNumberMr?: string;
+  localityStreetEn: string;
+  localityStreetMr: string;
+  townVillageEn?: string;
+  townVillageMr?: string;
+  pincode?: string;
   isActive: boolean;
   sortOrder: number;
   updatedBy?: string | null;
@@ -2613,8 +2643,13 @@ export async function updateAddressMaster({
         toSnakeCaseKeys({
           name,
           addressType,
-          addressEn,
-          addressMr,
+          houseNumberEn: houseNumberEn ?? '',
+          houseNumberMr: houseNumberMr ?? '',
+          localityStreetEn,
+          localityStreetMr,
+          townVillageEn: townVillageEn ?? '',
+          townVillageMr: townVillageMr ?? '',
+          pincode: pincode ?? '',
           isActive,
           sortOrder,
           updatedBy: updatedBy || null,
