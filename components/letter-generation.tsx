@@ -1062,6 +1062,22 @@ export function LetterGeneration() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addresses]);
 
+  useEffect(() => {
+    if (!addressSelections.school) return;
+    if (addresses.length === 0) return;
+
+    const selected = addresses.find((a) => a.id === addressSelections.school);
+    if (!selected?.name) return;
+
+    setFeesFields((prev) => (prev.schoolName?.trim() ? prev : { ...prev, schoolName: selected.name }));
+    setSchoolAdmissionFields((prev) =>
+      prev.schoolName?.trim() ? prev : { ...prev, schoolName: selected.name },
+    );
+    setSchoolTransferFields((prev) =>
+      prev.schoolName?.trim() ? prev : { ...prev, schoolName: selected.name },
+    );
+  }, [addressSelections.school, addresses]);
+
   const activeLetterMaster = useMemo(() => {
     return (
       letterMasters.find(
