@@ -18,6 +18,7 @@ import {
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Card,
   CardContent,
@@ -64,6 +65,13 @@ import {
   type LetterType,
   type RationLetterFields,
 } from '@/lib/letters/templates';
+import {
+  getLetterheadContentPaddingMm,
+  LETTER_PAPER_ASPECT_RATIO,
+  LETTERHEAD_HEADER_HEIGHT_RATIO,
+  resolveLetterheadUrl,
+  stripLetterheadFromHtml,
+} from '@/lib/letters/letterhead';
 import { buildRenderedLetterHtml, type LetterheadMode } from '@/lib/letters/render-template';
 import { getDefaultTemplateHtml } from '@/lib/letters/default-template-html';
 import {
@@ -165,13 +173,38 @@ function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
 }
 
 const LETTER_PREVIEW_CONTENT_CLASSES =
-  '[&_.letter-content]:whitespace-pre-wrap [&_.letter-content]:font-[inherit] [&_.letter-content]:text-sm [&_.letter-content]:leading-6 [&_.letter-content]:text-black sm:[&_.letter-content]:text-[15px] sm:[&_.letter-content]:leading-7 [&_.letter-letterhead--full]:-mx-4 [&_.letter-letterhead--full]:-mt-4 [&_.letter-letterhead--full]:mb-4 [&_.letter-letterhead--full]:w-[calc(100%+2rem)] sm:[&_.letter-letterhead--full]:-mx-6 sm:[&_.letter-letterhead--full]:-mt-6 sm:[&_.letter-letterhead--full]:w-[calc(100%+3rem)] [&_.letter-letterhead--full_img]:w-full [&_.letter-letterhead--half]:mb-4 [&_.letter-letterhead--half_img]:mx-auto [&_.letter-letterhead--half_img]:w-1/2';
+  '[&_.letter-content]:whitespace-pre-wrap [&_.letter-content]:font-[inherit] [&_.letter-content]:text-sm [&_.letter-content]:leading-6 [&_.letter-content]:text-black sm:[&_.letter-content]:text-[15px] sm:[&_.letter-content]:leading-7';
 
-function createLetterExportElement(html: string): HTMLDivElement {
+function createLetterExportElement(
+  html: string,
+  options?: {
+    paperSize?: LetterPaperSize;
+    letterheadUrl?: string | null;
+    includeLetterhead?: boolean;
+  },
+): HTMLDivElement {
   const host = document.createElement('div');
-  // PDF export: no border/shadow — only letter content is captured.
-  host.className = 'bg-white p-6 text-black';
-  host.innerHTML = html;
+  const contentHtml = stripLetterheadFromHtml(html);
+  const letterheadUrl =
+    options?.includeLetterhead && options.letterheadUrl
+      ? options.letterheadUrl
+      : null;
+
+  host.className = 'relative bg-white text-black';
+  if (options?.paperSize) {
+    host.style.width = `${getLetterPaperContentWidthPx(options.paperSize)}px`;
+  }
+
+  if (letterheadUrl && options?.paperSize) {
+    host.style.backgroundImage = `url("${letterheadUrl}")`;
+    host.style.backgroundSize = '100% 100%';
+    host.style.backgroundRepeat = 'no-repeat';
+    host.innerHTML = `<div class="letter-export-content" style="padding: ${getLetterheadContentPaddingMm(options.paperSize)}mm 15mm 15mm 15mm;">${contentHtml}</div>`;
+  } else {
+    host.className += ' p-6';
+    host.innerHTML = contentHtml;
+  }
+
   return host;
 }
 
@@ -181,21 +214,35 @@ const LETTER_PRINT_FONT_SIZE_PX: Record<LetterPaperSize, number> = {
   b5: 14,
 };
 
-function buildLetterPrintStyles(paperSize: LetterPaperSize): string {
+function buildLetterPrintStyles(
+  paperSize: LetterPaperSize,
+  options?: { letterheadUrl?: string | null },
+): string {
   const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
   const fontSizePx = LETTER_PRINT_FONT_SIZE_PX[paperSize];
   const pageLabel = getLetterPaperLabel(paperSize);
   const paddingPx = paperSize === 'a4' ? 24 : 18;
+  const letterheadUrl = options?.letterheadUrl;
+  const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);
+
+  const bodyStyles = letterheadUrl
+    ? `margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif;
+       background: #fff url("${letterheadUrl}") no-repeat;
+       background-size: 100% 100%;
+       -webkit-print-color-adjust: exact;
+       print-color-adjust: exact;`
+    : `margin: 0; padding: ${paddingPx}px; font-family: system-ui, -apple-system, sans-serif; background: #fff;`;
+
+  const contentPadding = letterheadUrl
+    ? `padding: ${headerPaddingMm}mm ${marginMm}mm ${marginMm}mm ${marginMm}mm;`
+    : '';
 
   return `
-  @page { margin: ${marginMm}mm; size: ${pageLabel} portrait; }
+  @page { margin: 0; size: ${pageLabel} portrait; }
   * { color: #000 !important; }
-  body { margin: 0; padding: ${paddingPx}px; font-family: system-ui, -apple-system, sans-serif; background: #fff; }
+  body { ${bodyStyles} }
+  .letter-print-content { ${contentPadding} }
   .letter-content { white-space: pre-wrap; font-size: ${fontSizePx}px; line-height: 1.75; }
-  .letter-letterhead--full { margin: -${paddingPx}px -${paddingPx}px 16px -${paddingPx}px; width: calc(100% + ${paddingPx * 2}px); }
-  .letter-letterhead--full img { width: 100%; display: block; }
-  .letter-letterhead--half { margin-bottom: 16px; text-align: center; }
-  .letter-letterhead--half img { width: 50%; margin: 0 auto; display: block; }
   img { max-width: 100%; height: auto; }
 `;
 }
@@ -204,6 +251,7 @@ function printLetterHtml(
   html: string,
   title: string,
   paperSize: LetterPaperSize = 'a4',
+  options?: { includeLetterhead?: boolean; letterheadUrl?: string | null },
 ): boolean {
   const iframe = document.createElement('iframe');
   iframe.setAttribute('aria-hidden', 'true');
@@ -218,9 +266,18 @@ function printLetterHtml(
     return false;
   }
 
+  const contentHtml = stripLetterheadFromHtml(html);
+  const letterheadUrl =
+    options?.includeLetterhead && options.letterheadUrl
+      ? options.letterheadUrl
+      : null;
+  const bodyHtml = letterheadUrl
+    ? `<div class="letter-print-content">${contentHtml}</div>`
+    : contentHtml;
+
   doc.open();
   doc.write(
-    `<!DOCTYPE html><html><head><title>${title}</title><style>${buildLetterPrintStyles(paperSize)}</style></head><body>${html}</body></html>`,
+    `<!DOCTYPE html><html><head><title>${title}</title><style>${buildLetterPrintStyles(paperSize, { letterheadUrl })}</style></head><body>${bodyHtml}</body></html>`,
   );
   doc.close();
 
@@ -279,20 +336,44 @@ const LETTER_PREVIEW_MAX_WIDTH_CLASS: Record<LetterPaperSize, string> = {
 function LetterPreview({
   html,
   paperSize = 'a4',
+  letterheadUrl,
 }: {
   html: string;
   paperSize?: LetterPaperSize;
+  letterheadUrl?: string | null;
 }) {
+  const resolvedLetterhead = resolveLetterheadUrl(paperSize, letterheadUrl);
+  const contentHtml = stripLetterheadFromHtml(html);
+  const headerTop = `${LETTERHEAD_HEADER_HEIGHT_RATIO * 100}%`;
+
   return (
     <div
       className={cn(
-        'mx-auto overflow-hidden rounded-lg border bg-white p-4 text-black sm:p-6',
+        'relative mx-auto overflow-hidden rounded-lg border bg-white text-black',
         LETTER_PREVIEW_MAX_WIDTH_CLASS[paperSize],
-        LETTER_PREVIEW_CONTENT_CLASSES,
       )}
-      // Letter HTML is generated from admin-editable templates stored in our database.
-      dangerouslySetInnerHTML={{ __html: html }}
-    />
+      style={{ aspectRatio: LETTER_PAPER_ASPECT_RATIO[paperSize] }}
+    >
+      {resolvedLetterhead ? (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-no-repeat"
+          style={{
+            backgroundImage: `url("${resolvedLetterhead}")`,
+            backgroundSize: '100% 100%',
+          }}
+        />
+      ) : null}
+      <div
+        className={cn(
+          'absolute inset-x-0 bottom-0 overflow-y-auto p-4 sm:p-6',
+          LETTER_PREVIEW_CONTENT_CLASSES,
+        )}
+        style={resolvedLetterhead ? { top: headerTop } : { inset: 0 }}
+        // Letter HTML is generated from admin-editable templates stored in our database.
+        dangerouslySetInnerHTML={{ __html: contentHtml }}
+      />
+    </div>
   );
 }
 
@@ -405,6 +486,7 @@ export function LetterGeneration() {
     getDefaultLetterPaperSize('fees'),
   );
   const [isUploadingLetterhead, setIsUploadingLetterhead] = useState(false);
+  const [printWithLetterhead, setPrintWithLetterhead] = useState(false);
   const letterheadInputRef = useRef<HTMLInputElement>(null);
   const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
@@ -535,8 +617,6 @@ export function LetterGeneration() {
         activeTemplateHtml,
         fields,
         letterLocale,
-        letterheadDraft,
-        letterheadModeDraft,
       );
     }
 
@@ -549,13 +629,12 @@ export function LetterGeneration() {
     incomeFields,
     domicileFields,
     activeTemplateHtml,
-    letterheadDraft,
-    letterheadModeDraft,
   ]);
 
   const activeTitle = t(`letterGeneration.tabs.${activeTab}`);
   const activePaperSize = paperSizeDraft;
   const activePaperLabel = getLetterPaperLabel(activePaperSize);
+  const activeLetterheadUrl = resolveLetterheadUrl(activePaperSize, letterheadDraft);
 
   const activeFields = useMemo(() => {
     switch (activeTab) {
@@ -811,7 +890,12 @@ export function LetterGeneration() {
   const handlePrintSavedLetter = (letter: SavedLetterRow) => {
     const title = `${letter.title}${letter.referenceNo ? ` - ${letter.referenceNo}` : ''}`;
     const paperSize = resolveSavedLetterPaperSize(letter);
-    const opened = printLetterHtml(letter.renderedHtml, title, paperSize);
+    const master = letterMasters.find((m) => m.id === letter.letterMasterId);
+    const letterheadUrl = resolveLetterheadUrl(paperSize, master?.letterheadUrl);
+    const opened = printLetterHtml(letter.renderedHtml, title, paperSize, {
+      includeLetterhead: printWithLetterhead,
+      letterheadUrl,
+    });
     if (!opened) {
       toast.error(t('letterGeneration.printPopupBlocked'));
     }
@@ -822,7 +906,13 @@ export function LetterGeneration() {
     let exportHost: HTMLDivElement | null = null;
     try {
       const paperSize = resolveSavedLetterPaperSize(letter);
-      exportHost = createLetterExportElement(letter.renderedHtml);
+      const master = letterMasters.find((m) => m.id === letter.letterMasterId);
+      const letterheadUrl = resolveLetterheadUrl(paperSize, master?.letterheadUrl);
+      exportHost = createLetterExportElement(letter.renderedHtml, {
+        paperSize,
+        letterheadUrl,
+        includeLetterhead: printWithLetterhead,
+      });
       document.body.appendChild(exportHost);
       await exportElementToPdf({
         element: exportHost,
@@ -1414,7 +1504,14 @@ export function LetterGeneration() {
                         {t('letterGeneration.paperSize.hint')}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                      <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                        <Checkbox
+                          checked={printWithLetterhead}
+                          onChange={(e) => setPrintWithLetterhead(e.target.checked)}
+                        />
+                        {t('letterGeneration.printWithLetterhead')}
+                      </label>
                       <Button
                         variant="outline"
                         className="w-full sm:w-auto"
@@ -1430,7 +1527,11 @@ export function LetterGeneration() {
                       </Button>
                     </div>
                   </div>
-                  <LetterPreview html={activeBody} paperSize={activePaperSize} />
+                  <LetterPreview
+                    html={activeBody}
+                    paperSize={activePaperSize}
+                    letterheadUrl={activeLetterheadUrl}
+                  />
                 </div>
               </div>
             </Tabs>
@@ -1851,7 +1952,14 @@ export function LetterGeneration() {
                                   })}
                                 </DialogDescription>
                               </div>
-                              <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row">
+                              <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row sm:items-center">
+                                <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
+                                  <Checkbox
+                                    checked={printWithLetterhead}
+                                    onChange={(e) => setPrintWithLetterhead(e.target.checked)}
+                                  />
+                                  {t('letterGeneration.printWithLetterhead')}
+                                </label>
                                 <Button
                                   size="sm"
                                   variant="outline"
@@ -1881,6 +1989,12 @@ export function LetterGeneration() {
                           <LetterPreview
                             html={selectedSavedLetter.renderedHtml}
                             paperSize={resolveSavedLetterPaperSize(selectedSavedLetter)}
+                            letterheadUrl={resolveLetterheadUrl(
+                              resolveSavedLetterPaperSize(selectedSavedLetter),
+                              letterMasters.find(
+                                (m) => m.id === selectedSavedLetter.letterMasterId,
+                              )?.letterheadUrl,
+                            )}
                           />
                         </>
                       ) : null}

@@ -441,6 +441,7 @@
     "pdfSuccess": "PDF downloaded successfully",
     "pdfError": "Failed to generate PDF. Please try again.",
     "printPopupBlocked": "Unable to print letter. Please try again.",
+    "printWithLetterhead": "Include letterhead when printing / PDF",
     "templates": {
       "title": "Letter Templates",
       "description": "Edit the HTML template stored in the database. Use {{fieldName}} placeholders for dynamic values.",
@@ -456,7 +457,7 @@
       "letterheadUpload": "Upload Letterhead",
       "letterheadReplace": "Replace Letterhead",
       "letterheadRemove": "Remove Letterhead",
-      "letterheadHint": "Upload a JPEG or PNG image (max 5 MB). Choose half (centered, 50% width) or full (edge-to-edge) display in the letter preview and PDF.",
+      "letterheadHint": "Upload a custom JPEG or PNG (max 5 MB) to override the default letterhead. The letterhead appears as a page background in preview only; use the print toggle to include it when printing or downloading PDF.",
       "letterheadMode": "Letterhead size",
       "letterheadModeFull": "Full — edge-to-edge width",
       "letterheadModeHalf": "Half — centered at 50% width",
