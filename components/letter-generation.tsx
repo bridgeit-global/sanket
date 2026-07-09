@@ -612,7 +612,6 @@ export function LetterGeneration() {
     getDefaultLetterPaperSize('fees'),
   );
   const [isUploadingLetterhead, setIsUploadingLetterhead] = useState(false);
-  const [printWithLetterhead, setPrintWithLetterhead] = useState(false);
   const letterheadInputRef = useRef<HTMLInputElement>(null);
   const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
   const [isSavingTemplate, setIsSavingTemplate] = useState(false);
@@ -1011,7 +1010,7 @@ export function LetterGeneration() {
     const master = letterMasters.find((m) => m.id === letter.letterMasterId);
     const letterheadUrl = resolveLetterheadUrl(paperSize, master?.letterheadUrl);
     const opened = printLetterHtml(letter.renderedHtml, title, paperSize, {
-      includeLetterhead: printWithLetterhead,
+      includeLetterhead: true,
       letterheadUrl,
       letterLocale: letter.letterLocale,
     });
@@ -1030,7 +1029,7 @@ export function LetterGeneration() {
       exportHost = createLetterExportElement(letter.renderedHtml, {
         paperSize,
         letterheadUrl,
-        includeLetterhead: printWithLetterhead,
+        includeLetterhead: true,
         letterLocale: letter.letterLocale,
       });
       document.body.appendChild(exportHost);
@@ -1907,13 +1906,6 @@ export function LetterGeneration() {
                       </p>
                     </div>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                      <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-                        <Checkbox
-                          checked={printWithLetterhead}
-                          onChange={(e) => setPrintWithLetterhead(e.target.checked)}
-                        />
-                        {t('letterGeneration.printWithLetterhead')}
-                      </label>
                       <Button
                         variant="outline"
                         className="w-full sm:w-auto"
@@ -2352,13 +2344,6 @@ export function LetterGeneration() {
                                 </DialogDescription>
                               </div>
                               <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row sm:items-center">
-                                <label className="flex cursor-pointer items-center gap-2 text-sm text-muted-foreground">
-                                  <Checkbox
-                                    checked={printWithLetterhead}
-                                    onChange={(e) => setPrintWithLetterhead(e.target.checked)}
-                                  />
-                                  {t('letterGeneration.printWithLetterhead')}
-                                </label>
                                 <Button
                                   size="sm"
                                   variant="outline"
