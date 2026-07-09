@@ -684,6 +684,9 @@ type AddressSelectionState = {
   office: string | null;
 };
 
+type ManualAddressKey = keyof AddressSelectionState;
+type ManualAddressDrafts = Record<ManualAddressKey, Record<LetterLocale, string>>;
+
 function getAddressTextFromMaster(
   addresses: AddressMasterRow[],
   masterId: string | null,
@@ -817,6 +820,14 @@ export function LetterGeneration() {
     rationOffice: null,
     office: null,
   });
+  const [manualAddressDrafts, setManualAddressDrafts] = useState<ManualAddressDrafts>(() => ({
+    school: { en: '', mr: '' },
+    applicant: { en: '', mr: '' },
+    rationOffice: { en: '', mr: '' },
+    office: { en: '', mr: '' },
+  }));
+  const translateTimersRef = useRef<Partial<Record<ManualAddressKey, number>>>({});
+  const translateReqIdRef = useRef<Partial<Record<ManualAddressKey, number>>>({});
   const [templateDraft, setTemplateDraft] = useState('');
   const [templateNameDraft, setTemplateNameDraft] = useState('');
   const [letterheadDraft, setLetterheadDraft] = useState<string | null>(null);
@@ -852,15 +863,18 @@ export function LetterGeneration() {
   const createAddressMasterFromManualEntry = async ({
     addressType,
     name,
-    addressText,
+    addressEn,
+    addressMr,
   }: {
     addressType: AddressMasterRow['addressType'];
     name: string;
-    addressText: string;
+    addressEn: string;
+    addressMr: string;
   }): Promise<AddressMasterRow | null> => {
     const trimmedName = name.trim();
-    const trimmedText = addressText.trim();
-    if (!trimmedName || !trimmedText) return null;
+    const trimmedEn = addressEn.trim();
+    const trimmedMr = addressMr.trim();
+    if (!trimmedName || (!trimmedEn && !trimmedMr)) return null;
 
     try {
       const res = await fetch('/api/addresses', {
@@ -869,9 +883,9 @@ export function LetterGeneration() {
         body: JSON.stringify({
           name: trimmedName,
           addressType,
-          // Manual entry doesn't have translations; store the same value for both locales.
-          addressEn: trimmedText,
-          addressMr: trimmedText,
+          // Manual entry is auto-translated; fall back to whichever side is present.
+          addressEn: trimmedEn || trimmedMr,
+          addressMr: trimmedMr || trimmedEn,
           isActive: true,
           sortOrder: 0,
         }),
@@ -940,6 +954,39 @@ export function LetterGeneration() {
       setDomicileFields,
     });
 
+    // For manual entry (no master selection), restore the per-locale drafts when switching locale.
+    if (!addressSelections.school) {
+      const text = manualAddressDrafts.school[letterLocale];
+      if (text.trim()) {
+        setFeesFields((prev) => ({ ...prev, schoolAddress: text }));
+        setSchoolAdmissionFields((prev) => ({ ...prev, schoolAddress: text }));
+        setSchoolTransferFields((prev) => ({ ...prev, schoolAddress: text }));
+      }
+    }
+    if (!addressSelections.applicant) {
+      const text = manualAddressDrafts.applicant[letterLocale];
+      if (text.trim()) {
+        setSchoolAdmissionFields((prev) => ({ ...prev, address: text }));
+        setSchoolTransferFields((prev) => ({ ...prev, address: text }));
+        setRationFields((prev) => ({ ...prev, address: text }));
+        setIncomeFields((prev) => ({ ...prev, address: text }));
+        setDomicileFields((prev) => ({ ...prev, address: text }));
+      }
+    }
+    if (!addressSelections.rationOffice) {
+      const text = manualAddressDrafts.rationOffice[letterLocale];
+      if (text.trim()) {
+        setRationFields((prev) => ({ ...prev, rationOfficeAddress: text }));
+      }
+    }
+    if (!addressSelections.office) {
+      const text = manualAddressDrafts.office[letterLocale];
+      if (text.trim()) {
+        setIncomeFields((prev) => ({ ...prev, officeAddress: text }));
+        setDomicileFields((prev) => ({ ...prev, officeAddress: text }));
+      }
+    }
+
     if (!addressSelections.rationOffice) {
       setRationFields((prev) => ({
         ...prev,
@@ -958,7 +1005,59 @@ export function LetterGeneration() {
     }
 
     prevLetterLocaleRef.current = letterLocale;
-  }, [letterLocale, addresses, addressSelections]);
+  }, [letterLocale, addresses, addressSelections, manualAddressDrafts]);
+
+  const triggerAutoTranslateManualAddress = (key: ManualAddressKey, sourceText: string) => {
+    const sourceLocale = letterLocale;
+    const targetLocale: LetterLocale = sourceLocale === 'en' ? 'mr' : 'en';
+
+    // If input is empty, keep other side as-is (user might be mid-edit).
+    if (!sourceText.trim()) return;
+
+    const nextReqId = (translateReqIdRef.current[key] ?? 0) + 1;
+    translateReqIdRef.current[key] = nextReqId;
+
+    const existingTimer = translateTimersRef.current[key];
+    if (existingTimer) window.clearTimeout(existingTimer);
+
+    translateTimersRef.current[key] = window.setTimeout(async () => {
+      try {
+        const res = await fetch('/api/translate', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ text: sourceText, targetLocale }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.error || 'Failed to translate');
+
+        // Ignore stale responses.
+        if (translateReqIdRef.current[key] !== nextReqId) return;
+
+        const translated = String(json?.translated ?? '').trim();
+        if (!translated) return;
+
+        setManualAddressDrafts((prev) => ({
+          ...prev,
+          [key]: {
+            ...prev[key],
+            [targetLocale]: translated,
+          },
+        }));
+      } catch (error) {
+        // Non-blocking: user can still save/use the typed address.
+        console.error('Failed to auto-translate address', error);
+      }
+    }, 450);
+  };
+
+  const handleManualAddressChange = (key: ManualAddressKey, value: string) => {
+    const sourceLocale = letterLocale;
+    setManualAddressDrafts((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], [sourceLocale]: value },
+    }));
+    triggerAutoTranslateManualAddress(key, value);
+  };
 
   const refreshLetterMasters = async () => {
     setLetterMastersLoading(true);
@@ -1312,7 +1411,8 @@ export function LetterGeneration() {
           const created = await createAddressMasterFromManualEntry({
             addressType: 'school',
             name: schoolNameValue,
-            addressText: schoolAddressText,
+            addressEn: manualAddressDrafts.school.en || (letterLocale === 'en' ? schoolAddressText : ''),
+            addressMr: manualAddressDrafts.school.mr || (letterLocale === 'mr' ? schoolAddressText : ''),
           });
           if (created?.id) {
             setAddresses((prev) =>
@@ -1341,7 +1441,12 @@ export function LetterGeneration() {
           const created = await createAddressMasterFromManualEntry({
             addressType: 'general',
             name: deriveAddressMasterName(applicantAddressText, 'Applicant Address'),
-            addressText: applicantAddressText,
+            addressEn:
+              manualAddressDrafts.applicant.en ||
+              (letterLocale === 'en' ? applicantAddressText : ''),
+            addressMr:
+              manualAddressDrafts.applicant.mr ||
+              (letterLocale === 'mr' ? applicantAddressText : ''),
           });
           if (created?.id) {
             setAddresses((prev) =>
@@ -1358,7 +1463,12 @@ export function LetterGeneration() {
           const created = await createAddressMasterFromManualEntry({
             addressType: 'ration_office',
             name: deriveAddressMasterName(rationOfficeText, 'Ration Office'),
-            addressText: rationOfficeText,
+            addressEn:
+              manualAddressDrafts.rationOffice.en ||
+              (letterLocale === 'en' ? rationOfficeText : ''),
+            addressMr:
+              manualAddressDrafts.rationOffice.mr ||
+              (letterLocale === 'mr' ? rationOfficeText : ''),
           });
           if (created?.id) {
             setAddresses((prev) =>
@@ -1377,7 +1487,10 @@ export function LetterGeneration() {
           const created = await createAddressMasterFromManualEntry({
             addressType: 'office',
             name: deriveAddressMasterName(officeText, 'Office Address'),
-            addressText: officeText,
+            addressEn:
+              manualAddressDrafts.office.en || (letterLocale === 'en' ? officeText : ''),
+            addressMr:
+              manualAddressDrafts.office.mr || (letterLocale === 'mr' ? officeText : ''),
           });
           if (created?.id) {
             setAddresses((prev) =>
@@ -1803,9 +1916,12 @@ export function LetterGeneration() {
                         value={feesFields.schoolAddress}
                         selectedAddressId={addressSelections.school}
                         addresses={addresses}
-                        onValueChange={(value) =>
-                          setFeesFields({ ...feesFields, schoolAddress: value })
-                        }
+                        onValueChange={(value) => {
+                          setFeesFields({ ...feesFields, schoolAddress: value });
+                          setSchoolAdmissionFields((prev) => ({ ...prev, schoolAddress: value }));
+                          setSchoolTransferFields((prev) => ({ ...prev, schoolAddress: value }));
+                          if (!addressSelections.school) handleManualAddressChange('school', value);
+                        }}
                         onSelectedAddressIdChange={(id) => {
                           setAddressSelections((prev) => ({ ...prev, school: id }));
                           if (id) {
@@ -1833,6 +1949,9 @@ export function LetterGeneration() {
                                 schoolAddress: text,
                               }));
                             }
+                          } else {
+                            // Switched to manual entry; seed drafts from current value.
+                            handleManualAddressChange('school', feesFields.schoolAddress);
                           }
                         }}
                       />
@@ -1880,12 +1999,15 @@ export function LetterGeneration() {
                         value={schoolAdmissionFields.schoolAddress}
                         selectedAddressId={addressSelections.school}
                         addresses={addresses}
-                        onValueChange={(value) =>
+                        onValueChange={(value) => {
                           setSchoolAdmissionFields({
                             ...schoolAdmissionFields,
                             schoolAddress: value,
-                          })
-                        }
+                          });
+                          setFeesFields((prev) => ({ ...prev, schoolAddress: value }));
+                          setSchoolTransferFields((prev) => ({ ...prev, schoolAddress: value }));
+                          if (!addressSelections.school) handleManualAddressChange('school', value);
+                        }}
                         onSelectedAddressIdChange={(id) => {
                           setAddressSelections((prev) => ({ ...prev, school: id }));
                           if (id) {
@@ -1913,6 +2035,8 @@ export function LetterGeneration() {
                                 schoolAddress: text,
                               }));
                             }
+                          } else {
+                            handleManualAddressChange('school', schoolAdmissionFields.schoolAddress);
                           }
                         }}
                       />
@@ -1958,12 +2082,18 @@ export function LetterGeneration() {
                         value={schoolAdmissionFields.address}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
-                        onValueChange={(value) =>
+                        onValueChange={(value) => {
                           setSchoolAdmissionFields({
                             ...schoolAdmissionFields,
                             address: value,
-                          })
-                        }
+                          });
+                          setSchoolTransferFields((prev) => ({ ...prev, address: value }));
+                          setRationFields((prev) => ({ ...prev, address: value }));
+                          setIncomeFields((prev) => ({ ...prev, address: value }));
+                          setDomicileFields((prev) => ({ ...prev, address: value }));
+                          if (!addressSelections.applicant)
+                            handleManualAddressChange('applicant', value);
+                        }}
                         onSelectedAddressIdChange={(id) => {
                           setAddressSelections((prev) => ({ ...prev, applicant: id }));
                           if (id) {
@@ -1975,6 +2105,8 @@ export function LetterGeneration() {
                               setIncomeFields((prev) => ({ ...prev, address: text }));
                               setDomicileFields((prev) => ({ ...prev, address: text }));
                             }
+                          } else {
+                            handleManualAddressChange('applicant', schoolAdmissionFields.address);
                           }
                         }}
                       />
@@ -2012,12 +2144,15 @@ export function LetterGeneration() {
                         value={schoolTransferFields.schoolAddress}
                         selectedAddressId={addressSelections.school}
                         addresses={addresses}
-                        onValueChange={(value) =>
+                        onValueChange={(value) => {
                           setSchoolTransferFields({
                             ...schoolTransferFields,
                             schoolAddress: value,
-                          })
-                        }
+                          });
+                          setFeesFields((prev) => ({ ...prev, schoolAddress: value }));
+                          setSchoolAdmissionFields((prev) => ({ ...prev, schoolAddress: value }));
+                          if (!addressSelections.school) handleManualAddressChange('school', value);
+                        }}
                         onSelectedAddressIdChange={(id) => {
                           setAddressSelections((prev) => ({ ...prev, school: id }));
                           if (id) {
@@ -2045,6 +2180,8 @@ export function LetterGeneration() {
                                 schoolAddress: text,
                               }));
                             }
+                          } else {
+                            handleManualAddressChange('school', schoolTransferFields.schoolAddress);
                           }
                         }}
                       />
@@ -2090,12 +2227,18 @@ export function LetterGeneration() {
                         value={schoolTransferFields.address}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
-                        onValueChange={(value) =>
+                        onValueChange={(value) => {
                           setSchoolTransferFields({
                             ...schoolTransferFields,
                             address: value,
-                          })
-                        }
+                          });
+                          setSchoolAdmissionFields((prev) => ({ ...prev, address: value }));
+                          setRationFields((prev) => ({ ...prev, address: value }));
+                          setIncomeFields((prev) => ({ ...prev, address: value }));
+                          setDomicileFields((prev) => ({ ...prev, address: value }));
+                          if (!addressSelections.applicant)
+                            handleManualAddressChange('applicant', value);
+                        }}
                         onSelectedAddressIdChange={(id) => {
                           setAddressSelections((prev) => ({ ...prev, applicant: id }));
                           if (id) {
@@ -2107,6 +2250,8 @@ export function LetterGeneration() {
                               setIncomeFields((prev) => ({ ...prev, address: text }));
                               setDomicileFields((prev) => ({ ...prev, address: text }));
                             }
+                          } else {
+                            handleManualAddressChange('applicant', schoolTransferFields.address);
                           }
                         }}
                       />
@@ -2215,9 +2360,15 @@ export function LetterGeneration() {
                           value={rationFields.address}
                           selectedAddressId={addressSelections.applicant}
                           addresses={addresses}
-                          onValueChange={(value) =>
-                            setRationFields({ ...rationFields, address: value })
-                          }
+                          onValueChange={(value) => {
+                            setRationFields({ ...rationFields, address: value });
+                            setSchoolAdmissionFields((prev) => ({ ...prev, address: value }));
+                            setSchoolTransferFields((prev) => ({ ...prev, address: value }));
+                            setIncomeFields((prev) => ({ ...prev, address: value }));
+                            setDomicileFields((prev) => ({ ...prev, address: value }));
+                            if (!addressSelections.applicant)
+                              handleManualAddressChange('applicant', value);
+                          }}
                           onSelectedAddressIdChange={(id) => {
                             setAddressSelections((prev) => ({ ...prev, applicant: id }));
                             if (id) {
@@ -2239,6 +2390,8 @@ export function LetterGeneration() {
                                 setIncomeFields((prev) => ({ ...prev, address: text }));
                                 setDomicileFields((prev) => ({ ...prev, address: text }));
                               }
+                            } else {
+                              handleManualAddressChange('applicant', rationFields.address);
                             }
                           }}
                         />
@@ -2301,12 +2454,14 @@ export function LetterGeneration() {
                           value={rationFields.rationOfficeAddress}
                           selectedAddressId={addressSelections.rationOffice}
                           addresses={addresses}
-                          onValueChange={(value) =>
+                          onValueChange={(value) => {
                             setRationFields({
                               ...rationFields,
                               rationOfficeAddress: value,
-                            })
-                          }
+                            });
+                            if (!addressSelections.rationOffice)
+                              handleManualAddressChange('rationOffice', value);
+                          }}
                           onSelectedAddressIdChange={(id) => {
                             setAddressSelections((prev) => ({ ...prev, rationOffice: id }));
                             if (id) {
@@ -2321,6 +2476,11 @@ export function LetterGeneration() {
                                   rationOfficeAddress: text,
                                 }));
                               }
+                            } else {
+                              handleManualAddressChange(
+                                'rationOffice',
+                                rationFields.rationOfficeAddress,
+                              );
                             }
                           }}
                         />
@@ -2387,9 +2547,15 @@ export function LetterGeneration() {
                         value={incomeFields.address}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
-                        onValueChange={(value) =>
-                          setIncomeFields({ ...incomeFields, address: value })
-                        }
+                        onValueChange={(value) => {
+                          setIncomeFields({ ...incomeFields, address: value });
+                          setSchoolAdmissionFields((prev) => ({ ...prev, address: value }));
+                          setSchoolTransferFields((prev) => ({ ...prev, address: value }));
+                          setRationFields((prev) => ({ ...prev, address: value }));
+                          setDomicileFields((prev) => ({ ...prev, address: value }));
+                          if (!addressSelections.applicant)
+                            handleManualAddressChange('applicant', value);
+                        }}
                         onSelectedAddressIdChange={(id) => {
                           setAddressSelections((prev) => ({ ...prev, applicant: id }));
                           if (id) {
@@ -2401,6 +2567,8 @@ export function LetterGeneration() {
                               setIncomeFields((prev) => ({ ...prev, address: text }));
                               setDomicileFields((prev) => ({ ...prev, address: text }));
                             }
+                          } else {
+                            handleManualAddressChange('applicant', incomeFields.address);
                           }
                         }}
                       />
@@ -2411,9 +2579,11 @@ export function LetterGeneration() {
                         value={incomeFields.officeAddress}
                         selectedAddressId={addressSelections.office}
                         addresses={addresses}
-                        onValueChange={(value) =>
-                          setIncomeFields({ ...incomeFields, officeAddress: value })
-                        }
+                        onValueChange={(value) => {
+                          setIncomeFields({ ...incomeFields, officeAddress: value });
+                          setDomicileFields((prev) => ({ ...prev, officeAddress: value }));
+                          if (!addressSelections.office) handleManualAddressChange('office', value);
+                        }}
                         onSelectedAddressIdChange={(id) => {
                           setAddressSelections((prev) => ({ ...prev, office: id }));
                           if (id) {
@@ -2425,6 +2595,8 @@ export function LetterGeneration() {
                                 officeAddress: text,
                               }));
                             }
+                          } else {
+                            handleManualAddressChange('office', incomeFields.officeAddress);
                           }
                         }}
                       />
@@ -2513,9 +2685,15 @@ export function LetterGeneration() {
                         value={domicileFields.address}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
-                        onValueChange={(value) =>
-                          setDomicileFields({ ...domicileFields, address: value })
-                        }
+                        onValueChange={(value) => {
+                          setDomicileFields({ ...domicileFields, address: value });
+                          setSchoolAdmissionFields((prev) => ({ ...prev, address: value }));
+                          setSchoolTransferFields((prev) => ({ ...prev, address: value }));
+                          setRationFields((prev) => ({ ...prev, address: value }));
+                          setIncomeFields((prev) => ({ ...prev, address: value }));
+                          if (!addressSelections.applicant)
+                            handleManualAddressChange('applicant', value);
+                        }}
                         onSelectedAddressIdChange={(id) => {
                           setAddressSelections((prev) => ({ ...prev, applicant: id }));
                           if (id) {
@@ -2527,6 +2705,8 @@ export function LetterGeneration() {
                               setIncomeFields((prev) => ({ ...prev, address: text }));
                               setDomicileFields((prev) => ({ ...prev, address: text }));
                             }
+                          } else {
+                            handleManualAddressChange('applicant', domicileFields.address);
                           }
                         }}
                       />
@@ -2537,9 +2717,11 @@ export function LetterGeneration() {
                         value={domicileFields.officeAddress}
                         selectedAddressId={addressSelections.office}
                         addresses={addresses}
-                        onValueChange={(value) =>
-                          setDomicileFields({ ...domicileFields, officeAddress: value })
-                        }
+                        onValueChange={(value) => {
+                          setDomicileFields({ ...domicileFields, officeAddress: value });
+                          setIncomeFields((prev) => ({ ...prev, officeAddress: value }));
+                          if (!addressSelections.office) handleManualAddressChange('office', value);
+                        }}
                         onSelectedAddressIdChange={(id) => {
                           setAddressSelections((prev) => ({ ...prev, office: id }));
                           if (id) {
@@ -2551,6 +2733,8 @@ export function LetterGeneration() {
                                 officeAddress: text,
                               }));
                             }
+                          } else {
+                            handleManualAddressChange('office', domicileFields.officeAddress);
                           }
                         }}
                       />

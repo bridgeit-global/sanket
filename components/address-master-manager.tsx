@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -78,6 +78,9 @@ export function AddressMasterManager({
   const [form, setForm] = useState<AddressFormState>(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const translateTimerRef = useRef<{ en?: number; mr?: number }>({});
+  const translateReqIdRef = useRef<{ en: number; mr: number }>({ en: 0, mr: 0 });
+  const lastEditAtRef = useRef<{ en: number; mr: number }>({ en: 0, mr: 0 });
 
   const sortedAddresses = useMemo(
     () =>
@@ -92,6 +95,7 @@ export function AddressMasterManager({
   const openCreateDialog = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
+    lastEditAtRef.current = { en: 0, mr: 0 };
     setIsDialogOpen(true);
   };
 
@@ -105,7 +109,51 @@ export function AddressMasterManager({
       isActive: address.isActive,
       sortOrder: String(address.sortOrder),
     });
+    lastEditAtRef.current = { en: Date.now(), mr: Date.now() };
     setIsDialogOpen(true);
+  };
+
+  const scheduleTranslate = (sourceLocale: 'en' | 'mr', sourceText: string) => {
+    const targetLocale: 'en' | 'mr' = sourceLocale === 'en' ? 'mr' : 'en';
+    const trimmed = sourceText.trim();
+    if (!trimmed) return;
+
+    translateReqIdRef.current[sourceLocale] += 1;
+    const reqId = translateReqIdRef.current[sourceLocale];
+    const requestStartedAt = Date.now();
+
+    const existingTimer = translateTimerRef.current[sourceLocale];
+    if (existingTimer) window.clearTimeout(existingTimer);
+
+    translateTimerRef.current[sourceLocale] = window.setTimeout(async () => {
+      try {
+        const res = await fetch('/api/translate', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ text: sourceText, targetLocale }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.error || 'Failed to translate');
+
+        // Ignore stale responses.
+        if (translateReqIdRef.current[sourceLocale] !== reqId) return;
+
+        const translated = String(json?.translated ?? '').trim();
+        if (!translated) return;
+
+        // If user started editing the target box after this request, don't overwrite.
+        if (lastEditAtRef.current[targetLocale] > requestStartedAt) return;
+
+        setForm((prev) =>
+          targetLocale === 'en'
+            ? { ...prev, addressEn: translated }
+            : { ...prev, addressMr: translated },
+        );
+      } catch (error) {
+        // Non-blocking: user can still save manually entered values.
+        console.error('Failed to auto-translate address master value', error);
+      }
+    }, 450);
   };
 
   const handleSave = async () => {
@@ -326,7 +374,12 @@ export function AddressMasterManager({
               <Label>{t('letterGeneration.addresses.columns.english')}</Label>
               <Textarea
                 value={form.addressEn}
-                onChange={(event) => setForm({ ...form, addressEn: event.target.value })}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  lastEditAtRef.current.en = Date.now();
+                  setForm((prev) => ({ ...prev, addressEn: next }));
+                  scheduleTranslate('en', next);
+                }}
                 rows={3}
               />
             </div>
@@ -335,7 +388,12 @@ export function AddressMasterManager({
               <Label>{t('letterGeneration.addresses.columns.marathi')}</Label>
               <Textarea
                 value={form.addressMr}
-                onChange={(event) => setForm({ ...form, addressMr: event.target.value })}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  lastEditAtRef.current.mr = Date.now();
+                  setForm((prev) => ({ ...prev, addressMr: next }));
+                  scheduleTranslate('mr', next);
+                }}
                 rows={3}
               />
             </div>
