@@ -839,6 +839,53 @@ export function LetterGeneration() {
   const [filterEndDate, setFilterEndDate] = useState('');
   const [commonFieldErrors, setCommonFieldErrors] = useState<CommonFieldErrors>({});
 
+  const deriveAddressMasterName = (rawAddress: string, fallback: string) => {
+    const firstLine =
+      rawAddress
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .find(Boolean) ?? '';
+    const trimmed = firstLine.slice(0, 60);
+    return trimmed || fallback;
+  };
+
+  const createAddressMasterFromManualEntry = async ({
+    addressType,
+    name,
+    addressText,
+  }: {
+    addressType: AddressMasterRow['addressType'];
+    name: string;
+    addressText: string;
+  }): Promise<AddressMasterRow | null> => {
+    const trimmedName = name.trim();
+    const trimmedText = addressText.trim();
+    if (!trimmedName || !trimmedText) return null;
+
+    try {
+      const res = await fetch('/api/addresses', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          name: trimmedName,
+          addressType,
+          // Manual entry doesn't have translations; store the same value for both locales.
+          addressEn: trimmedText,
+          addressMr: trimmedText,
+          isActive: true,
+          sortOrder: 0,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to create address');
+      return (json?.address ?? null) as AddressMasterRow | null;
+    } catch (error) {
+      // Non-blocking: letter save should still proceed even if this fails.
+      console.error('Failed to auto-save manual address to address master', error);
+      return null;
+    }
+  };
+
 
   useEffect(() => {
     setCommonFieldErrors({});
@@ -1225,6 +1272,106 @@ export function LetterGeneration() {
 
     setIsSaving(true);
     try {
+      // Auto-save manual addresses to Address Master (so they appear in dropdown next time).
+      // This is intentionally done only on "Save Letter" to avoid creating rows on every edit.
+      if (!addressSelections.school) {
+        const schoolAddressText =
+          (activeTab === 'fees'
+            ? feesFields.schoolAddress
+            : activeTab === 'school-admission'
+              ? schoolAdmissionFields.schoolAddress
+              : activeTab === 'school-transfer'
+                ? schoolTransferFields.schoolAddress
+                : '') ?? '';
+        const schoolNameValue =
+          (activeTab === 'fees'
+            ? feesFields.schoolName
+            : activeTab === 'school-admission'
+              ? schoolAdmissionFields.schoolName
+              : activeTab === 'school-transfer'
+                ? schoolTransferFields.schoolName
+                : '') ?? '';
+
+        if (schoolAddressText.trim() && schoolNameValue.trim()) {
+          const created = await createAddressMasterFromManualEntry({
+            addressType: 'school',
+            name: schoolNameValue,
+            addressText: schoolAddressText,
+          });
+          if (created?.id) {
+            setAddresses((prev) =>
+              prev.some((a) => a.id === created.id) ? prev : [created, ...prev],
+            );
+            setAddressSelections((prev) => ({ ...prev, school: created.id }));
+          }
+        }
+      }
+
+      if (!addressSelections.applicant) {
+        const applicantAddressText =
+          (activeTab === 'school-admission'
+            ? schoolAdmissionFields.address
+            : activeTab === 'school-transfer'
+              ? schoolTransferFields.address
+              : isRationLetterType(activeTab)
+                ? rationFields.address
+                : activeTab === 'income'
+                  ? incomeFields.address
+                  : activeTab === 'domicile'
+                    ? domicileFields.address
+                    : '') ?? '';
+
+        if (applicantAddressText.trim()) {
+          const created = await createAddressMasterFromManualEntry({
+            addressType: 'general',
+            name: deriveAddressMasterName(applicantAddressText, 'Applicant Address'),
+            addressText: applicantAddressText,
+          });
+          if (created?.id) {
+            setAddresses((prev) =>
+              prev.some((a) => a.id === created.id) ? prev : [created, ...prev],
+            );
+            setAddressSelections((prev) => ({ ...prev, applicant: created.id }));
+          }
+        }
+      }
+
+      if (!addressSelections.rationOffice && isRationLetterType(activeTab)) {
+        const rationOfficeText = rationFields.rationOfficeAddress ?? '';
+        if (rationOfficeText.trim()) {
+          const created = await createAddressMasterFromManualEntry({
+            addressType: 'ration_office',
+            name: deriveAddressMasterName(rationOfficeText, 'Ration Office'),
+            addressText: rationOfficeText,
+          });
+          if (created?.id) {
+            setAddresses((prev) =>
+              prev.some((a) => a.id === created.id) ? prev : [created, ...prev],
+            );
+            setAddressSelections((prev) => ({ ...prev, rationOffice: created.id }));
+          }
+        }
+      }
+
+      if (!addressSelections.office && (activeTab === 'income' || activeTab === 'domicile')) {
+        const officeText =
+          (activeTab === 'income' ? incomeFields.officeAddress : domicileFields.officeAddress) ??
+          '';
+        if (officeText.trim()) {
+          const created = await createAddressMasterFromManualEntry({
+            addressType: 'office',
+            name: deriveAddressMasterName(officeText, 'Office Address'),
+            addressText: officeText,
+          });
+          if (created?.id) {
+            setAddresses((prev) =>
+              prev.some((a) => a.id === created.id) ? prev : [created, ...prev],
+            );
+            setAddressSelections((prev) => ({ ...prev, office: created.id }));
+          }
+        }
+      }
+
       const res = await fetch('/api/letters', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -1625,7 +1772,7 @@ export function LetterGeneration() {
                   <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
                     <TabsContent value="fees" className="mt-0 space-y-4">
                       {renderCommonFields(feesFields, setFeesFields)}
-                      <FieldGroup label={t('letterGeneration.fields.schoolName')}>
+                      <FieldGroup label={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}>
                         <Input
                           value={feesFields.schoolName}
                           onChange={(e) =>
@@ -1634,7 +1781,7 @@ export function LetterGeneration() {
                         />
                       </FieldGroup>
                       <LetterAddressField
-                        label={t('letterGeneration.fields.schoolAddress')}
+                        label={letterLocale === 'mr' ? 'संस्था पत्ता' : 'Institute Address'}
                         addressType="school"
                         locale={letterLocale}
                         value={feesFields.schoolAddress}
@@ -1646,6 +1793,18 @@ export function LetterGeneration() {
                         onSelectedAddressIdChange={(id) => {
                           setAddressSelections((prev) => ({ ...prev, school: id }));
                           if (id) {
+                            const selected = addresses.find((a) => a.id === id);
+                            if (selected?.name) {
+                              setFeesFields((prev) => ({ ...prev, schoolName: selected.name }));
+                              setSchoolAdmissionFields((prev) => ({
+                                ...prev,
+                                schoolName: selected.name,
+                              }));
+                              setSchoolTransferFields((prev) => ({
+                                ...prev,
+                                schoolName: selected.name,
+                              }));
+                            }
                             const text = getAddressTextFromMaster(addresses, id, letterLocale);
                             if (text) {
                               setFeesFields((prev) => ({ ...prev, schoolAddress: text }));
@@ -1687,7 +1846,7 @@ export function LetterGeneration() {
 
                     <TabsContent value="school-admission" className="mt-0 space-y-4">
                       {renderCommonFields(schoolAdmissionFields, setSchoolAdmissionFields)}
-                      <FieldGroup label={t('letterGeneration.fields.schoolName')}>
+                      <FieldGroup label={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}>
                         <Input
                           value={schoolAdmissionFields.schoolName}
                           onChange={(e) =>
@@ -1699,7 +1858,7 @@ export function LetterGeneration() {
                         />
                       </FieldGroup>
                       <LetterAddressField
-                        label={t('letterGeneration.fields.schoolAddress')}
+                        label={letterLocale === 'mr' ? 'संस्था पत्ता' : 'Institute Address'}
                         addressType="school"
                         locale={letterLocale}
                         value={schoolAdmissionFields.schoolAddress}
@@ -1714,6 +1873,18 @@ export function LetterGeneration() {
                         onSelectedAddressIdChange={(id) => {
                           setAddressSelections((prev) => ({ ...prev, school: id }));
                           if (id) {
+                            const selected = addresses.find((a) => a.id === id);
+                            if (selected?.name) {
+                              setFeesFields((prev) => ({ ...prev, schoolName: selected.name }));
+                              setSchoolAdmissionFields((prev) => ({
+                                ...prev,
+                                schoolName: selected.name,
+                              }));
+                              setSchoolTransferFields((prev) => ({
+                                ...prev,
+                                schoolName: selected.name,
+                              }));
+                            }
                             const text = getAddressTextFromMaster(addresses, id, letterLocale);
                             if (text) {
                               setFeesFields((prev) => ({ ...prev, schoolAddress: text }));
@@ -1807,7 +1978,7 @@ export function LetterGeneration() {
 
                     <TabsContent value="school-transfer" className="mt-0 space-y-4">
                       {renderCommonFields(schoolTransferFields, setSchoolTransferFields)}
-                      <FieldGroup label={t('letterGeneration.fields.schoolName')}>
+                      <FieldGroup label={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}>
                         <Input
                           value={schoolTransferFields.schoolName}
                           onChange={(e) =>
@@ -1819,7 +1990,7 @@ export function LetterGeneration() {
                         />
                       </FieldGroup>
                       <LetterAddressField
-                        label={t('letterGeneration.fields.schoolAddress')}
+                        label={letterLocale === 'mr' ? 'संस्था पत्ता' : 'Institute Address'}
                         addressType="school"
                         locale={letterLocale}
                         value={schoolTransferFields.schoolAddress}
@@ -1834,6 +2005,18 @@ export function LetterGeneration() {
                         onSelectedAddressIdChange={(id) => {
                           setAddressSelections((prev) => ({ ...prev, school: id }));
                           if (id) {
+                            const selected = addresses.find((a) => a.id === id);
+                            if (selected?.name) {
+                              setFeesFields((prev) => ({ ...prev, schoolName: selected.name }));
+                              setSchoolAdmissionFields((prev) => ({
+                                ...prev,
+                                schoolName: selected.name,
+                              }));
+                              setSchoolTransferFields((prev) => ({
+                                ...prev,
+                                schoolName: selected.name,
+                              }));
+                            }
                             const text = getAddressTextFromMaster(addresses, id, letterLocale);
                             if (text) {
                               setFeesFields((prev) => ({ ...prev, schoolAddress: text }));
