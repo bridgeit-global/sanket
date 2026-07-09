@@ -6,6 +6,7 @@ import {
   ChevronUp,
   Eye,
   FileDown,
+  Calendar,
   ImageIcon,
   Loader2,
   Printer,
@@ -52,6 +53,11 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useTranslations } from '@/hooks/use-translations';
 import {
   buildLetterBody,
@@ -172,6 +178,121 @@ function todayDisplay(letterLocale: LetterLocale) {
     month: '2-digit',
     year: 'numeric',
   });
+}
+
+function todayIsoDate() {
+  const d = new Date();
+  const yyyy = String(d.getFullYear());
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function formatIsoForLocaleDisplay(iso: string, locale: LetterLocale) {
+  if (!iso) return '';
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString(locale === 'mr' ? 'mr-IN' : 'en-IN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+}
+
+function tryParseDisplayToIso(displayValue: string): string | null {
+  // Best-effort parse for values like "09/07/2026" (ASCII digits).
+  const m = displayValue.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!m) return null;
+  const [, dd, mm, yyyy] = m;
+  const iso = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
+  const d = new Date(`${iso}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : iso;
+}
+
+function LetterDatePicker({
+  locale,
+  value,
+  onValueChange,
+  placeholder,
+}: {
+  locale: LetterLocale;
+  value: string;
+  onValueChange: (value: string) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [tempIso, setTempIso] = useState<string>('');
+
+  useEffect(() => {
+    if (!open) return;
+    const parsed = tryParseDisplayToIso(value);
+    setTempIso(parsed ?? '');
+  }, [open, value]);
+
+  const displayText = value?.trim() ? value : placeholder ?? '';
+
+  const handleApply = () => {
+    if (!tempIso) {
+      onValueChange('');
+      setOpen(false);
+      return;
+    }
+    onValueChange(formatIsoForLocaleDisplay(tempIso, locale));
+    setOpen(false);
+  };
+
+  const handleSetToday = () => {
+    const iso = todayIsoDate();
+    setTempIso(iso);
+    onValueChange(formatIsoForLocaleDisplay(iso, locale));
+    setOpen(false);
+  };
+
+  return (
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" className="w-full justify-start text-left font-normal">
+          <Calendar className="mr-2 h-4 w-4" aria-hidden />
+          <span className={cn('flex-1 text-left', !value?.trim() && 'text-muted-foreground')}>
+            {displayText || ' '}
+          </span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-[320px] p-4">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="letterDatePickerValue">Date</Label>
+            <Input
+              id="letterDatePickerValue"
+              type="date"
+              value={tempIso}
+              onChange={(e) => setTempIso(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-2 pt-2 border-t">
+            <Button variant="outline" size="sm" onClick={handleSetToday}>
+              Today
+            </Button>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setTempIso(tryParseDisplayToIso(value) ?? '');
+                  setOpen(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button size="sm" onClick={handleApply}>
+                Apply
+              </Button>
+            </div>
+          </div>
+        </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 function commonDefaults(locale: LetterLocale) {
@@ -1373,17 +1494,16 @@ export function LetterGeneration() {
           required
           error={commonFieldErrors.date}
         >
-          <Input
+          <LetterDatePicker
+            locale={letterLocale}
             value={fields.date}
-            onChange={(e) => {
-              setFields({ ...fields, date: e.target.value });
+            onValueChange={(next) => {
+              setFields({ ...fields, date: next });
               if (commonFieldErrors.date) {
                 setCommonFieldErrors((prev) => ({ ...prev, date: undefined }));
               }
             }}
             placeholder={t('letterGeneration.placeholders.date')}
-            required
-            aria-invalid={!!commonFieldErrors.date}
           />
         </FieldGroup>
       </div>

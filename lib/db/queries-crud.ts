@@ -2208,6 +2208,7 @@ export async function ensureLetterMasterDefaults(): Promise<void> {
       getDefaultTemplateName,
     } = await import('@/lib/letters/default-template-html');
     const { getDefaultLetterPaperSize } = await import('@/lib/letters/paper-size');
+    const { isLetterType } = await import('@/lib/letters/templates');
     const defaults = getAllDefaultLetterMasters();
 
     const { data: existingRows, error: existingError } = await supabase
@@ -2215,8 +2216,23 @@ export async function ensureLetterMasterDefaults(): Promise<void> {
       .select('id, name, letter_type, letter_locale, template_html');
     throwOnSupabaseError(existingError, 'Failed to list letter masters');
 
+    const legacyRationIds = (existingRows ?? [])
+      .filter((row) => String(row.letter_type) === 'ration')
+      .map((row) => row.id);
+    if (legacyRationIds.length > 0) {
+      const { error: deleteError } = await supabase
+        .from(TABLES.letterMaster)
+        .delete()
+        .in('id', legacyRationIds);
+      throwOnSupabaseError(deleteError, 'Failed to remove legacy ration letter masters');
+    }
+
+    const canonicalRows = (existingRows ?? []).filter((row) =>
+      isLetterType(String(row.letter_type)),
+    );
+
     const existingKeys = new Set(
-      (existingRows ?? []).map(
+      canonicalRows.map(
         (row) => `${String(row.letter_type)}:${String(row.letter_locale)}`,
       ),
     );
@@ -2244,7 +2260,7 @@ export async function ensureLetterMasterDefaults(): Promise<void> {
       throwOnSupabaseError(error, 'Failed to seed letter masters');
     }
 
-    const staleDefaults = (existingRows ?? []).filter((row) => {
+    const staleDefaults = canonicalRows.filter((row) => {
       const letterType = String(row.letter_type);
       const letterLocale = String(row.letter_locale);
       const expectedName = getDefaultTemplateName(
@@ -2278,6 +2294,7 @@ export async function ensureLetterMasterDefaults(): Promise<void> {
     );
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
+    console.error('ensureLetterMasterDefaults failed:', error);
     throw new ChatSDKError('bad_request:database', 'Failed to seed letter masters');
   }
 }

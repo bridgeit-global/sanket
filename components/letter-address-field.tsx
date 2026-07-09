@@ -1,12 +1,6 @@
 'use client';
 
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
 import { Textarea } from '@/components/ui/textarea';
 import { useTranslations } from '@/hooks/use-translations';
 import { getAddressTextForLocale } from '@/lib/letters/default-addresses';
@@ -66,28 +60,22 @@ export function LetterAddressField({
     onValueChange(getAddressTextForLocale(selected.addressEn, selected.addressMr, locale));
   };
 
+  const comboboxOptions = [
+    { value: MANUAL_VALUE, label: t('letterGeneration.addresses.manualEntry') },
+    ...filteredAddresses.map((address) => ({ value: address.id, label: address.name })),
+  ];
+
   return (
     <div className="space-y-2">
       <label className="mb-1.5 block text-sm font-medium">{label}</label>
       {filteredAddresses.length > 0 ? (
-        <Select
+        <Combobox
+          options={comboboxOptions}
           value={selectedAddressId ?? MANUAL_VALUE}
           onValueChange={handleSelectChange}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder={t('letterGeneration.addresses.selectPlaceholder')} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={MANUAL_VALUE}>
-              {t('letterGeneration.addresses.manualEntry')}
-            </SelectItem>
-            {filteredAddresses.map((address) => (
-              <SelectItem key={address.id} value={address.id}>
-                {address.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          placeholder={t('letterGeneration.addresses.selectPlaceholder')}
+          emptyMessage={t('letterGeneration.addresses.empty')}
+        />
       ) : null}
       <Textarea
         value={value}
