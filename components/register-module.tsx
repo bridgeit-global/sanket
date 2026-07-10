@@ -236,6 +236,23 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
   );
 
   useEffect(() => {
+    if (type !== 'outward') return;
+    setForm((prev) => {
+      const wasDefaultPrefix =
+        !prev.refPrefix.trim() ||
+        prev.refPrefix === defaultReferencePrefix('en') ||
+        prev.refPrefix === defaultReferencePrefix('mr');
+      return {
+        ...prev,
+        refPrefix: wasDefaultPrefix
+          ? defaultReferencePrefix(letterLocale)
+          : prev.refPrefix,
+        refNumber: formatReferenceNumberForLocale(prev.refNumber, letterLocale),
+      };
+    });
+  }, [letterLocale, type]);
+
+  useEffect(() => {
     if (type !== 'outward' || editingEntry) return;
     const prefix = normalizeReferencePrefix(form.refPrefix);
     if (!prefix) return;
@@ -653,7 +670,11 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                       <td>{entry.subject}</td>
                       <td>{project?.name || '-'}</td>
                       <td>{entry.mode || '-'}</td>
-                      <td>{entry.refNo || '-'}</td>
+                      <td>
+                        {entry.refNo
+                          ? formatReferenceForDisplay(entry.refNo, letterLocale)
+                          : '-'}
+                      </td>
                       <td>{entry.officer || '-'}</td>
                     </tr>
                   );
@@ -1093,7 +1114,11 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                         </TableCell>
                         <TableCell>{project?.name || '-'}</TableCell>
                         <TableCell>{entry.mode || '-'}</TableCell>
-                        <TableCell>{entry.refNo || '-'}</TableCell>
+                        <TableCell>
+                          {entry.refNo
+                            ? formatReferenceForDisplay(entry.refNo, letterLocale)
+                            : '-'}
+                        </TableCell>
                         <TableCell>{entry.officer || '-'}</TableCell>
                         <TableCell className="no-print">
                           <Button

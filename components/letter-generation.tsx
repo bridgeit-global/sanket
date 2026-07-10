@@ -2143,7 +2143,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     resolveLetterPaperSize(letter.paperSize, letter.letterType);
 
   const handlePrintSavedLetter = (letter: SavedLetterRow) => {
-    const title = `${letter.title}${letter.referenceNo ? ` - ${letter.referenceNo}` : ''}`;
+    const title = `${letter.title}${letter.referenceNo ? ` - ${formatReferenceForDisplay(letter.referenceNo, letterLocale)}` : ''}`;
     const paperSize = resolveSavedLetterPaperSize(letter);
     const master = letterMasters.find((m) => m.id === letter.letterMasterId);
     const letterheadUrl = resolveLetterheadUrl(paperSize, master?.letterheadUrl);
