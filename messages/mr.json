@@ -450,7 +450,7 @@
       "activeTemplate": "सध्याचा पत्र प्रकार",
       "html": "साचा HTML",
       "htmlPlaceholder": "<div class=\"letter-content\">...</div>",
-      "placeholderHint": "{{referenceNo}}, {{date}}, {{fullName}}, {{signatory}} सारखे प्लेसहोल्डर वापरा. साठवलेली पत्रे नवीनतम साच्यावरून पुन्हा तयार केली जाऊ शकतात.",
+      "placeholderHint": "{{referencePrefix}}, {{referenceNo}}, {{date}}, {{fullName}}, {{signatory}} सारखे प्लेसहोल्डर वापरा. साठवलेली पत्रे नवीनतम साच्यावरून पुन्हा तयार केली जाऊ शकतात.",
       "letterhead": "लेटरहेड",
       "letterheadEmpty": "लेटरहेड अपलोड केलेले नाही",
       "letterheadPreviewAlt": "लेटरहेड पूर्वावलोकन",
@@ -587,6 +587,7 @@
       "ration": "शिधापत्रिका (सर्व)"
     },
     "fields": {
+      "referencePrefix": "संदर्भ उपसर्ग",
       "referenceNo": "संदर्भ क्र.",
       "date": "दिनांक",
       "signatory": "स्वाक्षरीकर्ता नाव",
@@ -616,6 +617,7 @@
       "paperSize": "कागदाचा आकार"
     },
     "placeholders": {
+      "referencePrefix": "उदा. सामान्य",
       "referenceNo": "उदा. ६९४",
       "date": "उदा. ०५.१२.२०२५",
       "standard": "उदा. १० वी",
@@ -639,6 +641,7 @@
       "addMembers": "शिधापत्रिकेत कुटुंबियांची नावे जोडणे"
     },
     "validation": {
+      "referencePrefixRequired": "संदर्भ उपसर्ग आवश्यक आहे",
       "referenceNoRequired": "संदर्भ क्र. आवश्यक आहे",
       "referenceNoDuplicate": "संदर्भ क्र. आधीच अस्तित्वात आहे",
       "dateRequired": "दिनांक आवश्यक आहे",

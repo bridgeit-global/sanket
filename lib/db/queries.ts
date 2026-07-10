@@ -75,6 +75,7 @@ export {
   getStreamIdsByChatId,
   createLetter,
   getLetterByReferenceNo,
+  getReferenceNosForPrefix,
   getLetterById,
   getLetters,
   deleteLetter,

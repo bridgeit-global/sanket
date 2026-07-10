@@ -18,6 +18,7 @@ export type RationLetterPurpose = 'new' | 'add-members' | 'delete-members' | 'tr
 export type LetterLocale = 'en' | 'mr';
 
 export type CommonLetterFields = {
+  referencePrefix: string;
   referenceNo: string;
   date: string;
   signatory: string;

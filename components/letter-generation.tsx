@@ -119,6 +119,11 @@ import {
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
 import { filterLocaleText } from '@/lib/letters/locale-text';
+import {
+  defaultReferencePrefix,
+  formatReference,
+  normalizeReferencePrefix,
+} from '@/lib/letters/reference-sequence';
 import { toWesternDigits } from '@/lib/locale-digits';
 import { cn } from '@/lib/utils';
 
@@ -313,6 +318,7 @@ function LetterDatePicker({
 
 function commonDefaults(locale: LetterLocale) {
   return {
+    referencePrefix: defaultReferencePrefix(locale),
     referenceNo: '',
     date: todayDisplay(locale),
     signatory: DEFAULT_SIGNATORY[locale],
@@ -722,19 +728,27 @@ function requireField(
 }
 
 function validateRequiredCommonFields(
+  referencePrefix: string,
   referenceNo: string,
   date: string,
   t: (key: string) => string,
   existingReferenceNos: string[] = [],
 ): LetterFieldErrors {
   const errors: LetterFieldErrors = {};
-  const trimmedReferenceNo = referenceNo.trim();
-  if (!trimmedReferenceNo) {
+  const trimmedPrefix = normalizeReferencePrefix(referencePrefix);
+  const trimmedNumber = toWesternDigits(referenceNo.trim());
+  if (!trimmedPrefix) {
+    errors.referencePrefix = t('letterGeneration.validation.referencePrefixRequired');
+  }
+  if (!trimmedNumber) {
     errors.referenceNo = t('letterGeneration.validation.referenceNoRequired');
-  } else if (
-    existingReferenceNos.some((existing) => existing.trim() === trimmedReferenceNo)
-  ) {
-    errors.referenceNo = t('letterGeneration.validation.referenceNoDuplicate');
+  } else {
+    const fullReference = formatReference(trimmedPrefix, trimmedNumber);
+    if (
+      existingReferenceNos.some((existing) => existing.trim() === fullReference)
+    ) {
+      errors.referenceNo = t('letterGeneration.validation.referenceNoDuplicate');
+    }
   }
   if (!date.trim()) {
     errors.date = t('letterGeneration.validation.dateRequired');
@@ -908,6 +922,8 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   const [domicileFields, setDomicileFields] = useState<DomicileLetterFields>(
     () => domicileDefaults(locale),
   );
+  const referenceNumberAutoRef = useRef(true);
+  const referenceSequenceRequestId = useRef(0);
 
   const [savedLetters, setSavedLetters] = useState<SavedLetterRow[]>([]);
   const [savedLettersLoading, setSavedLettersLoading] = useState(false);
@@ -1108,15 +1124,60 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     setFieldErrors({});
   }, [activeTab, letterLocale]);
 
+  const syncReferenceFields = useCallback((prefix: string, number: string) => {
+    const patch = {
+      referencePrefix: prefix,
+      referenceNo: number,
+    };
+    setFeesFields((prev) => ({ ...prev, ...patch }));
+    setSchoolAdmissionFields((prev) => ({ ...prev, ...patch }));
+    setSchoolTransferFields((prev) => ({ ...prev, ...patch }));
+    setRationFields((prev) => ({ ...prev, ...patch }));
+    setIncomeFields((prev) => ({ ...prev, ...patch }));
+    setDomicileFields((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const refreshReferenceSequence = useCallback(
+    async (prefixInput: string, { force = false }: { force?: boolean } = {}) => {
+      const prefix = normalizeReferencePrefix(prefixInput);
+      if (!prefix) return;
+      if (!force && !referenceNumberAutoRef.current) return;
+
+      const requestId = ++referenceSequenceRequestId.current;
+      try {
+        const res = await fetch(
+          `/api/reference-sequence?prefix=${encodeURIComponent(prefix)}`,
+        );
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.error || 'Failed to load reference sequence');
+        if (requestId !== referenceSequenceRequestId.current) return;
+        if (!force && !referenceNumberAutoRef.current) return;
+        referenceNumberAutoRef.current = true;
+        syncReferenceFields(prefix, String(json.nextNumber ?? 1));
+      } catch (error) {
+        console.error('Failed to load reference sequence', error);
+      }
+    },
+    [syncReferenceFields],
+  );
+
   useEffect(() => {
     const prevLocale = prevLetterLocaleRef.current;
     const prevAutoDate = todayDisplay(prevLocale);
     const nextAutoDate = todayDisplay(letterLocale);
+    const prevDefaultPrefix = defaultReferencePrefix(prevLocale);
+    const nextDefaultPrefix = defaultReferencePrefix(letterLocale);
 
     const signatory = DEFAULT_SIGNATORY[letterLocale];
     const filterText = (value: string) => filterLocaleText(value, letterLocale);
+    const nextPrefix = (prevPrefix: string) =>
+      !prevPrefix.trim() || prevPrefix === prevDefaultPrefix
+        ? nextDefaultPrefix
+        : prevPrefix;
+
     setFeesFields((prev) => ({
       ...prev,
+      referencePrefix: nextPrefix(prev.referencePrefix),
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       schoolName: filterText(prev.schoolName),
@@ -1125,6 +1186,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     }));
     setSchoolAdmissionFields((prev) => ({
       ...prev,
+      referencePrefix: nextPrefix(prev.referencePrefix),
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       schoolName: filterText(prev.schoolName),
@@ -1135,6 +1197,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     }));
     setSchoolTransferFields((prev) => ({
       ...prev,
+      referencePrefix: nextPrefix(prev.referencePrefix),
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       schoolName: filterText(prev.schoolName),
@@ -1147,6 +1210,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     }));
     setRationFields((prev) => ({
       ...prev,
+      referencePrefix: nextPrefix(prev.referencePrefix),
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
@@ -1161,6 +1225,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     }));
     setIncomeFields((prev) => ({
       ...prev,
+      referencePrefix: nextPrefix(prev.referencePrefix),
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
@@ -1168,6 +1233,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     }));
     setDomicileFields((prev) => ({
       ...prev,
+      referencePrefix: nextPrefix(prev.referencePrefix),
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
@@ -1646,12 +1712,27 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     ],
   );
 
+  const activeReferencePrefix = activeFields.referencePrefix;
   const activeReferenceNo = activeFields.referenceNo;
+  const activeFullReferenceNo = formatReference(
+    activeReferencePrefix,
+    activeReferenceNo,
+  );
   const activeDate = activeFields.date;
+
+  useEffect(() => {
+    const prefix = normalizeReferencePrefix(activeReferencePrefix);
+    if (!prefix) return;
+    const timer = window.setTimeout(() => {
+      void refreshReferenceSequence(prefix);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [activeReferencePrefix, refreshReferenceSequence, savedLetters.length]);
 
   const validateActiveLetterFields = () => {
     const requiredMsg = t('letterGeneration.validation.fieldRequired');
     const errors = validateRequiredCommonFields(
+      activeReferencePrefix,
       activeReferenceNo,
       activeDate,
       t,
@@ -1972,7 +2053,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
           letterType: activeTab,
           letterLocale,
           letterMasterId: activeLetterMaster?.id ?? null,
-          referenceNo: activeReferenceNo.trim(),
+          referenceNo: activeFullReferenceNo,
           title: activeTitle,
           fields: activeFields,
           renderedHtml: activeBody,
@@ -1997,6 +2078,8 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       toast.success(t('letterGeneration.savedLetters.saveSuccess'));
       await refreshSavedLetters();
       setSelectedSavedLetterId(json?.letter?.id ?? null);
+      referenceNumberAutoRef.current = true;
+      await refreshReferenceSequence(activeReferencePrefix, { force: true });
     } catch (error) {
       console.error('Failed to save letter', error);
       toast.error(t('letterGeneration.savedLetters.saveError'));
@@ -2212,6 +2295,30 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     <>
       <div className="grid gap-4 sm:grid-cols-2">
         <FieldGroup
+          label={t('letterGeneration.fields.referencePrefix')}
+          required
+          error={fieldErrors.referencePrefix}
+        >
+          <Input
+            value={fields.referencePrefix}
+            onChange={(e) => {
+              const nextPrefix = e.target.value;
+              referenceNumberAutoRef.current = true;
+              syncReferenceFields(nextPrefix, fields.referenceNo);
+              if (fieldErrors.referencePrefix || fieldErrors.referenceNo) {
+                setFieldErrors((prev) => ({
+                  ...prev,
+                  referencePrefix: undefined,
+                  referenceNo: undefined,
+                }));
+              }
+            }}
+            placeholder={t('letterGeneration.placeholders.referencePrefix')}
+            required
+            aria-invalid={!!fieldErrors.referencePrefix}
+          />
+        </FieldGroup>
+        <FieldGroup
           label={t('letterGeneration.fields.referenceNo')}
           required
           error={fieldErrors.referenceNo}
@@ -2219,13 +2326,16 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
           <Input
             value={fields.referenceNo}
             onChange={(e) => {
-              setFields({ ...fields, referenceNo: e.target.value });
+              const nextNumber = e.target.value;
+              referenceNumberAutoRef.current = false;
+              syncReferenceFields(fields.referencePrefix, nextNumber);
               if (fieldErrors.referenceNo) {
                 setFieldErrors((prev) => ({ ...prev, referenceNo: undefined }));
               }
             }}
             placeholder={t('letterGeneration.placeholders.referenceNo')}
             required
+            inputMode="numeric"
             aria-invalid={!!fieldErrors.referenceNo}
           />
         </FieldGroup>

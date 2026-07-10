@@ -2719,6 +2719,48 @@ export async function getLetterByReferenceNo(
   }
 }
 
+/** Letter + outward register refs that may belong to a given prefix (for sequence). */
+export async function getReferenceNosForPrefix(prefix: string): Promise<string[]> {
+  try {
+    const { normalizeReferencePrefix } = await import(
+      '@/lib/letters/reference-sequence'
+    );
+    const normalized = normalizeReferencePrefix(prefix);
+    if (!normalized) return [];
+
+    const likePattern = `${normalized}/%`;
+    const [letterRows, registerRows] = await Promise.all([
+      pgSql`
+        SELECT reference_no AS ref
+        FROM "Letter"
+        WHERE reference_no ILIKE ${likePattern}
+           OR lower(reference_no) = lower(${normalized})
+      `,
+      pgSql`
+        SELECT ref_no AS ref
+        FROM "RegisterEntry"
+        WHERE type = 'outward'
+          AND ref_no IS NOT NULL
+          AND (
+            ref_no ILIKE ${likePattern}
+            OR lower(ref_no) = lower(${normalized})
+          )
+      `,
+    ]);
+
+    return [
+      ...letterRows.map((row) => String(row.ref ?? '')),
+      ...registerRows.map((row) => String(row.ref ?? '')),
+    ].filter(Boolean);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get reference numbers for prefix',
+    );
+  }
+}
+
 export async function createLetter({
   letterMasterId,
   letterType,

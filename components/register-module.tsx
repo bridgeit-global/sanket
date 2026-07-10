@@ -34,6 +34,13 @@ import {
   parseRegisterFiltersFromSearchParams,
   type RegisterFilterState,
 } from '@/lib/register/url-params';
+import {
+  defaultReferencePrefix,
+  formatReference,
+  normalizeReferencePrefix,
+  parseReference,
+} from '@/lib/letters/reference-sequence';
+import type { LetterLocale } from '@/lib/letters/templates';
 import { toast } from 'sonner';
 import {
   Dialog,
@@ -78,8 +85,40 @@ interface Project {
   name: string;
 }
 
+type RegisterFormState = {
+  documentType: 'VIP' | 'Department' | 'General';
+  date: string;
+  fromTo: string;
+  subject: string;
+  projectId: string;
+  mode: string;
+  refNo: string;
+  refPrefix: string;
+  refNumber: string;
+  officer: string;
+};
+
+function createEmptyRegisterForm(
+  type: 'inward' | 'outward',
+  locale: LetterLocale,
+): RegisterFormState {
+  return {
+    documentType: 'General',
+    date: format(new Date(), 'yyyy-MM-dd'),
+    fromTo: '',
+    subject: '',
+    projectId: '',
+    mode: '',
+    refNo: '',
+    refPrefix: type === 'outward' ? defaultReferencePrefix(locale) : '',
+    refNumber: '',
+    officer: '',
+  };
+}
+
 export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
+  const letterLocale: LetterLocale = locale === 'mr' ? 'mr' : 'en';
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -88,22 +127,17 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
   const [entries, setEntries] = useState<RegisterEntry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm] = useState({
-    documentType: 'General' as 'VIP' | 'Department' | 'General',
-    date: format(new Date(), 'yyyy-MM-dd'),
-    fromTo: '',
-    subject: '',
-    projectId: '',
-    mode: '',
-    refNo: '',
-    officer: '',
-  });
+  const [form, setForm] = useState<RegisterFormState>(() =>
+    createEmptyRegisterForm(type, letterLocale),
+  );
   const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<RegisterEntry | null>(null);
   const [editingEntry, setEditingEntry] = useState<RegisterEntry | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const referenceNumberAutoRef = useRef(true);
+  const referenceSequenceRequestId = useRef(0);
 
   // File upload state for new entries
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -164,6 +198,51 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type, filters]);
 
+  const resolveOutwardRefNo = (state: RegisterFormState) => {
+    if (type !== 'outward') return state.refNo || undefined;
+    const full = formatReference(state.refPrefix, state.refNumber);
+    return full || undefined;
+  };
+
+  const refreshReferenceSequence = useCallback(
+    async (prefixInput: string, { force = false }: { force?: boolean } = {}) => {
+      if (type !== 'outward' || editingEntry) return;
+      const prefix = normalizeReferencePrefix(prefixInput);
+      if (!prefix) return;
+      if (!force && !referenceNumberAutoRef.current) return;
+
+      const requestId = ++referenceSequenceRequestId.current;
+      try {
+        const res = await fetch(
+          `/api/reference-sequence?prefix=${encodeURIComponent(prefix)}`,
+        );
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.error || 'Failed to load reference sequence');
+        if (requestId !== referenceSequenceRequestId.current) return;
+        if (!force && !referenceNumberAutoRef.current) return;
+        referenceNumberAutoRef.current = true;
+        setForm((prev) => ({
+          ...prev,
+          refPrefix: prefix,
+          refNumber: String(json.nextNumber ?? 1),
+        }));
+      } catch (error) {
+        console.error('Failed to load reference sequence', error);
+      }
+    },
+    [type, editingEntry],
+  );
+
+  useEffect(() => {
+    if (type !== 'outward' || editingEntry) return;
+    const prefix = normalizeReferencePrefix(form.refPrefix);
+    if (!prefix) return;
+    const timer = window.setTimeout(() => {
+      void refreshReferenceSequence(prefix);
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [type, editingEntry, form.refPrefix, refreshReferenceSequence, entries.length]);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -214,13 +293,14 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
   };
 
   const validateRegisterForm = () => {
+    const refNo = resolveOutwardRefNo(form);
     const validation = validateForm(registerEntryFormSchema, {
       date: form.date,
       fromTo: form.fromTo,
       subject: form.subject,
       projectId: form.projectId || undefined,
       mode: form.mode || undefined,
-      refNo: form.refNo || undefined,
+      refNo,
       officer: form.officer || undefined,
     });
 
@@ -240,14 +320,21 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
     if (!validateRegisterForm()) return;
 
     try {
+      const refNo = resolveOutwardRefNo(form);
       // Create the entry first
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type,
-          ...form,
+          documentType: form.documentType,
+          date: form.date,
+          fromTo: form.fromTo,
+          subject: form.subject,
           projectId: form.projectId || undefined,
+          mode: form.mode || undefined,
+          refNo,
+          officer: form.officer || undefined,
         }),
       });
 
@@ -300,16 +387,12 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
-        setForm({
-          documentType: 'General',
-          date: format(new Date(), 'yyyy-MM-dd'),
-          fromTo: '',
-          subject: '',
-          projectId: '',
-          mode: '',
-          refNo: '',
-          officer: '',
-        });
+        const nextForm = createEmptyRegisterForm(type, letterLocale);
+        setForm(nextForm);
+        referenceNumberAutoRef.current = true;
+        if (type === 'outward') {
+          await refreshReferenceSequence(nextForm.refPrefix, { force: true });
+        }
       } else {
         const error = await response.json();
         toast.error(error.error || 'Failed to create entry');
@@ -400,6 +483,9 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
 
   const startEditEntry = (entry: RegisterEntry) => {
     setEditingEntry(entry);
+    referenceNumberAutoRef.current = false;
+    const parsed =
+      type === 'outward' ? parseReference(entry.refNo || '') : { prefix: '', number: '' };
     setForm({
       documentType: entry.documentType || 'General',
       date: entry.date,
@@ -408,6 +494,8 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
       projectId: entry.projectId || '',
       mode: entry.mode || '',
       refNo: entry.refNo || '',
+      refPrefix: parsed.prefix || defaultReferencePrefix(letterLocale),
+      refNumber: parsed.number,
       officer: entry.officer || '',
     });
   };
@@ -418,6 +506,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
     if (!validateRegisterForm()) return;
 
     try {
+      const refNo = resolveOutwardRefNo(form);
       const response = await fetch(`/api/register/${editingEntry.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -428,7 +517,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
           documentType: form.documentType,
           projectId: form.projectId || undefined,
           mode: form.mode,
-          refNo: form.refNo,
+          refNo,
           officer: form.officer,
         }),
       });
@@ -437,17 +526,12 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
         await loadData();
         setEditingEntry(null);
         toast.success('Entry updated successfully');
-        // Reset form
-        setForm({
-          documentType: 'General',
-          date: format(new Date(), 'yyyy-MM-dd'),
-          fromTo: '',
-          subject: '',
-          projectId: '',
-          mode: '',
-          refNo: '',
-          officer: '',
-        });
+        const nextForm = createEmptyRegisterForm(type, letterLocale);
+        setForm(nextForm);
+        referenceNumberAutoRef.current = true;
+        if (type === 'outward') {
+          await refreshReferenceSequence(nextForm.refPrefix, { force: true });
+        }
       } else {
         const error = await response.json();
         toast.error(error.error || 'Failed to update entry');
@@ -693,18 +777,49 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
               />
             </div>
             <div className="space-y-2 md:col-span-2">
-              <LimitedFormField
-                id="refNo"
-                label="Reference No."
-                placeholder="Diary no., email id, dak no..."
-                value={form.refNo}
-                maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
-                error={formErrors.refNo}
-                onChange={(value) => {
-                  setForm({ ...form, refNo: value });
-                  clearFieldError('refNo');
-                }}
-              />
+              {type === 'outward' ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <LimitedFormField
+                    id="refPrefix"
+                    label={t('letterGeneration.fields.referencePrefix')}
+                    placeholder={t('letterGeneration.placeholders.referencePrefix')}
+                    value={form.refPrefix}
+                    maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
+                    error={formErrors.refNo}
+                    onChange={(value) => {
+                      referenceNumberAutoRef.current = true;
+                      setForm({ ...form, refPrefix: value });
+                      clearFieldError('refNo');
+                    }}
+                  />
+                  <LimitedFormField
+                    id="refNumber"
+                    label={t('letterGeneration.fields.referenceNo')}
+                    placeholder={t('letterGeneration.placeholders.referenceNo')}
+                    value={form.refNumber}
+                    maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
+                    error={formErrors.refNo}
+                    onChange={(value) => {
+                      referenceNumberAutoRef.current = false;
+                      setForm({ ...form, refNumber: value });
+                      clearFieldError('refNo');
+                    }}
+                  />
+                </div>
+              ) : (
+                <LimitedFormField
+                  id="refNo"
+                  label="Reference No."
+                  placeholder="Diary no., email id, dak no..."
+                  value={form.refNo}
+                  maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
+                  error={formErrors.refNo}
+                  onChange={(value) => {
+                    setForm({ ...form, refNo: value });
+                    clearFieldError('refNo');
+                  }}
+                />
+              )}
             </div>
             <div className="space-y-2 md:col-span-2">
               <LimitedFormField
@@ -1039,16 +1154,12 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
         setEditingEntry(null);
         setFormErrors({});
         // Reset form when closing
-        setForm({
-          documentType: 'General',
-          date: format(new Date(), 'yyyy-MM-dd'),
-          fromTo: '',
-          subject: '',
-          projectId: '',
-          mode: '',
-          refNo: '',
-          officer: '',
-        });
+        const nextForm = createEmptyRegisterForm(type, letterLocale);
+        setForm(nextForm);
+        referenceNumberAutoRef.current = true;
+        if (type === 'outward') {
+          void refreshReferenceSequence(nextForm.refPrefix, { force: true });
+        }
       }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -1155,18 +1266,47 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                   }}
                 />
               </div>
-              <div className="space-y-2">
-                <LimitedFormField
-                  id="edit-refNo"
-                  label="Reference No"
-                  value={form.refNo}
-                  maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
-                  error={formErrors.refNo}
-                  onChange={(value) => {
-                    setForm({ ...form, refNo: value });
-                    clearFieldError('refNo');
-                  }}
-                />
+              <div className="space-y-2 md:col-span-2">
+                {type === 'outward' ? (
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <LimitedFormField
+                      id="edit-refPrefix"
+                      label={t('letterGeneration.fields.referencePrefix')}
+                      placeholder={t('letterGeneration.placeholders.referencePrefix')}
+                      value={form.refPrefix}
+                      maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
+                      error={formErrors.refNo}
+                      onChange={(value) => {
+                        setForm({ ...form, refPrefix: value });
+                        clearFieldError('refNo');
+                      }}
+                    />
+                    <LimitedFormField
+                      id="edit-refNumber"
+                      label={t('letterGeneration.fields.referenceNo')}
+                      placeholder={t('letterGeneration.placeholders.referenceNo')}
+                      value={form.refNumber}
+                      maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
+                      error={formErrors.refNo}
+                      onChange={(value) => {
+                        setForm({ ...form, refNumber: value });
+                        clearFieldError('refNo');
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <LimitedFormField
+                    id="edit-refNo"
+                    label="Reference No"
+                    value={form.refNo}
+                    maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
+                    error={formErrors.refNo}
+                    onChange={(value) => {
+                      setForm({ ...form, refNo: value });
+                      clearFieldError('refNo');
+                    }}
+                  />
+                )}
               </div>
               <div className="space-y-2">
                 <LimitedFormField
@@ -1188,16 +1328,12 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                 variant="outline"
                 onClick={() => {
                   setEditingEntry(null);
-                  setForm({
-                    documentType: 'General',
-                    date: format(new Date(), 'yyyy-MM-dd'),
-                    fromTo: '',
-                    subject: '',
-                    projectId: '',
-                    mode: '',
-                    refNo: '',
-                    officer: '',
-                  });
+                  const nextForm = createEmptyRegisterForm(type, letterLocale);
+                  setForm(nextForm);
+                  referenceNumberAutoRef.current = true;
+                  if (type === 'outward') {
+                    void refreshReferenceSequence(nextForm.refPrefix, { force: true });
+                  }
                 }}
               >
                 Cancel
