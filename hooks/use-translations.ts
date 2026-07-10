@@ -1,6 +1,7 @@
 'use client';
 
 import { useLanguage } from '@/components/language-provider';
+import enMessages from '@/messages/en.json';
 
 type NestedKeyOf<ObjectType extends object> = {
   [Key in keyof ObjectType & (string | number)]: ObjectType[Key] extends object
@@ -13,21 +14,28 @@ type TranslationKey = NestedKeyOf<typeof import('@/messages/en.json')>;
 export function useTranslations() {
   const { locale, setLocale, messages } = useLanguage();
 
-  const t = (key: string, params?: Record<string, string | number>): string => {
+  const resolveKey = (catalog: Record<string, unknown>, key: string): string | null => {
     const keys = key.split('.');
-    let value: any = messages;
+    let value: unknown = catalog;
 
     for (const k of keys) {
       if (value && typeof value === 'object' && k in value) {
-        value = value[k];
+        value = (value as Record<string, unknown>)[k];
       } else {
-        console.warn(`Translation key not found: ${key}`);
-        return key;
+        return null;
       }
     }
 
-    if (typeof value !== 'string') {
-      console.warn(`Translation value is not a string for key: ${key}`);
+    return typeof value === 'string' ? value : null;
+  };
+
+  const t = (key: string, params?: Record<string, string | number>): string => {
+    const value =
+      resolveKey(messages, key) ??
+      (locale !== 'en' ? resolveKey(enMessages as Record<string, unknown>, key) : null);
+
+    if (!value) {
+      console.warn(`Translation key not found: ${key}`);
       return key;
     }
 
@@ -40,9 +48,8 @@ export function useTranslations() {
         const count = Number(params[varName] ?? 0);
         const optionMap: Record<string, string> = {};
         const optionRegex = /=?(\w+)\s*\{([^}]*)\}/g;
-        let m: RegExpExecArray | null;
-        while ((m = optionRegex.exec(options)) !== null) {
-          optionMap[m[1]] = m[2];
+        for (const match of options.matchAll(optionRegex)) {
+          optionMap[match[1]] = match[2];
         }
         const selected =
           (count === 1 && optionMap.one ? optionMap.one : null) ??

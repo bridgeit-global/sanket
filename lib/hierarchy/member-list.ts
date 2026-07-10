@@ -1,4 +1,5 @@
 import { getMemberDisplayName, getMemberPhone } from './geo-attribution';
+import { postMatchesBoothScope } from './booth-geo-units';
 import type { CadreMemberCard, CadreMemberPostDetail } from './types';
 
 export const HIERARCHY_URL_PARAMS = {
@@ -15,6 +16,7 @@ export const HIERARCHY_URL_PARAMS = {
 
 export const HIERARCHY_VIEWS = {
   canvas: 'canvas',
+  allMembers: 'all-members',
   talukaCommittee: 'taluka-committee',
   wardCommittee: 'ward-committee',
   boothCommittee: 'booth-committee',
@@ -64,8 +66,7 @@ export function filterBoothCommitteeMembers(
     return member.posts.some(
       (post) =>
         post.positionLevelKey === 'booth_committee' &&
-        post.wardGeoId === wardGeoId &&
-        post.boothNo === boothNo,
+        postMatchesBoothScope(post, wardGeoId, boothNo),
     );
   });
 }
