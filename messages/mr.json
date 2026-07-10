@@ -506,11 +506,14 @@
         "sortOrder": "क्रम"
       },
       "fields": {
-        "houseNumber": "इमारत / कार्यालय",
-        "localityStreet": "परिसर / रस्ता",
-        "townVillage": "शहर / गाव",
+        "line1": "ओळ १",
+        "line2": "ओळ २",
+        "city": "शहर",
+        "state": "राज्य",
         "pincode": "पिनकोड"
       },
+      "pasteAddress": "संपूर्ण पत्ता पेस्ट करा",
+      "structuredFields": "पत्ता फील्ड",
       "types": {
         "school": "शाळा / कॉलेज",
         "office": "सरकारी कार्यालय",

@@ -44,6 +44,7 @@ import { ADDRESS_TYPES, type AddressType } from '@/lib/letters/address-types';
 import type { AddressMasterRow } from '@/components/letter-address-field';
 import {
   EMPTY_ADDRESS_PARTS,
+  enrichAddressPartsWithPincodeLookup,
   formatAddressMaster,
   hasAddressContent,
   mergeAddressParts,
@@ -51,6 +52,7 @@ import {
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
 import { usePincodeLookup } from '@/lib/letters/use-pincode-lookup';
+import type { PincodeLookupResult } from '@/lib/letters/pincode-lookup';
 
 type AddressFormState = {
   name: string;
@@ -69,9 +71,14 @@ const EMPTY_FORM: AddressFormState = {
   sortOrder: '0',
 };
 
+const STRUCTURED_FIELDS = [
+  { key: 'line1', en: 'line1En', mr: 'line1Mr' },
+  { key: 'line2', en: 'line2En', mr: 'line2Mr' },
+  { key: 'city', en: 'cityEn', mr: 'cityMr' },
+  { key: 'state', en: 'stateEn', mr: 'stateMr' },
+] as const;
+
 function inferLocaleFromText(text: string): 'en' | 'mr' {
-  // Devanagari block detection -> treat as Marathi.
-  // If the string is mixed, Marathi wins to avoid lossy transliteration.
   return /[\u0900-\u097F]/.test(text) ? 'mr' : 'en';
 }
 
@@ -116,12 +123,14 @@ export function AddressMasterManager({
     setForm({
       name: address.name,
       addressType: address.addressType,
-      houseNumberEn: address.houseNumberEn,
-      houseNumberMr: address.houseNumberMr,
-      localityStreetEn: address.localityStreetEn,
-      localityStreetMr: address.localityStreetMr,
-      townVillageEn: address.townVillageEn,
-      townVillageMr: address.townVillageMr,
+      line1En: address.line1En,
+      line1Mr: address.line1Mr,
+      line2En: address.line2En,
+      line2Mr: address.line2Mr,
+      cityEn: address.cityEn,
+      cityMr: address.cityMr,
+      stateEn: address.stateEn,
+      stateMr: address.stateMr,
       pincode: address.pincode,
       freeTextAddress: formatAddressMaster(address, 'en') || formatAddressMaster(address, 'mr'),
       isActive: address.isActive,
@@ -179,12 +188,39 @@ export function AddressMasterManager({
     scheduleTranslateFreeText(enrichedText);
   }, []);
 
+  const applyPincodeLookup = useCallback((lookup: PincodeLookupResult) => {
+    setForm((prev) => ({
+      ...prev,
+      ...enrichAddressPartsWithPincodeLookup(prev, lookup),
+    }));
+  }, []);
+
   const { schedulePincodeLookup } = usePincodeLookup({
     onEnriched: applyEnrichedAddress,
+    onResolved: applyPincodeLookup,
   });
 
-  const updateField = (field: keyof AddressFormState, value: string) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
+  const updateStructuredField = (
+    field: keyof AddressMasterAddressParts,
+    value: string,
+  ) => {
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+      return {
+        ...next,
+        freeTextAddress: formatAddressMaster(next, 'en') || formatAddressMaster(next, 'mr'),
+      };
+    });
+
+    if (field === 'pincode') {
+      const cleaned = value.replace(/\D/g, '');
+      if (cleaned.length === 6) {
+        schedulePincodeLookup(
+          formatAddressMaster({ ...form, pincode: value }, 'en'),
+          cleaned,
+        );
+      }
+    }
   };
 
   const updateFreeTextAddress = (value: string) => {
@@ -203,12 +239,14 @@ export function AddressMasterManager({
 
   const handleSave = async () => {
     const parts: AddressMasterAddressParts = {
-      houseNumberEn: form.houseNumberEn.trim(),
-      houseNumberMr: form.houseNumberMr.trim(),
-      localityStreetEn: form.localityStreetEn.trim(),
-      localityStreetMr: form.localityStreetMr.trim(),
-      townVillageEn: form.townVillageEn.trim(),
-      townVillageMr: form.townVillageMr.trim(),
+      line1En: form.line1En.trim(),
+      line1Mr: form.line1Mr.trim(),
+      line2En: form.line2En.trim(),
+      line2Mr: form.line2Mr.trim(),
+      cityEn: form.cityEn.trim(),
+      cityMr: form.cityMr.trim(),
+      stateEn: form.stateEn.trim(),
+      stateMr: form.stateMr.trim(),
       pincode: form.pincode.trim(),
     };
 
@@ -425,13 +463,47 @@ export function AddressMasterManager({
             </div>
 
             <div className="space-y-2">
-              <Label>{t('letterGeneration.addresses.formDescription')}</Label>
+              <Label>{t('letterGeneration.addresses.pasteAddress')}</Label>
               <Textarea
                 value={form.freeTextAddress}
                 onChange={(event) => updateFreeTextAddress(event.target.value)}
-                placeholder="House/Plot, Street/Area, Town/Village - Pincode"
-                className="min-h-[120px]"
+                placeholder="Line 1, Line 2, City, State - Pincode"
+                className="min-h-[100px]"
               />
+            </div>
+
+            <div className="space-y-3 rounded-md border p-4">
+              <p className="text-sm font-medium">{t('letterGeneration.addresses.structuredFields')}</p>
+              {STRUCTURED_FIELDS.map(({ key, en, mr }) => (
+                <div key={key} className="grid gap-3 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>
+                      {t(`letterGeneration.addresses.fields.${key}`)} ({t('letterGeneration.addresses.columns.english')})
+                    </Label>
+                    <Input
+                      value={form[en]}
+                      onChange={(event) => updateStructuredField(en, event.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>
+                      {t(`letterGeneration.addresses.fields.${key}`)} ({t('letterGeneration.addresses.columns.marathi')})
+                    </Label>
+                    <Input
+                      value={form[mr]}
+                      onChange={(event) => updateStructuredField(mr, event.target.value)}
+                    />
+                  </div>
+                </div>
+              ))}
+              <div className="space-y-2 sm:max-w-xs">
+                <Label>{t('letterGeneration.addresses.fields.pincode')}</Label>
+                <Input
+                  value={form.pincode}
+                  onChange={(event) => updateStructuredField('pincode', event.target.value)}
+                  inputMode="numeric"
+                />
+              </div>
               <div className="text-xs text-muted-foreground">
                 {t('letterGeneration.addresses.columns.english')}: {formatAddressMaster(form, 'en')}
                 <br />

@@ -2479,12 +2479,14 @@ export async function ensureAddressMasterDefaults(): Promise<void> {
         toSnakeCaseKeys({
           name: item.name,
           addressType: item.addressType,
-          houseNumberEn: item.houseNumberEn,
-          houseNumberMr: item.houseNumberMr,
-          localityStreetEn: item.localityStreetEn,
-          localityStreetMr: item.localityStreetMr,
-          townVillageEn: item.townVillageEn,
-          townVillageMr: item.townVillageMr,
+          line1En: item.line1En,
+          line1Mr: item.line1Mr,
+          line2En: item.line2En,
+          line2Mr: item.line2Mr,
+          cityEn: item.cityEn,
+          cityMr: item.cityMr,
+          stateEn: item.stateEn,
+          stateMr: item.stateMr,
           pincode: item.pincode,
           sortOrder: item.sortOrder,
           isActive: true,
@@ -2549,12 +2551,14 @@ export async function getAddressMasterById(id: string): Promise<AddressMaster | 
 export async function createAddressMaster({
   name,
   addressType,
-  houseNumberEn,
-  houseNumberMr,
-  localityStreetEn,
-  localityStreetMr,
-  townVillageEn,
-  townVillageMr,
+  line1En,
+  line1Mr,
+  line2En,
+  line2Mr,
+  cityEn,
+  cityMr,
+  stateEn,
+  stateMr,
   pincode,
   isActive = true,
   sortOrder = 0,
@@ -2562,12 +2566,14 @@ export async function createAddressMaster({
 }: {
   name: string;
   addressType: AddressMaster['addressType'];
-  houseNumberEn?: string;
-  houseNumberMr?: string;
-  localityStreetEn: string;
-  localityStreetMr: string;
-  townVillageEn?: string;
-  townVillageMr?: string;
+  line1En?: string;
+  line1Mr?: string;
+  line2En?: string;
+  line2Mr?: string;
+  cityEn?: string;
+  cityMr?: string;
+  stateEn?: string;
+  stateMr?: string;
   pincode?: string;
   isActive?: boolean;
   sortOrder?: number;
@@ -2581,12 +2587,14 @@ export async function createAddressMaster({
         toSnakeCaseKeys({
           name,
           addressType,
-          houseNumberEn: houseNumberEn ?? '',
-          houseNumberMr: houseNumberMr ?? '',
-          localityStreetEn,
-          localityStreetMr,
-          townVillageEn: townVillageEn ?? '',
-          townVillageMr: townVillageMr ?? '',
+          line1En: line1En ?? '',
+          line1Mr: line1Mr ?? '',
+          line2En: line2En ?? '',
+          line2Mr: line2Mr ?? '',
+          cityEn: cityEn ?? '',
+          cityMr: cityMr ?? '',
+          stateEn: stateEn ?? '',
+          stateMr: stateMr ?? '',
           pincode: pincode ?? '',
           isActive,
           sortOrder,
@@ -2610,12 +2618,14 @@ export async function updateAddressMaster({
   id,
   name,
   addressType,
-  houseNumberEn,
-  houseNumberMr,
-  localityStreetEn,
-  localityStreetMr,
-  townVillageEn,
-  townVillageMr,
+  line1En,
+  line1Mr,
+  line2En,
+  line2Mr,
+  cityEn,
+  cityMr,
+  stateEn,
+  stateMr,
   pincode,
   isActive,
   sortOrder,
@@ -2624,12 +2634,14 @@ export async function updateAddressMaster({
   id: string;
   name: string;
   addressType: AddressMaster['addressType'];
-  houseNumberEn?: string;
-  houseNumberMr?: string;
-  localityStreetEn: string;
-  localityStreetMr: string;
-  townVillageEn?: string;
-  townVillageMr?: string;
+  line1En?: string;
+  line1Mr?: string;
+  line2En?: string;
+  line2Mr?: string;
+  cityEn?: string;
+  cityMr?: string;
+  stateEn?: string;
+  stateMr?: string;
   pincode?: string;
   isActive: boolean;
   sortOrder: number;
@@ -2643,12 +2655,14 @@ export async function updateAddressMaster({
         toSnakeCaseKeys({
           name,
           addressType,
-          houseNumberEn: houseNumberEn ?? '',
-          houseNumberMr: houseNumberMr ?? '',
-          localityStreetEn,
-          localityStreetMr,
-          townVillageEn: townVillageEn ?? '',
-          townVillageMr: townVillageMr ?? '',
+          line1En: line1En ?? '',
+          line1Mr: line1Mr ?? '',
+          line2En: line2En ?? '',
+          line2Mr: line2Mr ?? '',
+          cityEn: cityEn ?? '',
+          cityMr: cityMr ?? '',
+          stateEn: stateEn ?? '',
+          stateMr: stateMr ?? '',
           pincode: pincode ?? '',
           isActive,
           sortOrder,

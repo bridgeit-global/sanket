@@ -1,38 +1,45 @@
 import type { LetterLocale } from '@/lib/letters/templates';
+import type { PincodeLookupResult } from '@/lib/letters/pincode-lookup';
 
 export type AddressMasterAddressParts = {
-  houseNumberEn: string;
-  houseNumberMr: string;
-  localityStreetEn: string;
-  localityStreetMr: string;
-  townVillageEn: string;
-  townVillageMr: string;
+  line1En: string;
+  line1Mr: string;
+  line2En: string;
+  line2Mr: string;
+  cityEn: string;
+  cityMr: string;
+  stateEn: string;
+  stateMr: string;
   pincode: string;
 };
 
 export const EMPTY_ADDRESS_PARTS: AddressMasterAddressParts = {
-  houseNumberEn: '',
-  houseNumberMr: '',
-  localityStreetEn: '',
-  localityStreetMr: '',
-  townVillageEn: '',
-  townVillageMr: '',
+  line1En: '',
+  line1Mr: '',
+  line2En: '',
+  line2Mr: '',
+  cityEn: '',
+  cityMr: '',
+  stateEn: '',
+  stateMr: '',
   pincode: '',
 };
 
 function pickLocaleField(
   parts: AddressMasterAddressParts,
   locale: LetterLocale,
-  field: 'houseNumber' | 'localityStreet' | 'townVillage',
+  field: 'line1' | 'line2' | 'city' | 'state',
 ): string {
   if (locale === 'mr') {
-    if (field === 'houseNumber') return parts.houseNumberMr;
-    if (field === 'localityStreet') return parts.localityStreetMr;
-    return parts.townVillageMr;
+    if (field === 'line1') return parts.line1Mr;
+    if (field === 'line2') return parts.line2Mr;
+    if (field === 'city') return parts.cityMr;
+    return parts.stateMr;
   }
-  if (field === 'houseNumber') return parts.houseNumberEn;
-  if (field === 'localityStreet') return parts.localityStreetEn;
-  return parts.townVillageEn;
+  if (field === 'line1') return parts.line1En;
+  if (field === 'line2') return parts.line2En;
+  if (field === 'city') return parts.cityEn;
+  return parts.stateEn;
 }
 
 export function formatAddressMaster(
@@ -40,9 +47,10 @@ export function formatAddressMaster(
   locale: LetterLocale,
 ): string {
   const segments = [
-    pickLocaleField(parts, locale, 'houseNumber'),
-    pickLocaleField(parts, locale, 'localityStreet'),
-    pickLocaleField(parts, locale, 'townVillage'),
+    pickLocaleField(parts, locale, 'line1'),
+    pickLocaleField(parts, locale, 'line2'),
+    pickLocaleField(parts, locale, 'city'),
+    pickLocaleField(parts, locale, 'state'),
   ]
     .map((value) => value.trim())
     .filter(Boolean);
@@ -60,6 +68,24 @@ export function hasAddressContent(parts: AddressMasterAddressParts): boolean {
   return Boolean(
     formatAddressMaster(parts, 'en').trim() || formatAddressMaster(parts, 'mr').trim(),
   );
+}
+
+function assignLocaleFields(
+  result: Partial<AddressMasterAddressParts>,
+  locale: LetterLocale,
+  values: { line1?: string; line2?: string; city?: string; state?: string },
+): void {
+  if (locale === 'mr') {
+    if (values.line1 !== undefined) result.line1Mr = values.line1;
+    if (values.line2 !== undefined) result.line2Mr = values.line2;
+    if (values.city !== undefined) result.cityMr = values.city;
+    if (values.state !== undefined) result.stateMr = values.state;
+  } else {
+    if (values.line1 !== undefined) result.line1En = values.line1;
+    if (values.line2 !== undefined) result.line2En = values.line2;
+    if (values.city !== undefined) result.cityEn = values.city;
+    if (values.state !== undefined) result.stateEn = values.state;
+  }
 }
 
 /** Best-effort parse of a free-text address into structured parts for one locale. */
@@ -81,54 +107,66 @@ export function parseFreeTextAddressForLocale(
 
   const result: Partial<AddressMasterAddressParts> = { pincode };
 
-  if (lines.length >= 2) {
-    const house = lines[0];
-    const locality = lines.slice(1, -1).join(', ');
-    const town = lines[lines.length - 1];
-    if (locale === 'mr') {
-      result.houseNumberMr = house;
-      result.localityStreetMr = locality || '';
-      result.townVillageMr = town;
-    } else {
-      result.houseNumberEn = house;
-      result.localityStreetEn = locality || '';
-      result.townVillageEn = town;
-    }
+  if (lines.length >= 4) {
+    assignLocaleFields(result, locale, {
+      line1: lines[0],
+      line2: lines[1],
+      city: lines[lines.length - 2],
+      state: lines[lines.length - 1],
+    });
     return result;
   }
 
-  if (parts.length >= 3) {
-    const house = parts[0];
-    const locality = parts.slice(1, -1).join(', ');
-    const town = parts[parts.length - 1];
-    if (locale === 'mr') {
-      result.houseNumberMr = house;
-      result.localityStreetMr = locality;
-      result.townVillageMr = town;
-    } else {
-      result.houseNumberEn = house;
-      result.localityStreetEn = locality;
-      result.townVillageEn = town;
-    }
+  if (lines.length === 3) {
+    assignLocaleFields(result, locale, {
+      line1: lines[0],
+      line2: lines[1],
+      city: lines[2],
+    });
+    return result;
+  }
+
+  if (lines.length === 2) {
+    assignLocaleFields(result, locale, {
+      line1: lines[0],
+      line2: lines[1],
+    });
+    return result;
+  }
+
+  if (lines.length === 1) {
+    assignLocaleFields(result, locale, { line1: lines[0] });
+    return result;
+  }
+
+  if (parts.length >= 4) {
+    assignLocaleFields(result, locale, {
+      line1: parts[0],
+      line2: parts[1],
+      city: parts[parts.length - 2],
+      state: parts[parts.length - 1],
+    });
+    return result;
+  }
+
+  if (parts.length === 3) {
+    assignLocaleFields(result, locale, {
+      line1: parts[0],
+      line2: parts[1],
+      city: parts[2],
+    });
     return result;
   }
 
   if (parts.length === 2) {
-    if (locale === 'mr') {
-      result.localityStreetMr = parts[0];
-      result.townVillageMr = parts[1];
-    } else {
-      result.localityStreetEn = parts[0];
-      result.townVillageEn = parts[1];
-    }
+    assignLocaleFields(result, locale, {
+      line1: parts[0],
+      line2: parts[1],
+    });
     return result;
   }
 
-  if (locale === 'mr') {
-    result.localityStreetMr = withoutPincode;
-  } else {
-    result.localityStreetEn = withoutPincode;
-  }
+  assignLocaleFields(result, locale, { line1: withoutPincode });
   return result;
 }
 
@@ -137,14 +175,27 @@ export function mergeAddressParts(
 ): AddressMasterAddressParts {
   return partials.reduce<AddressMasterAddressParts>(
     (acc, partial) => ({
-      houseNumberEn: partial.houseNumberEn?.trim() || acc.houseNumberEn,
-      houseNumberMr: partial.houseNumberMr?.trim() || acc.houseNumberMr,
-      localityStreetEn: partial.localityStreetEn?.trim() || acc.localityStreetEn,
-      localityStreetMr: partial.localityStreetMr?.trim() || acc.localityStreetMr,
-      townVillageEn: partial.townVillageEn?.trim() || acc.townVillageEn,
-      townVillageMr: partial.townVillageMr?.trim() || acc.townVillageMr,
+      line1En: partial.line1En?.trim() || acc.line1En,
+      line1Mr: partial.line1Mr?.trim() || acc.line1Mr,
+      line2En: partial.line2En?.trim() || acc.line2En,
+      line2Mr: partial.line2Mr?.trim() || acc.line2Mr,
+      cityEn: partial.cityEn?.trim() || acc.cityEn,
+      cityMr: partial.cityMr?.trim() || acc.cityMr,
+      stateEn: partial.stateEn?.trim() || acc.stateEn,
+      stateMr: partial.stateMr?.trim() || acc.stateMr,
       pincode: partial.pincode?.trim() || acc.pincode,
     }),
     { ...EMPTY_ADDRESS_PARTS },
   );
+}
+
+export function enrichAddressPartsWithPincodeLookup(
+  parts: AddressMasterAddressParts,
+  lookup: PincodeLookupResult,
+): AddressMasterAddressParts {
+  return {
+    ...parts,
+    cityEn: parts.cityEn.trim() || lookup.city,
+    stateEn: parts.stateEn.trim() || lookup.state,
+  };
 }

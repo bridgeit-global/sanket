@@ -506,11 +506,14 @@
         "sortOrder": "Sort Order"
       },
       "fields": {
-        "houseNumber": "Building / Office",
-        "localityStreet": "Locality / Street",
-        "townVillage": "Town / Village",
+        "line1": "Line 1",
+        "line2": "Line 2",
+        "city": "City",
+        "state": "State",
         "pincode": "Pincode"
       },
+      "pasteAddress": "Paste full address",
+      "structuredFields": "Address fields",
       "types": {
         "school": "School / College",
         "office": "Government Office",
