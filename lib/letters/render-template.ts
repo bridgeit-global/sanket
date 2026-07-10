@@ -1,3 +1,4 @@
+import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
 import type {
   DomicileLetterFields,
   FeesLetterFields,
@@ -77,6 +78,10 @@ export function buildRenderFields(
   locale: LetterLocale,
 ): Record<string, string> {
   const base = toFieldRecord(fields);
+  base.referenceNo = toLocaleDigits(
+    toWesternDigits(base.referenceNo ?? ''),
+    locale,
+  );
 
   if (type.startsWith('ration-')) {
     const rationFields = fields as RationLetterFields;

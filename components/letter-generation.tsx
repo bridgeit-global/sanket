@@ -122,6 +122,8 @@ import { filterLocaleText } from '@/lib/letters/locale-text';
 import {
   defaultReferencePrefix,
   formatReference,
+  formatReferenceForDisplay,
+  formatReferenceNumberForLocale,
   normalizeReferencePrefix,
 } from '@/lib/letters/reference-sequence';
 import { toWesternDigits } from '@/lib/locale-digits';
@@ -1153,12 +1155,15 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
         if (requestId !== referenceSequenceRequestId.current) return;
         if (!force && !referenceNumberAutoRef.current) return;
         referenceNumberAutoRef.current = true;
-        syncReferenceFields(prefix, String(json.nextNumber ?? 1));
+        syncReferenceFields(
+          prefix,
+          formatReferenceNumberForLocale(json.nextNumber ?? 1, letterLocale),
+        );
       } catch (error) {
         console.error('Failed to load reference sequence', error);
       }
     },
-    [syncReferenceFields],
+    [letterLocale, syncReferenceFields],
   );
 
   useEffect(() => {
@@ -1174,10 +1179,13 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       !prevPrefix.trim() || prevPrefix === prevDefaultPrefix
         ? nextDefaultPrefix
         : prevPrefix;
+    const nextReferenceNo = (prevNumber: string) =>
+      formatReferenceNumberForLocale(prevNumber, letterLocale);
 
     setFeesFields((prev) => ({
       ...prev,
       referencePrefix: nextPrefix(prev.referencePrefix),
+      referenceNo: nextReferenceNo(prev.referenceNo),
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       schoolName: filterText(prev.schoolName),
@@ -1187,6 +1195,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     setSchoolAdmissionFields((prev) => ({
       ...prev,
       referencePrefix: nextPrefix(prev.referencePrefix),
+      referenceNo: nextReferenceNo(prev.referenceNo),
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       schoolName: filterText(prev.schoolName),
@@ -1198,6 +1207,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     setSchoolTransferFields((prev) => ({
       ...prev,
       referencePrefix: nextPrefix(prev.referencePrefix),
+      referenceNo: nextReferenceNo(prev.referenceNo),
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       schoolName: filterText(prev.schoolName),
@@ -1211,6 +1221,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     setRationFields((prev) => ({
       ...prev,
       referencePrefix: nextPrefix(prev.referencePrefix),
+      referenceNo: nextReferenceNo(prev.referenceNo),
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
@@ -1226,6 +1237,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     setIncomeFields((prev) => ({
       ...prev,
       referencePrefix: nextPrefix(prev.referencePrefix),
+      referenceNo: nextReferenceNo(prev.referenceNo),
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
@@ -1234,6 +1246,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     setDomicileFields((prev) => ({
       ...prev,
       referencePrefix: nextPrefix(prev.referencePrefix),
+      referenceNo: nextReferenceNo(prev.referenceNo),
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
@@ -2326,7 +2339,10 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
           <Input
             value={fields.referenceNo}
             onChange={(e) => {
-              const nextNumber = e.target.value;
+              const nextNumber = formatReferenceNumberForLocale(
+                e.target.value,
+                letterLocale,
+              );
               referenceNumberAutoRef.current = false;
               syncReferenceFields(fields.referencePrefix, nextNumber);
               if (fieldErrors.referenceNo) {
@@ -2336,6 +2352,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
             placeholder={t('letterGeneration.placeholders.referenceNo')}
             required
             inputMode="numeric"
+            lang={letterLocale === 'mr' ? 'mr' : 'en'}
             aria-invalid={!!fieldErrors.referenceNo}
           />
         </FieldGroup>
@@ -3750,7 +3767,9 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 space-y-1">
                             <p className="truncate font-medium">
-                              {letter.referenceNo || '—'}
+                              {letter.referenceNo
+                                ? formatReferenceForDisplay(letter.referenceNo, locale)
+                                : '—'}
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {t(`letterGeneration.tabs.${letter.letterType}`)} ·{' '}
@@ -3791,7 +3810,9 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         {filteredSavedLetters.map((letter) => (
                           <TableRow key={letter.id}>
                             <TableCell className="font-medium">
-                              {letter.referenceNo || '—'}
+                              {letter.referenceNo
+                                ? formatReferenceForDisplay(letter.referenceNo, locale)
+                                : '—'}
                             </TableCell>
                             <TableCell>
                               {t(`letterGeneration.tabs.${letter.letterType}`)}{' '}
@@ -3829,7 +3850,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                                 <DialogTitle>
                                   {selectedSavedLetter.title}{' '}
                                   {selectedSavedLetter.referenceNo
-                                    ? `- ${selectedSavedLetter.referenceNo}`
+                                    ? `- ${formatReferenceForDisplay(selectedSavedLetter.referenceNo, locale)}`
                                     : ''}
                                 </DialogTitle>
                                 <DialogDescription>

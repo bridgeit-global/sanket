@@ -1,4 +1,4 @@
-import { toWesternDigits } from '@/lib/locale-digits';
+import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
 import type { LetterLocale } from '@/lib/letters/templates';
 
 export type ParsedReference = {
@@ -75,4 +75,26 @@ export function nextSequenceNumber(refs: string[], prefix: string): number {
     if (value != null && value > max) max = value;
   }
   return max + 1;
+}
+
+/** Digits-only reference number for the active locale (Devanagari when `mr`). */
+export function formatReferenceNumberForLocale(
+  number: string | number,
+  locale: LetterLocale | string,
+): string {
+  const western = toWesternDigits(String(number)).replace(/\D/g, '');
+  return toLocaleDigits(western, locale === 'mr' ? 'mr' : 'en');
+}
+
+/** Display a stored full ref with locale-appropriate digits. */
+export function formatReferenceForDisplay(
+  full: string,
+  locale: LetterLocale | string,
+): string {
+  const parsed = parseReference(full);
+  if (!parsed.number) return full;
+  const localizedNumber = formatReferenceNumberForLocale(parsed.number, locale);
+  return parsed.prefix
+    ? `${parsed.prefix}/${localizedNumber}`
+    : localizedNumber;
 }

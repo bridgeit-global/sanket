@@ -37,6 +37,8 @@ import {
 import {
   defaultReferencePrefix,
   formatReference,
+  formatReferenceForDisplay,
+  formatReferenceNumberForLocale,
   normalizeReferencePrefix,
   parseReference,
 } from '@/lib/letters/reference-sequence';
@@ -224,13 +226,13 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
         setForm((prev) => ({
           ...prev,
           refPrefix: prefix,
-          refNumber: String(json.nextNumber ?? 1),
+          refNumber: formatReferenceNumberForLocale(json.nextNumber ?? 1, letterLocale),
         }));
       } catch (error) {
         console.error('Failed to load reference sequence', error);
       }
     },
-    [type, editingEntry],
+    [type, editingEntry, letterLocale],
   );
 
   useEffect(() => {
@@ -495,7 +497,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
       mode: entry.mode || '',
       refNo: entry.refNo || '',
       refPrefix: parsed.prefix || defaultReferencePrefix(letterLocale),
-      refNumber: parsed.number,
+      refNumber: formatReferenceNumberForLocale(parsed.number, letterLocale),
       officer: entry.officer || '',
     });
   };
@@ -801,7 +803,10 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                     error={formErrors.refNo}
                     onChange={(value) => {
                       referenceNumberAutoRef.current = false;
-                      setForm({ ...form, refNumber: value });
+                      setForm({
+                        ...form,
+                        refNumber: formatReferenceNumberForLocale(value, letterLocale),
+                      });
                       clearFieldError('refNo');
                     }}
                   />
@@ -1289,7 +1294,10 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                       maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
                       error={formErrors.refNo}
                       onChange={(value) => {
-                        setForm({ ...form, refNumber: value });
+                        setForm({
+                          ...form,
+                          refNumber: formatReferenceNumberForLocale(value, letterLocale),
+                        });
                         clearFieldError('refNo');
                       }}
                     />
