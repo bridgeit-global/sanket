@@ -478,6 +478,8 @@
     "addresses": {
       "title": "Address Master",
       "description": "Manage reusable addresses for schools, offices, and applicants. Use them when generating letters.",
+      "manageLink": "Manage Addresses",
+      "backToLetterGeneration": "Back to Letter Generation",
       "add": "Add Address",
       "addTitle": "Add Address",
       "editTitle": "Edit Address",

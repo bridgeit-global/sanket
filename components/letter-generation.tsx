@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, useCallback, type Dispatch, type SetStateAction } from 'react';
 import {
   ChevronDown,
@@ -9,6 +10,7 @@ import {
   Calendar,
   ImageIcon,
   Loader2,
+  MapPin,
   Printer,
   RefreshCw,
   Save,
@@ -97,7 +99,6 @@ import {
 import { exportElementToPdf } from '@/lib/pdf/export-element-to-pdf';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { ModulePageHeader } from '@/components/module-page-header';
-import { AddressMasterManager } from '@/components/address-master-manager';
 import {
   findDefaultAddress,
   LetterAddressField,
@@ -814,7 +815,6 @@ export function LetterGeneration() {
   const [letterMasters, setLetterMasters] = useState<LetterMasterRow[]>([]);
   const [letterMastersLoading, setLetterMastersLoading] = useState(false);
   const [addresses, setAddresses] = useState<AddressMasterRow[]>([]);
-  const [addressesLoading, setAddressesLoading] = useState(false);
   const [addressSelections, setAddressSelections] = useState<AddressSelectionState>({
     school: null,
     applicant: null,
@@ -1133,7 +1133,6 @@ export function LetterGeneration() {
   };
 
   const refreshAddresses = async () => {
-    setAddressesLoading(true);
     try {
       const res = await fetch('/api/addresses?includeInactive=true');
       const json = await res.json();
@@ -1142,8 +1141,6 @@ export function LetterGeneration() {
     } catch (error) {
       console.error('Failed to fetch addresses', error);
       toast.error(t('letterGeneration.addresses.fetchError'));
-    } finally {
-      setAddressesLoading(false);
     }
   };
 
@@ -1841,6 +1838,14 @@ export function LetterGeneration() {
       <ModulePageHeader
         title={t('letterGeneration.title')}
         description={t('letterGeneration.description')}
+        actions={
+          <Button variant="outline" asChild>
+            <Link href="/modules/letter-generation/addresses">
+              <MapPin className="mr-2 size-4" />
+              {t('letterGeneration.addresses.manageLink')}
+            </Link>
+          </Button>
+        }
       />
 
       <Card>
@@ -2845,12 +2850,6 @@ export function LetterGeneration() {
           </CardContent>
         )}
       </Card>
-
-      <AddressMasterManager
-        addresses={addresses}
-        loading={addressesLoading}
-        onRefresh={refreshAddresses}
-      />
 
       <Card>
         <CardHeader
