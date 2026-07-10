@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { StructuredAddressFields } from '@/components/structured-address-fields';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ import { useTranslations } from '@/hooks/use-translations';
 import {
   EMPTY_ADDRESS_PARTS,
   formatAddressMaster,
+  hasRequiredAddressFields,
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
 import { filterLocaleText } from '@/lib/letters/locale-text';
@@ -64,6 +66,16 @@ export function AddressTranslationReviewDialog({
 
   const nameKey = targetLocale === 'mr' ? 'nameMr' : 'name';
 
+  const handleConfirm = () => {
+    const trimmedName = name.trim();
+    const nextParts = { ...parts, pincode: parts.pincode.trim() };
+    if (!trimmedName || !hasRequiredAddressFields(nextParts, targetLocale)) {
+      toast.error(t('letterGeneration.addresses.validationRequired'));
+      return;
+    }
+    onConfirm({ name: trimmedName, parts: nextParts });
+  };
+
   return (
     <Dialog
       open={open}
@@ -87,7 +99,9 @@ export function AddressTranslationReviewDialog({
 
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label>{t('letterGeneration.addresses.columns.name')}</Label>
+            <Label>
+              {t('letterGeneration.addresses.columns.name')} *
+            </Label>
             <Input
               value={name}
               onChange={(event) =>
@@ -96,6 +110,8 @@ export function AddressTranslationReviewDialog({
               lang={targetLocale === 'mr' ? 'mr' : 'en'}
               inputMode="text"
               autoComplete="off"
+              required
+              aria-required
               data-locale={nameKey}
             />
           </div>
@@ -112,16 +128,7 @@ export function AddressTranslationReviewDialog({
           <Button type="button" variant="outline" onClick={onCancel} disabled={isConfirming}>
             {t('common.cancel')}
           </Button>
-          <Button
-            type="button"
-            disabled={isConfirming}
-            onClick={() =>
-              onConfirm({
-                name: name.trim(),
-                parts: { ...parts, pincode: parts.pincode.trim() },
-              })
-            }
-          >
+          <Button type="button" disabled={isConfirming} onClick={handleConfirm}>
             {isConfirming ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
             {t('letterGeneration.addresses.confirmTranslation')}
           </Button>

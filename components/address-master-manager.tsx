@@ -42,7 +42,7 @@ import {
   EMPTY_ADDRESS_PARTS,
   enrichAddressPartsWithPincodeLookup,
   formatAddressMaster,
-  hasAddressContent,
+  hasRequiredAddressFields,
   mergeAddressParts,
   parseFreeTextAddressForLocale,
   type AddressMasterAddressParts,
@@ -255,7 +255,7 @@ export function AddressMasterManager({
       locale,
     );
 
-    if (!primaryName || !hasAddressContent(primaryParts)) {
+    if (!primaryName || !hasRequiredAddressFields(primaryParts, locale)) {
       toast.error(t('letterGeneration.addresses.validationRequired'));
       return;
     }
@@ -423,11 +423,15 @@ export function AddressMasterManager({
             className="space-y-4 p-4 sm:p-6"
           >
             <div className="space-y-2">
-              <Label>{t('letterGeneration.addresses.columns.name')}</Label>
+              <Label>
+                {t('letterGeneration.addresses.columns.name')} *
+              </Label>
               <Input
                 value={locale === 'mr' ? form.nameMr : form.name}
                 lang={locale === 'mr' ? 'mr' : 'en'}
                 autoComplete="off"
+                required
+                aria-required
                 onChange={(event) => {
                   const value = filterLocaleText(event.target.value, locale);
                   setForm({

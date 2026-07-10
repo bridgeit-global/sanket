@@ -6,7 +6,7 @@ import {
   getAddressMasters,
 } from '@/lib/db/queries';
 import { isAddressType } from '@/lib/letters/address-types';
-import { hasAddressContent } from '@/lib/letters/format-address-master';
+import { hasRequiredAddressFields } from '@/lib/letters/format-address-master';
 
 function parseAddressBody(body: Record<string, unknown> | null | undefined) {
   const {
@@ -45,7 +45,8 @@ function parseAddressBody(body: Record<string, unknown> | null | undefined) {
     ...parts,
     isActive: isActive !== false,
     sortOrder: Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0,
-    hasContent: hasAddressContent(parts),
+    hasRequiredFields:
+      hasRequiredAddressFields(parts, 'en') || hasRequiredAddressFields(parts, 'mr'),
   };
 }
 
@@ -90,11 +91,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const parsed = parseAddressBody(body);
 
-    if (!parsed.name || !parsed.addressType || !parsed.hasContent) {
+    if (!parsed.name || !parsed.addressType || !parsed.hasRequiredFields) {
       return NextResponse.json(
         {
           error:
-            'name, addressType, and at least one structured address field in English or Marathi are required',
+            'name, addressType, Line 1, City, State, and a valid 6-digit Pincode are required (Line 2 is optional)',
         },
         { status: 400 },
       );

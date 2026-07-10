@@ -113,6 +113,7 @@ import {
   EMPTY_ADDRESS_PARTS,
   formatAddressMaster,
   hasAddressContent,
+  hasRequiredAddressFields,
   mergeAddressParts,
   parseFreeTextAddressForLocale,
   type AddressMasterAddressParts,
@@ -713,6 +714,18 @@ function getPincodeValidationError(
   return undefined;
 }
 
+function getManualAddressValidationError(
+  parts: AddressMasterAddressParts,
+  locale: LetterLocale,
+  t: (key: string) => string,
+): string | undefined {
+  if (!hasAddressContent(parts)) return undefined;
+  if (!hasRequiredAddressFields(parts, locale)) {
+    return t('letterGeneration.addresses.fieldsRequired');
+  }
+  return getPincodeValidationError(parts, t);
+}
+
 function getAddressTextFromMaster(
   addresses: AddressMasterRow[],
   masterId: string | null,
@@ -926,7 +939,7 @@ export function LetterGeneration() {
     parts: AddressMasterAddressParts;
   }): Promise<AddressMasterRow | null> => {
     const trimmedName = filterLocaleText(name.trim(), letterLocale);
-    if (!trimmedName || !hasAddressContent(parts)) return null;
+    if (!trimmedName || !hasRequiredAddressFields(parts, letterLocale)) return null;
 
     let nameEn = letterLocale === 'en' ? trimmedName : '';
     let nameMr = letterLocale === 'mr' ? trimmedName : '';
@@ -1549,13 +1562,19 @@ export function LetterGeneration() {
 
     const errors: Partial<Record<ManualAddressKey, string>> = {};
     for (const key of keysToCheck) {
-      const error = getPincodeValidationError(manualAddressParts[key], t);
+      const error = getManualAddressValidationError(
+        manualAddressParts[key],
+        letterLocale,
+        t,
+      );
       if (error) errors[key] = error;
     }
 
     setAddressPincodeErrors(errors);
     if (Object.keys(errors).length > 0) {
-      toast.error(t('letterGeneration.addresses.pincodeInvalid'));
+      toast.error(
+        Object.values(errors)[0] ?? t('letterGeneration.addresses.fieldsRequired'),
+      );
       return false;
     }
     return true;

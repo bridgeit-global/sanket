@@ -71,6 +71,18 @@ export function hasAddressContent(parts: AddressMasterAddressParts): boolean {
   );
 }
 
+/** Line 1, city, state, and a 6-digit pincode are required; line 2 is optional. */
+export function hasRequiredAddressFields(
+  parts: AddressMasterAddressParts,
+  locale: LetterLocale,
+): boolean {
+  const line1 = pickLocaleField(parts, locale, 'line1').trim();
+  const city = pickLocaleField(parts, locale, 'city').trim();
+  const state = pickLocaleField(parts, locale, 'state').trim();
+  const pincode = toWesternDigits(parts.pincode).replace(/\D/g, '');
+  return Boolean(line1 && city && state && pincode.length === 6);
+}
+
 function assignLocaleFields(
   result: Partial<AddressMasterAddressParts>,
   locale: LetterLocale,

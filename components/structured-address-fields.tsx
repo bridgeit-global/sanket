@@ -95,9 +95,13 @@ export function StructuredAddressFields({
       <div className="space-y-3">
         {LINE_FIELDS.map((field) => {
           const fieldKey = localeKey(field.key, locale);
+          const required = field.key !== 'line2';
           return (
             <div key={field.key} className="space-y-1.5">
-              <Label className="text-xs">{t(`letterGeneration.addresses.fields.${field.key}`)}</Label>
+              <Label className="text-xs">
+                {t(`letterGeneration.addresses.fields.${field.key}`)}
+                {required ? ' *' : null}
+              </Label>
               <Input
                 value={parts[fieldKey]}
                 onChange={(event) =>
@@ -108,6 +112,8 @@ export function StructuredAddressFields({
                 lang={locale === 'mr' ? 'mr' : 'en'}
                 autoComplete="off"
                 className="h-9"
+                required={required}
+                aria-required={required}
               />
             </div>
           );
@@ -116,7 +122,9 @@ export function StructuredAddressFields({
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1.5">
-          <Label className="text-xs">{t('letterGeneration.addresses.fields.state')}</Label>
+          <Label className="text-xs">
+            {t('letterGeneration.addresses.fields.state')} *
+          </Label>
           <Combobox
             options={stateOptions}
             value={selectedState || undefined}
@@ -127,7 +135,9 @@ export function StructuredAddressFields({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">{t('letterGeneration.addresses.fields.city')}</Label>
+          <Label className="text-xs">
+            {t('letterGeneration.addresses.fields.city')} *
+          </Label>
           <Combobox
             options={cityOptions}
             value={selectedCity || undefined}
@@ -139,7 +149,9 @@ export function StructuredAddressFields({
         </div>
 
         <div className="space-y-1.5">
-          <Label className="text-xs">{t('letterGeneration.addresses.fields.pincode')}</Label>
+          <Label className="text-xs">
+            {t('letterGeneration.addresses.fields.pincode')} *
+          </Label>
           <Input
             value={parts.pincode}
             onChange={(event) => {
@@ -149,6 +161,8 @@ export function StructuredAddressFields({
             inputMode="numeric"
             maxLength={6}
             className="h-9"
+            required
+            aria-required
             aria-invalid={Boolean(pincodeError)}
           />
           {pincodeError ? (
