@@ -1,5 +1,6 @@
-import { getMemberDisplayName, getMemberPhone } from './geo-attribution';
+import { getMemberDisplayName } from './geo-attribution';
 import { postMatchesBoothScope } from './booth-geo-units';
+import { memberMatchesSearch } from './member-search';
 import type { CadreMemberCard, CadreMemberPostDetail } from './types';
 
 export const HIERARCHY_URL_PARAMS = {
@@ -143,70 +144,6 @@ export function extractWardNumber(wardGeoName: string | null): number {
   if (!wardGeoName) return Number.MAX_SAFE_INTEGER;
   const match = wardGeoName.match(/Ward\s+(\d+)/i);
   return match ? Number(match[1]) : Number.MAX_SAFE_INTEGER;
-}
-
-function parseSearchTerms(query: string): string[] {
-  return query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-}
-
-function getMemberNameSearchText(member: CadreMemberCard): string {
-  return [member.personName, member.linkedVoter?.fullName]
-    .filter((value): value is string => Boolean(value?.trim()))
-    .join(' ')
-    .toLowerCase();
-}
-
-/** Name-only search (full phrase or all whitespace-separated terms). */
-export function memberNameMatchesSearch(name: string, query: string): boolean {
-  const trimmed = query.trim();
-  if (!trimmed) return true;
-  const qLower = trimmed.toLowerCase();
-  const nameLower = name.toLowerCase();
-  if (nameLower.includes(qLower)) return true;
-  const terms = parseSearchTerms(trimmed);
-  if (terms.length > 1) return terms.every((term) => nameLower.includes(term));
-  return nameLower.includes(qLower);
-}
-
-function memberMatchesSearch(member: CadreMemberCard, query: string): boolean {
-  const trimmed = query.trim();
-  if (!trimmed) return true;
-  const qLower = trimmed.toLowerCase();
-  const terms = parseSearchTerms(trimmed);
-
-  const queryDigits = trimmed.replace(/\D/g, '');
-  if (queryDigits.length > 0) {
-    const phone = getMemberPhone(member);
-    if (phone?.replace(/\D/g, '').includes(queryDigits)) return true;
-  }
-
-  if (member.epicNumber?.toLowerCase().includes(qLower)) return true;
-
-  const nameText = getMemberNameSearchText(member);
-  if (memberNameMatchesSearch(nameText, trimmed)) return true;
-
-  if (terms.length > 1) return false;
-
-  const term = terms[0];
-  return member.posts.some(
-    (p) =>
-      p.positionName.toLowerCase().includes(term) ||
-      (p.label ?? '').toLowerCase().includes(term),
-  );
-}
-
-/** Members matching search across the full hierarchy (ignores geo/vertical filters). */
-export function filterMembersGlobalSearch(
-  members: CadreMemberCard[],
-  search: string,
-  memberId?: string,
-): CadreMemberCard[] {
-  return sortMembers(
-    filterMembers(members, {
-      search,
-      memberId,
-    }),
-  );
 }
 
 function memberMatchesWard(member: CadreMemberCard, wardGeoId: string): boolean {

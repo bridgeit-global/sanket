@@ -345,11 +345,11 @@
     "outward": "Outward"
   },
   "hierarchyModule": {
-    "searchPlaceholder": "Search name, phone, or EPIC…",
+    "searchPlaceholder": "Search name, phone, ward, or booth…",
     "globalSearchTitle": "Search results for \"{query}\"",
     "globalSearchSubtitle": "{count} members across the hierarchy",
     "noSearchResults": "No members match your search",
-    "noSearchResultsHint": "Try a different name, phone number, or EPIC.",
+    "noSearchResultsHint": "Try a name, phone number, ward number, booth number, or role.",
     "addMember": "Enroll member",
     "stepPartyMember": "Step 1: Enroll as party member",
     "stepPartyMemberHint": "Search and select a voter, then choose their vertical category.",

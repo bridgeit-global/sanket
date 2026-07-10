@@ -44,6 +44,16 @@ import {
   normalizeBoothScopedPostGeo,
   type GeoUnitMeta,
 } from '@/lib/hierarchy/booth-geo-units';
+import {
+  extractWardNumber,
+  sortMembers,
+} from '@/lib/hierarchy/member-list';
+import {
+  extractBoothNumbersFromQuery,
+  extractSearchDigits,
+  extractWardNumbersFromQuery,
+  parseSearchTerms,
+} from '@/lib/hierarchy/member-search';
 import type { CadreWhatsAppBroadcastTarget } from './schema';
 
 export async function getCadreConfig() {
@@ -754,6 +764,358 @@ export async function getCadreMembersPaginated(filters: {
   return { members, total, page, pageSize, totalPages };
 }
 
+const POST_FETCH_CHUNK = 100;
+
+function chunkIds(ids: string[], size: number): string[][] {
+  const chunks: string[][] = [];
+  for (let index = 0; index < ids.length; index += size) {
+    chunks.push(ids.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function intersectMemberIdSets(a: Set<string>, b: Set<string>): Set<string> {
+  const result = new Set<string>();
+  for (const id of a) {
+    if (b.has(id)) result.add(id);
+  }
+  return result;
+}
+
+async function loadConstituencyMemberIds(constituencyId: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from(TABLES.cadreMember)
+    .select('id')
+    .eq('is_active', true)
+    .or(`constituency_id.eq.${constituencyId},constituency_id.is.null`);
+  throwOnSupabaseError(error, 'Failed to load member ids');
+  return new Set((data ?? []).map((row) => String(row.id)));
+}
+
+async function resolvePostScopedMemberIds(filters: {
+  wardGeoId?: string;
+  boothNo?: string;
+  positionId?: string;
+}): Promise<Set<string> | null> {
+  if (!filters.wardGeoId && !filters.boothNo && !filters.positionId) return null;
+
+  let postQuery = supabase.from(TABLES.cadreMemberPost).select('member_id');
+  if (filters.wardGeoId) {
+    postQuery = postQuery.eq('ward_geo_id', filters.wardGeoId);
+  }
+  if (filters.boothNo) {
+    postQuery = postQuery.eq('booth_no', filters.boothNo);
+  }
+  if (filters.positionId) {
+    postQuery = postQuery.eq('position_id', filters.positionId);
+  }
+
+  const { data, error } = await postQuery;
+  throwOnSupabaseError(error, 'Failed to filter members by post');
+  const ids = (data ?? []).map((row) => String(row.member_id));
+  return new Set(ids);
+}
+
+function escapeIlikePattern(value: string): string {
+  return value.replace(/[%_\\]/g, '\\$&');
+}
+
+async function resolveSearchMemberIds(
+  query: string,
+  constituencyId: string,
+  geoUnits: CadreConfig['geoUnits'],
+  allowedIds: Set<string>,
+): Promise<Set<string>> {
+  const trimmed = query.trim();
+  if (!trimmed || allowedIds.size === 0) return new Set();
+
+  const matches = new Set<string>();
+  const terms = parseSearchTerms(trimmed);
+  const qLower = trimmed.toLowerCase();
+  const queryDigits = extractSearchDigits(trimmed);
+  const ilike = (value: string) => `%${escapeIlikePattern(value)}%`;
+
+  const addIds = (ids: string[]) => {
+    for (const id of ids) {
+      if (allowedIds.has(id)) matches.add(id);
+    }
+  };
+
+  const constituencyOr = `constituency_id.eq.${constituencyId},constituency_id.is.null`;
+
+  let memberQuery = supabase
+    .from(TABLES.cadreMember)
+    .select('id')
+    .eq('is_active', true)
+    .or(constituencyOr);
+
+  if (terms.length <= 1) {
+    memberQuery = memberQuery.or(
+      `person_name.ilike.${ilike(qLower)},person_phone.ilike.${ilike(trimmed)},epic_number.ilike.${ilike(qLower)}`,
+    );
+  } else {
+    for (const term of terms) {
+      memberQuery = memberQuery.ilike('person_name', ilike(term));
+    }
+  }
+
+  const { data: memberRows, error: memberError } = await memberQuery;
+  throwOnSupabaseError(memberError, 'Failed to search members by profile');
+  addIds((memberRows ?? []).map((row) => String(row.id)));
+
+  if (queryDigits.length >= 3) {
+    const { data: phoneRows, error: phoneError } = await supabase
+      .from(TABLES.cadreMember)
+      .select('id')
+      .eq('is_active', true)
+      .or(constituencyOr)
+      .ilike('person_phone', `%${queryDigits}%`);
+    throwOnSupabaseError(phoneError, 'Failed to search members by phone');
+    addIds((phoneRows ?? []).map((row) => String(row.id)));
+
+    const { data: waRows, error: waError } = await supabase
+      .from(TABLES.cadreMemberWhatsApp)
+      .select('member_id')
+      .ilike('whatsapp_phone', `%${queryDigits}%`);
+    throwOnSupabaseError(waError, 'Failed to search members by WhatsApp');
+    addIds((waRows ?? []).map((row) => String(row.member_id)));
+  }
+
+  const { data: voterRows, error: voterError } = await supabase
+    .from(TABLES.voterMaster)
+    .select('epic_number')
+    .ilike('full_name', ilike(qLower));
+  throwOnSupabaseError(voterError, 'Failed to search linked voters by name');
+  const voterEpics = (voterRows ?? []).map((row) => String(row.epic_number));
+  if (voterEpics.length > 0) {
+    for (const chunk of chunkIds(voterEpics, POST_FETCH_CHUNK)) {
+      const { data: epicMembers, error: epicError } = await supabase
+        .from(TABLES.cadreMember)
+        .select('id')
+        .eq('is_active', true)
+        .or(constituencyOr)
+        .in('epic_number', chunk);
+      throwOnSupabaseError(epicError, 'Failed to search members by linked voter');
+      addIds((epicMembers ?? []).map((row) => String(row.id)));
+    }
+  }
+
+  if (queryDigits.length >= 3) {
+    const { data: mobileRows, error: mobileError } = await supabase
+      .from(TABLES.voterMobileNumber)
+      .select('epic_number')
+      .ilike('mobile_number', `%${queryDigits}%`);
+    throwOnSupabaseError(mobileError, 'Failed to search voter mobiles');
+    const mobileEpics = [
+      ...new Set((mobileRows ?? []).map((row) => String(row.epic_number))),
+    ];
+    if (mobileEpics.length > 0) {
+      for (const chunk of chunkIds(mobileEpics, POST_FETCH_CHUNK)) {
+        const { data: mobileMembers, error: mobileMemberError } = await supabase
+          .from(TABLES.cadreMember)
+          .select('id')
+          .eq('is_active', true)
+          .or(constituencyOr)
+          .in('epic_number', chunk);
+        throwOnSupabaseError(mobileMemberError, 'Failed to search members by voter mobile');
+        addIds((mobileMembers ?? []).map((row) => String(row.id)));
+      }
+    }
+  }
+
+  if (terms.length === 1) {
+    const term = terms[0];
+    const { data: labelRows, error: labelError } = await supabase
+      .from(TABLES.cadreMemberPost)
+      .select('member_id')
+      .ilike('label', ilike(term));
+    throwOnSupabaseError(labelError, 'Failed to search members by post label');
+    addIds((labelRows ?? []).map((row) => String(row.member_id)));
+
+    const { data: positions, error: positionError } = await supabase
+      .from(TABLES.cadrePosition)
+      .select('id')
+      .ilike('name', ilike(term));
+    throwOnSupabaseError(positionError, 'Failed to search positions');
+    const positionIds = (positions ?? []).map((row) => String(row.id));
+    if (positionIds.length > 0) {
+      for (const chunk of chunkIds(positionIds, POST_FETCH_CHUNK)) {
+        const { data: postRows, error: postError } = await supabase
+          .from(TABLES.cadreMemberPost)
+          .select('member_id')
+          .in('position_id', chunk);
+        throwOnSupabaseError(postError, 'Failed to search members by position');
+        addIds((postRows ?? []).map((row) => String(row.member_id)));
+      }
+    }
+
+    const matchingWardIds = geoUnits
+      .filter((unit) => unit.type === 'ward' && unit.isActive)
+      .filter((unit) => unit.name.toLowerCase().includes(term))
+      .map((unit) => unit.id);
+    if (matchingWardIds.length > 0) {
+      for (const chunk of chunkIds(matchingWardIds, POST_FETCH_CHUNK)) {
+        const { data: wardNamePosts, error: wardNameError } = await supabase
+          .from(TABLES.cadreMemberPost)
+          .select('member_id')
+          .in('ward_geo_id', chunk);
+        throwOnSupabaseError(wardNameError, 'Failed to search members by ward name');
+        addIds((wardNamePosts ?? []).map((row) => String(row.member_id)));
+      }
+    }
+  }
+
+  const wardNumbers = extractWardNumbersFromQuery(trimmed);
+  if (wardNumbers.length > 0) {
+    const wardGeoIds = geoUnits
+      .filter((unit) => unit.type === 'ward' && unit.isActive)
+      .filter((unit) => wardNumbers.includes(extractWardNumber(unit.name)))
+      .map((unit) => unit.id);
+    if (wardGeoIds.length > 0) {
+      for (const chunk of chunkIds(wardGeoIds, POST_FETCH_CHUNK)) {
+        const { data: wardPosts, error: wardPostError } = await supabase
+          .from(TABLES.cadreMemberPost)
+          .select('member_id')
+          .in('ward_geo_id', chunk);
+        throwOnSupabaseError(wardPostError, 'Failed to search members by ward');
+        addIds((wardPosts ?? []).map((row) => String(row.member_id)));
+      }
+    }
+  }
+
+  const boothNumbers = extractBoothNumbersFromQuery(trimmed);
+  for (const boothNo of boothNumbers) {
+    for (const variant of new Set([boothNo, boothNo.padStart(2, '0')])) {
+      const { data: boothPosts, error: boothPostError } = await supabase
+        .from(TABLES.cadreMemberPost)
+        .select('member_id')
+        .eq('booth_no', variant);
+      throwOnSupabaseError(boothPostError, 'Failed to search members by booth');
+      addIds((boothPosts ?? []).map((row) => String(row.member_id)));
+    }
+  }
+
+  return matches;
+}
+
+export async function getCadreMembersPage(filters: {
+  constituencyId: string;
+  query?: string;
+  page: number;
+  pageSize: number;
+  verticalId?: string;
+  positionId?: string;
+  wardGeoId?: string;
+  boothNo?: string;
+  memberId?: string;
+  geoUnits: CadreConfig['geoUnits'];
+}): Promise<CadreMembersPage> {
+  const page = Math.max(1, filters.page);
+  const pageSize = Math.max(1, filters.pageSize);
+  const query = filters.query?.trim() ?? '';
+
+  let allowed = await loadConstituencyMemberIds(filters.constituencyId);
+
+  if (filters.memberId) {
+    if (!allowed.has(filters.memberId)) {
+      return { members: [], total: 0, page, pageSize, totalPages: 1 };
+    }
+    allowed = new Set([filters.memberId]);
+  }
+
+  if (filters.verticalId) {
+    const verticalIds = await resolveCadreMemberIdsForVertical(filters.verticalId);
+    if (!verticalIds) return { members: [], total: 0, page, pageSize, totalPages: 1 };
+    allowed = intersectMemberIdSets(allowed, new Set(verticalIds));
+  }
+
+  const postScope = await resolvePostScopedMemberIds({
+    wardGeoId: filters.wardGeoId,
+    boothNo: filters.boothNo,
+    positionId: filters.positionId,
+  });
+  if (postScope !== null) {
+    if (postScope.size === 0) {
+      return { members: [], total: 0, page, pageSize, totalPages: 1 };
+    }
+    allowed = intersectMemberIdSets(allowed, postScope);
+  }
+
+  if (allowed.size === 0) {
+    return { members: [], total: 0, page, pageSize, totalPages: 1 };
+  }
+
+  if (query) {
+    allowed = await resolveSearchMemberIds(
+      query,
+      filters.constituencyId,
+      filters.geoUnits,
+      allowed,
+    );
+    if (allowed.size === 0) {
+      return { members: [], total: 0, page, pageSize, totalPages: 1 };
+    }
+
+    const cards: CadreMemberCard[] = [];
+    for (const chunk of chunkIds([...allowed], POST_FETCH_CHUNK)) {
+      const { data, error } = await supabase
+        .from(TABLES.cadreMember)
+        .select('*')
+        .in('id', chunk)
+        .eq('is_active', true);
+      throwOnSupabaseError(error, 'Failed to load searched members');
+      cards.push(...(await buildMemberCards((data ?? []).map(mapCadreMemberRow))));
+    }
+
+    const sorted = sortMembers(cards);
+    const total = sorted.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const currentPage = Math.min(page, totalPages);
+    const start = (currentPage - 1) * pageSize;
+    const members = sorted.slice(start, start + pageSize);
+
+    return { members, total, page: currentPage, pageSize, totalPages };
+  }
+
+  const hasScope =
+    Boolean(filters.verticalId) ||
+    Boolean(filters.wardGeoId) ||
+    Boolean(filters.boothNo) ||
+    Boolean(filters.positionId) ||
+    Boolean(filters.memberId);
+
+  if (!hasScope) {
+    return getCadreMembersPaginated({
+      constituencyId: filters.constituencyId,
+      verticalId: filters.verticalId,
+      page,
+      pageSize,
+    });
+  }
+
+  const sortedIds = [...allowed].sort();
+  const total = sortedIds.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const start = (currentPage - 1) * pageSize;
+  const pageIds = sortedIds.slice(start, start + pageSize);
+
+  if (pageIds.length === 0) {
+    return { members: [], total, page: currentPage, pageSize, totalPages };
+  }
+
+  const { data, error } = await supabase
+    .from(TABLES.cadreMember)
+    .select('*')
+    .in('id', pageIds)
+    .eq('is_active', true)
+    .order('person_name', { ascending: true });
+  throwOnSupabaseError(error, 'Failed to load members page');
+  const members = await buildMemberCards((data ?? []).map(mapCadreMemberRow));
+
+  return { members, total, page: currentPage, pageSize, totalPages };
+}
+
 export async function getCadreMemberById(
   id: string,
 ): Promise<CadreMemberCard | null> {
@@ -1091,14 +1453,6 @@ export async function getBoothsForWard(
   }));
 }
 
-function intersectMemberIdSets(a: Set<string>, b: Set<string>): Set<string> {
-  const result = new Set<string>();
-  for (const id of a) {
-    if (b.has(id)) result.add(id);
-  }
-  return result;
-}
-
 export type BroadcastRecipient = {
   memberId: string;
   whatsappPhone: string;
@@ -1195,8 +1549,6 @@ export async function getCadreMembersForBroadcast(
   };
 }
 
-const POST_FETCH_CHUNK = 100;
-
 function mapGeoUnitRow(row: {
   id: string;
   name: string;
@@ -1278,14 +1630,6 @@ function mapPostRowToDetail(
     sortOrder: Number(row.sort_order ?? 0),
   };
   return normalizeBoothScopedPostGeo(post, geoMeta);
-}
-
-function chunkIds(ids: string[], size: number): string[][] {
-  const chunks: string[][] = [];
-  for (let i = 0; i < ids.length; i += size) {
-    chunks.push(ids.slice(i, i + size));
-  }
-  return chunks;
 }
 
 async function fetchPostRowsForMemberIds(memberIds: string[]) {

@@ -35,12 +35,10 @@ import type {
   WardSummary,
 } from '@/lib/hierarchy/types';
 import {
-  BOOTSTRAP_MEMBER_PAGE_SIZE,
   HIERARCHY_URL_PARAMS,
   HIERARCHY_VIEWS,
   extractWardNumber,
   filterMembers,
-  filterMembersGlobalSearch,
   paginateMembers,
   parseMemberPageParam,
   parseMemberPageSizeParam,
@@ -91,9 +89,13 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const [config, setConfig] = useState<CadreConfig | null>(null);
   const [referenceCounts, setReferenceCounts] =
     useState<CadreConfigReferenceCounts | null>(null);
-  const [members, setMembers] = useState<CadreMemberCard[]>([]);
-  const [allMembersLoaded, setAllMembersLoaded] = useState(false);
   const [membersTotal, setMembersTotal] = useState(0);
+  const [pagedListMembers, setPagedListMembers] = useState<CadreMemberCard[]>([]);
+  const [pagedListPagination, setPagedListPagination] = useState({
+    total: 0,
+    totalPages: 1,
+    page: 1,
+  });
   const [talukaLeadership, setTalukaLeadership] = useState<LeadershipEntry[]>([]);
   const [wardSummaries, setWardSummaries] = useState<WardSummary[]>([]);
   const [scopedMembers, setScopedMembers] = useState<CadreMemberCard[]>([]);
@@ -101,7 +103,6 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const [defaultElectionId, setDefaultElectionId] = useState('');
   const [loading, setLoading] = useState(true);
   const [scopeLoading, setScopeLoading] = useState(false);
-  const [loadingMembersProgress, setLoadingMembersProgress] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [searchDraft, setSearchDraft] = useState('');
   const [isSearchPending, setIsSearchPending] = useState(false);
@@ -284,55 +285,41 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     setWardSummaries(leadership.wardSummaries ?? []);
   }, []);
 
-  const loadAllMembers = useCallback(async (signal?: AbortSignal) => {
-    if (allMembersLoaded) return;
+  const loadMemberPage = useCallback(
+    async (signal?: AbortSignal) => {
+      const params = new URLSearchParams({
+        constituencyId: DEFAULT_CONSTITUENCY_ID,
+        page: String(pageFromUrl),
+        pageSize: String(pageSize),
+      });
+      if (searchQuery.trim()) params.set('q', searchQuery.trim());
+      if (verticalId.trim()) params.set('verticalId', verticalId.trim());
+      if (focusMemberId.trim()) params.set('memberId', focusMemberId.trim());
 
-    const baseParams = new URLSearchParams({
-      constituencyId: DEFAULT_CONSTITUENCY_ID,
-      memberPageSize: String(BOOTSTRAP_MEMBER_PAGE_SIZE),
-    });
-
-    const fetchPage = async (memberPage: number, membersOnly: boolean) => {
-      const params = new URLSearchParams(baseParams);
-      params.set('memberPage', String(memberPage));
-      if (membersOnly) params.set('membersOnly', 'true');
-      const res = await fetch(`/api/hierarchy/bootstrap?${params}`, { signal });
+      const res = await fetch(`/api/hierarchy/members?${params}`, { signal });
       if (!res.ok) {
         throw new Error(`Failed to load members (${res.status})`);
       }
-      return res.json() as Promise<{
+      const data = (await res.json()) as {
         members?: CadreMemberCard[];
-        membersPagination?: {
+        pagination?: {
           page: number;
           pageSize: number;
           total: number;
           totalPages: number;
         };
-      }>;
-    };
-
-    const first = await fetchPage(1, false);
-    if (signal?.aborted) return;
-
-    const totalPages = first.membersPagination?.totalPages ?? 1;
-    const total = first.membersPagination?.total ?? first.members?.length ?? 0;
-    const allMembers = [...(first.members ?? [])];
-    setMembersTotal(total);
-    setLoadingMembersProgress(
-      totalPages > 1 ? `Loading members (1 of ${totalPages})…` : null,
-    );
-
-    for (let page = 2; page <= totalPages; page += 1) {
-      const next = await fetchPage(page, true);
+      };
       if (signal?.aborted) return;
-      allMembers.push(...(next.members ?? []));
-      setLoadingMembersProgress(`Loading members (${page} of ${totalPages})…`);
-    }
 
-    setMembers(allMembers);
-    setAllMembersLoaded(true);
-    setLoadingMembersProgress(null);
-  }, [allMembersLoaded]);
+      setPagedListMembers(data.members ?? []);
+      setPagedListPagination({
+        total: data.pagination?.total ?? 0,
+        totalPages: data.pagination?.totalPages ?? 1,
+        page: data.pagination?.page ?? pageFromUrl,
+      });
+    },
+    [pageFromUrl, pageSize, searchQuery, verticalId, focusMemberId],
+  );
 
   const loadScopedMembers = useCallback(
     async (
@@ -457,14 +444,13 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
 
   const refresh = useCallback(async () => {
     setLoadError(null);
-    setAllMembersLoaded(false);
-    setMembers([]);
+    setPagedListMembers([]);
     try {
       await loadInitial();
       if (showCanvas && canvasVerticalId) {
         await loadCanvasData(canvasVerticalId);
       } else if (showAllMembers || isGlobalSearch) {
-        await loadAllMembers();
+        await loadMemberPage();
       } else if (showTalukaCommittee && committeeVerticalId) {
         await loadScopedMembers({
           type: 'committee',
@@ -496,7 +482,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     }
   }, [
     loadInitial,
-    loadAllMembers,
+    loadMemberPage,
     loadScopedMembers,
     loadCanvasData,
     showCanvas,
@@ -527,7 +513,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         }
 
         if (showAllMembers || isGlobalSearch) {
-          await loadAllMembers(controller.signal);
+          await loadMemberPage(controller.signal);
           return;
         }
 
@@ -599,7 +585,10 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     showBoothCommittee,
     boothNo,
     showWardPanelMain,
-    loadAllMembers,
+    pageFromUrl,
+    pageSize,
+    focusMemberId,
+    loadMemberPage,
     loadScopedMembers,
     loadCanvasData,
   ]);
@@ -615,19 +604,6 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   }, [config?.geoUnits, wardGeoId]);
 
   const visibleMembers = useMemo(() => {
-    if (isGlobalSearch) {
-      return filterMembersGlobalSearch(members, searchQuery, focusMemberId);
-    }
-
-    if (showAllMembers) {
-      return sortMembers(
-        filterMembers(members, {
-          search: searchQuery,
-          memberId: focusMemberId,
-        }),
-      );
-    }
-
     if (showTalukaCommittee || showWardCommittee || showBoothCommittee) {
       return sortMembers(
         filterMembers(scopedMembers, {
@@ -647,24 +623,39 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       }),
     );
   }, [
-    members,
     scopedMembers,
     searchQuery,
     positionId,
     wardGeoId,
     boothNo,
     focusMemberId,
-    showAllMembers,
     showTalukaCommittee,
     showWardCommittee,
     showBoothCommittee,
-    isGlobalSearch,
   ]);
 
-  const memberPagination = useMemo(
-    () => paginateMembers(visibleMembers, pageFromUrl, pageSize),
-    [visibleMembers, pageFromUrl, pageSize],
-  );
+  const usesServerMemberPagination = isGlobalSearch || showAllMembers;
+
+  const memberPagination = useMemo(() => {
+    if (usesServerMemberPagination) {
+      return {
+        items: pagedListMembers,
+        totalPages: pagedListPagination.totalPages,
+        currentPage: pageFromUrl,
+        totalItems: pagedListPagination.total,
+      };
+    }
+
+    return paginateMembers(visibleMembers, pageFromUrl, pageSize);
+  }, [
+    usesServerMemberPagination,
+    pagedListMembers,
+    pagedListPagination.totalPages,
+    pagedListPagination.total,
+    visibleMembers,
+    pageFromUrl,
+    pageSize,
+  ]);
 
   useEffect(() => {
     if (!focusMemberId || loading) return;
@@ -677,10 +668,23 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   }, [focusMemberId, visibleMembers, loading]);
 
   useEffect(() => {
+    if (usesServerMemberPagination) {
+      if (!scopeLoading && pagedListPagination.page !== pageFromUrl) {
+        setUrlParams({ page: pagedListPagination.page });
+      }
+      return;
+    }
     if (pageFromUrl !== memberPagination.currentPage) {
       setUrlParams({ page: memberPagination.currentPage });
     }
-  }, [pageFromUrl, memberPagination.currentPage, setUrlParams]);
+  }, [
+    usesServerMemberPagination,
+    scopeLoading,
+    pagedListPagination.page,
+    pageFromUrl,
+    memberPagination.currentPage,
+    setUrlParams,
+  ]);
 
   const handleMemberPageChange = useCallback(
     (page: number) => {
@@ -845,12 +849,21 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const vacantLabel = t('hierarchyModule.vacantPosition');
   const viewCommitteeLabel = t('hierarchyModule.viewCommitteeLink');
   const showCommitteeList = showTalukaCommittee || showWardCommittee || showBoothCommittee;
+  const usesCompactMemberList = showCommitteeList || isGlobalSearch || showAllMembers;
+  const memberListCompactDetail = isGlobalSearch || showAllMembers;
   const committeeSectionTitle = showBoothCommittee
     ? t('hierarchyModule.boothCommitteeTitle', { booth: boothNo })
     : showWardCommittee
       ? t('hierarchyModule.wardCommitteeTitle', { ward: selectedWardName })
       : showTalukaCommittee
         ? t('hierarchyModule.talukaCommitteeTitle')
+        : undefined;
+  const memberListSectionTitle = showCommitteeList
+    ? committeeSectionTitle
+    : isGlobalSearch
+      ? t('hierarchyModule.globalSearchTitle', { query: searchQuery.trim() })
+      : showAllMembers
+        ? t('hierarchyModule.allMembersTitle')
         : undefined;
 
   const verticalSelect = showCanvas ? (
@@ -881,8 +894,9 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       members={memberPagination.items}
       canEdit={canEdit}
       onEdit={canEdit ? handleEdit : undefined}
-      variant={showCommitteeList ? 'compact' : 'default'}
-      sectionTitle={committeeSectionTitle}
+      variant={usesCompactMemberList ? 'compact' : 'default'}
+      compactDetail={memberListCompactDetail}
+      sectionTitle={memberListSectionTitle}
       pagination={{
         currentPage: memberPagination.currentPage,
         totalPages: memberPagination.totalPages,
@@ -941,90 +955,6 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         </div>
       </div>
 
-      <div className="shrink-0">
-        <div className="mb-1.5 flex items-center justify-between gap-2">
-          <Label
-            htmlFor="hierarchy-search"
-            className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground"
-          >
-            {isGlobalSearch || showWardPanelMain
-              ? t('hierarchyModule.searchLabel')
-              : t('hierarchyModule.searchWardsLabel')}
-          </Label>
-          {hasSearch && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-              onClick={clearSearch}
-            >
-              {t('hierarchyModule.clearSearch')}
-            </Button>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <div className="relative min-w-0 flex-1">
-            <Input
-              id="hierarchy-search"
-              className="h-11 rounded-xl border border-input bg-muted/40 px-3 shadow-none focus-visible:ring-1 pr-10"
-              value={searchDraft}
-              onChange={(e) => setSearchDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') commitSearch();
-              }}
-              placeholder={
-                showWardPanelMain || isGlobalSearch
-                  ? t('hierarchyModule.searchPlaceholder')
-                  : t('hierarchyModule.wardSearchPlaceholder')
-              }
-            />
-            {hasSearch && (
-              <button
-                type="button"
-                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground transition-colors hover:text-foreground"
-                aria-label={t('hierarchyModule.clearSearchAria')}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={clearSearch}
-              >
-                <X className="size-4" />
-              </button>
-            )}
-          </div>
-          <Button
-            type="button"
-            className="h-11 shrink-0 gap-1.5 rounded-xl px-3 sm:px-4"
-            disabled={isSearching}
-            onClick={commitSearch}
-            aria-label={
-              isSearching
-                ? t('hierarchyModule.searchingAria')
-                : t('hierarchyModule.searchAction')
-            }
-          >
-            {isSearching ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Search className="size-4" />
-            )}
-            <span className="hidden sm:inline">
-              {isSearching
-                ? t('hierarchyModule.searching')
-                : t('hierarchyModule.searchAction')}
-            </span>
-          </Button>
-        </div>
-      </div>
-
-      {!loading && !loadError && allMembersLoaded && membersTotal > 0 && (
-        <p className="text-xs text-muted-foreground">
-          {t('hierarchyModule.membersLoaded', {
-            loaded: members.length.toLocaleString(),
-            total: membersTotal.toLocaleString(),
-          })}
-        </p>
-      )}
-
       {!loading && !loadError && (
         <Tabs
           value={hierarchyDisplayMode}
@@ -1043,6 +973,62 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             </TabsTrigger>
           </TabsList>
         </Tabs>
+      )}
+
+      {!showCanvas && (
+        <div className="shrink-0">
+          <div className="flex gap-2">
+            <div className="relative min-w-0 flex-1">
+              <Input
+                id="hierarchy-search"
+                className="h-11 rounded-xl border border-input bg-muted/40 px-3 shadow-none focus-visible:ring-1 pr-10"
+                value={searchDraft}
+                onChange={(e) => setSearchDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') commitSearch();
+                }}
+                placeholder={
+                  showWardPanelMain || isGlobalSearch
+                    ? t('hierarchyModule.searchPlaceholder')
+                    : t('hierarchyModule.wardSearchPlaceholder')
+                }
+              />
+              {hasSearch && (
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+                  aria-label={t('hierarchyModule.clearSearchAria')}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={clearSearch}
+                >
+                  <X className="size-4" />
+                </button>
+              )}
+            </div>
+            <Button
+              type="button"
+              className="h-11 shrink-0 gap-1.5 rounded-xl px-3 sm:px-4"
+              disabled={isSearching}
+              onClick={commitSearch}
+              aria-label={
+                isSearching
+                  ? t('hierarchyModule.searchingAria')
+                  : t('hierarchyModule.searchAction')
+              }
+            >
+              {isSearching ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Search className="size-4" />
+              )}
+              <span className="hidden sm:inline">
+                {isSearching
+                  ? t('hierarchyModule.searching')
+                  : t('hierarchyModule.searchAction')}
+              </span>
+            </Button>
+          </div>
+        </div>
       )}
 
       {!isGlobalSearch && !showOverview && !showCanvas && (
@@ -1071,7 +1057,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
           <div className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-muted/20 py-12">
             <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             <p className="text-sm text-muted-foreground">
-              {loadingMembersProgress ?? t('hierarchyModule.loadingHierarchy')}
+              {t('hierarchyModule.loadingHierarchy')}
             </p>
           </div>
         ) : loadError ? (
@@ -1098,19 +1084,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             />
           </>
         ) : isGlobalSearch ? (
-          <div className="flex flex-col gap-3">
-            <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 dark:border-primary/50 dark:bg-primary/10">
-              <p className="text-sm font-medium">
-                {t('hierarchyModule.globalSearchTitle', { query: searchQuery.trim() })}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t('hierarchyModule.globalSearchSubtitle', {
-                  count: memberPagination.totalItems,
-                })}
-              </p>
-            </div>
-            {memberListBlock}
-          </div>
+          memberListBlock
         ) : showOverview ? (
           <div className="flex flex-col gap-3">
             <LeadershipSection
@@ -1134,19 +1108,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             )}
           </div>
         ) : showAllMembers ? (
-          <div className="flex flex-col gap-3">
-            <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 dark:border-primary/50 dark:bg-primary/10">
-              <p className="text-sm font-medium">
-                {t('hierarchyModule.allMembersTitle')}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {t('hierarchyModule.allMembersSubtitle', {
-                  count: memberPagination.totalItems.toLocaleString(),
-                })}
-              </p>
-            </div>
-            {memberListBlock}
-          </div>
+          memberListBlock
         ) : showWardPanelMain ? (
           <WardPanel
             wardGeoId={wardGeoId}

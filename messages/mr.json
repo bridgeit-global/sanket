@@ -345,11 +345,11 @@
     "outward": "बाह्य"
   },
   "hierarchyModule": {
-    "searchPlaceholder": "नाव, फोन किंवा EPIC शोधा…",
+    "searchPlaceholder": "नाव, फोन, वॉर्ड किंवा बूथ शोधा…",
     "globalSearchTitle": "\"{query}\" साठी शोध निकाल",
     "globalSearchSubtitle": "संपूर्ण श्रेणीत {count} सदस्य",
     "noSearchResults": "आपल्या शोधाशी जुळणारे सदस्य नाहीत",
-    "noSearchResultsHint": "वेगळे नाव, फोन किंवा EPIC वापरून पहा.",
+    "noSearchResultsHint": "नाव, फोन, वॉर्ड क्रमांक, बूथ क्रमांक किंवा पद वापरून पहा.",
     "addMember": "सदस्य नोंदणी",
     "stepPartyMember": "पायरी १: पक्ष सदस्य म्हणून नोंदणी",
     "stepPartyMemberHint": "मतदार शोधा आणि निवडा, नंतर त्यांची अनुलंब श्रेणी निवडा.",

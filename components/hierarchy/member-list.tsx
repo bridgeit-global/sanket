@@ -24,6 +24,7 @@ interface MemberListProps {
   emptyMessage?: string;
   emptyHint?: string;
   variant?: 'default' | 'compact';
+  compactDetail?: boolean;
   sectionTitle?: string;
 }
 
@@ -35,6 +36,7 @@ export function MemberList({
   emptyMessage = 'No members match the current filters',
   emptyHint = 'Try a different ward, vertical, or search term.',
   variant = 'default',
+  compactDetail = false,
   sectionTitle,
 }: MemberListProps) {
   const emptyState = (
@@ -71,6 +73,7 @@ export function MemberList({
             member={member}
             canEdit={canEdit}
             onEdit={onEdit}
+            detail={compactDetail ? 'full' : 'minimal'}
           />
         ))}
       </div>
