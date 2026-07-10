@@ -79,6 +79,15 @@ export type CadreMemberCard = {
   whatsappPhone: string | null;
 };
 
+export type WardSummary = {
+  wardGeoId: string;
+  boothCount: number;
+  wingsAssigned: number;
+  wingsTotal: number;
+  primaryHead: CadreMemberCard | null;
+  allHeads: CadreMemberCard[];
+};
+
 export type CadreConfigReferenceCounts = {
   categories: Record<string, { verticalCount: number }>;
   verticals: Record<string, { nodeCount: number }>;

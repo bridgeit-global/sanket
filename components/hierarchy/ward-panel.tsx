@@ -37,15 +37,7 @@ function formatBoothLabel(boothNo: string): string {
   return Number.isFinite(numeric) ? String(numeric).padStart(2, '0') : boothNo;
 }
 
-function SectionHeader({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-t-xl border border-b-0 border-primary/20 bg-primary/5 px-4 py-2.5 dark:border-primary/50 dark:bg-primary/10">
-      <p className="text-[11px] font-semibold tracking-[0.14em] text-primary uppercase">
-        {children}
-      </p>
-    </div>
-  );
-}
+import { PanelSectionHeader } from './leadership-section';
 
 export function WardPanel({
   wardGeoId,
@@ -120,7 +112,7 @@ export function WardPanel({
       />
 
       <div className="overflow-hidden rounded-xl border border-primary/20 dark:border-primary/50">
-        <SectionHeader>{t('hierarchyModule.boothManagementTitle')}</SectionHeader>
+        <PanelSectionHeader>{t('hierarchyModule.boothManagementTitle')}</PanelSectionHeader>
         <div className="border border-t-0 border-primary/20 bg-card dark:border-primary/50">
           {boothNumbers.length === 0 ? (
             <p className="px-4 py-6 text-center text-sm text-muted-foreground">
@@ -182,6 +174,7 @@ export function WardPanel({
                             </div>
                             <PanelActionLink
                               onClick={() => onViewBoothCommittee(boothNo, entry.verticalId)}
+                              disabled={!entry.head}
                             >
                               {viewCommitteeLabel}
                             </PanelActionLink>

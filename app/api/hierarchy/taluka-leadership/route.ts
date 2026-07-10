@@ -1,8 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import {
-  getCadreConfig,
-  getCadreTalukaLeadershipAllWings,
-} from '@/lib/db/cadre-queries';
+import { getCadreConfig, getCadreConstituencyLeadership } from '@/lib/db/cadre-queries';
 import { requireHierarchyAccess } from '@/lib/hierarchy/auth';
 
 export async function GET(request: NextRequest) {
@@ -20,13 +17,18 @@ export async function GET(request: NextRequest) {
       .filter((vertical) => vertical.isActive)
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map((vertical) => vertical.id);
+    const wardGeoIds = config.geoUnits
+      .filter((unit) => unit.type === 'ward' && unit.isActive)
+      .map((unit) => unit.id);
 
-    const entries = await getCadreTalukaLeadershipAllWings(
+    const { entries, wardSummaries } = await getCadreConstituencyLeadership(
       constituencyId,
       verticalIds,
+      wardGeoIds,
+      config.geoUnits,
     );
 
-    return NextResponse.json({ success: true, entries });
+    return NextResponse.json({ success: true, entries, wardSummaries });
   } catch (error) {
     console.error('Taluka leadership failed:', error);
     const message =

@@ -26,6 +26,7 @@ import type {
   CadreGeographicUnitType,
   CadreMemberCard,
   CadreMemberPostDetail,
+  WardSummary,
 } from '@/lib/hierarchy/types';
 import {
   collectCanvasMemberIds,
@@ -39,6 +40,7 @@ import {
   type HierarchyLeaders,
 } from '@/lib/hierarchy/leaders';
 import {
+  getBoothGeoUnits,
   normalizeBoothScopedPostGeo,
   type GeoUnitMeta,
 } from '@/lib/hierarchy/booth-geo-units';
@@ -1382,20 +1384,91 @@ export type TalukaLeadershipEntry = {
   head: CadreMemberCard | null;
 };
 
-export async function getCadreTalukaLeadershipAllWings(
+function buildWardSummaries(
+  wardGeoIds: string[],
+  verticalIds: string[],
+  verticalLeadership: {
+    verticalId: string;
+    wardHeads: HierarchyLeaders['wardHeads'];
+  }[],
+  geoUnits: CadreConfig['geoUnits'],
+  constituencyId: string,
+): WardSummary[] {
+  const primaryVerticalId = verticalIds[0] ?? '';
+
+  return wardGeoIds.map((wardGeoId) => {
+    const boothCount = getBoothGeoUnits(geoUnits, constituencyId, wardGeoId).length;
+    const allHeads: CadreMemberCard[] = [];
+    let primaryHead: CadreMemberCard | null = null;
+
+    for (const entry of verticalLeadership) {
+      const wardHead = entry.wardHeads.find((ward) => ward.wardGeoId === wardGeoId);
+      const member = wardHead?.member ?? null;
+      if (member) allHeads.push(member);
+      if (entry.verticalId === primaryVerticalId) primaryHead = member;
+    }
+
+    return {
+      wardGeoId,
+      boothCount,
+      wingsAssigned: allHeads.length,
+      wingsTotal: verticalIds.length,
+      primaryHead,
+      allHeads,
+    };
+  });
+}
+
+export async function getCadreConstituencyLeadership(
   constituencyId: string,
   verticalIds: string[],
-): Promise<TalukaLeadershipEntry[]> {
-  return Promise.all(
+  wardGeoIds: string[],
+  geoUnits: CadreConfig['geoUnits'],
+): Promise<{
+  entries: TalukaLeadershipEntry[];
+  wardSummaries: WardSummary[];
+}> {
+  const verticalLeadership = await Promise.all(
     verticalIds.map(async (verticalId) => {
       const leaders = await getCadreHierarchyLeaders({
         constituencyId,
         verticalId,
-        wardGeoIds: [],
+        wardGeoIds,
       });
-      return { verticalId, head: leaders.talukaAdhyaksh };
+      return {
+        verticalId,
+        talukaHead: leaders.talukaAdhyaksh,
+        wardHeads: leaders.wardHeads,
+      };
     }),
   );
+
+  return {
+    entries: verticalLeadership.map((entry) => ({
+      verticalId: entry.verticalId,
+      head: entry.talukaHead,
+    })),
+    wardSummaries: buildWardSummaries(
+      wardGeoIds,
+      verticalIds,
+      verticalLeadership,
+      geoUnits,
+      constituencyId,
+    ),
+  };
+}
+
+export async function getCadreTalukaLeadershipAllWings(
+  constituencyId: string,
+  verticalIds: string[],
+): Promise<TalukaLeadershipEntry[]> {
+  const { entries } = await getCadreConstituencyLeadership(
+    constituencyId,
+    verticalIds,
+    [],
+    [],
+  );
+  return entries;
 }
 
 export async function getCadreMembersForWardScope(
@@ -1494,7 +1567,7 @@ export async function getCadreHierarchyLeaders(filters: {
 
   const postRows = await fetchPostRowsForMemberIds(memberIds);
   const postsByMember = await mapPostRowsToDetails(postRows);
-  const stubMembers = buildStubMembersFromPosts(postsByMember);
+  const stubMembers = buildStubMembersFromPosts(postsByMember, filters.verticalId);
   const resolved = resolveHierarchyLeaders(stubMembers, filters.wardGeoIds);
 
   const leaderIds = new Set<string>();
@@ -1556,7 +1629,7 @@ export async function getCadreHierarchyCanvasData(filters: {
 
   const postRows = await fetchPostRowsForMemberIds(memberIds);
   const postsByMember = await mapPostRowsToDetails(postRows);
-  const stubMembers = buildStubMembersFromPosts(postsByMember);
+  const stubMembers = buildStubMembersFromPosts(postsByMember, filters.verticalId);
   const resolved = resolveHierarchyCanvasData(
     stubMembers,
     filters.verticalId,

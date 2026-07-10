@@ -23,6 +23,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HierarchyCanvasView } from './hierarchy-canvas-view';
 import { LeadershipSection } from './leadership-section';
+import { WardAccessSection } from './ward-access-section';
 import { MemberList } from './member-list';
 import { WardPanel } from './ward-panel';
 import { MemberEditor, type MemberEditorTarget } from './member-editor';
@@ -31,6 +32,7 @@ import type {
   CadreConfig,
   CadreConfigReferenceCounts,
   CadreMemberCard,
+  WardSummary,
 } from '@/lib/hierarchy/types';
 import {
   BOOTSTRAP_MEMBER_PAGE_SIZE,
@@ -53,6 +55,7 @@ import {
   EMPTY_CANVAS_DATA,
   type HierarchyCanvasData,
 } from '@/lib/hierarchy/canvas-data';
+import { getMemberDisplayName } from '@/lib/hierarchy/geo-attribution';
 import { useTranslations } from '@/hooks/use-translations';
 
 const DEFAULT_CONSTITUENCY_ID = '172';
@@ -92,6 +95,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const [allMembersLoaded, setAllMembersLoaded] = useState(false);
   const [membersTotal, setMembersTotal] = useState(0);
   const [talukaLeadership, setTalukaLeadership] = useState<LeadershipEntry[]>([]);
+  const [wardSummaries, setWardSummaries] = useState<WardSummary[]>([]);
   const [scopedMembers, setScopedMembers] = useState<CadreMemberCard[]>([]);
   const [canvasData, setCanvasData] = useState<HierarchyCanvasData>(EMPTY_CANVAS_DATA);
   const [defaultElectionId, setDefaultElectionId] = useState('');
@@ -248,6 +252,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     };
     const leadership = (await leadershipRes.json()) as {
       entries?: { verticalId: string; head: CadreMemberCard | null }[];
+      wardSummaries?: WardSummary[];
     };
 
     if (signal?.aborted) return;
@@ -276,6 +281,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             (verticalById.get(b.verticalId)?.sortOrder ?? 0),
         ),
     );
+    setWardSummaries(leadership.wardSummaries ?? []);
   }, []);
 
   const loadAllMembers = useCallback(async (signal?: AbortSignal) => {
@@ -403,8 +409,6 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
 
   const committeeVerticalId = verticalId.trim();
   const canvasVerticalId = committeeVerticalId || activeVerticals[0]?.id || '';
-  const committeeVerticalName =
-    activeVerticals.find((v) => v.id === committeeVerticalId)?.name ?? '';
   const canvasVerticalName =
     activeVerticals.find((v) => v.id === canvasVerticalId)?.name ?? 'Basic';
 
@@ -694,21 +698,45 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     [setUrlParams],
   );
 
-  const wardEntries = useMemo(() => {
+  const wardSummariesById = useMemo(
+    () => new Map(wardSummaries.map((summary) => [summary.wardGeoId, summary])),
+    [wardSummaries],
+  );
+
+  const wardAccessEntries = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
     return wardOptions
-      .map((ward) => ({
-        ward,
-        wardLabel: formatWardLabel(ward.name),
-      }))
+      .map((ward) => {
+        const summary = wardSummariesById.get(ward.id);
+        const boothCount =
+          summary?.boothCount ??
+          getBoothGeoUnits(config?.geoUnits ?? [], DEFAULT_CONSTITUENCY_ID, ward.id).length;
+
+        return {
+          wardGeoId: ward.id,
+          wardLabel: formatWardLabel(ward.name),
+          boothCount,
+          wingsAssigned: summary?.wingsAssigned ?? 0,
+          wingsTotal: summary?.wingsTotal ?? activeVerticals.length,
+          primaryHead: summary?.primaryHead ?? null,
+          wardName: ward.name,
+          headNames: (summary?.allHeads ?? []).map((head) => getMemberDisplayName(head)),
+        };
+      })
       .filter((entry) => {
         if (!query) return true;
-        if (entry.ward.name.toLowerCase().includes(query)) return true;
+        if (entry.wardName.toLowerCase().includes(query)) return true;
         if (entry.wardLabel.toLowerCase().includes(query)) return true;
-        return false;
+        return entry.headNames.some((name) => name.toLowerCase().includes(query));
       });
-  }, [wardOptions, searchQuery]);
+  }, [
+    wardOptions,
+    wardSummariesById,
+    searchQuery,
+    config?.geoUnits,
+    activeVerticals.length,
+  ]);
 
   const clearSearch = useCallback(() => {
     setSearchDraft('');
@@ -740,18 +768,6 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       member: '',
       position: '',
       view: '',
-      page: 1,
-    });
-    scrollToTop();
-  };
-
-  const openAllMembers = () => {
-    setUrlParams({
-      view: HIERARCHY_VIEWS.allMembers,
-      ward: '',
-      booth: '',
-      member: '',
-      position: '',
       page: 1,
     });
     scrollToTop();
@@ -828,6 +844,14 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const isContentLoading = loading || scopeLoading;
   const vacantLabel = t('hierarchyModule.vacantPosition');
   const viewCommitteeLabel = t('hierarchyModule.viewCommitteeLink');
+  const showCommitteeList = showTalukaCommittee || showWardCommittee || showBoothCommittee;
+  const committeeSectionTitle = showBoothCommittee
+    ? t('hierarchyModule.boothCommitteeTitle', { booth: boothNo })
+    : showWardCommittee
+      ? t('hierarchyModule.wardCommitteeTitle', { ward: selectedWardName })
+      : showTalukaCommittee
+        ? t('hierarchyModule.talukaCommitteeTitle')
+        : undefined;
 
   const verticalSelect = showCanvas ? (
     <div className="space-y-1.5">
@@ -857,6 +881,8 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       members={memberPagination.items}
       canEdit={canEdit}
       onEdit={canEdit ? handleEdit : undefined}
+      variant={showCommitteeList ? 'compact' : 'default'}
+      sectionTitle={committeeSectionTitle}
       pagination={{
         currentPage: memberPagination.currentPage,
         totalPages: memberPagination.totalPages,
@@ -1095,42 +1121,16 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               onViewCommittee={openTalukaCommittee}
             />
 
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-9 w-fit rounded-lg px-3 text-xs"
-              onClick={openAllMembers}
-            >
-              {t('hierarchyModule.viewAllMembers', {
-                count: membersTotal.toLocaleString(),
-              })}
-            </Button>
-
-            {wardEntries.length === 0 ? (
+            {wardAccessEntries.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
                 {t('hierarchyModule.noWardsMatch')}
               </div>
             ) : (
-              wardEntries.map((entry) => (
-                <div
-                  key={entry.ward.id}
-                  className="overflow-hidden rounded-xl border border-border bg-card shadow-sm"
-                >
-                  <div className="px-4 py-3">
-                    <p className="font-bold">
-                      {t('hierarchyModule.wardNumber', { ward: entry.wardLabel })}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    className="w-full bg-muted/60 px-4 py-2.5 text-sm transition-colors hover:bg-muted"
-                    onClick={() => openWardPanel(entry.ward.id)}
-                  >
-                    {t('hierarchyModule.openWardControlPanel', { ward: entry.wardLabel })}
-                  </button>
-                </div>
-              ))
+              <WardAccessSection
+                entries={wardAccessEntries}
+                vacantLabel={vacantLabel}
+                onOpenWard={openWardPanel}
+              />
             )}
           </div>
         ) : showAllMembers ? (
@@ -1161,39 +1161,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             onAddBoothCommitteeMember={openAddBoothCommitteeMember}
           />
         ) : (
-          <div className="flex flex-col gap-3">
-            {showWardPanel && (showWardCommittee || showBoothCommittee) && (
-              <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 dark:border-primary/50 dark:bg-primary/10">
-                <p className="text-sm font-medium">
-                  {showBoothCommittee
-                    ? t('hierarchyModule.boothCommitteeTitle', { booth: boothNo })
-                    : t('hierarchyModule.wardCommitteeTitle', { ward: selectedWardName })}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {committeeVerticalName
-                    ? t('hierarchyModule.committeeMembersForVertical', {
-                        vertical: committeeVerticalName,
-                      })
-                    : t('hierarchyModule.committeeMembers')}
-                </p>
-              </div>
-            )}
-            {showTalukaCommittee && (
-              <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 dark:border-primary/50 dark:bg-primary/10">
-                <p className="text-sm font-medium">
-                  {t('hierarchyModule.talukaCommitteeTitle')}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {committeeVerticalName
-                    ? t('hierarchyModule.committeeMembersForVertical', {
-                        vertical: committeeVerticalName,
-                      })
-                    : t('hierarchyModule.committeeMembers')}
-                </p>
-              </div>
-            )}
-            {memberListBlock}
-          </div>
+          <div className="flex flex-col gap-3">{memberListBlock}</div>
         )}
       </div>
 
