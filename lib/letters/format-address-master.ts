@@ -1,3 +1,4 @@
+import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
 import type { LetterLocale } from '@/lib/letters/templates';
 import type { PincodeLookupResult } from '@/lib/letters/pincode-lookup';
 
@@ -56,7 +57,7 @@ export function formatAddressMaster(
     .filter(Boolean);
 
   const base = segments.join(', ');
-  const pincode = parts.pincode.trim();
+  const pincode = toLocaleDigits(parts.pincode.trim(), locale);
 
   if (!base && !pincode) return '';
   if (!pincode) return base;
@@ -96,8 +97,10 @@ export function parseFreeTextAddressForLocale(
   const trimmed = text.trim();
   if (!trimmed) return {};
 
-  const pincodeMatch = trimmed.match(/\s*-\s*(\d[\d\s]{4,8}\d)\s*$/);
-  const pincode = pincodeMatch ? pincodeMatch[1].replace(/\s/g, '') : '';
+  const pincodeMatch = trimmed.match(/\s*-\s*([\d०-९][\d०-९\s]{4,8}[\d०-९])\s*$/);
+  const pincode = pincodeMatch
+    ? toWesternDigits(pincodeMatch[1].replace(/\s/g, ''))
+    : '';
   const withoutPincode = pincodeMatch
     ? trimmed.slice(0, pincodeMatch.index).trim()
     : trimmed;

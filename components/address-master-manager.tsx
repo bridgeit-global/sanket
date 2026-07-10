@@ -53,6 +53,7 @@ import {
 } from '@/lib/letters/format-address-master';
 import { usePincodeLookup } from '@/lib/letters/use-pincode-lookup';
 import type { PincodeLookupResult } from '@/lib/letters/pincode-lookup';
+import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
 import type { LetterLocale } from '@/lib/letters/templates';
 
 type AddressFormState = {
@@ -209,8 +210,9 @@ export function AddressMasterManager({
     field: keyof AddressMasterAddressParts,
     value: string,
   ) => {
+    const normalizedValue = field === 'pincode' ? toWesternDigits(value).replace(/\D/g, '') : value;
     setForm((prev) => {
-      const next = { ...prev, [field]: value };
+      const next = { ...prev, [field]: normalizedValue };
       return {
         ...next,
         freeTextAddress: formatAddressMaster(next, locale),
@@ -218,7 +220,7 @@ export function AddressMasterManager({
     });
 
     if (field === 'pincode') {
-      const cleaned = value.replace(/\D/g, '');
+      const cleaned = normalizedValue;
       if (cleaned.length === 6) {
         schedulePincodeLookup(
           formatAddressMaster({ ...form, pincode: value }, locale),
@@ -273,7 +275,7 @@ export function AddressMasterManager({
         addressType: form.addressType,
         ...parts,
         isActive: form.isActive,
-        sortOrder: Number(form.sortOrder) || 0,
+        sortOrder: Number(toWesternDigits(form.sortOrder)) || 0,
       };
 
       const res = editingId
@@ -478,7 +480,7 @@ export function AddressMasterManager({
               <Textarea
                 value={form.freeTextAddress}
                 onChange={(event) => updateFreeTextAddress(event.target.value)}
-                placeholder="Line 1, Line 2, City, State - Pincode"
+                placeholder={t('letterGeneration.addresses.pasteAddressPlaceholder')}
                 className="min-h-[100px]"
               />
             </div>
@@ -500,8 +502,10 @@ export function AddressMasterManager({
               <div className="space-y-2 sm:max-w-xs">
                 <Label>{t('letterGeneration.addresses.fields.pincode')}</Label>
                 <Input
-                  value={form.pincode}
-                  onChange={(event) => updateStructuredField('pincode', event.target.value)}
+                  value={toLocaleDigits(form.pincode, locale)}
+                  onChange={(event) =>
+                    updateStructuredField('pincode', toWesternDigits(event.target.value))
+                  }
                   inputMode="numeric"
                 />
               </div>
@@ -517,9 +521,15 @@ export function AddressMasterManager({
               <div className="space-y-2">
                 <Label>{t('letterGeneration.addresses.columns.sortOrder')}</Label>
                 <Input
-                  type="number"
-                  value={form.sortOrder}
-                  onChange={(event) => setForm({ ...form, sortOrder: event.target.value })}
+                  type="text"
+                  inputMode="numeric"
+                  value={toLocaleDigits(form.sortOrder, locale)}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      sortOrder: toWesternDigits(event.target.value).replace(/\D/g, ''),
+                    })
+                  }
                 />
               </div>
               <div className="flex items-end gap-2 pb-2">

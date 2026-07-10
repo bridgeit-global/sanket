@@ -513,6 +513,7 @@
         "pincode": "Pincode"
       },
       "pasteAddress": "Paste full address",
+      "pasteAddressPlaceholder": "Line 1, Line 2, City, State - Pincode",
       "structuredFields": "Address fields",
       "types": {
         "school": "School / College",

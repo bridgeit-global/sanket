@@ -513,6 +513,7 @@
         "pincode": "पिनकोड"
       },
       "pasteAddress": "संपूर्ण पत्ता पेस्ट करा",
+      "pasteAddressPlaceholder": "ओळ १, ओळ २, शहर, राज्य - पिनकोड",
       "structuredFields": "पत्ता फील्ड",
       "types": {
         "school": "शाळा / कॉलेज",
