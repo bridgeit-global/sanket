@@ -432,9 +432,9 @@
       "label": "Paper size: {size}",
       "hint": "Change size above to customize",
       "options": {
-        "a4": "A4 — VIP / formal letters",
-        "a5": "A5 — Small subjects",
-        "b5": "B5 — Ration card"
+        "a4": "A4",
+        "a5": "A5",
+        "b5": "B5"
       }
     },
     "generatePdf": "Generate PDF",
