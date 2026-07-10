@@ -97,6 +97,11 @@ export function parseFreeTextAddressForLocale(
   const trimmed = text.trim();
   if (!trimmed) return {};
 
+  const barePincode = toWesternDigits(trimmed).replace(/\D/g, '');
+  if (barePincode.length === 6 && toWesternDigits(trimmed).replace(/[\s]/g, '') === barePincode) {
+    return { pincode: barePincode };
+  }
+
   const pincodeMatch = trimmed.match(/\s*-\s*([\d०-९][\d०-९\s]{4,8}[\d०-९])\s*$/);
   const pincode = pincodeMatch
     ? toWesternDigits(pincodeMatch[1].replace(/\s/g, ''))
@@ -108,7 +113,8 @@ export function parseFreeTextAddressForLocale(
   const lines = withoutPincode.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
   const parts = withoutPincode.split(',').map((part) => part.trim()).filter(Boolean);
 
-  const result: Partial<AddressMasterAddressParts> = { pincode };
+  const result: Partial<AddressMasterAddressParts> = {};
+  if (pincode) result.pincode = pincode;
 
   if (lines.length >= 4) {
     assignLocaleFields(result, locale, {

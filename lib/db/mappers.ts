@@ -265,6 +265,7 @@ export function mapAddressMasterRow(row: Row): AddressMaster {
   return {
     id: String(row.id),
     name: String(row.name),
+    nameMr: String(row.name_mr ?? row.nameMr ?? ''),
     addressType: mapAddressType(row.address_type ?? row.addressType),
     line1En: String(row.line1_en ?? row.line1En ?? ''),
     line1Mr: String(row.line1_mr ?? row.line1Mr ?? ''),

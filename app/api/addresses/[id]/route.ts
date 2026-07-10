@@ -12,6 +12,7 @@ import { hasAddressContent } from '@/lib/letters/format-address-master';
 function parseAddressBody(body: Record<string, unknown> | null | undefined) {
   const {
     name,
+    nameMr,
     addressType,
     line1En,
     line1Mr,
@@ -40,6 +41,7 @@ function parseAddressBody(body: Record<string, unknown> | null | undefined) {
 
   return {
     name: String(name ?? '').trim(),
+    nameMr: String(nameMr ?? '').trim(),
     addressType,
     ...parts,
     isActive: isActive !== false,
@@ -112,6 +114,7 @@ export async function PUT(
     const address = await updateAddressMaster({
       id,
       name: parsed.name,
+      nameMr: parsed.nameMr,
       addressType: parsed.addressType,
       line1En: parsed.line1En,
       line1Mr: parsed.line1Mr,

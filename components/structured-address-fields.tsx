@@ -12,7 +12,7 @@ import {
   normalizeCityName,
   normalizeStateName,
 } from '@/lib/letters/indian-locations';
-import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
+import { toWesternDigits } from '@/lib/locale-digits';
 import type { LetterLocale } from '@/lib/letters/templates';
 
 const LINE_FIELDS = [
@@ -57,7 +57,7 @@ export function StructuredAddressFields({
   const stateOptions = [
     ...INDIAN_STATES.map((state) => ({ value: state, label: state })),
     ...(normalizedState &&
-    !INDIAN_STATES.some((state) => state.toLowerCase() === normalizedState.toLowerCase())
+      !INDIAN_STATES.some((state) => state.toLowerCase() === normalizedState.toLowerCase())
       ? [{ value: normalizedState, label: normalizedState }]
       : []),
   ];
@@ -66,7 +66,7 @@ export function StructuredAddressFields({
   const cityOptions = [
     ...cities.map((city) => ({ value: city, label: city })),
     ...(normalizedCity &&
-    !cities.some((city) => city.toLowerCase() === normalizedCity.toLowerCase())
+      !cities.some((city) => city.toLowerCase() === normalizedCity.toLowerCase())
       ? [{ value: normalizedCity, label: normalizedCity }]
       : []),
   ];
@@ -134,7 +134,7 @@ export function StructuredAddressFields({
         <div className="space-y-1.5">
           <Label className="text-xs">{t('letterGeneration.addresses.fields.pincode')}</Label>
           <Input
-            value={toLocaleDigits(parts.pincode, locale)}
+            value={parts.pincode}
             onChange={(event) => {
               const cleaned = toWesternDigits(event.target.value).replace(/\D/g, '').slice(0, 6);
               onPartsChange({ pincode: cleaned });

@@ -50,6 +50,7 @@ import type { LetterLocale } from '@/lib/letters/templates';
 
 type AddressFormState = {
   name: string;
+  nameMr: string;
   addressType: AddressType;
   isActive: boolean;
   sortOrder: string;
@@ -57,6 +58,7 @@ type AddressFormState = {
 
 const EMPTY_FORM: AddressFormState = {
   name: '',
+  nameMr: '',
   addressType: 'general',
   ...EMPTY_ADDRESS_PARTS,
   isActive: true,
@@ -129,6 +131,9 @@ export function AddressMasterManager({
     [addresses],
   );
 
+  const displayName = (address: AddressMasterRow) =>
+    locale === 'mr' ? address.nameMr.trim() || address.name : address.name;
+
   useEffect(() => {
     if (editingId) setFormCardOpen(true);
   }, [editingId]);
@@ -143,6 +148,7 @@ export function AddressMasterManager({
     setEditingId(address.id);
     setForm({
       name: address.name,
+      nameMr: address.nameMr,
       addressType: address.addressType,
       line1En: address.line1En,
       line1Mr: address.line1Mr,
@@ -185,29 +191,20 @@ export function AddressMasterManager({
   });
 
   const updateAddressParts = (patch: Partial<AddressMasterAddressParts>) => {
-    const nextPatch =
-      patch.pincode !== undefined
-        ? {
-            ...patch,
-            pincode: toWesternDigits(patch.pincode).replace(/\D/g, '').slice(0, 6),
-          }
-        : patch;
-
     setForm((prev) => {
-      const next = { ...prev, ...nextPatch };
+      const next = { ...prev, ...patch };
+      if (patch.pincode !== undefined && patch.pincode.length === 6) {
+        schedulePincodeLookup(formatAddressMaster(next, locale), patch.pincode);
+      }
       return next;
     });
-
-    if (nextPatch.pincode !== undefined && nextPatch.pincode.length === 6) {
-      const next = { ...form, ...nextPatch };
-      schedulePincodeLookup(formatAddressMaster(next, locale), nextPatch.pincode);
-    }
   };
 
   const handleSave = async () => {
     const primaryParts = extractLocaleParts(form, locale);
+    const primaryName = (locale === 'mr' ? form.nameMr : form.name).trim();
 
-    if (!form.name.trim() || !hasAddressContent(primaryParts)) {
+    if (!primaryName || !hasAddressContent(primaryParts)) {
       toast.error(t('letterGeneration.addresses.validationRequired'));
       return;
     }
@@ -215,6 +212,11 @@ export function AddressMasterManager({
     setIsSaving(true);
     try {
       let parts = mergeAddressParts(primaryParts);
+      let nameEn = form.name.trim();
+      let nameMr = form.nameMr.trim();
+      if (locale === 'mr') nameMr = primaryName;
+      else nameEn = primaryName;
+
       const sourceText = formatAddressMaster(parts, locale);
       const targetLocale: LetterLocale = locale === 'en' ? 'mr' : 'en';
 
@@ -232,8 +234,24 @@ export function AddressMasterManager({
         }
       }
 
+      if (primaryName) {
+        try {
+          const translatedName = await translateAddressText(primaryName, targetLocale);
+          if (translatedName) {
+            if (locale === 'en') nameMr = translatedName;
+            else nameEn = translatedName;
+          }
+        } catch (error) {
+          console.error('Failed to translate address name on save', error);
+        }
+      }
+
+      // English `name` is the unique key — fall back to Marathi if translation failed.
+      if (!nameEn) nameEn = nameMr;
+
       const payload = {
-        name: form.name.trim(),
+        name: nameEn,
+        nameMr,
         addressType: form.addressType,
         ...parts,
         isActive: form.isActive,
@@ -355,8 +373,15 @@ export function AddressMasterManager({
             <div className="space-y-2">
               <Label>{t('letterGeneration.addresses.columns.name')}</Label>
               <Input
-                value={form.name}
-                onChange={(event) => setForm({ ...form, name: event.target.value })}
+                value={locale === 'mr' ? form.nameMr : form.name}
+                onChange={(event) =>
+                  setForm({
+                    ...form,
+                    ...(locale === 'mr'
+                      ? { nameMr: event.target.value }
+                      : { name: event.target.value }),
+                  })
+                }
               />
             </div>
 
@@ -472,7 +497,7 @@ export function AddressMasterManager({
                 <TableBody>
                   {sortedAddresses.map((address) => (
                     <TableRow key={address.id}>
-                      <TableCell className="font-medium">{address.name}</TableCell>
+                      <TableCell className="font-medium">{displayName(address)}</TableCell>
                       <TableCell>
                         {t(`letterGeneration.addresses.types.${address.addressType}`)}
                       </TableCell>

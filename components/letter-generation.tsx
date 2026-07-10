@@ -894,12 +894,37 @@ export function LetterGeneration() {
     const trimmedName = name.trim();
     if (!trimmedName || !hasAddressContent(parts)) return null;
 
+    let nameEn = letterLocale === 'en' ? trimmedName : '';
+    let nameMr = letterLocale === 'mr' ? trimmedName : '';
+    const targetLocale: LetterLocale = letterLocale === 'en' ? 'mr' : 'en';
+
+    try {
+      const res = await fetch('/api/translate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ text: trimmedName, targetLocale }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        const translated = String(json?.translated ?? '').trim();
+        if (translated) {
+          if (letterLocale === 'en') nameMr = translated;
+          else nameEn = translated;
+        }
+      }
+    } catch (error) {
+      console.error('Failed to translate address name for auto-save', error);
+    }
+
+    if (!nameEn) nameEn = trimmedName;
+
     try {
       const res = await fetch('/api/addresses', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          name: trimmedName,
+          name: nameEn,
+          nameMr,
           addressType,
           ...parts,
           isActive: true,
@@ -1032,6 +1057,13 @@ export function LetterGeneration() {
     const sourceText = formatAddressMaster(parts, sourceLocale);
 
     if (!sourceText.trim()) return;
+
+    // Pincode-only updates don't need translation and can be mis-parsed.
+    const hasAddressLines =
+      sourceLocale === 'mr'
+        ? Boolean(parts.line1Mr.trim() || parts.line2Mr.trim() || parts.cityMr.trim() || parts.stateMr.trim())
+        : Boolean(parts.line1En.trim() || parts.line2En.trim() || parts.cityEn.trim() || parts.stateEn.trim());
+    if (!hasAddressLines) return;
 
     const nextReqId = (translateReqIdRef.current[key] ?? 0) + 1;
     translateReqIdRef.current[key] = nextReqId;

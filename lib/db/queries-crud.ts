@@ -2478,6 +2478,7 @@ export async function ensureAddressMasterDefaults(): Promise<void> {
       missing.map((item) =>
         toSnakeCaseKeys({
           name: item.name,
+          nameMr: item.nameMr,
           addressType: item.addressType,
           line1En: item.line1En,
           line1Mr: item.line1Mr,
@@ -2550,6 +2551,7 @@ export async function getAddressMasterById(id: string): Promise<AddressMaster | 
 
 export async function createAddressMaster({
   name,
+  nameMr,
   addressType,
   line1En,
   line1Mr,
@@ -2565,6 +2567,7 @@ export async function createAddressMaster({
   createdBy,
 }: {
   name: string;
+  nameMr?: string;
   addressType: AddressMaster['addressType'];
   line1En?: string;
   line1Mr?: string;
@@ -2586,6 +2589,7 @@ export async function createAddressMaster({
       .insert(
         toSnakeCaseKeys({
           name,
+          nameMr: nameMr ?? '',
           addressType,
           line1En: line1En ?? '',
           line1Mr: line1Mr ?? '',
@@ -2617,6 +2621,7 @@ export async function createAddressMaster({
 export async function updateAddressMaster({
   id,
   name,
+  nameMr,
   addressType,
   line1En,
   line1Mr,
@@ -2633,6 +2638,7 @@ export async function updateAddressMaster({
 }: {
   id: string;
   name: string;
+  nameMr?: string;
   addressType: AddressMaster['addressType'];
   line1En?: string;
   line1Mr?: string;
@@ -2654,6 +2660,7 @@ export async function updateAddressMaster({
       .update(
         toSnakeCaseKeys({
           name,
+          nameMr: nameMr ?? '',
           addressType,
           line1En: line1En ?? '',
           line1Mr: line1Mr ?? '',

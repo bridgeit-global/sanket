@@ -164,6 +164,7 @@ export type LetterMaster = {
 export type AddressMaster = {
   id: string;
   name: string;
+  nameMr: string;
   addressType: 'school' | 'office' | 'ration_office' | 'general';
   line1En: string;
   line1Mr: string;

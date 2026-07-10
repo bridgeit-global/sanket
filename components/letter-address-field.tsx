@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 
 import { Combobox } from '@/components/ui/combobox';
 import { StructuredAddressFields } from '@/components/structured-address-fields';
@@ -14,12 +14,12 @@ import {
 } from '@/lib/letters/format-address-master';
 import type { PincodeLookupResult } from '@/lib/letters/pincode-lookup';
 import { usePincodeLookup } from '@/lib/letters/use-pincode-lookup';
-import { toWesternDigits } from '@/lib/locale-digits';
 import type { LetterLocale } from '@/lib/letters/templates';
 
 export type AddressMasterRow = {
   id: string;
   name: string;
+  nameMr: string;
   addressType: AddressType;
   line1En: string;
   line1Mr: string;
@@ -60,6 +60,8 @@ export function LetterAddressField({
   pincodeError,
 }: LetterAddressFieldProps) {
   const { t } = useTranslations();
+  const addressPartsRef = useRef(addressParts);
+  addressPartsRef.current = addressParts;
 
   const filteredAddresses = addresses.filter(
     (address) => address.isActive && address.addressType === addressType,
@@ -67,17 +69,18 @@ export function LetterAddressField({
 
   const applyPincodeLookup = useCallback(
     (lookup: PincodeLookupResult) => {
+      const current = addressPartsRef.current;
       if (locale === 'mr') {
         onAddressPartsChange({
-          ...addressParts,
-          cityMr: addressParts.cityMr.trim() || lookup.city,
-          stateMr: addressParts.stateMr.trim() || lookup.state,
+          ...current,
+          cityMr: current.cityMr.trim() || lookup.city,
+          stateMr: current.stateMr.trim() || lookup.state,
         });
         return;
       }
-      onAddressPartsChange(enrichAddressPartsWithPincodeLookup(addressParts, lookup));
+      onAddressPartsChange(enrichAddressPartsWithPincodeLookup(current, lookup));
     },
-    [addressParts, locale, onAddressPartsChange],
+    [locale, onAddressPartsChange],
   );
 
   const { schedulePincodeLookup } = usePincodeLookup({
@@ -86,18 +89,12 @@ export function LetterAddressField({
   });
 
   const updateAddressParts = (patch: Partial<AddressMasterAddressParts>) => {
-    const nextPatch =
-      patch.pincode !== undefined
-        ? {
-            ...patch,
-            pincode: toWesternDigits(patch.pincode).replace(/\D/g, '').slice(0, 6),
-          }
-        : patch;
-    const next = { ...addressParts, ...nextPatch };
+    const next = { ...addressPartsRef.current, ...patch };
+    addressPartsRef.current = next;
     onAddressPartsChange(next);
 
-    if (nextPatch.pincode !== undefined && nextPatch.pincode.length === 6) {
-      schedulePincodeLookup(formatAddressMaster(next, locale), nextPatch.pincode);
+    if (patch.pincode !== undefined && patch.pincode.length === 6) {
+      schedulePincodeLookup(formatAddressMaster(next, locale), patch.pincode);
     }
   };
 
@@ -126,7 +123,11 @@ export function LetterAddressField({
 
   const comboboxOptions = [
     { value: MANUAL_VALUE, label: t('letterGeneration.addresses.manualEntry') },
-    ...filteredAddresses.map((address) => ({ value: address.id, label: address.name })),
+    ...filteredAddresses.map((address) => ({
+      value: address.id,
+      label:
+        locale === 'mr' ? address.nameMr.trim() || address.name : address.name,
+    })),
   ];
 
   const selectedAddress = selectedAddressId

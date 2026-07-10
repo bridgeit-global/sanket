@@ -7,6 +7,7 @@ import {
 
 export type DefaultAddressSeed = {
   name: string;
+  nameMr: string;
   addressType: AddressType;
   sortOrder: number;
 } & AddressMasterAddressParts;
@@ -15,6 +16,7 @@ export function getDefaultAddressSeeds(): DefaultAddressSeed[] {
   return [
     {
       name: 'Tahsildar Office, Kurla',
+      nameMr: 'तहसीलदार कार्यालय, कुर्ला',
       addressType: 'office',
       line1En: '',
       line1Mr: '',
@@ -29,6 +31,7 @@ export function getDefaultAddressSeeds(): DefaultAddressSeed[] {
     },
     {
       name: 'Shivajinagar Ration Office',
+      nameMr: 'शिवाजीनगर रेशन कार्यालय',
       addressType: 'ration_office',
       line1En: 'Shivajinagar 44-E Office',
       line1Mr: 'शिवाजीनगर ४४ ई कार्यालय',
