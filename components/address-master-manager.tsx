@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -53,6 +53,7 @@ import {
 } from '@/lib/letters/format-address-master';
 import { usePincodeLookup } from '@/lib/letters/use-pincode-lookup';
 import type { PincodeLookupResult } from '@/lib/letters/pincode-lookup';
+import type { LetterLocale } from '@/lib/letters/templates';
 
 type AddressFormState = {
   name: string;
@@ -78,8 +79,37 @@ const STRUCTURED_FIELDS = [
   { key: 'state', en: 'stateEn', mr: 'stateMr' },
 ] as const;
 
-function inferLocaleFromText(text: string): 'en' | 'mr' {
-  return /[\u0900-\u097F]/.test(text) ? 'mr' : 'en';
+function localeFieldKey(
+  field: (typeof STRUCTURED_FIELDS)[number],
+  locale: LetterLocale,
+): keyof AddressMasterAddressParts {
+  return locale === 'mr' ? field.mr : field.en;
+}
+
+function extractLocaleParts(
+  form: AddressFormState,
+  locale: LetterLocale,
+): AddressMasterAddressParts {
+  const parts = { ...EMPTY_ADDRESS_PARTS, pincode: form.pincode.trim() };
+  for (const field of STRUCTURED_FIELDS) {
+    const key = localeFieldKey(field, locale);
+    parts[key] = form[key].trim();
+  }
+  return parts;
+}
+
+async function translateAddressText(
+  text: string,
+  targetLocale: LetterLocale,
+): Promise<string> {
+  const res = await fetch('/api/translate', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ text, targetLocale }),
+  });
+  const json = await res.json();
+  if (!res.ok) throw new Error(json?.error || 'Failed to translate');
+  return String(json?.translated ?? '').trim();
 }
 
 type AddressMasterManagerProps = {
@@ -93,14 +123,12 @@ export function AddressMasterManager({
   loading,
   onRefresh,
 }: AddressMasterManagerProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<AddressFormState>(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const translateTimerRef = useRef<number | null>(null);
-  const translateReqIdRef = useRef(0);
 
   const sortedAddresses = useMemo(
     () =>
@@ -111,6 +139,14 @@ export function AddressMasterManager({
       ),
     [addresses],
   );
+
+  useEffect(() => {
+    if (!isDialogOpen) return;
+    setForm((prev) => ({
+      ...prev,
+      freeTextAddress: formatAddressMaster(prev, locale),
+    }));
+  }, [isDialogOpen, locale]);
 
   const openCreateDialog = () => {
     setEditingId(null);
@@ -132,68 +168,37 @@ export function AddressMasterManager({
       stateEn: address.stateEn,
       stateMr: address.stateMr,
       pincode: address.pincode,
-      freeTextAddress: formatAddressMaster(address, 'en') || formatAddressMaster(address, 'mr'),
+      freeTextAddress: formatAddressMaster(address, locale),
       isActive: address.isActive,
       sortOrder: String(address.sortOrder),
     });
     setIsDialogOpen(true);
   };
 
-  const scheduleTranslateFreeText = (sourceText: string) => {
-    const trimmed = sourceText.trim();
-    if (!trimmed) return;
-
-    translateReqIdRef.current += 1;
-    const reqId = translateReqIdRef.current;
-
-    if (translateTimerRef.current) window.clearTimeout(translateTimerRef.current);
-
-    translateTimerRef.current = window.setTimeout(async () => {
-      try {
-        const inferredSourceLocale = inferLocaleFromText(sourceText);
-        const targetLocale: 'en' | 'mr' = inferredSourceLocale === 'mr' ? 'en' : 'mr';
-
-        const res = await fetch('/api/translate', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ text: sourceText, targetLocale }),
-        });
-        const json = await res.json();
-        if (!res.ok) throw new Error(json?.error || 'Failed to translate');
-        if (translateReqIdRef.current !== reqId) return;
-
-        const translated = String(json?.translated ?? '').trim();
-        if (!translated) return;
-
-        setForm((prev) => {
-          const primary = parseFreeTextAddressForLocale(sourceText, inferredSourceLocale);
-          const secondary = parseFreeTextAddressForLocale(translated, targetLocale);
-          const merged = mergeAddressParts(primary, secondary);
-          return { ...prev, ...merged };
-        });
-      } catch (error) {
-        console.error('Failed to auto-translate address master free text', error);
-      }
-    }, 450);
-  };
-
   const applyEnrichedAddress = useCallback((enrichedText: string) => {
-    const inferredLocale = inferLocaleFromText(enrichedText);
-    const primary = parseFreeTextAddressForLocale(enrichedText, inferredLocale);
+    const primary = parseFreeTextAddressForLocale(enrichedText, locale);
     setForm((prev) => ({
       ...prev,
       freeTextAddress: enrichedText,
       ...mergeAddressParts(prev, primary),
     }));
-    scheduleTranslateFreeText(enrichedText);
-  }, []);
+  }, [locale]);
 
   const applyPincodeLookup = useCallback((lookup: PincodeLookupResult) => {
-    setForm((prev) => ({
-      ...prev,
-      ...enrichAddressPartsWithPincodeLookup(prev, lookup),
-    }));
-  }, []);
+    setForm((prev) => {
+      if (locale === 'mr') {
+        return {
+          ...prev,
+          cityMr: prev.cityMr.trim() || lookup.city,
+          stateMr: prev.stateMr.trim() || lookup.state,
+        };
+      }
+      return {
+        ...prev,
+        ...enrichAddressPartsWithPincodeLookup(prev, lookup),
+      };
+    });
+  }, [locale]);
 
   const { schedulePincodeLookup } = usePincodeLookup({
     onEnriched: applyEnrichedAddress,
@@ -208,7 +213,7 @@ export function AddressMasterManager({
       const next = { ...prev, [field]: value };
       return {
         ...next,
-        freeTextAddress: formatAddressMaster(next, 'en') || formatAddressMaster(next, 'mr'),
+        freeTextAddress: formatAddressMaster(next, locale),
       };
     });
 
@@ -216,7 +221,7 @@ export function AddressMasterManager({
       const cleaned = value.replace(/\D/g, '');
       if (cleaned.length === 6) {
         schedulePincodeLookup(
-          formatAddressMaster({ ...form, pincode: value }, 'en'),
+          formatAddressMaster({ ...form, pincode: value }, locale),
           cleaned,
         );
       }
@@ -224,39 +229,45 @@ export function AddressMasterManager({
   };
 
   const updateFreeTextAddress = (value: string) => {
-    const inferredLocale = inferLocaleFromText(value);
-    const primary = parseFreeTextAddressForLocale(value, inferredLocale);
+    const primary = parseFreeTextAddressForLocale(value, locale);
     setForm((prev) => ({
       ...prev,
       freeTextAddress: value,
       ...mergeAddressParts(prev, primary),
     }));
-    scheduleTranslateFreeText(value);
     if (primary.pincode) {
       schedulePincodeLookup(value, primary.pincode);
     }
   };
 
   const handleSave = async () => {
-    const parts: AddressMasterAddressParts = {
-      line1En: form.line1En.trim(),
-      line1Mr: form.line1Mr.trim(),
-      line2En: form.line2En.trim(),
-      line2Mr: form.line2Mr.trim(),
-      cityEn: form.cityEn.trim(),
-      cityMr: form.cityMr.trim(),
-      stateEn: form.stateEn.trim(),
-      stateMr: form.stateMr.trim(),
-      pincode: form.pincode.trim(),
-    };
+    const primaryParts = extractLocaleParts(form, locale);
 
-    if (!form.name.trim() || !hasAddressContent(parts)) {
+    if (!form.name.trim() || !hasAddressContent(primaryParts)) {
       toast.error(t('letterGeneration.addresses.validationRequired'));
       return;
     }
 
     setIsSaving(true);
     try {
+      let parts = mergeAddressParts(primaryParts);
+      const sourceText = formatAddressMaster(parts, locale);
+      const targetLocale: LetterLocale = locale === 'en' ? 'mr' : 'en';
+
+      if (sourceText.trim()) {
+        try {
+          const translated = await translateAddressText(sourceText, targetLocale);
+          if (translated) {
+            parts = mergeAddressParts(
+              parts,
+              parseFreeTextAddressForLocale(translated, targetLocale),
+            );
+          }
+        } catch (error) {
+          console.error('Failed to translate address on save', error);
+        }
+      }
+
       const payload = {
         name: form.name.trim(),
         addressType: form.addressType,
@@ -474,28 +485,18 @@ export function AddressMasterManager({
 
             <div className="space-y-3 rounded-md border p-4">
               <p className="text-sm font-medium">{t('letterGeneration.addresses.structuredFields')}</p>
-              {STRUCTURED_FIELDS.map(({ key, en, mr }) => (
-                <div key={key} className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label>
-                      {t(`letterGeneration.addresses.fields.${key}`)} ({t('letterGeneration.addresses.columns.english')})
-                    </Label>
+              {STRUCTURED_FIELDS.map((field) => {
+                const fieldKey = localeFieldKey(field, locale);
+                return (
+                  <div key={field.key} className="space-y-2">
+                    <Label>{t(`letterGeneration.addresses.fields.${field.key}`)}</Label>
                     <Input
-                      value={form[en]}
-                      onChange={(event) => updateStructuredField(en, event.target.value)}
+                      value={form[fieldKey]}
+                      onChange={(event) => updateStructuredField(fieldKey, event.target.value)}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>
-                      {t(`letterGeneration.addresses.fields.${key}`)} ({t('letterGeneration.addresses.columns.marathi')})
-                    </Label>
-                    <Input
-                      value={form[mr]}
-                      onChange={(event) => updateStructuredField(mr, event.target.value)}
-                    />
-                  </div>
-                </div>
-              ))}
+                );
+              })}
               <div className="space-y-2 sm:max-w-xs">
                 <Label>{t('letterGeneration.addresses.fields.pincode')}</Label>
                 <Input
@@ -505,9 +506,10 @@ export function AddressMasterManager({
                 />
               </div>
               <div className="text-xs text-muted-foreground">
-                {t('letterGeneration.addresses.columns.english')}: {formatAddressMaster(form, 'en')}
-                <br />
-                {t('letterGeneration.addresses.columns.marathi')}: {formatAddressMaster(form, 'mr')}
+                {locale === 'en'
+                  ? t('letterGeneration.addresses.columns.english')
+                  : t('letterGeneration.addresses.columns.marathi')}
+                : {formatAddressMaster(form, locale)}
               </div>
             </div>
 

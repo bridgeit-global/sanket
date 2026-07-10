@@ -481,7 +481,7 @@
       "add": "Add Address",
       "addTitle": "Add Address",
       "editTitle": "Edit Address",
-      "formDescription": "Enter structured address fields in English and Marathi. The formatted address is composed when generating letters.",
+      "formDescription": "Enter the address in your selected language. The other language version is created automatically when you save.",
       "save": "Save Address",
       "create": "Create Address",
       "createSuccess": "Address created",
