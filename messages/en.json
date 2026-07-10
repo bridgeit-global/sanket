@@ -595,7 +595,7 @@
       "standard": "Standard / Class",
       "studentName": "Student Name",
       "parentName": "Parent / Guardian Name",
-      "reasonText": "Additional Reason (optional paragraph)",
+      "reasonText": "Additional Reason",
       "previousSchoolName": "Previous School Name",
       "currentStandard": "Current Standard / Class",
       "transferReason": "Transfer Reason",
@@ -641,7 +641,8 @@
     "validation": {
       "referenceNoRequired": "Reference No. is required",
       "referenceNoDuplicate": "Reference No. already exists",
-      "dateRequired": "Date is required"
+      "dateRequired": "Date is required",
+      "fieldRequired": "This field is required"
     }
   },
   "dailyProgramme": {

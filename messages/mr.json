@@ -595,7 +595,7 @@
       "standard": "इयत्ता / वर्ग",
       "studentName": "विद्यार्थी नाव",
       "parentName": "पालक / पालकांचे नाव",
-      "reasonText": "अतिरिक्त कारण (पर्यायी परिच्छेद)",
+      "reasonText": "अतिरिक्त कारण",
       "previousSchoolName": "मागील शाळेचे नाव",
       "currentStandard": "सध्याची इयत्ता / वर्ग",
       "transferReason": "स्थानांतरणाचे कारण",
@@ -641,7 +641,8 @@
     "validation": {
       "referenceNoRequired": "संदर्भ क्र. आवश्यक आहे",
       "referenceNoDuplicate": "संदर्भ क्र. आधीच अस्तित्वात आहे",
-      "dateRequired": "दिनांक आवश्यक आहे"
+      "dateRequired": "दिनांक आवश्यक आहे",
+      "fieldRequired": "हे फील्ड आवश्यक आहे"
     }
   },
   "dailyProgramme": {

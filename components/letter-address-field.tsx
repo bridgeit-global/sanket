@@ -46,6 +46,8 @@ type LetterAddressFieldProps = {
   onAddressPartsChange: (parts: AddressMasterAddressParts) => void;
   onSelectedAddressIdChange: (id: string | null) => void;
   pincodeError?: string;
+  required?: boolean;
+  error?: string;
 };
 
 export function LetterAddressField({
@@ -58,6 +60,8 @@ export function LetterAddressField({
   onAddressPartsChange,
   onSelectedAddressIdChange,
   pincodeError,
+  required,
+  error,
 }: LetterAddressFieldProps) {
   const { t } = useTranslations();
   const addressPartsRef = useRef(addressParts);
@@ -136,7 +140,10 @@ export function LetterAddressField({
 
   return (
     <div className="space-y-2">
-      <label className="mb-1.5 block text-sm font-medium">{label}</label>
+      <label className="mb-1.5 block text-sm font-medium">
+        {label}
+        {required ? ' *' : null}
+      </label>
       {filteredAddresses.length > 0 ? (
         <Combobox
           options={comboboxOptions}
@@ -160,6 +167,7 @@ export function LetterAddressField({
           pincodeError={pincodeError}
         />
       )}
+      {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );
 }

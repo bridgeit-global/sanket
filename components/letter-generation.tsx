@@ -667,18 +667,67 @@ function FieldGroup({
   );
 }
 
-type CommonFieldErrors = {
-  referenceNo?: string;
-  date?: string;
-};
+/** Text input that only accepts characters for the selected letter language. */
+function LocaleTextInput({
+  locale,
+  value,
+  onValueChange,
+  ...props
+}: {
+  locale: LetterLocale;
+  value: string;
+  onValueChange: (value: string) => void;
+} & Omit<React.ComponentProps<typeof Input>, 'value' | 'onChange'>) {
+  return (
+    <Input
+      {...props}
+      value={value}
+      lang={locale === 'mr' ? 'mr' : 'en'}
+      onChange={(e) => onValueChange(filterLocaleText(e.target.value, locale))}
+    />
+  );
+}
+
+function LocaleTextarea({
+  locale,
+  value,
+  onValueChange,
+  ...props
+}: {
+  locale: LetterLocale;
+  value: string;
+  onValueChange: (value: string) => void;
+} & Omit<React.ComponentProps<typeof Textarea>, 'value' | 'onChange'>) {
+  return (
+    <Textarea
+      {...props}
+      value={value}
+      lang={locale === 'mr' ? 'mr' : 'en'}
+      onChange={(e) => onValueChange(filterLocaleText(e.target.value, locale))}
+    />
+  );
+}
+
+type LetterFieldErrors = Record<string, string | undefined>;
+
+function requireField(
+  errors: LetterFieldErrors,
+  key: string,
+  value: string | undefined,
+  message: string,
+) {
+  if (!value?.trim()) {
+    errors[key] = message;
+  }
+}
 
 function validateRequiredCommonFields(
   referenceNo: string,
   date: string,
   t: (key: string) => string,
   existingReferenceNos: string[] = [],
-): CommonFieldErrors {
-  const errors: CommonFieldErrors = {};
+): LetterFieldErrors {
+  const errors: LetterFieldErrors = {};
   const trimmedReferenceNo = referenceNo.trim();
   if (!trimmedReferenceNo) {
     errors.referenceNo = t('letterGeneration.validation.referenceNoRequired');
@@ -691,6 +740,19 @@ function validateRequiredCommonFields(
     errors.date = t('letterGeneration.validation.dateRequired');
   }
   return errors;
+}
+
+function isAddressProvided(
+  selectedId: string | null,
+  parts: AddressMasterAddressParts,
+  locale: LetterLocale,
+  addressText = '',
+): boolean {
+  if (selectedId) return true;
+  if (hasRequiredAddressFields(parts, locale)) return true;
+  // Pre-filled default free-text (e.g. default office / ration office address)
+  if (addressText.trim() && !hasAddressContent(parts)) return true;
+  return false;
 }
 
 type AddressSelectionState = {
@@ -889,7 +951,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   const [filterReference, setFilterReference] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
-  const [commonFieldErrors, setCommonFieldErrors] = useState<CommonFieldErrors>({});
+  const [fieldErrors, setFieldErrors] = useState<LetterFieldErrors>({});
   const [addressReview, setAddressReview] = useState<{
     targetLocale: LetterLocale;
     initialName: string;
@@ -1043,8 +1105,8 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
 
 
   useEffect(() => {
-    setCommonFieldErrors({});
-  }, [activeTab]);
+    setFieldErrors({});
+  }, [activeTab, letterLocale]);
 
   useEffect(() => {
     const prevLocale = prevLetterLocaleRef.current;
@@ -1052,38 +1114,64 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     const nextAutoDate = todayDisplay(letterLocale);
 
     const signatory = DEFAULT_SIGNATORY[letterLocale];
+    const filterText = (value: string) => filterLocaleText(value, letterLocale);
     setFeesFields((prev) => ({
       ...prev,
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+      schoolName: filterText(prev.schoolName),
+      standard: filterText(prev.standard),
+      studentName: filterText(prev.studentName),
     }));
     setSchoolAdmissionFields((prev) => ({
       ...prev,
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+      schoolName: filterText(prev.schoolName),
+      standard: filterText(prev.standard),
+      studentName: filterText(prev.studentName),
+      parentName: filterText(prev.parentName),
+      reasonText: filterText(prev.reasonText),
     }));
     setSchoolTransferFields((prev) => ({
       ...prev,
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+      schoolName: filterText(prev.schoolName),
+      standard: filterText(prev.standard),
+      studentName: filterText(prev.studentName),
+      parentName: filterText(prev.parentName),
+      previousSchoolName: filterText(prev.previousSchoolName),
+      currentStandard: filterText(prev.currentStandard),
+      transferReason: filterText(prev.transferReason),
     }));
     setRationFields((prev) => ({
       ...prev,
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
+      fullName: filterText(prev.fullName),
+      familyMembers: filterText(prev.familyMembers),
+      fromRationOffice: prev.fromRationOffice
+        ? filterText(prev.fromRationOffice)
+        : prev.fromRationOffice,
+      toRationOffice: prev.toRationOffice
+        ? filterText(prev.toRationOffice)
+        : prev.toRationOffice,
     }));
     setIncomeFields((prev) => ({
       ...prev,
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
+      fullName: filterText(prev.fullName),
     }));
     setDomicileFields((prev) => ({
       ...prev,
       signatory,
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
+      fullName: filterText(prev.fullName),
     }));
 
     applyMasterAddressToFields(addresses, addressSelections, letterLocale, {
@@ -1235,6 +1323,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       ...prev,
       [key]: getPincodeValidationError(parts, t),
     }));
+    setFieldErrors((prev) => ({ ...prev, [`${key}Address`]: undefined }));
 
     const formatted = formatAddressMaster(parts, letterLocale);
     applyManualAddressToLetterFields(key, formatted);
@@ -1274,12 +1363,19 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
 
   const handleSchoolAddressSelect = (id: string | null, seedText = '') => {
     setAddressSelections((prev) => ({ ...prev, school: id }));
+    setFieldErrors((prev) => ({ ...prev, schoolAddress: undefined }));
     if (id) {
       const selected = addresses.find((a) => a.id === id);
-      if (selected?.name) {
-        setFeesFields((prev) => ({ ...prev, schoolName: selected.name }));
-        setSchoolAdmissionFields((prev) => ({ ...prev, schoolName: selected.name }));
-        setSchoolTransferFields((prev) => ({ ...prev, schoolName: selected.name }));
+      if (selected) {
+        const schoolName =
+          letterLocale === 'mr'
+            ? selected.nameMr.trim() || selected.name
+            : selected.name;
+        if (schoolName) {
+          setFeesFields((prev) => ({ ...prev, schoolName }));
+          setSchoolAdmissionFields((prev) => ({ ...prev, schoolName }));
+          setSchoolTransferFields((prev) => ({ ...prev, schoolName }));
+        }
       }
       const text = getAddressTextFromMaster(addresses, id, letterLocale);
       if (text) applySchoolAddressText(text);
@@ -1293,6 +1389,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
 
   const handleApplicantAddressSelect = (id: string | null, seedText = '') => {
     setAddressSelections((prev) => ({ ...prev, applicant: id }));
+    setFieldErrors((prev) => ({ ...prev, applicantAddress: undefined }));
     if (id) {
       const text = getAddressTextFromMaster(addresses, id, letterLocale);
       if (text) applyApplicantAddressText(text);
@@ -1307,6 +1404,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
 
   const handleRationOfficeAddressSelect = (id: string | null, seedText = '') => {
     setAddressSelections((prev) => ({ ...prev, rationOffice: id }));
+    setFieldErrors((prev) => ({ ...prev, rationOfficeAddress: undefined }));
     if (id) {
       const text = getAddressTextFromMaster(addresses, id, letterLocale);
       if (text) {
@@ -1326,6 +1424,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
 
   const handleOfficeAddressSelect = (id: string | null, seedText = '') => {
     setAddressSelections((prev) => ({ ...prev, office: id }));
+    setFieldErrors((prev) => ({ ...prev, officeAddress: undefined }));
     if (id) {
       const text = getAddressTextFromMaster(addresses, id, letterLocale);
       if (text) {
@@ -1437,16 +1536,21 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     if (addresses.length === 0) return;
 
     const selected = addresses.find((a) => a.id === addressSelections.school);
-    if (!selected?.name) return;
+    if (!selected) return;
+    const schoolName =
+      letterLocale === 'mr'
+        ? selected.nameMr.trim() || selected.name
+        : selected.name;
+    if (!schoolName.trim()) return;
 
-    setFeesFields((prev) => (prev.schoolName?.trim() ? prev : { ...prev, schoolName: selected.name }));
+    setFeesFields((prev) => (prev.schoolName?.trim() ? prev : { ...prev, schoolName }));
     setSchoolAdmissionFields((prev) =>
-      prev.schoolName?.trim() ? prev : { ...prev, schoolName: selected.name },
+      prev.schoolName?.trim() ? prev : { ...prev, schoolName },
     );
     setSchoolTransferFields((prev) =>
-      prev.schoolName?.trim() ? prev : { ...prev, schoolName: selected.name },
+      prev.schoolName?.trim() ? prev : { ...prev, schoolName },
     );
-  }, [addressSelections.school, addresses]);
+  }, [addressSelections.school, addresses, letterLocale]);
 
   const activeLetterMaster = useMemo(() => {
     return (
@@ -1545,55 +1649,122 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   const activeReferenceNo = activeFields.referenceNo;
   const activeDate = activeFields.date;
 
-  const validateManualAddressPincodes = () => {
-    const keysToCheck: ManualAddressKey[] = [];
-    if (!addressSelections.school && hasAddressContent(manualAddressParts.school)) {
-      keysToCheck.push('school');
-    }
-    if (!addressSelections.applicant && hasAddressContent(manualAddressParts.applicant)) {
-      keysToCheck.push('applicant');
-    }
-    if (!addressSelections.rationOffice && hasAddressContent(manualAddressParts.rationOffice)) {
-      keysToCheck.push('rationOffice');
-    }
-    if (!addressSelections.office && hasAddressContent(manualAddressParts.office)) {
-      keysToCheck.push('office');
-    }
-
-    const errors: Partial<Record<ManualAddressKey, string>> = {};
-    for (const key of keysToCheck) {
-      const error = getManualAddressValidationError(
-        manualAddressParts[key],
-        letterLocale,
-        t,
-      );
-      if (error) errors[key] = error;
-    }
-
-    setAddressPincodeErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      toast.error(
-        Object.values(errors)[0] ?? t('letterGeneration.addresses.fieldsRequired'),
-      );
-      return false;
-    }
-    return true;
-  };
-
-  const validateActiveCommonFields = () => {
+  const validateActiveLetterFields = () => {
+    const requiredMsg = t('letterGeneration.validation.fieldRequired');
     const errors = validateRequiredCommonFields(
       activeReferenceNo,
       activeDate,
       t,
       existingReferenceNos,
     );
-    setCommonFieldErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      const firstError = errors.referenceNo ?? errors.date;
-      if (firstError) toast.error(firstError);
+
+    const addressErrors: Partial<Record<ManualAddressKey, string>> = {};
+    const requireAddress = (key: ManualAddressKey, addressText: string) => {
+      if (
+        isAddressProvided(
+          addressSelections[key],
+          manualAddressParts[key],
+          letterLocale,
+          addressText,
+        )
+      ) {
+        if (!addressSelections[key] && hasAddressContent(manualAddressParts[key])) {
+          const error = getManualAddressValidationError(
+            manualAddressParts[key],
+            letterLocale,
+            t,
+          );
+          if (error) {
+            addressErrors[key] = error;
+            errors[`${key}Address`] = error;
+          }
+        }
+        return;
+      }
+      addressErrors[key] = t('letterGeneration.addresses.fieldsRequired');
+      errors[`${key}Address`] = t('letterGeneration.addresses.fieldsRequired');
+    };
+
+    if (activeTab === 'fees') {
+      requireField(errors, 'schoolName', feesFields.schoolName, requiredMsg);
+      requireField(errors, 'standard', feesFields.standard, requiredMsg);
+      requireField(errors, 'studentName', feesFields.studentName, requiredMsg);
+      requireAddress('school', feesFields.schoolAddress);
+    } else if (activeTab === 'school-admission') {
+      requireField(errors, 'schoolName', schoolAdmissionFields.schoolName, requiredMsg);
+      requireField(errors, 'standard', schoolAdmissionFields.standard, requiredMsg);
+      requireField(errors, 'studentName', schoolAdmissionFields.studentName, requiredMsg);
+      requireField(errors, 'parentName', schoolAdmissionFields.parentName, requiredMsg);
+      requireField(errors, 'reasonText', schoolAdmissionFields.reasonText, requiredMsg);
+      requireAddress('school', schoolAdmissionFields.schoolAddress);
+      requireAddress('applicant', schoolAdmissionFields.address);
+    } else if (activeTab === 'school-transfer') {
+      requireField(errors, 'schoolName', schoolTransferFields.schoolName, requiredMsg);
+      requireField(errors, 'standard', schoolTransferFields.standard, requiredMsg);
+      requireField(errors, 'studentName', schoolTransferFields.studentName, requiredMsg);
+      requireField(errors, 'parentName', schoolTransferFields.parentName, requiredMsg);
+      requireField(
+        errors,
+        'previousSchoolName',
+        schoolTransferFields.previousSchoolName,
+        requiredMsg,
+      );
+      requireField(
+        errors,
+        'currentStandard',
+        schoolTransferFields.currentStandard,
+        requiredMsg,
+      );
+      requireField(
+        errors,
+        'transferReason',
+        schoolTransferFields.transferReason,
+        requiredMsg,
+      );
+      requireAddress('school', schoolTransferFields.schoolAddress);
+      requireAddress('applicant', schoolTransferFields.address);
+    } else if (isRationLetterType(activeTab)) {
+      requireField(errors, 'salutation', rationFields.salutation, requiredMsg);
+      requireField(errors, 'fullName', rationFields.fullName, requiredMsg);
+      requireField(errors, 'familyMembers', rationFields.familyMembers, requiredMsg);
+      requireAddress('applicant', rationFields.address);
+      requireAddress('rationOffice', rationFields.rationOfficeAddress);
+      if (activeTab !== 'ration-new') {
+        requireField(errors, 'rationCardNo', rationFields.rationCardNo, requiredMsg);
+      }
+      if (activeTab === 'ration-transfer') {
+        requireField(
+          errors,
+          'fromRationOffice',
+          rationFields.fromRationOffice,
+          requiredMsg,
+        );
+        requireField(errors, 'toRationOffice', rationFields.toRationOffice, requiredMsg);
+      }
+    } else if (activeTab === 'income') {
+      requireField(errors, 'salutation', incomeFields.salutation, requiredMsg);
+      requireField(errors, 'fullName', incomeFields.fullName, requiredMsg);
+      requireField(errors, 'aadhaarNo', incomeFields.aadhaarNo, requiredMsg);
+      requireField(errors, 'annualIncome', incomeFields.annualIncome, requiredMsg);
+      requireAddress('applicant', incomeFields.address);
+      requireAddress('office', incomeFields.officeAddress);
+    } else if (activeTab === 'domicile') {
+      requireField(errors, 'salutation', domicileFields.salutation, requiredMsg);
+      requireField(errors, 'fullName', domicileFields.fullName, requiredMsg);
+      requireField(errors, 'aadhaarNo', domicileFields.aadhaarNo, requiredMsg);
+      requireAddress('applicant', domicileFields.address);
+      requireAddress('office', domicileFields.officeAddress);
+    }
+
+    setFieldErrors(errors);
+    setAddressPincodeErrors(addressErrors);
+
+    const firstError =
+      Object.values(errors).find(Boolean) ?? Object.values(addressErrors).find(Boolean);
+    if (firstError) {
+      toast.error(firstError);
       return false;
     }
-    if (!validateManualAddressPincodes()) return false;
     return true;
   };
 
@@ -1690,7 +1861,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   };
 
   const handleSaveLetter = async () => {
-    if (!validateActiveCommonFields()) return;
+    if (!validateActiveLetterFields()) return;
 
     setIsSaving(true);
     try {
@@ -1814,7 +1985,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
           const duplicateMessage = t(
             'letterGeneration.validation.referenceNoDuplicate',
           );
-          setCommonFieldErrors((prev) => ({
+          setFieldErrors((prev) => ({
             ...prev,
             referenceNo: duplicateMessage,
           }));
@@ -2043,33 +2214,33 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
         <FieldGroup
           label={t('letterGeneration.fields.referenceNo')}
           required
-          error={commonFieldErrors.referenceNo}
+          error={fieldErrors.referenceNo}
         >
           <Input
             value={fields.referenceNo}
             onChange={(e) => {
               setFields({ ...fields, referenceNo: e.target.value });
-              if (commonFieldErrors.referenceNo) {
-                setCommonFieldErrors((prev) => ({ ...prev, referenceNo: undefined }));
+              if (fieldErrors.referenceNo) {
+                setFieldErrors((prev) => ({ ...prev, referenceNo: undefined }));
               }
             }}
             placeholder={t('letterGeneration.placeholders.referenceNo')}
             required
-            aria-invalid={!!commonFieldErrors.referenceNo}
+            aria-invalid={!!fieldErrors.referenceNo}
           />
         </FieldGroup>
         <FieldGroup
           label={t('letterGeneration.fields.date')}
           required
-          error={commonFieldErrors.date}
+          error={fieldErrors.date}
         >
           <LetterDatePicker
             locale={letterLocale}
             value={fields.date}
             onValueChange={(next) => {
               setFields({ ...fields, date: next });
-              if (commonFieldErrors.date) {
-                setCommonFieldErrors((prev) => ({ ...prev, date: undefined }));
+              if (fieldErrors.date) {
+                setFieldErrors((prev) => ({ ...prev, date: undefined }));
               }
             }}
             placeholder={t('letterGeneration.placeholders.date')}
@@ -2202,12 +2373,21 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                   <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
                     <TabsContent value="fees" className="mt-0 space-y-4">
                       {renderCommonFields(feesFields, setFeesFields)}
-                      <FieldGroup label={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}>
-                        <Input
+                      <FieldGroup
+                        label={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}
+                        required
+                        error={fieldErrors.schoolName}
+                      >
+                        <LocaleTextInput
+                          locale={letterLocale}
                           value={feesFields.schoolName}
-                          onChange={(e) =>
-                            setFeesFields({ ...feesFields, schoolName: e.target.value })
-                          }
+                          onValueChange={(schoolName) => {
+                            setFeesFields({ ...feesFields, schoolName });
+                            if (fieldErrors.schoolName) {
+                              setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
+                            }
+                          }}
+                          required
                         />
                       </FieldGroup>
                       <LetterAddressField
@@ -2221,29 +2401,49 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           handleManualAddressPartsChange('school', parts)
                         }
                         pincodeError={addressPincodeErrors.school}
+                        error={fieldErrors.schoolAddress}
+                        required
                         onSelectedAddressIdChange={(id) =>
                           handleSchoolAddressSelect(id, feesFields.schoolAddress)
                         }
                       />
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <FieldGroup label={t('letterGeneration.fields.standard')}>
-                          <Input
+                        <FieldGroup
+                          label={t('letterGeneration.fields.standard')}
+                          required
+                          error={fieldErrors.standard}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
                             value={feesFields.standard}
-                            onChange={(e) =>
-                              setFeesFields({ ...feesFields, standard: e.target.value })
-                            }
+                            onValueChange={(standard) => {
+                              setFeesFields({ ...feesFields, standard });
+                              if (fieldErrors.standard) {
+                                setFieldErrors((prev) => ({ ...prev, standard: undefined }));
+                              }
+                            }}
                             placeholder={t('letterGeneration.placeholders.standard')}
+                            required
                           />
                         </FieldGroup>
-                        <FieldGroup label={t('letterGeneration.fields.studentName')}>
-                          <Input
+                        <FieldGroup
+                          label={t('letterGeneration.fields.studentName')}
+                          required
+                          error={fieldErrors.studentName}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
                             value={feesFields.studentName}
-                            onChange={(e) =>
-                              setFeesFields({
-                                ...feesFields,
-                                studentName: e.target.value,
-                              })
-                            }
+                            onValueChange={(studentName) => {
+                              setFeesFields({ ...feesFields, studentName });
+                              if (fieldErrors.studentName) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  studentName: undefined,
+                                }));
+                              }
+                            }}
+                            required
                           />
                         </FieldGroup>
                       </div>
@@ -2251,15 +2451,24 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
 
                     <TabsContent value="school-admission" className="mt-0 space-y-4">
                       {renderCommonFields(schoolAdmissionFields, setSchoolAdmissionFields)}
-                      <FieldGroup label={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}>
-                        <Input
+                      <FieldGroup
+                        label={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}
+                        required
+                        error={fieldErrors.schoolName}
+                      >
+                        <LocaleTextInput
+                          locale={letterLocale}
                           value={schoolAdmissionFields.schoolName}
-                          onChange={(e) =>
+                          onValueChange={(schoolName) => {
                             setSchoolAdmissionFields({
                               ...schoolAdmissionFields,
-                              schoolName: e.target.value,
-                            })
-                          }
+                              schoolName,
+                            });
+                            if (fieldErrors.schoolName) {
+                              setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
+                            }
+                          }}
+                          required
                         />
                       </FieldGroup>
                       <LetterAddressField
@@ -2273,43 +2482,75 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           handleManualAddressPartsChange('school', parts)
                         }
                         pincodeError={addressPincodeErrors.school}
+                        error={fieldErrors.schoolAddress}
+                        required
                         onSelectedAddressIdChange={(id) =>
                           handleSchoolAddressSelect(id, schoolAdmissionFields.schoolAddress)
                         }
                       />
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <FieldGroup label={t('letterGeneration.fields.standard')}>
-                          <Input
+                        <FieldGroup
+                          label={t('letterGeneration.fields.standard')}
+                          required
+                          error={fieldErrors.standard}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
                             value={schoolAdmissionFields.standard}
-                            onChange={(e) =>
+                            onValueChange={(standard) => {
                               setSchoolAdmissionFields({
                                 ...schoolAdmissionFields,
-                                standard: e.target.value,
-                              })
-                            }
+                                standard,
+                              });
+                              if (fieldErrors.standard) {
+                                setFieldErrors((prev) => ({ ...prev, standard: undefined }));
+                              }
+                            }}
+                            required
                           />
                         </FieldGroup>
-                        <FieldGroup label={t('letterGeneration.fields.studentName')}>
-                          <Input
+                        <FieldGroup
+                          label={t('letterGeneration.fields.studentName')}
+                          required
+                          error={fieldErrors.studentName}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
                             value={schoolAdmissionFields.studentName}
-                            onChange={(e) =>
+                            onValueChange={(studentName) => {
                               setSchoolAdmissionFields({
                                 ...schoolAdmissionFields,
-                                studentName: e.target.value,
-                              })
-                            }
+                                studentName,
+                              });
+                              if (fieldErrors.studentName) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  studentName: undefined,
+                                }));
+                              }
+                            }}
+                            required
                           />
                         </FieldGroup>
                       </div>
-                      <FieldGroup label={t('letterGeneration.fields.parentName')}>
-                        <Input
+                      <FieldGroup
+                        label={t('letterGeneration.fields.parentName')}
+                        required
+                        error={fieldErrors.parentName}
+                      >
+                        <LocaleTextInput
+                          locale={letterLocale}
                           value={schoolAdmissionFields.parentName}
-                          onChange={(e) =>
+                          onValueChange={(parentName) => {
                             setSchoolAdmissionFields({
                               ...schoolAdmissionFields,
-                              parentName: e.target.value,
-                            })
-                          }
+                              parentName,
+                            });
+                            if (fieldErrors.parentName) {
+                              setFieldErrors((prev) => ({ ...prev, parentName: undefined }));
+                            }
+                          }}
+                          required
                         />
                       </FieldGroup>
                       <LetterAddressField
@@ -2323,35 +2564,55 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           handleManualAddressPartsChange('applicant', parts)
                         }
                         pincodeError={addressPincodeErrors.applicant}
+                        error={fieldErrors.applicantAddress}
+                        required
                         onSelectedAddressIdChange={(id) =>
                           handleApplicantAddressSelect(id, schoolAdmissionFields.address)
                         }
                       />
-                      <FieldGroup label={t('letterGeneration.fields.reasonText')}>
-                        <Textarea
+                      <FieldGroup
+                        label={t('letterGeneration.fields.reasonText')}
+                        required
+                        error={fieldErrors.reasonText}
+                      >
+                        <LocaleTextarea
+                          locale={letterLocale}
                           value={schoolAdmissionFields.reasonText}
-                          onChange={(e) =>
+                          onValueChange={(reasonText) => {
                             setSchoolAdmissionFields({
                               ...schoolAdmissionFields,
-                              reasonText: e.target.value,
-                            })
-                          }
+                              reasonText,
+                            });
+                            if (fieldErrors.reasonText) {
+                              setFieldErrors((prev) => ({ ...prev, reasonText: undefined }));
+                            }
+                          }}
                           rows={3}
+                          required
                         />
                       </FieldGroup>
                     </TabsContent>
 
                     <TabsContent value="school-transfer" className="mt-0 space-y-4">
                       {renderCommonFields(schoolTransferFields, setSchoolTransferFields)}
-                      <FieldGroup label={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}>
-                        <Input
+                      <FieldGroup
+                        label={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}
+                        required
+                        error={fieldErrors.schoolName}
+                      >
+                        <LocaleTextInput
+                          locale={letterLocale}
                           value={schoolTransferFields.schoolName}
-                          onChange={(e) =>
+                          onValueChange={(schoolName) => {
                             setSchoolTransferFields({
                               ...schoolTransferFields,
-                              schoolName: e.target.value,
-                            })
-                          }
+                              schoolName,
+                            });
+                            if (fieldErrors.schoolName) {
+                              setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
+                            }
+                          }}
+                          required
                         />
                       </FieldGroup>
                       <LetterAddressField
@@ -2365,43 +2626,75 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           handleManualAddressPartsChange('school', parts)
                         }
                         pincodeError={addressPincodeErrors.school}
+                        error={fieldErrors.schoolAddress}
+                        required
                         onSelectedAddressIdChange={(id) =>
                           handleSchoolAddressSelect(id, schoolTransferFields.schoolAddress)
                         }
                       />
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <FieldGroup label={t('letterGeneration.fields.standard')}>
-                          <Input
+                        <FieldGroup
+                          label={t('letterGeneration.fields.standard')}
+                          required
+                          error={fieldErrors.standard}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
                             value={schoolTransferFields.standard}
-                            onChange={(e) =>
+                            onValueChange={(standard) => {
                               setSchoolTransferFields({
                                 ...schoolTransferFields,
-                                standard: e.target.value,
-                              })
-                            }
+                                standard,
+                              });
+                              if (fieldErrors.standard) {
+                                setFieldErrors((prev) => ({ ...prev, standard: undefined }));
+                              }
+                            }}
+                            required
                           />
                         </FieldGroup>
-                        <FieldGroup label={t('letterGeneration.fields.studentName')}>
-                          <Input
+                        <FieldGroup
+                          label={t('letterGeneration.fields.studentName')}
+                          required
+                          error={fieldErrors.studentName}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
                             value={schoolTransferFields.studentName}
-                            onChange={(e) =>
+                            onValueChange={(studentName) => {
                               setSchoolTransferFields({
                                 ...schoolTransferFields,
-                                studentName: e.target.value,
-                              })
-                            }
+                                studentName,
+                              });
+                              if (fieldErrors.studentName) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  studentName: undefined,
+                                }));
+                              }
+                            }}
+                            required
                           />
                         </FieldGroup>
                       </div>
-                      <FieldGroup label={t('letterGeneration.fields.parentName')}>
-                        <Input
+                      <FieldGroup
+                        label={t('letterGeneration.fields.parentName')}
+                        required
+                        error={fieldErrors.parentName}
+                      >
+                        <LocaleTextInput
+                          locale={letterLocale}
                           value={schoolTransferFields.parentName}
-                          onChange={(e) =>
+                          onValueChange={(parentName) => {
                             setSchoolTransferFields({
                               ...schoolTransferFields,
-                              parentName: e.target.value,
-                            })
-                          }
+                              parentName,
+                            });
+                            if (fieldErrors.parentName) {
+                              setFieldErrors((prev) => ({ ...prev, parentName: undefined }));
+                            }
+                          }}
+                          required
                         />
                       </FieldGroup>
                       <LetterAddressField
@@ -2415,42 +2708,80 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           handleManualAddressPartsChange('applicant', parts)
                         }
                         pincodeError={addressPincodeErrors.applicant}
+                        error={fieldErrors.applicantAddress}
+                        required
                         onSelectedAddressIdChange={(id) =>
                           handleApplicantAddressSelect(id, schoolTransferFields.address)
                         }
                       />
-                      <FieldGroup label={t('letterGeneration.fields.previousSchoolName')}>
-                        <Input
+                      <FieldGroup
+                        label={t('letterGeneration.fields.previousSchoolName')}
+                        required
+                        error={fieldErrors.previousSchoolName}
+                      >
+                        <LocaleTextInput
+                          locale={letterLocale}
                           value={schoolTransferFields.previousSchoolName}
-                          onChange={(e) =>
+                          onValueChange={(previousSchoolName) => {
                             setSchoolTransferFields({
                               ...schoolTransferFields,
-                              previousSchoolName: e.target.value,
-                            })
-                          }
+                              previousSchoolName,
+                            });
+                            if (fieldErrors.previousSchoolName) {
+                              setFieldErrors((prev) => ({
+                                ...prev,
+                                previousSchoolName: undefined,
+                              }));
+                            }
+                          }}
+                          required
                         />
                       </FieldGroup>
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <FieldGroup label={t('letterGeneration.fields.currentStandard')}>
-                          <Input
+                        <FieldGroup
+                          label={t('letterGeneration.fields.currentStandard')}
+                          required
+                          error={fieldErrors.currentStandard}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
                             value={schoolTransferFields.currentStandard}
-                            onChange={(e) =>
+                            onValueChange={(currentStandard) => {
                               setSchoolTransferFields({
                                 ...schoolTransferFields,
-                                currentStandard: e.target.value,
-                              })
-                            }
+                                currentStandard,
+                              });
+                              if (fieldErrors.currentStandard) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  currentStandard: undefined,
+                                }));
+                              }
+                            }}
+                            required
                           />
                         </FieldGroup>
-                        <FieldGroup label={t('letterGeneration.fields.transferReason')}>
-                          <Input
+                        <FieldGroup
+                          label={t('letterGeneration.fields.transferReason')}
+                          required
+                          error={fieldErrors.transferReason}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
                             value={schoolTransferFields.transferReason}
-                            onChange={(e) =>
+                            onValueChange={(transferReason) => {
                               setSchoolTransferFields({
                                 ...schoolTransferFields,
-                                transferReason: e.target.value,
-                              })
-                            }
+                                transferReason,
+                              });
+                              if (fieldErrors.transferReason) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  transferReason: undefined,
+                                }));
+                              }
+                            }}
+                            required
                           />
                         </FieldGroup>
                       </div>
@@ -2467,7 +2798,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                       <TabsContent key={rationType} value={rationType} className="mt-0 space-y-4">
                         {renderCommonFields(rationFields, setRationFields)}
                         <div className="grid gap-4 sm:grid-cols-2">
-                          <FieldGroup label={t('letterGeneration.fields.gender')}>
+                          <FieldGroup label={t('letterGeneration.fields.gender')} required>
                             <Select
                               value={rationFields.gender}
                               onValueChange={(value: PersonGender) =>
@@ -2494,26 +2825,44 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                               </SelectContent>
                             </Select>
                           </FieldGroup>
-                          <FieldGroup label={t('letterGeneration.fields.salutation')}>
-                            <Input
+                          <FieldGroup
+                            label={t('letterGeneration.fields.salutation')}
+                            required
+                            error={fieldErrors.salutation}
+                          >
+                            <LocaleTextInput
+                              locale={letterLocale}
                               value={rationFields.salutation}
-                              onChange={(e) =>
-                                setRationFields({
-                                  ...rationFields,
-                                  salutation: e.target.value,
-                                })
-                              }
+                              onValueChange={(salutation) => {
+                                setRationFields({ ...rationFields, salutation });
+                                if (fieldErrors.salutation) {
+                                  setFieldErrors((prev) => ({
+                                    ...prev,
+                                    salutation: undefined,
+                                  }));
+                                }
+                              }}
+                              required
                             />
                           </FieldGroup>
-                          <FieldGroup label={t('letterGeneration.fields.fullName')}>
-                            <Input
+                          <FieldGroup
+                            label={t('letterGeneration.fields.fullName')}
+                            required
+                            error={fieldErrors.fullName}
+                          >
+                            <LocaleTextInput
+                              locale={letterLocale}
                               value={rationFields.fullName}
-                              onChange={(e) =>
-                                setRationFields({
-                                  ...rationFields,
-                                  fullName: e.target.value,
-                                })
-                              }
+                              onValueChange={(fullName) => {
+                                setRationFields({ ...rationFields, fullName });
+                                if (fieldErrors.fullName) {
+                                  setFieldErrors((prev) => ({
+                                    ...prev,
+                                    fullName: undefined,
+                                  }));
+                                }
+                              }}
+                              required
                             />
                           </FieldGroup>
                         </div>
@@ -2528,60 +2877,106 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                             handleManualAddressPartsChange('applicant', parts)
                           }
                           pincodeError={addressPincodeErrors.applicant}
+                          error={fieldErrors.applicantAddress}
+                          required
                           onSelectedAddressIdChange={(id) =>
                             handleApplicantAddressSelect(id, rationFields.address)
                           }
                         />
                         {rationType !== 'ration-new' ? (
-                          <FieldGroup label={t('letterGeneration.fields.rationCardNo')}>
+                          <FieldGroup
+                            label={t('letterGeneration.fields.rationCardNo')}
+                            required
+                            error={fieldErrors.rationCardNo}
+                          >
                             <Input
                               value={rationFields.rationCardNo ?? ''}
-                              onChange={(e) =>
+                              onChange={(e) => {
                                 setRationFields({
                                   ...rationFields,
                                   rationCardNo: e.target.value,
-                                })
-                              }
+                                });
+                                if (fieldErrors.rationCardNo) {
+                                  setFieldErrors((prev) => ({
+                                    ...prev,
+                                    rationCardNo: undefined,
+                                  }));
+                                }
+                              }}
+                              required
                             />
                           </FieldGroup>
                         ) : null}
                         {rationType === 'ration-transfer' ? (
                           <div className="grid gap-4 sm:grid-cols-2">
-                            <FieldGroup label={t('letterGeneration.fields.fromRationOffice')}>
-                              <Input
+                            <FieldGroup
+                              label={t('letterGeneration.fields.fromRationOffice')}
+                              required
+                              error={fieldErrors.fromRationOffice}
+                            >
+                              <LocaleTextInput
+                                locale={letterLocale}
                                 value={rationFields.fromRationOffice ?? ''}
-                                onChange={(e) =>
+                                onValueChange={(fromRationOffice) => {
                                   setRationFields({
                                     ...rationFields,
-                                    fromRationOffice: e.target.value,
-                                  })
-                                }
+                                    fromRationOffice,
+                                  });
+                                  if (fieldErrors.fromRationOffice) {
+                                    setFieldErrors((prev) => ({
+                                      ...prev,
+                                      fromRationOffice: undefined,
+                                    }));
+                                  }
+                                }}
+                                required
                               />
                             </FieldGroup>
-                            <FieldGroup label={t('letterGeneration.fields.toRationOffice')}>
-                              <Input
+                            <FieldGroup
+                              label={t('letterGeneration.fields.toRationOffice')}
+                              required
+                              error={fieldErrors.toRationOffice}
+                            >
+                              <LocaleTextInput
+                                locale={letterLocale}
                                 value={rationFields.toRationOffice ?? ''}
-                                onChange={(e) =>
+                                onValueChange={(toRationOffice) => {
                                   setRationFields({
                                     ...rationFields,
-                                    toRationOffice: e.target.value,
-                                  })
-                                }
+                                    toRationOffice,
+                                  });
+                                  if (fieldErrors.toRationOffice) {
+                                    setFieldErrors((prev) => ({
+                                      ...prev,
+                                      toRationOffice: undefined,
+                                    }));
+                                  }
+                                }}
+                                required
                               />
                             </FieldGroup>
                           </div>
                         ) : null}
-                        <FieldGroup label={t('letterGeneration.fields.familyMembers')}>
-                          <Textarea
+                        <FieldGroup
+                          label={t('letterGeneration.fields.familyMembers')}
+                          required
+                          error={fieldErrors.familyMembers}
+                        >
+                          <LocaleTextarea
+                            locale={letterLocale}
                             value={rationFields.familyMembers}
-                            onChange={(e) =>
-                              setRationFields({
-                                ...rationFields,
-                                familyMembers: e.target.value,
-                              })
-                            }
+                            onValueChange={(familyMembers) => {
+                              setRationFields({ ...rationFields, familyMembers });
+                              if (fieldErrors.familyMembers) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  familyMembers: undefined,
+                                }));
+                              }
+                            }}
                             rows={4}
                             placeholder={t('letterGeneration.placeholders.familyMembers')}
+                            required
                           />
                         </FieldGroup>
                         <LetterAddressField
@@ -2595,6 +2990,8 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                             handleManualAddressPartsChange('rationOffice', parts)
                           }
                           pincodeError={addressPincodeErrors.rationOffice}
+                          error={fieldErrors.rationOfficeAddress}
+                          required
                           onSelectedAddressIdChange={(id) =>
                             handleRationOfficeAddressSelect(id, rationFields.rationOfficeAddress)
                           }
@@ -2605,7 +3002,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                     <TabsContent value="income" className="mt-0 space-y-4">
                       {renderCommonFields(incomeFields, setIncomeFields)}
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <FieldGroup label={t('letterGeneration.fields.gender')}>
+                        <FieldGroup label={t('letterGeneration.fields.gender')} required>
                           <Select
                             value={incomeFields.gender}
                             onValueChange={(value: PersonGender) =>
@@ -2632,26 +3029,44 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                             </SelectContent>
                           </Select>
                         </FieldGroup>
-                        <FieldGroup label={t('letterGeneration.fields.salutation')}>
-                          <Input
+                        <FieldGroup
+                          label={t('letterGeneration.fields.salutation')}
+                          required
+                          error={fieldErrors.salutation}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
                             value={incomeFields.salutation}
-                            onChange={(e) =>
-                              setIncomeFields({
-                                ...incomeFields,
-                                salutation: e.target.value,
-                              })
-                            }
+                            onValueChange={(salutation) => {
+                              setIncomeFields({ ...incomeFields, salutation });
+                              if (fieldErrors.salutation) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  salutation: undefined,
+                                }));
+                              }
+                            }}
+                            required
                           />
                         </FieldGroup>
-                        <FieldGroup label={t('letterGeneration.fields.fullName')}>
-                          <Input
+                        <FieldGroup
+                          label={t('letterGeneration.fields.fullName')}
+                          required
+                          error={fieldErrors.fullName}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
                             value={incomeFields.fullName}
-                            onChange={(e) =>
-                              setIncomeFields({
-                                ...incomeFields,
-                                fullName: e.target.value,
-                              })
-                            }
+                            onValueChange={(fullName) => {
+                              setIncomeFields({ ...incomeFields, fullName });
+                              if (fieldErrors.fullName) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  fullName: undefined,
+                                }));
+                              }
+                            }}
+                            required
                           />
                         </FieldGroup>
                       </div>
@@ -2666,6 +3081,8 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           handleManualAddressPartsChange('applicant', parts)
                         }
                         pincodeError={addressPincodeErrors.applicant}
+                        error={fieldErrors.applicantAddress}
+                        required
                         onSelectedAddressIdChange={(id) =>
                           handleApplicantAddressSelect(id, incomeFields.address)
                         }
@@ -2681,31 +3098,55 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           handleManualAddressPartsChange('office', parts)
                         }
                         pincodeError={addressPincodeErrors.office}
+                        error={fieldErrors.officeAddress}
+                        required
                         onSelectedAddressIdChange={(id) =>
                           handleOfficeAddressSelect(id, incomeFields.officeAddress)
                         }
                       />
-                      <FieldGroup label={t('letterGeneration.fields.aadhaarNo')}>
+                      <FieldGroup
+                        label={t('letterGeneration.fields.aadhaarNo')}
+                        required
+                        error={fieldErrors.aadhaarNo}
+                      >
                         <Input
                           value={incomeFields.aadhaarNo}
-                          onChange={(e) =>
+                          onChange={(e) => {
                             setIncomeFields({
                               ...incomeFields,
                               aadhaarNo: e.target.value,
-                            })
-                          }
+                            });
+                            if (fieldErrors.aadhaarNo) {
+                              setFieldErrors((prev) => ({
+                                ...prev,
+                                aadhaarNo: undefined,
+                              }));
+                            }
+                          }}
+                          required
                         />
                       </FieldGroup>
-                      <FieldGroup label={t('letterGeneration.fields.annualIncome')}>
+                      <FieldGroup
+                        label={t('letterGeneration.fields.annualIncome')}
+                        required
+                        error={fieldErrors.annualIncome}
+                      >
                         <Input
                           value={incomeFields.annualIncome}
-                          onChange={(e) =>
+                          onChange={(e) => {
                             setIncomeFields({
                               ...incomeFields,
                               annualIncome: e.target.value,
-                            })
-                          }
+                            });
+                            if (fieldErrors.annualIncome) {
+                              setFieldErrors((prev) => ({
+                                ...prev,
+                                annualIncome: undefined,
+                              }));
+                            }
+                          }}
                           placeholder={t('letterGeneration.placeholders.income')}
+                          required
                         />
                       </FieldGroup>
                     </TabsContent>
@@ -2713,7 +3154,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                     <TabsContent value="domicile" className="mt-0 space-y-4">
                       {renderCommonFields(domicileFields, setDomicileFields)}
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <FieldGroup label={t('letterGeneration.fields.gender')}>
+                        <FieldGroup label={t('letterGeneration.fields.gender')} required>
                           <Select
                             value={domicileFields.gender}
                             onValueChange={(value: PersonGender) =>
@@ -2740,26 +3181,44 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                             </SelectContent>
                           </Select>
                         </FieldGroup>
-                        <FieldGroup label={t('letterGeneration.fields.salutation')}>
-                          <Input
+                        <FieldGroup
+                          label={t('letterGeneration.fields.salutation')}
+                          required
+                          error={fieldErrors.salutation}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
                             value={domicileFields.salutation}
-                            onChange={(e) =>
-                              setDomicileFields({
-                                ...domicileFields,
-                                salutation: e.target.value,
-                              })
-                            }
+                            onValueChange={(salutation) => {
+                              setDomicileFields({ ...domicileFields, salutation });
+                              if (fieldErrors.salutation) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  salutation: undefined,
+                                }));
+                              }
+                            }}
+                            required
                           />
                         </FieldGroup>
-                        <FieldGroup label={t('letterGeneration.fields.fullName')}>
-                          <Input
+                        <FieldGroup
+                          label={t('letterGeneration.fields.fullName')}
+                          required
+                          error={fieldErrors.fullName}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
                             value={domicileFields.fullName}
-                            onChange={(e) =>
-                              setDomicileFields({
-                                ...domicileFields,
-                                fullName: e.target.value,
-                              })
-                            }
+                            onValueChange={(fullName) => {
+                              setDomicileFields({ ...domicileFields, fullName });
+                              if (fieldErrors.fullName) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  fullName: undefined,
+                                }));
+                              }
+                            }}
+                            required
                           />
                         </FieldGroup>
                       </div>
@@ -2774,6 +3233,8 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           handleManualAddressPartsChange('applicant', parts)
                         }
                         pincodeError={addressPincodeErrors.applicant}
+                        error={fieldErrors.applicantAddress}
+                        required
                         onSelectedAddressIdChange={(id) =>
                           handleApplicantAddressSelect(id, domicileFields.address)
                         }
@@ -2789,19 +3250,32 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           handleManualAddressPartsChange('office', parts)
                         }
                         pincodeError={addressPincodeErrors.office}
+                        error={fieldErrors.officeAddress}
+                        required
                         onSelectedAddressIdChange={(id) =>
                           handleOfficeAddressSelect(id, domicileFields.officeAddress)
                         }
                       />
-                      <FieldGroup label={t('letterGeneration.fields.aadhaarNo')}>
+                      <FieldGroup
+                        label={t('letterGeneration.fields.aadhaarNo')}
+                        required
+                        error={fieldErrors.aadhaarNo}
+                      >
                         <Input
                           value={domicileFields.aadhaarNo}
-                          onChange={(e) =>
+                          onChange={(e) => {
                             setDomicileFields({
                               ...domicileFields,
                               aadhaarNo: e.target.value,
-                            })
-                          }
+                            });
+                            if (fieldErrors.aadhaarNo) {
+                              setFieldErrors((prev) => ({
+                                ...prev,
+                                aadhaarNo: undefined,
+                              }));
+                            }
+                          }}
+                          required
                         />
                       </FieldGroup>
                     </TabsContent>
