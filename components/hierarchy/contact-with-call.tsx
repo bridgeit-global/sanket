@@ -27,11 +27,22 @@ export function PhoneCallButton({
 
 export function ContactWithCall({
   phone,
+  compact = false,
 }: {
   phone: string | null;
+  compact?: boolean;
 }) {
   if (!phone) {
-    return <span className="text-muted-foreground">Contact: —</span>;
+    return <span className="text-xs text-muted-foreground">Contact: —</span>;
+  }
+
+  if (compact) {
+    return (
+      <div className="flex items-center gap-2">
+        <PhoneCallButton phone={phone} />
+        <span className="min-w-0 truncate text-xs text-muted-foreground">{phone}</span>
+      </div>
+    );
   }
 
   return (

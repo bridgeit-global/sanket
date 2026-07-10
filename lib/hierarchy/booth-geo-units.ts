@@ -1,4 +1,11 @@
-import type { CadreConfig } from './types';
+import type { CadreConfig, CadreMemberPostDetail } from './types';
+
+export type GeoUnitMeta = {
+  id: string;
+  type: string;
+  name: string;
+  parentId: string | null;
+};
 
 /** Parse booth/part number from a geographic unit name (e.g. "Booth 42", "Part 12"). */
 export function extractBoothNumber(name: string): string | null {
@@ -66,4 +73,40 @@ export function wardGeoIdFromBoothGeoUnit(
   const id = boothGeoId?.trim() ?? '';
   if (!id) return null;
   return geoUnits.find((g) => g.id === id && g.type === 'booth')?.parentId ?? null;
+}
+
+/**
+ * Imported booth posts store the booth CadreGeographicUnit id in ward_geo_id with booth_no unset.
+ * Normalize to ward id + booth number so filters and leader resolution work consistently.
+ */
+export function normalizeBoothScopedPostGeo(
+  post: CadreMemberPostDetail,
+  geoById: Map<string, GeoUnitMeta>,
+): CadreMemberPostDetail {
+  if (!post.wardGeoId) return post;
+  const geo = geoById.get(post.wardGeoId);
+  if (!geo || geo.type !== 'booth') return post;
+
+  const wardGeoId = geo.parentId;
+  const ward = wardGeoId ? geoById.get(wardGeoId) : null;
+  const boothNo = post.boothNo ?? extractBoothNumber(geo.name);
+
+  return {
+    ...post,
+    wardGeoId,
+    wardGeoName: ward?.name ?? post.wardGeoName,
+    boothNo,
+  };
+}
+
+/** Match a post to a ward + booth, including legacy booth geo ids in ward_geo_id. */
+export function postMatchesBoothScope(
+  post: Pick<CadreMemberPostDetail, 'wardGeoId' | 'boothNo'>,
+  wardGeoId: string,
+  boothNo: string,
+  boothGeoId?: string,
+): boolean {
+  if (post.wardGeoId === wardGeoId && post.boothNo === boothNo) return true;
+  if (boothGeoId && post.wardGeoId === boothGeoId) return true;
+  return false;
 }

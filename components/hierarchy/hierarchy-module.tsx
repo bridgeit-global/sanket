@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Loader2, Plus, Search, Settings, X } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Search, Settings, X } from 'lucide-react';
 import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,35 +20,56 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { ContactWithCall } from './contact-with-call';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HierarchyCanvasView } from './hierarchy-canvas-view';
+import { LeadershipSection } from './leadership-section';
+import { WardAccessSection } from './ward-access-section';
+import { MemberList } from './member-list';
+import { WardPanel } from './ward-panel';
 import { MemberEditor, type MemberEditorTarget } from './member-editor';
 import { HierarchyConfigAdmin } from './hierarchy-config-admin';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type {
   CadreConfig,
   CadreConfigReferenceCounts,
+  CadreMemberCard,
+  WardSummary,
 } from '@/lib/hierarchy/types';
 import {
-  getMemberDisplayName,
-  getMemberPhone,
-} from '@/lib/hierarchy/geo-attribution';
-import {
+  BOOTSTRAP_MEMBER_PAGE_SIZE,
   HIERARCHY_URL_PARAMS,
   HIERARCHY_VIEWS,
   extractWardNumber,
-  memberNameMatchesSearch,
+  filterMembers,
+  filterMembersGlobalSearch,
+  paginateMembers,
+  parseMemberPageParam,
+  parseMemberPageSizeParam,
+  sortMembers,
 } from '@/lib/hierarchy/member-list';
-import type { HierarchyLeaders } from '@/lib/hierarchy/leaders';
+import {
+  extractBoothNumber,
+  getBoothGeoUnits,
+} from '@/lib/hierarchy/booth-geo-units';
+import type { LeadershipEntry } from './leadership-section';
+import {
+  EMPTY_CANVAS_DATA,
+  type HierarchyCanvasData,
+} from '@/lib/hierarchy/canvas-data';
+import { getMemberDisplayName } from '@/lib/hierarchy/geo-attribution';
 import { useTranslations } from '@/hooks/use-translations';
 
 const DEFAULT_CONSTITUENCY_ID = '172';
 const CONSTITUENCY_TITLE = 'NCP 172 Anushakti Nagar';
 
-const EMPTY_LEADERS: HierarchyLeaders = {
-  talukaAdhyaksh: null,
-  wardHeads: [],
-};
+const FILTER_URL_KEYS = [
+  'search',
+  'vertical',
+  'position',
+  'ward',
+  'booth',
+  'member',
+  'view',
+] as const;
 
 function formatWardLabel(wardName: string): string {
   const wardNumber = extractWardNumber(wardName);
@@ -70,10 +91,17 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const [config, setConfig] = useState<CadreConfig | null>(null);
   const [referenceCounts, setReferenceCounts] =
     useState<CadreConfigReferenceCounts | null>(null);
-  const [leaders, setLeaders] = useState<HierarchyLeaders>(EMPTY_LEADERS);
+  const [members, setMembers] = useState<CadreMemberCard[]>([]);
+  const [allMembersLoaded, setAllMembersLoaded] = useState(false);
+  const [membersTotal, setMembersTotal] = useState(0);
+  const [talukaLeadership, setTalukaLeadership] = useState<LeadershipEntry[]>([]);
+  const [wardSummaries, setWardSummaries] = useState<WardSummary[]>([]);
+  const [scopedMembers, setScopedMembers] = useState<CadreMemberCard[]>([]);
+  const [canvasData, setCanvasData] = useState<HierarchyCanvasData>(EMPTY_CANVAS_DATA);
   const [defaultElectionId, setDefaultElectionId] = useState('');
   const [loading, setLoading] = useState(true);
-  const [loadingLeaders, setLoadingLeaders] = useState(false);
+  const [scopeLoading, setScopeLoading] = useState(false);
+  const [loadingMembersProgress, setLoadingMembersProgress] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [searchDraft, setSearchDraft] = useState('');
   const [isSearchPending, setIsSearchPending] = useState(false);
@@ -82,8 +110,18 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const [editorTarget, setEditorTarget] = useState<MemberEditorTarget | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
 
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const searchQuery = searchParams.get(HIERARCHY_URL_PARAMS.search) ?? '';
   const verticalId = searchParams.get(HIERARCHY_URL_PARAMS.vertical) ?? '';
+  const positionId = searchParams.get(HIERARCHY_URL_PARAMS.position) ?? '';
+  const wardGeoId = searchParams.get(HIERARCHY_URL_PARAMS.ward) ?? '';
+  const boothNo = searchParams.get(HIERARCHY_URL_PARAMS.booth) ?? '';
+  const focusMemberId = searchParams.get(HIERARCHY_URL_PARAMS.member) ?? '';
+  const pageFromUrl = parseMemberPageParam(searchParams.get(HIERARCHY_URL_PARAMS.page));
+  const pageSize = parseMemberPageSizeParam(searchParams.get(HIERARCHY_URL_PARAMS.pageSize));
   const viewMode = searchParams.get(HIERARCHY_URL_PARAMS.view) ?? '';
 
   useEffect(() => {
@@ -106,20 +144,65 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const isSearching = isNavigating || isSearchPending;
 
   const setUrlParams = useCallback(
-    (updates: { search?: string; vertical?: string; view?: string }) => {
+    (updates: {
+      search?: string;
+      vertical?: string;
+      position?: string;
+      ward?: string;
+      booth?: string;
+      member?: string;
+      page?: number;
+      pageSize?: number;
+      view?: string;
+    }) => {
+      const clearsMemberFocus =
+        !('member' in updates) &&
+        FILTER_URL_KEYS.some((key) => key !== 'member' && key in updates);
+
       const next = {
         search: updates.search ?? searchQuery,
         vertical: updates.vertical ?? verticalId,
+        position: updates.position ?? positionId,
+        ward: updates.ward ?? wardGeoId,
+        booth: updates.booth ?? boothNo,
+        member: clearsMemberFocus ? '' : (updates.member ?? focusMemberId),
         view: 'view' in updates ? (updates.view ?? '') : viewMode,
       };
+      const nextPage = updates.page !== undefined
+        ? updates.page
+        : clearsMemberFocus || 'search' in updates
+          ? 1
+          : pageFromUrl;
+      const nextPageSize = updates.pageSize ?? pageSize;
+
       const params = new URLSearchParams();
       if (next.search.trim()) params.set(HIERARCHY_URL_PARAMS.search, next.search.trim());
       if (next.vertical.trim()) params.set(HIERARCHY_URL_PARAMS.vertical, next.vertical.trim());
+      if (next.position.trim()) params.set(HIERARCHY_URL_PARAMS.position, next.position.trim());
+      if (next.ward.trim()) params.set(HIERARCHY_URL_PARAMS.ward, next.ward.trim());
+      if (next.booth.trim()) params.set(HIERARCHY_URL_PARAMS.booth, next.booth.trim());
+      if (next.member.trim()) params.set(HIERARCHY_URL_PARAMS.member, next.member.trim());
       if (next.view.trim()) params.set(HIERARCHY_URL_PARAMS.view, next.view.trim());
+      if (nextPage > 1) params.set(HIERARCHY_URL_PARAMS.page, String(nextPage));
+      if (nextPageSize !== parseMemberPageSizeParam(null)) {
+        params.set(HIERARCHY_URL_PARAMS.pageSize, String(nextPageSize));
+      }
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
-    [router, pathname, searchQuery, verticalId, viewMode],
+    [
+      router,
+      pathname,
+      searchQuery,
+      verticalId,
+      positionId,
+      wardGeoId,
+      boothNo,
+      focusMemberId,
+      pageFromUrl,
+      pageSize,
+      viewMode,
+    ],
   );
 
   const commitSearch = useCallback(() => {
@@ -141,54 +224,150 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     }
   }, []);
 
-  const loadBootstrap = useCallback(async (signal?: AbortSignal) => {
-    const params = new URLSearchParams({ constituencyId: DEFAULT_CONSTITUENCY_ID });
-    const res = await fetch(`/api/hierarchy/bootstrap?${params}`, { signal });
-    if (!res.ok) {
-      let message = `Failed to load hierarchy (${res.status})`;
-      const text = await res.text();
-      try {
-        const body = JSON.parse(text) as { error?: string };
-        if (typeof body.error === 'string' && body.error.trim()) message = body.error.trim();
-      } catch {
-        if (text.trim()) message = text.trim();
-      }
-      throw new Error(message);
+  const loadInitial = useCallback(async (signal?: AbortSignal) => {
+    const bootstrapParams = new URLSearchParams({
+      constituencyId: DEFAULT_CONSTITUENCY_ID,
+      configOnly: 'true',
+    });
+
+    const [bootstrapRes, leadershipRes] = await Promise.all([
+      fetch(`/api/hierarchy/bootstrap?${bootstrapParams}`, { signal }),
+      fetch(
+        `/api/hierarchy/taluka-leadership?constituencyId=${DEFAULT_CONSTITUENCY_ID}`,
+        { signal },
+      ),
+    ]);
+
+    if (!bootstrapRes.ok) {
+      throw new Error(`Failed to load hierarchy (${bootstrapRes.status})`);
     }
-    const data = await res.json();
-    if (data.config) setConfig(data.config);
-    setDefaultElectionId(data.defaultElectionId ?? '');
+    if (!leadershipRes.ok) {
+      throw new Error(`Failed to load taluka leadership (${leadershipRes.status})`);
+    }
+
+    const bootstrap = (await bootstrapRes.json()) as {
+      config?: CadreConfig;
+      defaultElectionId?: string;
+      membersTotal?: number;
+    };
+    const leadership = (await leadershipRes.json()) as {
+      entries?: { verticalId: string; head: CadreMemberCard | null }[];
+      wardSummaries?: WardSummary[];
+    };
+
+    if (signal?.aborted) return;
+
+    if (bootstrap.config) setConfig(bootstrap.config);
+    setDefaultElectionId(bootstrap.defaultElectionId ?? '');
+    setMembersTotal(bootstrap.membersTotal ?? 0);
+
+    const verticals = (bootstrap.config?.verticals ?? []).filter((v) => v.isActive);
+    const verticalById = new Map(verticals.map((v) => [v.id, v]));
+    setTalukaLeadership(
+      (leadership.entries ?? [])
+        .map((entry) => {
+          const vertical = verticalById.get(entry.verticalId);
+          if (!vertical) return null;
+          return {
+            verticalId: entry.verticalId,
+            verticalName: vertical.name,
+            head: entry.head,
+          };
+        })
+        .filter((entry): entry is LeadershipEntry => entry !== null)
+        .sort(
+          (a, b) =>
+            (verticalById.get(a.verticalId)?.sortOrder ?? 0) -
+            (verticalById.get(b.verticalId)?.sortOrder ?? 0),
+        ),
+    );
+    setWardSummaries(leadership.wardSummaries ?? []);
   }, []);
 
-  const loadLeaders = useCallback(
-    async (nextVerticalId: string, wardGeoIds: string[], signal?: AbortSignal) => {
-      if (!nextVerticalId) {
-        setLeaders(EMPTY_LEADERS);
-        return;
-      }
+  const loadAllMembers = useCallback(async (signal?: AbortSignal) => {
+    if (allMembersLoaded) return;
 
+    const baseParams = new URLSearchParams({
+      constituencyId: DEFAULT_CONSTITUENCY_ID,
+      memberPageSize: String(BOOTSTRAP_MEMBER_PAGE_SIZE),
+    });
+
+    const fetchPage = async (memberPage: number, membersOnly: boolean) => {
+      const params = new URLSearchParams(baseParams);
+      params.set('memberPage', String(memberPage));
+      if (membersOnly) params.set('membersOnly', 'true');
+      const res = await fetch(`/api/hierarchy/bootstrap?${params}`, { signal });
+      if (!res.ok) {
+        throw new Error(`Failed to load members (${res.status})`);
+      }
+      return res.json() as Promise<{
+        members?: CadreMemberCard[];
+        membersPagination?: {
+          page: number;
+          pageSize: number;
+          total: number;
+          totalPages: number;
+        };
+      }>;
+    };
+
+    const first = await fetchPage(1, false);
+    if (signal?.aborted) return;
+
+    const totalPages = first.membersPagination?.totalPages ?? 1;
+    const total = first.membersPagination?.total ?? first.members?.length ?? 0;
+    const allMembers = [...(first.members ?? [])];
+    setMembersTotal(total);
+    setLoadingMembersProgress(
+      totalPages > 1 ? `Loading members (1 of ${totalPages})…` : null,
+    );
+
+    for (let page = 2; page <= totalPages; page += 1) {
+      const next = await fetchPage(page, true);
+      if (signal?.aborted) return;
+      allMembers.push(...(next.members ?? []));
+      setLoadingMembersProgress(`Loading members (${page} of ${totalPages})…`);
+    }
+
+    setMembers(allMembers);
+    setAllMembersLoaded(true);
+    setLoadingMembersProgress(null);
+  }, [allMembersLoaded]);
+
+  const loadScopedMembers = useCallback(
+    async (
+      scope:
+        | { type: 'ward'; wardGeoId: string }
+        | {
+            type: 'committee';
+            committeeLevel: 'taluka_committee' | 'ward_committee' | 'booth_committee';
+            verticalId: string;
+            wardGeoId?: string;
+            boothNo?: string;
+          },
+      signal?: AbortSignal,
+    ) => {
       const params = new URLSearchParams({
         constituencyId: DEFAULT_CONSTITUENCY_ID,
-        verticalId: nextVerticalId,
       });
-      for (const wardGeoId of wardGeoIds) {
-        params.append('wardGeoId', wardGeoId);
+
+      if (scope.type === 'ward') {
+        params.set('scope', 'ward');
+        params.set('wardGeoId', scope.wardGeoId);
+      } else {
+        params.set('scope', scope.committeeLevel);
+        params.set('verticalId', scope.verticalId);
+        if (scope.wardGeoId) params.set('wardGeoId', scope.wardGeoId);
+        if (scope.boothNo) params.set('boothNo', scope.boothNo);
       }
 
-      const res = await fetch(`/api/hierarchy/leaders?${params}`, { signal });
+      const res = await fetch(`/api/hierarchy/scoped-members?${params}`, { signal });
       if (!res.ok) {
-        let message = `Failed to load leaders (${res.status})`;
-        const text = await res.text();
-        try {
-          const body = JSON.parse(text) as { error?: string };
-          if (typeof body.error === 'string' && body.error.trim()) message = body.error.trim();
-        } catch {
-          if (text.trim()) message = text.trim();
-        }
-        throw new Error(message);
+        throw new Error(`Failed to load members (${res.status})`);
       }
-      const data = await res.json();
-      setLeaders(data.leaders ?? EMPTY_LEADERS);
+      const data = (await res.json()) as { members?: CadreMemberCard[] };
+      if (signal?.aborted) return;
+      setScopedMembers(data.members ?? []);
     },
     [],
   );
@@ -199,17 +378,19 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       setLoading(true);
       setLoadError(null);
       try {
-        await loadBootstrap(controller.signal);
+        await loadInitial(controller.signal);
       } catch (err) {
         if (!controller.signal.aborted) {
-          setLoadError(err instanceof Error ? err.message : 'Failed to load hierarchy data');
+          setLoadError(
+            err instanceof Error ? err.message : t('hierarchyModule.loadHierarchyFailed'),
+          );
         }
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
     })();
     return () => controller.abort();
-  }, [loadBootstrap]);
+  }, [loadInitial]);
 
   const wardOptions = useMemo(
     () =>
@@ -226,77 +407,336 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     [config?.verticals],
   );
 
-  const effectiveVerticalId = verticalId || activeVerticals[0]?.id || '';
-  const selectedVerticalName =
-    activeVerticals.find((v) => v.id === effectiveVerticalId)?.name ?? 'Basic';
+  const committeeVerticalId = verticalId.trim();
+  const canvasVerticalId = committeeVerticalId || activeVerticals[0]?.id || '';
+  const canvasVerticalName =
+    activeVerticals.find((v) => v.id === canvasVerticalId)?.name ?? 'Basic';
 
-  useEffect(() => {
-    if (!config || !effectiveVerticalId) return;
-    const controller = new AbortController();
-    (async () => {
-      setLoadingLeaders(true);
-      setLoadError(null);
-      try {
-        await loadLeaders(effectiveVerticalId, wardGeoIds, controller.signal);
-      } catch (err) {
-        if (!controller.signal.aborted) {
-          setLoadError(err instanceof Error ? err.message : 'Failed to load hierarchy leaders');
-        }
-      } finally {
-        if (!controller.signal.aborted) setLoadingLeaders(false);
+  const loadCanvasData = useCallback(
+    async (nextVerticalId: string, signal?: AbortSignal) => {
+      const params = new URLSearchParams({
+        constituencyId: DEFAULT_CONSTITUENCY_ID,
+        verticalId: nextVerticalId,
+        includeCanvas: '1',
+      });
+      for (const wardId of wardGeoIds) {
+        params.append('wardGeoId', wardId);
       }
-    })();
-    return () => controller.abort();
-  }, [config, effectiveVerticalId, wardGeoIds, loadLeaders]);
+
+      const res = await fetch(`/api/hierarchy/leaders?${params}`, { signal });
+      if (!res.ok) {
+        throw new Error(`Failed to load canvas (${res.status})`);
+      }
+      const data = (await res.json()) as { canvas?: HierarchyCanvasData };
+      if (signal?.aborted) return;
+      setCanvasData(data.canvas ?? EMPTY_CANVAS_DATA);
+    },
+    [wardGeoIds],
+  );
 
   const ensureReferenceCounts = useCallback(async () => {
     if (referenceCounts) return;
     await loadConfig();
   }, [referenceCounts, loadConfig]);
 
-  const refresh = useCallback(async () => {
-    setLoadError(null);
-    try {
-      await loadBootstrap();
-      if (effectiveVerticalId) {
-        await loadLeaders(effectiveVerticalId, wardGeoIds);
-      }
-    } catch (err) {
-      setLoadError(err instanceof Error ? err.message : 'Failed to refresh hierarchy data');
-    }
-  }, [loadBootstrap, loadLeaders, effectiveVerticalId, wardGeoIds]);
-
   const showCanvas = viewMode === HIERARCHY_VIEWS.canvas;
   const hierarchyDisplayMode = showCanvas ? 'canvas' : 'list';
+  const showWardPanel = Boolean(wardGeoId);
+  const showOverview =
+    !showCanvas &&
+    !wardGeoId &&
+    viewMode !== HIERARCHY_VIEWS.talukaCommittee &&
+    viewMode !== HIERARCHY_VIEWS.allMembers;
+  const showAllMembers = viewMode === HIERARCHY_VIEWS.allMembers;
+  const showTalukaCommittee = viewMode === HIERARCHY_VIEWS.talukaCommittee;
+  const showWardCommittee = showWardPanel && viewMode === HIERARCHY_VIEWS.wardCommittee;
+  const showBoothCommittee = showWardPanel && viewMode === HIERARCHY_VIEWS.boothCommittee;
+  const showWardPanelMain =
+    showWardPanel && !showWardCommittee && !showBoothCommittee && !showCanvas;
+  const isGlobalSearch = Boolean(searchQuery.trim());
 
-  const wardHeadById = useMemo(
-    () => new Map(leaders.wardHeads.map((entry) => [entry.wardGeoId, entry.member])),
-    [leaders.wardHeads],
+  const refresh = useCallback(async () => {
+    setLoadError(null);
+    setAllMembersLoaded(false);
+    setMembers([]);
+    try {
+      await loadInitial();
+      if (showCanvas && canvasVerticalId) {
+        await loadCanvasData(canvasVerticalId);
+      } else if (showAllMembers || isGlobalSearch) {
+        await loadAllMembers();
+      } else if (showTalukaCommittee && committeeVerticalId) {
+        await loadScopedMembers({
+          type: 'committee',
+          committeeLevel: 'taluka_committee',
+          verticalId: committeeVerticalId,
+        });
+      } else if (showWardCommittee && committeeVerticalId && wardGeoId) {
+        await loadScopedMembers({
+          type: 'committee',
+          committeeLevel: 'ward_committee',
+          verticalId: committeeVerticalId,
+          wardGeoId,
+        });
+      } else if (showBoothCommittee && committeeVerticalId && wardGeoId && boothNo) {
+        await loadScopedMembers({
+          type: 'committee',
+          committeeLevel: 'booth_committee',
+          verticalId: committeeVerticalId,
+          wardGeoId,
+          boothNo,
+        });
+      } else if (showWardPanelMain && wardGeoId) {
+        await loadScopedMembers({ type: 'ward', wardGeoId });
+      }
+    } catch (err) {
+      setLoadError(
+        err instanceof Error ? err.message : t('hierarchyModule.refreshHierarchyFailed'),
+      );
+    }
+  }, [
+    loadInitial,
+    loadAllMembers,
+    loadScopedMembers,
+    loadCanvasData,
+    showCanvas,
+    canvasVerticalId,
+    showAllMembers,
+    isGlobalSearch,
+    showTalukaCommittee,
+    committeeVerticalId,
+    showWardCommittee,
+    wardGeoId,
+    showBoothCommittee,
+    boothNo,
+    showWardPanelMain,
+    t,
+  ]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const controller = new AbortController();
+    (async () => {
+      setScopeLoading(true);
+      setLoadError(null);
+      try {
+        if (showCanvas && canvasVerticalId) {
+          await loadCanvasData(canvasVerticalId, controller.signal);
+          return;
+        }
+
+        if (showAllMembers || isGlobalSearch) {
+          await loadAllMembers(controller.signal);
+          return;
+        }
+
+        if (showTalukaCommittee && committeeVerticalId) {
+          await loadScopedMembers(
+            {
+              type: 'committee',
+              committeeLevel: 'taluka_committee',
+              verticalId: committeeVerticalId,
+            },
+            controller.signal,
+          );
+          return;
+        }
+
+        if (showWardCommittee && committeeVerticalId && wardGeoId) {
+          await loadScopedMembers(
+            {
+              type: 'committee',
+              committeeLevel: 'ward_committee',
+              verticalId: committeeVerticalId,
+              wardGeoId,
+            },
+            controller.signal,
+          );
+          return;
+        }
+
+        if (showBoothCommittee && committeeVerticalId && wardGeoId && boothNo) {
+          await loadScopedMembers(
+            {
+              type: 'committee',
+              committeeLevel: 'booth_committee',
+              verticalId: committeeVerticalId,
+              wardGeoId,
+              boothNo,
+            },
+            controller.signal,
+          );
+          return;
+        }
+
+        if (showWardPanelMain && wardGeoId) {
+          await loadScopedMembers({ type: 'ward', wardGeoId }, controller.signal);
+          return;
+        }
+
+        setScopedMembers([]);
+      } catch (err) {
+        if (!controller.signal.aborted) {
+          setLoadError(err instanceof Error ? err.message : 'Failed to load members');
+        }
+      } finally {
+        if (!controller.signal.aborted) setScopeLoading(false);
+      }
+    })();
+
+    return () => controller.abort();
+  }, [
+    loading,
+    showCanvas,
+    canvasVerticalId,
+    showAllMembers,
+    isGlobalSearch,
+    showTalukaCommittee,
+    committeeVerticalId,
+    showWardCommittee,
+    wardGeoId,
+    showBoothCommittee,
+    boothNo,
+    showWardPanelMain,
+    loadAllMembers,
+    loadScopedMembers,
+    loadCanvasData,
+  ]);
+
+  const boothOptions = useMemo(() => {
+    if (!config?.geoUnits) return [];
+    const units = wardGeoId
+      ? getBoothGeoUnits(config.geoUnits, DEFAULT_CONSTITUENCY_ID, wardGeoId)
+      : getBoothGeoUnits(config.geoUnits, DEFAULT_CONSTITUENCY_ID);
+    return units
+      .map((g) => extractBoothNumber(g.name) ?? g.name.trim())
+      .filter((b): b is string => Boolean(b));
+  }, [config?.geoUnits, wardGeoId]);
+
+  const visibleMembers = useMemo(() => {
+    if (isGlobalSearch) {
+      return filterMembersGlobalSearch(members, searchQuery, focusMemberId);
+    }
+
+    if (showAllMembers) {
+      return sortMembers(
+        filterMembers(members, {
+          search: searchQuery,
+          memberId: focusMemberId,
+        }),
+      );
+    }
+
+    if (showTalukaCommittee || showWardCommittee || showBoothCommittee) {
+      return sortMembers(
+        filterMembers(scopedMembers, {
+          search: searchQuery,
+          memberId: focusMemberId,
+        }),
+      );
+    }
+
+    return sortMembers(
+      filterMembers(scopedMembers, {
+        search: searchQuery,
+        positionId,
+        wardGeoId,
+        boothNo,
+        memberId: focusMemberId,
+      }),
+    );
+  }, [
+    members,
+    scopedMembers,
+    searchQuery,
+    positionId,
+    wardGeoId,
+    boothNo,
+    focusMemberId,
+    showAllMembers,
+    showTalukaCommittee,
+    showWardCommittee,
+    showBoothCommittee,
+    isGlobalSearch,
+  ]);
+
+  const memberPagination = useMemo(
+    () => paginateMembers(visibleMembers, pageFromUrl, pageSize),
+    [visibleMembers, pageFromUrl, pageSize],
   );
 
-  const wardEntries = useMemo(() => {
+  useEffect(() => {
+    if (!focusMemberId || loading) return;
+    const frame = requestAnimationFrame(() => {
+      document
+        .getElementById(`member-card-${focusMemberId}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusMemberId, visibleMembers, loading]);
+
+  useEffect(() => {
+    if (pageFromUrl !== memberPagination.currentPage) {
+      setUrlParams({ page: memberPagination.currentPage });
+    }
+  }, [pageFromUrl, memberPagination.currentPage, setUrlParams]);
+
+  const handleMemberPageChange = useCallback(
+    (page: number) => {
+      setUrlParams({ page });
+      scrollToTop();
+    },
+    [setUrlParams],
+  );
+
+  const handleMemberPageSizeChange = useCallback(
+    (size: number) => {
+      setUrlParams({ pageSize: size, page: 1 });
+      scrollToTop();
+    },
+    [setUrlParams],
+  );
+
+  const wardSummariesById = useMemo(
+    () => new Map(wardSummaries.map((summary) => [summary.wardGeoId, summary])),
+    [wardSummaries],
+  );
+
+  const wardAccessEntries = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
 
     return wardOptions
       .map((ward) => {
-        const head = wardHeadById.get(ward.id) ?? null;
-        const wardLabel = formatWardLabel(ward.name);
-        const headName = head ? getMemberDisplayName(head) : '—';
-        const headPhone = head ? getMemberPhone(head) : null;
+        const summary = wardSummariesById.get(ward.id);
+        const boothCount =
+          summary?.boothCount ??
+          getBoothGeoUnits(config?.geoUnits ?? [], DEFAULT_CONSTITUENCY_ID, ward.id).length;
 
-        return { ward, wardLabel, headName, headPhone };
+        return {
+          wardGeoId: ward.id,
+          wardLabel: formatWardLabel(ward.name),
+          boothCount,
+          wingsAssigned: summary?.wingsAssigned ?? 0,
+          wingsTotal: summary?.wingsTotal ?? activeVerticals.length,
+          primaryHead: summary?.primaryHead ?? null,
+          wardName: ward.name,
+          headNames: (summary?.allHeads ?? []).map((head) => getMemberDisplayName(head)),
+        };
       })
       .filter((entry) => {
         if (!query) return true;
-        if (entry.ward.name.toLowerCase().includes(query)) return true;
+        if (entry.wardName.toLowerCase().includes(query)) return true;
         if (entry.wardLabel.toLowerCase().includes(query)) return true;
-        if (memberNameMatchesSearch(entry.headName, query)) return true;
-        if ((entry.headPhone ?? '').replace(/\D/g, '').includes(query.replace(/\D/g, ''))) {
-          return true;
-        }
-        return false;
+        return entry.headNames.some((name) => name.toLowerCase().includes(query));
       });
-  }, [wardOptions, wardHeadById, searchQuery]);
+  }, [
+    wardOptions,
+    wardSummariesById,
+    searchQuery,
+    config?.geoUnits,
+    activeVerticals.length,
+  ]);
 
   const clearSearch = useCallback(() => {
     setSearchDraft('');
@@ -309,6 +749,10 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     setEditorTarget({ mode: 'create' });
   };
 
+  const handleEdit = (member: CadreMemberCard) => {
+    setEditorTarget({ mode: 'edit', member });
+  };
+
   const openCanvasView = () => {
     setUrlParams({ view: HIERARCHY_VIEWS.canvas });
   };
@@ -317,22 +761,109 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     setUrlParams({ view: '' });
   };
 
-  const talukaAdhyaksh = leaders.talukaAdhyaksh;
-  const talukaAdhyakshName = talukaAdhyaksh ? getMemberDisplayName(talukaAdhyaksh) : '—';
-  const talukaAdhyakshPhone = talukaAdhyaksh ? getMemberPhone(talukaAdhyaksh) : null;
-  const isContentLoading = loading || loadingLeaders;
+  const openWardPanel = (wardId: string) => {
+    setUrlParams({
+      ward: wardId,
+      booth: '',
+      member: '',
+      position: '',
+      view: '',
+      page: 1,
+    });
+    scrollToTop();
+  };
 
-  const verticalSelect = (
+  const openTalukaCommittee = (nextVerticalId: string) => {
+    setUrlParams({
+      vertical: nextVerticalId,
+      view: HIERARCHY_VIEWS.talukaCommittee,
+      ward: '',
+      booth: '',
+      member: '',
+      position: '',
+      page: 1,
+    });
+    scrollToTop();
+  };
+
+  const backToOverview = () => {
+    setUrlParams({
+      ward: '',
+      booth: '',
+      member: '',
+      position: '',
+      vertical: '',
+      view: '',
+      page: 1,
+    });
+    scrollToTop();
+  };
+
+  const backToWardPanel = () => {
+    setUrlParams({
+      booth: '',
+      member: '',
+      position: '',
+      view: '',
+      page: 1,
+    });
+    scrollToTop();
+  };
+
+  const openViewWardCommittee = (nextVerticalId: string) => {
+    setUrlParams({
+      vertical: nextVerticalId,
+      view: HIERARCHY_VIEWS.wardCommittee,
+      booth: '',
+      member: '',
+      position: '',
+      page: 1,
+    });
+    scrollToTop();
+  };
+
+  const openViewBoothCommittee = (booth: string, nextVerticalId: string) => {
+    setUrlParams({
+      vertical: nextVerticalId,
+      booth,
+      view: HIERARCHY_VIEWS.boothCommittee,
+      member: '',
+      position: '',
+      page: 1,
+    });
+    scrollToTop();
+  };
+
+  const openAddBoothCommitteeMember = (booth: string) => {
+    setUrlParams({ booth });
+    setEditorTarget({ mode: 'create' });
+  };
+
+  const selectedWardName = wardOptions.find((w) => w.id === wardGeoId)?.name ?? 'Ward';
+  const selectedWardLabel = formatWardLabel(selectedWardName);
+  const isContentLoading = loading || scopeLoading;
+  const vacantLabel = t('hierarchyModule.vacantPosition');
+  const viewCommitteeLabel = t('hierarchyModule.viewCommitteeLink');
+  const showCommitteeList = showTalukaCommittee || showWardCommittee || showBoothCommittee;
+  const committeeSectionTitle = showBoothCommittee
+    ? t('hierarchyModule.boothCommitteeTitle', { booth: boothNo })
+    : showWardCommittee
+      ? t('hierarchyModule.wardCommitteeTitle', { ward: selectedWardName })
+      : showTalukaCommittee
+        ? t('hierarchyModule.talukaCommitteeTitle')
+        : undefined;
+
+  const verticalSelect = showCanvas ? (
     <div className="space-y-1.5">
       <Label htmlFor="hierarchy-vertical-select" className="text-xs text-muted-foreground">
-        Vertical category
+        {t('hierarchyModule.canvasVerticalLabel')}
       </Label>
       <Select
-        value={effectiveVerticalId}
+        value={canvasVerticalId}
         onValueChange={(v) => setUrlParams({ vertical: v })}
       >
         <SelectTrigger id="hierarchy-vertical-select" className="h-11 w-full rounded-xl">
-          <SelectValue placeholder="Select vertical" />
+          <SelectValue placeholder={t('hierarchyModule.selectVertical')} />
         </SelectTrigger>
         <SelectContent>
           {activeVerticals.map((v) => (
@@ -343,6 +874,32 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         </SelectContent>
       </Select>
     </div>
+  ) : null;
+
+  const memberListBlock = (
+    <MemberList
+      members={memberPagination.items}
+      canEdit={canEdit}
+      onEdit={canEdit ? handleEdit : undefined}
+      variant={showCommitteeList ? 'compact' : 'default'}
+      sectionTitle={committeeSectionTitle}
+      pagination={{
+        currentPage: memberPagination.currentPage,
+        totalPages: memberPagination.totalPages,
+        pageSize,
+        totalItems: memberPagination.totalItems,
+        onPageChange: handleMemberPageChange,
+        onPageSizeChange: handleMemberPageSizeChange,
+      }}
+      emptyMessage={
+        isGlobalSearch
+          ? t('hierarchyModule.noSearchResults')
+          : t('hierarchyModule.noMembersFiltered')
+      }
+      emptyHint={
+        isGlobalSearch ? t('hierarchyModule.noSearchResultsHint') : undefined
+      }
+    />
   );
 
   return (
@@ -372,7 +929,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               size="sm"
               variant="outline"
               className="rounded-xl"
-              aria-label="Configuration"
+              aria-label={t('hierarchyModule.configurationAria')}
               onClick={() => {
                 void ensureReferenceCounts();
                 setConfigOpen(true);
@@ -390,7 +947,9 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             htmlFor="hierarchy-search"
             className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground"
           >
-            SEARCH WARDS
+            {isGlobalSearch || showWardPanelMain
+              ? t('hierarchyModule.searchLabel')
+              : t('hierarchyModule.searchWardsLabel')}
           </Label>
           {hasSearch && (
             <Button
@@ -400,7 +959,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
               onClick={clearSearch}
             >
-              Clear
+              {t('hierarchyModule.clearSearch')}
             </Button>
           )}
         </div>
@@ -414,13 +973,17 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               onKeyDown={(e) => {
                 if (e.key === 'Enter') commitSearch();
               }}
-              placeholder="Search by ward number or adhyaksh name"
+              placeholder={
+                showWardPanelMain || isGlobalSearch
+                  ? t('hierarchyModule.searchPlaceholder')
+                  : t('hierarchyModule.wardSearchPlaceholder')
+              }
             />
             {hasSearch && (
               <button
                 type="button"
                 className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-0.5 text-muted-foreground transition-colors hover:text-foreground"
-                aria-label="Clear search"
+                aria-label={t('hierarchyModule.clearSearchAria')}
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={clearSearch}
               >
@@ -433,7 +996,11 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             className="h-11 shrink-0 gap-1.5 rounded-xl px-3 sm:px-4"
             disabled={isSearching}
             onClick={commitSearch}
-            aria-label={isSearching ? 'Searching' : 'Search'}
+            aria-label={
+              isSearching
+                ? t('hierarchyModule.searchingAria')
+                : t('hierarchyModule.searchAction')
+            }
           >
             {isSearching ? (
               <Loader2 className="size-4 animate-spin" />
@@ -441,13 +1008,22 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               <Search className="size-4" />
             )}
             <span className="hidden sm:inline">
-              {isSearching ? 'Searching…' : 'Search'}
+              {isSearching
+                ? t('hierarchyModule.searching')
+                : t('hierarchyModule.searchAction')}
             </span>
           </Button>
         </div>
       </div>
 
-      <div className="shrink-0">{verticalSelect}</div>
+      {!loading && !loadError && allMembersLoaded && membersTotal > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {t('hierarchyModule.membersLoaded', {
+            loaded: members.length.toLocaleString(),
+            total: membersTotal.toLocaleString(),
+          })}
+        </p>
+      )}
 
       {!loading && !loadError && (
         <Tabs
@@ -469,12 +1045,33 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         </Tabs>
       )}
 
+      {!isGlobalSearch && !showOverview && !showCanvas && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-8 w-fit shrink-0 gap-1.5 text-muted-foreground hover:text-foreground"
+          onClick={
+            showWardPanel && (showWardCommittee || showBoothCommittee)
+              ? backToWardPanel
+              : backToOverview
+          }
+        >
+          <ArrowLeft className="size-4" />
+          {showWardPanel && (showWardCommittee || showBoothCommittee)
+            ? t('hierarchyModule.backToWardPanel')
+            : showWardPanel
+              ? t('hierarchyModule.backToAllWards')
+              : t('hierarchyModule.backToConstituency')}
+        </Button>
+      )}
+
       <div className="flex flex-col gap-3">
         {isContentLoading ? (
           <div className="flex min-h-48 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border bg-muted/20 py-12">
             <div className="size-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             <p className="text-sm text-muted-foreground">
-              {loading ? 'Loading hierarchy…' : 'Loading leaders…'}
+              {loadingMembersProgress ?? t('hierarchyModule.loadingHierarchy')}
             </p>
           </div>
         ) : loadError ? (
@@ -487,45 +1084,84 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
                 void refresh();
               }}
             >
-              Retry
+              {t('hierarchyModule.retry')}
             </Button>
           </div>
         ) : showCanvas ? (
-          <HierarchyCanvasView
-            leaders={leaders}
-            verticalName={selectedVerticalName}
-            wardOptions={wardOptions}
-          />
-        ) : (
+          <>
+            {verticalSelect}
+            <HierarchyCanvasView
+              canvasData={canvasData}
+              verticalName={canvasVerticalName}
+              verticalId={canvasVerticalId}
+              wardOptions={wardOptions}
+            />
+          </>
+        ) : isGlobalSearch ? (
           <div className="flex flex-col gap-3">
             <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 dark:border-primary/50 dark:bg-primary/10">
-              <p className="text-sm">
-                Taluka Adhyaksh ({selectedVerticalName}): {talukaAdhyakshName}
+              <p className="text-sm font-medium">
+                {t('hierarchyModule.globalSearchTitle', { query: searchQuery.trim() })}
               </p>
-              <div className="mt-1">
-                <ContactWithCall phone={talukaAdhyakshPhone} />
-              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t('hierarchyModule.globalSearchSubtitle', {
+                  count: memberPagination.totalItems,
+                })}
+              </p>
             </div>
+            {memberListBlock}
+          </div>
+        ) : showOverview ? (
+          <div className="flex flex-col gap-3">
+            <LeadershipSection
+              title={t('hierarchyModule.talukaLeadershipTitle')}
+              entries={talukaLeadership}
+              vacantLabel={vacantLabel}
+              viewCommitteeLabel={viewCommitteeLabel}
+              onViewCommittee={openTalukaCommittee}
+            />
 
-            {wardEntries.length === 0 ? (
+            {wardAccessEntries.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-muted/30 px-4 py-8 text-center text-sm text-muted-foreground">
-                No wards match the current search.
+                {t('hierarchyModule.noWardsMatch')}
               </div>
             ) : (
-              wardEntries.map((entry) => (
-                <div
-                  key={entry.ward.id}
-                  className="overflow-hidden rounded-xl border border-border bg-card px-4 py-3 shadow-sm"
-                >
-                  <p className="font-bold">Ward No. {entry.wardLabel}</p>
-                  <div className="mt-1 space-y-1 text-sm">
-                    <p>Ward Adhyaksh: {entry.headName}</p>
-                    <ContactWithCall phone={entry.headPhone} />
-                  </div>
-                </div>
-              ))
+              <WardAccessSection
+                entries={wardAccessEntries}
+                vacantLabel={vacantLabel}
+                onOpenWard={openWardPanel}
+              />
             )}
           </div>
+        ) : showAllMembers ? (
+          <div className="flex flex-col gap-3">
+            <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3 dark:border-primary/50 dark:bg-primary/10">
+              <p className="text-sm font-medium">
+                {t('hierarchyModule.allMembersTitle')}
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t('hierarchyModule.allMembersSubtitle', {
+                  count: memberPagination.totalItems.toLocaleString(),
+                })}
+              </p>
+            </div>
+            {memberListBlock}
+          </div>
+        ) : showWardPanelMain ? (
+          <WardPanel
+            wardGeoId={wardGeoId}
+            wardLabel={selectedWardLabel}
+            members={scopedMembers}
+            activeVerticals={activeVerticals}
+            boothNumbers={boothOptions}
+            canEdit={canEdit}
+            initialExpandedBooth={boothNo || undefined}
+            onViewWardCommittee={openViewWardCommittee}
+            onViewBoothCommittee={openViewBoothCommittee}
+            onAddBoothCommitteeMember={openAddBoothCommitteeMember}
+          />
+        ) : (
+          <div className="flex flex-col gap-3">{memberListBlock}</div>
         )}
       </div>
 
@@ -549,7 +1185,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         <Sheet open={configOpen} onOpenChange={setConfigOpen}>
           <SheetContent side="right" className="w-full overflow-y-auto sm:max-w-3xl">
             <SheetHeader>
-              <SheetTitle>Hierarchy configuration</SheetTitle>
+              <SheetTitle>{t('hierarchyModule.hierarchyConfigTitle')}</SheetTitle>
             </SheetHeader>
             <div className="mt-4">
               <HierarchyConfigAdmin
