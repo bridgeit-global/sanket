@@ -821,7 +821,7 @@ type LetterMasterRow = {
   updatedAt: string | Date;
 };
 
-export function LetterGeneration() {
+export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   const { t, locale } = useTranslations();
   const [letterLocale, setLetterLocale] = useState<LetterLocale>(locale);
   const prevLetterLocaleRef = useRef<LetterLocale>(locale);
@@ -2851,6 +2851,7 @@ export function LetterGeneration() {
         )}
       </Card>
 
+      {isAdmin ? (
       <Card>
         <CardHeader
           className="cursor-pointer select-none p-4 transition-colors hover:bg-muted/50 sm:p-6 rounded-t-lg"
@@ -3055,7 +3056,7 @@ export function LetterGeneration() {
           </CardContent>
         ) : null}
       </Card>
-
+      ) : null}
       <Card>
         <CardHeader className="p-4 sm:p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">

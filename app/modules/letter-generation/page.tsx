@@ -1,6 +1,7 @@
 import { auth } from '@/app/(auth)/auth';
 import { redirect } from 'next/navigation';
 import { LetterGeneration } from '@/components/letter-generation';
+import { isUserAdmin } from '@/lib/db/cadre-queries';
 import { hasModuleAccess } from '@/lib/db/queries';
 
 export default async function LetterGenerationPage() {
@@ -15,10 +16,12 @@ export default async function LetterGenerationPage() {
     redirect('/unauthorized');
   }
 
+  const isAdmin = await isUserAdmin(session.user.id);
+
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-7xl p-4 sm:py-8">
-        <LetterGeneration />
+        <LetterGeneration isAdmin={isAdmin} />
       </div>
     </div>
   );

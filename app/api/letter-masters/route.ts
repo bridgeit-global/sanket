@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
+import { isUserAdmin } from '@/lib/db/cadre-queries';
 import { createLetterMaster, getLetterMasters } from '@/lib/db/queries';
 import { resolveLetterPaperSize } from '@/lib/letters/paper-size';
 import { normalizeLetterheadMode } from '@/lib/letters/render-template';
@@ -32,6 +33,11 @@ export async function POST(request: NextRequest) {
     const modules = (session?.user?.modules as string[]) || [];
     if (!session?.user || !modules.includes('letter-generation')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const admin = await isUserAdmin(session.user.id);
+    if (!admin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();
