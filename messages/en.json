@@ -515,6 +515,8 @@
         "state": "State",
         "pincode": "Pincode"
       },
+      "selectState": "Select state…",
+      "selectCity": "Select city…",
       "pasteAddress": "Paste full address",
       "pasteAddressPlaceholder": "Line 1, Line 2, City, State - Pincode",
       "structuredFields": "Address fields",

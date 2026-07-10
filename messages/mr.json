@@ -515,6 +515,8 @@
         "state": "राज्य",
         "pincode": "पिनकोड"
       },
+      "selectState": "राज्य निवडा…",
+      "selectCity": "शहर निवडा…",
       "pasteAddress": "संपूर्ण पत्ता पेस्ट करा",
       "pasteAddressPlaceholder": "ओळ १, ओळ २, शहर, राज्य - पिनकोड",
       "structuredFields": "पत्ता फील्ड",

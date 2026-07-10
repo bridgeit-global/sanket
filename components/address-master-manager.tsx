@@ -15,7 +15,6 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -34,6 +33,7 @@ import {
 import { useTranslations } from '@/hooks/use-translations';
 import { ADDRESS_TYPES, type AddressType } from '@/lib/letters/address-types';
 import type { AddressMasterRow } from '@/components/letter-address-field';
+import { StructuredAddressFields } from '@/components/structured-address-fields';
 import {
   EMPTY_ADDRESS_PARTS,
   enrichAddressPartsWithPincodeLookup,
@@ -53,40 +53,36 @@ type AddressFormState = {
   addressType: AddressType;
   isActive: boolean;
   sortOrder: string;
-  freeTextAddress: string;
 } & AddressMasterAddressParts;
 
 const EMPTY_FORM: AddressFormState = {
   name: '',
   addressType: 'general',
   ...EMPTY_ADDRESS_PARTS,
-  freeTextAddress: '',
   isActive: true,
   sortOrder: '0',
 };
 
-const STRUCTURED_FIELDS = [
-  { key: 'line1', en: 'line1En', mr: 'line1Mr' },
-  { key: 'line2', en: 'line2En', mr: 'line2Mr' },
-  { key: 'city', en: 'cityEn', mr: 'cityMr' },
-  { key: 'state', en: 'stateEn', mr: 'stateMr' },
+const LOCALE_PART_KEYS = [
+  'line1En',
+  'line1Mr',
+  'line2En',
+  'line2Mr',
+  'cityEn',
+  'cityMr',
+  'stateEn',
+  'stateMr',
 ] as const;
-
-function localeFieldKey(
-  field: (typeof STRUCTURED_FIELDS)[number],
-  locale: LetterLocale,
-): keyof AddressMasterAddressParts {
-  return locale === 'mr' ? field.mr : field.en;
-}
 
 function extractLocaleParts(
   form: AddressFormState,
   locale: LetterLocale,
 ): AddressMasterAddressParts {
   const parts = { ...EMPTY_ADDRESS_PARTS, pincode: form.pincode.trim() };
-  for (const field of STRUCTURED_FIELDS) {
-    const key = localeFieldKey(field, locale);
-    parts[key] = form[key].trim();
+  for (const key of LOCALE_PART_KEYS) {
+    if (locale === 'mr' ? key.endsWith('Mr') : key.endsWith('En')) {
+      parts[key] = form[key].trim();
+    }
   }
   return parts;
 }
@@ -137,14 +133,6 @@ export function AddressMasterManager({
     if (editingId) setFormCardOpen(true);
   }, [editingId]);
 
-  useEffect(() => {
-    if (!formCardOpen) return;
-    setForm((prev) => ({
-      ...prev,
-      freeTextAddress: formatAddressMaster(prev, locale),
-    }));
-  }, [formCardOpen, locale]);
-
   const handleCancelEdit = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
@@ -165,7 +153,6 @@ export function AddressMasterManager({
       stateEn: address.stateEn,
       stateMr: address.stateMr,
       pincode: address.pincode,
-      freeTextAddress: formatAddressMaster(address, locale),
       isActive: address.isActive,
       sortOrder: String(address.sortOrder),
     });
@@ -175,15 +162,6 @@ export function AddressMasterManager({
       formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
-
-  const applyEnrichedAddress = useCallback((enrichedText: string) => {
-    const primary = parseFreeTextAddressForLocale(enrichedText, locale);
-    setForm((prev) => ({
-      ...prev,
-      freeTextAddress: enrichedText,
-      ...mergeAddressParts(prev, primary),
-    }));
-  }, [locale]);
 
   const applyPincodeLookup = useCallback((lookup: PincodeLookupResult) => {
     setForm((prev) => {
@@ -202,43 +180,27 @@ export function AddressMasterManager({
   }, [locale]);
 
   const { schedulePincodeLookup } = usePincodeLookup({
-    onEnriched: applyEnrichedAddress,
+    onEnriched: () => {},
     onResolved: applyPincodeLookup,
   });
 
-  const updateStructuredField = (
-    field: keyof AddressMasterAddressParts,
-    value: string,
-  ) => {
-    const normalizedValue = field === 'pincode' ? toWesternDigits(value).replace(/\D/g, '') : value;
+  const updateAddressParts = (patch: Partial<AddressMasterAddressParts>) => {
+    const nextPatch =
+      patch.pincode !== undefined
+        ? {
+            ...patch,
+            pincode: toWesternDigits(patch.pincode).replace(/\D/g, '').slice(0, 6),
+          }
+        : patch;
+
     setForm((prev) => {
-      const next = { ...prev, [field]: normalizedValue };
-      return {
-        ...next,
-        freeTextAddress: formatAddressMaster(next, locale),
-      };
+      const next = { ...prev, ...nextPatch };
+      return next;
     });
 
-    if (field === 'pincode') {
-      const cleaned = normalizedValue;
-      if (cleaned.length === 6) {
-        schedulePincodeLookup(
-          formatAddressMaster({ ...form, pincode: value }, locale),
-          cleaned,
-        );
-      }
-    }
-  };
-
-  const updateFreeTextAddress = (value: string) => {
-    const primary = parseFreeTextAddressForLocale(value, locale);
-    setForm((prev) => ({
-      ...prev,
-      freeTextAddress: value,
-      ...mergeAddressParts(prev, primary),
-    }));
-    if (primary.pincode) {
-      schedulePincodeLookup(value, primary.pincode);
+    if (nextPatch.pincode !== undefined && nextPatch.pincode.length === 6) {
+      const next = { ...form, ...nextPatch };
+      schedulePincodeLookup(formatAddressMaster(next, locale), nextPatch.pincode);
     }
   };
 
@@ -419,47 +381,12 @@ export function AddressMasterManager({
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label>{t('letterGeneration.addresses.pasteAddress')}</Label>
-              <Textarea
-                value={form.freeTextAddress}
-                onChange={(event) => updateFreeTextAddress(event.target.value)}
-                placeholder={t('letterGeneration.addresses.pasteAddressPlaceholder')}
-                className="min-h-[100px]"
-              />
-            </div>
-
-            <div className="space-y-3 rounded-md border p-4">
-              <p className="text-sm font-medium">{t('letterGeneration.addresses.structuredFields')}</p>
-              {STRUCTURED_FIELDS.map((field) => {
-                const fieldKey = localeFieldKey(field, locale);
-                return (
-                  <div key={field.key} className="space-y-2">
-                    <Label>{t(`letterGeneration.addresses.fields.${field.key}`)}</Label>
-                    <Input
-                      value={form[fieldKey]}
-                      onChange={(event) => updateStructuredField(fieldKey, event.target.value)}
-                    />
-                  </div>
-                );
-              })}
-              <div className="space-y-2 sm:max-w-xs">
-                <Label>{t('letterGeneration.addresses.fields.pincode')}</Label>
-                <Input
-                  value={toLocaleDigits(form.pincode, locale)}
-                  onChange={(event) =>
-                    updateStructuredField('pincode', toWesternDigits(event.target.value))
-                  }
-                  inputMode="numeric"
-                />
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {locale === 'en'
-                  ? t('letterGeneration.addresses.columns.english')
-                  : t('letterGeneration.addresses.columns.marathi')}
-                : {formatAddressMaster(form, locale)}
-              </div>
-            </div>
+            <StructuredAddressFields
+              locale={locale}
+              parts={form}
+              onPartsChange={updateAddressParts}
+              previewText={formatAddressMaster(form, locale)}
+            />
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
