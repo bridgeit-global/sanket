@@ -4,6 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import {
+  AddressTranslationReviewDialog,
+  type AddressTranslationReviewResult,
+} from '@/components/address-translation-review-dialog';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -43,6 +47,7 @@ import {
   parseFreeTextAddressForLocale,
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
+import { filterLocaleText } from '@/lib/letters/locale-text';
 import { usePincodeLookup } from '@/lib/letters/use-pincode-lookup';
 import type { PincodeLookupResult } from '@/lib/letters/pincode-lookup';
 import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
@@ -119,7 +124,16 @@ export function AddressMasterManager({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<AddressFormState>(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewTargetLocale, setReviewTargetLocale] = useState<LetterLocale>('mr');
+  const [reviewName, setReviewName] = useState('');
+  const [reviewParts, setReviewParts] = useState<AddressMasterAddressParts>(EMPTY_ADDRESS_PARTS);
+  const [pendingPrimary, setPendingPrimary] = useState<{
+    name: string;
+    parts: AddressMasterAddressParts;
+  } | null>(null);
 
   const sortedAddresses = useMemo(
     () =>
@@ -200,32 +214,65 @@ export function AddressMasterManager({
     });
   };
 
+  const persistAddress = async ({
+    nameEn,
+    nameMr,
+    parts,
+  }: {
+    nameEn: string;
+    nameMr: string;
+    parts: AddressMasterAddressParts;
+  }) => {
+    const payload = {
+      name: nameEn || nameMr,
+      nameMr,
+      addressType: form.addressType,
+      ...parts,
+      isActive: form.isActive,
+      sortOrder: Number(toWesternDigits(form.sortOrder)) || 0,
+    };
+
+    const res = editingId
+      ? await fetch(`/api/addresses/${encodeURIComponent(editingId)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+      : await fetch('/api/addresses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.error || 'Failed to save address');
+  };
+
   const handleSave = async () => {
     const primaryParts = extractLocaleParts(form, locale);
-    const primaryName = (locale === 'mr' ? form.nameMr : form.name).trim();
+    const primaryName = filterLocaleText(
+      (locale === 'mr' ? form.nameMr : form.name).trim(),
+      locale,
+    );
 
     if (!primaryName || !hasAddressContent(primaryParts)) {
       toast.error(t('letterGeneration.addresses.validationRequired'));
       return;
     }
 
-    setIsSaving(true);
+    const targetLocale: LetterLocale = locale === 'en' ? 'mr' : 'en';
+    setIsTranslating(true);
     try {
-      let parts = mergeAddressParts(primaryParts);
-      let nameEn = form.name.trim();
-      let nameMr = form.nameMr.trim();
-      if (locale === 'mr') nameMr = primaryName;
-      else nameEn = primaryName;
+      let translatedParts = { ...EMPTY_ADDRESS_PARTS, pincode: primaryParts.pincode };
+      let translatedName = '';
 
-      const sourceText = formatAddressMaster(parts, locale);
-      const targetLocale: LetterLocale = locale === 'en' ? 'mr' : 'en';
-
+      const sourceText = formatAddressMaster(primaryParts, locale);
       if (sourceText.trim()) {
         try {
           const translated = await translateAddressText(sourceText, targetLocale);
           if (translated) {
-            parts = mergeAddressParts(
-              parts,
+            translatedParts = mergeAddressParts(
+              translatedParts,
               parseFreeTextAddressForLocale(translated, targetLocale),
             );
           }
@@ -234,50 +281,55 @@ export function AddressMasterManager({
         }
       }
 
-      if (primaryName) {
-        try {
-          const translatedName = await translateAddressText(primaryName, targetLocale);
-          if (translatedName) {
-            if (locale === 'en') nameMr = translatedName;
-            else nameEn = translatedName;
-          }
-        } catch (error) {
-          console.error('Failed to translate address name on save', error);
-        }
+      try {
+        translatedName = await translateAddressText(primaryName, targetLocale);
+      } catch (error) {
+        console.error('Failed to translate address name on save', error);
       }
 
-      // English `name` is the unique key — fall back to Marathi if translation failed.
+      setPendingPrimary({ name: primaryName, parts: mergeAddressParts(primaryParts) });
+      setReviewTargetLocale(targetLocale);
+      setReviewName(filterLocaleText(translatedName, targetLocale));
+      setReviewParts(translatedParts);
+      setReviewOpen(true);
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const handleReviewCancel = () => {
+    if (isSaving) return;
+    setReviewOpen(false);
+    setPendingPrimary(null);
+  };
+
+  const handleReviewConfirm = async (result: AddressTranslationReviewResult) => {
+    if (!pendingPrimary) return;
+
+    setIsSaving(true);
+    try {
+      const primaryName = pendingPrimary.name;
+      const reviewedName = filterLocaleText(result.name, reviewTargetLocale).trim();
+      const reviewedParts = extractLocaleParts(
+        { ...EMPTY_FORM, ...result.parts },
+        reviewTargetLocale,
+      );
+
+      let nameEn = locale === 'en' ? primaryName : reviewedName;
+      let nameMr = locale === 'mr' ? primaryName : reviewedName;
       if (!nameEn) nameEn = nameMr;
 
-      const payload = {
-        name: nameEn,
-        nameMr,
-        addressType: form.addressType,
-        ...parts,
-        isActive: form.isActive,
-        sortOrder: Number(toWesternDigits(form.sortOrder)) || 0,
-      };
+      const parts = mergeAddressParts(pendingPrimary.parts, reviewedParts);
 
-      const res = editingId
-        ? await fetch(`/api/addresses/${encodeURIComponent(editingId)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        })
-        : await fetch('/api/addresses', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || 'Failed to save address');
+      await persistAddress({ nameEn, nameMr, parts });
 
       toast.success(
         editingId
           ? t('letterGeneration.addresses.updateSuccess')
           : t('letterGeneration.addresses.createSuccess'),
       );
+      setReviewOpen(false);
+      setPendingPrimary(null);
       handleCancelEdit();
       await onRefresh();
     } catch (error) {
@@ -374,14 +426,15 @@ export function AddressMasterManager({
               <Label>{t('letterGeneration.addresses.columns.name')}</Label>
               <Input
                 value={locale === 'mr' ? form.nameMr : form.name}
-                onChange={(event) =>
+                lang={locale === 'mr' ? 'mr' : 'en'}
+                autoComplete="off"
+                onChange={(event) => {
+                  const value = filterLocaleText(event.target.value, locale);
                   setForm({
                     ...form,
-                    ...(locale === 'mr'
-                      ? { nameMr: event.target.value }
-                      : { name: event.target.value }),
-                  })
-                }
+                    ...(locale === 'mr' ? { nameMr: value } : { name: value }),
+                  });
+                }}
               />
             </div>
 
@@ -446,8 +499,13 @@ export function AddressMasterManager({
               <Button type="button" variant="outline" onClick={handleCancelEdit}>
                 {t('common.cancel')}
               </Button>
-              <Button onClick={() => void handleSave()} disabled={isSaving}>
-                {isSaving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+              <Button
+                onClick={() => void handleSave()}
+                disabled={isSaving || isTranslating}
+              >
+                {isSaving || isTranslating ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : null}
                 {editingId
                   ? t('letterGeneration.addresses.save')
                   : t('letterGeneration.addresses.create')}
@@ -456,6 +514,16 @@ export function AddressMasterManager({
           </CardContent>
         ) : null}
       </Card>
+
+      <AddressTranslationReviewDialog
+        open={reviewOpen}
+        targetLocale={reviewTargetLocale}
+        initialName={reviewName}
+        initialParts={reviewParts}
+        isConfirming={isSaving}
+        onConfirm={(result) => void handleReviewConfirm(result)}
+        onCancel={handleReviewCancel}
+      />
 
       <Card>
         <CardHeader className="p-4 sm:p-6">

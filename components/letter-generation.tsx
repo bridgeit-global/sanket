@@ -106,12 +106,18 @@ import {
   type AddressMasterRow,
 } from '@/components/letter-address-field';
 import {
+  AddressTranslationReviewDialog,
+  type AddressTranslationReviewResult,
+} from '@/components/address-translation-review-dialog';
+import {
+  EMPTY_ADDRESS_PARTS,
   formatAddressMaster,
   hasAddressContent,
   mergeAddressParts,
   parseFreeTextAddressForLocale,
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
+import { filterLocaleText } from '@/lib/letters/locale-text';
 import { toWesternDigits } from '@/lib/locale-digits';
 import { cn } from '@/lib/utils';
 
@@ -871,6 +877,34 @@ export function LetterGeneration() {
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [commonFieldErrors, setCommonFieldErrors] = useState<CommonFieldErrors>({});
+  const [addressReview, setAddressReview] = useState<{
+    targetLocale: LetterLocale;
+    initialName: string;
+    initialParts: AddressMasterAddressParts;
+  } | null>(null);
+  const [isConfirmingAddressReview, setIsConfirmingAddressReview] = useState(false);
+  const addressReviewResolverRef = useRef<
+    ((result: AddressTranslationReviewResult | null) => void) | null
+  >(null);
+
+  const requestAddressTranslationReview = (request: {
+    targetLocale: LetterLocale;
+    initialName: string;
+    initialParts: AddressMasterAddressParts;
+  }): Promise<AddressTranslationReviewResult | null> => {
+    return new Promise((resolve) => {
+      addressReviewResolverRef.current = resolve;
+      setAddressReview(request);
+    });
+  };
+
+  const resolveAddressReview = (result: AddressTranslationReviewResult | null) => {
+    const resolver = addressReviewResolverRef.current;
+    addressReviewResolverRef.current = null;
+    setAddressReview(null);
+    setIsConfirmingAddressReview(false);
+    resolver?.(result);
+  };
 
   const deriveAddressMasterName = (rawAddress: string, fallback: string) => {
     const firstLine =
@@ -891,13 +925,14 @@ export function LetterGeneration() {
     name: string;
     parts: AddressMasterAddressParts;
   }): Promise<AddressMasterRow | null> => {
-    const trimmedName = name.trim();
+    const trimmedName = filterLocaleText(name.trim(), letterLocale);
     if (!trimmedName || !hasAddressContent(parts)) return null;
 
     let nameEn = letterLocale === 'en' ? trimmedName : '';
     let nameMr = letterLocale === 'mr' ? trimmedName : '';
     const targetLocale: LetterLocale = letterLocale === 'en' ? 'mr' : 'en';
 
+    let translatedName = '';
     try {
       const res = await fetch('/api/translate', {
         method: 'POST',
@@ -906,17 +941,69 @@ export function LetterGeneration() {
       });
       const json = await res.json();
       if (res.ok) {
-        const translated = String(json?.translated ?? '').trim();
-        if (translated) {
-          if (letterLocale === 'en') nameMr = translated;
-          else nameEn = translated;
-        }
+        translatedName = filterLocaleText(String(json?.translated ?? '').trim(), targetLocale);
       }
     } catch (error) {
       console.error('Failed to translate address name for auto-save', error);
     }
 
+    let reviewParts = { ...parts };
+    const hasTargetContent =
+      targetLocale === 'mr'
+        ? Boolean(
+            parts.line1Mr.trim() ||
+              parts.line2Mr.trim() ||
+              parts.cityMr.trim() ||
+              parts.stateMr.trim(),
+          )
+        : Boolean(
+            parts.line1En.trim() ||
+              parts.line2En.trim() ||
+              parts.cityEn.trim() ||
+              parts.stateEn.trim(),
+          );
+
+    if (!hasTargetContent) {
+      const sourceText = formatAddressMaster(parts, letterLocale);
+      if (sourceText.trim()) {
+        try {
+          const res = await fetch('/api/translate', {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ text: sourceText, targetLocale }),
+          });
+          const json = await res.json();
+          if (res.ok) {
+            const translated = String(json?.translated ?? '').trim();
+            if (translated) {
+              reviewParts = mergeAddressParts(
+                parts,
+                parseFreeTextAddressForLocale(translated, targetLocale),
+              );
+            }
+          }
+        } catch (error) {
+          console.error('Failed to translate address for auto-save review', error);
+        }
+      }
+    }
+
+    const reviewed = await requestAddressTranslationReview({
+      targetLocale,
+      initialName: translatedName,
+      initialParts: reviewParts,
+    });
+    if (!reviewed) return null;
+
+    const reviewedName = filterLocaleText(reviewed.name, targetLocale).trim();
+    if (letterLocale === 'en') {
+      nameMr = reviewedName;
+    } else {
+      nameEn = reviewedName;
+    }
     if (!nameEn) nameEn = trimmedName;
+
+    const mergedParts = mergeAddressParts(parts, reviewed.parts);
 
     try {
       const res = await fetch('/api/addresses', {
@@ -926,7 +1013,7 @@ export function LetterGeneration() {
           name: nameEn,
           nameMr,
           addressType,
-          ...parts,
+          ...mergedParts,
           isActive: true,
           sortOrder: 0,
         }),
@@ -3204,6 +3291,19 @@ export function LetterGeneration() {
           )}
         </CardContent>
       </Card>
+
+      <AddressTranslationReviewDialog
+        open={Boolean(addressReview)}
+        targetLocale={addressReview?.targetLocale ?? 'mr'}
+        initialName={addressReview?.initialName ?? ''}
+        initialParts={addressReview?.initialParts ?? EMPTY_ADDRESS_PARTS}
+        isConfirming={isConfirmingAddressReview}
+        onConfirm={(result) => {
+          setIsConfirmingAddressReview(true);
+          resolveAddressReview(result);
+        }}
+        onCancel={() => resolveAddressReview(null)}
+      />
     </div>
   );
 }

@@ -12,6 +12,7 @@ import {
   normalizeCityName,
   normalizeStateName,
 } from '@/lib/letters/indian-locations';
+import { filterLocaleText } from '@/lib/letters/locale-text';
 import { toWesternDigits } from '@/lib/locale-digits';
 import type { LetterLocale } from '@/lib/letters/templates';
 
@@ -99,7 +100,13 @@ export function StructuredAddressFields({
               <Label className="text-xs">{t(`letterGeneration.addresses.fields.${field.key}`)}</Label>
               <Input
                 value={parts[fieldKey]}
-                onChange={(event) => onPartsChange({ [fieldKey]: event.target.value })}
+                onChange={(event) =>
+                  onPartsChange({
+                    [fieldKey]: filterLocaleText(event.target.value, locale),
+                  })
+                }
+                lang={locale === 'mr' ? 'mr' : 'en'}
+                autoComplete="off"
                 className="h-9"
               />
             </div>
