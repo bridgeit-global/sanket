@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,6 +13,8 @@ import { useTranslations } from '@/hooks/use-translations';
 
 export function AddressMasterPage() {
   const { t } = useTranslations();
+  const tRef = useRef(t);
+  tRef.current = t;
   const [addresses, setAddresses] = useState<AddressMasterRow[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -25,11 +27,11 @@ export function AddressMasterPage() {
       setAddresses((json?.addresses ?? []) as AddressMasterRow[]);
     } catch (error) {
       console.error('Failed to fetch addresses', error);
-      toast.error(t('letterGeneration.addresses.fetchError'));
+      toast.error(tRef.current('letterGeneration.addresses.fetchError'));
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     void refreshAddresses();

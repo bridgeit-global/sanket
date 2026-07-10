@@ -477,7 +477,7 @@
     },
     "addresses": {
       "title": "Address Master",
-      "description": "Manage reusable addresses for schools, offices, and applicants. Use them when generating letters.",
+      "description": "Manage reusable addresses for institutes, offices, and applicants. Use them when generating letters.",
       "manageLink": "Manage Addresses",
       "backToLetterGeneration": "Back to Letter Generation",
       "add": "Add Address",
@@ -494,7 +494,7 @@
       "deleteError": "Failed to delete address",
       "fetchError": "Failed to load addresses",
       "validationRequired": "Name and at least one address field in English or Marathi are required",
-      "empty": "No addresses yet. Add school, office, or other addresses to reuse in letters.",
+      "empty": "No addresses yet. Add institute, office, or other addresses to reuse in letters.",
       "selectPlaceholder": "Choose a saved address…",
       "manualEntry": "Enter manually",
       "activeYes": "Active",
@@ -518,7 +518,7 @@
       "pasteAddressPlaceholder": "Line 1, Line 2, City, State - Pincode",
       "structuredFields": "Address fields",
       "types": {
-        "school": "School / College",
+        "school": "Institute",
         "office": "Government Office",
         "ration_office": "Ration Office",
         "general": "General / Applicant"

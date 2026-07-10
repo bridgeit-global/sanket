@@ -1183,7 +1183,7 @@ export function LetterGeneration() {
       const rationOfficeText = formatAddressMaster(defaultRationOffice, letterLocale);
       setRationFields((prev) =>
         prev.rationOfficeAddress === DEFAULT_RATION_OFFICE_ADDRESS[letterLocale] ||
-        !prev.rationOfficeAddress.trim()
+          !prev.rationOfficeAddress.trim()
           ? { ...prev, rationOfficeAddress: rationOfficeText }
           : prev,
       );
@@ -1193,13 +1193,13 @@ export function LetterGeneration() {
       const officeText = formatAddressMaster(defaultOffice, letterLocale);
       setIncomeFields((prev) =>
         prev.officeAddress === DEFAULT_OFFICE_ADDRESS[letterLocale] ||
-        !prev.officeAddress.trim()
+          !prev.officeAddress.trim()
           ? { ...prev, officeAddress: officeText }
           : prev,
       );
       setDomicileFields((prev) =>
         prev.officeAddress === DEFAULT_OFFICE_ADDRESS[letterLocale] ||
-        !prev.officeAddress.trim()
+          !prev.officeAddress.trim()
           ? { ...prev, officeAddress: officeText }
           : prev,
       );

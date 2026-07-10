@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Loader2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -13,14 +13,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -125,7 +117,7 @@ export function AddressMasterManager({
   onRefresh,
 }: AddressMasterManagerProps) {
   const { t, locale } = useTranslations();
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [formCardOpen, setFormCardOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<AddressFormState>(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
@@ -142,20 +134,24 @@ export function AddressMasterManager({
   );
 
   useEffect(() => {
-    if (!isDialogOpen) return;
+    if (editingId) setFormCardOpen(true);
+  }, [editingId]);
+
+  useEffect(() => {
+    if (!formCardOpen) return;
     setForm((prev) => ({
       ...prev,
       freeTextAddress: formatAddressMaster(prev, locale),
     }));
-  }, [isDialogOpen, locale]);
+  }, [formCardOpen, locale]);
 
-  const openCreateDialog = () => {
+  const handleCancelEdit = () => {
     setEditingId(null);
     setForm(EMPTY_FORM);
-    setIsDialogOpen(true);
+    setFormCardOpen(false);
   };
 
-  const openEditDialog = (address: AddressMasterRow) => {
+  const openEditForm = (address: AddressMasterRow) => {
     setEditingId(address.id);
     setForm({
       name: address.name,
@@ -173,7 +169,11 @@ export function AddressMasterManager({
       isActive: address.isActive,
       sortOrder: String(address.sortOrder),
     });
-    setIsDialogOpen(true);
+
+    const formElement = document.getElementById('address-form');
+    if (formElement) {
+      formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   const applyEnrichedAddress = useCallback((enrichedText: string) => {
@@ -298,7 +298,7 @@ export function AddressMasterManager({
           ? t('letterGeneration.addresses.updateSuccess')
           : t('letterGeneration.addresses.createSuccess'),
       );
-      setIsDialogOpen(false);
+      handleCancelEdit();
       await onRefresh();
     } catch (error) {
       console.error('Failed to save address', error);
@@ -321,6 +321,9 @@ export function AddressMasterManager({
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to delete address');
       toast.success(t('letterGeneration.addresses.deleteSuccess'));
+      if (editingId === id) {
+        handleCancelEdit();
+      }
       await onRefresh();
     } catch (error) {
       console.error('Failed to delete address', error);
@@ -331,121 +334,62 @@ export function AddressMasterManager({
   };
 
   return (
-    <>
-      <Card>
-        <CardHeader className="p-4 sm:p-6">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <div className="flex flex-col gap-4 md:gap-6">
+      <Card id="address-form">
+        <CardHeader
+          className="cursor-pointer select-none p-4 transition-colors hover:bg-muted/50 sm:p-6 rounded-t-lg"
+          onClick={() => {
+            setFormCardOpen((open) => {
+              const next = !open;
+              if (next && !editingId) {
+                setForm(EMPTY_FORM);
+              }
+              return next;
+            });
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setFormCardOpen((open) => {
+                const next = !open;
+                if (next && !editingId) {
+                  setForm(EMPTY_FORM);
+                }
+                return next;
+              });
+            }
+          }}
+          role="button"
+          tabIndex={0}
+          aria-expanded={formCardOpen}
+          aria-controls="address-form-content"
+          id="address-form-header"
+        >
+          <div className="flex items-start justify-between gap-3">
             <div className="space-y-1">
               <CardTitle className="text-lg">
-                {t('letterGeneration.addresses.title')}
+                {editingId
+                  ? t('letterGeneration.addresses.editTitle')
+                  : t('letterGeneration.addresses.addTitle')}
               </CardTitle>
               <CardDescription>
-                {t('letterGeneration.addresses.description')}
+                {t('letterGeneration.addresses.formDescription')}
               </CardDescription>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto"
-                onClick={() => void onRefresh()}
-                disabled={loading}
-              >
-                {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-                {t('letterGeneration.savedLetters.refresh')}
-              </Button>
-              <Button className="w-full sm:w-auto" onClick={openCreateDialog}>
-                <Plus className="mr-2 size-4" />
-                {t('letterGeneration.addresses.add')}
-              </Button>
-            </div>
+            {formCardOpen ? (
+              <ChevronUp className="mt-1 size-5 shrink-0 text-muted-foreground" aria-hidden />
+            ) : (
+              <ChevronDown className="mt-1 size-5 shrink-0 text-muted-foreground" aria-hidden />
+            )}
           </div>
         </CardHeader>
-        <CardContent className="p-4 sm:p-6">
-          {sortedAddresses.length === 0 ? (
-            <div className="py-6 text-sm text-muted-foreground">
-              {t('letterGeneration.addresses.empty')}
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('letterGeneration.addresses.columns.name')}</TableHead>
-                    <TableHead>{t('letterGeneration.addresses.columns.type')}</TableHead>
-                    <TableHead>{t('letterGeneration.addresses.columns.english')}</TableHead>
-                    <TableHead>{t('letterGeneration.addresses.columns.marathi')}</TableHead>
-                    <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
-                    <TableHead className="text-right">
-                      {t('letterGeneration.savedLetters.columns.actions')}
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedAddresses.map((address) => (
-                    <TableRow key={address.id}>
-                      <TableCell className="font-medium">{address.name}</TableCell>
-                      <TableCell>
-                        {t(`letterGeneration.addresses.types.${address.addressType}`)}
-                      </TableCell>
-                      <TableCell className="max-w-[220px] whitespace-pre-wrap text-sm">
-                        {formatAddressMaster(address, 'en')}
-                      </TableCell>
-                      <TableCell className="max-w-[220px] whitespace-pre-wrap text-sm">
-                        {formatAddressMaster(address, 'mr')}
-                      </TableCell>
-                      <TableCell>
-                        {address.isActive
-                          ? t('letterGeneration.addresses.activeYes')
-                          : t('letterGeneration.addresses.activeNo')}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={() => openEditDialog(address)}
-                          >
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={() => void handleDelete(address.id)}
-                            disabled={deletingId === address.id}
-                          >
-                            {deletingId === address.id ? (
-                              <Loader2 className="size-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="size-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editingId
-                ? t('letterGeneration.addresses.editTitle')
-                : t('letterGeneration.addresses.addTitle')}
-            </DialogTitle>
-            <DialogDescription>
-              {t('letterGeneration.addresses.formDescription')}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
+        {formCardOpen ? (
+          <CardContent
+            id="address-form-content"
+            aria-labelledby="address-form-header"
+            className="space-y-4 p-4 sm:p-6"
+          >
             <div className="space-y-2">
               <Label>{t('letterGeneration.addresses.columns.name')}</Label>
               <Input
@@ -545,21 +489,110 @@ export function AddressMasterManager({
                 </Label>
               </div>
             </div>
-          </div>
 
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              {t('common.cancel')}
+            <div className="flex justify-end gap-2">
+              <Button type="button" variant="outline" onClick={handleCancelEdit}>
+                {t('common.cancel')}
+              </Button>
+              <Button onClick={() => void handleSave()} disabled={isSaving}>
+                {isSaving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+                {editingId
+                  ? t('letterGeneration.addresses.save')
+                  : t('letterGeneration.addresses.create')}
+              </Button>
+            </div>
+          </CardContent>
+        ) : null}
+      </Card>
+
+      <Card>
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="text-lg">
+              {t('letterGeneration.addresses.title')}
+            </CardTitle>
+            <Button
+              variant="outline"
+              className="w-full sm:w-auto"
+              onClick={() => void onRefresh()}
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+              {t('letterGeneration.savedLetters.refresh')}
             </Button>
-            <Button onClick={() => void handleSave()} disabled={isSaving}>
-              {isSaving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-              {editingId
-                ? t('letterGeneration.addresses.save')
-                : t('letterGeneration.addresses.create')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
+          </div>
+        </CardHeader>
+        <CardContent className="p-4 sm:p-6">
+          {sortedAddresses.length === 0 ? (
+            <div className="py-6 text-sm text-muted-foreground">
+              {t('letterGeneration.addresses.empty')}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('letterGeneration.addresses.columns.name')}</TableHead>
+                    <TableHead>{t('letterGeneration.addresses.columns.type')}</TableHead>
+                    <TableHead>{t('letterGeneration.addresses.columns.english')}</TableHead>
+                    <TableHead>{t('letterGeneration.addresses.columns.marathi')}</TableHead>
+                    <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
+                    <TableHead className="text-right">
+                      {t('letterGeneration.savedLetters.columns.actions')}
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedAddresses.map((address) => (
+                    <TableRow key={address.id}>
+                      <TableCell className="font-medium">{address.name}</TableCell>
+                      <TableCell>
+                        {t(`letterGeneration.addresses.types.${address.addressType}`)}
+                      </TableCell>
+                      <TableCell className="max-w-[220px] whitespace-pre-wrap text-sm">
+                        {formatAddressMaster(address, 'en')}
+                      </TableCell>
+                      <TableCell className="max-w-[220px] whitespace-pre-wrap text-sm">
+                        {formatAddressMaster(address, 'mr')}
+                      </TableCell>
+                      <TableCell>
+                        {address.isActive
+                          ? t('letterGeneration.addresses.activeYes')
+                          : t('letterGeneration.addresses.activeNo')}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => openEditForm(address)}
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => void handleDelete(address.id)}
+                            disabled={deletingId === address.id}
+                          >
+                            {deletingId === address.id ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="size-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }
