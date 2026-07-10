@@ -100,12 +100,19 @@ import { exportElementToPdf } from '@/lib/pdf/export-element-to-pdf';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { ModulePageHeader } from '@/components/module-page-header';
 import {
+  createEmptyAddressParts,
   findDefaultAddress,
   LetterAddressField,
   type AddressMasterRow,
 } from '@/components/letter-address-field';
-import { formatAddressMaster, mergeAddressParts, parseFreeTextAddressForLocale } from '@/lib/letters/format-address-master';
-import { usePincodeLookup } from '@/lib/letters/use-pincode-lookup';
+import {
+  formatAddressMaster,
+  hasAddressContent,
+  mergeAddressParts,
+  parseFreeTextAddressForLocale,
+  type AddressMasterAddressParts,
+} from '@/lib/letters/format-address-master';
+import { toWesternDigits } from '@/lib/locale-digits';
 import { cn } from '@/lib/utils';
 
 const ALL_LETTER_TYPES = 'all' as const;
@@ -687,7 +694,18 @@ type AddressSelectionState = {
 };
 
 type ManualAddressKey = keyof AddressSelectionState;
-type ManualAddressDrafts = Record<ManualAddressKey, Record<LetterLocale, string>>;
+type ManualAddressParts = Record<ManualAddressKey, AddressMasterAddressParts>;
+
+function getPincodeValidationError(
+  parts: AddressMasterAddressParts,
+  t: (key: string) => string,
+): string | undefined {
+  const cleaned = toWesternDigits(parts.pincode).replace(/\D/g, '');
+  if (parts.pincode.trim() && cleaned.length !== 6) {
+    return t('letterGeneration.addresses.pincodeInvalid');
+  }
+  return undefined;
+}
 
 function getAddressTextFromMaster(
   addresses: AddressMasterRow[],
@@ -821,15 +839,17 @@ export function LetterGeneration() {
     rationOffice: null,
     office: null,
   });
-  const [manualAddressDrafts, setManualAddressDrafts] = useState<ManualAddressDrafts>(() => ({
-    school: { en: '', mr: '' },
-    applicant: { en: '', mr: '' },
-    rationOffice: { en: '', mr: '' },
-    office: { en: '', mr: '' },
+  const [manualAddressParts, setManualAddressParts] = useState<ManualAddressParts>(() => ({
+    school: createEmptyAddressParts(),
+    applicant: createEmptyAddressParts(),
+    rationOffice: createEmptyAddressParts(),
+    office: createEmptyAddressParts(),
   }));
+  const [addressPincodeErrors, setAddressPincodeErrors] = useState<
+    Partial<Record<ManualAddressKey, string>>
+  >({});
   const translateTimersRef = useRef<Partial<Record<ManualAddressKey, number>>>({});
   const translateReqIdRef = useRef<Partial<Record<ManualAddressKey, number>>>({});
-  const pendingPincodeKeyRef = useRef<ManualAddressKey | null>(null);
   const [templateDraft, setTemplateDraft] = useState('');
   const [templateNameDraft, setTemplateNameDraft] = useState('');
   const [letterheadDraft, setLetterheadDraft] = useState<string | null>(null);
@@ -865,23 +885,14 @@ export function LetterGeneration() {
   const createAddressMasterFromManualEntry = async ({
     addressType,
     name,
-    addressEn,
-    addressMr,
+    parts,
   }: {
     addressType: AddressMasterRow['addressType'];
     name: string;
-    addressEn: string;
-    addressMr: string;
+    parts: AddressMasterAddressParts;
   }): Promise<AddressMasterRow | null> => {
     const trimmedName = name.trim();
-    const trimmedEn = addressEn.trim();
-    const trimmedMr = addressMr.trim();
-    if (!trimmedName || (!trimmedEn && !trimmedMr)) return null;
-
-    const parts = mergeAddressParts(
-      parseFreeTextAddressForLocale(trimmedEn || trimmedMr, 'en'),
-      parseFreeTextAddressForLocale(trimmedMr || trimmedEn, 'mr'),
-    );
+    if (!trimmedName || !hasAddressContent(parts)) return null;
 
     try {
       const res = await fetch('/api/addresses', {
@@ -959,9 +970,9 @@ export function LetterGeneration() {
       setDomicileFields,
     });
 
-    // For manual entry (no master selection), restore the per-locale drafts when switching locale.
+    // For manual entry (no master selection), restore the per-locale formatted text when switching locale.
     if (!addressSelections.school) {
-      const text = manualAddressDrafts.school[letterLocale];
+      const text = formatAddressMaster(manualAddressParts.school, letterLocale);
       if (text.trim()) {
         setFeesFields((prev) => ({ ...prev, schoolAddress: text }));
         setSchoolAdmissionFields((prev) => ({ ...prev, schoolAddress: text }));
@@ -969,7 +980,7 @@ export function LetterGeneration() {
       }
     }
     if (!addressSelections.applicant) {
-      const text = manualAddressDrafts.applicant[letterLocale];
+      const text = formatAddressMaster(manualAddressParts.applicant, letterLocale);
       if (text.trim()) {
         setSchoolAdmissionFields((prev) => ({ ...prev, address: text }));
         setSchoolTransferFields((prev) => ({ ...prev, address: text }));
@@ -979,13 +990,13 @@ export function LetterGeneration() {
       }
     }
     if (!addressSelections.rationOffice) {
-      const text = manualAddressDrafts.rationOffice[letterLocale];
+      const text = formatAddressMaster(manualAddressParts.rationOffice, letterLocale);
       if (text.trim()) {
         setRationFields((prev) => ({ ...prev, rationOfficeAddress: text }));
       }
     }
     if (!addressSelections.office) {
-      const text = manualAddressDrafts.office[letterLocale];
+      const text = formatAddressMaster(manualAddressParts.office, letterLocale);
       if (text.trim()) {
         setIncomeFields((prev) => ({ ...prev, officeAddress: text }));
         setDomicileFields((prev) => ({ ...prev, officeAddress: text }));
@@ -1010,13 +1021,16 @@ export function LetterGeneration() {
     }
 
     prevLetterLocaleRef.current = letterLocale;
-  }, [letterLocale, addresses, addressSelections, manualAddressDrafts]);
+  }, [letterLocale, addresses, addressSelections, manualAddressParts]);
 
-  const triggerAutoTranslateManualAddress = (key: ManualAddressKey, sourceText: string) => {
+  const triggerAutoTranslateManualAddressParts = (
+    key: ManualAddressKey,
+    parts: AddressMasterAddressParts,
+  ) => {
     const sourceLocale = letterLocale;
     const targetLocale: LetterLocale = sourceLocale === 'en' ? 'mr' : 'en';
+    const sourceText = formatAddressMaster(parts, sourceLocale);
 
-    // If input is empty, keep other side as-is (user might be mid-edit).
     if (!sourceText.trim()) return;
 
     const nextReqId = (translateReqIdRef.current[key] ?? 0) + 1;
@@ -1035,21 +1049,19 @@ export function LetterGeneration() {
         const json = await res.json();
         if (!res.ok) throw new Error(json?.error || 'Failed to translate');
 
-        // Ignore stale responses.
         if (translateReqIdRef.current[key] !== nextReqId) return;
 
         const translated = String(json?.translated ?? '').trim();
         if (!translated) return;
 
-        setManualAddressDrafts((prev) => ({
+        setManualAddressParts((prev) => ({
           ...prev,
-          [key]: {
-            ...prev[key],
-            [targetLocale]: translated,
-          },
+          [key]: mergeAddressParts(
+            prev[key],
+            parseFreeTextAddressForLocale(translated, targetLocale),
+          ),
         }));
       } catch (error) {
-        // Non-blocking: user can still save/use the typed address.
         console.error('Failed to auto-translate address', error);
       }
     }, 450);
@@ -1082,38 +1094,118 @@ export function LetterGeneration() {
     [],
   );
 
-  const applyEnrichedManualAddress = useCallback(
-    (enrichedText: string) => {
-      const key = pendingPincodeKeyRef.current;
-      if (!key) return;
+  const handleManualAddressPartsChange = (
+    key: ManualAddressKey,
+    parts: AddressMasterAddressParts,
+  ) => {
+    setManualAddressParts((prev) => ({ ...prev, [key]: parts }));
+    setAddressPincodeErrors((prev) => ({
+      ...prev,
+      [key]: getPincodeValidationError(parts, t),
+    }));
 
-      const sourceLocale = letterLocale;
-      setManualAddressDrafts((prev) => ({
-        ...prev,
-        [key]: { ...prev[key], [sourceLocale]: enrichedText },
-      }));
-      applyManualAddressToLetterFields(key, enrichedText);
-      triggerAutoTranslateManualAddress(key, enrichedText);
-    },
-    [applyManualAddressToLetterFields, letterLocale],
-  );
+    const formatted = formatAddressMaster(parts, letterLocale);
+    applyManualAddressToLetterFields(key, formatted);
+    triggerAutoTranslateManualAddressParts(key, parts);
+  };
 
-  const { schedulePincodeLookup } = usePincodeLookup({
-    onEnriched: applyEnrichedManualAddress,
+  const seedManualAddressPartsFromText = (key: ManualAddressKey, text: string) => {
+    const parsed = parseFreeTextAddressForLocale(text, letterLocale);
+    handleManualAddressPartsChange(key, mergeAddressParts(manualAddressParts[key], parsed));
+  };
+
+  const addressRowToParts = (address: AddressMasterRow): AddressMasterAddressParts => ({
+    line1En: address.line1En,
+    line1Mr: address.line1Mr,
+    line2En: address.line2En,
+    line2Mr: address.line2Mr,
+    cityEn: address.cityEn,
+    cityMr: address.cityMr,
+    stateEn: address.stateEn,
+    stateMr: address.stateMr,
+    pincode: address.pincode,
   });
 
-  const handleManualAddressChange = (key: ManualAddressKey, value: string) => {
-    const sourceLocale = letterLocale;
-    setManualAddressDrafts((prev) => ({
-      ...prev,
-      [key]: { ...prev[key], [sourceLocale]: value },
-    }));
-    triggerAutoTranslateManualAddress(key, value);
+  const applySchoolAddressText = (text: string) => {
+    setFeesFields((prev) => ({ ...prev, schoolAddress: text }));
+    setSchoolAdmissionFields((prev) => ({ ...prev, schoolAddress: text }));
+    setSchoolTransferFields((prev) => ({ ...prev, schoolAddress: text }));
+  };
 
-    pendingPincodeKeyRef.current = key;
-    const parsed = parseFreeTextAddressForLocale(value, sourceLocale);
-    if (parsed.pincode) {
-      schedulePincodeLookup(value, parsed.pincode);
+  const applyApplicantAddressText = (text: string) => {
+    setSchoolAdmissionFields((prev) => ({ ...prev, address: text }));
+    setSchoolTransferFields((prev) => ({ ...prev, address: text }));
+    setRationFields((prev) => ({ ...prev, address: text }));
+    setIncomeFields((prev) => ({ ...prev, address: text }));
+    setDomicileFields((prev) => ({ ...prev, address: text }));
+  };
+
+  const handleSchoolAddressSelect = (id: string | null, seedText = '') => {
+    setAddressSelections((prev) => ({ ...prev, school: id }));
+    if (id) {
+      const selected = addresses.find((a) => a.id === id);
+      if (selected?.name) {
+        setFeesFields((prev) => ({ ...prev, schoolName: selected.name }));
+        setSchoolAdmissionFields((prev) => ({ ...prev, schoolName: selected.name }));
+        setSchoolTransferFields((prev) => ({ ...prev, schoolName: selected.name }));
+      }
+      const text = getAddressTextFromMaster(addresses, id, letterLocale);
+      if (text) applySchoolAddressText(text);
+      if (selected) {
+        setManualAddressParts((prev) => ({ ...prev, school: addressRowToParts(selected) }));
+      }
+    } else {
+      seedManualAddressPartsFromText('school', seedText);
+    }
+  };
+
+  const handleApplicantAddressSelect = (id: string | null, seedText = '') => {
+    setAddressSelections((prev) => ({ ...prev, applicant: id }));
+    if (id) {
+      const text = getAddressTextFromMaster(addresses, id, letterLocale);
+      if (text) applyApplicantAddressText(text);
+      const selected = addresses.find((a) => a.id === id);
+      if (selected) {
+        setManualAddressParts((prev) => ({ ...prev, applicant: addressRowToParts(selected) }));
+      }
+    } else {
+      seedManualAddressPartsFromText('applicant', seedText);
+    }
+  };
+
+  const handleRationOfficeAddressSelect = (id: string | null, seedText = '') => {
+    setAddressSelections((prev) => ({ ...prev, rationOffice: id }));
+    if (id) {
+      const text = getAddressTextFromMaster(addresses, id, letterLocale);
+      if (text) {
+        setRationFields((prev) => ({ ...prev, rationOfficeAddress: text }));
+      }
+      const selected = addresses.find((a) => a.id === id);
+      if (selected) {
+        setManualAddressParts((prev) => ({
+          ...prev,
+          rationOffice: addressRowToParts(selected),
+        }));
+      }
+    } else {
+      seedManualAddressPartsFromText('rationOffice', seedText);
+    }
+  };
+
+  const handleOfficeAddressSelect = (id: string | null, seedText = '') => {
+    setAddressSelections((prev) => ({ ...prev, office: id }));
+    if (id) {
+      const text = getAddressTextFromMaster(addresses, id, letterLocale);
+      if (text) {
+        setIncomeFields((prev) => ({ ...prev, officeAddress: text }));
+        setDomicileFields((prev) => ({ ...prev, officeAddress: text }));
+      }
+      const selected = addresses.find((a) => a.id === id);
+      if (selected) {
+        setManualAddressParts((prev) => ({ ...prev, office: addressRowToParts(selected) }));
+      }
+    } else {
+      seedManualAddressPartsFromText('office', seedText);
     }
   };
 
@@ -1321,6 +1413,35 @@ export function LetterGeneration() {
   const activeReferenceNo = activeFields.referenceNo;
   const activeDate = activeFields.date;
 
+  const validateManualAddressPincodes = () => {
+    const keysToCheck: ManualAddressKey[] = [];
+    if (!addressSelections.school && hasAddressContent(manualAddressParts.school)) {
+      keysToCheck.push('school');
+    }
+    if (!addressSelections.applicant && hasAddressContent(manualAddressParts.applicant)) {
+      keysToCheck.push('applicant');
+    }
+    if (!addressSelections.rationOffice && hasAddressContent(manualAddressParts.rationOffice)) {
+      keysToCheck.push('rationOffice');
+    }
+    if (!addressSelections.office && hasAddressContent(manualAddressParts.office)) {
+      keysToCheck.push('office');
+    }
+
+    const errors: Partial<Record<ManualAddressKey, string>> = {};
+    for (const key of keysToCheck) {
+      const error = getPincodeValidationError(manualAddressParts[key], t);
+      if (error) errors[key] = error;
+    }
+
+    setAddressPincodeErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast.error(t('letterGeneration.addresses.pincodeInvalid'));
+      return false;
+    }
+    return true;
+  };
+
   const validateActiveCommonFields = () => {
     const errors = validateRequiredCommonFields(
       activeReferenceNo,
@@ -1334,6 +1455,7 @@ export function LetterGeneration() {
       if (firstError) toast.error(firstError);
       return false;
     }
+    if (!validateManualAddressPincodes()) return false;
     return true;
   };
 
@@ -1458,8 +1580,7 @@ export function LetterGeneration() {
           const created = await createAddressMasterFromManualEntry({
             addressType: 'school',
             name: schoolNameValue,
-            addressEn: manualAddressDrafts.school.en || (letterLocale === 'en' ? schoolAddressText : ''),
-            addressMr: manualAddressDrafts.school.mr || (letterLocale === 'mr' ? schoolAddressText : ''),
+            parts: manualAddressParts.school,
           });
           if (created?.id) {
             setAddresses((prev) =>
@@ -1488,12 +1609,7 @@ export function LetterGeneration() {
           const created = await createAddressMasterFromManualEntry({
             addressType: 'general',
             name: deriveAddressMasterName(applicantAddressText, 'Applicant Address'),
-            addressEn:
-              manualAddressDrafts.applicant.en ||
-              (letterLocale === 'en' ? applicantAddressText : ''),
-            addressMr:
-              manualAddressDrafts.applicant.mr ||
-              (letterLocale === 'mr' ? applicantAddressText : ''),
+            parts: manualAddressParts.applicant,
           });
           if (created?.id) {
             setAddresses((prev) =>
@@ -1510,12 +1626,7 @@ export function LetterGeneration() {
           const created = await createAddressMasterFromManualEntry({
             addressType: 'ration_office',
             name: deriveAddressMasterName(rationOfficeText, 'Ration Office'),
-            addressEn:
-              manualAddressDrafts.rationOffice.en ||
-              (letterLocale === 'en' ? rationOfficeText : ''),
-            addressMr:
-              manualAddressDrafts.rationOffice.mr ||
-              (letterLocale === 'mr' ? rationOfficeText : ''),
+            parts: manualAddressParts.rationOffice,
           });
           if (created?.id) {
             setAddresses((prev) =>
@@ -1534,10 +1645,7 @@ export function LetterGeneration() {
           const created = await createAddressMasterFromManualEntry({
             addressType: 'office',
             name: deriveAddressMasterName(officeText, 'Office Address'),
-            addressEn:
-              manualAddressDrafts.office.en || (letterLocale === 'en' ? officeText : ''),
-            addressMr:
-              manualAddressDrafts.office.mr || (letterLocale === 'mr' ? officeText : ''),
+            parts: manualAddressParts.office,
           });
           if (created?.id) {
             setAddresses((prev) =>
@@ -1968,47 +2076,16 @@ export function LetterGeneration() {
                         label={letterLocale === 'mr' ? 'संस्था पत्ता' : 'Institute Address'}
                         addressType="school"
                         locale={letterLocale}
-                        value={feesFields.schoolAddress}
                         selectedAddressId={addressSelections.school}
                         addresses={addresses}
-                        onValueChange={(value) => {
-                          setFeesFields({ ...feesFields, schoolAddress: value });
-                          setSchoolAdmissionFields((prev) => ({ ...prev, schoolAddress: value }));
-                          setSchoolTransferFields((prev) => ({ ...prev, schoolAddress: value }));
-                          if (!addressSelections.school) handleManualAddressChange('school', value);
-                        }}
-                        onSelectedAddressIdChange={(id) => {
-                          setAddressSelections((prev) => ({ ...prev, school: id }));
-                          if (id) {
-                            const selected = addresses.find((a) => a.id === id);
-                            if (selected?.name) {
-                              setFeesFields((prev) => ({ ...prev, schoolName: selected.name }));
-                              setSchoolAdmissionFields((prev) => ({
-                                ...prev,
-                                schoolName: selected.name,
-                              }));
-                              setSchoolTransferFields((prev) => ({
-                                ...prev,
-                                schoolName: selected.name,
-                              }));
-                            }
-                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
-                            if (text) {
-                              setFeesFields((prev) => ({ ...prev, schoolAddress: text }));
-                              setSchoolAdmissionFields((prev) => ({
-                                ...prev,
-                                schoolAddress: text,
-                              }));
-                              setSchoolTransferFields((prev) => ({
-                                ...prev,
-                                schoolAddress: text,
-                              }));
-                            }
-                          } else {
-                            // Switched to manual entry; seed drafts from current value.
-                            handleManualAddressChange('school', feesFields.schoolAddress);
-                          }
-                        }}
+                        addressParts={manualAddressParts.school}
+                        onAddressPartsChange={(parts) =>
+                          handleManualAddressPartsChange('school', parts)
+                        }
+                        pincodeError={addressPincodeErrors.school}
+                        onSelectedAddressIdChange={(id) =>
+                          handleSchoolAddressSelect(id, feesFields.schoolAddress)
+                        }
                       />
                       <div className="grid gap-4 sm:grid-cols-2">
                         <FieldGroup label={t('letterGeneration.fields.standard')}>
@@ -2051,49 +2128,16 @@ export function LetterGeneration() {
                         label={letterLocale === 'mr' ? 'संस्था पत्ता' : 'Institute Address'}
                         addressType="school"
                         locale={letterLocale}
-                        value={schoolAdmissionFields.schoolAddress}
                         selectedAddressId={addressSelections.school}
                         addresses={addresses}
-                        onValueChange={(value) => {
-                          setSchoolAdmissionFields({
-                            ...schoolAdmissionFields,
-                            schoolAddress: value,
-                          });
-                          setFeesFields((prev) => ({ ...prev, schoolAddress: value }));
-                          setSchoolTransferFields((prev) => ({ ...prev, schoolAddress: value }));
-                          if (!addressSelections.school) handleManualAddressChange('school', value);
-                        }}
-                        onSelectedAddressIdChange={(id) => {
-                          setAddressSelections((prev) => ({ ...prev, school: id }));
-                          if (id) {
-                            const selected = addresses.find((a) => a.id === id);
-                            if (selected?.name) {
-                              setFeesFields((prev) => ({ ...prev, schoolName: selected.name }));
-                              setSchoolAdmissionFields((prev) => ({
-                                ...prev,
-                                schoolName: selected.name,
-                              }));
-                              setSchoolTransferFields((prev) => ({
-                                ...prev,
-                                schoolName: selected.name,
-                              }));
-                            }
-                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
-                            if (text) {
-                              setFeesFields((prev) => ({ ...prev, schoolAddress: text }));
-                              setSchoolAdmissionFields((prev) => ({
-                                ...prev,
-                                schoolAddress: text,
-                              }));
-                              setSchoolTransferFields((prev) => ({
-                                ...prev,
-                                schoolAddress: text,
-                              }));
-                            }
-                          } else {
-                            handleManualAddressChange('school', schoolAdmissionFields.schoolAddress);
-                          }
-                        }}
+                        addressParts={manualAddressParts.school}
+                        onAddressPartsChange={(parts) =>
+                          handleManualAddressPartsChange('school', parts)
+                        }
+                        pincodeError={addressPincodeErrors.school}
+                        onSelectedAddressIdChange={(id) =>
+                          handleSchoolAddressSelect(id, schoolAdmissionFields.schoolAddress)
+                        }
                       />
                       <div className="grid gap-4 sm:grid-cols-2">
                         <FieldGroup label={t('letterGeneration.fields.standard')}>
@@ -2134,36 +2178,16 @@ export function LetterGeneration() {
                         label={t('letterGeneration.fields.address')}
                         addressType="general"
                         locale={letterLocale}
-                        value={schoolAdmissionFields.address}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
-                        onValueChange={(value) => {
-                          setSchoolAdmissionFields({
-                            ...schoolAdmissionFields,
-                            address: value,
-                          });
-                          setSchoolTransferFields((prev) => ({ ...prev, address: value }));
-                          setRationFields((prev) => ({ ...prev, address: value }));
-                          setIncomeFields((prev) => ({ ...prev, address: value }));
-                          setDomicileFields((prev) => ({ ...prev, address: value }));
-                          if (!addressSelections.applicant)
-                            handleManualAddressChange('applicant', value);
-                        }}
-                        onSelectedAddressIdChange={(id) => {
-                          setAddressSelections((prev) => ({ ...prev, applicant: id }));
-                          if (id) {
-                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
-                            if (text) {
-                              setSchoolAdmissionFields((prev) => ({ ...prev, address: text }));
-                              setSchoolTransferFields((prev) => ({ ...prev, address: text }));
-                              setRationFields((prev) => ({ ...prev, address: text }));
-                              setIncomeFields((prev) => ({ ...prev, address: text }));
-                              setDomicileFields((prev) => ({ ...prev, address: text }));
-                            }
-                          } else {
-                            handleManualAddressChange('applicant', schoolAdmissionFields.address);
-                          }
-                        }}
+                        addressParts={manualAddressParts.applicant}
+                        onAddressPartsChange={(parts) =>
+                          handleManualAddressPartsChange('applicant', parts)
+                        }
+                        pincodeError={addressPincodeErrors.applicant}
+                        onSelectedAddressIdChange={(id) =>
+                          handleApplicantAddressSelect(id, schoolAdmissionFields.address)
+                        }
                       />
                       <FieldGroup label={t('letterGeneration.fields.reasonText')}>
                         <Textarea
@@ -2196,49 +2220,16 @@ export function LetterGeneration() {
                         label={letterLocale === 'mr' ? 'संस्था पत्ता' : 'Institute Address'}
                         addressType="school"
                         locale={letterLocale}
-                        value={schoolTransferFields.schoolAddress}
                         selectedAddressId={addressSelections.school}
                         addresses={addresses}
-                        onValueChange={(value) => {
-                          setSchoolTransferFields({
-                            ...schoolTransferFields,
-                            schoolAddress: value,
-                          });
-                          setFeesFields((prev) => ({ ...prev, schoolAddress: value }));
-                          setSchoolAdmissionFields((prev) => ({ ...prev, schoolAddress: value }));
-                          if (!addressSelections.school) handleManualAddressChange('school', value);
-                        }}
-                        onSelectedAddressIdChange={(id) => {
-                          setAddressSelections((prev) => ({ ...prev, school: id }));
-                          if (id) {
-                            const selected = addresses.find((a) => a.id === id);
-                            if (selected?.name) {
-                              setFeesFields((prev) => ({ ...prev, schoolName: selected.name }));
-                              setSchoolAdmissionFields((prev) => ({
-                                ...prev,
-                                schoolName: selected.name,
-                              }));
-                              setSchoolTransferFields((prev) => ({
-                                ...prev,
-                                schoolName: selected.name,
-                              }));
-                            }
-                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
-                            if (text) {
-                              setFeesFields((prev) => ({ ...prev, schoolAddress: text }));
-                              setSchoolAdmissionFields((prev) => ({
-                                ...prev,
-                                schoolAddress: text,
-                              }));
-                              setSchoolTransferFields((prev) => ({
-                                ...prev,
-                                schoolAddress: text,
-                              }));
-                            }
-                          } else {
-                            handleManualAddressChange('school', schoolTransferFields.schoolAddress);
-                          }
-                        }}
+                        addressParts={manualAddressParts.school}
+                        onAddressPartsChange={(parts) =>
+                          handleManualAddressPartsChange('school', parts)
+                        }
+                        pincodeError={addressPincodeErrors.school}
+                        onSelectedAddressIdChange={(id) =>
+                          handleSchoolAddressSelect(id, schoolTransferFields.schoolAddress)
+                        }
                       />
                       <div className="grid gap-4 sm:grid-cols-2">
                         <FieldGroup label={t('letterGeneration.fields.standard')}>
@@ -2279,36 +2270,16 @@ export function LetterGeneration() {
                         label={t('letterGeneration.fields.address')}
                         addressType="general"
                         locale={letterLocale}
-                        value={schoolTransferFields.address}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
-                        onValueChange={(value) => {
-                          setSchoolTransferFields({
-                            ...schoolTransferFields,
-                            address: value,
-                          });
-                          setSchoolAdmissionFields((prev) => ({ ...prev, address: value }));
-                          setRationFields((prev) => ({ ...prev, address: value }));
-                          setIncomeFields((prev) => ({ ...prev, address: value }));
-                          setDomicileFields((prev) => ({ ...prev, address: value }));
-                          if (!addressSelections.applicant)
-                            handleManualAddressChange('applicant', value);
-                        }}
-                        onSelectedAddressIdChange={(id) => {
-                          setAddressSelections((prev) => ({ ...prev, applicant: id }));
-                          if (id) {
-                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
-                            if (text) {
-                              setSchoolAdmissionFields((prev) => ({ ...prev, address: text }));
-                              setSchoolTransferFields((prev) => ({ ...prev, address: text }));
-                              setRationFields((prev) => ({ ...prev, address: text }));
-                              setIncomeFields((prev) => ({ ...prev, address: text }));
-                              setDomicileFields((prev) => ({ ...prev, address: text }));
-                            }
-                          } else {
-                            handleManualAddressChange('applicant', schoolTransferFields.address);
-                          }
-                        }}
+                        addressParts={manualAddressParts.applicant}
+                        onAddressPartsChange={(parts) =>
+                          handleManualAddressPartsChange('applicant', parts)
+                        }
+                        pincodeError={addressPincodeErrors.applicant}
+                        onSelectedAddressIdChange={(id) =>
+                          handleApplicantAddressSelect(id, schoolTransferFields.address)
+                        }
                       />
                       <FieldGroup label={t('letterGeneration.fields.previousSchoolName')}>
                         <Input
@@ -2412,43 +2383,16 @@ export function LetterGeneration() {
                           label={t('letterGeneration.fields.address')}
                           addressType="general"
                           locale={letterLocale}
-                          value={rationFields.address}
                           selectedAddressId={addressSelections.applicant}
                           addresses={addresses}
-                          onValueChange={(value) => {
-                            setRationFields({ ...rationFields, address: value });
-                            setSchoolAdmissionFields((prev) => ({ ...prev, address: value }));
-                            setSchoolTransferFields((prev) => ({ ...prev, address: value }));
-                            setIncomeFields((prev) => ({ ...prev, address: value }));
-                            setDomicileFields((prev) => ({ ...prev, address: value }));
-                            if (!addressSelections.applicant)
-                              handleManualAddressChange('applicant', value);
-                          }}
-                          onSelectedAddressIdChange={(id) => {
-                            setAddressSelections((prev) => ({ ...prev, applicant: id }));
-                            if (id) {
-                              const text = getAddressTextFromMaster(
-                                addresses,
-                                id,
-                                letterLocale,
-                              );
-                              if (text) {
-                                setSchoolAdmissionFields((prev) => ({
-                                  ...prev,
-                                  address: text,
-                                }));
-                                setSchoolTransferFields((prev) => ({
-                                  ...prev,
-                                  address: text,
-                                }));
-                                setRationFields((prev) => ({ ...prev, address: text }));
-                                setIncomeFields((prev) => ({ ...prev, address: text }));
-                                setDomicileFields((prev) => ({ ...prev, address: text }));
-                              }
-                            } else {
-                              handleManualAddressChange('applicant', rationFields.address);
-                            }
-                          }}
+                          addressParts={manualAddressParts.applicant}
+                          onAddressPartsChange={(parts) =>
+                            handleManualAddressPartsChange('applicant', parts)
+                          }
+                          pincodeError={addressPincodeErrors.applicant}
+                          onSelectedAddressIdChange={(id) =>
+                            handleApplicantAddressSelect(id, rationFields.address)
+                          }
                         />
                         {rationType !== 'ration-new' ? (
                           <FieldGroup label={t('letterGeneration.fields.rationCardNo')}>
@@ -2506,38 +2450,16 @@ export function LetterGeneration() {
                           label={t('letterGeneration.fields.rationOfficeAddress')}
                           addressType="ration_office"
                           locale={letterLocale}
-                          value={rationFields.rationOfficeAddress}
                           selectedAddressId={addressSelections.rationOffice}
                           addresses={addresses}
-                          onValueChange={(value) => {
-                            setRationFields({
-                              ...rationFields,
-                              rationOfficeAddress: value,
-                            });
-                            if (!addressSelections.rationOffice)
-                              handleManualAddressChange('rationOffice', value);
-                          }}
-                          onSelectedAddressIdChange={(id) => {
-                            setAddressSelections((prev) => ({ ...prev, rationOffice: id }));
-                            if (id) {
-                              const text = getAddressTextFromMaster(
-                                addresses,
-                                id,
-                                letterLocale,
-                              );
-                              if (text) {
-                                setRationFields((prev) => ({
-                                  ...prev,
-                                  rationOfficeAddress: text,
-                                }));
-                              }
-                            } else {
-                              handleManualAddressChange(
-                                'rationOffice',
-                                rationFields.rationOfficeAddress,
-                              );
-                            }
-                          }}
+                          addressParts={manualAddressParts.rationOffice}
+                          onAddressPartsChange={(parts) =>
+                            handleManualAddressPartsChange('rationOffice', parts)
+                          }
+                          pincodeError={addressPincodeErrors.rationOffice}
+                          onSelectedAddressIdChange={(id) =>
+                            handleRationOfficeAddressSelect(id, rationFields.rationOfficeAddress)
+                          }
                         />
                       </TabsContent>
                     ))}
@@ -2599,61 +2521,31 @@ export function LetterGeneration() {
                         label={t('letterGeneration.fields.address')}
                         addressType="general"
                         locale={letterLocale}
-                        value={incomeFields.address}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
-                        onValueChange={(value) => {
-                          setIncomeFields({ ...incomeFields, address: value });
-                          setSchoolAdmissionFields((prev) => ({ ...prev, address: value }));
-                          setSchoolTransferFields((prev) => ({ ...prev, address: value }));
-                          setRationFields((prev) => ({ ...prev, address: value }));
-                          setDomicileFields((prev) => ({ ...prev, address: value }));
-                          if (!addressSelections.applicant)
-                            handleManualAddressChange('applicant', value);
-                        }}
-                        onSelectedAddressIdChange={(id) => {
-                          setAddressSelections((prev) => ({ ...prev, applicant: id }));
-                          if (id) {
-                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
-                            if (text) {
-                              setSchoolAdmissionFields((prev) => ({ ...prev, address: text }));
-                              setSchoolTransferFields((prev) => ({ ...prev, address: text }));
-                              setRationFields((prev) => ({ ...prev, address: text }));
-                              setIncomeFields((prev) => ({ ...prev, address: text }));
-                              setDomicileFields((prev) => ({ ...prev, address: text }));
-                            }
-                          } else {
-                            handleManualAddressChange('applicant', incomeFields.address);
-                          }
-                        }}
+                        addressParts={manualAddressParts.applicant}
+                        onAddressPartsChange={(parts) =>
+                          handleManualAddressPartsChange('applicant', parts)
+                        }
+                        pincodeError={addressPincodeErrors.applicant}
+                        onSelectedAddressIdChange={(id) =>
+                          handleApplicantAddressSelect(id, incomeFields.address)
+                        }
                       />
                       <LetterAddressField
                         label={t('letterGeneration.fields.officeAddress')}
                         addressType="office"
                         locale={letterLocale}
-                        value={incomeFields.officeAddress}
                         selectedAddressId={addressSelections.office}
                         addresses={addresses}
-                        onValueChange={(value) => {
-                          setIncomeFields({ ...incomeFields, officeAddress: value });
-                          setDomicileFields((prev) => ({ ...prev, officeAddress: value }));
-                          if (!addressSelections.office) handleManualAddressChange('office', value);
-                        }}
-                        onSelectedAddressIdChange={(id) => {
-                          setAddressSelections((prev) => ({ ...prev, office: id }));
-                          if (id) {
-                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
-                            if (text) {
-                              setIncomeFields((prev) => ({ ...prev, officeAddress: text }));
-                              setDomicileFields((prev) => ({
-                                ...prev,
-                                officeAddress: text,
-                              }));
-                            }
-                          } else {
-                            handleManualAddressChange('office', incomeFields.officeAddress);
-                          }
-                        }}
+                        addressParts={manualAddressParts.office}
+                        onAddressPartsChange={(parts) =>
+                          handleManualAddressPartsChange('office', parts)
+                        }
+                        pincodeError={addressPincodeErrors.office}
+                        onSelectedAddressIdChange={(id) =>
+                          handleOfficeAddressSelect(id, incomeFields.officeAddress)
+                        }
                       />
                       <FieldGroup label={t('letterGeneration.fields.aadhaarNo')}>
                         <Input
@@ -2737,61 +2629,31 @@ export function LetterGeneration() {
                         label={t('letterGeneration.fields.address')}
                         addressType="general"
                         locale={letterLocale}
-                        value={domicileFields.address}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
-                        onValueChange={(value) => {
-                          setDomicileFields({ ...domicileFields, address: value });
-                          setSchoolAdmissionFields((prev) => ({ ...prev, address: value }));
-                          setSchoolTransferFields((prev) => ({ ...prev, address: value }));
-                          setRationFields((prev) => ({ ...prev, address: value }));
-                          setIncomeFields((prev) => ({ ...prev, address: value }));
-                          if (!addressSelections.applicant)
-                            handleManualAddressChange('applicant', value);
-                        }}
-                        onSelectedAddressIdChange={(id) => {
-                          setAddressSelections((prev) => ({ ...prev, applicant: id }));
-                          if (id) {
-                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
-                            if (text) {
-                              setSchoolAdmissionFields((prev) => ({ ...prev, address: text }));
-                              setSchoolTransferFields((prev) => ({ ...prev, address: text }));
-                              setRationFields((prev) => ({ ...prev, address: text }));
-                              setIncomeFields((prev) => ({ ...prev, address: text }));
-                              setDomicileFields((prev) => ({ ...prev, address: text }));
-                            }
-                          } else {
-                            handleManualAddressChange('applicant', domicileFields.address);
-                          }
-                        }}
+                        addressParts={manualAddressParts.applicant}
+                        onAddressPartsChange={(parts) =>
+                          handleManualAddressPartsChange('applicant', parts)
+                        }
+                        pincodeError={addressPincodeErrors.applicant}
+                        onSelectedAddressIdChange={(id) =>
+                          handleApplicantAddressSelect(id, domicileFields.address)
+                        }
                       />
                       <LetterAddressField
                         label={t('letterGeneration.fields.officeAddress')}
                         addressType="office"
                         locale={letterLocale}
-                        value={domicileFields.officeAddress}
                         selectedAddressId={addressSelections.office}
                         addresses={addresses}
-                        onValueChange={(value) => {
-                          setDomicileFields({ ...domicileFields, officeAddress: value });
-                          setIncomeFields((prev) => ({ ...prev, officeAddress: value }));
-                          if (!addressSelections.office) handleManualAddressChange('office', value);
-                        }}
-                        onSelectedAddressIdChange={(id) => {
-                          setAddressSelections((prev) => ({ ...prev, office: id }));
-                          if (id) {
-                            const text = getAddressTextFromMaster(addresses, id, letterLocale);
-                            if (text) {
-                              setIncomeFields((prev) => ({ ...prev, officeAddress: text }));
-                              setDomicileFields((prev) => ({
-                                ...prev,
-                                officeAddress: text,
-                              }));
-                            }
-                          } else {
-                            handleManualAddressChange('office', domicileFields.officeAddress);
-                          }
-                        }}
+                        addressParts={manualAddressParts.office}
+                        onAddressPartsChange={(parts) =>
+                          handleManualAddressPartsChange('office', parts)
+                        }
+                        pincodeError={addressPincodeErrors.office}
+                        onSelectedAddressIdChange={(id) =>
+                          handleOfficeAddressSelect(id, domicileFields.officeAddress)
+                        }
                       />
                       <FieldGroup label={t('letterGeneration.fields.aadhaarNo')}>
                         <Input

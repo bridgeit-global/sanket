@@ -494,6 +494,7 @@
       "deleteError": "Failed to delete address",
       "fetchError": "Failed to load addresses",
       "validationRequired": "Name and at least one address field in English or Marathi are required",
+      "pincodeInvalid": "Pincode must be exactly 6 digits",
       "empty": "No addresses yet. Add institute, office, or other addresses to reuse in letters.",
       "selectPlaceholder": "Choose a saved address…",
       "manualEntry": "Enter manually",
