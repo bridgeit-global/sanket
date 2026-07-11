@@ -209,7 +209,10 @@ function prepareCaptureElement(
   clone.style.background = transparent ? 'transparent' : '#ffffff';
   clone.style.backgroundImage = 'none';
   clone.style.color = '#000000';
-  clone.style.padding = `${paddingPx}px`;
+  // When letterhead clearance is applied by jsPDF (paddingPx=0), still keep a
+  // few px of bottom padding so html2canvas does not clip glyph descenders.
+  clone.style.padding =
+    paddingPx === 0 ? '0 0 6px 0' : `${paddingPx}px`;
   clone.style.fontSize = sourceFontSize;
   clone.style.lineHeight = sourceLineHeight;
   clone.style.fontFamily = sourceFontFamily;

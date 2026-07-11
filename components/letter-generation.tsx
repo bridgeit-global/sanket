@@ -522,7 +522,11 @@ function createLetterExportElement(
     // from <br> / block elements — pre-wrap was blowing A5 letters onto 3 pages.
     letterContent.style.whiteSpace = 'normal';
     letterContent.style.fontSize = `${fontSizePx}px`;
-    letterContent.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
+    // Keep template line-height when set (fees A5 is tuned to 1.55). Forcing
+    // 1.75 here made the last line sit on the page edge and get clipped in PDF.
+    if (!letterContent.style.lineHeight) {
+      letterContent.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
+    }
     letterContent.style.fontFamily = fontFamily;
     letterContent.style.color = '#000';
   }
@@ -554,7 +558,8 @@ function LetterPreview({
   return (
     <div
       className={cn(
-        'relative mx-auto w-full overflow-hidden rounded-lg border bg-white text-black',
+        // overflow-x only — overflow-hidden was clipping the last line's descenders.
+        'relative mx-auto w-full overflow-x-hidden rounded-lg border bg-white text-black',
         LETTER_PREVIEW_MAX_WIDTH_CLASS[paperSize],
       )}
       style={{
