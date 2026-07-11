@@ -459,7 +459,9 @@ function resolveSalutation(locale: LetterLocale, gender: PersonGender): string {
 }
 
 const LETTER_PREVIEW_CONTENT_CLASSES =
-  '[&_.letter-content]:whitespace-pre-wrap [&_.letter-content]:font-[inherit] [&_.letter-content]:text-[length:inherit] [&_.letter-content]:leading-[inherit] [&_.letter-content]:text-black';
+  // Templates use block margins / <br> for structure — do not use pre-wrap or
+  // pretty-printed HTML indentation becomes huge blank lines in PDF/print.
+  '[&_.letter-content]:whitespace-normal [&_.letter-content]:font-[inherit] [&_.letter-content]:text-[length:inherit] [&_.letter-content]:leading-[inherit] [&_.letter-content]:text-black';
 
 const LETTER_FONT_STACK: Record<LetterLocale, string> = {
   en: `system-ui, -apple-system, sans-serif`,
@@ -516,7 +518,9 @@ function createLetterExportElement(
   const letterContent = host.querySelector('.letter-content');
   if (letterContent instanceof HTMLElement) {
     letterContent.style.margin = '0';
-    letterContent.style.whiteSpace = 'pre-wrap';
+    // Collapse template source whitespace (newlines/indent). Line breaks come
+    // from <br> / block elements — pre-wrap was blowing A5 letters onto 3 pages.
+    letterContent.style.whiteSpace = 'normal';
     letterContent.style.fontSize = `${fontSizePx}px`;
     letterContent.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
     letterContent.style.fontFamily = fontFamily;

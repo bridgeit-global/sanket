@@ -4,13 +4,14 @@ export const EN_TEMPLATE_HTML: Record<LetterType, string> = {
   'fees': `<div class="letter-content" style="white-space: normal; font-family: inherit; font-size: 13px; line-height: 1.55; color: #000; margin: 0; font-weight: normal;">
   <style>
     .var { font-weight: bold; }
-    .top-row { display: flex; justify-content: space-between; margin-bottom: 18px; }
-    .address { margin-bottom: 16px; font-weight: normal; }
-    .subject { font-weight: bold; margin-bottom: 16px; }
-    .salutation { margin-bottom: 8px; font-weight: normal; }
-    .paragraph { text-align: justify; text-indent: 35px; margin: 0; padding: 0; font-weight: normal; }
-    .right-tab { text-align: right; padding-right: 45px; margin-top: 28px; font-weight: normal; }
-    .right-tab-sign { text-align: right; padding-right: 35px; margin-top: 30px; font-weight: normal; }
+    .top-row { display: flex; justify-content: space-between; margin-bottom: 12px; }
+    .address { margin-bottom: 12px; font-weight: normal; }
+    .subject { font-weight: bold; margin-bottom: 12px; }
+    .salutation { margin-bottom: 6px; font-weight: normal; }
+    .paragraph { text-align: justify; text-indent: 28px; margin: 0 0 8px 0; padding: 0; font-weight: normal; }
+    .paragraph:last-of-type { margin-bottom: 0; }
+    .right-tab { text-align: right; padding-right: 36px; margin-top: 18px; font-weight: normal; }
+    .right-tab-sign { text-align: right; padding-right: 28px; margin-top: 22px; font-weight: normal; }
   </style>
   <div class="top-row">
     <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
