@@ -64,6 +64,11 @@ export type ExportElementToPdfOptions = {
     /** When true (default), letterhead image is only drawn on the first page. */
     firstPageOnly?: boolean;
   };
+  /**
+   * `download` (default) saves the file; `blob` returns a Blob for print/preview
+   * without triggering a download.
+   */
+  destination?: 'download' | 'blob';
 };
 
 async function loadImageAsDataUrl(
@@ -228,7 +233,15 @@ function prepareCaptureElement(
   };
 }
 
-export async function exportElementToPdf(options: ExportElementToPdfOptions): Promise<void> {
+export async function exportElementToPdf(
+  options: ExportElementToPdfOptions & { destination: 'blob' },
+): Promise<Blob>;
+export async function exportElementToPdf(
+  options: ExportElementToPdfOptions & { destination?: 'download' },
+): Promise<void>;
+export async function exportElementToPdf(
+  options: ExportElementToPdfOptions,
+): Promise<Blob | void> {
   const {
     element,
     fileName,
@@ -241,6 +254,7 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
     captureWidthPx,
     drawContinuationRule = false,
     pageBackground,
+    destination = 'download',
   } = options;
 
   const marginMm = Math.max(0, Math.min(25, rawMarginMm));
@@ -509,11 +523,77 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
       pageIndex += 1;
     }
 
+    if (destination === 'blob') {
+      return doc.output('blob');
+    }
+
     doc.save(fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`);
   } finally {
     cleanupCapture();
     root.classList.remove('pdf-export');
     body.classList.remove('pdf-export');
   }
+}
+
+/** Print a PDF blob via a hidden iframe (no browser URL/date headers). */
+export function printPdfBlob(blob: Blob): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob);
+    const iframe = document.createElement('iframe');
+    iframe.setAttribute('aria-hidden', 'true');
+    iframe.style.cssText =
+      'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener('focus', finish);
+      iframe.remove();
+      URL.revokeObjectURL(url);
+      resolve();
+    };
+
+    const fail = (error: Error) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener('focus', finish);
+      iframe.remove();
+      URL.revokeObjectURL(url);
+      reject(error);
+    };
+
+    iframe.onload = () => {
+      const frameWindow = iframe.contentWindow;
+      if (!frameWindow) {
+        fail(new Error('Failed to open print frame'));
+        return;
+      }
+
+      // PDF plugin needs a tick before print is available.
+      window.setTimeout(() => {
+        try {
+          frameWindow.addEventListener('afterprint', finish, { once: true });
+          frameWindow.focus();
+          frameWindow.print();
+          // Attach after print() so opening the dialog doesn't immediately settle.
+          window.setTimeout(() => {
+            if (!settled) window.addEventListener('focus', finish);
+          }, 500);
+          // Hard fallback so the caller never hangs (PDF viewers are inconsistent).
+          window.setTimeout(finish, 1500);
+        } catch (error) {
+          fail(error instanceof Error ? error : new Error('Print failed'));
+        }
+      }, 300);
+    };
+
+    iframe.onerror = () => {
+      fail(new Error('Failed to load PDF for print'));
+    };
+
+    document.body.appendChild(iframe);
+    iframe.src = url;
+  });
 }
 

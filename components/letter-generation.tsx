@@ -97,7 +97,7 @@ import {
   resolveLetterPaperSize,
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
-import { exportElementToPdf } from '@/lib/pdf/export-element-to-pdf';
+import { exportElementToPdf, printPdfBlob } from '@/lib/pdf/export-element-to-pdf';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { ModulePageHeader } from '@/components/module-page-header';
 import {
@@ -526,137 +526,6 @@ function createLetterExportElement(
   return host;
 }
 
-function buildLetterPrintStyles(
-  paperSize: LetterPaperSize,
-  options?: { letterLocale?: LetterLocale; reserveLetterheadSpace?: boolean },
-): string {
-  const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
-  const fontSizePx = LETTER_PRINT_FONT_SIZE_PX[paperSize];
-  const pageLabel = getLetterPaperLabel(paperSize);
-  const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);
-  const fontFamily = LETTER_FONT_STACK[options?.letterLocale ?? 'mr'];
-  const reserveLetterheadSpace = options?.reserveLetterheadSpace !== false;
-
-  // No letterhead background image — reserve the same header/side clearance as preview
-  // so content aligns when printing on pre-printed stationery.
-  if (reserveLetterheadSpace) {
-    return `
-  @page {
-    size: ${pageLabel} portrait;
-    margin: ${headerPaddingMm}mm ${marginMm}mm ${marginMm}mm ${marginMm}mm;
-  }
-  * { color: #000 !important; box-sizing: border-box; }
-  html, body {
-    margin: 0;
-    padding: 0;
-  }
-  body {
-    font-family: ${fontFamily};
-    font-size: ${fontSizePx}px;
-    line-height: ${LETTER_PRINT_LINE_HEIGHT};
-    background: #fff;
-  }
-  .letter-content { white-space: pre-wrap; font-size: inherit; line-height: inherit; margin: 0; }
-  img { max-width: 100%; height: auto; }
-`;
-  }
-
-  const bodyPadding = getLetterBodyPaddingCss(paperSize, false);
-  return `
-  @page { size: ${pageLabel} portrait; margin: 0; }
-  * { color: #000 !important; box-sizing: border-box; }
-  html, body { margin: 0; padding: 0; }
-  body {
-    padding: ${bodyPadding};
-    font-family: ${fontFamily};
-    font-size: ${fontSizePx}px;
-    line-height: ${LETTER_PRINT_LINE_HEIGHT};
-    background: #fff;
-  }
-  .letter-content { white-space: pre-wrap; font-size: inherit; line-height: inherit; margin: 0; }
-  img { max-width: 100%; height: auto; }
-`;
-}
-
-function printLetterHtml(
-  html: string,
-  title: string,
-  paperSize: LetterPaperSize = 'a4',
-  options?: {
-    letterLocale?: LetterLocale;
-    reserveLetterheadSpace?: boolean;
-  },
-): boolean {
-  const iframe = document.createElement('iframe');
-  iframe.setAttribute('aria-hidden', 'true');
-  iframe.style.cssText =
-    'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
-  document.body.appendChild(iframe);
-
-  const printFrame = iframe.contentWindow;
-  const doc = printFrame?.document;
-  if (!doc || !printFrame) {
-    iframe.remove();
-    return false;
-  }
-
-  const contentHtml = stripLetterheadFromHtml(html);
-
-  doc.open();
-  doc.write(
-    `<!DOCTYPE html><html><head><title>${title}</title><style>${buildLetterPrintStyles(paperSize, {
-      letterLocale: options?.letterLocale,
-      reserveLetterheadSpace: options?.reserveLetterheadSpace,
-    })}</style></head><body>${contentHtml}</body></html>`,
-  );
-  doc.close();
-
-  const cleanup = () => {
-    iframe.remove();
-  };
-
-  const waitForImagesAndPrint = () => {
-    const images = Array.from(doc.images);
-
-    const print = () => {
-      printFrame.focus();
-      printFrame.print();
-      if ('onafterprint' in printFrame) {
-        printFrame.addEventListener('afterprint', cleanup, { once: true });
-      } else {
-        setTimeout(cleanup, 1000);
-      }
-    };
-
-    if (images.length === 0) {
-      print();
-      return;
-    }
-
-    void Promise.all(
-      images.map(
-        (img) =>
-          new Promise<void>((resolve) => {
-            if (img.complete) {
-              resolve();
-              return;
-            }
-            img.onload = () => resolve();
-            img.onerror = () => resolve();
-          }),
-      ),
-    ).then(print);
-  };
-
-  if (doc.readyState === 'complete') {
-    waitForImagesAndPrint();
-  } else {
-    iframe.addEventListener('load', waitForImagesAndPrint, { once: true });
-  }
-
-  return true;
-}
-
 const LETTER_PREVIEW_MAX_WIDTH_CLASS: Record<LetterPaperSize, string> = {
   a4: 'max-w-[794px]',
   a5: 'max-w-[559px]',
@@ -1014,6 +883,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   const [activeTab, setActiveTab] = useState<LetterType>('fees');
   const [isSaving, setIsSaving] = useState(false);
   const [downloadingLetterId, setDownloadingLetterId] = useState<string | null>(null);
+  const [printingLetterId, setPrintingLetterId] = useState<string | null>(null);
   const [isGeneratorCollapsed, setIsGeneratorCollapsed] = useState(false);
 
   const [feesFields, setFeesFields] = useState<FeesLetterFields>(() =>
@@ -2414,14 +2284,41 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   const resolveSavedLetterPaperSize = (letter: SavedLetterRow): LetterPaperSize =>
     resolveLetterPaperSize(letter.paperSize, letter.letterType);
 
-  const handlePrintSavedLetter = (letter: SavedLetterRow) => {
-    const title = `${letter.title}${letter.referenceNo ? ` - ${formatReferenceForDisplay(letter.referenceNo, letterLocale)}` : ''}`;
-    const paperSize = resolveSavedLetterPaperSize(letter);
-    const opened = printLetterHtml(letter.renderedHtml, title, paperSize, {
-      letterLocale: letter.letterLocale,
-    });
-    if (!opened) {
+  const handlePrintSavedLetter = async (letter: SavedLetterRow) => {
+    setPrintingLetterId(letter.id);
+    let exportHost: HTMLDivElement | null = null;
+    try {
+      const paperSize = resolveSavedLetterPaperSize(letter);
+      exportHost = createLetterExportElement(letter.renderedHtml, {
+        paperSize,
+        letterLocale: letter.letterLocale,
+      });
+      document.body.appendChild(exportHost);
+      // Print via PDF so Chrome cannot stamp URL/date headers (HTML @page cannot suppress them).
+      const blob = await exportElementToPdf({
+        element: exportHost,
+        fileName: `${letter.title}-${letter.referenceNo || 'letter'}`,
+        format: paperSize,
+        orientation: 'portrait',
+        marginMm: LETTER_PAPER_MARGIN_MM[paperSize],
+        scale: 2,
+        captureWidthPx: getLetterPaperContentWidthPx(paperSize),
+        destination: 'blob',
+        pageBackground: {
+          headerHeightMm: getLetterheadContentPaddingMm(paperSize),
+        },
+      });
+      exportHost.remove();
+      exportHost = null;
+      // Stop loader as soon as the print dialog can open — cancel does not always fire afterprint.
+      setPrintingLetterId(null);
+      await printPdfBlob(blob);
+    } catch (error) {
+      console.error('Saved letter print failed', error);
       toast.error(t('letterGeneration.printPopupBlocked'));
+    } finally {
+      exportHost?.remove();
+      setPrintingLetterId(null);
     }
   };
 
@@ -4257,9 +4154,14 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                                   size="sm"
                                   variant="outline"
                                   className="w-full sm:w-auto"
-                                  onClick={() => handlePrintSavedLetter(selectedSavedLetter)}
+                                  onClick={() => void handlePrintSavedLetter(selectedSavedLetter)}
+                                  disabled={printingLetterId === selectedSavedLetter.id}
                                 >
-                                  <Printer className="mr-2 size-4" />
+                                  {printingLetterId === selectedSavedLetter.id ? (
+                                    <Loader2 className="mr-2 size-4 animate-spin" />
+                                  ) : (
+                                    <Printer className="mr-2 size-4" />
+                                  )}
                                   {t('letterGeneration.savedLetters.actions.print')}
                                 </Button>
                                 <Button
