@@ -3,11 +3,16 @@ import { NextResponse } from 'next/server';
 import { generateText } from 'ai';
 import { auth } from '@/app/(auth)/auth';
 import { myProvider } from '@/lib/ai/providers';
+import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
 
 type LetterLocale = 'en' | 'mr';
 
 function hasDevanagari(text: string) {
   return /[\u0900-\u097F]/.test(text);
+}
+
+function applyLocaleDigits(text: string, locale: LetterLocale): string {
+  return locale === 'mr' ? toLocaleDigits(text, 'mr') : toWesternDigits(text);
 }
 
 export async function POST(request: NextRequest) {
@@ -34,7 +39,7 @@ export async function POST(request: NextRequest) {
 
     const detected: LetterLocale = hasDevanagari(trimmed) ? 'mr' : 'en';
     if (detected === target) {
-      return NextResponse.json({ detected, translated: trimmed });
+      return NextResponse.json({ detected, translated: applyLocaleDigits(trimmed, target) });
     }
 
     const targetLabel = target === 'mr' ? 'Marathi (Devanagari script)' : 'English';
@@ -44,20 +49,22 @@ export async function POST(request: NextRequest) {
       maxRetries: 2,
       temperature: 0,
       system: [
-        'You are a precise translation engine for Indian postal addresses.',
+        'You are a precise translation engine for Indian postal addresses and short names.',
         'Translate the user input to the requested language.',
         'Preserve line breaks exactly as the input (do not add/remove extra lines).',
         'Do not add quotes, bullet points, labels, or any extra commentary.',
-        'Keep numbers, pincodes, and punctuation as-is unless language requires script changes.',
+        'Do not add city, state, or pincode unless they already appear in the input.',
+        'When translating to Marathi, convert all Western digits (0-9) to Devanagari digits (०-९).',
+        'When translating to English, convert Devanagari digits (०-९) to Western digits (0-9).',
+        'Translate common address abbreviations naturally (e.g. "plot no" → "प्लॉट क्रमांक", "near" → "जवळ").',
       ].join('\n'),
       prompt: `Target language: ${targetLabel}\n\nText:\n${trimmed}`,
     });
 
-    const translated = (translatedRaw ?? '').trim();
-    return NextResponse.json({ detected, translated: translated || trimmed });
+    const translated = applyLocaleDigits((translatedRaw ?? '').trim() || trimmed, target);
+    return NextResponse.json({ detected, translated });
   } catch (error) {
     console.error('Error translating text:', error);
     return NextResponse.json({ error: 'Failed to translate' }, { status: 500 });
   }
 }
-

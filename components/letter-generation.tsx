@@ -115,8 +115,10 @@ import {
   formatAddressMaster,
   hasAddressContent,
   hasRequiredAddressFields,
+  localizeAddressPartsDigits,
   mergeAddressParts,
   parseFreeTextAddressForLocale,
+  sanitizeAddressPartsLocations,
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
 import { filterLocaleText } from '@/lib/letters/locale-text';
@@ -1077,9 +1079,14 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
           if (res.ok) {
             const translated = String(json?.translated ?? '').trim();
             if (translated) {
-              reviewParts = mergeAddressParts(
-                parts,
-                parseFreeTextAddressForLocale(translated, targetLocale),
+              reviewParts = sanitizeAddressPartsLocations(
+                localizeAddressPartsDigits(
+                  mergeAddressParts(
+                    parts,
+                    parseFreeTextAddressForLocale(translated, targetLocale),
+                  ),
+                  targetLocale,
+                ),
               );
             }
           }
@@ -1104,7 +1111,9 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     }
     if (!nameEn) nameEn = trimmedName;
 
-    const mergedParts = mergeAddressParts(parts, reviewed.parts);
+    const mergedParts = sanitizeAddressPartsLocations(
+      localizeAddressPartsDigits(mergeAddressParts(parts, reviewed.parts), 'mr'),
+    );
 
     try {
       const res = await fetch('/api/addresses', {
@@ -1359,9 +1368,14 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
 
         setManualAddressParts((prev) => ({
           ...prev,
-          [key]: mergeAddressParts(
-            prev[key],
-            parseFreeTextAddressForLocale(translated, targetLocale),
+          [key]: sanitizeAddressPartsLocations(
+            localizeAddressPartsDigits(
+              mergeAddressParts(
+                prev[key],
+                parseFreeTextAddressForLocale(translated, targetLocale),
+              ),
+              targetLocale,
+            ),
           ),
         }));
       } catch (error) {

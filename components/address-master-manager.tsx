@@ -43,8 +43,10 @@ import {
   enrichAddressPartsWithPincodeLookup,
   formatAddressMaster,
   hasRequiredAddressFields,
+  localizeAddressPartsDigits,
   mergeAddressParts,
   parseFreeTextAddressForLocale,
+  sanitizeAddressPartsLocations,
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
 import { filterLocaleText } from '@/lib/letters/locale-text';
@@ -114,6 +116,39 @@ async function translateAddressText(
   const json = await res.json();
   if (!res.ok) throw new Error(json?.error || 'Failed to translate');
   return String(json?.translated ?? '').trim();
+}
+
+function streetLinesForLocale(
+  parts: AddressMasterAddressParts,
+  locale: LetterLocale,
+): { line1: string; line2: string } {
+  if (locale === 'mr') {
+    return { line1: parts.line1Mr.trim(), line2: parts.line2Mr.trim() };
+  }
+  return { line1: parts.line1En.trim(), line2: parts.line2En.trim() };
+}
+
+async function translateStreetLines(
+  parts: AddressMasterAddressParts,
+  sourceLocale: LetterLocale,
+  targetLocale: LetterLocale,
+): Promise<Partial<AddressMasterAddressParts>> {
+  const { line1, line2 } = streetLinesForLocale(parts, sourceLocale);
+  const result: Partial<AddressMasterAddressParts> = {};
+
+  if (line1) {
+    const translated = await translateAddressText(line1, targetLocale);
+    if (targetLocale === 'mr') result.line1Mr = translated;
+    else result.line1En = translated;
+  }
+
+  if (line2) {
+    const translated = await translateAddressText(line2, targetLocale);
+    if (targetLocale === 'mr') result.line2Mr = translated;
+    else result.line2En = translated;
+  }
+
+  return result;
 }
 
 type AddressMasterManagerProps = {
@@ -272,26 +307,48 @@ export function AddressMasterManager({
     const targetLocale: LetterLocale = locale === 'en' ? 'mr' : 'en';
     setIsTranslating(true);
     try {
-      let translatedParts: AddressMasterAddressParts = {
-        ...EMPTY_ADDRESS_PARTS,
-        pincode: primaryParts.pincode,
-        ...localizedStateParts(primaryParts.stateEn || primaryParts.stateMr),
-        ...localizedCityParts(primaryParts.cityEn || primaryParts.cityMr),
-      };
+      let translatedParts: AddressMasterAddressParts = sanitizeAddressPartsLocations(
+        localizeAddressPartsDigits(
+          {
+            ...EMPTY_ADDRESS_PARTS,
+            pincode: primaryParts.pincode,
+            ...localizedStateParts(primaryParts.stateEn || primaryParts.stateMr),
+            ...localizedCityParts(primaryParts.cityEn || primaryParts.cityMr),
+          },
+          targetLocale,
+        ),
+      );
       let translatedName = '';
 
-      const sourceText = formatAddressMaster(primaryParts, locale);
-      if (sourceText.trim()) {
-        try {
-          const translated = await translateAddressText(sourceText, targetLocale);
-          if (translated) {
-            translatedParts = mergeAddressParts(
-              translatedParts,
-              parseFreeTextAddressForLocale(translated, targetLocale),
-            );
+      try {
+        const streetParts = await translateStreetLines(primaryParts, locale, targetLocale);
+        translatedParts = sanitizeAddressPartsLocations(
+          localizeAddressPartsDigits(
+            mergeAddressParts(translatedParts, streetParts),
+            targetLocale,
+          ),
+        );
+      } catch (error) {
+        console.error('Failed to translate address on save', error);
+        // Fallback: translate full formatted address, then parse structured fields.
+        const sourceText = formatAddressMaster(primaryParts, locale);
+        if (sourceText.trim()) {
+          try {
+            const translated = await translateAddressText(sourceText, targetLocale);
+            if (translated) {
+              translatedParts = sanitizeAddressPartsLocations(
+                localizeAddressPartsDigits(
+                  mergeAddressParts(
+                    translatedParts,
+                    parseFreeTextAddressForLocale(translated, targetLocale),
+                  ),
+                  targetLocale,
+                ),
+              );
+            }
+          } catch (fallbackError) {
+            console.error('Failed to translate full address on save', fallbackError);
           }
-        } catch (error) {
-          console.error('Failed to translate address on save', error);
         }
       }
 
@@ -301,7 +358,10 @@ export function AddressMasterManager({
         console.error('Failed to translate address name on save', error);
       }
 
-      setPendingPrimary({ name: primaryName, parts: mergeAddressParts(primaryParts) });
+      setPendingPrimary({
+        name: primaryName,
+        parts: sanitizeAddressPartsLocations(mergeAddressParts(primaryParts)),
+      });
       setReviewTargetLocale(targetLocale);
       setReviewName(filterLocaleText(translatedName, targetLocale));
       setReviewParts(translatedParts);
@@ -333,7 +393,12 @@ export function AddressMasterManager({
       let nameMr = locale === 'mr' ? primaryName : reviewedName;
       if (!nameEn) nameEn = nameMr;
 
-      const parts = mergeAddressParts(pendingPrimary.parts, reviewedParts);
+      const parts = sanitizeAddressPartsLocations(
+        localizeAddressPartsDigits(
+          mergeAddressParts(pendingPrimary.parts, reviewedParts),
+          'mr',
+        ),
+      );
 
       await persistAddress({ nameEn, nameMr, parts });
 

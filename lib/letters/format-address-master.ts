@@ -43,17 +43,59 @@ function pickLocaleField(
   return parts.stateEn;
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Remove trailing city/state that were accidentally baked into a street line. */
+export function stripTrailingLocationFromLine(
+  line: string,
+  city: string,
+  state: string,
+): string {
+  let result = line.trim();
+  if (!result) return '';
+
+  const cityTrim = city.trim();
+  const stateTrim = state.trim();
+  const candidates = [
+    cityTrim && stateTrim ? `${cityTrim}, ${stateTrim}` : '',
+    cityTrim && stateTrim ? `${stateTrim}, ${cityTrim}` : '',
+    stateTrim,
+    cityTrim,
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    const pattern = new RegExp(`(?:,\\s*)?${escapeRegExp(candidate)}\\s*$`, 'iu');
+    const next = result.replace(pattern, '').trim().replace(/,\s*$/, '').trim();
+    if (next !== result) {
+      result = next;
+      break;
+    }
+  }
+
+  return result;
+}
+
+function localizeAddressText(value: string, locale: LetterLocale): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  return locale === 'mr' ? toLocaleDigits(trimmed, 'mr') : trimmed;
+}
+
 export function formatAddressMaster(
   parts: AddressMasterAddressParts,
   locale: LetterLocale,
 ): string {
+  const city = pickLocaleField(parts, locale, 'city').trim();
+  const state = pickLocaleField(parts, locale, 'state').trim();
   const segments = [
-    pickLocaleField(parts, locale, 'line1'),
-    pickLocaleField(parts, locale, 'line2'),
-    pickLocaleField(parts, locale, 'city'),
-    pickLocaleField(parts, locale, 'state'),
+    stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line1'), city, state),
+    stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line2'), city, state),
+    city,
+    state,
   ]
-    .map((value) => value.trim())
+    .map((value) => localizeAddressText(value, locale))
     .filter(Boolean);
 
   const base = segments.join(', ');
@@ -88,16 +130,17 @@ function assignLocaleFields(
   locale: LetterLocale,
   values: { line1?: string; line2?: string; city?: string; state?: string },
 ): void {
+  const localize = (value: string) => localizeAddressText(value, locale);
   if (locale === 'mr') {
-    if (values.line1 !== undefined) result.line1Mr = values.line1;
-    if (values.line2 !== undefined) result.line2Mr = values.line2;
-    if (values.city !== undefined) result.cityMr = values.city;
-    if (values.state !== undefined) result.stateMr = values.state;
+    if (values.line1 !== undefined) result.line1Mr = localize(values.line1);
+    if (values.line2 !== undefined) result.line2Mr = localize(values.line2);
+    if (values.city !== undefined) result.cityMr = localize(values.city);
+    if (values.state !== undefined) result.stateMr = localize(values.state);
   } else {
-    if (values.line1 !== undefined) result.line1En = values.line1;
-    if (values.line2 !== undefined) result.line2En = values.line2;
-    if (values.city !== undefined) result.cityEn = values.city;
-    if (values.state !== undefined) result.stateEn = values.state;
+    if (values.line1 !== undefined) result.line1En = localize(values.line1);
+    if (values.line2 !== undefined) result.line2En = localize(values.line2);
+    if (values.city !== undefined) result.cityEn = localize(values.city);
+    if (values.state !== undefined) result.stateEn = localize(values.state);
   }
 }
 
@@ -128,6 +171,7 @@ export function parseFreeTextAddressForLocale(
   const result: Partial<AddressMasterAddressParts> = {};
   if (pincode) result.pincode = pincode;
 
+  // Multi-line addresses keep explicit line breaks as structure.
   if (lines.length >= 4) {
     assignLocaleFields(result, locale, {
       line1: lines[0],
@@ -155,12 +199,7 @@ export function parseFreeTextAddressForLocale(
     return result;
   }
 
-  if (lines.length === 1) {
-    assignLocaleFields(result, locale, { line1: lines[0] });
-    return result;
-  }
-
-  // "line1[, line2...], city, state" — last two segments are city and state.
+  // Single-line / comma-separated: "line1[, line2...], city, state"
   if (parts.length >= 3) {
     const lineParts = parts.slice(0, -2);
     assignLocaleFields(result, locale, {
@@ -182,6 +221,38 @@ export function parseFreeTextAddressForLocale(
 
   assignLocaleFields(result, locale, { line1: withoutPincode });
   return result;
+}
+
+/** Apply locale digit script to street/city/state fields for the given locale. */
+export function localizeAddressPartsDigits(
+  parts: AddressMasterAddressParts,
+  locale: LetterLocale,
+): AddressMasterAddressParts {
+  if (locale !== 'mr') return { ...parts, pincode: toWesternDigits(parts.pincode).replace(/\D/g, '') || parts.pincode };
+  return {
+    line1En: parts.line1En,
+    line2En: parts.line2En,
+    cityEn: parts.cityEn,
+    stateEn: parts.stateEn,
+    line1Mr: toLocaleDigits(parts.line1Mr, 'mr'),
+    line2Mr: toLocaleDigits(parts.line2Mr, 'mr'),
+    cityMr: toLocaleDigits(parts.cityMr, 'mr'),
+    stateMr: toLocaleDigits(parts.stateMr, 'mr'),
+    pincode: toWesternDigits(parts.pincode).replace(/\D/g, '') || parts.pincode,
+  };
+}
+
+/** Drop city/state accidentally stored inside street lines for both locales. */
+export function sanitizeAddressPartsLocations(
+  parts: AddressMasterAddressParts,
+): AddressMasterAddressParts {
+  return {
+    ...parts,
+    line1En: stripTrailingLocationFromLine(parts.line1En, parts.cityEn, parts.stateEn),
+    line2En: stripTrailingLocationFromLine(parts.line2En, parts.cityEn, parts.stateEn),
+    line1Mr: stripTrailingLocationFromLine(parts.line1Mr, parts.cityMr, parts.stateMr),
+    line2Mr: stripTrailingLocationFromLine(parts.line2Mr, parts.cityMr, parts.stateMr),
+  };
 }
 
 export function mergeAddressParts(
