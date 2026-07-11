@@ -589,8 +589,13 @@
       "ration": "Ration Card (All)"
     },
     "fields": {
-      "referencePrefix": "Reference Prefix",
+      "referencePrefix": "Document Type",
       "referenceNo": "Reference No.",
+      "documentTypes": {
+        "VIP": "VIP",
+        "Department": "Department",
+        "General": "General"
+      },
       "date": "Date",
       "signatory": "Signatory Name",
       "schoolName": "School / College Name",
@@ -619,7 +624,7 @@
       "paperSize": "Paper Size"
     },
     "placeholders": {
-      "referencePrefix": "e.g. General",
+      "referencePrefix": "Select document type",
       "referenceNo": "e.g. 694",
       "date": "e.g. 05.12.2025",
       "standard": "e.g. 10th",
@@ -643,7 +648,7 @@
       "addMembers": "Add family members to ration card"
     },
     "validation": {
-      "referencePrefixRequired": "Reference Prefix is required",
+      "referencePrefixRequired": "Document Type is required",
       "referenceNoRequired": "Reference No. is required",
       "referenceNoDuplicate": "Reference No. already exists",
       "dateRequired": "Date is required",

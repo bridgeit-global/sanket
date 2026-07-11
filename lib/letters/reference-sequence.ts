@@ -6,9 +6,56 @@ export type ParsedReference = {
   number: string;
 };
 
-/** Default letter/outward reference prefix by UI locale. */
-export function defaultReferencePrefix(locale: LetterLocale | string): string {
-  return locale === 'mr' ? 'सामान्य' : 'General';
+/** Document types double as outward/letter reference prefixes. */
+export const DOCUMENT_TYPES = ['VIP', 'Department', 'General'] as const;
+export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+
+const LEGACY_PREFIX_ALIASES: Record<string, DocumentType> = {
+  general: 'General',
+  सामान्य: 'General',
+  vip: 'VIP',
+  department: 'Department',
+  विभाग: 'Department',
+};
+
+export function isDocumentType(value: string): value is DocumentType {
+  return (DOCUMENT_TYPES as readonly string[]).includes(value);
+}
+
+/** Map a free-text / legacy prefix onto a document type when possible. */
+export function coerceDocumentType(prefix: string): DocumentType | null {
+  const normalized = normalizeReferencePrefix(prefix);
+  if (isDocumentType(normalized)) return normalized;
+  return LEGACY_PREFIX_ALIASES[normalized.toLowerCase()] ?? null;
+}
+
+/** Default reference prefix (Document Type). Locale no longer changes the stored prefix. */
+export function defaultReferencePrefix(_locale?: LetterLocale | string): DocumentType {
+  return 'General';
+}
+
+const DOCUMENT_TYPE_LABELS: Record<LetterLocale, Record<DocumentType, string>> = {
+  en: {
+    VIP: 'VIP',
+    Department: 'Department',
+    General: 'General',
+  },
+  mr: {
+    VIP: 'VIP',
+    Department: 'विभाग',
+    General: 'सामान्य',
+  },
+};
+
+/** Localized Document Type label for UI / letter body (stored value stays English). */
+export function documentTypeLabel(
+  type: string,
+  locale: LetterLocale | string = 'en',
+): string {
+  const docType = coerceDocumentType(type) ?? (isDocumentType(type) ? type : null);
+  if (!docType) return type;
+  const lang: LetterLocale = locale === 'mr' ? 'mr' : 'en';
+  return DOCUMENT_TYPE_LABELS[lang][docType];
 }
 
 /** Trim prefix and strip a trailing slash. */

@@ -1,4 +1,8 @@
 import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
+import {
+  coerceDocumentType,
+  documentTypeLabel,
+} from '@/lib/letters/reference-sequence';
 import type {
   DomicileLetterFields,
   FeesLetterFields,
@@ -78,6 +82,8 @@ export function buildRenderFields(
   locale: LetterLocale,
 ): Record<string, string> {
   const base = toFieldRecord(fields);
+  const storedPrefix = coerceDocumentType(base.referencePrefix) ?? base.referencePrefix;
+  base.referencePrefix = documentTypeLabel(storedPrefix, locale);
   base.referenceNo = toLocaleDigits(
     toWesternDigits(base.referenceNo ?? ''),
     locale,

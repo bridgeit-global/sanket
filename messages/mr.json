@@ -589,8 +589,13 @@
       "ration": "शिधापत्रिका (सर्व)"
     },
     "fields": {
-      "referencePrefix": "संदर्भ उपसर्ग",
+      "referencePrefix": "दस्तऐवज प्रकार",
       "referenceNo": "संदर्भ क्र.",
+      "documentTypes": {
+        "VIP": "VIP",
+        "Department": "विभाग",
+        "General": "सामान्य"
+      },
       "date": "दिनांक",
       "signatory": "स्वाक्षरीकर्ता नाव",
       "schoolName": "शाळा / कॉलेज नाव",
@@ -619,7 +624,7 @@
       "paperSize": "कागदाचा आकार"
     },
     "placeholders": {
-      "referencePrefix": "उदा. सामान्य",
+      "referencePrefix": "दस्तऐवज प्रकार निवडा",
       "referenceNo": "उदा. ६९४",
       "date": "उदा. ०५.१२.२०२५",
       "standard": "उदा. १० वी",
@@ -643,7 +648,7 @@
       "addMembers": "शिधापत्रिकेत कुटुंबियांची नावे जोडणे"
     },
     "validation": {
-      "referencePrefixRequired": "संदर्भ उपसर्ग आवश्यक आहे",
+      "referencePrefixRequired": "दस्तऐवज प्रकार आवश्यक आहे",
       "referenceNoRequired": "संदर्भ क्र. आवश्यक आहे",
       "referenceNoDuplicate": "संदर्भ क्र. आधीच अस्तित्वात आहे",
       "dateRequired": "दिनांक आवश्यक आहे",

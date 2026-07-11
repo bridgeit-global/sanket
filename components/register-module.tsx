@@ -35,12 +35,15 @@ import {
   type RegisterFilterState,
 } from '@/lib/register/url-params';
 import {
+  coerceDocumentType,
   defaultReferencePrefix,
+  DOCUMENT_TYPES,
   formatReference,
   formatReferenceForDisplay,
   formatReferenceNumberForLocale,
   normalizeReferencePrefix,
   parseReference,
+  type DocumentType,
 } from '@/lib/letters/reference-sequence';
 import type { LetterLocale } from '@/lib/letters/templates';
 import { toast } from 'sonner';
@@ -71,7 +74,7 @@ interface Attachment {
 interface RegisterEntry {
   id: string;
   type: 'inward' | 'outward';
-  documentType: 'VIP' | 'Department' | 'General';
+  documentType: DocumentType;
   date: string;
   fromTo: string;
   subject: string;
@@ -88,7 +91,7 @@ interface Project {
 }
 
 type RegisterFormState = {
-  documentType: 'VIP' | 'Department' | 'General';
+  documentType: DocumentType;
   date: string;
   fromTo: string;
   subject: string;
@@ -102,17 +105,17 @@ type RegisterFormState = {
 
 function createEmptyRegisterForm(
   type: 'inward' | 'outward',
-  locale: LetterLocale,
 ): RegisterFormState {
+  const documentType = defaultReferencePrefix();
   return {
-    documentType: 'General',
+    documentType,
     date: format(new Date(), 'yyyy-MM-dd'),
     fromTo: '',
     subject: '',
     projectId: '',
     mode: '',
     refNo: '',
-    refPrefix: type === 'outward' ? defaultReferencePrefix(locale) : '',
+    refPrefix: type === 'outward' ? documentType : '',
     refNumber: '',
     officer: '',
   };
@@ -130,7 +133,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<RegisterFormState>(() =>
-    createEmptyRegisterForm(type, letterLocale),
+    createEmptyRegisterForm(type),
   );
   const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<RegisterEntry | null>(null);
@@ -202,7 +205,8 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
 
   const resolveOutwardRefNo = (state: RegisterFormState) => {
     if (type !== 'outward') return state.refNo || undefined;
-    const full = formatReference(state.refPrefix, state.refNumber);
+    const prefix = state.refPrefix || state.documentType;
+    const full = formatReference(prefix, state.refNumber);
     return full || undefined;
   };
 
@@ -237,30 +241,48 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
 
   useEffect(() => {
     if (type !== 'outward') return;
-    setForm((prev) => {
-      const wasDefaultPrefix =
-        !prev.refPrefix.trim() ||
-        prev.refPrefix === defaultReferencePrefix('en') ||
-        prev.refPrefix === defaultReferencePrefix('mr');
-      return {
-        ...prev,
-        refPrefix: wasDefaultPrefix
-          ? defaultReferencePrefix(letterLocale)
-          : prev.refPrefix,
-        refNumber: formatReferenceNumberForLocale(prev.refNumber, letterLocale),
-      };
-    });
+    setForm((prev) => ({
+      ...prev,
+      refPrefix: prev.documentType,
+      refNumber: formatReferenceNumberForLocale(prev.refNumber, letterLocale),
+    }));
   }, [letterLocale, type]);
 
   useEffect(() => {
     if (type !== 'outward' || editingEntry) return;
-    const prefix = normalizeReferencePrefix(form.refPrefix);
+    const prefix = normalizeReferencePrefix(form.refPrefix || form.documentType);
     if (!prefix) return;
     const timer = window.setTimeout(() => {
       void refreshReferenceSequence(prefix);
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [type, editingEntry, form.refPrefix, refreshReferenceSequence, entries.length]);
+  }, [
+    type,
+    editingEntry,
+    form.refPrefix,
+    form.documentType,
+    refreshReferenceSequence,
+    entries.length,
+  ]);
+
+  const clearFieldError = (field: string) => {
+    setFormErrors((prev) => {
+      if (!prev[field]) return prev;
+      const next = { ...prev };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const setDocumentType = (value: DocumentType) => {
+    referenceNumberAutoRef.current = true;
+    setForm((prev) => ({
+      ...prev,
+      documentType: value,
+      refPrefix: type === 'outward' ? value : prev.refPrefix,
+    }));
+    clearFieldError('refNo');
+  };
 
   const loadData = async () => {
     try {
@@ -300,15 +322,6 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const clearFieldError = (field: string) => {
-    setFormErrors((prev) => {
-      if (!prev[field]) return prev;
-      const next = { ...prev };
-      delete next[field];
-      return next;
-    });
   };
 
   const validateRegisterForm = () => {
@@ -406,7 +419,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
         if (fileInputRef.current) {
           fileInputRef.current.value = '';
         }
-        const nextForm = createEmptyRegisterForm(type, letterLocale);
+        const nextForm = createEmptyRegisterForm(type);
         setForm(nextForm);
         referenceNumberAutoRef.current = true;
         if (type === 'outward') {
@@ -505,15 +518,19 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
     referenceNumberAutoRef.current = false;
     const parsed =
       type === 'outward' ? parseReference(entry.refNo || '') : { prefix: '', number: '' };
+    const documentType =
+      coerceDocumentType(parsed.prefix) ||
+      entry.documentType ||
+      defaultReferencePrefix();
     setForm({
-      documentType: entry.documentType || 'General',
+      documentType,
       date: entry.date,
       fromTo: entry.fromTo,
       subject: entry.subject,
       projectId: entry.projectId || '',
       mode: entry.mode || '',
       refNo: entry.refNo || '',
-      refPrefix: parsed.prefix || defaultReferencePrefix(letterLocale),
+      refPrefix: type === 'outward' ? documentType : '',
       refNumber: formatReferenceNumberForLocale(parsed.number, letterLocale),
       officer: entry.officer || '',
     });
@@ -545,7 +562,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
         await loadData();
         setEditingEntry(null);
         toast.success('Entry updated successfully');
-        const nextForm = createEmptyRegisterForm(type, letterLocale);
+        const nextForm = createEmptyRegisterForm(type);
         setForm(nextForm);
         referenceNumberAutoRef.current = true;
         if (type === 'outward') {
@@ -707,20 +724,22 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
         <CardContent>
           <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-6">
             <div className="space-y-2 md:col-span-1">
-              <Label htmlFor="documentType">Document Type</Label>
+              <Label htmlFor="documentType">
+                {t('letterGeneration.fields.referencePrefix')}
+              </Label>
               <Select
                 value={form.documentType}
-                onValueChange={(value) =>
-                  setForm({ ...form, documentType: value as 'VIP' | 'Department' | 'General' })
-                }
+                onValueChange={(value) => setDocumentType(value as DocumentType)}
               >
                 <SelectTrigger id="documentType">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="VIP">VIP</SelectItem>
-                  <SelectItem value="Department">Department</SelectItem>
-                  <SelectItem value="General">General</SelectItem>
+                  {DOCUMENT_TYPES.map((docType) => (
+                    <SelectItem key={docType} value={docType}>
+                      {t(`letterGeneration.fields.documentTypes.${docType}`)}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -801,37 +820,23 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
             </div>
             <div className="space-y-2 md:col-span-2">
               {type === 'outward' ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <LimitedFormField
-                    id="refPrefix"
-                    label={t('letterGeneration.fields.referencePrefix')}
-                    placeholder={t('letterGeneration.placeholders.referencePrefix')}
-                    value={form.refPrefix}
-                    maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
-                    error={formErrors.refNo}
-                    onChange={(value) => {
-                      referenceNumberAutoRef.current = true;
-                      setForm({ ...form, refPrefix: value });
-                      clearFieldError('refNo');
-                    }}
-                  />
-                  <LimitedFormField
-                    id="refNumber"
-                    label={t('letterGeneration.fields.referenceNo')}
-                    placeholder={t('letterGeneration.placeholders.referenceNo')}
-                    value={form.refNumber}
-                    maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
-                    error={formErrors.refNo}
-                    onChange={(value) => {
-                      referenceNumberAutoRef.current = false;
-                      setForm({
-                        ...form,
-                        refNumber: formatReferenceNumberForLocale(value, letterLocale),
-                      });
-                      clearFieldError('refNo');
-                    }}
-                  />
-                </div>
+                <LimitedFormField
+                  id="refNumber"
+                  label={t('letterGeneration.fields.referenceNo')}
+                  placeholder={t('letterGeneration.placeholders.referenceNo')}
+                  value={form.refNumber}
+                  maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
+                  error={formErrors.refNo}
+                  onChange={(value) => {
+                    referenceNumberAutoRef.current = false;
+                    setForm({
+                      ...form,
+                      refPrefix: form.documentType,
+                      refNumber: formatReferenceNumberForLocale(value, letterLocale),
+                    });
+                    clearFieldError('refNo');
+                  }}
+                />
               ) : (
                 <LimitedFormField
                   id="refNo"
@@ -1184,7 +1189,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
         setEditingEntry(null);
         setFormErrors({});
         // Reset form when closing
-        const nextForm = createEmptyRegisterForm(type, letterLocale);
+        const nextForm = createEmptyRegisterForm(type);
         setForm(nextForm);
         referenceNumberAutoRef.current = true;
         if (type === 'outward') {
@@ -1205,20 +1210,22 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                 <Input value={editingEntry?.type} disabled />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-documentType">Document Type *</Label>
+                <Label htmlFor="edit-documentType">
+                  {t('letterGeneration.fields.referencePrefix')} *
+                </Label>
                 <Select
                   value={form.documentType}
-                  onValueChange={(value) =>
-                    setForm({ ...form, documentType: value as 'VIP' | 'Department' | 'General' })
-                  }
+                  onValueChange={(value) => setDocumentType(value as DocumentType)}
                 >
                   <SelectTrigger id="edit-documentType">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="VIP">VIP</SelectItem>
-                    <SelectItem value="Department">Department</SelectItem>
-                    <SelectItem value="General">General</SelectItem>
+                    {DOCUMENT_TYPES.map((docType) => (
+                      <SelectItem key={docType} value={docType}>
+                        {t(`letterGeneration.fields.documentTypes.${docType}`)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -1298,35 +1305,22 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
               </div>
               <div className="space-y-2 md:col-span-2">
                 {type === 'outward' ? (
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <LimitedFormField
-                      id="edit-refPrefix"
-                      label={t('letterGeneration.fields.referencePrefix')}
-                      placeholder={t('letterGeneration.placeholders.referencePrefix')}
-                      value={form.refPrefix}
-                      maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
-                      error={formErrors.refNo}
-                      onChange={(value) => {
-                        setForm({ ...form, refPrefix: value });
-                        clearFieldError('refNo');
-                      }}
-                    />
-                    <LimitedFormField
-                      id="edit-refNumber"
-                      label={t('letterGeneration.fields.referenceNo')}
-                      placeholder={t('letterGeneration.placeholders.referenceNo')}
-                      value={form.refNumber}
-                      maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
-                      error={formErrors.refNo}
-                      onChange={(value) => {
-                        setForm({
-                          ...form,
-                          refNumber: formatReferenceNumberForLocale(value, letterLocale),
-                        });
-                        clearFieldError('refNo');
-                      }}
-                    />
-                  </div>
+                  <LimitedFormField
+                    id="edit-refNumber"
+                    label={t('letterGeneration.fields.referenceNo')}
+                    placeholder={t('letterGeneration.placeholders.referenceNo')}
+                    value={form.refNumber}
+                    maxLength={REGISTER_ENTRY_FIELD_LIMITS.refNo}
+                    error={formErrors.refNo}
+                    onChange={(value) => {
+                      setForm({
+                        ...form,
+                        refPrefix: form.documentType,
+                        refNumber: formatReferenceNumberForLocale(value, letterLocale),
+                      });
+                      clearFieldError('refNo');
+                    }}
+                  />
                 ) : (
                   <LimitedFormField
                     id="edit-refNo"
@@ -1361,7 +1355,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                 variant="outline"
                 onClick={() => {
                   setEditingEntry(null);
-                  const nextForm = createEmptyRegisterForm(type, letterLocale);
+                  const nextForm = createEmptyRegisterForm(type);
                   setForm(nextForm);
                   referenceNumberAutoRef.current = true;
                   if (type === 'outward') {

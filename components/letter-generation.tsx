@@ -120,11 +120,15 @@ import {
 } from '@/lib/letters/format-address-master';
 import { filterLocaleText } from '@/lib/letters/locale-text';
 import {
+  coerceDocumentType,
   defaultReferencePrefix,
+  DOCUMENT_TYPES,
+  documentTypeLabel,
   formatReference,
   formatReferenceForDisplay,
   formatReferenceNumberForLocale,
   normalizeReferencePrefix,
+  type DocumentType,
 } from '@/lib/letters/reference-sequence';
 import { toWesternDigits } from '@/lib/locale-digits';
 import { cn } from '@/lib/utils';
@@ -1170,15 +1174,11 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     const prevLocale = prevLetterLocaleRef.current;
     const prevAutoDate = todayDisplay(prevLocale);
     const nextAutoDate = todayDisplay(letterLocale);
-    const prevDefaultPrefix = defaultReferencePrefix(prevLocale);
-    const nextDefaultPrefix = defaultReferencePrefix(letterLocale);
 
     const signatory = DEFAULT_SIGNATORY[letterLocale];
     const filterText = (value: string) => filterLocaleText(value, letterLocale);
     const nextPrefix = (prevPrefix: string) =>
-      !prevPrefix.trim() || prevPrefix === prevDefaultPrefix
-        ? nextDefaultPrefix
-        : prevPrefix;
+      coerceDocumentType(prevPrefix) ?? defaultReferencePrefix();
     const nextReferenceNo = (prevNumber: string) =>
       formatReferenceNumberForLocale(prevNumber, letterLocale);
 
@@ -1725,13 +1725,29 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     ],
   );
 
-  const activeReferencePrefix = activeFields.referencePrefix;
+  const activeReferencePrefix =
+    coerceDocumentType(activeFields.referencePrefix) ??
+    activeFields.referencePrefix;
   const activeReferenceNo = activeFields.referenceNo;
   const activeFullReferenceNo = formatReference(
     activeReferencePrefix,
     activeReferenceNo,
   );
   const activeDate = activeFields.date;
+
+  useEffect(() => {
+    const coercePrefix = <T extends { referencePrefix: string }>(prev: T): T => {
+      const next = coerceDocumentType(prev.referencePrefix);
+      if (!next || next === prev.referencePrefix) return prev;
+      return { ...prev, referencePrefix: next };
+    };
+    setFeesFields(coercePrefix);
+    setSchoolAdmissionFields(coercePrefix);
+    setSchoolTransferFields(coercePrefix);
+    setRationFields(coercePrefix);
+    setIncomeFields(coercePrefix);
+    setDomicileFields(coercePrefix);
+  }, []);
 
   useEffect(() => {
     const prefix = normalizeReferencePrefix(activeReferencePrefix);
@@ -2312,10 +2328,12 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
           required
           error={fieldErrors.referencePrefix}
         >
-          <Input
-            value={fields.referencePrefix}
-            onChange={(e) => {
-              const nextPrefix = e.target.value;
+          <Select
+            value={
+              coerceDocumentType(fields.referencePrefix) ?? defaultReferencePrefix()
+            }
+            onValueChange={(value) => {
+              const nextPrefix = value as DocumentType;
               referenceNumberAutoRef.current = true;
               syncReferenceFields(nextPrefix, fields.referenceNo);
               if (fieldErrors.referencePrefix || fieldErrors.referenceNo) {
@@ -2326,10 +2344,23 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                 }));
               }
             }}
-            placeholder={t('letterGeneration.placeholders.referencePrefix')}
-            required
-            aria-invalid={!!fieldErrors.referencePrefix}
-          />
+          >
+            <SelectTrigger
+              aria-invalid={!!fieldErrors.referencePrefix}
+              aria-required
+            >
+              <SelectValue
+                placeholder={t('letterGeneration.placeholders.referencePrefix')}
+              />
+            </SelectTrigger>
+            <SelectContent>
+              {DOCUMENT_TYPES.map((docType) => (
+                <SelectItem key={docType} value={docType}>
+                  {documentTypeLabel(docType, letterLocale)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </FieldGroup>
         <FieldGroup
           label={t('letterGeneration.fields.referenceNo')}
