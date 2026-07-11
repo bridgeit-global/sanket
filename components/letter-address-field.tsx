@@ -4,8 +4,8 @@ import { useCallback, useRef } from 'react';
 
 import { Combobox } from '@/components/ui/combobox';
 import { StructuredAddressFields } from '@/components/structured-address-fields';
-import { useTranslations } from '@/hooks/use-translations';
 import type { AddressType } from '@/lib/letters/address-types';
+import { letterMessage } from '@/lib/letters/letter-messages';
 import {
   EMPTY_ADDRESS_PARTS,
   enrichAddressPartsWithPincodeLookup,
@@ -64,7 +64,7 @@ export function LetterAddressField({
   required,
   error,
 }: LetterAddressFieldProps) {
-  const { t } = useTranslations();
+  const at = (key: string) => letterMessage(locale, key);
   const addressPartsRef = useRef(addressParts);
   addressPartsRef.current = addressParts;
 
@@ -133,7 +133,7 @@ export function LetterAddressField({
   };
 
   const comboboxOptions = [
-    { value: MANUAL_VALUE, label: t('letterGeneration.addresses.manualEntry') },
+    { value: MANUAL_VALUE, label: at('letterGeneration.addresses.manualEntry') },
     ...filteredAddresses.map((address) => ({
       value: address.id,
       label:
@@ -156,8 +156,8 @@ export function LetterAddressField({
           options={comboboxOptions}
           value={selectedAddressId ?? MANUAL_VALUE}
           onValueChange={handleSelectChange}
-          placeholder={t('letterGeneration.addresses.selectPlaceholder')}
-          emptyMessage={t('letterGeneration.addresses.empty')}
+          placeholder={at('letterGeneration.addresses.selectPlaceholder')}
+          emptyMessage={at('letterGeneration.addresses.empty')}
         />
       ) : null}
 

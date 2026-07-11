@@ -5,8 +5,8 @@ import { useEffect } from 'react';
 import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useTranslations } from '@/hooks/use-translations';
 import type { AddressMasterAddressParts } from '@/lib/letters/format-address-master';
+import { letterMessage } from '@/lib/letters/letter-messages';
 import {
   DEFAULT_CITY,
   DEFAULT_STATE,
@@ -80,7 +80,7 @@ export function StructuredAddressFields({
   previewText,
   pincodeError,
 }: StructuredAddressFieldsProps) {
-  const { t } = useTranslations();
+  const at = (key: string) => letterMessage(locale, key);
 
   const hasStoredState = Boolean(parts.stateEn.trim() || parts.stateMr.trim());
   const hasStoredCity = Boolean(parts.cityEn.trim() || parts.cityMr.trim());
@@ -167,7 +167,7 @@ export function StructuredAddressFields({
 
   return (
     <div className="space-y-3 rounded-md border p-3 sm:p-4">
-      <p className="text-sm font-medium">{t('letterGeneration.addresses.structuredFields')}</p>
+      <p className="text-sm font-medium">{at('letterGeneration.addresses.structuredFields')}</p>
 
       <div className="space-y-3">
         {LINE_FIELDS.map((field) => {
@@ -176,7 +176,7 @@ export function StructuredAddressFields({
           return (
             <div key={field.key} className="space-y-1.5">
               <Label className="text-xs">
-                {t(`letterGeneration.addresses.fields.${field.key}`)}
+                {at(`letterGeneration.addresses.fields.${field.key}`)}
                 {required ? ' *' : null}
               </Label>
               <Input
@@ -200,33 +200,33 @@ export function StructuredAddressFields({
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1.5">
           <Label className="text-xs">
-            {t('letterGeneration.addresses.fields.state')} *
+            {at('letterGeneration.addresses.fields.state')} *
           </Label>
           <Combobox
             options={stateOptions}
             value={selectedState || undefined}
             onValueChange={handleStateChange}
-            placeholder={t('letterGeneration.addresses.selectState')}
-            emptyMessage={t('letterGeneration.addresses.empty')}
+            placeholder={at('letterGeneration.addresses.selectState')}
+            emptyMessage={at('letterGeneration.addresses.empty')}
           />
         </div>
 
         <div className="space-y-1.5">
           <Label className="text-xs">
-            {t('letterGeneration.addresses.fields.city')} *
+            {at('letterGeneration.addresses.fields.city')} *
           </Label>
           <Combobox
             options={cityOptions}
             value={selectedCity || undefined}
             onValueChange={handleCityChange}
-            placeholder={t('letterGeneration.addresses.selectCity')}
-            emptyMessage={t('letterGeneration.addresses.empty')}
+            placeholder={at('letterGeneration.addresses.selectCity')}
+            emptyMessage={at('letterGeneration.addresses.empty')}
           />
         </div>
 
         <div className="space-y-1.5">
           <Label className="text-xs">
-            {t('letterGeneration.addresses.fields.pincode')} *
+            {at('letterGeneration.addresses.fields.pincode')} *
           </Label>
           <Input
             value={toLocaleDigits(parts.pincode, locale)}
@@ -251,8 +251,8 @@ export function StructuredAddressFields({
       {previewText !== undefined ? (
         <div className="text-xs text-muted-foreground">
           {locale === 'en'
-            ? t('letterGeneration.addresses.columns.english')
-            : t('letterGeneration.addresses.columns.marathi')}
+            ? at('letterGeneration.addresses.columns.english')
+            : at('letterGeneration.addresses.columns.marathi')}
           : {previewText}
         </div>
       ) : null}

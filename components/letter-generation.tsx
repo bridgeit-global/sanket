@@ -122,6 +122,7 @@ import {
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
 import { filterLocaleText } from '@/lib/letters/locale-text';
+import { letterMessage } from '@/lib/letters/letter-messages';
 import {
   coerceDocumentType,
   defaultReferencePrefix,
@@ -742,7 +743,6 @@ function validateRequiredCommonFields(
   referencePrefix: string,
   referenceNo: string,
   date: string,
-  signatory: string,
   t: (key: string) => string,
   existingReferenceNos: string[] = [],
 ): LetterFieldErrors {
@@ -764,9 +764,6 @@ function validateRequiredCommonFields(
   }
   if (!date.trim()) {
     errors.date = t('letterGeneration.validation.dateRequired');
-  }
-  if (!signatory.trim()) {
-    errors.signatory = t('letterGeneration.validation.fieldRequired');
   }
   return errors;
 }
@@ -915,6 +912,11 @@ type LetterMasterRow = {
 export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   const { t, locale } = useTranslations();
   const [letterLocale, setLetterLocale] = useState<LetterLocale>(locale);
+  /** Field labels / options follow letter language, not UI locale. */
+  const lt = useCallback(
+    (key: string) => letterMessage(letterLocale, key),
+    [letterLocale],
+  );
   const prevLetterLocaleRef = useRef<LetterLocale>(locale);
   const [activeTab, setActiveTab] = useState<LetterType>('fees');
   const [isSaving, setIsSaving] = useState(false);
@@ -1432,7 +1434,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     setManualAddressParts((prev) => ({ ...prev, [key]: parts }));
     setAddressPincodeErrors((prev) => ({
       ...prev,
-      [key]: getPincodeValidationError(parts, t),
+      [key]: getPincodeValidationError(parts, lt),
     }));
     setFieldErrors((prev) => ({ ...prev, [`${key}Address`]: undefined }));
 
@@ -1808,13 +1810,12 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   }, [activeReferencePrefix, refreshReferenceSequence, savedLetters.length]);
 
   const validateActiveLetterFields = () => {
-    const requiredMsg = t('letterGeneration.validation.fieldRequired');
+    const requiredMsg = lt('letterGeneration.validation.fieldRequired');
     const errors = validateRequiredCommonFields(
       activeReferencePrefix,
       activeReferenceNo,
       activeDate,
-      activeFields.signatory,
-      t,
+      lt,
       existingReferenceNos,
     );
 
@@ -1832,7 +1833,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
           const error = getManualAddressValidationError(
             manualAddressParts[key],
             letterLocale,
-            t,
+            lt,
           );
           if (error) {
             addressErrors[key] = error;
@@ -1841,8 +1842,8 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
         }
         return;
       }
-      addressErrors[key] = t('letterGeneration.addresses.fieldsRequired');
-      errors[`${key}Address`] = t('letterGeneration.addresses.fieldsRequired');
+      addressErrors[key] = lt('letterGeneration.addresses.fieldsRequired');
+      errors[`${key}Address`] = lt('letterGeneration.addresses.fieldsRequired');
     };
 
     if (activeTab === 'fees') {
@@ -2386,7 +2387,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     <>
       <div className="grid gap-4 sm:grid-cols-2">
         <FieldGroup
-          label={t('letterGeneration.fields.referencePrefix')}
+          label={lt('letterGeneration.fields.referencePrefix')}
           required
           error={fieldErrors.referencePrefix}
         >
@@ -2413,7 +2414,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
               aria-required
             >
               <SelectValue
-                placeholder={t('letterGeneration.placeholders.referencePrefix')}
+                placeholder={lt('letterGeneration.placeholders.referencePrefix')}
               />
             </SelectTrigger>
             <SelectContent>
@@ -2429,7 +2430,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
           </Select>
         </FieldGroup>
         <FieldGroup
-          label={t('letterGeneration.fields.referenceNo')}
+          label={lt('letterGeneration.fields.referenceNo')}
           required
           error={fieldErrors.referenceNo}
         >
@@ -2446,7 +2447,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                 setFieldErrors((prev) => ({ ...prev, referenceNo: undefined }));
               }
             }}
-            placeholder={t('letterGeneration.placeholders.referenceNo')}
+            placeholder={lt('letterGeneration.placeholders.referenceNo')}
             required
             inputMode="numeric"
             lang={letterLocale === 'mr' ? 'mr' : 'en'}
@@ -2454,7 +2455,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
           />
         </FieldGroup>
         <FieldGroup
-          label={t('letterGeneration.fields.date')}
+          label={lt('letterGeneration.fields.date')}
           required
           error={fieldErrors.date}
         >
@@ -2467,29 +2468,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                 setFieldErrors((prev) => ({ ...prev, date: undefined }));
               }
             }}
-            placeholder={t('letterGeneration.placeholders.date')}
-          />
-        </FieldGroup>
-        <FieldGroup
-          label={t('letterGeneration.fields.signatory')}
-          required
-          error={fieldErrors.signatory}
-        >
-          <Input
-            value={fields.signatory}
-            onChange={(e) => {
-              setFields({
-                ...fields,
-                signatory: filterLocaleText(e.target.value, letterLocale),
-              });
-              if (fieldErrors.signatory) {
-                setFieldErrors((prev) => ({ ...prev, signatory: undefined }));
-              }
-            }}
-            placeholder={DEFAULT_SIGNATORY[letterLocale]}
-            required
-            lang={letterLocale === 'mr' ? 'mr' : 'en'}
-            aria-invalid={!!fieldErrors.signatory}
+            placeholder={lt('letterGeneration.placeholders.date')}
           />
         </FieldGroup>
       </div>
@@ -2559,26 +2538,26 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
               onValueChange={(value) => setActiveTab(value as LetterType)}
             >
               <div className="grid w-full max-w-3xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <FieldGroup label={t('letterGeneration.fields.letterType')}>
+                <FieldGroup label={lt('letterGeneration.fields.letterType')}>
                   <Select
                     value={activeTab}
                     onValueChange={(value: LetterType) => setActiveTab(value)}
                   >
                     <SelectTrigger>
                       <SelectValue
-                        placeholder={t('letterGeneration.placeholders.letterType')}
+                        placeholder={lt('letterGeneration.placeholders.letterType')}
                       />
                     </SelectTrigger>
                     <SelectContent>
                       {LETTER_TYPES.map((type) => (
                         <SelectItem key={type} value={type}>
-                          {t(`letterGeneration.tabs.${type}`)}
+                          {lt(`letterGeneration.tabs.${type}`)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </FieldGroup>
-                <FieldGroup label={t('letterGeneration.fields.letterLanguage')}>
+                <FieldGroup label={lt('letterGeneration.fields.letterLanguage')}>
                   <Select
                     value={letterLocale}
                     onValueChange={(value: LetterLocale) => setLetterLocale(value)}
@@ -2589,13 +2568,13 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                     <SelectContent>
                       {LETTER_LOCALES.map((lang) => (
                         <SelectItem key={lang} value={lang}>
-                          {t(`letterGeneration.letterLanguage.${lang}`)}
+                          {lt(`letterGeneration.letterLanguage.${lang}`)}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </FieldGroup>
-                <FieldGroup label={t('letterGeneration.fields.paperSize')}>
+                <FieldGroup label={lt('letterGeneration.fields.paperSize')}>
                   <Select
                     value={paperSizeDraft}
                     onValueChange={(value: LetterPaperSize) => setPaperSizeDraft(value)}
@@ -2606,7 +2585,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                     <SelectContent>
                       {LETTER_PAPER_SIZES.map((size) => (
                         <SelectItem key={size} value={size}>
-                          {t(`letterGeneration.paperSize.options.${size}`)}
+                          {lt(`letterGeneration.paperSize.options.${size}`)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -2663,7 +2642,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                       />
                       <div className="grid gap-4 sm:grid-cols-2">
                         <FieldGroup
-                          label={t('letterGeneration.fields.standard')}
+                          label={lt('letterGeneration.fields.standard')}
                           required
                           error={fieldErrors.standard}
                         >
@@ -2676,12 +2655,12 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                                 setFieldErrors((prev) => ({ ...prev, standard: undefined }));
                               }
                             }}
-                            placeholder={t('letterGeneration.placeholders.standard')}
+                            placeholder={lt('letterGeneration.placeholders.standard')}
                             required
                           />
                         </FieldGroup>
                         <FieldGroup
-                          label={t('letterGeneration.fields.studentName')}
+                          label={lt('letterGeneration.fields.studentName')}
                           required
                           error={fieldErrors.studentName}
                         >
@@ -2744,7 +2723,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                       />
                       <div className="grid gap-4 sm:grid-cols-2">
                         <FieldGroup
-                          label={t('letterGeneration.fields.standard')}
+                          label={lt('letterGeneration.fields.standard')}
                           required
                           error={fieldErrors.standard}
                         >
@@ -2764,7 +2743,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           />
                         </FieldGroup>
                         <FieldGroup
-                          label={t('letterGeneration.fields.studentName')}
+                          label={lt('letterGeneration.fields.studentName')}
                           required
                           error={fieldErrors.studentName}
                         >
@@ -2788,7 +2767,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         </FieldGroup>
                       </div>
                       <FieldGroup
-                        label={t('letterGeneration.fields.parentName')}
+                        label={lt('letterGeneration.fields.parentName')}
                         required
                         error={fieldErrors.parentName}
                       >
@@ -2808,7 +2787,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         />
                       </FieldGroup>
                       <LetterAddressField
-                        label={t('letterGeneration.fields.address')}
+                        label={lt('letterGeneration.fields.address')}
                         addressType="general"
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
@@ -2825,7 +2804,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         }
                       />
                       <FieldGroup
-                        label={t('letterGeneration.fields.reasonText')}
+                        label={lt('letterGeneration.fields.reasonText')}
                         required
                         error={fieldErrors.reasonText}
                       >
@@ -2888,7 +2867,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                       />
                       <div className="grid gap-4 sm:grid-cols-2">
                         <FieldGroup
-                          label={t('letterGeneration.fields.standard')}
+                          label={lt('letterGeneration.fields.standard')}
                           required
                           error={fieldErrors.standard}
                         >
@@ -2908,7 +2887,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           />
                         </FieldGroup>
                         <FieldGroup
-                          label={t('letterGeneration.fields.studentName')}
+                          label={lt('letterGeneration.fields.studentName')}
                           required
                           error={fieldErrors.studentName}
                         >
@@ -2932,7 +2911,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         </FieldGroup>
                       </div>
                       <FieldGroup
-                        label={t('letterGeneration.fields.parentName')}
+                        label={lt('letterGeneration.fields.parentName')}
                         required
                         error={fieldErrors.parentName}
                       >
@@ -2952,7 +2931,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         />
                       </FieldGroup>
                       <LetterAddressField
-                        label={t('letterGeneration.fields.address')}
+                        label={lt('letterGeneration.fields.address')}
                         addressType="general"
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
@@ -2969,7 +2948,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         }
                       />
                       <FieldGroup
-                        label={t('letterGeneration.fields.previousSchoolName')}
+                        label={lt('letterGeneration.fields.previousSchoolName')}
                         required
                         error={fieldErrors.previousSchoolName}
                       >
@@ -2993,7 +2972,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                       </FieldGroup>
                       <div className="grid gap-4 sm:grid-cols-2">
                         <FieldGroup
-                          label={t('letterGeneration.fields.currentStandard')}
+                          label={lt('letterGeneration.fields.currentStandard')}
                           required
                           error={fieldErrors.currentStandard}
                         >
@@ -3016,7 +2995,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           />
                         </FieldGroup>
                         <FieldGroup
-                          label={t('letterGeneration.fields.transferReason')}
+                          label={lt('letterGeneration.fields.transferReason')}
                           required
                           error={fieldErrors.transferReason}
                         >
@@ -3052,7 +3031,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                       <TabsContent key={rationType} value={rationType} className="mt-0 space-y-4">
                         {renderCommonFields(rationFields, setRationFields)}
                         <div className="grid gap-4 sm:grid-cols-2">
-                          <FieldGroup label={t('letterGeneration.fields.gender')} required>
+                          <FieldGroup label={lt('letterGeneration.fields.gender')} required>
                             <Select
                               value={rationFields.gender}
                               onValueChange={(value: PersonGender) =>
@@ -3068,19 +3047,19 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="male">
-                                  {t('letterGeneration.gender.male')}
+                                  {lt('letterGeneration.gender.male')}
                                 </SelectItem>
                                 <SelectItem value="female">
-                                  {t('letterGeneration.gender.female')}
+                                  {lt('letterGeneration.gender.female')}
                                 </SelectItem>
                                 <SelectItem value="other">
-                                  {t('letterGeneration.gender.other')}
+                                  {lt('letterGeneration.gender.other')}
                                 </SelectItem>
                               </SelectContent>
                             </Select>
                           </FieldGroup>
                           <FieldGroup
-                            label={t('letterGeneration.fields.salutation')}
+                            label={lt('letterGeneration.fields.salutation')}
                             required
                             error={fieldErrors.salutation}
                           >
@@ -3100,7 +3079,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                             />
                           </FieldGroup>
                           <FieldGroup
-                            label={t('letterGeneration.fields.fullName')}
+                            label={lt('letterGeneration.fields.fullName')}
                             required
                             error={fieldErrors.fullName}
                           >
@@ -3121,7 +3100,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           </FieldGroup>
                         </div>
                         <LetterAddressField
-                          label={t('letterGeneration.fields.address')}
+                          label={lt('letterGeneration.fields.address')}
                           addressType="general"
                           locale={letterLocale}
                           selectedAddressId={addressSelections.applicant}
@@ -3139,7 +3118,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         />
                         {rationType !== 'ration-new' ? (
                           <FieldGroup
-                            label={t('letterGeneration.fields.rationCardNo')}
+                            label={lt('letterGeneration.fields.rationCardNo')}
                             required
                             error={fieldErrors.rationCardNo}
                           >
@@ -3164,7 +3143,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         {rationType === 'ration-transfer' ? (
                           <div className="grid gap-4 sm:grid-cols-2">
                             <FieldGroup
-                              label={t('letterGeneration.fields.fromRationOffice')}
+                              label={lt('letterGeneration.fields.fromRationOffice')}
                               required
                               error={fieldErrors.fromRationOffice}
                             >
@@ -3187,7 +3166,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                               />
                             </FieldGroup>
                             <FieldGroup
-                              label={t('letterGeneration.fields.toRationOffice')}
+                              label={lt('letterGeneration.fields.toRationOffice')}
                               required
                               error={fieldErrors.toRationOffice}
                             >
@@ -3212,7 +3191,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           </div>
                         ) : null}
                         <FieldGroup
-                          label={t('letterGeneration.fields.familyMembers')}
+                          label={lt('letterGeneration.fields.familyMembers')}
                           required
                           error={fieldErrors.familyMembers}
                         >
@@ -3229,12 +3208,12 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                               }
                             }}
                             rows={4}
-                            placeholder={t('letterGeneration.placeholders.familyMembers')}
+                            placeholder={lt('letterGeneration.placeholders.familyMembers')}
                             required
                           />
                         </FieldGroup>
                         <LetterAddressField
-                          label={t('letterGeneration.fields.rationOfficeAddress')}
+                          label={lt('letterGeneration.fields.rationOfficeAddress')}
                           addressType="ration_office"
                           locale={letterLocale}
                           selectedAddressId={addressSelections.rationOffice}
@@ -3256,7 +3235,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                     <TabsContent value="income" className="mt-0 space-y-4">
                       {renderCommonFields(incomeFields, setIncomeFields)}
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <FieldGroup label={t('letterGeneration.fields.gender')} required>
+                        <FieldGroup label={lt('letterGeneration.fields.gender')} required>
                           <Select
                             value={incomeFields.gender}
                             onValueChange={(value: PersonGender) =>
@@ -3272,19 +3251,19 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="male">
-                                {t('letterGeneration.gender.male')}
+                                {lt('letterGeneration.gender.male')}
                               </SelectItem>
                               <SelectItem value="female">
-                                {t('letterGeneration.gender.female')}
+                                {lt('letterGeneration.gender.female')}
                               </SelectItem>
                               <SelectItem value="other">
-                                {t('letterGeneration.gender.other')}
+                                {lt('letterGeneration.gender.other')}
                               </SelectItem>
                             </SelectContent>
                           </Select>
                         </FieldGroup>
                         <FieldGroup
-                          label={t('letterGeneration.fields.salutation')}
+                          label={lt('letterGeneration.fields.salutation')}
                           required
                           error={fieldErrors.salutation}
                         >
@@ -3304,7 +3283,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           />
                         </FieldGroup>
                         <FieldGroup
-                          label={t('letterGeneration.fields.fullName')}
+                          label={lt('letterGeneration.fields.fullName')}
                           required
                           error={fieldErrors.fullName}
                         >
@@ -3325,7 +3304,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         </FieldGroup>
                       </div>
                       <LetterAddressField
-                        label={t('letterGeneration.fields.address')}
+                        label={lt('letterGeneration.fields.address')}
                         addressType="general"
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
@@ -3342,7 +3321,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         }
                       />
                       <LetterAddressField
-                        label={t('letterGeneration.fields.officeAddress')}
+                        label={lt('letterGeneration.fields.officeAddress')}
                         addressType="office"
                         locale={letterLocale}
                         selectedAddressId={addressSelections.office}
@@ -3359,7 +3338,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         }
                       />
                       <FieldGroup
-                        label={t('letterGeneration.fields.aadhaarNo')}
+                        label={lt('letterGeneration.fields.aadhaarNo')}
                         required
                         error={fieldErrors.aadhaarNo}
                       >
@@ -3381,7 +3360,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         />
                       </FieldGroup>
                       <FieldGroup
-                        label={t('letterGeneration.fields.annualIncome')}
+                        label={lt('letterGeneration.fields.annualIncome')}
                         required
                         error={fieldErrors.annualIncome}
                       >
@@ -3399,7 +3378,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                               }));
                             }
                           }}
-                          placeholder={t('letterGeneration.placeholders.income')}
+                          placeholder={lt('letterGeneration.placeholders.income')}
                           required
                         />
                       </FieldGroup>
@@ -3408,7 +3387,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                     <TabsContent value="domicile" className="mt-0 space-y-4">
                       {renderCommonFields(domicileFields, setDomicileFields)}
                       <div className="grid gap-4 sm:grid-cols-2">
-                        <FieldGroup label={t('letterGeneration.fields.gender')} required>
+                        <FieldGroup label={lt('letterGeneration.fields.gender')} required>
                           <Select
                             value={domicileFields.gender}
                             onValueChange={(value: PersonGender) =>
@@ -3424,19 +3403,19 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="male">
-                                {t('letterGeneration.gender.male')}
+                                {lt('letterGeneration.gender.male')}
                               </SelectItem>
                               <SelectItem value="female">
-                                {t('letterGeneration.gender.female')}
+                                {lt('letterGeneration.gender.female')}
                               </SelectItem>
                               <SelectItem value="other">
-                                {t('letterGeneration.gender.other')}
+                                {lt('letterGeneration.gender.other')}
                               </SelectItem>
                             </SelectContent>
                           </Select>
                         </FieldGroup>
                         <FieldGroup
-                          label={t('letterGeneration.fields.salutation')}
+                          label={lt('letterGeneration.fields.salutation')}
                           required
                           error={fieldErrors.salutation}
                         >
@@ -3456,7 +3435,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           />
                         </FieldGroup>
                         <FieldGroup
-                          label={t('letterGeneration.fields.fullName')}
+                          label={lt('letterGeneration.fields.fullName')}
                           required
                           error={fieldErrors.fullName}
                         >
@@ -3477,7 +3456,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         </FieldGroup>
                       </div>
                       <LetterAddressField
-                        label={t('letterGeneration.fields.address')}
+                        label={lt('letterGeneration.fields.address')}
                         addressType="general"
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
@@ -3494,7 +3473,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         }
                       />
                       <LetterAddressField
-                        label={t('letterGeneration.fields.officeAddress')}
+                        label={lt('letterGeneration.fields.officeAddress')}
                         addressType="office"
                         locale={letterLocale}
                         selectedAddressId={addressSelections.office}
@@ -3511,7 +3490,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         }
                       />
                       <FieldGroup
-                        label={t('letterGeneration.fields.aadhaarNo')}
+                        label={lt('letterGeneration.fields.aadhaarNo')}
                         required
                         error={fieldErrors.aadhaarNo}
                       >

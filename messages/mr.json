@@ -669,8 +669,8 @@
       "letterType": "पत्राचा प्रकार निवडा…"
     },
     "gender": {
-      "male": "पुरुष (याला)",
-      "female": "स्त्री (हिला)",
+      "male": "पुरुष",
+      "female": "स्त्री",
       "other": "इतर"
     },
     "letterLanguage": {
