@@ -96,6 +96,23 @@ function resolveGenderTokens(gender: PersonGender | undefined, locale: LetterLoc
   };
 }
 
+function withLocalizedReferenceFields(
+  record: Record<string, string>,
+  locale: LetterLocale,
+  documentTypes?: DocumentTypeLabelSource[],
+): Record<string, string> {
+  const storedPrefix =
+    coerceDocumentType(record.referencePrefix) ?? record.referencePrefix;
+  return {
+    ...record,
+    referencePrefix: documentTypeLabel(storedPrefix, locale, documentTypes),
+    referenceNo: toLocaleDigits(
+      toWesternDigits(record.referenceNo ?? ''),
+      locale,
+    ),
+  };
+}
+
 export function buildRenderFields(
   type: LetterType,
   fields: LetterFields,
@@ -103,17 +120,12 @@ export function buildRenderFields(
   documentTypes?: DocumentTypeLabelSource[],
 ): Record<string, string> {
   const base = toFieldRecord(fields);
-  const storedPrefix = coerceDocumentType(base.referencePrefix) ?? base.referencePrefix;
-  base.referencePrefix = documentTypeLabel(storedPrefix, locale, documentTypes);
-  base.referenceNo = toLocaleDigits(
-    toWesternDigits(base.referenceNo ?? ''),
-    locale,
-  );
+  let renderFields: Record<string, string>;
 
   if (type.startsWith('ration-')) {
     const rationFields = fields as RationLetterFields;
     const familyMembersBlock = formatFamilyMembersBlock(rationFields.familyMembers);
-    return {
+    renderFields = {
       ...base,
       ...resolveGenderTokens(rationFields.gender, locale),
       familyMembersBlock,
@@ -121,43 +133,35 @@ export function buildRenderFields(
       fromRationOffice: rationFields.fromRationOffice ?? '',
       toRationOffice: rationFields.toRationOffice ?? '',
     };
-  }
-
-  if (type === 'income') {
+  } else if (type === 'income') {
     const incomeFields = fields as IncomeLetterFields;
-    return {
+    renderFields = {
       ...base,
       ...resolveGenderTokens(incomeFields.gender, locale),
       aadhaarNo: incomeFields.aadhaarNo,
       annualIncome: incomeFields.annualIncome,
       officeAddress: incomeFields.officeAddress,
     };
-  }
-
-  if (type === 'domicile') {
+  } else if (type === 'domicile') {
     const domicileFields = fields as DomicileLetterFields;
-    return {
+    renderFields = {
       ...base,
       ...resolveGenderTokens(domicileFields.gender, locale),
       aadhaarNo: domicileFields.aadhaarNo,
       officeAddress: domicileFields.officeAddress,
     };
+  } else if (type === 'school-admission') {
+    renderFields = { ...base, ...(fields as SchoolAdmissionLetterFields) };
+  } else if (type === 'school-transfer') {
+    renderFields = { ...base, ...(fields as SchoolTransferLetterFields) };
+  } else if (type === 'fees') {
+    renderFields = { ...base, ...(fields as FeesLetterFields) };
+  } else {
+    renderFields = base;
   }
 
-  if (type === 'school-admission') {
-    return { ...base, ...(fields as SchoolAdmissionLetterFields) };
-  }
-
-  if (type === 'school-transfer') {
-    return { ...base, ...(fields as SchoolTransferLetterFields) };
-  }
-
-  if (type === 'fees') {
-    return { ...base, ...(fields as FeesLetterFields) };
-  }
-
-  void locale;
-  return base;
+  // Apply last so type-specific spreads cannot overwrite localized values.
+  return withLocalizedReferenceFields(renderFields, locale, documentTypes);
 }
 
 export function buildRenderedLetterHtml(
