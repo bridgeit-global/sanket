@@ -539,8 +539,12 @@ function buildLetterPrintStyles(
        print-color-adjust: exact;`
     : `margin: 0; padding: ${paddingPx}px; font-family: ${fontFamily}; background: #fff;`;
 
+  // Clone padding on each page fragment so page 2+ keep letterhead header clearance
+  // (background image stays on page 1 only via body no-repeat).
   const contentPadding = letterheadUrl
-    ? `padding: ${headerPaddingMm}mm ${marginMm}mm ${marginMm}mm ${marginMm}mm;`
+    ? `padding: ${headerPaddingMm}mm ${marginMm}mm ${marginMm}mm ${marginMm}mm;
+       -webkit-box-decoration-break: clone;
+       box-decoration-break: clone;`
     : '';
 
   return `
