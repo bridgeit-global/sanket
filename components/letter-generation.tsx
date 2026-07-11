@@ -871,6 +871,8 @@ function getAddressMasterNameById(
   return name || null;
 }
 
+const RATION_OFFICE_MANUAL_VALUE = '__manual_ration_office__';
+
 function applyMasterAddressToFields(
   addresses: AddressMasterRow[],
   selections: AddressSelectionState,
@@ -1007,6 +1009,8 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   });
   const [fromRationOfficeId, setFromRationOfficeId] = useState<string | null>(null);
   const [toRationOfficeId, setToRationOfficeId] = useState<string | null>(null);
+  const [isFromRationOfficeManual, setIsFromRationOfficeManual] = useState(false);
+  const [isToRationOfficeManual, setIsToRationOfficeManual] = useState(false);
   const [manualAddressParts, setManualAddressParts] = useState<ManualAddressParts>(() => ({
     school: createEmptyAddressParts(),
     applicant: createEmptyAddressParts(),
@@ -1695,20 +1699,39 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     );
   }, [addressSelections.school, addresses, letterLocale]);
 
-  const rationOfficeNameOptions = useMemo(
-    () =>
-      addresses
-        .filter((address) => address.isActive && address.addressType === 'ration_office')
-        .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
-        .map((address) => ({
-          value: address.id,
-          label: getAddressMasterName(address, letterLocale),
-        }))
-        .filter((option) => option.label.trim()),
-    [addresses, letterLocale],
-  );
+  const rationOfficeNameOptions = useMemo(() => {
+    const saved = addresses
+      .filter((address) => address.isActive && address.addressType === 'ration_office')
+      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+      .map((address) => ({
+        value: address.id,
+        label: getAddressMasterName(address, letterLocale),
+      }))
+      .filter((option) => option.label.trim());
+
+    return [
+      {
+        value: RATION_OFFICE_MANUAL_VALUE,
+        label: lt('letterGeneration.addresses.manualEntry'),
+        pinned: true,
+      },
+      ...saved,
+    ];
+  }, [addresses, letterLocale, lt]);
+
+  const hasSavedRationOffices = rationOfficeNameOptions.length > 1;
+
+  const showFromRationOfficeManual =
+    isFromRationOfficeManual || !hasSavedRationOffices;
+  const showToRationOfficeManual = isToRationOfficeManual || !hasSavedRationOffices;
 
   const handleFromRationOfficeSelect = (id: string) => {
+    if (id === RATION_OFFICE_MANUAL_VALUE) {
+      setFromRationOfficeId(null);
+      setIsFromRationOfficeManual(true);
+      return;
+    }
+    setIsFromRationOfficeManual(false);
     setFromRationOfficeId(id);
     const name = getAddressMasterNameById(addresses, id, letterLocale) ?? '';
     setRationFields((prev) => ({ ...prev, fromRationOffice: name }));
@@ -1718,6 +1741,12 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   };
 
   const handleToRationOfficeSelect = (id: string) => {
+    if (id === RATION_OFFICE_MANUAL_VALUE) {
+      setToRationOfficeId(null);
+      setIsToRationOfficeManual(true);
+      return;
+    }
+    setIsToRationOfficeManual(false);
     setToRationOfficeId(id);
     const name = getAddressMasterNameById(addresses, id, letterLocale) ?? '';
     setRationFields((prev) => ({ ...prev, toRationOffice: name }));
@@ -3202,30 +3231,90 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                               required
                               error={fieldErrors.fromRationOffice}
                             >
-                              <Combobox
-                                options={rationOfficeNameOptions}
-                                value={fromRationOfficeId ?? ''}
-                                onValueChange={handleFromRationOfficeSelect}
-                                placeholder={lt(
-                                  'letterGeneration.addresses.selectPlaceholder',
-                                )}
-                                emptyMessage={lt('letterGeneration.addresses.empty')}
-                              />
+                              <div className="space-y-2">
+                                {hasSavedRationOffices ? (
+                                  <Combobox
+                                    options={rationOfficeNameOptions}
+                                    value={
+                                      fromRationOfficeId ??
+                                      (showFromRationOfficeManual
+                                        ? RATION_OFFICE_MANUAL_VALUE
+                                        : '')
+                                    }
+                                    onValueChange={handleFromRationOfficeSelect}
+                                    placeholder={lt(
+                                      'letterGeneration.addresses.selectPlaceholder',
+                                    )}
+                                    emptyMessage={lt(
+                                      'letterGeneration.addresses.empty',
+                                    )}
+                                  />
+                                ) : null}
+                                {showFromRationOfficeManual ? (
+                                  <LocaleTextInput
+                                    locale={letterLocale}
+                                    value={rationFields.fromRationOffice ?? ''}
+                                    onValueChange={(fromRationOffice) => {
+                                      setRationFields({
+                                        ...rationFields,
+                                        fromRationOffice,
+                                      });
+                                      if (fieldErrors.fromRationOffice) {
+                                        setFieldErrors((prev) => ({
+                                          ...prev,
+                                          fromRationOffice: undefined,
+                                        }));
+                                      }
+                                    }}
+                                    required
+                                  />
+                                ) : null}
+                              </div>
                             </FieldGroup>
                             <FieldGroup
                               label={lt('letterGeneration.fields.toRationOffice')}
                               required
                               error={fieldErrors.toRationOffice}
                             >
-                              <Combobox
-                                options={rationOfficeNameOptions}
-                                value={toRationOfficeId ?? ''}
-                                onValueChange={handleToRationOfficeSelect}
-                                placeholder={lt(
-                                  'letterGeneration.addresses.selectPlaceholder',
-                                )}
-                                emptyMessage={lt('letterGeneration.addresses.empty')}
-                              />
+                              <div className="space-y-2">
+                                {hasSavedRationOffices ? (
+                                  <Combobox
+                                    options={rationOfficeNameOptions}
+                                    value={
+                                      toRationOfficeId ??
+                                      (showToRationOfficeManual
+                                        ? RATION_OFFICE_MANUAL_VALUE
+                                        : '')
+                                    }
+                                    onValueChange={handleToRationOfficeSelect}
+                                    placeholder={lt(
+                                      'letterGeneration.addresses.selectPlaceholder',
+                                    )}
+                                    emptyMessage={lt(
+                                      'letterGeneration.addresses.empty',
+                                    )}
+                                  />
+                                ) : null}
+                                {showToRationOfficeManual ? (
+                                  <LocaleTextInput
+                                    locale={letterLocale}
+                                    value={rationFields.toRationOffice ?? ''}
+                                    onValueChange={(toRationOffice) => {
+                                      setRationFields({
+                                        ...rationFields,
+                                        toRationOffice,
+                                      });
+                                      if (fieldErrors.toRationOffice) {
+                                        setFieldErrors((prev) => ({
+                                          ...prev,
+                                          toRationOffice: undefined,
+                                        }));
+                                      }
+                                    }}
+                                    required
+                                  />
+                                ) : null}
+                              </div>
                             </FieldGroup>
                           </div>
                         ) : null}
