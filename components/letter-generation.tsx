@@ -135,7 +135,11 @@ import {
   type DocumentType,
 } from '@/lib/letters/reference-sequence';
 import type { DocumentTypeMasterRow } from '@/components/document-type-master-page';
-import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
+import {
+  formatIndianAmount,
+  toLocaleDigits,
+  toWesternDigits,
+} from '@/lib/locale-digits';
 import { cn } from '@/lib/utils';
 
 const ALL_LETTER_TYPES = 'all' as const;
@@ -150,6 +154,11 @@ function emptyFamilyMemberRow(): FamilyMemberRow {
 
 function normalizeFamilyMemberAge(age: string): string {
   return toWesternDigits(age).replace(/\D/g, '').slice(0, 3);
+}
+
+/** Digits-only Aadhaar (max 12). Accepts Devanagari input. */
+function normalizeAadhaarNo(value: string): string {
+  return toWesternDigits(value).replace(/\D/g, '').slice(0, 12);
 }
 
 function formatFamilyMembersString(
@@ -402,7 +411,7 @@ function rationDefaults(locale: LetterLocale): RationLetterFields {
   return {
     ...commonDefaults(locale),
     gender: 'female',
-    salutation: locale === 'en' ? 'Smt.' : 'श्रीमती',
+    salutation: resolveSalutation(locale, 'female'),
     fullName: '',
     address: '',
     familyMembers: '',
@@ -417,7 +426,7 @@ function incomeDefaults(locale: LetterLocale): IncomeLetterFields {
   return {
     ...commonDefaults(locale),
     gender: 'male',
-    salutation: locale === 'en' ? 'Shri' : 'श्री',
+    salutation: resolveSalutation(locale, 'male'),
     fullName: '',
     address: '',
     officeAddress: '',
@@ -430,7 +439,7 @@ function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
   return {
     ...commonDefaults(locale),
     gender: 'male',
-    salutation: locale === 'en' ? 'Shri' : 'श्री',
+    salutation: resolveSalutation(locale, 'male'),
     fullName: '',
     address: '',
     officeAddress: '',
@@ -440,9 +449,9 @@ function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
 
 function resolveSalutation(locale: LetterLocale, gender: PersonGender): string {
   if (locale === 'en') {
-    if (gender === 'female') return 'Smt.';
-    if (gender === 'male') return 'Shri';
-    return 'Shri/Smt.';
+    if (gender === 'female') return 'Mrs.';
+    if (gender === 'male') return 'Mr.';
+    return 'Mr./Mrs.';
   }
   if (gender === 'female') return 'श्रीमती';
   if (gender === 'male') return 'श्री';
@@ -1375,6 +1384,8 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
       fullName: filterText(prev.fullName),
+      aadhaarNo: normalizeAadhaarNo(prev.aadhaarNo),
+      annualIncome: formatIndianAmount(prev.annualIncome, letterLocale),
     }));
     setDomicileFields((prev) => ({
       ...prev,
@@ -1384,6 +1395,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
       fullName: filterText(prev.fullName),
+      aadhaarNo: normalizeAadhaarNo(prev.aadhaarNo),
     }));
 
     applyMasterAddressToFields(addresses, addressSelections, letterLocale, {
@@ -3560,11 +3572,15 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         error={fieldErrors.aadhaarNo}
                       >
                         <Input
-                          value={incomeFields.aadhaarNo}
+                          value={
+                            incomeFields.aadhaarNo
+                              ? toLocaleDigits(incomeFields.aadhaarNo, letterLocale)
+                              : ''
+                          }
                           onChange={(e) => {
                             setIncomeFields({
                               ...incomeFields,
-                              aadhaarNo: e.target.value,
+                              aadhaarNo: normalizeAadhaarNo(e.target.value),
                             });
                             if (fieldErrors.aadhaarNo) {
                               setFieldErrors((prev) => ({
@@ -3573,6 +3589,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                               }));
                             }
                           }}
+                          inputMode="numeric"
                           required
                         />
                       </FieldGroup>
@@ -3586,7 +3603,10 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           onChange={(e) => {
                             setIncomeFields({
                               ...incomeFields,
-                              annualIncome: e.target.value,
+                              annualIncome: formatIndianAmount(
+                                e.target.value,
+                                letterLocale,
+                              ),
                             });
                             if (fieldErrors.annualIncome) {
                               setFieldErrors((prev) => ({
@@ -3595,6 +3615,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                               }));
                             }
                           }}
+                          inputMode="numeric"
                           placeholder={lt('letterGeneration.placeholders.income')}
                           required
                         />
@@ -3712,11 +3733,15 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         error={fieldErrors.aadhaarNo}
                       >
                         <Input
-                          value={domicileFields.aadhaarNo}
+                          value={
+                            domicileFields.aadhaarNo
+                              ? toLocaleDigits(domicileFields.aadhaarNo, letterLocale)
+                              : ''
+                          }
                           onChange={(e) => {
                             setDomicileFields({
                               ...domicileFields,
-                              aadhaarNo: e.target.value,
+                              aadhaarNo: normalizeAadhaarNo(e.target.value),
                             });
                             if (fieldErrors.aadhaarNo) {
                               setFieldErrors((prev) => ({
@@ -3725,6 +3750,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                               }));
                             }
                           }}
+                          inputMode="numeric"
                           required
                         />
                       </FieldGroup>

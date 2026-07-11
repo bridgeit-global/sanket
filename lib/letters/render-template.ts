@@ -1,4 +1,8 @@
-import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
+import {
+  formatIndianAmount,
+  toLocaleDigits,
+  toWesternDigits,
+} from '@/lib/locale-digits';
 import {
   coerceDocumentType,
   documentTypeLabel,
@@ -138,8 +142,11 @@ export function buildRenderFields(
     renderFields = {
       ...base,
       ...resolveGenderTokens(incomeFields.gender, locale),
-      aadhaarNo: incomeFields.aadhaarNo,
-      annualIncome: incomeFields.annualIncome,
+      aadhaarNo: toLocaleDigits(
+        toWesternDigits(incomeFields.aadhaarNo).replace(/\D/g, ''),
+        locale,
+      ),
+      annualIncome: formatIndianAmount(incomeFields.annualIncome, locale),
       officeAddress: incomeFields.officeAddress,
     };
   } else if (type === 'domicile') {
@@ -147,7 +154,10 @@ export function buildRenderFields(
     renderFields = {
       ...base,
       ...resolveGenderTokens(domicileFields.gender, locale),
-      aadhaarNo: domicileFields.aadhaarNo,
+      aadhaarNo: toLocaleDigits(
+        toWesternDigits(domicileFields.aadhaarNo).replace(/\D/g, ''),
+        locale,
+      ),
       officeAddress: domicileFields.officeAddress,
     };
   } else if (type === 'school-admission') {
