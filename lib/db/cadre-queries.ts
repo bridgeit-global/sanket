@@ -22,15 +22,38 @@ import type {
   CadreVerticalCategory,
 } from './schema';
 import type {
+  CadreConfig,
   CadreGeographicUnitType,
   CadreMemberCard,
   CadreMemberPostDetail,
+  WardSummary,
 } from '@/lib/hierarchy/types';
+import {
+  collectCanvasMemberIds,
+  hydrateCanvasData,
+  resolveHierarchyCanvasData,
+  type HierarchyCanvasData,
+} from '@/lib/hierarchy/canvas-data';
 import {
   buildStubMembersFromPosts,
   resolveHierarchyLeaders,
   type HierarchyLeaders,
 } from '@/lib/hierarchy/leaders';
+import {
+  getBoothGeoUnits,
+  normalizeBoothScopedPostGeo,
+  type GeoUnitMeta,
+} from '@/lib/hierarchy/booth-geo-units';
+import {
+  extractWardNumber,
+  sortMembers,
+} from '@/lib/hierarchy/member-list';
+import {
+  extractBoothNumbersFromQuery,
+  extractSearchDigits,
+  extractWardNumbersFromQuery,
+  parseSearchTerms,
+} from '@/lib/hierarchy/member-search';
 import type { CadreWhatsAppBroadcastTarget } from './schema';
 
 export async function getCadreConfig() {
@@ -504,7 +527,9 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
     ),
   ];
 
-  const [verticalsRes, positionsRes, geoRes] = await Promise.all([
+  const geoMeta = await loadGeoMetaForIds(geoIds);
+
+  const [verticalsRes, positionsRes] = await Promise.all([
     verticalIds.length > 0
       ? supabase
           .from(TABLES.cadreVertical)
@@ -517,17 +542,10 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
           .select('id, name, sort_order, level_id')
           .in('id', positionIds)
       : Promise.resolve({ data: [], error: null }),
-    geoIds.length > 0
-      ? supabase
-          .from(TABLES.cadreGeographicUnit)
-          .select('id, name')
-          .in('id', geoIds)
-      : Promise.resolve({ data: [], error: null }),
   ]);
 
   throwOnSupabaseError(verticalsRes.error, 'Failed to load verticals');
   throwOnSupabaseError(positionsRes.error, 'Failed to load positions');
-  throwOnSupabaseError(geoRes.error, 'Failed to load geographic units');
 
   const verticalById = new Map(
     (verticalsRes.data ?? []).map((row) => [
@@ -575,10 +593,6 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
     });
   }
 
-  const geoById = new Map(
-    (geoRes.data ?? []).map((row) => [String(row.id), String(row.name)]),
-  );
-
   const verticalsByMember = new Map<string, CadreMemberCard['verticals']>();
   for (const link of verticalLinks) {
     const vertical = verticalById.get(String(link.vertical_id));
@@ -603,24 +617,9 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
   for (const row of postRows) {
     const position = positionById.get(String(row.position_id));
     const list = postsByMember.get(String(row.member_id)) ?? [];
-    list.push({
-      id: String(row.id),
-      positionId: String(row.position_id),
-      positionName: position?.name ?? '',
-      positionLevelKey: position?.levelKey ?? '',
-      positionLevelName: position?.levelName ?? '',
-      positionSortOrder: position?.sortOrder ?? 0,
-      positionLevelSortOrder: position?.levelSortOrder ?? 0,
-      talukaId: row.taluka_id ? String(row.taluka_id) : null,
-      talukaName: row.taluka_id ? geoById.get(String(row.taluka_id)) ?? null : null,
-      wardGeoId: row.ward_geo_id ? String(row.ward_geo_id) : null,
-      wardGeoName: row.ward_geo_id ? geoById.get(String(row.ward_geo_id)) ?? null : null,
-      electionId: row.election_id ? String(row.election_id) : null,
-      boothNo: row.booth_no ? String(row.booth_no) : null,
-      label: row.label ? String(row.label) : null,
-      isPrimary: Boolean(row.is_primary),
-      sortOrder: Number(row.sort_order ?? 0),
-    });
+    list.push(
+      mapPostRowToDetail(row, position, geoMeta),
+    );
     postsByMember.set(String(row.member_id), list);
   }
 
@@ -763,6 +762,358 @@ export async function getCadreMembersPaginated(filters: {
   const members = await buildMemberCards((data ?? []).map(mapCadreMemberRow));
 
   return { members, total, page, pageSize, totalPages };
+}
+
+const POST_FETCH_CHUNK = 100;
+
+function chunkIds(ids: string[], size: number): string[][] {
+  const chunks: string[][] = [];
+  for (let index = 0; index < ids.length; index += size) {
+    chunks.push(ids.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function intersectMemberIdSets(a: Set<string>, b: Set<string>): Set<string> {
+  const result = new Set<string>();
+  for (const id of a) {
+    if (b.has(id)) result.add(id);
+  }
+  return result;
+}
+
+async function loadConstituencyMemberIds(constituencyId: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from(TABLES.cadreMember)
+    .select('id')
+    .eq('is_active', true)
+    .or(`constituency_id.eq.${constituencyId},constituency_id.is.null`);
+  throwOnSupabaseError(error, 'Failed to load member ids');
+  return new Set((data ?? []).map((row) => String(row.id)));
+}
+
+async function resolvePostScopedMemberIds(filters: {
+  wardGeoId?: string;
+  boothNo?: string;
+  positionId?: string;
+}): Promise<Set<string> | null> {
+  if (!filters.wardGeoId && !filters.boothNo && !filters.positionId) return null;
+
+  let postQuery = supabase.from(TABLES.cadreMemberPost).select('member_id');
+  if (filters.wardGeoId) {
+    postQuery = postQuery.eq('ward_geo_id', filters.wardGeoId);
+  }
+  if (filters.boothNo) {
+    postQuery = postQuery.eq('booth_no', filters.boothNo);
+  }
+  if (filters.positionId) {
+    postQuery = postQuery.eq('position_id', filters.positionId);
+  }
+
+  const { data, error } = await postQuery;
+  throwOnSupabaseError(error, 'Failed to filter members by post');
+  const ids = (data ?? []).map((row) => String(row.member_id));
+  return new Set(ids);
+}
+
+function escapeIlikePattern(value: string): string {
+  return value.replace(/[%_\\]/g, '\\$&');
+}
+
+async function resolveSearchMemberIds(
+  query: string,
+  constituencyId: string,
+  geoUnits: CadreConfig['geoUnits'],
+  allowedIds: Set<string>,
+): Promise<Set<string>> {
+  const trimmed = query.trim();
+  if (!trimmed || allowedIds.size === 0) return new Set();
+
+  const matches = new Set<string>();
+  const terms = parseSearchTerms(trimmed);
+  const qLower = trimmed.toLowerCase();
+  const queryDigits = extractSearchDigits(trimmed);
+  const ilike = (value: string) => `%${escapeIlikePattern(value)}%`;
+
+  const addIds = (ids: string[]) => {
+    for (const id of ids) {
+      if (allowedIds.has(id)) matches.add(id);
+    }
+  };
+
+  const constituencyOr = `constituency_id.eq.${constituencyId},constituency_id.is.null`;
+
+  let memberQuery = supabase
+    .from(TABLES.cadreMember)
+    .select('id')
+    .eq('is_active', true)
+    .or(constituencyOr);
+
+  if (terms.length <= 1) {
+    memberQuery = memberQuery.or(
+      `person_name.ilike.${ilike(qLower)},person_phone.ilike.${ilike(trimmed)},epic_number.ilike.${ilike(qLower)}`,
+    );
+  } else {
+    for (const term of terms) {
+      memberQuery = memberQuery.ilike('person_name', ilike(term));
+    }
+  }
+
+  const { data: memberRows, error: memberError } = await memberQuery;
+  throwOnSupabaseError(memberError, 'Failed to search members by profile');
+  addIds((memberRows ?? []).map((row) => String(row.id)));
+
+  if (queryDigits.length >= 3) {
+    const { data: phoneRows, error: phoneError } = await supabase
+      .from(TABLES.cadreMember)
+      .select('id')
+      .eq('is_active', true)
+      .or(constituencyOr)
+      .ilike('person_phone', `%${queryDigits}%`);
+    throwOnSupabaseError(phoneError, 'Failed to search members by phone');
+    addIds((phoneRows ?? []).map((row) => String(row.id)));
+
+    const { data: waRows, error: waError } = await supabase
+      .from(TABLES.cadreMemberWhatsApp)
+      .select('member_id')
+      .ilike('whatsapp_phone', `%${queryDigits}%`);
+    throwOnSupabaseError(waError, 'Failed to search members by WhatsApp');
+    addIds((waRows ?? []).map((row) => String(row.member_id)));
+  }
+
+  const { data: voterRows, error: voterError } = await supabase
+    .from(TABLES.voterMaster)
+    .select('epic_number')
+    .ilike('full_name', ilike(qLower));
+  throwOnSupabaseError(voterError, 'Failed to search linked voters by name');
+  const voterEpics = (voterRows ?? []).map((row) => String(row.epic_number));
+  if (voterEpics.length > 0) {
+    for (const chunk of chunkIds(voterEpics, POST_FETCH_CHUNK)) {
+      const { data: epicMembers, error: epicError } = await supabase
+        .from(TABLES.cadreMember)
+        .select('id')
+        .eq('is_active', true)
+        .or(constituencyOr)
+        .in('epic_number', chunk);
+      throwOnSupabaseError(epicError, 'Failed to search members by linked voter');
+      addIds((epicMembers ?? []).map((row) => String(row.id)));
+    }
+  }
+
+  if (queryDigits.length >= 3) {
+    const { data: mobileRows, error: mobileError } = await supabase
+      .from(TABLES.voterMobileNumber)
+      .select('epic_number')
+      .ilike('mobile_number', `%${queryDigits}%`);
+    throwOnSupabaseError(mobileError, 'Failed to search voter mobiles');
+    const mobileEpics = [
+      ...new Set((mobileRows ?? []).map((row) => String(row.epic_number))),
+    ];
+    if (mobileEpics.length > 0) {
+      for (const chunk of chunkIds(mobileEpics, POST_FETCH_CHUNK)) {
+        const { data: mobileMembers, error: mobileMemberError } = await supabase
+          .from(TABLES.cadreMember)
+          .select('id')
+          .eq('is_active', true)
+          .or(constituencyOr)
+          .in('epic_number', chunk);
+        throwOnSupabaseError(mobileMemberError, 'Failed to search members by voter mobile');
+        addIds((mobileMembers ?? []).map((row) => String(row.id)));
+      }
+    }
+  }
+
+  if (terms.length === 1) {
+    const term = terms[0];
+    const { data: labelRows, error: labelError } = await supabase
+      .from(TABLES.cadreMemberPost)
+      .select('member_id')
+      .ilike('label', ilike(term));
+    throwOnSupabaseError(labelError, 'Failed to search members by post label');
+    addIds((labelRows ?? []).map((row) => String(row.member_id)));
+
+    const { data: positions, error: positionError } = await supabase
+      .from(TABLES.cadrePosition)
+      .select('id')
+      .ilike('name', ilike(term));
+    throwOnSupabaseError(positionError, 'Failed to search positions');
+    const positionIds = (positions ?? []).map((row) => String(row.id));
+    if (positionIds.length > 0) {
+      for (const chunk of chunkIds(positionIds, POST_FETCH_CHUNK)) {
+        const { data: postRows, error: postError } = await supabase
+          .from(TABLES.cadreMemberPost)
+          .select('member_id')
+          .in('position_id', chunk);
+        throwOnSupabaseError(postError, 'Failed to search members by position');
+        addIds((postRows ?? []).map((row) => String(row.member_id)));
+      }
+    }
+
+    const matchingWardIds = geoUnits
+      .filter((unit) => unit.type === 'ward' && unit.isActive)
+      .filter((unit) => unit.name.toLowerCase().includes(term))
+      .map((unit) => unit.id);
+    if (matchingWardIds.length > 0) {
+      for (const chunk of chunkIds(matchingWardIds, POST_FETCH_CHUNK)) {
+        const { data: wardNamePosts, error: wardNameError } = await supabase
+          .from(TABLES.cadreMemberPost)
+          .select('member_id')
+          .in('ward_geo_id', chunk);
+        throwOnSupabaseError(wardNameError, 'Failed to search members by ward name');
+        addIds((wardNamePosts ?? []).map((row) => String(row.member_id)));
+      }
+    }
+  }
+
+  const wardNumbers = extractWardNumbersFromQuery(trimmed);
+  if (wardNumbers.length > 0) {
+    const wardGeoIds = geoUnits
+      .filter((unit) => unit.type === 'ward' && unit.isActive)
+      .filter((unit) => wardNumbers.includes(extractWardNumber(unit.name)))
+      .map((unit) => unit.id);
+    if (wardGeoIds.length > 0) {
+      for (const chunk of chunkIds(wardGeoIds, POST_FETCH_CHUNK)) {
+        const { data: wardPosts, error: wardPostError } = await supabase
+          .from(TABLES.cadreMemberPost)
+          .select('member_id')
+          .in('ward_geo_id', chunk);
+        throwOnSupabaseError(wardPostError, 'Failed to search members by ward');
+        addIds((wardPosts ?? []).map((row) => String(row.member_id)));
+      }
+    }
+  }
+
+  const boothNumbers = extractBoothNumbersFromQuery(trimmed);
+  for (const boothNo of boothNumbers) {
+    for (const variant of new Set([boothNo, boothNo.padStart(2, '0')])) {
+      const { data: boothPosts, error: boothPostError } = await supabase
+        .from(TABLES.cadreMemberPost)
+        .select('member_id')
+        .eq('booth_no', variant);
+      throwOnSupabaseError(boothPostError, 'Failed to search members by booth');
+      addIds((boothPosts ?? []).map((row) => String(row.member_id)));
+    }
+  }
+
+  return matches;
+}
+
+export async function getCadreMembersPage(filters: {
+  constituencyId: string;
+  query?: string;
+  page: number;
+  pageSize: number;
+  verticalId?: string;
+  positionId?: string;
+  wardGeoId?: string;
+  boothNo?: string;
+  memberId?: string;
+  geoUnits: CadreConfig['geoUnits'];
+}): Promise<CadreMembersPage> {
+  const page = Math.max(1, filters.page);
+  const pageSize = Math.max(1, filters.pageSize);
+  const query = filters.query?.trim() ?? '';
+
+  let allowed = await loadConstituencyMemberIds(filters.constituencyId);
+
+  if (filters.memberId) {
+    if (!allowed.has(filters.memberId)) {
+      return { members: [], total: 0, page, pageSize, totalPages: 1 };
+    }
+    allowed = new Set([filters.memberId]);
+  }
+
+  if (filters.verticalId) {
+    const verticalIds = await resolveCadreMemberIdsForVertical(filters.verticalId);
+    if (!verticalIds) return { members: [], total: 0, page, pageSize, totalPages: 1 };
+    allowed = intersectMemberIdSets(allowed, new Set(verticalIds));
+  }
+
+  const postScope = await resolvePostScopedMemberIds({
+    wardGeoId: filters.wardGeoId,
+    boothNo: filters.boothNo,
+    positionId: filters.positionId,
+  });
+  if (postScope !== null) {
+    if (postScope.size === 0) {
+      return { members: [], total: 0, page, pageSize, totalPages: 1 };
+    }
+    allowed = intersectMemberIdSets(allowed, postScope);
+  }
+
+  if (allowed.size === 0) {
+    return { members: [], total: 0, page, pageSize, totalPages: 1 };
+  }
+
+  if (query) {
+    allowed = await resolveSearchMemberIds(
+      query,
+      filters.constituencyId,
+      filters.geoUnits,
+      allowed,
+    );
+    if (allowed.size === 0) {
+      return { members: [], total: 0, page, pageSize, totalPages: 1 };
+    }
+
+    const cards: CadreMemberCard[] = [];
+    for (const chunk of chunkIds([...allowed], POST_FETCH_CHUNK)) {
+      const { data, error } = await supabase
+        .from(TABLES.cadreMember)
+        .select('*')
+        .in('id', chunk)
+        .eq('is_active', true);
+      throwOnSupabaseError(error, 'Failed to load searched members');
+      cards.push(...(await buildMemberCards((data ?? []).map(mapCadreMemberRow))));
+    }
+
+    const sorted = sortMembers(cards);
+    const total = sorted.length;
+    const totalPages = Math.max(1, Math.ceil(total / pageSize));
+    const currentPage = Math.min(page, totalPages);
+    const start = (currentPage - 1) * pageSize;
+    const members = sorted.slice(start, start + pageSize);
+
+    return { members, total, page: currentPage, pageSize, totalPages };
+  }
+
+  const hasScope =
+    Boolean(filters.verticalId) ||
+    Boolean(filters.wardGeoId) ||
+    Boolean(filters.boothNo) ||
+    Boolean(filters.positionId) ||
+    Boolean(filters.memberId);
+
+  if (!hasScope) {
+    return getCadreMembersPaginated({
+      constituencyId: filters.constituencyId,
+      verticalId: filters.verticalId,
+      page,
+      pageSize,
+    });
+  }
+
+  const sortedIds = [...allowed].sort();
+  const total = sortedIds.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const currentPage = Math.min(page, totalPages);
+  const start = (currentPage - 1) * pageSize;
+  const pageIds = sortedIds.slice(start, start + pageSize);
+
+  if (pageIds.length === 0) {
+    return { members: [], total, page: currentPage, pageSize, totalPages };
+  }
+
+  const { data, error } = await supabase
+    .from(TABLES.cadreMember)
+    .select('*')
+    .in('id', pageIds)
+    .eq('is_active', true)
+    .order('person_name', { ascending: true });
+  throwOnSupabaseError(error, 'Failed to load members page');
+  const members = await buildMemberCards((data ?? []).map(mapCadreMemberRow));
+
+  return { members, total, page: currentPage, pageSize, totalPages };
 }
 
 export async function getCadreMemberById(
@@ -1102,14 +1453,6 @@ export async function getBoothsForWard(
   }));
 }
 
-function intersectMemberIdSets(a: Set<string>, b: Set<string>): Set<string> {
-  const result = new Set<string>();
-  for (const id of a) {
-    if (b.has(id)) result.add(id);
-  }
-  return result;
-}
-
 export type BroadcastRecipient = {
   memberId: string;
   whatsappPhone: string;
@@ -1206,14 +1549,87 @@ export async function getCadreMembersForBroadcast(
   };
 }
 
-const POST_FETCH_CHUNK = 100;
+function mapGeoUnitRow(row: {
+  id: string;
+  name: string;
+  type: string;
+  parent_id: string | null;
+}): GeoUnitMeta {
+  return {
+    id: String(row.id),
+    type: String(row.type),
+    name: String(row.name),
+    parentId: row.parent_id ? String(row.parent_id) : null,
+  };
+}
 
-function chunkIds(ids: string[], size: number): string[][] {
-  const chunks: string[][] = [];
-  for (let i = 0; i < ids.length; i += size) {
-    chunks.push(ids.slice(i, i + size));
+async function loadGeoMetaForIds(ids: string[]): Promise<Map<string, GeoUnitMeta>> {
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+  if (uniqueIds.length === 0) return new Map();
+
+  const map = new Map<string, GeoUnitMeta>();
+  for (const chunk of chunkIds(uniqueIds, POST_FETCH_CHUNK)) {
+    const { data, error } = await supabase
+      .from(TABLES.cadreGeographicUnit)
+      .select('id, name, type, parent_id')
+      .in('id', chunk);
+    throwOnSupabaseError(error, 'Failed to load geographic units');
+    for (const row of data ?? []) {
+      map.set(String(row.id), mapGeoUnitRow(row));
+    }
   }
-  return chunks;
+
+  const missingParentIds = [
+    ...new Set(
+      [...map.values()]
+        .filter((geo) => geo.type === 'booth' && geo.parentId && !map.has(geo.parentId))
+        .map((geo) => geo.parentId as string),
+    ),
+  ];
+  if (missingParentIds.length > 0) {
+    const parents = await loadGeoMetaForIds(missingParentIds);
+    for (const [id, geo] of parents) map.set(id, geo);
+  }
+
+  return map;
+}
+
+function mapPostRowToDetail(
+  row: {
+    id: string | number;
+    position_id: string | number;
+    taluka_id?: string | number | null;
+    ward_geo_id?: string | number | null;
+    election_id?: string | number | null;
+    booth_no?: string | number | null;
+    label?: string | null;
+    is_primary?: boolean | null;
+    sort_order?: number | null;
+  },
+  position: PositionMeta | undefined,
+  geoMeta: Map<string, GeoUnitMeta>,
+): CadreMemberPostDetail {
+  const wardGeoId = row.ward_geo_id ? String(row.ward_geo_id) : null;
+  const wardGeo = wardGeoId ? geoMeta.get(wardGeoId) : null;
+  const post: CadreMemberPostDetail = {
+    id: String(row.id),
+    positionId: String(row.position_id),
+    positionName: position?.name ?? '',
+    positionLevelKey: position?.levelKey ?? '',
+    positionLevelName: position?.levelName ?? '',
+    positionSortOrder: position?.sortOrder ?? 0,
+    positionLevelSortOrder: position?.levelSortOrder ?? 0,
+    talukaId: row.taluka_id ? String(row.taluka_id) : null,
+    talukaName: row.taluka_id ? geoMeta.get(String(row.taluka_id))?.name ?? null : null,
+    wardGeoId,
+    wardGeoName: wardGeo?.name ?? null,
+    electionId: row.election_id ? String(row.election_id) : null,
+    boothNo: row.booth_no ? String(row.booth_no) : null,
+    label: row.label ? String(row.label) : null,
+    isPrimary: Boolean(row.is_primary),
+    sortOrder: Number(row.sort_order ?? 0),
+  };
+  return normalizeBoothScopedPostGeo(post, geoMeta);
 }
 
 async function fetchPostRowsForMemberIds(memberIds: string[]) {
@@ -1246,22 +1662,16 @@ async function mapPostRowsToDetails(
     ),
   ];
 
-  const [positionsRes, geoRes] = await Promise.all([
+  const [positionsRes, geoMeta] = await Promise.all([
     positionIds.length > 0
       ? supabase
           .from(TABLES.cadrePosition)
           .select('id, name, sort_order, level_id')
           .in('id', positionIds)
       : Promise.resolve({ data: [], error: null }),
-    geoIds.length > 0
-      ? supabase
-          .from(TABLES.cadreGeographicUnit)
-          .select('id, name')
-          .in('id', geoIds)
-      : Promise.resolve({ data: [], error: null }),
+    loadGeoMetaForIds(geoIds),
   ]);
   throwOnSupabaseError(positionsRes.error, 'Failed to load positions');
-  throwOnSupabaseError(geoRes.error, 'Failed to load geographic units');
 
   const levelIds = [
     ...new Set((positionsRes.data ?? []).map((row) => String(row.level_id))),
@@ -1296,36 +1706,192 @@ async function mapPostRowsToDetails(
       levelSortOrder: level?.sortOrder ?? 0,
     });
   }
-  const geoById = new Map(
-    (geoRes.data ?? []).map((row) => [String(row.id), String(row.name)]),
-  );
-
   const postsByMember = new Map<string, CadreMemberPostDetail[]>();
   for (const row of postRows) {
     const position = positionById.get(String(row.position_id));
     const list = postsByMember.get(String(row.member_id)) ?? [];
-    list.push({
-      id: String(row.id),
-      positionId: String(row.position_id),
-      positionName: position?.name ?? '',
-      positionLevelKey: position?.levelKey ?? '',
-      positionLevelName: position?.levelName ?? '',
-      positionSortOrder: position?.sortOrder ?? 0,
-      positionLevelSortOrder: position?.levelSortOrder ?? 0,
-      talukaId: row.taluka_id ? String(row.taluka_id) : null,
-      talukaName: row.taluka_id ? geoById.get(String(row.taluka_id)) ?? null : null,
-      wardGeoId: row.ward_geo_id ? String(row.ward_geo_id) : null,
-      wardGeoName: row.ward_geo_id ? geoById.get(String(row.ward_geo_id)) ?? null : null,
-      electionId: row.election_id ? String(row.election_id) : null,
-      boothNo: row.booth_no ? String(row.booth_no) : null,
-      label: row.label ? String(row.label) : null,
-      isPrimary: Boolean(row.is_primary),
-      sortOrder: Number(row.sort_order ?? 0),
-    });
+    list.push(
+      mapPostRowToDetail(
+        row as Parameters<typeof mapPostRowToDetail>[0],
+        position,
+        geoMeta,
+      ),
+    );
     postsByMember.set(String(row.member_id), list);
   }
 
   return postsByMember;
+}
+
+export type TalukaLeadershipEntry = {
+  verticalId: string;
+  head: CadreMemberCard | null;
+};
+
+function buildWardSummaries(
+  wardGeoIds: string[],
+  verticalIds: string[],
+  verticalLeadership: {
+    verticalId: string;
+    wardHeads: HierarchyLeaders['wardHeads'];
+  }[],
+  geoUnits: CadreConfig['geoUnits'],
+  constituencyId: string,
+): WardSummary[] {
+  const primaryVerticalId = verticalIds[0] ?? '';
+
+  return wardGeoIds.map((wardGeoId) => {
+    const boothCount = getBoothGeoUnits(geoUnits, constituencyId, wardGeoId).length;
+    const allHeads: CadreMemberCard[] = [];
+    let primaryHead: CadreMemberCard | null = null;
+
+    for (const entry of verticalLeadership) {
+      const wardHead = entry.wardHeads.find((ward) => ward.wardGeoId === wardGeoId);
+      const member = wardHead?.member ?? null;
+      if (member) allHeads.push(member);
+      if (entry.verticalId === primaryVerticalId) primaryHead = member;
+    }
+
+    return {
+      wardGeoId,
+      boothCount,
+      wingsAssigned: allHeads.length,
+      wingsTotal: verticalIds.length,
+      primaryHead,
+      allHeads,
+    };
+  });
+}
+
+export async function getCadreConstituencyLeadership(
+  constituencyId: string,
+  verticalIds: string[],
+  wardGeoIds: string[],
+  geoUnits: CadreConfig['geoUnits'],
+): Promise<{
+  entries: TalukaLeadershipEntry[];
+  wardSummaries: WardSummary[];
+}> {
+  const verticalLeadership = await Promise.all(
+    verticalIds.map(async (verticalId) => {
+      const leaders = await getCadreHierarchyLeaders({
+        constituencyId,
+        verticalId,
+        wardGeoIds,
+      });
+      return {
+        verticalId,
+        talukaHead: leaders.talukaAdhyaksh,
+        wardHeads: leaders.wardHeads,
+      };
+    }),
+  );
+
+  return {
+    entries: verticalLeadership.map((entry) => ({
+      verticalId: entry.verticalId,
+      head: entry.talukaHead,
+    })),
+    wardSummaries: buildWardSummaries(
+      wardGeoIds,
+      verticalIds,
+      verticalLeadership,
+      geoUnits,
+      constituencyId,
+    ),
+  };
+}
+
+export async function getCadreTalukaLeadershipAllWings(
+  constituencyId: string,
+  verticalIds: string[],
+): Promise<TalukaLeadershipEntry[]> {
+  const { entries } = await getCadreConstituencyLeadership(
+    constituencyId,
+    verticalIds,
+    [],
+    [],
+  );
+  return entries;
+}
+
+export async function getCadreMembersForWardScope(
+  constituencyId: string,
+  wardGeoId: string,
+): Promise<CadreMemberCard[]> {
+  const { data: boothGeoUnits, error: boothGeoError } = await supabase
+    .from(TABLES.cadreGeographicUnit)
+    .select('id')
+    .eq('type', 'booth')
+    .eq('parent_id', wardGeoId);
+  throwOnSupabaseError(boothGeoError, 'Failed to load ward booth units');
+
+  const scopedGeoIds = [
+    wardGeoId,
+    ...(boothGeoUnits ?? []).map((row) => String(row.id)),
+  ];
+
+  const { data: postRows, error: postError } = await supabase
+    .from(TABLES.cadreMemberPost)
+    .select('member_id')
+    .in('ward_geo_id', scopedGeoIds);
+  throwOnSupabaseError(postError, 'Failed to load ward member posts');
+
+  const memberIds = [
+    ...new Set((postRows ?? []).map((row) => String(row.member_id))),
+  ];
+  if (memberIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from(TABLES.cadreMember)
+    .select('*')
+    .in('id', memberIds)
+    .eq('is_active', true)
+    .or(`constituency_id.eq.${constituencyId},constituency_id.is.null`);
+  throwOnSupabaseError(error, 'Failed to load ward members');
+  return buildMemberCards((data ?? []).map(mapCadreMemberRow));
+}
+
+export async function getCadreCommitteeMembers(filters: {
+  constituencyId: string;
+  verticalId: string;
+  committeeLevel: 'taluka_committee' | 'ward_committee' | 'booth_committee';
+  wardGeoId?: string;
+  boothNo?: string;
+}): Promise<CadreMemberCard[]> {
+  const memberIds = await resolveCadreMemberIdsForVertical(filters.verticalId);
+  if (!memberIds) return [];
+
+  const postRows = await fetchPostRowsForMemberIds(memberIds);
+  const postsByMember = await mapPostRowsToDetails(postRows);
+  const committeeMemberIds = new Set<string>();
+
+  for (const [memberId, posts] of postsByMember) {
+    const matches = posts.some((post) => {
+      if (post.positionLevelKey !== filters.committeeLevel) return false;
+      if (filters.committeeLevel === 'ward_committee') {
+        return post.wardGeoId === filters.wardGeoId;
+      }
+      if (filters.committeeLevel === 'booth_committee') {
+        return (
+          post.wardGeoId === filters.wardGeoId && post.boothNo === filters.boothNo
+        );
+      }
+      return true;
+    });
+    if (matches) committeeMemberIds.add(memberId);
+  }
+
+  if (committeeMemberIds.size === 0) return [];
+
+  const { data, error } = await supabase
+    .from(TABLES.cadreMember)
+    .select('*')
+    .in('id', Array.from(committeeMemberIds))
+    .eq('is_active', true)
+    .or(`constituency_id.eq.${filters.constituencyId},constituency_id.is.null`);
+  throwOnSupabaseError(error, 'Failed to load committee members');
+  return buildMemberCards((data ?? []).map(mapCadreMemberRow));
 }
 
 export async function getCadreHierarchyLeaders(filters: {
@@ -1345,7 +1911,7 @@ export async function getCadreHierarchyLeaders(filters: {
 
   const postRows = await fetchPostRowsForMemberIds(memberIds);
   const postsByMember = await mapPostRowsToDetails(postRows);
-  const stubMembers = buildStubMembersFromPosts(postsByMember);
+  const stubMembers = buildStubMembersFromPosts(postsByMember, filters.verticalId);
   const resolved = resolveHierarchyLeaders(stubMembers, filters.wardGeoIds);
 
   const leaderIds = new Set<string>();
@@ -1379,4 +1945,59 @@ export async function getCadreHierarchyLeaders(filters: {
       member: ward.member ? byId.get(ward.member.id) ?? null : null,
     })),
   };
+}
+
+export async function getCadreHierarchyCanvasData(filters: {
+  constituencyId: string;
+  verticalId: string;
+  wardGeoIds: string[];
+  geoUnits: CadreConfig['geoUnits'];
+}): Promise<HierarchyCanvasData> {
+  const emptyWards = filters.wardGeoIds.map((wardGeoId) => ({
+    wardGeoId,
+    adhyaksh: null,
+    committeeMembers: [],
+    committeeTotal: 0,
+    booths: [],
+  }));
+
+  const memberIds = await resolveCadreMemberIdsForVertical(filters.verticalId);
+  if (!memberIds) {
+    return {
+      talukaAdhyaksh: null,
+      talukaCommitteeMembers: [],
+      talukaCommitteeTotal: 0,
+      wards: emptyWards,
+    };
+  }
+
+  const postRows = await fetchPostRowsForMemberIds(memberIds);
+  const postsByMember = await mapPostRowsToDetails(postRows);
+  const stubMembers = buildStubMembersFromPosts(postsByMember, filters.verticalId);
+  const resolved = resolveHierarchyCanvasData(
+    stubMembers,
+    filters.verticalId,
+    filters.wardGeoIds,
+    filters.geoUnits,
+    filters.constituencyId,
+  );
+
+  const hydrateIds = collectCanvasMemberIds(resolved);
+  if (hydrateIds.size === 0) {
+    return resolved;
+  }
+
+  const { data, error } = await supabase
+    .from(TABLES.cadreMember)
+    .select('*')
+    .in('id', Array.from(hydrateIds))
+    .eq('is_active', true)
+    .or(
+      `constituency_id.eq.${filters.constituencyId},constituency_id.is.null`,
+    );
+  throwOnSupabaseError(error, 'Failed to load hierarchy canvas members');
+  const hydratedMembers = await buildMemberCards((data ?? []).map(mapCadreMemberRow));
+  const byId = new Map(hydratedMembers.map((member) => [member.id, member]));
+
+  return hydrateCanvasData(resolved, byId);
 }

@@ -27,7 +27,12 @@ export function resolveHierarchyLeaders(
 /** Minimal member cards used only for leader resolution from post rows. */
 export function buildStubMembersFromPosts(
   postsByMemberId: Map<string, CadreMemberPostDetail[]>,
+  verticalId?: string,
 ): CadreMemberCard[] {
+  const verticals = verticalId
+    ? [{ id: verticalId, name: '', isPrimary: true, sortOrder: 0 }]
+    : [];
+
   return [...postsByMemberId.entries()].map(([id, posts]) => ({
     id,
     constituencyId: null,
@@ -39,7 +44,7 @@ export function buildStubMembersFromPosts(
     epicNumber: null,
     notes: null,
     isActive: true,
-    verticals: [],
+    verticals,
     posts,
     linkedUser: null,
     linkedVoter: null,
