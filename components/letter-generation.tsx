@@ -12,6 +12,7 @@ import {
   ImageIcon,
   Loader2,
   MapPin,
+  Plus,
   Printer,
   RefreshCw,
   Save,
@@ -38,6 +39,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -134,12 +136,36 @@ import {
   type DocumentType,
 } from '@/lib/letters/reference-sequence';
 import type { DocumentTypeMasterRow } from '@/components/document-type-master-page';
-import { toWesternDigits } from '@/lib/locale-digits';
+import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
 import { cn } from '@/lib/utils';
 
 const ALL_LETTER_TYPES = 'all' as const;
 type SavedLetterTypeFilter = LetterType | typeof ALL_LETTER_TYPES | 'ration';
 const LETTER_LOCALES: LetterLocale[] = ['en', 'mr'];
+
+type FamilyMemberRow = { name: string; age: string };
+
+function emptyFamilyMemberRow(): FamilyMemberRow {
+  return { name: '', age: '' };
+}
+
+function normalizeFamilyMemberAge(age: string): string {
+  return toWesternDigits(age).replace(/\D/g, '').slice(0, 3);
+}
+
+function formatFamilyMembersString(
+  members: FamilyMemberRow[],
+  locale: LetterLocale,
+): string {
+  return members
+    .filter((member) => member.name.trim() && normalizeFamilyMemberAge(member.age))
+    .map((member, index) => {
+      const age = toLocaleDigits(normalizeFamilyMemberAge(member.age), locale);
+      const yearsLabel = locale === 'mr' ? 'वर्षे' : 'years';
+      return `${toLocaleDigits(index + 1, locale)}- ${member.name.trim()}  ${age} ${yearsLabel}`;
+    })
+    .join('\n');
+}
 
 function isRationLetterType(type: LetterType): boolean {
   return type.startsWith('ration-');
@@ -823,6 +849,28 @@ function getAddressTextFromMaster(
   return formatAddressMaster(address, locale);
 }
 
+function getAddressMasterName(
+  address: Pick<AddressMasterRow, 'name' | 'nameMr'>,
+  locale: LetterLocale,
+): string {
+  if (locale === 'mr') {
+    return address.nameMr.trim() || address.name;
+  }
+  return address.name;
+}
+
+function getAddressMasterNameById(
+  addresses: AddressMasterRow[],
+  masterId: string | null,
+  locale: LetterLocale,
+): string | null {
+  if (!masterId) return null;
+  const address = addresses.find((item) => item.id === masterId);
+  if (!address) return null;
+  const name = getAddressMasterName(address, locale).trim();
+  return name || null;
+}
+
 function applyMasterAddressToFields(
   addresses: AddressMasterRow[],
   selections: AddressSelectionState,
@@ -931,6 +979,11 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   const [rationFields, setRationFields] = useState<RationLetterFields>(() =>
     rationDefaults(locale),
   );
+  const [familyMemberRows, setFamilyMemberRows] = useState<FamilyMemberRow[]>(() => [
+    emptyFamilyMemberRow(),
+  ]);
+  const familyMemberRowsRef = useRef(familyMemberRows);
+  familyMemberRowsRef.current = familyMemberRows;
   const [incomeFields, setIncomeFields] = useState<IncomeLetterFields>(() =>
     incomeDefaults(locale),
   );
@@ -952,6 +1005,8 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     rationOffice: null,
     office: null,
   });
+  const [fromRationOfficeId, setFromRationOfficeId] = useState<string | null>(null);
+  const [toRationOfficeId, setToRationOfficeId] = useState<string | null>(null);
   const [manualAddressParts, setManualAddressParts] = useState<ManualAddressParts>(() => ({
     school: createEmptyAddressParts(),
     applicant: createEmptyAddressParts(),
@@ -1149,6 +1204,21 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     setFieldErrors({});
   }, [activeTab, letterLocale]);
 
+  const updateFamilyMemberRows = useCallback(
+    (rows: FamilyMemberRow[]) => {
+      const nextRows = rows.length > 0 ? rows : [emptyFamilyMemberRow()];
+      setFamilyMemberRows(nextRows);
+      setRationFields((prev) => ({
+        ...prev,
+        familyMembers: formatFamilyMembersString(nextRows, letterLocale),
+      }));
+      setFieldErrors((prev) =>
+        prev.familyMembers ? { ...prev, familyMembers: undefined } : prev,
+      );
+    },
+    [letterLocale],
+  );
+
   const syncReferenceFields = useCallback((prefix: string, number: string) => {
     const patch = {
       referencePrefix: prefix,
@@ -1247,6 +1317,11 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       currentStandard: filterText(prev.currentStandard),
       transferReason: filterText(prev.transferReason),
     }));
+    const nextFamilyMemberRows = familyMemberRowsRef.current.map((row) => ({
+      name: filterText(row.name),
+      age: normalizeFamilyMemberAge(row.age),
+    }));
+    setFamilyMemberRows(nextFamilyMemberRows);
     setRationFields((prev) => ({
       ...prev,
       referencePrefix: nextPrefix(prev.referencePrefix),
@@ -1255,13 +1330,13 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
       fullName: filterText(prev.fullName),
-      familyMembers: filterText(prev.familyMembers),
-      fromRationOffice: prev.fromRationOffice
-        ? filterText(prev.fromRationOffice)
-        : prev.fromRationOffice,
-      toRationOffice: prev.toRationOffice
-        ? filterText(prev.toRationOffice)
-        : prev.toRationOffice,
+      familyMembers: formatFamilyMembersString(nextFamilyMemberRows, letterLocale),
+      fromRationOffice:
+        getAddressMasterNameById(addresses, fromRationOfficeId, letterLocale) ??
+        (prev.fromRationOffice ? filterText(prev.fromRationOffice) : prev.fromRationOffice),
+      toRationOffice:
+        getAddressMasterNameById(addresses, toRationOfficeId, letterLocale) ??
+        (prev.toRationOffice ? filterText(prev.toRationOffice) : prev.toRationOffice),
     }));
     setIncomeFields((prev) => ({
       ...prev,
@@ -1325,7 +1400,14 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     }
 
     prevLetterLocaleRef.current = letterLocale;
-  }, [letterLocale, addresses, addressSelections, manualAddressParts]);
+  }, [
+    letterLocale,
+    addresses,
+    addressSelections,
+    manualAddressParts,
+    fromRationOfficeId,
+    toRationOfficeId,
+  ]);
 
   const triggerAutoTranslateManualAddressParts = (
     key: ManualAddressKey,
@@ -1463,10 +1545,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     if (id) {
       const selected = addresses.find((a) => a.id === id);
       if (selected) {
-        const schoolName =
-          letterLocale === 'mr'
-            ? selected.nameMr.trim() || selected.name
-            : selected.name;
+        const schoolName = getAddressMasterName(selected, letterLocale);
         if (schoolName) {
           setFeesFields((prev) => ({ ...prev, schoolName }));
           setSchoolAdmissionFields((prev) => ({ ...prev, schoolName }));
@@ -1604,10 +1683,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
 
     const selected = addresses.find((a) => a.id === addressSelections.school);
     if (!selected) return;
-    const schoolName =
-      letterLocale === 'mr'
-        ? selected.nameMr.trim() || selected.name
-        : selected.name;
+    const schoolName = getAddressMasterName(selected, letterLocale);
     if (!schoolName.trim()) return;
 
     setFeesFields((prev) => (prev.schoolName?.trim() ? prev : { ...prev, schoolName }));
@@ -1618,6 +1694,37 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       prev.schoolName?.trim() ? prev : { ...prev, schoolName },
     );
   }, [addressSelections.school, addresses, letterLocale]);
+
+  const rationOfficeNameOptions = useMemo(
+    () =>
+      addresses
+        .filter((address) => address.isActive && address.addressType === 'ration_office')
+        .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+        .map((address) => ({
+          value: address.id,
+          label: getAddressMasterName(address, letterLocale),
+        }))
+        .filter((option) => option.label.trim()),
+    [addresses, letterLocale],
+  );
+
+  const handleFromRationOfficeSelect = (id: string) => {
+    setFromRationOfficeId(id);
+    const name = getAddressMasterNameById(addresses, id, letterLocale) ?? '';
+    setRationFields((prev) => ({ ...prev, fromRationOffice: name }));
+    if (fieldErrors.fromRationOffice) {
+      setFieldErrors((prev) => ({ ...prev, fromRationOffice: undefined }));
+    }
+  };
+
+  const handleToRationOfficeSelect = (id: string) => {
+    setToRationOfficeId(id);
+    const name = getAddressMasterNameById(addresses, id, letterLocale) ?? '';
+    setRationFields((prev) => ({ ...prev, toRationOffice: name }));
+    if (fieldErrors.toRationOffice) {
+      setFieldErrors((prev) => ({ ...prev, toRationOffice: undefined }));
+    }
+  };
 
   const activeLetterMaster = useMemo(() => {
     return (
@@ -3095,22 +3202,14 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                               required
                               error={fieldErrors.fromRationOffice}
                             >
-                              <LocaleTextInput
-                                locale={letterLocale}
-                                value={rationFields.fromRationOffice ?? ''}
-                                onValueChange={(fromRationOffice) => {
-                                  setRationFields({
-                                    ...rationFields,
-                                    fromRationOffice,
-                                  });
-                                  if (fieldErrors.fromRationOffice) {
-                                    setFieldErrors((prev) => ({
-                                      ...prev,
-                                      fromRationOffice: undefined,
-                                    }));
-                                  }
-                                }}
-                                required
+                              <Combobox
+                                options={rationOfficeNameOptions}
+                                value={fromRationOfficeId ?? ''}
+                                onValueChange={handleFromRationOfficeSelect}
+                                placeholder={lt(
+                                  'letterGeneration.addresses.selectPlaceholder',
+                                )}
+                                emptyMessage={lt('letterGeneration.addresses.empty')}
                               />
                             </FieldGroup>
                             <FieldGroup
@@ -3118,22 +3217,14 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                               required
                               error={fieldErrors.toRationOffice}
                             >
-                              <LocaleTextInput
-                                locale={letterLocale}
-                                value={rationFields.toRationOffice ?? ''}
-                                onValueChange={(toRationOffice) => {
-                                  setRationFields({
-                                    ...rationFields,
-                                    toRationOffice,
-                                  });
-                                  if (fieldErrors.toRationOffice) {
-                                    setFieldErrors((prev) => ({
-                                      ...prev,
-                                      toRationOffice: undefined,
-                                    }));
-                                  }
-                                }}
-                                required
+                              <Combobox
+                                options={rationOfficeNameOptions}
+                                value={toRationOfficeId ?? ''}
+                                onValueChange={handleToRationOfficeSelect}
+                                placeholder={lt(
+                                  'letterGeneration.addresses.selectPlaceholder',
+                                )}
+                                emptyMessage={lt('letterGeneration.addresses.empty')}
                               />
                             </FieldGroup>
                           </div>
@@ -3143,22 +3234,87 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                           required
                           error={fieldErrors.familyMembers}
                         >
-                          <LocaleTextarea
-                            locale={letterLocale}
-                            value={rationFields.familyMembers}
-                            onValueChange={(familyMembers) => {
-                              setRationFields({ ...rationFields, familyMembers });
-                              if (fieldErrors.familyMembers) {
-                                setFieldErrors((prev) => ({
-                                  ...prev,
-                                  familyMembers: undefined,
-                                }));
-                              }
-                            }}
-                            rows={4}
-                            placeholder={lt('letterGeneration.placeholders.familyMembers')}
-                            required
-                          />
+                          <div className="space-y-2">
+                            {familyMemberRows.map((member, index) => (
+                              <div
+                                key={`family-member-${index}`}
+                                className="flex flex-col gap-2 sm:flex-row sm:items-start"
+                              >
+                                <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-[1fr_7rem]">
+                                  <LocaleTextInput
+                                    locale={letterLocale}
+                                    value={member.name}
+                                    onValueChange={(name) => {
+                                      const next = familyMemberRows.map((row, i) =>
+                                        i === index ? { ...row, name } : row,
+                                      );
+                                      updateFamilyMemberRows(next);
+                                    }}
+                                    placeholder={lt(
+                                      'letterGeneration.placeholders.familyMemberName',
+                                    )}
+                                    aria-label={lt(
+                                      'letterGeneration.fields.familyMemberName',
+                                    )}
+                                    required={index === 0}
+                                  />
+                                  <Input
+                                    value={
+                                      member.age
+                                        ? toLocaleDigits(member.age, letterLocale)
+                                        : ''
+                                    }
+                                    onChange={(e) => {
+                                      const age = normalizeFamilyMemberAge(e.target.value);
+                                      const next = familyMemberRows.map((row, i) =>
+                                        i === index ? { ...row, age } : row,
+                                      );
+                                      updateFamilyMemberRows(next);
+                                    }}
+                                    inputMode="numeric"
+                                    placeholder={lt(
+                                      'letterGeneration.placeholders.familyMemberAge',
+                                    )}
+                                    aria-label={lt(
+                                      'letterGeneration.fields.familyMemberAge',
+                                    )}
+                                    required={index === 0}
+                                  />
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                                  disabled={familyMemberRows.length === 1}
+                                  onClick={() => {
+                                    updateFamilyMemberRows(
+                                      familyMemberRows.filter((_, i) => i !== index),
+                                    );
+                                  }}
+                                  aria-label={lt(
+                                    'letterGeneration.fields.removeFamilyMember',
+                                  )}
+                                >
+                                  <Trash2 className="size-4" />
+                                </Button>
+                              </div>
+                            ))}
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                updateFamilyMemberRows([
+                                  ...familyMemberRows,
+                                  emptyFamilyMemberRow(),
+                                ]);
+                              }}
+                            >
+                              <Plus className="mr-1.5 size-4" />
+                              {lt('letterGeneration.fields.addFamilyMember')}
+                            </Button>
+                          </div>
                         </FieldGroup>
                         <LetterAddressField
                           label={lt('letterGeneration.fields.rationOfficeAddress')}
