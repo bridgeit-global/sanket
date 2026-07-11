@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import {
+  getDocumentTypes,
   getLetterById,
   getLetterMasterById,
   getLetterMasterByTypeAndLocale,
@@ -57,6 +58,7 @@ export async function POST(
       );
     }
 
+    const documentTypes = await getDocumentTypes({ activeOnly: false });
     const renderedHtml = buildRenderedLetterHtml(
       resolvedLetterType,
       master.templateHtml,
@@ -64,6 +66,7 @@ export async function POST(
       letter.letterLocale as LetterLocale,
       master.letterheadUrl,
       master.letterheadMode,
+      documentTypes,
     );
 
     const updatedLetter = await updateLetterRenderedHtml({

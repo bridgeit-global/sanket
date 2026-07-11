@@ -2,6 +2,7 @@ import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
 import {
   coerceDocumentType,
   documentTypeLabel,
+  type DocumentTypeLabelSource,
 } from '@/lib/letters/reference-sequence';
 import type {
   DomicileLetterFields,
@@ -80,10 +81,11 @@ export function buildRenderFields(
   type: LetterType,
   fields: LetterFields,
   locale: LetterLocale,
+  documentTypes?: DocumentTypeLabelSource[],
 ): Record<string, string> {
   const base = toFieldRecord(fields);
   const storedPrefix = coerceDocumentType(base.referencePrefix) ?? base.referencePrefix;
-  base.referencePrefix = documentTypeLabel(storedPrefix, locale);
+  base.referencePrefix = documentTypeLabel(storedPrefix, locale, documentTypes);
   base.referenceNo = toLocaleDigits(
     toWesternDigits(base.referenceNo ?? ''),
     locale,
@@ -147,8 +149,9 @@ export function buildRenderedLetterHtml(
   locale: LetterLocale,
   letterheadUrl?: string | null,
   letterheadMode: LetterheadMode = 'full',
+  documentTypes?: DocumentTypeLabelSource[],
 ): string {
-  const renderFields = buildRenderFields(type, fields, locale);
+  const renderFields = buildRenderFields(type, fields, locale, documentTypes);
   const contentHtml = renderLetterTemplate(templateHtml, renderFields);
   return wrapLetterWithLetterhead(contentHtml, letterheadUrl, letterheadMode);
 }

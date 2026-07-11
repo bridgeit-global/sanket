@@ -1190,8 +1190,12 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
 
     const signatory = DEFAULT_SIGNATORY[letterLocale];
     const filterText = (value: string) => filterLocaleText(value, letterLocale);
-    const nextPrefix = (prevPrefix: string) =>
-      coerceDocumentType(prevPrefix) ?? defaultReferencePrefix();
+    const nextPrefix = (prevPrefix: string) => {
+      const coerced = coerceDocumentType(prevPrefix);
+      if (coerced) return coerced;
+      const normalized = normalizeReferencePrefix(prevPrefix);
+      return normalized || defaultReferencePrefix();
+    };
     const nextReferenceNo = (prevNumber: string) =>
       formatReferenceNumberForLocale(prevNumber, letterLocale);
 
@@ -1714,6 +1718,9 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
         activeTemplateHtml,
         fields,
         letterLocale,
+        null,
+        'full',
+        documentTypes,
       );
     }
 
@@ -1728,6 +1735,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     incomeFields,
     domicileFields,
     activeTemplateHtml,
+    documentTypes,
   ]);
 
   const activeTitle = t(`letterGeneration.tabs.${activeTab}`);
