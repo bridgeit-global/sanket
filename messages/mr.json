@@ -591,6 +591,8 @@
       "loaded": "पत्र लोड झाले",
       "deleteSuccess": "पत्र हटवले",
       "deleteError": "पत्र हटवण्यात अयशस्वी.",
+      "deleteConfirmTitle": "पत्र हटवायचे?",
+      "deleteConfirmDescription": "तुम्हाला हे पत्र खरोखर हटवायचे आहे का? ही क्रिया पूर्ववत करता येणार नाही.",
       "columns": {
         "referenceNo": "संदर्भ क्र.",
         "type": "प्रकार",

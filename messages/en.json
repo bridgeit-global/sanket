@@ -591,6 +591,8 @@
       "loaded": "Letter loaded",
       "deleteSuccess": "Letter deleted",
       "deleteError": "Failed to delete letter.",
+      "deleteConfirmTitle": "Delete letter?",
+      "deleteConfirmDescription": "Are you sure you want to delete this letter? This action cannot be undone.",
       "columns": {
         "referenceNo": "Reference No.",
         "type": "Type",

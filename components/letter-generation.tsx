@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -977,6 +978,8 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   const [selectedSavedLetterId, setSelectedSavedLetterId] = useState<string | null>(
     null,
   );
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [letterToDelete, setLetterToDelete] = useState<string | null>(null);
   const [filterLetterType, setFilterLetterType] =
     useState<SavedLetterTypeFilter>(ALL_LETTER_TYPES);
   const [filterReference, setFilterReference] = useState('');
@@ -1794,7 +1797,6 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       requireField(errors, 'standard', schoolAdmissionFields.standard, requiredMsg);
       requireField(errors, 'studentName', schoolAdmissionFields.studentName, requiredMsg);
       requireField(errors, 'parentName', schoolAdmissionFields.parentName, requiredMsg);
-      requireField(errors, 'reasonText', schoolAdmissionFields.reasonText, requiredMsg);
       requireAddress('school', schoolAdmissionFields.schoolAddress);
       requireAddress('applicant', schoolAdmissionFields.address);
     } else if (activeTab === 'school-transfer') {
@@ -2140,7 +2142,14 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     }
   };
 
-  const handleDeleteSavedLetter = async (id: string) => {
+  const handleDeleteSavedLetter = (id: string) => {
+    setLetterToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDeleteSavedLetter = async () => {
+    if (!letterToDelete) return;
+    const id = letterToDelete;
     try {
       const res = await fetch(`/api/letters/${encodeURIComponent(id)}`, {
         method: 'DELETE',
@@ -2153,6 +2162,9 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     } catch (error) {
       console.error('Failed to delete letter', error);
       toast.error(t('letterGeneration.savedLetters.deleteError'));
+    } finally {
+      setLetterToDelete(null);
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -2310,7 +2322,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
         size="sm"
         variant="destructive"
         className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
-        onClick={() => void handleDeleteSavedLetter(letter.id)}
+        onClick={() => handleDeleteSavedLetter(letter.id)}
       >
         <Trash2 className="mr-2 size-4" />
         {t('letterGeneration.savedLetters.actions.delete')}
@@ -2743,7 +2755,6 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                       />
                       <FieldGroup
                         label={lt('letterGeneration.fields.reasonText')}
-                        required
                         error={fieldErrors.reasonText}
                       >
                         <LocaleTextarea
@@ -2759,7 +2770,6 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                             }
                           }}
                           rows={3}
-                          required
                         />
                       </FieldGroup>
                     </TabsContent>
@@ -3986,6 +3996,20 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
           resolveAddressReview(result);
         }}
         onCancel={() => resolveAddressReview(null)}
+      />
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) setLetterToDelete(null);
+        }}
+        title={t('letterGeneration.savedLetters.deleteConfirmTitle')}
+        description={t('letterGeneration.savedLetters.deleteConfirmDescription')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
+        variant="destructive"
+        onConfirm={() => void confirmDeleteSavedLetter()}
       />
     </div>
   );
