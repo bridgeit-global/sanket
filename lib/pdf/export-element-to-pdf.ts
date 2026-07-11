@@ -52,7 +52,51 @@ export type ExportElementToPdfOptions = {
    * Useful for multi-page tables; off by default for prose documents like letters.
    */
   drawContinuationRule?: boolean;
+  /**
+   * Reserves `headerHeightMm` at the top of every page (e.g. letterhead clearance).
+   * Optionally draws a full-page stationery image underneath.
+   */
+  pageBackground?: {
+    /** Full-page background image URL. Omit to keep only header clearance. */
+    imageUrl?: string;
+    /** Top inset reserved for letterhead header on every page (mm). */
+    headerHeightMm: number;
+    /** When true (default), letterhead image is only drawn on the first page. */
+    firstPageOnly?: boolean;
+  };
 };
+
+async function loadImageAsDataUrl(
+  url: string,
+): Promise<{ dataUrl: string; format: 'PNG' | 'JPEG' }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, img.naturalWidth);
+        canvas.height = Math.max(1, img.naturalHeight);
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Canvas rendering not supported'));
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        const isJpeg = /\.jpe?g(\?|$)/i.test(url) || url.startsWith('data:image/jpeg');
+        const format = isJpeg ? 'JPEG' : 'PNG';
+        resolve({
+          dataUrl: canvas.toDataURL(isJpeg ? 'image/jpeg' : 'image/png', 0.92),
+          format,
+        });
+      } catch (error) {
+        reject(error);
+      }
+    };
+    img.onerror = () => reject(new Error('Failed to load page background image'));
+    img.src = url.startsWith('/') ? new URL(url, window.location.origin).href : url;
+  });
+}
 
 function clampScale(scale: number, element: HTMLElement): number {
   const safe = Number.isFinite(scale) ? scale : 2;
@@ -127,18 +171,21 @@ const PDF_FONT_FAMILY =
 function prepareCaptureElement(
   source: HTMLElement,
   captureWidthPx?: number,
+  options?: { transparentBackground?: boolean; paddingPx?: number },
 ): { element: HTMLElement; cleanup: () => void } {
   if (!captureWidthPx) {
     return { element: source, cleanup: () => {} };
   }
 
+  const transparent = Boolean(options?.transparentBackground);
+  const paddingPx = options?.paddingPx ?? 24;
   const host = document.createElement('div');
   host.setAttribute('data-pdf-capture', 'true');
   host.style.position = 'fixed';
   host.style.left = '-10000px';
   host.style.top = '0';
   host.style.width = `${captureWidthPx}px`;
-  host.style.background = '#ffffff';
+  host.style.background = transparent ? 'transparent' : '#ffffff';
   host.style.color = '#000000';
   host.style.boxSizing = 'border-box';
   host.style.fontFamily = PDF_FONT_FAMILY;
@@ -150,9 +197,10 @@ function prepareCaptureElement(
   clone.style.boxSizing = 'border-box';
   clone.style.boxShadow = 'none';
   clone.style.borderRadius = '0';
-  clone.style.background = '#ffffff';
+  clone.style.background = transparent ? 'transparent' : '#ffffff';
+  clone.style.backgroundImage = 'none';
   clone.style.color = '#000000';
-  clone.style.padding = '24px';
+  clone.style.padding = `${paddingPx}px`;
   clone.style.fontSize = '15px';
   clone.style.lineHeight = '1.75';
   clone.style.fontFamily = PDF_FONT_FAMILY;
@@ -188,12 +236,21 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
     scale: rawScale = 2,
     captureWidthPx,
     drawContinuationRule = false,
+    pageBackground,
   } = options;
 
   const marginMm = Math.max(0, Math.min(25, rawMarginMm));
+  const pageBackgroundHeaderMm = pageBackground
+    ? Math.max(0, Math.min(120, pageBackground.headerHeightMm))
+    : 0;
+  const letterheadFirstPageOnly = pageBackground?.firstPageOnly !== false;
   const { element: captureElement, cleanup: cleanupCapture } = prepareCaptureElement(
     element,
     captureWidthPx,
+    {
+      transparentBackground: Boolean(pageBackground?.imageUrl),
+      paddingPx: pageBackground ? 0 : undefined,
+    },
   );
   const scale = clampScale(rawScale, captureElement);
 
@@ -220,6 +277,11 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
     const pageWidthMm = doc.internal.pageSize.getWidth();
     const pageHeightMm = doc.internal.pageSize.getHeight();
     const contentWidthMm = Math.max(1, pageWidthMm - marginMm * 2);
+
+    let pageBackgroundImage: { dataUrl: string; format: 'PNG' | 'JPEG' } | null = null;
+    if (pageBackground?.imageUrl) {
+      pageBackgroundImage = await loadImageAsDataUrl(pageBackground.imageUrl);
+    }
 
     // Build a header image via DOM -> canvas so Marathi renders correctly
     // (jsPDF built-in fonts often don't include Devanagari glyphs).
@@ -283,12 +345,17 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
       }
     }
 
-    const contentHeightMm = Math.max(1, pageHeightMm - marginMm * 2 - headerHeightMm - footerHeightMm);
+    const topInsetMm =
+      pageBackgroundHeaderMm > 0 ? pageBackgroundHeaderMm : marginMm;
+    const contentHeightMm = Math.max(
+      1,
+      pageHeightMm - topInsetMm - marginMm - headerHeightMm - footerHeightMm,
+    );
 
     // Render DOM -> canvas
     await waitForFontsReady();
     const canvas = await html2canvas(captureElement, {
-      backgroundColor: '#ffffff',
+      backgroundColor: pageBackgroundImage ? null : '#ffffff',
       scale,
       useCORS: true,
       logging: false,
@@ -333,8 +400,12 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
         throw new Error('Canvas rendering not supported');
       }
 
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+      if (pageBackgroundImage) {
+        ctx.clearRect(0, 0, pageCanvas.width, pageCanvas.height);
+      } else {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+      }
 
       ctx.drawImage(
         canvas,
@@ -367,8 +438,34 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
       if (pageIndex > 0) {
         doc.addPage();
       }
-      const contentY = marginMm + headerHeightMm;
-      doc.addImage(imgData, 'PNG', marginMm, contentY, contentWidthMm, sliceHeightMm, undefined, 'FAST');
+
+      const drawLetterhead =
+        Boolean(pageBackgroundImage) &&
+        (pageIndex === 0 || !letterheadFirstPageOnly);
+      if (pageBackgroundImage && drawLetterhead) {
+        doc.addImage(
+          pageBackgroundImage.dataUrl,
+          pageBackgroundImage.format,
+          0,
+          0,
+          pageWidthMm,
+          pageHeightMm,
+          undefined,
+          'FAST',
+        );
+      }
+
+      const contentY = topInsetMm + headerHeightMm;
+      doc.addImage(
+        imgData,
+        'PNG',
+        marginMm,
+        contentY,
+        contentWidthMm,
+        sliceHeightMm,
+        undefined,
+        'FAST',
+      );
 
       // Header (drawn above captured content)
       if (headerImageData && headerHeightMm > 0) {
@@ -376,7 +473,7 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
           headerImageData,
           'PNG',
           marginMm,
-          marginMm,
+          topInsetMm,
           contentWidthMm,
           headerImageHeightMm,
           undefined,
@@ -388,7 +485,7 @@ export async function exportElementToPdf(options: ExportElementToPdfOptions): Pr
       if (headerHeightMm > 0 && header?.drawRule !== false) {
         doc.setDrawColor(0, 0, 0);
         doc.setLineWidth(0.6);
-        const y = marginMm + headerHeightMm + 0.8;
+        const y = topInsetMm + headerHeightMm + 0.8;
         doc.line(marginMm, y, marginMm + contentWidthMm, y);
       }
 

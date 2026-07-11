@@ -92,6 +92,7 @@ import {
   getDefaultLetterPaperSize,
   getLetterPaperContentWidthPx,
   getLetterPaperLabel,
+  LETTER_PAPER_DIMENSIONS_MM,
   LETTER_PAPER_MARGIN_MM,
   LETTER_PAPER_SIZES,
   resolveLetterPaperSize,
@@ -480,34 +481,33 @@ function createLetterExportElement(
   html: string,
   options?: {
     paperSize?: LetterPaperSize;
-    letterheadUrl?: string | null;
-    includeLetterhead?: boolean;
     letterLocale?: LetterLocale;
   },
 ): HTMLDivElement {
   const host = document.createElement('div');
   const contentHtml = stripLetterheadFromHtml(html);
-  const letterheadUrl =
-    options?.includeLetterhead && options.letterheadUrl
-      ? options.letterheadUrl
-      : null;
+  const paperSize = options?.paperSize ?? 'a4';
+  const fontSizePx = LETTER_PRINT_FONT_SIZE_PX[paperSize];
+  const fontFamily = LETTER_FONT_STACK[options?.letterLocale ?? 'mr'];
 
-  host.className = 'relative bg-white text-black';
-  if (options?.letterLocale) {
-    host.style.fontFamily = LETTER_FONT_STACK[options.letterLocale];
-  }
-  if (options?.paperSize) {
-    host.style.width = `${getLetterPaperContentWidthPx(options.paperSize)}px`;
-  }
+  // Letterhead is drawn per-page by the PDF exporter — capture text only so
+  // margins/header clearance stay aligned with print output.
+  host.style.position = 'relative';
+  host.style.background = 'transparent';
+  host.style.color = '#000';
+  host.style.boxSizing = 'border-box';
+  host.style.width = `${getLetterPaperContentWidthPx(paperSize)}px`;
+  host.style.fontFamily = fontFamily;
+  host.innerHTML = contentHtml;
 
-  if (letterheadUrl && options?.paperSize) {
-    host.style.backgroundImage = `url("${letterheadUrl}")`;
-    host.style.backgroundSize = '100% 100%';
-    host.style.backgroundRepeat = 'no-repeat';
-    host.innerHTML = `<div class="letter-export-content" style="padding: ${getLetterheadContentPaddingMm(options.paperSize)}mm 15mm 15mm 15mm;">${contentHtml}</div>`;
-  } else {
-    host.className += ' p-6';
-    host.innerHTML = contentHtml;
+  const letterContent = host.querySelector('.letter-content');
+  if (letterContent instanceof HTMLElement) {
+    letterContent.style.margin = '0';
+    letterContent.style.whiteSpace = 'pre-wrap';
+    letterContent.style.fontSize = `${fontSizePx}px`;
+    letterContent.style.lineHeight = '1.75';
+    letterContent.style.fontFamily = fontFamily;
+    letterContent.style.color = '#000';
   }
 
   return host;
@@ -530,29 +530,52 @@ function buildLetterPrintStyles(
   const letterheadUrl = options?.letterheadUrl;
   const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);
   const fontFamily = LETTER_FONT_STACK[options?.letterLocale ?? 'mr'];
+  const { widthMm, heightMm } = LETTER_PAPER_DIMENSIONS_MM[paperSize];
 
-  const bodyStyles = letterheadUrl
-    ? `margin: 0; padding: 0; font-family: ${fontFamily};
-       background: #fff url("${letterheadUrl}") no-repeat;
-       background-size: 100% 100%;
-       -webkit-print-color-adjust: exact;
-       print-color-adjust: exact;`
-    : `margin: 0; padding: ${paddingPx}px; font-family: ${fontFamily}; background: #fff;`;
-
-  // Clone padding on each page fragment so page 2+ keep letterhead header clearance
-  // (background image stays on page 1 only via body no-repeat).
-  const contentPadding = letterheadUrl
-    ? `padding: ${headerPaddingMm}mm ${marginMm}mm ${marginMm}mm ${marginMm}mm;
-       -webkit-box-decoration-break: clone;
-       box-decoration-break: clone;`
-    : '';
+  if (letterheadUrl) {
+    // Page 1: full-bleed letterhead + content top/side padding.
+    // Page 2+: @page top/side margins reserve the same clearance (no image).
+    return `
+  @page {
+    size: ${pageLabel} portrait;
+    margin: ${headerPaddingMm}mm ${marginMm}mm ${marginMm}mm ${marginMm}mm;
+  }
+  @page :first {
+    margin-top: 0;
+    margin-left: 0;
+    margin-right: 0;
+  }
+  * { color: #000 !important; box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: ${widthMm}mm;
+  }
+  body {
+    font-family: ${fontFamily};
+    background: #fff url("${letterheadUrl}") no-repeat top left;
+    background-size: ${widthMm}mm ${heightMm}mm;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .letter-print-content {
+    padding: ${headerPaddingMm}mm ${marginMm}mm 0 ${marginMm}mm;
+  }
+  .letter-content { white-space: pre-wrap; font-size: ${fontSizePx}px; line-height: 1.75; margin: 0; }
+  img { max-width: 100%; height: auto; }
+`;
+  }
 
   return `
-  @page { margin: 0; size: ${pageLabel} portrait; }
-  * { color: #000 !important; }
-  body { ${bodyStyles} }
-  .letter-print-content { ${contentPadding} }
-  .letter-content { white-space: pre-wrap; font-size: ${fontSizePx}px; line-height: 1.75; }
+  @page { size: ${pageLabel} portrait; margin: 0; }
+  * { color: #000 !important; box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    padding: ${paddingPx}px;
+    font-family: ${fontFamily};
+    background: #fff;
+  }
+  .letter-content { white-space: pre-wrap; font-size: ${fontSizePx}px; line-height: 1.75; margin: 0; }
   img { max-width: 100%; height: auto; }
 `;
 }
@@ -2411,12 +2434,8 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     let exportHost: HTMLDivElement | null = null;
     try {
       const paperSize = resolveSavedLetterPaperSize(letter);
-      const master = letterMasters.find((m) => m.id === letter.letterMasterId);
-      const letterheadUrl = resolveLetterheadUrl(paperSize, master?.letterheadUrl);
       exportHost = createLetterExportElement(letter.renderedHtml, {
         paperSize,
-        letterheadUrl,
-        includeLetterhead: true,
         letterLocale: letter.letterLocale,
       });
       document.body.appendChild(exportHost);
@@ -2428,6 +2447,9 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
         marginMm: LETTER_PAPER_MARGIN_MM[paperSize],
         scale: 2,
         captureWidthPx: getLetterPaperContentWidthPx(paperSize),
+        pageBackground: {
+          headerHeightMm: getLetterheadContentPaddingMm(paperSize),
+        },
       });
       toast.success(t('letterGeneration.pdfSuccess'));
     } catch (error) {
