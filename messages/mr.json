@@ -508,6 +508,8 @@
       "confirmTranslation": "पुष्टी करा आणि साठवा",
       "columns": {
         "name": "नाव",
+        "nameEn": "इंग्रजी नाव",
+        "nameMr": "मराठी नाव",
         "type": "प्रकार",
         "english": "इंग्रजी पत्ता",
         "marathi": "मराठी पत्ता",

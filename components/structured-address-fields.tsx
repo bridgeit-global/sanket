@@ -1,19 +1,27 @@
 'use client';
 
+import { useEffect } from 'react';
+
 import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTranslations } from '@/hooks/use-translations';
 import type { AddressMasterAddressParts } from '@/lib/letters/format-address-master';
 import {
+  DEFAULT_CITY,
+  DEFAULT_STATE,
   getCitiesForState,
+  getCityLabel,
+  getStateLabel,
   INDIAN_STATES,
   isCityInState,
+  localizedCityParts,
+  localizedStateParts,
   normalizeCityName,
   normalizeStateName,
 } from '@/lib/letters/indian-locations';
 import { filterLocaleText } from '@/lib/letters/locale-text';
-import { toWesternDigits } from '@/lib/locale-digits';
+import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
 import type { LetterLocale } from '@/lib/letters/templates';
 
 const LINE_FIELDS = [
@@ -29,6 +37,32 @@ function localeKey(
   if (field === 'line2') return locale === 'mr' ? 'line2Mr' : 'line2En';
   if (field === 'city') return locale === 'mr' ? 'cityMr' : 'cityEn';
   return locale === 'mr' ? 'stateMr' : 'stateEn';
+}
+
+function resolveState(parts: AddressMasterAddressParts): string {
+  return normalizeStateName(parts.stateEn || parts.stateMr);
+}
+
+function resolveCity(parts: AddressMasterAddressParts): string {
+  return normalizeCityName(parts.cityEn || parts.cityMr);
+}
+
+/** Ensure Maharashtra / Mumbai are present when location fields are still empty. */
+function withLocationDefaults(
+  parts: AddressMasterAddressParts,
+  patch: Partial<AddressMasterAddressParts>,
+): Partial<AddressMasterAddressParts> {
+  const next = { ...parts, ...patch };
+  const hasState = Boolean(next.stateEn.trim() || next.stateMr.trim());
+  const hasCity = Boolean(next.cityEn.trim() || next.cityMr.trim());
+
+  if (!hasState) {
+    Object.assign(patch, localizedStateParts(DEFAULT_STATE));
+  }
+  if (!hasCity) {
+    Object.assign(patch, localizedCityParts(DEFAULT_CITY));
+  }
+  return patch;
 }
 
 type StructuredAddressFieldsProps = {
@@ -48,44 +82,87 @@ export function StructuredAddressFields({
 }: StructuredAddressFieldsProps) {
   const { t } = useTranslations();
 
-  const stateKey = localeKey('state', locale);
-  const cityKey = localeKey('city', locale);
-  const rawState = parts[stateKey];
-  const rawCity = parts[cityKey];
-  const normalizedState = normalizeStateName(rawState);
-  const normalizedCity = normalizeCityName(rawCity);
+  const hasStoredState = Boolean(parts.stateEn.trim() || parts.stateMr.trim());
+  const hasStoredCity = Boolean(parts.cityEn.trim() || parts.cityMr.trim());
+
+  // Keep displayed Maharashtra/Mumbai defaults in form state so validation passes.
+  useEffect(() => {
+    if (hasStoredState && hasStoredCity) return;
+    const patch: Partial<AddressMasterAddressParts> = {};
+    if (!hasStoredState) Object.assign(patch, localizedStateParts(DEFAULT_STATE));
+    if (!hasStoredCity) Object.assign(patch, localizedCityParts(DEFAULT_CITY));
+    onPartsChange(patch);
+    // Only re-run when stored location presence changes; callers often pass inline onPartsChange.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync defaults when empty
+  }, [hasStoredState, hasStoredCity]);
+
+  const normalizedState = resolveState(parts) || DEFAULT_STATE;
+  const normalizedCity =
+    resolveCity(parts) || (!hasStoredState ? DEFAULT_CITY : '');
 
   const stateOptions = [
-    ...INDIAN_STATES.map((state) => ({ value: state, label: state })),
-    ...(normalizedState &&
+    ...INDIAN_STATES.map((state) => ({
+      value: getStateLabel(state, locale),
+      label: getStateLabel(state, locale),
+    })),
+    ...(hasStoredState &&
       !INDIAN_STATES.some((state) => state.toLowerCase() === normalizedState.toLowerCase())
-      ? [{ value: normalizedState, label: normalizedState }]
+      ? [
+          {
+            value: getStateLabel(normalizedState, locale),
+            label: getStateLabel(normalizedState, locale),
+          },
+        ]
       : []),
   ];
 
   const cities = getCitiesForState(normalizedState);
   const cityOptions = [
-    ...cities.map((city) => ({ value: city, label: city })),
-    ...(normalizedCity &&
+    ...cities.map((city) => ({
+      value: getCityLabel(city, locale),
+      label: getCityLabel(city, locale),
+    })),
+    ...(hasStoredCity &&
+      normalizedCity &&
       !cities.some((city) => city.toLowerCase() === normalizedCity.toLowerCase())
-      ? [{ value: normalizedCity, label: normalizedCity }]
+      ? [
+          {
+            value: getCityLabel(normalizedCity, locale),
+            label: getCityLabel(normalizedCity, locale),
+          },
+        ]
       : []),
   ];
 
-  const selectedState =
-    stateOptions.find((opt) => opt.value.toLowerCase() === normalizedState.toLowerCase())
-      ?.value ?? '';
+  const selectedState = getStateLabel(normalizedState, locale);
+  const selectedCity = normalizedCity ? getCityLabel(normalizedCity, locale) : '';
 
-  const selectedCity =
-    cityOptions.find((opt) => opt.value.toLowerCase() === normalizedCity.toLowerCase())
-      ?.value ?? '';
+  const emitChange = (patch: Partial<AddressMasterAddressParts>) => {
+    onPartsChange(withLocationDefaults(parts, patch));
+  };
 
   const handleStateChange = (nextState: string) => {
-    const patch: Partial<AddressMasterAddressParts> = { [stateKey]: nextState };
-    if (normalizedCity && !isCityInState(normalizedCity, nextState)) {
-      patch[cityKey] = '';
+    const stateParts = localizedStateParts(nextState);
+    const patch: Partial<AddressMasterAddressParts> = { ...stateParts };
+    const currentCity = resolveCity(parts);
+    if (currentCity && !isCityInState(currentCity, stateParts.stateEn)) {
+      if (stateParts.stateEn === DEFAULT_STATE) {
+        Object.assign(patch, localizedCityParts(DEFAULT_CITY));
+      } else {
+        patch.cityEn = '';
+        patch.cityMr = '';
+      }
+    } else if (!currentCity && stateParts.stateEn === DEFAULT_STATE) {
+      Object.assign(patch, localizedCityParts(DEFAULT_CITY));
     }
     onPartsChange(patch);
+  };
+
+  const handleCityChange = (nextCity: string) => {
+    onPartsChange({
+      ...(!hasStoredState ? localizedStateParts(DEFAULT_STATE) : {}),
+      ...localizedCityParts(nextCity),
+    });
   };
 
   return (
@@ -105,7 +182,7 @@ export function StructuredAddressFields({
               <Input
                 value={parts[fieldKey]}
                 onChange={(event) =>
-                  onPartsChange({
+                  emitChange({
                     [fieldKey]: filterLocaleText(event.target.value, locale),
                   })
                 }
@@ -141,10 +218,9 @@ export function StructuredAddressFields({
           <Combobox
             options={cityOptions}
             value={selectedCity || undefined}
-            onValueChange={(nextCity) => onPartsChange({ [cityKey]: nextCity })}
+            onValueChange={handleCityChange}
             placeholder={t('letterGeneration.addresses.selectCity')}
             emptyMessage={t('letterGeneration.addresses.empty')}
-            disabled={!selectedState}
           />
         </div>
 
@@ -153,13 +229,14 @@ export function StructuredAddressFields({
             {t('letterGeneration.addresses.fields.pincode')} *
           </Label>
           <Input
-            value={parts.pincode}
+            value={toLocaleDigits(parts.pincode, locale)}
             onChange={(event) => {
               const cleaned = toWesternDigits(event.target.value).replace(/\D/g, '').slice(0, 6);
-              onPartsChange({ pincode: cleaned });
+              emitChange({ pincode: cleaned });
             }}
             inputMode="numeric"
             maxLength={6}
+            lang={locale === 'mr' ? 'mr' : 'en'}
             className="h-9"
             required
             aria-required

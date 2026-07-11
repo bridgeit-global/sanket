@@ -48,6 +48,13 @@ import {
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
 import { filterLocaleText } from '@/lib/letters/locale-text';
+import {
+  defaultLocationParts,
+  getCityLabel,
+  getStateLabel,
+  localizedCityParts,
+  localizedStateParts,
+} from '@/lib/letters/indian-locations';
 import { usePincodeLookup } from '@/lib/letters/use-pincode-lookup';
 import type { PincodeLookupResult } from '@/lib/letters/pincode-lookup';
 import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
@@ -66,6 +73,7 @@ const EMPTY_FORM: AddressFormState = {
   nameMr: '',
   addressType: 'general',
   ...EMPTY_ADDRESS_PARTS,
+  ...defaultLocationParts(),
   isActive: true,
   sortOrder: '0',
 };
@@ -145,9 +153,6 @@ export function AddressMasterManager({
     [addresses],
   );
 
-  const displayName = (address: AddressMasterRow) =>
-    locale === 'mr' ? address.nameMr.trim() || address.name : address.name;
-
   useEffect(() => {
     if (editingId) setFormCardOpen(true);
   }, [editingId]);
@@ -188,13 +193,17 @@ export function AddressMasterManager({
       if (locale === 'mr') {
         return {
           ...prev,
-          cityMr: prev.cityMr.trim() || lookup.city,
-          stateMr: prev.stateMr.trim() || lookup.state,
+          cityMr: prev.cityMr.trim() || getCityLabel(lookup.city, 'mr'),
+          cityEn: prev.cityEn.trim() || lookup.city,
+          stateMr: prev.stateMr.trim() || getStateLabel(lookup.state, 'mr'),
+          stateEn: prev.stateEn.trim() || lookup.state,
         };
       }
       return {
         ...prev,
         ...enrichAddressPartsWithPincodeLookup(prev, lookup),
+        cityMr: prev.cityMr.trim() || getCityLabel(lookup.city, 'mr'),
+        stateMr: prev.stateMr.trim() || getStateLabel(lookup.state, 'mr'),
       };
     });
   }, [locale]);
@@ -263,7 +272,12 @@ export function AddressMasterManager({
     const targetLocale: LetterLocale = locale === 'en' ? 'mr' : 'en';
     setIsTranslating(true);
     try {
-      let translatedParts = { ...EMPTY_ADDRESS_PARTS, pincode: primaryParts.pincode };
+      let translatedParts: AddressMasterAddressParts = {
+        ...EMPTY_ADDRESS_PARTS,
+        pincode: primaryParts.pincode,
+        ...localizedStateParts(primaryParts.stateEn || primaryParts.stateMr),
+        ...localizedCityParts(primaryParts.cityEn || primaryParts.cityMr),
+      };
       let translatedName = '';
 
       const sourceText = formatAddressMaster(primaryParts, locale);
@@ -556,7 +570,8 @@ export function AddressMasterManager({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t('letterGeneration.addresses.columns.name')}</TableHead>
+                    <TableHead>{t('letterGeneration.addresses.columns.nameEn')}</TableHead>
+                    <TableHead>{t('letterGeneration.addresses.columns.nameMr')}</TableHead>
                     <TableHead>{t('letterGeneration.addresses.columns.type')}</TableHead>
                     <TableHead>{t('letterGeneration.addresses.columns.english')}</TableHead>
                     <TableHead>{t('letterGeneration.addresses.columns.marathi')}</TableHead>
@@ -569,7 +584,10 @@ export function AddressMasterManager({
                 <TableBody>
                   {sortedAddresses.map((address) => (
                     <TableRow key={address.id}>
-                      <TableCell className="font-medium">{displayName(address)}</TableCell>
+                      <TableCell className="font-medium">{address.name}</TableCell>
+                      <TableCell className="font-medium" lang="mr">
+                        {address.nameMr.trim() || '—'}
+                      </TableCell>
                       <TableCell>
                         {t(`letterGeneration.addresses.types.${address.addressType}`)}
                       </TableCell>

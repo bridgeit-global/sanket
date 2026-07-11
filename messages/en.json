@@ -508,6 +508,8 @@
       "confirmTranslation": "Confirm & Save",
       "columns": {
         "name": "Name",
+        "nameEn": "English Name",
+        "nameMr": "Marathi Name",
         "type": "Type",
         "english": "English Address",
         "marathi": "Marathi Address",

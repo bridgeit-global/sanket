@@ -160,21 +160,14 @@ export function parseFreeTextAddressForLocale(
     return result;
   }
 
-  if (parts.length >= 4) {
+  // "line1[, line2...], city, state" — last two segments are city and state.
+  if (parts.length >= 3) {
+    const lineParts = parts.slice(0, -2);
     assignLocaleFields(result, locale, {
-      line1: parts[0],
-      line2: parts[1],
+      line1: lineParts[0] ?? '',
+      line2: lineParts.length > 1 ? lineParts.slice(1).join(', ') : '',
       city: parts[parts.length - 2],
       state: parts[parts.length - 1],
-    });
-    return result;
-  }
-
-  if (parts.length === 3) {
-    assignLocaleFields(result, locale, {
-      line1: parts[0],
-      line2: parts[1],
-      city: parts[2],
     });
     return result;
   }

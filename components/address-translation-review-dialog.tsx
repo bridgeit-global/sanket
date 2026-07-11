@@ -23,8 +23,25 @@ import {
   hasRequiredAddressFields,
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
+import {
+  DEFAULT_CITY,
+  DEFAULT_STATE,
+  localizedCityParts,
+  localizedStateParts,
+} from '@/lib/letters/indian-locations';
 import { filterLocaleText } from '@/lib/letters/locale-text';
 import type { LetterLocale } from '@/lib/letters/templates';
+
+function ensureLocationParts(parts: AddressMasterAddressParts): AddressMasterAddressParts {
+  const patch: Partial<AddressMasterAddressParts> = {};
+  if (!parts.stateEn.trim() && !parts.stateMr.trim()) {
+    Object.assign(patch, localizedStateParts(DEFAULT_STATE));
+  }
+  if (!parts.cityEn.trim() && !parts.cityMr.trim()) {
+    Object.assign(patch, localizedCityParts(DEFAULT_CITY));
+  }
+  return { ...parts, ...patch };
+}
 
 export type AddressTranslationReviewResult = {
   name: string;
@@ -57,18 +74,20 @@ export function AddressTranslationReviewDialog({
   useEffect(() => {
     if (!open) return;
     setName(filterLocaleText(initialName, targetLocale));
-    setParts({
-      ...EMPTY_ADDRESS_PARTS,
-      ...initialParts,
-      pincode: initialParts.pincode,
-    });
+    setParts(
+      ensureLocationParts({
+        ...EMPTY_ADDRESS_PARTS,
+        ...initialParts,
+        pincode: initialParts.pincode,
+      }),
+    );
   }, [open, initialName, initialParts, targetLocale]);
 
   const nameKey = targetLocale === 'mr' ? 'nameMr' : 'name';
 
   const handleConfirm = () => {
     const trimmedName = name.trim();
-    const nextParts = { ...parts, pincode: parts.pincode.trim() };
+    const nextParts = ensureLocationParts({ ...parts, pincode: parts.pincode.trim() });
     if (!trimmedName || !hasRequiredAddressFields(nextParts, targetLocale)) {
       toast.error(t('letterGeneration.addresses.validationRequired'));
       return;

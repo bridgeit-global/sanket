@@ -12,6 +12,7 @@ import {
   formatAddressMaster,
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
+import { getCityLabel, getStateLabel } from '@/lib/letters/indian-locations';
 import type { PincodeLookupResult } from '@/lib/letters/pincode-lookup';
 import { usePincodeLookup } from '@/lib/letters/use-pincode-lookup';
 import type { LetterLocale } from '@/lib/letters/templates';
@@ -77,12 +78,18 @@ export function LetterAddressField({
       if (locale === 'mr') {
         onAddressPartsChange({
           ...current,
-          cityMr: current.cityMr.trim() || lookup.city,
-          stateMr: current.stateMr.trim() || lookup.state,
+          cityMr: current.cityMr.trim() || getCityLabel(lookup.city, 'mr'),
+          cityEn: current.cityEn.trim() || lookup.city,
+          stateMr: current.stateMr.trim() || getStateLabel(lookup.state, 'mr'),
+          stateEn: current.stateEn.trim() || lookup.state,
         });
         return;
       }
-      onAddressPartsChange(enrichAddressPartsWithPincodeLookup(current, lookup));
+      onAddressPartsChange({
+        ...enrichAddressPartsWithPincodeLookup(current, lookup),
+        cityMr: current.cityMr.trim() || getCityLabel(lookup.city, 'mr'),
+        stateMr: current.stateMr.trim() || getStateLabel(lookup.state, 'mr'),
+      });
     },
     [locale, onAddressPartsChange],
   );
