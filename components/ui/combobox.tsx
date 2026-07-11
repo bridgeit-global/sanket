@@ -9,6 +9,8 @@ interface ComboboxOption {
     value: string;
     label: string;
     className?: string;
+    /** Always shown in the list, even when the search query does not match. */
+    pinned?: boolean;
     renderLabel?: (label: string) => React.ReactNode;
 }
 
@@ -40,12 +42,12 @@ export function Combobox({
 
     const selectedOption = options.find((opt) => opt.value === value);
 
-    // Filter options based on search query
+    // Filter options based on search query (pinned options always remain visible)
     const filteredOptions = React.useMemo(() => {
         if (!searchQuery.trim()) return options;
         const query = searchQuery.toLowerCase();
         return options.filter(
-            (opt) => opt.label.toLowerCase().includes(query)
+            (opt) => opt.pinned || opt.label.toLowerCase().includes(query)
         );
     }, [options, searchQuery]);
 

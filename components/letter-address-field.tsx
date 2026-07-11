@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Combobox } from '@/components/ui/combobox';
 import { StructuredAddressFields } from '@/components/structured-address-fields';
@@ -71,6 +71,39 @@ export function LetterAddressField({
   const filteredAddresses = addresses.filter(
     (address) => address.isActive && address.addressType === addressType,
   );
+  const hasSavedAddresses = filteredAddresses.length > 0;
+
+  // Manual entry is opt-in when saved addresses exist; otherwise show fields directly.
+  const [isManualMode, setIsManualMode] = useState(false);
+  const userChoseManualRef = useRef(false);
+  const hadSavedAddressesRef = useRef(hasSavedAddresses);
+
+  useEffect(() => {
+    if (selectedAddressId) {
+      userChoseManualRef.current = false;
+      setIsManualMode(false);
+      hadSavedAddressesRef.current = hasSavedAddresses;
+      return;
+    }
+
+    if (!hasSavedAddresses) {
+      setIsManualMode(true);
+      hadSavedAddressesRef.current = false;
+      return;
+    }
+
+    // Addresses loaded after an empty list — leave auto-manual unless user chose manual.
+    if (!hadSavedAddressesRef.current) {
+      hadSavedAddressesRef.current = true;
+      if (!userChoseManualRef.current) {
+        setIsManualMode(false);
+      }
+      return;
+    }
+
+    hadSavedAddressesRef.current = true;
+    setIsManualMode(userChoseManualRef.current);
+  }, [selectedAddressId, hasSavedAddresses]);
 
   const applyPincodeLookup = useCallback(
     (lookup: PincodeLookupResult) => {
@@ -111,6 +144,8 @@ export function LetterAddressField({
 
   const handleSelectChange = (nextValue: string) => {
     if (nextValue === MANUAL_VALUE) {
+      userChoseManualRef.current = true;
+      setIsManualMode(true);
       onSelectedAddressIdChange(null);
       return;
     }
@@ -118,6 +153,8 @@ export function LetterAddressField({
     const selected = filteredAddresses.find((address) => address.id === nextValue);
     if (!selected) return;
 
+    userChoseManualRef.current = false;
+    setIsManualMode(false);
     onSelectedAddressIdChange(selected.id);
     onAddressPartsChange({
       line1En: selected.line1En,
@@ -133,7 +170,11 @@ export function LetterAddressField({
   };
 
   const comboboxOptions = [
-    { value: MANUAL_VALUE, label: at('letterGeneration.addresses.manualEntry') },
+    {
+      value: MANUAL_VALUE,
+      label: at('letterGeneration.addresses.manualEntry'),
+      pinned: true,
+    },
     ...filteredAddresses.map((address) => ({
       value: address.id,
       label:
@@ -145,16 +186,19 @@ export function LetterAddressField({
     ? filteredAddresses.find((address) => address.id === selectedAddressId)
     : null;
 
+  const showManualFields = isManualMode || !hasSavedAddresses;
+  const comboboxValue = selectedAddressId ?? (isManualMode ? MANUAL_VALUE : '');
+
   return (
     <div className="space-y-2">
       <label className="mb-1.5 block text-sm font-medium">
         {label}
         {required ? ' *' : null}
       </label>
-      {filteredAddresses.length > 0 ? (
+      {hasSavedAddresses ? (
         <Combobox
           options={comboboxOptions}
-          value={selectedAddressId ?? MANUAL_VALUE}
+          value={comboboxValue}
           onValueChange={handleSelectChange}
           placeholder={at('letterGeneration.addresses.selectPlaceholder')}
           emptyMessage={at('letterGeneration.addresses.empty')}
@@ -165,7 +209,7 @@ export function LetterAddressField({
         <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm whitespace-pre-wrap">
           {formatAddressMaster(selectedAddress, locale)}
         </div>
-      ) : (
+      ) : showManualFields ? (
         <StructuredAddressFields
           locale={locale}
           parts={addressParts}
@@ -173,7 +217,7 @@ export function LetterAddressField({
           previewText={formatAddressMaster(addressParts, locale)}
           pincodeError={pincodeError}
         />
-      )}
+      ) : null}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );

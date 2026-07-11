@@ -64,8 +64,6 @@ import {
 import { useTranslations } from '@/hooks/use-translations';
 import {
   buildLetterBody,
-  DEFAULT_OFFICE_ADDRESS,
-  DEFAULT_RATION_OFFICE_ADDRESS,
   DEFAULT_SIGNATORY,
   LETTER_TYPES,
   type CommonLetterFields,
@@ -102,7 +100,6 @@ import { DateRangePicker } from '@/components/date-range-picker';
 import { ModulePageHeader } from '@/components/module-page-header';
 import {
   createEmptyAddressParts,
-  findDefaultAddress,
   LetterAddressField,
   type AddressMasterRow,
 } from '@/components/letter-address-field';
@@ -383,7 +380,7 @@ function rationDefaults(locale: LetterLocale): RationLetterFields {
     fullName: '',
     address: '',
     familyMembers: '',
-    rationOfficeAddress: DEFAULT_RATION_OFFICE_ADDRESS[locale],
+    rationOfficeAddress: '',
     rationCardNo: '',
     fromRationOffice: '',
     toRationOffice: '',
@@ -397,7 +394,7 @@ function incomeDefaults(locale: LetterLocale): IncomeLetterFields {
     salutation: locale === 'en' ? 'Shri' : 'श्री',
     fullName: '',
     address: '',
-    officeAddress: DEFAULT_OFFICE_ADDRESS[locale],
+    officeAddress: '',
     aadhaarNo: '',
     annualIncome: '',
   };
@@ -410,7 +407,7 @@ function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
     salutation: locale === 'en' ? 'Shri' : 'श्री',
     fullName: '',
     address: '',
-    officeAddress: DEFAULT_OFFICE_ADDRESS[locale],
+    officeAddress: '',
     aadhaarNo: '',
   };
 }
@@ -776,7 +773,7 @@ function isAddressProvided(
 ): boolean {
   if (selectedId) return true;
   if (hasRequiredAddressFields(parts, locale)) return true;
-  // Pre-filled default free-text (e.g. default office / ration office address)
+  // Manual free-text only (structured parts empty)
   if (addressText.trim() && !hasAddressContent(parts)) return true;
   return false;
 }
@@ -1324,23 +1321,6 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       }
     }
 
-    if (!addressSelections.rationOffice) {
-      setRationFields((prev) => ({
-        ...prev,
-        rationOfficeAddress: DEFAULT_RATION_OFFICE_ADDRESS[letterLocale],
-      }));
-    }
-    if (!addressSelections.office) {
-      setIncomeFields((prev) => ({
-        ...prev,
-        officeAddress: DEFAULT_OFFICE_ADDRESS[letterLocale],
-      }));
-      setDomicileFields((prev) => ({
-        ...prev,
-        officeAddress: DEFAULT_OFFICE_ADDRESS[letterLocale],
-      }));
-    }
-
     prevLetterLocaleRef.current = letterLocale;
   }, [letterLocale, addresses, addressSelections, manualAddressParts]);
 
@@ -1614,48 +1594,6 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     void refreshDocumentTypes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (addresses.length === 0) return;
-
-    const defaultOffice = findDefaultAddress(addresses, 'office');
-    const defaultRationOffice = findDefaultAddress(addresses, 'ration_office');
-
-    setAddressSelections((prev) => ({
-      school: prev.school,
-      applicant: prev.applicant,
-      rationOffice: prev.rationOffice ?? defaultRationOffice?.id ?? null,
-      office: prev.office ?? defaultOffice?.id ?? null,
-    }));
-
-    if (defaultRationOffice) {
-      const rationOfficeText = formatAddressMaster(defaultRationOffice, letterLocale);
-      setRationFields((prev) =>
-        prev.rationOfficeAddress === DEFAULT_RATION_OFFICE_ADDRESS[letterLocale] ||
-          !prev.rationOfficeAddress.trim()
-          ? { ...prev, rationOfficeAddress: rationOfficeText }
-          : prev,
-      );
-    }
-
-    if (defaultOffice) {
-      const officeText = formatAddressMaster(defaultOffice, letterLocale);
-      setIncomeFields((prev) =>
-        prev.officeAddress === DEFAULT_OFFICE_ADDRESS[letterLocale] ||
-          !prev.officeAddress.trim()
-          ? { ...prev, officeAddress: officeText }
-          : prev,
-      );
-      setDomicileFields((prev) =>
-        prev.officeAddress === DEFAULT_OFFICE_ADDRESS[letterLocale] ||
-          !prev.officeAddress.trim()
-          ? { ...prev, officeAddress: officeText }
-          : prev,
-      );
-    }
-    // Apply defaults once when addresses are first loaded.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addresses]);
 
   useEffect(() => {
     if (!addressSelections.school) return;
