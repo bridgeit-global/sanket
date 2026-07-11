@@ -25,6 +25,7 @@ import type {
   Letter,
   LetterMaster,
   AddressMaster,
+  DocumentTypeMaster,
   MlaProject,
   PhoneUpdateHistory,
   ProjectAttachment,
@@ -276,6 +277,22 @@ export function mapAddressMasterRow(row: Row): AddressMaster {
     stateEn: String(row.state_en ?? row.stateEn ?? ''),
     stateMr: String(row.state_mr ?? row.stateMr ?? ''),
     pincode: String(row.pincode ?? ''),
+    isActive: Boolean(row.is_active ?? row.isActive ?? true),
+    sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
+    createdBy: toStringOrNull(row.created_by ?? row.createdBy),
+    updatedBy: toStringOrNull(row.updated_by ?? row.updatedBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapDocumentTypeMasterRow(row: Row): DocumentTypeMaster {
+  return {
+    id: String(row.id),
+    code: String(row.code),
+    labelEn: String(row.label_en ?? row.labelEn ?? ''),
+    labelMr: String(row.label_mr ?? row.labelMr ?? ''),
+    lastSequence: Number(row.last_sequence ?? row.lastSequence ?? 0),
     isActive: Boolean(row.is_active ?? row.isActive ?? true),
     sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),

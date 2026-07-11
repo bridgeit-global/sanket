@@ -7,6 +7,7 @@ import {
   ChevronUp,
   Eye,
   FileDown,
+  FileType,
   Calendar,
   ImageIcon,
   Loader2,
@@ -128,8 +129,10 @@ import {
   formatReferenceForDisplay,
   formatReferenceNumberForLocale,
   normalizeReferencePrefix,
+  parseReference,
   type DocumentType,
 } from '@/lib/letters/reference-sequence';
+import type { DocumentTypeMasterRow } from '@/components/document-type-master-page';
 import { toWesternDigits } from '@/lib/locale-digits';
 import { cn } from '@/lib/utils';
 
@@ -936,6 +939,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   const [letterMasters, setLetterMasters] = useState<LetterMasterRow[]>([]);
   const [letterMastersLoading, setLetterMastersLoading] = useState(false);
   const [addresses, setAddresses] = useState<AddressMasterRow[]>([]);
+  const [documentTypes, setDocumentTypes] = useState<DocumentTypeMasterRow[]>([]);
   const [addressSelections, setAddressSelections] = useState<AddressSelectionState>({
     school: null,
     applicant: null,
@@ -1546,6 +1550,18 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     }
   };
 
+  const refreshDocumentTypes = async () => {
+    try {
+      const res = await fetch('/api/document-types');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch document types');
+      setDocumentTypes((json?.documentTypes ?? []) as DocumentTypeMasterRow[]);
+    } catch (error) {
+      console.error('Failed to fetch document types', error);
+      toast.error(t('letterGeneration.documentTypesMaster.fetchError'));
+    }
+  };
+
   const refreshSavedLetters = async () => {
     setSavedLettersLoading(true);
     try {
@@ -1565,6 +1581,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     void refreshSavedLetters();
     void refreshLetterMasters();
     void refreshAddresses();
+    void refreshDocumentTypes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -2083,6 +2100,8 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
           letterLocale,
           letterMasterId: activeLetterMaster?.id ?? null,
           referenceNo: activeFullReferenceNo,
+          referencePrefix: activeReferencePrefix,
+          autoSequence: referenceNumberAutoRef.current,
           title: activeTitle,
           fields: activeFields,
           renderedHtml: activeBody,
@@ -2107,8 +2126,18 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       toast.success(t('letterGeneration.savedLetters.saveSuccess'));
       await refreshSavedLetters();
       setSelectedSavedLetterId(json?.letter?.id ?? null);
+      const savedRef = parseReference(String(json?.letter?.referenceNo ?? ''));
+      if (savedRef.prefix && savedRef.number) {
+        syncReferenceFields(
+          savedRef.prefix,
+          formatReferenceNumberForLocale(savedRef.number, letterLocale),
+        );
+      }
       referenceNumberAutoRef.current = true;
-      await refreshReferenceSequence(activeReferencePrefix, { force: true });
+      await refreshReferenceSequence(
+        savedRef.prefix || activeReferencePrefix,
+        { force: true },
+      );
     } catch (error) {
       console.error('Failed to save letter', error);
       toast.error(t('letterGeneration.savedLetters.saveError'));
@@ -2330,7 +2359,8 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
         >
           <Select
             value={
-              coerceDocumentType(fields.referencePrefix) ?? defaultReferencePrefix()
+              coerceDocumentType(fields.referencePrefix) ??
+              (fields.referencePrefix || defaultReferencePrefix())
             }
             onValueChange={(value) => {
               const nextPrefix = value as DocumentType;
@@ -2354,9 +2384,12 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
               />
             </SelectTrigger>
             <SelectContent>
-              {DOCUMENT_TYPES.map((docType) => (
+              {(documentTypes.length > 0
+                ? documentTypes.map((docType) => docType.code)
+                : [...DOCUMENT_TYPES]
+              ).map((docType) => (
                 <SelectItem key={docType} value={docType}>
-                  {documentTypeLabel(docType, letterLocale)}
+                  {documentTypeLabel(docType, letterLocale, documentTypes)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -2414,12 +2447,20 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
         title={t('letterGeneration.title')}
         description={t('letterGeneration.description')}
         actions={
-          <Button variant="outline" asChild>
-            <Link href="/modules/letter-generation/addresses">
-              <MapPin className="mr-2 size-4" />
-              {t('letterGeneration.addresses.manageLink')}
-            </Link>
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link href="/modules/letter-generation/document-types">
+                <FileType className="mr-2 size-4" />
+                {t('letterGeneration.documentTypesMaster.manageLink')}
+              </Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link href="/modules/letter-generation/addresses">
+                <MapPin className="mr-2 size-4" />
+                {t('letterGeneration.addresses.manageLink')}
+              </Link>
+            </Button>
+          </div>
         }
       />
 

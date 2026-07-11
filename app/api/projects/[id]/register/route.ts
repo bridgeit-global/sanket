@@ -6,8 +6,11 @@ import {
   getRegisterEntriesByProjectId,
   createRegisterEntry,
   getRegisterAttachments,
+  getDocumentTypeByCode,
+  resolveDocumentTypeReferenceForSave,
 } from '@/lib/db/queries';
 import { hasModuleAccess } from '@/lib/db/queries';
+import { parseReference } from '@/lib/letters/reference-sequence';
 import { registerEntryFormSchema, validateForm } from '@/lib/validations';
 
 export async function GET(
@@ -80,7 +83,17 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { type, documentType, date, fromTo, subject, mode, refNo, officer } = body;
+    const {
+      type,
+      documentType,
+      date,
+      fromTo,
+      subject,
+      mode,
+      refNo,
+      officer,
+      autoSequence,
+    } = body;
 
     // Validate required fields
     if (!type || !date || !fromTo || !subject) {
@@ -90,10 +103,13 @@ export async function POST(
       );
     }
 
-    // Validate documentType if provided
-    if (documentType && !['VIP', 'Department', 'General'].includes(documentType)) {
+    const requestedType = String(documentType || 'General').trim();
+    const docType = await getDocumentTypeByCode(requestedType, {
+      activeOnly: true,
+    });
+    if (!docType) {
       return NextResponse.json(
-        { error: 'documentType must be one of: VIP, Department, General' },
+        { error: 'documentType is invalid or inactive' },
         { status: 400 },
       );
     }
@@ -111,12 +127,23 @@ export async function POST(
       );
     }
 
+    let resolvedRefNo = refNo ? String(refNo).trim() || undefined : undefined;
+    if (type === 'outward') {
+      const parsed = parseReference(resolvedRefNo ?? '');
+      const resolved = await resolveDocumentTypeReferenceForSave({
+        code: docType.code,
+        autoSequence: autoSequence !== false,
+        clientNumber: parsed.number || undefined,
+      });
+      resolvedRefNo = resolved.fullReference;
+    }
+
     const validation = validateForm(registerEntryFormSchema, {
       date,
       fromTo,
       subject,
       mode: mode || undefined,
-      refNo: refNo || undefined,
+      refNo: resolvedRefNo,
       officer: officer || undefined,
     });
     if (!validation.success) {
@@ -126,7 +153,7 @@ export async function POST(
 
     const entry = await createRegisterEntry({
       type,
-      documentType: documentType || 'General',
+      documentType: docType.code,
       date,
       fromTo: validation.data.fromTo,
       subject: validation.data.subject,
@@ -140,6 +167,22 @@ export async function POST(
     return NextResponse.json(entry, { status: 201 });
   } catch (error) {
     console.error('Error creating register entry:', error);
+    const message = error instanceof Error ? error.message : '';
+    const cause =
+      error instanceof Error && 'cause' in error && typeof error.cause === 'string'
+        ? error.cause
+        : '';
+    const detail = `${message} ${cause}`;
+    if (
+      detail.includes('Document type not found') ||
+      detail.includes('inactive') ||
+      detail.includes('Reference number is required')
+    ) {
+      return NextResponse.json(
+        { error: cause || message || 'Invalid document type or reference' },
+        { status: 400 },
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to create register entry' },
       { status: 500 },

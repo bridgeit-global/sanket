@@ -1,10 +1,13 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { getReferenceNosForPrefix, hasModuleAccess } from '@/lib/db/queries';
+import {
+  hasModuleAccess,
+  peekDocumentTypeSequence,
+  getDocumentTypeByCode,
+} from '@/lib/db/queries';
 import {
   formatReference,
-  nextSequenceNumber,
   normalizeReferencePrefix,
 } from '@/lib/letters/reference-sequence';
 
@@ -32,12 +35,19 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const refs = await getReferenceNosForPrefix(prefix);
-    const nextNumber = nextSequenceNumber(refs, prefix);
-    const fullReference = formatReference(prefix, nextNumber);
+    const docType = await getDocumentTypeByCode(prefix, { activeOnly: true });
+    if (!docType) {
+      return NextResponse.json(
+        { error: 'Document type not found or inactive' },
+        { status: 404 },
+      );
+    }
+
+    const nextNumber = await peekDocumentTypeSequence(docType.code);
+    const fullReference = formatReference(docType.code, nextNumber);
 
     return NextResponse.json({
-      prefix,
+      prefix: docType.code,
       nextNumber,
       fullReference,
     });

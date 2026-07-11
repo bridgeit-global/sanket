@@ -6,11 +6,11 @@ export type ParsedReference = {
   number: string;
 };
 
-/** Document types double as outward/letter reference prefixes. */
+/** Seed / fallback document type codes (DB is source of truth). */
 export const DOCUMENT_TYPES = ['VIP', 'Department', 'General'] as const;
-export type DocumentType = (typeof DOCUMENT_TYPES)[number];
+export type DocumentType = (typeof DOCUMENT_TYPES)[number] | string;
 
-const LEGACY_PREFIX_ALIASES: Record<string, DocumentType> = {
+const LEGACY_PREFIX_ALIASES: Record<string, string> = {
   general: 'General',
   सामान्य: 'General',
   vip: 'VIP',
@@ -18,23 +18,24 @@ const LEGACY_PREFIX_ALIASES: Record<string, DocumentType> = {
   विभाग: 'Department',
 };
 
-export function isDocumentType(value: string): value is DocumentType {
+export function isDocumentType(value: string): boolean {
   return (DOCUMENT_TYPES as readonly string[]).includes(value);
 }
 
-/** Map a free-text / legacy prefix onto a document type when possible. */
-export function coerceDocumentType(prefix: string): DocumentType | null {
+/** Map a free-text / legacy prefix onto a known seed document type when possible. */
+export function coerceDocumentType(prefix: string): string | null {
   const normalized = normalizeReferencePrefix(prefix);
+  if (!normalized) return null;
   if (isDocumentType(normalized)) return normalized;
   return LEGACY_PREFIX_ALIASES[normalized.toLowerCase()] ?? null;
 }
 
 /** Default reference prefix (Document Type). Locale no longer changes the stored prefix. */
-export function defaultReferencePrefix(_locale?: LetterLocale | string): DocumentType {
+export function defaultReferencePrefix(_locale?: LetterLocale | string): string {
   return 'General';
 }
 
-const DOCUMENT_TYPE_LABELS: Record<LetterLocale, Record<DocumentType, string>> = {
+const DOCUMENT_TYPE_LABELS: Record<LetterLocale, Record<string, string>> = {
   en: {
     VIP: 'VIP',
     Department: 'Department',
@@ -47,15 +48,33 @@ const DOCUMENT_TYPE_LABELS: Record<LetterLocale, Record<DocumentType, string>> =
   },
 };
 
-/** Localized Document Type label for UI / letter body (stored value stays English). */
+export type DocumentTypeLabelSource = {
+  code: string;
+  labelEn?: string;
+  labelMr?: string;
+};
+
+/** Localized Document Type label for UI / letter body (stored value stays as code). */
 export function documentTypeLabel(
   type: string,
   locale: LetterLocale | string = 'en',
+  sources?: DocumentTypeLabelSource[],
 ): string {
-  const docType = coerceDocumentType(type) ?? (isDocumentType(type) ? type : null);
-  if (!docType) return type;
   const lang: LetterLocale = locale === 'mr' ? 'mr' : 'en';
-  return DOCUMENT_TYPE_LABELS[lang][docType];
+  const normalized = normalizeReferencePrefix(type);
+  const fromMaster = sources?.find(
+    (item) => item.code.toLowerCase() === normalized.toLowerCase(),
+  );
+  if (fromMaster) {
+    const label = lang === 'mr' ? fromMaster.labelMr : fromMaster.labelEn;
+    if (label?.trim()) return label.trim();
+  }
+
+  const coerced = coerceDocumentType(type) ?? (isDocumentType(type) ? type : null);
+  if (coerced && DOCUMENT_TYPE_LABELS[lang][coerced]) {
+    return DOCUMENT_TYPE_LABELS[lang][coerced];
+  }
+  return type;
 }
 
 /** Trim prefix and strip a trailing slash. */

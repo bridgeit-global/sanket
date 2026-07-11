@@ -49,6 +49,12 @@ import {
   registerEntryFormSchema,
   validateForm,
 } from '@/lib/validations';
+import {
+  DOCUMENT_TYPES,
+  documentTypeLabel,
+  defaultReferencePrefix,
+} from '@/lib/letters/reference-sequence';
+import type { DocumentTypeMasterRow } from '@/components/document-type-master-page';
 
 interface Attachment {
   id: string;
@@ -61,7 +67,7 @@ interface Attachment {
 interface RegisterEntry {
   id: string;
   type: 'inward' | 'outward';
-  documentType: 'VIP' | 'Department' | 'General';
+  documentType: string;
   date: string;
   fromTo: string;
   subject: string;
@@ -90,6 +96,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const router = useRouter();
   const [project, setProject] = useState<Project | null>(null);
   const [entries, setEntries] = useState<RegisterEntry[]>([]);
+  const [documentTypes, setDocumentTypes] = useState<DocumentTypeMasterRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
   const [editingEntry, setEditingEntry] = useState<RegisterEntry | null>(null);
@@ -111,7 +118,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   // Entry form
   const [entryForm, setEntryForm] = useState({
     type: 'inward' as 'inward' | 'outward',
-    documentType: 'General' as 'VIP' | 'Department' | 'General',
+    documentType: defaultReferencePrefix(),
     date: format(new Date(), 'yyyy-MM-dd'),
     fromTo: '',
     subject: '',
@@ -153,7 +160,20 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   useEffect(() => {
     loadProject();
     loadAllProjects();
+    void loadDocumentTypes();
   }, [projectId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadDocumentTypes = async () => {
+    try {
+      const response = await fetch('/api/document-types');
+      if (response.ok) {
+        const data = await response.json();
+        setDocumentTypes((data?.documentTypes ?? []) as DocumentTypeMasterRow[]);
+      }
+    } catch (error) {
+      console.error('Error loading document types:', error);
+    }
+  };
 
   const loadAllProjects = async () => {
     try {
@@ -291,7 +311,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       const response = await fetch(`/api/projects/${projectId}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(entryForm),
+        body: JSON.stringify({
+          ...entryForm,
+          autoSequence: entryForm.type === 'outward' ? true : undefined,
+        }),
       });
 
       if (response.ok) {
@@ -346,7 +369,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         }
         setEntryForm({
           type: 'inward',
-          documentType: 'General',
+          documentType: defaultReferencePrefix(),
           date: format(new Date(), 'yyyy-MM-dd'),
           fromTo: '',
           subject: '',
@@ -507,9 +530,19 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   };
 
   // Filter entries by documentType
-  const vipEntries = sortEntriesChronologically(entries.filter((e) => e.documentType === 'VIP'));
-  const departmentEntries = sortEntriesChronologically(entries.filter((e) => e.documentType === 'Department'));
-  const generalEntries = sortEntriesChronologically(entries.filter((e) => e.documentType === 'General'));
+  const documentTypeCodes = useMemo(() => {
+    const codes = new Set<string>();
+    for (const item of documentTypes) codes.add(item.code);
+    for (const entry of entries) {
+      if (entry.documentType) codes.add(entry.documentType);
+    }
+    if (codes.size === 0) {
+      for (const code of DOCUMENT_TYPES) codes.add(code);
+    }
+    return Array.from(codes);
+  }, [documentTypes, entries]);
+
+  const defaultDocumentTypeTab = documentTypeCodes[0] ?? 'General';
 
   // Filter entries by type for print view
   const inwardEntries = sortEntriesChronologically(entries.filter((e) => e.type === 'inward'));
@@ -897,16 +930,21 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                   <Select
                     value={entryForm.documentType}
                     onValueChange={(value) =>
-                      setEntryForm({ ...entryForm, documentType: value as 'VIP' | 'Department' | 'General' })
+                      setEntryForm({ ...entryForm, documentType: value })
                     }
                   >
                     <SelectTrigger id="entry-documentType">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="VIP">VIP</SelectItem>
-                      <SelectItem value="Department">Department</SelectItem>
-                      <SelectItem value="General">General</SelectItem>
+                      {(documentTypes.length > 0
+                        ? documentTypes.map((docType) => docType.code)
+                        : [...DOCUMENT_TYPES]
+                      ).map((docType) => (
+                        <SelectItem key={docType} value={docType}>
+                          {documentTypeLabel(docType, 'en', documentTypes)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1072,288 +1110,119 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             </form>
           )}
 
-          <Tabs defaultValue="VIP" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="VIP">VIP ({vipEntries.length})</TabsTrigger>
-              <TabsTrigger value="Department">Department ({departmentEntries.length})</TabsTrigger>
-              <TabsTrigger value="General">General ({generalEntries.length})</TabsTrigger>
+          <Tabs defaultValue={defaultDocumentTypeTab} className="w-full">
+            <TabsList
+              className="grid w-full"
+              style={{ gridTemplateColumns: `repeat(${Math.max(documentTypeCodes.length, 1)}, minmax(0, 1fr))` }}
+            >
+              {documentTypeCodes.map((code) => {
+                const count = entries.filter((e) => e.documentType === code).length;
+                return (
+                  <TabsTrigger key={code} value={code}>
+                    {documentTypeLabel(code, 'en', documentTypes)} ({count})
+                  </TabsTrigger>
+                );
+              })}
             </TabsList>
-            <TabsContent value="VIP" className="mt-4">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>From/To</TableHead>
-                      <TableHead>Subject</TableHead>
-                      <TableHead>Mode</TableHead>
-                      <TableHead>Ref No</TableHead>
-                      <TableHead>Officer</TableHead>
-                      <TableHead>Attachments</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {vipEntries.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={9}
-                          className="text-center text-muted-foreground"
-                        >
-                          No VIP register entries yet.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      vipEntries.map((entry) => (
-                        <TableRow key={entry.id}>
-                          <TableCell>
-                            <span
-                              className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${entry.type === 'inward'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-green-100 text-green-800'
-                                }`}
-                            >
-                              {entry.type === 'inward' ? (
-                                <Inbox className="mr-1 h-3 w-3" />
-                              ) : (
-                                <Send className="mr-1 h-3 w-3" />
-                              )}
-                              {entry.type}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {format(new Date(entry.date), 'dd MMM yyyy')}
-                          </TableCell>
-                          <TableCell>{entry.fromTo}</TableCell>
-                          <TableCell className="font-medium">{entry.subject}</TableCell>
-                          <TableCell>{entry.mode || '-'}</TableCell>
-                          <TableCell>{entry.refNo || '-'}</TableCell>
-                          <TableCell>{entry.officer || '-'}</TableCell>
-                          <TableCell>
-                            {entry.attachments && entry.attachments.length > 0 ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-auto py-1 px-2 text-sm text-muted-foreground hover:text-foreground"
-                                onClick={() => setAttachmentDialogEntry(entry)}
-                              >
-                                <Paperclip className="h-3 w-3 mr-1" />
-                                {entry.attachments.length} file(s)
-                              </Button>
-                            ) : (
-                              '-'
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => startEditEntry(entry)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteEntry(entry.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
+            {documentTypeCodes.map((code) => {
+              const typeEntries = sortEntriesChronologically(
+                entries.filter((e) => e.documentType === code),
+              );
+              return (
+                <TabsContent key={code} value={code} className="mt-4">
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Date</TableHead>
+                          <TableHead>From/To</TableHead>
+                          <TableHead>Subject</TableHead>
+                          <TableHead>Mode</TableHead>
+                          <TableHead>Ref No</TableHead>
+                          <TableHead>Officer</TableHead>
+                          <TableHead>Attachments</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-            <TabsContent value="Department" className="mt-4">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>From/To</TableHead>
-                      <TableHead>Subject</TableHead>
-                      <TableHead>Mode</TableHead>
-                      <TableHead>Ref No</TableHead>
-                      <TableHead>Officer</TableHead>
-                      <TableHead>Attachments</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {departmentEntries.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={9}
-                          className="text-center text-muted-foreground"
-                        >
-                          No Department register entries yet.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      departmentEntries.map((entry) => (
-                        <TableRow key={entry.id}>
-                          <TableCell>
-                            <span
-                              className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${entry.type === 'inward'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-green-100 text-green-800'
-                                }`}
+                      </TableHeader>
+                      <TableBody>
+                        {typeEntries.length === 0 ? (
+                          <TableRow>
+                            <TableCell
+                              colSpan={9}
+                              className="text-center text-muted-foreground"
                             >
-                              {entry.type === 'inward' ? (
-                                <Inbox className="mr-1 h-3 w-3" />
-                              ) : (
-                                <Send className="mr-1 h-3 w-3" />
-                              )}
-                              {entry.type}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {format(new Date(entry.date), 'dd MMM yyyy')}
-                          </TableCell>
-                          <TableCell>{entry.fromTo}</TableCell>
-                          <TableCell className="font-medium">{entry.subject}</TableCell>
-                          <TableCell>{entry.mode || '-'}</TableCell>
-                          <TableCell>{entry.refNo || '-'}</TableCell>
-                          <TableCell>{entry.officer || '-'}</TableCell>
-                          <TableCell>
-                            {entry.attachments && entry.attachments.length > 0 ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-auto py-1 px-2 text-sm text-muted-foreground hover:text-foreground"
-                                onClick={() => setAttachmentDialogEntry(entry)}
-                              >
-                                <Paperclip className="h-3 w-3 mr-1" />
-                                {entry.attachments.length} file(s)
-                              </Button>
-                            ) : (
-                              '-'
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => startEditEntry(entry)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteEntry(entry.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-            <TabsContent value="General" className="mt-4">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>From/To</TableHead>
-                      <TableHead>Subject</TableHead>
-                      <TableHead>Mode</TableHead>
-                      <TableHead>Ref No</TableHead>
-                      <TableHead>Officer</TableHead>
-                      <TableHead>Attachments</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {generalEntries.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={9}
-                          className="text-center text-muted-foreground"
-                        >
-                          No General register entries yet.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      generalEntries.map((entry) => (
-                        <TableRow key={entry.id}>
-                          <TableCell>
-                            <span
-                              className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${entry.type === 'inward'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-green-100 text-green-800'
-                                }`}
-                            >
-                              {entry.type === 'inward' ? (
-                                <Inbox className="mr-1 h-3 w-3" />
-                              ) : (
-                                <Send className="mr-1 h-3 w-3" />
-                              )}
-                              {entry.type}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {format(new Date(entry.date), 'dd MMM yyyy')}
-                          </TableCell>
-                          <TableCell>{entry.fromTo}</TableCell>
-                          <TableCell className="font-medium">{entry.subject}</TableCell>
-                          <TableCell>{entry.mode || '-'}</TableCell>
-                          <TableCell>{entry.refNo || '-'}</TableCell>
-                          <TableCell>{entry.officer || '-'}</TableCell>
-                          <TableCell>
-                            {entry.attachments && entry.attachments.length > 0 ? (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-auto py-1 px-2 text-sm text-muted-foreground hover:text-foreground"
-                                onClick={() => setAttachmentDialogEntry(entry)}
-                              >
-                                <Paperclip className="h-3 w-3 mr-1" />
-                                {entry.attachments.length} file(s)
-                              </Button>
-                            ) : (
-                              '-'
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => startEditEntry(entry)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleDeleteEntry(entry.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
+                              No {documentTypeLabel(code, 'en', documentTypes)} register entries yet.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          typeEntries.map((entry) => (
+                            <TableRow key={entry.id}>
+                              <TableCell>
+                                <span
+                                  className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${entry.type === 'inward'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-green-100 text-green-800'
+                                    }`}
+                                >
+                                  {entry.type === 'inward' ? (
+                                    <Inbox className="mr-1 h-3 w-3" />
+                                  ) : (
+                                    <Send className="mr-1 h-3 w-3" />
+                                  )}
+                                  {entry.type}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                {format(new Date(entry.date), 'dd MMM yyyy')}
+                              </TableCell>
+                              <TableCell>{entry.fromTo}</TableCell>
+                              <TableCell className="font-medium">{entry.subject}</TableCell>
+                              <TableCell>{entry.mode || '-'}</TableCell>
+                              <TableCell>{entry.refNo || '-'}</TableCell>
+                              <TableCell>{entry.officer || '-'}</TableCell>
+                              <TableCell>
+                                {entry.attachments && entry.attachments.length > 0 ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-auto py-1 px-2 text-sm text-muted-foreground hover:text-foreground"
+                                    onClick={() => setAttachmentDialogEntry(entry)}
+                                  >
+                                    <Paperclip className="h-3 w-3 mr-1" />
+                                    {entry.attachments.length} file(s)
+                                  </Button>
+                                ) : (
+                                  '-'
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex justify-end gap-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => startEditEntry(entry)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleDeleteEntry(entry.id)}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </TabsContent>
+              );
+            })}
           </Tabs>
         </CardContent>
       </Card>
@@ -1378,16 +1247,21 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 <Select
                   value={entryForm.documentType}
                   onValueChange={(value) =>
-                    setEntryForm({ ...entryForm, documentType: value as 'VIP' | 'Department' | 'General' })
+                    setEntryForm({ ...entryForm, documentType: value })
                   }
                 >
                   <SelectTrigger id="edit-documentType">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="VIP">VIP</SelectItem>
-                    <SelectItem value="Department">Department</SelectItem>
-                    <SelectItem value="General">General</SelectItem>
+                    {(documentTypes.length > 0
+                      ? documentTypes.map((docType) => docType.code)
+                      : [...DOCUMENT_TYPES]
+                    ).map((docType) => (
+                      <SelectItem key={docType} value={docType}>
+                        {documentTypeLabel(docType, 'en', documentTypes)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

@@ -16,6 +16,7 @@ import {
   mapExportJobRow,
   mapLetterMasterRow,
   mapAddressMasterRow,
+  mapDocumentTypeMasterRow,
   mapLetterRow,
   mapMessageRow,
   mapMlaProjectRow,
@@ -59,6 +60,7 @@ import type {
   Letter,
   LetterMaster,
   AddressMaster,
+  DocumentTypeMaster,
   MlaProject,
   AdmFundingCategory,
   AdmWork,
@@ -2699,6 +2701,386 @@ export async function deleteAddressMaster(id: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Document type masters + reference sequence
+// ---------------------------------------------------------------------------
+
+const DEFAULT_DOCUMENT_TYPE_SEEDS: Array<{
+  code: string;
+  labelEn: string;
+  labelMr: string;
+  sortOrder: number;
+}> = [
+  { code: 'VIP', labelEn: 'VIP', labelMr: 'VIP', sortOrder: 1 },
+  { code: 'Department', labelEn: 'Department', labelMr: 'विभाग', sortOrder: 2 },
+  { code: 'General', labelEn: 'General', labelMr: 'सामान्य', sortOrder: 3 },
+];
+
+export async function ensureDocumentTypeDefaults(): Promise<void> {
+  try {
+    const { data: existingRows, error: existingError } = await supabase
+      .from(TABLES.documentTypeMaster)
+      .select('code');
+    throwOnSupabaseError(existingError, 'Failed to list document types');
+
+    const existingCodes = new Set(
+      (existingRows ?? []).map((row) => String(row.code).toLowerCase()),
+    );
+    const missing = DEFAULT_DOCUMENT_TYPE_SEEDS.filter(
+      (item) => !existingCodes.has(item.code.toLowerCase()),
+    );
+    if (missing.length === 0) return;
+
+    const now = new Date().toISOString();
+    const { error } = await supabase.from(TABLES.documentTypeMaster).insert(
+      missing.map((item) =>
+        toSnakeCaseKeys({
+          code: item.code,
+          labelEn: item.labelEn,
+          labelMr: item.labelMr,
+          lastSequence: 0,
+          sortOrder: item.sortOrder,
+          isActive: true,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      ),
+    );
+    throwOnSupabaseError(error, 'Failed to seed document types');
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to seed document types');
+  }
+}
+
+export async function getDocumentTypes({
+  activeOnly = true,
+}: {
+  activeOnly?: boolean;
+} = {}): Promise<Array<DocumentTypeMaster>> {
+  try {
+    await ensureDocumentTypeDefaults();
+    let query = supabase
+      .from(TABLES.documentTypeMaster)
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('code', { ascending: true });
+
+    if (activeOnly) {
+      query = query.eq('is_active', true);
+    }
+
+    const { data, error } = await query;
+    throwOnSupabaseError(error, 'Failed to get document types');
+    return (data ?? []).map(mapDocumentTypeMasterRow);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get document types');
+  }
+}
+
+export async function getDocumentTypeById(
+  id: string,
+): Promise<DocumentTypeMaster | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.documentTypeMaster)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get document type');
+    return data ? mapDocumentTypeMasterRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get document type');
+  }
+}
+
+export async function getDocumentTypeByCode(
+  code: string,
+  { activeOnly = false }: { activeOnly?: boolean } = {},
+): Promise<DocumentTypeMaster | null> {
+  try {
+    await ensureDocumentTypeDefaults();
+    const { normalizeReferencePrefix } = await import(
+      '@/lib/letters/reference-sequence'
+    );
+    const normalized = normalizeReferencePrefix(code);
+    if (!normalized) return null;
+
+    let query = supabase
+      .from(TABLES.documentTypeMaster)
+      .select('*')
+      .ilike('code', normalized)
+      .limit(1);
+
+    if (activeOnly) {
+      query = query.eq('is_active', true);
+    }
+
+    const { data, error } = await query.maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get document type by code');
+    return data ? mapDocumentTypeMasterRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get document type by code',
+    );
+  }
+}
+
+export async function createDocumentType({
+  code,
+  labelEn,
+  labelMr,
+  isActive = true,
+  sortOrder = 0,
+  createdBy,
+}: {
+  code: string;
+  labelEn: string;
+  labelMr: string;
+  isActive?: boolean;
+  sortOrder?: number;
+  createdBy?: string | null;
+}): Promise<DocumentTypeMaster> {
+  try {
+    const { normalizeReferencePrefix } = await import(
+      '@/lib/letters/reference-sequence'
+    );
+    const normalizedCode = normalizeReferencePrefix(code);
+    if (!normalizedCode) {
+      throw new ChatSDKError('bad_request:database', 'Document type code is required');
+    }
+
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.documentTypeMaster)
+      .insert(
+        toSnakeCaseKeys({
+          code: normalizedCode,
+          labelEn: labelEn.trim(),
+          labelMr: labelMr.trim(),
+          lastSequence: 0,
+          isActive,
+          sortOrder,
+          createdBy: createdBy ?? null,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create document type');
+    return mapDocumentTypeMasterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to create document type');
+  }
+}
+
+export async function updateDocumentType({
+  id,
+  code,
+  labelEn,
+  labelMr,
+  isActive,
+  sortOrder,
+  updatedBy,
+}: {
+  id: string;
+  code: string;
+  labelEn: string;
+  labelMr: string;
+  isActive?: boolean;
+  sortOrder?: number;
+  updatedBy?: string | null;
+}): Promise<DocumentTypeMaster> {
+  try {
+    const { normalizeReferencePrefix } = await import(
+      '@/lib/letters/reference-sequence'
+    );
+    const normalizedCode = normalizeReferencePrefix(code);
+    if (!normalizedCode) {
+      throw new ChatSDKError('bad_request:database', 'Document type code is required');
+    }
+
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.documentTypeMaster)
+      .update(
+        toSnakeCaseKeys({
+          code: normalizedCode,
+          labelEn: labelEn.trim(),
+          labelMr: labelMr.trim(),
+          isActive: isActive !== false,
+          sortOrder: sortOrder ?? 0,
+          updatedBy: updatedBy ?? null,
+          updatedAt: now,
+        }),
+      )
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to update document type');
+    return mapDocumentTypeMasterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to update document type');
+  }
+}
+
+export async function deleteDocumentType(id: string): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from(TABLES.documentTypeMaster)
+      .delete()
+      .eq('id', id);
+    throwOnSupabaseError(error, 'Failed to delete document type');
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to delete document type');
+  }
+}
+
+export async function peekDocumentTypeSequence(code: string): Promise<number> {
+  const docType = await getDocumentTypeByCode(code, { activeOnly: true });
+  if (!docType) {
+    throw new ChatSDKError('bad_request:database', 'Document type not found');
+  }
+  return docType.lastSequence + 1;
+}
+
+/** Atomically increment and return the next sequence number for a document type. */
+export async function allocateDocumentTypeSequence(code: string): Promise<number> {
+  try {
+    const { normalizeReferencePrefix } = await import(
+      '@/lib/letters/reference-sequence'
+    );
+    const normalized = normalizeReferencePrefix(code);
+    if (!normalized) {
+      throw new ChatSDKError('bad_request:database', 'Document type code is required');
+    }
+
+    const rows = await pgSql`
+      UPDATE "DocumentTypeMaster"
+      SET
+        last_sequence = last_sequence + 1,
+        updated_at = now()
+      WHERE lower(code) = lower(${normalized})
+        AND is_active = true
+      RETURNING last_sequence
+    `;
+
+    const next = Number(rows[0]?.last_sequence);
+    if (!Number.isFinite(next) || next < 1) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Document type not found or inactive',
+      );
+    }
+    return next;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to allocate document type sequence',
+    );
+  }
+}
+
+/** Raise the counter to at least `usedNumber` (manual override path). */
+export async function bumpDocumentTypeSequence(
+  code: string,
+  usedNumber: number,
+): Promise<number> {
+  try {
+    const { normalizeReferencePrefix } = await import(
+      '@/lib/letters/reference-sequence'
+    );
+    const normalized = normalizeReferencePrefix(code);
+    if (!normalized) {
+      throw new ChatSDKError('bad_request:database', 'Document type code is required');
+    }
+    if (!Number.isFinite(usedNumber) || usedNumber < 1) {
+      throw new ChatSDKError('bad_request:database', 'Invalid sequence number');
+    }
+
+    const rows = await pgSql`
+      UPDATE "DocumentTypeMaster"
+      SET
+        last_sequence = GREATEST(last_sequence, ${Math.trunc(usedNumber)}),
+        updated_at = now()
+      WHERE lower(code) = lower(${normalized})
+        AND is_active = true
+      RETURNING last_sequence
+    `;
+
+    const last = Number(rows[0]?.last_sequence);
+    if (!Number.isFinite(last)) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Document type not found or inactive',
+      );
+    }
+    return last;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to bump document type sequence',
+    );
+  }
+}
+
+/**
+ * Resolve the full reference for a save.
+ * autoSequence (default true): atomically allocate next number.
+ * manual: use client number and bump the counter with GREATEST.
+ */
+export async function resolveDocumentTypeReferenceForSave({
+  code,
+  autoSequence = true,
+  clientNumber,
+}: {
+  code: string;
+  autoSequence?: boolean;
+  clientNumber?: string | number | null;
+}): Promise<{ code: string; number: number; fullReference: string }> {
+  const { formatReference, normalizeReferencePrefix } = await import(
+    '@/lib/letters/reference-sequence'
+  );
+  const { toWesternDigits } = await import('@/lib/locale-digits');
+
+  const docType = await getDocumentTypeByCode(code, { activeOnly: true });
+  if (!docType) {
+    throw new ChatSDKError('bad_request:database', 'Document type not found or inactive');
+  }
+  const resolvedCode = normalizeReferencePrefix(docType.code);
+
+  if (autoSequence !== false) {
+    const number = await allocateDocumentTypeSequence(resolvedCode);
+    return {
+      code: resolvedCode,
+      number,
+      fullReference: formatReference(resolvedCode, number),
+    };
+  }
+
+  const western = toWesternDigits(String(clientNumber ?? '')).replace(/\D/g, '');
+  const number = Number.parseInt(western, 10);
+  if (!Number.isFinite(number) || number < 1) {
+    throw new ChatSDKError('bad_request:database', 'Reference number is required');
+  }
+  await bumpDocumentTypeSequence(resolvedCode, number);
+  return {
+    code: resolvedCode,
+    number,
+    fullReference: formatReference(resolvedCode, number),
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Letters
 // ---------------------------------------------------------------------------
 
@@ -2904,7 +3286,7 @@ export async function createRegisterEntry({
   createdBy,
 }: {
   type: 'inward' | 'outward';
-  documentType?: 'VIP' | 'Department' | 'General';
+  documentType?: string;
   date: Date | string;
   fromTo: string;
   subject: string;

@@ -174,7 +174,8 @@
     "outward": "Outward Register",
     "printRegister": "Print Register",
     "manageIncoming": "Manage incoming documents and letters",
-    "manageOutgoing": "Manage outgoing documents and letters"
+    "manageOutgoing": "Manage outgoing documents and letters",
+    "manageDocumentTypes": "Manage Document Types"
   },
   "backOffice": {
     "title": "Back Office",
@@ -533,6 +534,37 @@
         "office": "Government Office",
         "ration_office": "Ration Office",
         "general": "General / Applicant"
+      }
+    },
+    "documentTypesMaster": {
+      "title": "Document Types",
+      "description": "Manage document types used as reference prefixes for letters and outward register.",
+      "manageLink": "Manage Document Types",
+      "backToLetterGeneration": "Back to Letter Generation",
+      "addTitle": "Add Document Type",
+      "editTitle": "Edit Document Type",
+      "formDescription": "Code is stored on letters and register entries. Labels are shown in the UI.",
+      "save": "Save Document Type",
+      "create": "Create Document Type",
+      "createSuccess": "Document type created",
+      "updateSuccess": "Document type updated",
+      "createError": "Failed to create document type",
+      "updateError": "Failed to update document type",
+      "deleteSuccess": "Document type deleted",
+      "deleteError": "Failed to delete document type",
+      "fetchError": "Failed to load document types",
+      "validationRequired": "Code, English label, and Marathi label are required",
+      "empty": "No document types yet. Add VIP, Department, General, or custom types.",
+      "activeYes": "Active",
+      "activeNo": "Inactive",
+      "columns": {
+        "code": "Code",
+        "label": "Label",
+        "labelEn": "English Label",
+        "labelMr": "Marathi Label",
+        "nextNumber": "Next No.",
+        "active": "Active",
+        "sortOrder": "Sort Order"
       }
     },
     "savedLetters": {

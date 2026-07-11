@@ -16,6 +16,7 @@ export const TABLES = {
   letter: 'Letter',
   letterMaster: 'LetterMaster',
   addressMaster: 'AddressMaster',
+  documentTypeMaster: 'DocumentTypeMaster',
   voterMaster: 'VoterMaster',
   electionMaster: 'ElectionMaster',
   boothMaster: 'BoothMaster',
@@ -175,6 +176,20 @@ export type AddressMaster = {
   stateEn: string;
   stateMr: string;
   pincode: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type DocumentTypeMaster = {
+  id: string;
+  code: string;
+  labelEn: string;
+  labelMr: string;
+  lastSequence: number;
   isActive: boolean;
   sortOrder: number;
   createdBy: string | null;
@@ -398,7 +413,7 @@ export type ProjectAttachment = {
 export type RegisterEntry = {
   id: string;
   type: 'inward' | 'outward';
-  documentType: 'VIP' | 'Department' | 'General';
+  documentType: string;
   date: string;
   fromTo: string;
   subject: string;

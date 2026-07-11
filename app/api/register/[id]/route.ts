@@ -6,6 +6,7 @@ import {
   updateRegisterEntry,
   deleteRegisterEntry,
   getRegisterAttachments,
+  getDocumentTypeByCode,
 } from '@/lib/db/queries';
 import { hasModuleAccess } from '@/lib/db/queries';
 import { registerEntryFormSchema, validateForm } from '@/lib/validations';
@@ -105,14 +106,16 @@ export async function PUT(
     if (body.refNo !== undefined) updateData.refNo = validation.data.refNo || null;
     if (body.officer !== undefined) updateData.officer = validation.data.officer || null;
     if (body.documentType !== undefined) {
-      // Validate documentType
-      if (!['VIP', 'Department', 'General'].includes(body.documentType)) {
+      const docType = await getDocumentTypeByCode(String(body.documentType), {
+        activeOnly: false,
+      });
+      if (!docType) {
         return NextResponse.json(
-          { error: 'documentType must be one of: VIP, Department, General' },
+          { error: 'documentType is invalid' },
           { status: 400 },
         );
       }
-      updateData.documentType = body.documentType;
+      updateData.documentType = docType.code;
     }
 
     const updated = await updateRegisterEntry(id, updateData);

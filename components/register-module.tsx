@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Paperclip, Search, X, Upload, Edit, Trash2 } from 'lucide-react';
+import { Printer, Paperclip, Search, X, Upload, Edit, Trash2, FileType } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { RegisterAttachmentDialog } from '@/components/register-attachment-dialog';
@@ -38,6 +38,7 @@ import {
   coerceDocumentType,
   defaultReferencePrefix,
   DOCUMENT_TYPES,
+  documentTypeLabel,
   formatReference,
   formatReferenceForDisplay,
   formatReferenceNumberForLocale,
@@ -46,7 +47,9 @@ import {
   type DocumentType,
 } from '@/lib/letters/reference-sequence';
 import type { LetterLocale } from '@/lib/letters/templates';
+import type { DocumentTypeMasterRow } from '@/components/document-type-master-page';
 import { toast } from 'sonner';
+import Link from 'next/link';
 import {
   Dialog,
   DialogContent,
@@ -131,6 +134,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
 
   const [entries, setEntries] = useState<RegisterEntry[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [documentTypes, setDocumentTypes] = useState<DocumentTypeMasterRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState<RegisterFormState>(() =>
     createEmptyRegisterForm(type),
@@ -302,9 +306,10 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
         params.set('projectStatus', filters.projectStatus);
       }
 
-      const [entriesRes, projectsRes] = await Promise.all([
+      const [entriesRes, projectsRes, documentTypesRes] = await Promise.all([
         fetch(`/api/register?${params.toString()}`),
         fetch('/api/projects'),
+        fetch('/api/document-types'),
       ]);
 
       if (entriesRes.ok) {
@@ -316,6 +321,13 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
       if (projectsRes.ok) {
         const projectsData = await projectsRes.json();
         setProjects(projectsData);
+      }
+
+      if (documentTypesRes.ok) {
+        const documentTypesData = await documentTypesRes.json();
+        setDocumentTypes(
+          (documentTypesData?.documentTypes ?? []) as DocumentTypeMasterRow[],
+        );
       }
     } catch (error) {
       console.error('Error loading data:', error);
@@ -367,6 +379,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
           mode: form.mode || undefined,
           refNo,
           officer: form.officer || undefined,
+          autoSequence: type === 'outward' ? referenceNumberAutoRef.current : undefined,
         }),
       });
 
@@ -709,6 +722,16 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
       <ModulePageHeader
         title={heading}
         description={type === 'inward' ? t('register.manageIncoming') : t('register.manageOutgoing')}
+        actions={
+          type === 'outward' ? (
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/modules/letter-generation/document-types?from=outward">
+                <FileType className="mr-2 h-4 w-4" />
+                {t('register.manageDocumentTypes')}
+              </Link>
+            </Button>
+          ) : undefined
+        }
       />
 
       <Card className="no-print">
@@ -735,9 +758,12 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {DOCUMENT_TYPES.map((docType) => (
+                  {(documentTypes.length > 0
+                    ? documentTypes.map((docType) => docType.code)
+                    : [...DOCUMENT_TYPES]
+                  ).map((docType) => (
                     <SelectItem key={docType} value={docType}>
-                      {t(`letterGeneration.fields.documentTypes.${docType}`)}
+                      {documentTypeLabel(docType, letterLocale, documentTypes)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1221,9 +1247,12 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {DOCUMENT_TYPES.map((docType) => (
+                    {(documentTypes.length > 0
+                      ? documentTypes.map((docType) => docType.code)
+                      : [...DOCUMENT_TYPES]
+                    ).map((docType) => (
                       <SelectItem key={docType} value={docType}>
-                        {t(`letterGeneration.fields.documentTypes.${docType}`)}
+                        {documentTypeLabel(docType, letterLocale, documentTypes)}
                       </SelectItem>
                     ))}
                   </SelectContent>
