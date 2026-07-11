@@ -30,6 +30,7 @@ export function stripLetterheadFromHtml(html: string): string {
 }
 
 export function getLetterheadContentPaddingMm(paperSize: LetterPaperSize): number {
+  if (paperSize === 'a5') return 41;
   const { heightMm } = LETTER_PAPER_DIMENSIONS_MM[paperSize];
   return Math.round(heightMm * LETTERHEAD_HEADER_HEIGHT_RATIO);
 }

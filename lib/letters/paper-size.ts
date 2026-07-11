@@ -16,7 +16,7 @@ export const LETTER_PAPER_DIMENSIONS_MM: Record<
 
 export const LETTER_PAPER_MARGIN_MM: Record<LetterPaperSize, number> = {
   a4: 15,
-  a5: 12,
+  a5: 15,
   b5: 12,
 };
 

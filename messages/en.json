@@ -468,6 +468,8 @@
       "letterheadTooLarge": "Letterhead must be smaller than 5 MB",
       "save": "Save Template",
       "create": "Create Template",
+      "restoreDefault": "Restore Default HTML",
+      "restoreDefaultSuccess": "Default template HTML restored — click Save Template to apply",
       "saveSuccess": "Template saved",
       "createSuccess": "Template created",
       "saveError": "Failed to save template",

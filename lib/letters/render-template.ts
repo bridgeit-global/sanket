@@ -62,6 +62,25 @@ function toFieldRecord(fields: LetterFields): Record<string, string> {
   );
 }
 
+function escapeHtmlText(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** One member per line from the form → HTML line breaks for letter body. */
+function formatFamilyMembersBlock(familyMembers: string): string {
+  return familyMembers
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map(escapeHtmlText)
+    .join('<br>');
+}
+
 function resolveGenderTokens(gender: PersonGender | undefined, locale: LetterLocale) {
   const resolvedGender: PersonGender = gender ?? 'other';
   if (locale === 'mr') {
@@ -93,8 +112,7 @@ export function buildRenderFields(
 
   if (type.startsWith('ration-')) {
     const rationFields = fields as RationLetterFields;
-    const familyMembers = rationFields.familyMembers.trim();
-    const familyMembersBlock = familyMembers ? familyMembers : '';
+    const familyMembersBlock = formatFamilyMembersBlock(rationFields.familyMembers);
     return {
       ...base,
       ...resolveGenderTokens(rationFields.gender, locale),

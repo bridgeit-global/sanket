@@ -742,6 +742,7 @@ function validateRequiredCommonFields(
   referencePrefix: string,
   referenceNo: string,
   date: string,
+  signatory: string,
   t: (key: string) => string,
   existingReferenceNos: string[] = [],
 ): LetterFieldErrors {
@@ -763,6 +764,9 @@ function validateRequiredCommonFields(
   }
   if (!date.trim()) {
     errors.date = t('letterGeneration.validation.dateRequired');
+  }
+  if (!signatory.trim()) {
+    errors.signatory = t('letterGeneration.validation.fieldRequired');
   }
   return errors;
 }
@@ -1188,8 +1192,14 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     const prevAutoDate = todayDisplay(prevLocale);
     const nextAutoDate = todayDisplay(letterLocale);
 
-    const signatory = DEFAULT_SIGNATORY[letterLocale];
+    const signatoryDefault = DEFAULT_SIGNATORY[letterLocale];
+    const prevSignatoryDefault = DEFAULT_SIGNATORY[prevLocale];
     const filterText = (value: string) => filterLocaleText(value, letterLocale);
+    const nextSignatory = (prev: string) => {
+      const trimmed = prev.trim();
+      if (!trimmed || trimmed === prevSignatoryDefault) return signatoryDefault;
+      return filterText(prev);
+    };
     const nextPrefix = (prevPrefix: string) => {
       const coerced = coerceDocumentType(prevPrefix);
       if (coerced) return coerced;
@@ -1203,7 +1213,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       ...prev,
       referencePrefix: nextPrefix(prev.referencePrefix),
       referenceNo: nextReferenceNo(prev.referenceNo),
-      signatory,
+      signatory: nextSignatory(prev.signatory),
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       schoolName: filterText(prev.schoolName),
       standard: filterText(prev.standard),
@@ -1213,7 +1223,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       ...prev,
       referencePrefix: nextPrefix(prev.referencePrefix),
       referenceNo: nextReferenceNo(prev.referenceNo),
-      signatory,
+      signatory: nextSignatory(prev.signatory),
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       schoolName: filterText(prev.schoolName),
       standard: filterText(prev.standard),
@@ -1225,7 +1235,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       ...prev,
       referencePrefix: nextPrefix(prev.referencePrefix),
       referenceNo: nextReferenceNo(prev.referenceNo),
-      signatory,
+      signatory: nextSignatory(prev.signatory),
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       schoolName: filterText(prev.schoolName),
       standard: filterText(prev.standard),
@@ -1239,7 +1249,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       ...prev,
       referencePrefix: nextPrefix(prev.referencePrefix),
       referenceNo: nextReferenceNo(prev.referenceNo),
-      signatory,
+      signatory: nextSignatory(prev.signatory),
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
       fullName: filterText(prev.fullName),
@@ -1255,7 +1265,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       ...prev,
       referencePrefix: nextPrefix(prev.referencePrefix),
       referenceNo: nextReferenceNo(prev.referenceNo),
-      signatory,
+      signatory: nextSignatory(prev.signatory),
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
       fullName: filterText(prev.fullName),
@@ -1264,7 +1274,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       ...prev,
       referencePrefix: nextPrefix(prev.referencePrefix),
       referenceNo: nextReferenceNo(prev.referenceNo),
-      signatory,
+      signatory: nextSignatory(prev.signatory),
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
       fullName: filterText(prev.fullName),
@@ -1803,6 +1813,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       activeReferencePrefix,
       activeReferenceNo,
       activeDate,
+      activeFields.signatory,
       t,
       existingReferenceNos,
     );
@@ -2457,6 +2468,28 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
               }
             }}
             placeholder={t('letterGeneration.placeholders.date')}
+          />
+        </FieldGroup>
+        <FieldGroup
+          label={t('letterGeneration.fields.signatory')}
+          required
+          error={fieldErrors.signatory}
+        >
+          <Input
+            value={fields.signatory}
+            onChange={(e) => {
+              setFields({
+                ...fields,
+                signatory: filterLocaleText(e.target.value, letterLocale),
+              });
+              if (fieldErrors.signatory) {
+                setFieldErrors((prev) => ({ ...prev, signatory: undefined }));
+              }
+            }}
+            placeholder={DEFAULT_SIGNATORY[letterLocale]}
+            required
+            lang={letterLocale === 'mr' ? 'mr' : 'en'}
+            aria-invalid={!!fieldErrors.signatory}
           />
         </FieldGroup>
       </div>
@@ -3721,6 +3754,20 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
               {t('letterGeneration.templates.placeholderHint')}
             </p>
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => {
+                  setTemplateDraft(getDefaultTemplateHtml(activeTab, letterLocale));
+                  setTemplateNameDraft(
+                    activeLetterMaster?.name?.trim() ||
+                      t(`letterGeneration.tabs.${activeTab}`),
+                  );
+                  toast.success(t('letterGeneration.templates.restoreDefaultSuccess'));
+                }}
+              >
+                {t('letterGeneration.templates.restoreDefault')}
+              </Button>
               <Button
                 variant="outline"
                 className="w-full sm:w-auto"

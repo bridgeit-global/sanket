@@ -468,6 +468,8 @@
       "letterheadTooLarge": "लेटरहेड ५ MB पेक्षा लहान असावा",
       "save": "साचा साठवा",
       "create": "साचा तयार करा",
+      "restoreDefault": "डीफॉल्ट HTML पुनर्स्थापित करा",
+      "restoreDefaultSuccess": "डीफॉल्ट साचा HTML पुनर्स्थापित झाला — लागू करण्यासाठी साचा साठवा क्लिक करा",
       "saveSuccess": "साचा साठवला",
       "createSuccess": "साचा तयार झाला",
       "saveError": "साचा साठवण्यात अयशस्वी",
