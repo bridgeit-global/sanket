@@ -2202,7 +2202,9 @@ export async function getDailyProgrammeAttachmentById(
 // Letter masters
 // ---------------------------------------------------------------------------
 
-export async function ensureLetterMasterDefaults(): Promise<void> {
+export async function ensureLetterMasterDefaults(
+  options: { forceSyncTemplates?: boolean } = {},
+): Promise<void> {
   try {
     const {
       getAllDefaultLetterMasters,
@@ -2212,6 +2214,7 @@ export async function ensureLetterMasterDefaults(): Promise<void> {
     const { getDefaultLetterPaperSize } = await import('@/lib/letters/paper-size');
     const { isLetterType } = await import('@/lib/letters/templates');
     const defaults = getAllDefaultLetterMasters();
+    const forceSyncTemplates = options.forceSyncTemplates === true;
 
     const { data: existingRows, error: existingError } = await supabase
       .from(TABLES.letterMaster)
@@ -2273,26 +2276,34 @@ export async function ensureLetterMasterDefaults(): Promise<void> {
         letterType as import('@/lib/letters/templates').LetterType,
         letterLocale as import('@/lib/letters/templates').LetterLocale,
       );
+      if (forceSyncTemplates) {
+        return row.template_html !== expectedHtml || row.name !== expectedName;
+      }
+      // Normal seed: only refresh rows that still use the canonical default name.
       return row.name === expectedName && row.template_html !== expectedHtml;
     });
 
     if (staleDefaults.length === 0) return;
 
     await Promise.all(
-      staleDefaults.map((row) =>
-        supabase
+      staleDefaults.map((row) => {
+        const letterType = String(row.letter_type) as import('@/lib/letters/templates').LetterType;
+        const letterLocale = String(
+          row.letter_locale,
+        ) as import('@/lib/letters/templates').LetterLocale;
+        return supabase
           .from(TABLES.letterMaster)
           .update(
             toSnakeCaseKeys({
-              templateHtml: getDefaultTemplateHtml(
-                String(row.letter_type) as import('@/lib/letters/templates').LetterType,
-                String(row.letter_locale) as import('@/lib/letters/templates').LetterLocale,
-              ),
+              ...(forceSyncTemplates
+                ? { name: getDefaultTemplateName(letterType, letterLocale) }
+                : {}),
+              templateHtml: getDefaultTemplateHtml(letterType, letterLocale),
               updatedAt: now,
             }),
           )
-          .eq('id', row.id),
-      ),
+          .eq('id', row.id);
+      }),
     );
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
