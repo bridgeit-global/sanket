@@ -39,7 +39,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -810,6 +809,8 @@ type AddressSelectionState = {
   applicant: string | null;
   rationOffice: string | null;
   office: string | null;
+  fromRationOffice: string | null;
+  toRationOffice: string | null;
 };
 
 type ManualAddressKey = keyof AddressSelectionState;
@@ -859,7 +860,17 @@ function getAddressMasterName(
   return address.name;
 }
 
-function getAddressMasterNameById(
+function formatRationOfficeWithAddress(
+  address: Pick<AddressMasterRow, 'name' | 'nameMr'> & AddressMasterAddressParts,
+  locale: LetterLocale,
+): string {
+  const name = getAddressMasterName(address, locale).trim();
+  const addressText = formatAddressMaster(address, locale).trim();
+  if (name && addressText) return `${name}, ${addressText}`;
+  return name || addressText;
+}
+
+function getRationOfficeLabelById(
   addresses: AddressMasterRow[],
   masterId: string | null,
   locale: LetterLocale,
@@ -867,11 +878,9 @@ function getAddressMasterNameById(
   if (!masterId) return null;
   const address = addresses.find((item) => item.id === masterId);
   if (!address) return null;
-  const name = getAddressMasterName(address, locale).trim();
-  return name || null;
+  const label = formatRationOfficeWithAddress(address, locale).trim();
+  return label || null;
 }
-
-const RATION_OFFICE_MANUAL_VALUE = '__manual_ration_office__';
 
 function applyMasterAddressToFields(
   addresses: AddressMasterRow[],
@@ -1006,16 +1015,18 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     applicant: null,
     rationOffice: null,
     office: null,
+    fromRationOffice: null,
+    toRationOffice: null,
   });
-  const [fromRationOfficeId, setFromRationOfficeId] = useState<string | null>(null);
-  const [toRationOfficeId, setToRationOfficeId] = useState<string | null>(null);
-  const [isFromRationOfficeManual, setIsFromRationOfficeManual] = useState(false);
-  const [isToRationOfficeManual, setIsToRationOfficeManual] = useState(false);
+  const addressSelectionsRef = useRef(addressSelections);
+  addressSelectionsRef.current = addressSelections;
   const [manualAddressParts, setManualAddressParts] = useState<ManualAddressParts>(() => ({
     school: createEmptyAddressParts(),
     applicant: createEmptyAddressParts(),
     rationOffice: createEmptyAddressParts(),
     office: createEmptyAddressParts(),
+    fromRationOffice: createEmptyAddressParts(),
+    toRationOffice: createEmptyAddressParts(),
   }));
   const [addressPincodeErrors, setAddressPincodeErrors] = useState<
     Partial<Record<ManualAddressKey, string>>
@@ -1336,11 +1347,25 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       fullName: filterText(prev.fullName),
       familyMembers: formatFamilyMembersString(nextFamilyMemberRows, letterLocale),
       fromRationOffice:
-        getAddressMasterNameById(addresses, fromRationOfficeId, letterLocale) ??
-        (prev.fromRationOffice ? filterText(prev.fromRationOffice) : prev.fromRationOffice),
+        getRationOfficeLabelById(
+          addresses,
+          addressSelections.fromRationOffice,
+          letterLocale,
+        ) ??
+        (!addressSelections.fromRationOffice
+          ? formatAddressMaster(manualAddressParts.fromRationOffice, letterLocale) ||
+            (prev.fromRationOffice ? filterText(prev.fromRationOffice) : prev.fromRationOffice)
+          : prev.fromRationOffice),
       toRationOffice:
-        getAddressMasterNameById(addresses, toRationOfficeId, letterLocale) ??
-        (prev.toRationOffice ? filterText(prev.toRationOffice) : prev.toRationOffice),
+        getRationOfficeLabelById(
+          addresses,
+          addressSelections.toRationOffice,
+          letterLocale,
+        ) ??
+        (!addressSelections.toRationOffice
+          ? formatAddressMaster(manualAddressParts.toRationOffice, letterLocale) ||
+            (prev.toRationOffice ? filterText(prev.toRationOffice) : prev.toRationOffice)
+          : prev.toRationOffice),
     }));
     setIncomeFields((prev) => ({
       ...prev,
@@ -1404,14 +1429,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     }
 
     prevLetterLocaleRef.current = letterLocale;
-  }, [
-    letterLocale,
-    addresses,
-    addressSelections,
-    manualAddressParts,
-    fromRationOfficeId,
-    toRationOfficeId,
-  ]);
+  }, [letterLocale, addresses, addressSelections, manualAddressParts]);
 
   const triggerAutoTranslateManualAddressParts = (
     key: ManualAddressKey,
@@ -1487,6 +1505,12 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
         case 'rationOffice':
           setRationFields((prev) => ({ ...prev, rationOfficeAddress: value }));
           break;
+        case 'fromRationOffice':
+          setRationFields((prev) => ({ ...prev, fromRationOffice: value }));
+          break;
+        case 'toRationOffice':
+          setRationFields((prev) => ({ ...prev, toRationOffice: value }));
+          break;
         case 'office':
           setIncomeFields((prev) => ({ ...prev, officeAddress: value }));
           setDomicileFields((prev) => ({ ...prev, officeAddress: value }));
@@ -1506,6 +1530,15 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       [key]: getPincodeValidationError(parts, lt),
     }));
     setFieldErrors((prev) => ({ ...prev, [`${key}Address`]: undefined }));
+
+    // From/To letter fields keep "name, address" when a master is selected.
+    if (
+      (key === 'fromRationOffice' && addressSelectionsRef.current.fromRationOffice) ||
+      (key === 'toRationOffice' && addressSelectionsRef.current.toRationOffice)
+    ) {
+      triggerAutoTranslateManualAddressParts(key, parts);
+      return;
+    }
 
     const formatted = formatAddressMaster(parts, letterLocale);
     applyManualAddressToLetterFields(key, formatted);
@@ -1582,7 +1615,11 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   };
 
   const handleRationOfficeAddressSelect = (id: string | null, seedText = '') => {
-    setAddressSelections((prev) => ({ ...prev, rationOffice: id }));
+    setAddressSelections((prev) => {
+      const next = { ...prev, rationOffice: id };
+      addressSelectionsRef.current = next;
+      return next;
+    });
     setFieldErrors((prev) => ({ ...prev, rationOfficeAddress: undefined }));
     if (id) {
       const text = getAddressTextFromMaster(addresses, id, letterLocale);
@@ -1598,6 +1635,62 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       }
     } else {
       seedManualAddressPartsFromText('rationOffice', seedText);
+    }
+  };
+
+  const handleFromRationOfficeAddressSelect = (id: string | null, seedText = '') => {
+    setAddressSelections((prev) => {
+      const next = { ...prev, fromRationOffice: id };
+      addressSelectionsRef.current = next;
+      return next;
+    });
+    setFieldErrors((prev) => ({
+      ...prev,
+      fromRationOffice: undefined,
+      fromRationOfficeAddress: undefined,
+    }));
+    if (id) {
+      const selected = addresses.find((a) => a.id === id);
+      if (selected) {
+        const label = formatRationOfficeWithAddress(selected, letterLocale);
+        if (label) {
+          setRationFields((prev) => ({ ...prev, fromRationOffice: label }));
+        }
+        setManualAddressParts((prev) => ({
+          ...prev,
+          fromRationOffice: addressRowToParts(selected),
+        }));
+      }
+    } else {
+      seedManualAddressPartsFromText('fromRationOffice', seedText);
+    }
+  };
+
+  const handleToRationOfficeAddressSelect = (id: string | null, seedText = '') => {
+    setAddressSelections((prev) => {
+      const next = { ...prev, toRationOffice: id };
+      addressSelectionsRef.current = next;
+      return next;
+    });
+    setFieldErrors((prev) => ({
+      ...prev,
+      toRationOffice: undefined,
+      toRationOfficeAddress: undefined,
+    }));
+    if (id) {
+      const selected = addresses.find((a) => a.id === id);
+      if (selected) {
+        const label = formatRationOfficeWithAddress(selected, letterLocale);
+        if (label) {
+          setRationFields((prev) => ({ ...prev, toRationOffice: label }));
+        }
+        setManualAddressParts((prev) => ({
+          ...prev,
+          toRationOffice: addressRowToParts(selected),
+        }));
+      }
+    } else {
+      seedManualAddressPartsFromText('toRationOffice', seedText);
     }
   };
 
@@ -1698,62 +1791,6 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
       prev.schoolName?.trim() ? prev : { ...prev, schoolName },
     );
   }, [addressSelections.school, addresses, letterLocale]);
-
-  const rationOfficeNameOptions = useMemo(() => {
-    const saved = addresses
-      .filter((address) => address.isActive && address.addressType === 'ration_office')
-      .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
-      .map((address) => ({
-        value: address.id,
-        label: getAddressMasterName(address, letterLocale),
-      }))
-      .filter((option) => option.label.trim());
-
-    return [
-      {
-        value: RATION_OFFICE_MANUAL_VALUE,
-        label: lt('letterGeneration.addresses.manualEntry'),
-        pinned: true,
-      },
-      ...saved,
-    ];
-  }, [addresses, letterLocale, lt]);
-
-  const hasSavedRationOffices = rationOfficeNameOptions.length > 1;
-
-  const showFromRationOfficeManual =
-    isFromRationOfficeManual || !hasSavedRationOffices;
-  const showToRationOfficeManual = isToRationOfficeManual || !hasSavedRationOffices;
-
-  const handleFromRationOfficeSelect = (id: string) => {
-    if (id === RATION_OFFICE_MANUAL_VALUE) {
-      setFromRationOfficeId(null);
-      setIsFromRationOfficeManual(true);
-      return;
-    }
-    setIsFromRationOfficeManual(false);
-    setFromRationOfficeId(id);
-    const name = getAddressMasterNameById(addresses, id, letterLocale) ?? '';
-    setRationFields((prev) => ({ ...prev, fromRationOffice: name }));
-    if (fieldErrors.fromRationOffice) {
-      setFieldErrors((prev) => ({ ...prev, fromRationOffice: undefined }));
-    }
-  };
-
-  const handleToRationOfficeSelect = (id: string) => {
-    if (id === RATION_OFFICE_MANUAL_VALUE) {
-      setToRationOfficeId(null);
-      setIsToRationOfficeManual(true);
-      return;
-    }
-    setIsToRationOfficeManual(false);
-    setToRationOfficeId(id);
-    const name = getAddressMasterNameById(addresses, id, letterLocale) ?? '';
-    setRationFields((prev) => ({ ...prev, toRationOffice: name }));
-    if (fieldErrors.toRationOffice) {
-      setFieldErrors((prev) => ({ ...prev, toRationOffice: undefined }));
-    }
-  };
 
   const activeLetterMaster = useMemo(() => {
     return (
@@ -1970,13 +2007,8 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
         requireField(errors, 'rationCardNo', rationFields.rationCardNo, requiredMsg);
       }
       if (activeTab === 'ration-transfer') {
-        requireField(
-          errors,
-          'fromRationOffice',
-          rationFields.fromRationOffice,
-          requiredMsg,
-        );
-        requireField(errors, 'toRationOffice', rationFields.toRationOffice, requiredMsg);
+        requireAddress('fromRationOffice', rationFields.fromRationOffice ?? '');
+        requireAddress('toRationOffice', rationFields.toRationOffice ?? '');
       }
     } else if (activeTab === 'income') {
       requireField(errors, 'salutation', incomeFields.salutation, requiredMsg);
@@ -2179,6 +2211,42 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
               prev.some((a) => a.id === created.id) ? prev : [created, ...prev],
             );
             setAddressSelections((prev) => ({ ...prev, rationOffice: created.id }));
+          }
+        }
+      }
+
+      if (activeTab === 'ration-transfer') {
+        if (!addressSelections.fromRationOffice) {
+          const fromText = rationFields.fromRationOffice ?? '';
+          if (fromText.trim() && hasAddressContent(manualAddressParts.fromRationOffice)) {
+            const created = await createAddressMasterFromManualEntry({
+              addressType: 'ration_office',
+              name: deriveAddressMasterName(fromText, 'Ration Office'),
+              parts: manualAddressParts.fromRationOffice,
+            });
+            if (created?.id) {
+              setAddresses((prev) =>
+                prev.some((a) => a.id === created.id) ? prev : [created, ...prev],
+              );
+              setAddressSelections((prev) => ({ ...prev, fromRationOffice: created.id }));
+            }
+          }
+        }
+
+        if (!addressSelections.toRationOffice) {
+          const toText = rationFields.toRationOffice ?? '';
+          if (toText.trim() && hasAddressContent(manualAddressParts.toRationOffice)) {
+            const created = await createAddressMasterFromManualEntry({
+              addressType: 'ration_office',
+              name: deriveAddressMasterName(toText, 'Ration Office'),
+              parts: manualAddressParts.toRationOffice,
+            });
+            if (created?.id) {
+              setAddresses((prev) =>
+                prev.some((a) => a.id === created.id) ? prev : [created, ...prev],
+              );
+              setAddressSelections((prev) => ({ ...prev, toRationOffice: created.id }));
+            }
           }
         }
       }
@@ -3226,96 +3294,52 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         ) : null}
                         {rationType === 'ration-transfer' ? (
                           <div className="grid gap-4 sm:grid-cols-2">
-                            <FieldGroup
+                            <LetterAddressField
                               label={lt('letterGeneration.fields.fromRationOffice')}
+                              addressType="ration_office"
+                              locale={letterLocale}
+                              selectedAddressId={addressSelections.fromRationOffice}
+                              addresses={addresses}
+                              addressParts={manualAddressParts.fromRationOffice}
+                              onAddressPartsChange={(parts) =>
+                                handleManualAddressPartsChange('fromRationOffice', parts)
+                              }
+                              pincodeError={addressPincodeErrors.fromRationOffice}
+                              error={
+                                fieldErrors.fromRationOfficeAddress ??
+                                fieldErrors.fromRationOffice
+                              }
                               required
-                              error={fieldErrors.fromRationOffice}
-                            >
-                              <div className="space-y-2">
-                                {hasSavedRationOffices ? (
-                                  <Combobox
-                                    options={rationOfficeNameOptions}
-                                    value={
-                                      fromRationOfficeId ??
-                                      (showFromRationOfficeManual
-                                        ? RATION_OFFICE_MANUAL_VALUE
-                                        : '')
-                                    }
-                                    onValueChange={handleFromRationOfficeSelect}
-                                    placeholder={lt(
-                                      'letterGeneration.addresses.selectPlaceholder',
-                                    )}
-                                    emptyMessage={lt(
-                                      'letterGeneration.addresses.empty',
-                                    )}
-                                  />
-                                ) : null}
-                                {showFromRationOfficeManual ? (
-                                  <LocaleTextInput
-                                    locale={letterLocale}
-                                    value={rationFields.fromRationOffice ?? ''}
-                                    onValueChange={(fromRationOffice) => {
-                                      setRationFields({
-                                        ...rationFields,
-                                        fromRationOffice,
-                                      });
-                                      if (fieldErrors.fromRationOffice) {
-                                        setFieldErrors((prev) => ({
-                                          ...prev,
-                                          fromRationOffice: undefined,
-                                        }));
-                                      }
-                                    }}
-                                    required
-                                  />
-                                ) : null}
-                              </div>
-                            </FieldGroup>
-                            <FieldGroup
+                              onSelectedAddressIdChange={(id) =>
+                                handleFromRationOfficeAddressSelect(
+                                  id,
+                                  rationFields.fromRationOffice,
+                                )
+                              }
+                            />
+                            <LetterAddressField
                               label={lt('letterGeneration.fields.toRationOffice')}
+                              addressType="ration_office"
+                              locale={letterLocale}
+                              selectedAddressId={addressSelections.toRationOffice}
+                              addresses={addresses}
+                              addressParts={manualAddressParts.toRationOffice}
+                              onAddressPartsChange={(parts) =>
+                                handleManualAddressPartsChange('toRationOffice', parts)
+                              }
+                              pincodeError={addressPincodeErrors.toRationOffice}
+                              error={
+                                fieldErrors.toRationOfficeAddress ??
+                                fieldErrors.toRationOffice
+                              }
                               required
-                              error={fieldErrors.toRationOffice}
-                            >
-                              <div className="space-y-2">
-                                {hasSavedRationOffices ? (
-                                  <Combobox
-                                    options={rationOfficeNameOptions}
-                                    value={
-                                      toRationOfficeId ??
-                                      (showToRationOfficeManual
-                                        ? RATION_OFFICE_MANUAL_VALUE
-                                        : '')
-                                    }
-                                    onValueChange={handleToRationOfficeSelect}
-                                    placeholder={lt(
-                                      'letterGeneration.addresses.selectPlaceholder',
-                                    )}
-                                    emptyMessage={lt(
-                                      'letterGeneration.addresses.empty',
-                                    )}
-                                  />
-                                ) : null}
-                                {showToRationOfficeManual ? (
-                                  <LocaleTextInput
-                                    locale={letterLocale}
-                                    value={rationFields.toRationOffice ?? ''}
-                                    onValueChange={(toRationOffice) => {
-                                      setRationFields({
-                                        ...rationFields,
-                                        toRationOffice,
-                                      });
-                                      if (fieldErrors.toRationOffice) {
-                                        setFieldErrors((prev) => ({
-                                          ...prev,
-                                          toRationOffice: undefined,
-                                        }));
-                                      }
-                                    }}
-                                    required
-                                  />
-                                ) : null}
-                              </div>
-                            </FieldGroup>
+                              onSelectedAddressIdChange={(id) =>
+                                handleToRationOfficeAddressSelect(
+                                  id,
+                                  rationFields.toRationOffice,
+                                )
+                              }
+                            />
                           </div>
                         ) : null}
                         <FieldGroup
