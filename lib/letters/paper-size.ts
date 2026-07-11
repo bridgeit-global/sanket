@@ -68,6 +68,12 @@ export function resolveLetterPaperSize(
   return normalizeLetterPaperSize(paperSize, getDefaultLetterPaperSize(letterType));
 }
 
+/** Full page width at 96dpi. */
+export function getLetterPaperWidthPx(paperSize: LetterPaperSize): number {
+  const { widthMm } = LETTER_PAPER_DIMENSIONS_MM[paperSize];
+  return Math.round((widthMm * 96) / 25.4);
+}
+
 /** Printable content width (page width minus side margins) at 96dpi. */
 export function getLetterPaperContentWidthPx(paperSize: LetterPaperSize): number {
   const { widthMm } = LETTER_PAPER_DIMENSIONS_MM[paperSize];

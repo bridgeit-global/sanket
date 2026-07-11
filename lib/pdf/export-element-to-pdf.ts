@@ -179,6 +179,10 @@ function prepareCaptureElement(
 
   const transparent = Boolean(options?.transparentBackground);
   const paddingPx = options?.paddingPx ?? 24;
+  const sourceFontSize = source.style.fontSize || '15px';
+  const sourceLineHeight = source.style.lineHeight || '1.75';
+  const sourceFontFamily = source.style.fontFamily || PDF_FONT_FAMILY;
+
   const host = document.createElement('div');
   host.setAttribute('data-pdf-capture', 'true');
   host.style.position = 'fixed';
@@ -188,7 +192,7 @@ function prepareCaptureElement(
   host.style.background = transparent ? 'transparent' : '#ffffff';
   host.style.color = '#000000';
   host.style.boxSizing = 'border-box';
-  host.style.fontFamily = PDF_FONT_FAMILY;
+  host.style.fontFamily = sourceFontFamily;
 
   const clone = source.cloneNode(true) as HTMLElement;
   clone.className = '';
@@ -201,17 +205,17 @@ function prepareCaptureElement(
   clone.style.backgroundImage = 'none';
   clone.style.color = '#000000';
   clone.style.padding = `${paddingPx}px`;
-  clone.style.fontSize = '15px';
-  clone.style.lineHeight = '1.75';
-  clone.style.fontFamily = PDF_FONT_FAMILY;
+  clone.style.fontSize = sourceFontSize;
+  clone.style.lineHeight = sourceLineHeight;
+  clone.style.fontFamily = sourceFontFamily;
 
   const pre = clone.querySelector('pre');
   if (pre instanceof HTMLElement) {
     pre.style.margin = '0';
     pre.style.whiteSpace = 'pre-wrap';
-    pre.style.fontSize = '15px';
-    pre.style.lineHeight = '1.75';
-    pre.style.fontFamily = PDF_FONT_FAMILY;
+    pre.style.fontSize = sourceFontSize;
+    pre.style.lineHeight = sourceLineHeight;
+    pre.style.fontFamily = sourceFontFamily;
     pre.style.color = '#000000';
   }
 

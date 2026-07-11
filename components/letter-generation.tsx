@@ -82,7 +82,6 @@ import {
 import {
   getLetterheadContentPaddingMm,
   LETTER_PAPER_ASPECT_RATIO,
-  LETTERHEAD_HEADER_HEIGHT_RATIO,
   resolveLetterheadUrl,
   stripLetterheadFromHtml,
 } from '@/lib/letters/letterhead';
@@ -92,7 +91,7 @@ import {
   getDefaultLetterPaperSize,
   getLetterPaperContentWidthPx,
   getLetterPaperLabel,
-  LETTER_PAPER_DIMENSIONS_MM,
+  getLetterPaperWidthPx,
   LETTER_PAPER_MARGIN_MM,
   LETTER_PAPER_SIZES,
   resolveLetterPaperSize,
@@ -460,21 +459,33 @@ function resolveSalutation(locale: LetterLocale, gender: PersonGender): string {
 }
 
 const LETTER_PREVIEW_CONTENT_CLASSES =
-  '[&_.letter-content]:whitespace-pre-wrap [&_.letter-content]:font-[inherit] [&_.letter-content]:text-black';
+  '[&_.letter-content]:whitespace-pre-wrap [&_.letter-content]:font-[inherit] [&_.letter-content]:text-[length:inherit] [&_.letter-content]:leading-[inherit] [&_.letter-content]:text-black';
 
 const LETTER_FONT_STACK: Record<LetterLocale, string> = {
   en: `system-ui, -apple-system, sans-serif`,
   mr: `"Noto Sans Devanagari", "Nirmala UI", system-ui, -apple-system, sans-serif`,
 };
 
-function getLetterPreviewContentClasses(letterLocale: LetterLocale): string {
-  // Templates often define their own inline font-size/line-height; keep our outer spacing script-aware.
-  return cn(
-    LETTER_PREVIEW_CONTENT_CLASSES,
-    letterLocale === 'mr'
-      ? '[&_.letter-content]:text-sm [&_.letter-content]:leading-6 sm:[&_.letter-content]:text-[15px] sm:[&_.letter-content]:leading-7'
-      : '[&_.letter-content]:text-sm [&_.letter-content]:leading-6 sm:[&_.letter-content]:text-[15px] sm:[&_.letter-content]:leading-6',
-  );
+/** Shared typography for preview / print / PDF so all three stay WYSIWYG. */
+const LETTER_PRINT_FONT_SIZE_PX: Record<LetterPaperSize, number> = {
+  a4: 15,
+  a5: 13,
+  b5: 14,
+};
+
+const LETTER_PRINT_LINE_HEIGHT = 1.75;
+
+function getLetterBodyPaddingCss(
+  paperSize: LetterPaperSize,
+  hasLetterhead: boolean,
+): string {
+  if (hasLetterhead) {
+    const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
+    const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);
+    return `${headerPaddingMm}mm ${marginMm}mm ${marginMm}mm ${marginMm}mm`;
+  }
+  const paddingPx = paperSize === 'a4' ? 24 : 18;
+  return `${paddingPx}px`;
 }
 
 function createLetterExportElement(
@@ -491,13 +502,15 @@ function createLetterExportElement(
   const fontFamily = LETTER_FONT_STACK[options?.letterLocale ?? 'mr'];
 
   // Letterhead is drawn per-page by the PDF exporter — capture text only so
-  // margins/header clearance stay aligned with print output.
+  // margins/header clearance stay aligned with print/preview.
   host.style.position = 'relative';
   host.style.background = 'transparent';
   host.style.color = '#000';
   host.style.boxSizing = 'border-box';
   host.style.width = `${getLetterPaperContentWidthPx(paperSize)}px`;
   host.style.fontFamily = fontFamily;
+  host.style.fontSize = `${fontSizePx}px`;
+  host.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
   host.innerHTML = contentHtml;
 
   const letterContent = host.querySelector('.letter-content');
@@ -505,7 +518,7 @@ function createLetterExportElement(
     letterContent.style.margin = '0';
     letterContent.style.whiteSpace = 'pre-wrap';
     letterContent.style.fontSize = `${fontSizePx}px`;
-    letterContent.style.lineHeight = '1.75';
+    letterContent.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
     letterContent.style.fontFamily = fontFamily;
     letterContent.style.color = '#000';
   }
@@ -513,69 +526,54 @@ function createLetterExportElement(
   return host;
 }
 
-const LETTER_PRINT_FONT_SIZE_PX: Record<LetterPaperSize, number> = {
-  a4: 15,
-  a5: 13,
-  b5: 14,
-};
-
 function buildLetterPrintStyles(
   paperSize: LetterPaperSize,
-  options?: { letterheadUrl?: string | null; letterLocale?: LetterLocale },
+  options?: { letterLocale?: LetterLocale; reserveLetterheadSpace?: boolean },
 ): string {
   const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
   const fontSizePx = LETTER_PRINT_FONT_SIZE_PX[paperSize];
   const pageLabel = getLetterPaperLabel(paperSize);
-  const paddingPx = paperSize === 'a4' ? 24 : 18;
-  const letterheadUrl = options?.letterheadUrl;
   const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);
   const fontFamily = LETTER_FONT_STACK[options?.letterLocale ?? 'mr'];
-  const { widthMm, heightMm } = LETTER_PAPER_DIMENSIONS_MM[paperSize];
+  const reserveLetterheadSpace = options?.reserveLetterheadSpace !== false;
 
-  if (letterheadUrl) {
-    // Page 1: full-bleed letterhead + content top/side padding.
-    // Page 2+: @page top/side margins reserve the same clearance (no image).
+  // No letterhead background image — reserve the same header/side clearance as preview
+  // so content aligns when printing on pre-printed stationery.
+  if (reserveLetterheadSpace) {
     return `
   @page {
     size: ${pageLabel} portrait;
     margin: ${headerPaddingMm}mm ${marginMm}mm ${marginMm}mm ${marginMm}mm;
   }
-  @page :first {
-    margin-top: 0;
-    margin-left: 0;
-    margin-right: 0;
-  }
   * { color: #000 !important; box-sizing: border-box; }
   html, body {
     margin: 0;
     padding: 0;
-    width: ${widthMm}mm;
   }
   body {
     font-family: ${fontFamily};
-    background: #fff url("${letterheadUrl}") no-repeat top left;
-    background-size: ${widthMm}mm ${heightMm}mm;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    font-size: ${fontSizePx}px;
+    line-height: ${LETTER_PRINT_LINE_HEIGHT};
+    background: #fff;
   }
-  .letter-print-content {
-    padding: ${headerPaddingMm}mm ${marginMm}mm 0 ${marginMm}mm;
-  }
-  .letter-content { white-space: pre-wrap; font-size: ${fontSizePx}px; line-height: 1.75; margin: 0; }
+  .letter-content { white-space: pre-wrap; font-size: inherit; line-height: inherit; margin: 0; }
   img { max-width: 100%; height: auto; }
 `;
   }
 
+  const bodyPadding = getLetterBodyPaddingCss(paperSize, false);
   return `
   @page { size: ${pageLabel} portrait; margin: 0; }
   * { color: #000 !important; box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
   body {
-    padding: ${paddingPx}px;
+    padding: ${bodyPadding};
     font-family: ${fontFamily};
+    font-size: ${fontSizePx}px;
+    line-height: ${LETTER_PRINT_LINE_HEIGHT};
     background: #fff;
   }
-  .letter-content { white-space: pre-wrap; font-size: ${fontSizePx}px; line-height: 1.75; margin: 0; }
+  .letter-content { white-space: pre-wrap; font-size: inherit; line-height: inherit; margin: 0; }
   img { max-width: 100%; height: auto; }
 `;
 }
@@ -585,9 +583,8 @@ function printLetterHtml(
   title: string,
   paperSize: LetterPaperSize = 'a4',
   options?: {
-    includeLetterhead?: boolean;
-    letterheadUrl?: string | null;
     letterLocale?: LetterLocale;
+    reserveLetterheadSpace?: boolean;
   },
 ): boolean {
   const iframe = document.createElement('iframe');
@@ -604,17 +601,13 @@ function printLetterHtml(
   }
 
   const contentHtml = stripLetterheadFromHtml(html);
-  const letterheadUrl =
-    options?.includeLetterhead && options.letterheadUrl
-      ? options.letterheadUrl
-      : null;
-  const bodyHtml = letterheadUrl
-    ? `<div class="letter-print-content">${contentHtml}</div>`
-    : contentHtml;
 
   doc.open();
   doc.write(
-    `<!DOCTYPE html><html><head><title>${title}</title><style>${buildLetterPrintStyles(paperSize, { letterheadUrl, letterLocale: options?.letterLocale })}</style></head><body>${bodyHtml}</body></html>`,
+    `<!DOCTYPE html><html><head><title>${title}</title><style>${buildLetterPrintStyles(paperSize, {
+      letterLocale: options?.letterLocale,
+      reserveLetterheadSpace: options?.reserveLetterheadSpace,
+    })}</style></head><body>${contentHtml}</body></html>`,
   );
   doc.close();
 
@@ -665,9 +658,9 @@ function printLetterHtml(
 }
 
 const LETTER_PREVIEW_MAX_WIDTH_CLASS: Record<LetterPaperSize, string> = {
-  a4: 'max-w-[680px]',
-  a5: 'max-w-[470px]',
-  b5: 'max-w-[575px]',
+  a4: 'max-w-[794px]',
+  a5: 'max-w-[559px]',
+  b5: 'max-w-[665px]',
 };
 
 function LetterPreview({
@@ -683,7 +676,7 @@ function LetterPreview({
 }) {
   const resolvedLetterhead = resolveLetterheadUrl(paperSize, letterheadUrl);
   const contentHtml = stripLetterheadFromHtml(html);
-  const headerTop = `${LETTERHEAD_HEADER_HEIGHT_RATIO * 100}%`;
+  const fontSizePx = LETTER_PRINT_FONT_SIZE_PX[paperSize];
 
   return (
     <div
@@ -693,7 +686,11 @@ function LetterPreview({
       )}
       style={{
         aspectRatio: LETTER_PAPER_ASPECT_RATIO[paperSize],
+        width: '100%',
+        maxWidth: getLetterPaperWidthPx(paperSize),
         fontFamily: LETTER_FONT_STACK[letterLocale],
+        fontSize: `${fontSizePx}px`,
+        lineHeight: LETTER_PRINT_LINE_HEIGHT,
       }}
     >
       {resolvedLetterhead ? (
@@ -708,10 +705,13 @@ function LetterPreview({
       ) : null}
       <div
         className={cn(
-          'absolute inset-x-0 bottom-0 overflow-y-auto p-4 sm:p-6',
-          getLetterPreviewContentClasses(letterLocale),
+          'absolute inset-0 overflow-y-auto',
+          LETTER_PREVIEW_CONTENT_CLASSES,
         )}
-        style={resolvedLetterhead ? { top: headerTop } : { inset: 0 }}
+        style={{
+          // Same mm padding as print / PDF so preview is WYSIWYG.
+          padding: getLetterBodyPaddingCss(paperSize, Boolean(resolvedLetterhead)),
+        }}
         // Letter HTML is generated from admin-editable templates stored in our database.
         dangerouslySetInnerHTML={{ __html: contentHtml }}
       />
@@ -2417,11 +2417,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   const handlePrintSavedLetter = (letter: SavedLetterRow) => {
     const title = `${letter.title}${letter.referenceNo ? ` - ${formatReferenceForDisplay(letter.referenceNo, letterLocale)}` : ''}`;
     const paperSize = resolveSavedLetterPaperSize(letter);
-    const master = letterMasters.find((m) => m.id === letter.letterMasterId);
-    const letterheadUrl = resolveLetterheadUrl(paperSize, master?.letterheadUrl);
     const opened = printLetterHtml(letter.renderedHtml, title, paperSize, {
-      includeLetterhead: true,
-      letterheadUrl,
       letterLocale: letter.letterLocale,
     });
     if (!opened) {
@@ -2447,6 +2443,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
         marginMm: LETTER_PAPER_MARGIN_MM[paperSize],
         scale: 2,
         captureWidthPx: getLetterPaperContentWidthPx(paperSize),
+        // Header clearance only — no letterhead background image.
         pageBackground: {
           headerHeightMm: getLetterheadContentPaddingMm(paperSize),
         },
