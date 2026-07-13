@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { Paperclip, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +12,47 @@ import { Combobox } from '@/components/ui/combobox';
 import { toast } from '@/components/toast';
 import { useTranslations } from '@/hooks/use-translations';
 import type { VoterWithPartNo } from '@/lib/db/schema';
+
+const ATTACHMENT_MAX_SIZE = 10 * 1024 * 1024; // 10MB
+const ATTACHMENT_ALLOWED_TYPES = [
+    'application/pdf',
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'text/plain',
+];
+
+/**
+ * Uploads document/image attachments to a beneficiary service. Runs sequentially
+ * and returns counts so callers can surface a summary toast.
+ */
+export async function uploadBeneficiaryServiceAttachments(
+    serviceId: string,
+    files: File[],
+): Promise<{ success: number; failed: number }> {
+    let success = 0;
+    let failed = 0;
+    for (const file of files) {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch(
+                `/operator/api/beneficiary-services/${serviceId}/attachments`,
+                { method: 'POST', body: formData },
+            );
+            if (res.ok) success++;
+            else failed++;
+        } catch {
+            failed++;
+        }
+    }
+    return { success, failed };
+}
 
 interface BeneficiaryServiceInitialData {
     serviceName?: string;
@@ -104,6 +146,8 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
     const [description, setDescription] = useState(initialData?.description ?? '');
     const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>(initialData?.priority ?? 'medium');
     const [notes, setNotes] = useState(initialData?.notes ?? '');
+    const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [todayProgrammes, setTodayProgrammes] = useState<TodayProgrammeRow[]>([]);
     const [linkedProgrammeId, setLinkedProgrammeId] = useState(() => {
@@ -186,6 +230,40 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
         }
     }, [programmesLoaded, todayProgrammes, linkedProgrammeId]);
 
+    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = e.target.files;
+        if (files && files.length > 0) {
+            const validFiles: File[] = [];
+            for (const file of Array.from(files)) {
+                if (file.size > ATTACHMENT_MAX_SIZE) {
+                    toast({
+                        type: 'error',
+                        description: t('beneficiaryService.form.attachments.tooLarge', {
+                            name: file.name,
+                        }),
+                    });
+                    continue;
+                }
+                if (!ATTACHMENT_ALLOWED_TYPES.includes(file.type)) {
+                    toast({
+                        type: 'error',
+                        description: t('beneficiaryService.form.attachments.invalidType', {
+                            name: file.name,
+                        }),
+                    });
+                    continue;
+                }
+                validFiles.push(file);
+            }
+            setSelectedFiles((prev) => [...prev, ...validFiles]);
+        }
+        if (e.target) e.target.value = '';
+    };
+
+    const removeFile = (index: number) => {
+        setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    };
+
     const resolveProgrammeLabel = (id: string): string | undefined => {
         const row = todayProgrammes.find((p) => p.id === id);
         if (row) return programmeOptionLabel(row);
@@ -220,6 +298,7 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
             description,
             priority,
             notes,
+            attachments: selectedFiles,
             ...(linkedProgrammeId
                 ? {
                     programmeId: linkedProgrammeId,
@@ -239,6 +318,7 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
         try {
             const createBody = { ...serviceData } as Record<string, unknown>;
             createBody.programmeLabel = undefined;
+            createBody.attachments = undefined;
             const response = await fetch('/operator/api/create-beneficiary-service', {
                 method: 'POST',
                 headers: {
@@ -255,6 +335,9 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
             }
 
             const data = await response.json();
+            if (selectedFiles.length > 0) {
+                await uploadBeneficiaryServiceAttachments(data.serviceId, selectedFiles);
+            }
             onServiceCreated(data.serviceId);
             toast({
                 type: 'success',
@@ -393,6 +476,69 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
                                 placeholder={t('beneficiaryService.form.fields.notesPlaceholder')}
                                 rows={2}
                             />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="serviceDocuments">
+                                {t('beneficiaryService.form.attachments.label')}
+                            </Label>
+                            <div className="flex items-center gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="w-fit"
+                                >
+                                    <Upload className="mr-2 size-4" />
+                                    {t('beneficiaryService.form.attachments.selectFiles')}
+                                </Button>
+                                <input
+                                    id="serviceDocuments"
+                                    ref={fileInputRef}
+                                    type="file"
+                                    multiple
+                                    className="hidden"
+                                    onChange={handleFileSelect}
+                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.txt"
+                                />
+                                {selectedFiles.length > 0 && (
+                                    <span className="text-sm text-muted-foreground">
+                                        {t('beneficiaryService.form.attachments.selectedCount', {
+                                            count: selectedFiles.length,
+                                        })}
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {t('beneficiaryService.form.attachments.hint')}
+                            </p>
+                            {selectedFiles.length > 0 && (
+                                <div className="max-h-32 space-y-1 overflow-y-auto rounded border p-2">
+                                    {selectedFiles.map((file, index) => (
+                                        <div
+                                            key={`${file.name}-${file.size}-${file.lastModified}`}
+                                            className="flex items-center justify-between rounded bg-muted p-2 text-sm"
+                                        >
+                                            <span className="flex items-center gap-2">
+                                                <Paperclip className="size-3" />
+                                                <span className="max-w-xs truncate">{file.name}</span>
+                                                <span className="text-muted-foreground">
+                                                    ({(file.size / 1024).toFixed(1)} KB)
+                                                </span>
+                                            </span>
+                                            <Button
+                                                type="button"
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={() => removeFile(index)}
+                                                className="size-6 p-0"
+                                            >
+                                                <X className="size-3" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
 

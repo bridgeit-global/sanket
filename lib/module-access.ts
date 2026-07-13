@@ -54,6 +54,19 @@ export async function getUserAccessibleModules(
       accessibleKeys.add('daily-programme');
     }
 
+    // Inward/Outward were merged into a single "I/O Register" module. Anyone who
+    // can access either legacy register (or the new key) can access the combined
+    // view, and vice versa.
+    if (
+      accessibleKeys.has('io-register') ||
+      accessibleKeys.has('inward') ||
+      accessibleKeys.has('outward')
+    ) {
+      accessibleKeys.add('io-register');
+      accessibleKeys.add('inward');
+      accessibleKeys.add('outward');
+    }
+
     return ALL_MODULES.filter((module) => accessibleKeys.has(module.key));
   } catch (error) {
     console.error('Error getting accessible modules:', error);

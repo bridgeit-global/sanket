@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -13,6 +14,11 @@ import { useTranslations } from '@/hooks/use-translations';
 
 export function AddressMasterPage() {
   const { t } = useTranslations();
+  const searchParams = useSearchParams();
+  const beneficiaryServiceId = searchParams.get('beneficiaryServiceId');
+  const backHref = beneficiaryServiceId
+    ? `/modules/letter-generation?beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}`
+    : '/modules/operator';
   const tRef = useRef(t);
   tRef.current = t;
   const [addresses, setAddresses] = useState<AddressMasterRow[]>([]);
@@ -44,7 +50,7 @@ export function AddressMasterPage() {
         description={t('letterGeneration.addresses.description')}
         actions={
           <Button variant="outline" asChild>
-            <Link href="/modules/letter-generation">
+            <Link href={backHref}>
               <ArrowLeft className="mr-2 size-4" />
               {t('letterGeneration.addresses.backToLetterGeneration')}
             </Link>

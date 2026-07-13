@@ -4,8 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbo",
-    "build": "pnpm next build",
+    "build": "bash scripts/vercel-migrate.sh && pnpm next build",
     "start": "next start",
+    "db:migrate:deploy": "bash scripts/vercel-migrate.sh",
     "lint": "next lint && biome lint --write --unsafe",
     "lint:fix": "next lint --fix && biome lint --write --unsafe",
     "format": "biome format --write",
@@ -122,6 +123,7 @@
     "eslint-import-resolver-typescript": "^3.6.3",
     "eslint-plugin-tailwindcss": "^3.17.5",
     "postcss": "^8",
+    "supabase": "^2.109.1",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3",

@@ -1,5 +1,6 @@
 import type {
   BeneficiaryService,
+  BeneficiaryServiceAttachment,
   BoothMaster,
   CadreGeographicUnit,
   CadreMember,
@@ -317,6 +318,9 @@ export function mapLetterRow(row: Row): Letter {
     ),
     paperSize: mapLetterPaperSize(row.paper_size ?? row.paperSize, letterType),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),
+    beneficiaryServiceId: toStringOrNull(
+      row.beneficiary_service_id ?? row.beneficiaryServiceId,
+    ),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),
   };
@@ -574,6 +578,19 @@ export function mapRegisterEntryRow(row: Row): RegisterEntry {
     createdBy: String(row.created_by ?? row.createdBy),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapBeneficiaryServiceAttachmentRow(
+  row: Row,
+): BeneficiaryServiceAttachment {
+  return {
+    id: String(row.id),
+    serviceId: String(row.service_id ?? row.serviceId),
+    fileName: String(row.file_name ?? row.fileName),
+    fileSizeKb: Number(row.file_size_kb ?? row.fileSizeKb),
+    fileUrl: toStringOrNull(row.file_url ?? row.fileUrl),
+    createdAt: toDate(row.created_at ?? row.createdAt),
   };
 }
 

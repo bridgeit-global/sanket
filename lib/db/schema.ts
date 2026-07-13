@@ -23,6 +23,7 @@ export const TABLES = {
   electionMapping: 'ElectionMapping',
   voterMobileNumber: 'VoterMobileNumber',
   beneficiaryServices: 'BeneficiaryService',
+  beneficiaryServiceAttachment: 'BeneficiaryServiceAttachment',
   serviceCatalog: 'ServiceCatalog',
   voterTasks: 'VoterTask',
   communityServiceAreas: 'CommunityServiceArea',
@@ -209,6 +210,7 @@ export type Letter = {
   renderedHtml: string;
   paperSize: 'a4' | 'a5' | 'b5';
   createdBy: string | null;
+  beneficiaryServiceId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -304,6 +306,15 @@ export type BeneficiaryService = {
   completedAt: Date | null;
   notes: string | null;
   programmeId: string | null;
+};
+
+export type BeneficiaryServiceAttachment = {
+  id: string;
+  serviceId: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl: string | null;
+  createdAt: Date;
 };
 
 export type ServiceCatalog = {

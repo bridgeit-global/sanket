@@ -212,7 +212,7 @@ export function DashboardContent({ data }: DashboardContentProps) {
               <Button
                 variant="outline"
                 className="h-auto flex-col items-start p-3"
-                onClick={() => router.push('/modules/inward')}
+                onClick={() => router.push('/modules/io-register?tab=inward')}
               >
                 <Inbox className="mb-1 h-4 w-4" />
                 {t('dashboard.inward')}
@@ -228,7 +228,7 @@ export function DashboardContent({ data }: DashboardContentProps) {
               <Button
                 variant="outline"
                 className="h-auto flex-col items-start p-3"
-                onClick={() => router.push('/modules/outward')}
+                onClick={() => router.push('/modules/io-register?tab=outward')}
               >
                 <Send className="mb-1 h-4 w-4" />
                 {t('dashboard.outward')}

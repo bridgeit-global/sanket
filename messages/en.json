@@ -91,6 +91,10 @@
       "label": "ADM",
       "description": "Asset Development & Fund Management"
     },
+    "ioRegister": {
+      "label": "I/O Register",
+      "description": "Manage inward and outward correspondence and documents"
+    },
     "inward": {
       "label": "Inward Register",
       "description": "Manage inward correspondence and documents"
@@ -675,8 +679,12 @@
         "download": "Download PDF",
         "delete": "Delete",
         "regenerate": "Regenerate",
-        "closePreview": "Close preview"
+        "closePreview": "Close preview",
+        "addToOutward": "Add to Outward Register",
+        "addedToOutward": "Added to Outward"
       },
+      "addToOutwardSuccess": "Letter added to the outward register.",
+      "addToOutwardError": "Failed to add the letter to the outward register.",
       "regenerateSuccess": "Letter regenerated from template",
       "regenerateError": "Failed to regenerate letter"
     },
@@ -1069,7 +1077,8 @@
       "status": "Status",
       "createdAt": "Created At",
       "createAnother": "Create Another Service",
-      "print": "Print Service Details"
+      "print": "Print Service Details",
+      "generateLetter": "Generate Letter"
     },
     "messages": {
       "pleaseProvideCriteria": "Please provide at least one search criteria (name, gender, or age)",
@@ -1413,6 +1422,15 @@
         "descriptionPlaceholder": "Describe the service requirements",
         "notesPlaceholder": "Additional notes or comments"
       },
+      "attachments": {
+        "label": "Document / Image",
+        "selectFiles": "Select Files",
+        "selectedCount": "{count} file(s) selected",
+        "hint": "Upload an image or document related to this service (PDF, images, Word, Excel; max 10MB each).",
+        "tooLarge": "{name} is larger than 10MB and was skipped.",
+        "invalidType": "{name} has an unsupported file type and was skipped.",
+        "uploadFailed": "{count} document(s) could not be uploaded."
+      },
       "serviceAreas": {
         "title": "Service Areas",
         "addArea": "Add Area",
@@ -1523,6 +1541,10 @@
       "manageTitle": "Manage Task",
       "manageDescription": "Update task status and add notes",
       "taskType": "Task Type",
+      "letters": "Letters",
+      "generateLetter": "Generate Letter",
+      "noLetters": "No letters generated for this service yet.",
+      "documents": "Uploaded Documents",
       "updateStatus": "Update Status",
       "selectNewStatus": "Select new status",
       "addNote": "Add Note",

@@ -17,9 +17,9 @@ import {
   Vote,
   MapPin,
   Network,
-  ChevronDown,
   FileText,
   Landmark,
+  BookOpenText,
 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { ModuleDefinition } from '@/lib/module-constants';
@@ -40,6 +40,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'data-export': FileDown,
   projects: FolderKanban,
   adm: Landmark,
+  'io-register': BookOpenText,
   inward: Inbox,
   outward: Send,
   'letter-generation': FileText,
@@ -61,6 +62,7 @@ const getModuleTranslationKey = (moduleKey: string): string => {
     'data-export': 'modules.dataExport.label',
     projects: 'modules.projects.label',
     adm: 'modules.adm.label',
+    'io-register': 'modules.ioRegister.label',
     inward: 'modules.inward.label',
     outward: 'modules.outward.label',
     'letter-generation': 'modules.letterGeneration.label',
@@ -71,8 +73,6 @@ const getModuleTranslationKey = (moduleKey: string): string => {
   };
   return keyMap[moduleKey] || moduleKey;
 };
-
-const MORE_OPEN_STORAGE_KEY = 'sidebar:more-open';
 
 function ModuleNavItem({
   module,
@@ -120,14 +120,11 @@ export function ModuleNavigation({
   const [loading, setLoading] = useState(
     !(initialModules && initialModules.length > 0),
   );
-  const [moreOpen, setMoreOpen] = useState(false);
 
-  const { primary, more, pinned, useFlatList } = useMemo(
+  const { primary, more } = useMemo(
     () => partitionModulesForNav(modules),
     [modules],
   );
-
-  const moreContainsActive = more.some((m) => m.route === pathname);
 
   useEffect(() => {
     if (initialModules && initialModules.length > 0) {
@@ -158,102 +155,23 @@ export function ModuleNavigation({
     loadModules();
   }, [initialModules, user?.id]);
 
-  useEffect(() => {
-    if (useFlatList) return;
-    if (moreContainsActive) {
-      setMoreOpen(true);
-      return;
-    }
-    try {
-      const stored = localStorage.getItem(MORE_OPEN_STORAGE_KEY);
-      if (stored === 'true') setMoreOpen(true);
-    } catch {
-      // ignore
-    }
-  }, [useFlatList, moreContainsActive]);
-
-  const toggleMore = () => {
-    setMoreOpen((prev) => {
-      const next = !prev;
-      try {
-        localStorage.setItem(MORE_OPEN_STORAGE_KEY, String(next));
-      } catch {
-        // ignore
-      }
-      return next;
-    });
-  };
-
   if (loading || modules.length === 0) {
     return null;
   }
 
-  if (useFlatList) {
-    return (
-      <SidebarMenu>
-        {primary.map((module) => (
-          <ModuleNavItem
-            key={module.key}
-            module={module}
-            pathname={pathname}
-            t={t}
-          />
-        ))}
-        {pinned.map((module) => (
-          <ModuleNavItem
-            key={module.key}
-            module={module}
-            pathname={pathname}
-            t={t}
-          />
-        ))}
-      </SidebarMenu>
-    );
-  }
+  const navItems = [...primary, ...more];
 
   return (
-    <>
-      <SidebarMenu>
-        {primary.map((module) => (
-          <ModuleNavItem
-            key={module.key}
-            module={module}
-            pathname={pathname}
-            t={t}
-          />
-        ))}
-      </SidebarMenu>
-
-      {more.length > 0 && (
-        <div className="mt-1">
-          <button
-            type="button"
-            onClick={toggleMore}
-            className="flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
-          >
-            <span>{t('sidebar.moreCount', { count: more.length })}</span>
-            <ChevronDown
-              className={cn(
-                'size-4 shrink-0 transition-transform',
-                moreOpen && 'rotate-180',
-              )}
-            />
-          </button>
-          {moreOpen && (
-            <SidebarMenu className="mt-1">
-              {more.map((module) => (
-                <ModuleNavItem
-                  key={module.key}
-                  module={module}
-                  pathname={pathname}
-                  t={t}
-                />
-              ))}
-            </SidebarMenu>
-          )}
-        </div>
-      )}
-    </>
+    <SidebarMenu>
+      {navItems.map((module) => (
+        <ModuleNavItem
+          key={module.key}
+          module={module}
+          pathname={pathname}
+          t={t}
+        />
+      ))}
+    </SidebarMenu>
   );
 }
 
@@ -274,12 +192,12 @@ export function ModuleNavigationPinned({
     }
   }, [initialModules]);
 
-  const { pinned, useFlatList } = useMemo(
+  const { pinned } = useMemo(
     () => partitionModulesForNav(modules),
     [modules],
   );
 
-  if (useFlatList || pinned.length === 0) {
+  if (pinned.length === 0) {
     return null;
   }
 

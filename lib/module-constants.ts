@@ -7,6 +7,12 @@ export interface ModuleDefinition {
   icon: string;
   category: 'system' | 'analytics' | 'operations' | 'calendar' | 'mla-office';
   defaultRoles: Array<'admin' | 'operator' | 'back-office' | 'regular'>;
+  /**
+   * When true, the module is not rendered in the sidebar navigation even if the
+   * user has access. Its page/permission checks still resolve normally, so the
+   * route can be reached through in-app links.
+   */
+  hideFromNav?: boolean;
 }
 
 // All available modules in the system
@@ -88,6 +94,15 @@ export const ALL_MODULES: ModuleDefinition[] = [
     defaultRoles: ['admin', 'operator', 'back-office'],
   },
   {
+    key: 'io-register',
+    label: 'I/O Register',
+    description: 'Manage inward and outward correspondence and documents',
+    route: '/modules/io-register',
+    icon: 'BookOpenText',
+    category: 'mla-office',
+    defaultRoles: [],
+  },
+  {
     key: 'inward',
     label: 'Inward Register',
     description: 'Manage inward correspondence and documents',
@@ -95,6 +110,7 @@ export const ALL_MODULES: ModuleDefinition[] = [
     icon: 'Inbox',
     category: 'mla-office',
     defaultRoles: [],
+    hideFromNav: true,
   },
   {
     key: 'outward',
@@ -104,6 +120,7 @@ export const ALL_MODULES: ModuleDefinition[] = [
     icon: 'Send',
     category: 'mla-office',
     defaultRoles: [],
+    hideFromNav: true,
   },
   {
     key: 'letter-generation',
@@ -113,6 +130,7 @@ export const ALL_MODULES: ModuleDefinition[] = [
     icon: 'FileText',
     category: 'mla-office',
     defaultRoles: ['admin', 'operator', 'back-office'],
+    hideFromNav: true,
   },
   {
     key: 'projects',
@@ -197,6 +215,7 @@ export const MODULE_DISPLAY_ORDER = [
   'data-export',
   'projects',
   'adm',
+  'io-register',
   'inward',
   'outward',
   'letter-generation',
@@ -229,7 +248,9 @@ export function partitionModulesForNav(modules: ModuleDefinition[]): {
   pinned: ModuleDefinition[];
   useFlatList: boolean;
 } {
-  const sorted = sortModulesByDisplayOrder(modules);
+  const sorted = sortModulesByDisplayOrder(modules).filter(
+    (m) => !m.hideFromNav,
+  );
   const primaryKeySet = new Set<string>(PRIMARY_MODULE_KEYS);
   const pinnedKeySet = new Set<string>(PINNED_BOTTOM_MODULE_KEYS);
 
@@ -261,6 +282,7 @@ export const MODULE_KEYS = {
   DATA_EXPORT: 'data-export',
   DASHBOARD: 'dashboard',
   DAILY_PROGRAMME: 'daily-programme',
+  IO_REGISTER: 'io-register',
   INWARD: 'inward',
   OUTWARD: 'outward',
   LETTER_GENERATION: 'letter-generation',

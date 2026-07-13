@@ -91,6 +91,10 @@
       "label": "ADM",
       "description": "मालमत्ता विकास आणि निधी व्यवस्थापन"
     },
+    "ioRegister": {
+      "label": "आवक/जावक नोंद",
+      "description": "आवक व जावक पत्रव्यवहार आणि दस्तऐवज व्यवस्थापित करा"
+    },
     "inward": {
       "label": "आंतरिक नोंद",
       "description": "आंतरिक पत्रव्यवहार आणि दस्तऐवज व्यवस्थापित करा"
@@ -675,8 +679,12 @@
         "download": "PDF डाउनलोड",
         "delete": "हटवा",
         "regenerate": "पुन्हा तयार करा",
-        "closePreview": "पूर्वावलोकन बंद"
+        "closePreview": "पूर्वावलोकन बंद",
+        "addToOutward": "जावक नोंदीत जोडा",
+        "addedToOutward": "जावक नोंदीत जोडले"
       },
+      "addToOutwardSuccess": "पत्र जावक नोंदीत जोडले.",
+      "addToOutwardError": "पत्र जावक नोंदीत जोडण्यात अयशस्वी.",
       "regenerateSuccess": "साच्यावरून पत्र पुन्हा तयार केले",
       "regenerateError": "पत्र पुन्हा तयार करण्यात अयशस्वी"
     },
@@ -1069,7 +1077,8 @@
       "status": "स्थिती",
       "createdAt": "तयार केलेली तारीख",
       "createAnother": "आणखी सेवा तयार करा",
-      "print": "सेवा तपशील प्रिंट करा"
+      "print": "सेवा तपशील प्रिंट करा",
+      "generateLetter": "पत्र तयार करा"
     },
     "messages": {
       "pleaseProvideCriteria": "कृपया किमान एक शोध निकष प्रदान करा (नाव, लिंग, किंवा वय)",
@@ -1414,6 +1423,15 @@
         "descriptionPlaceholder": "सेवा आवश्यकता वर्णन करा",
         "notesPlaceholder": "अतिरिक्त टिप्पण्या किंवा टिप्पण्या"
       },
+      "attachments": {
+        "label": "दस्तऐवज / प्रतिमा",
+        "selectFiles": "फाइल्स निवडा",
+        "selectedCount": "{count} फाइल निवडल्या",
+        "hint": "या सेवेशी संबंधित प्रतिमा किंवा दस्तऐवज अपलोड करा (PDF, प्रतिमा, Word, Excel; प्रत्येकी कमाल 10MB).",
+        "tooLarge": "{name} 10MB पेक्षा मोठी असल्याने वगळली.",
+        "invalidType": "{name} चा फाइल प्रकार समर्थित नसल्याने वगळली.",
+        "uploadFailed": "{count} दस्तऐवज अपलोड करता आले नाहीत."
+      },
       "serviceAreas": {
         "title": "सेवा क्षेत्रे",
         "addArea": "क्षेत्र जोडा",
@@ -1525,6 +1543,10 @@
       "manageTitle": "कार्य व्यवस्थापित करा",
       "manageDescription": "कार्य स्थिती अपडेट करा आणि टिप्पण्या जोडा",
       "taskType": "कार्य प्रकार",
+      "letters": "पत्रे",
+      "generateLetter": "पत्र तयार करा",
+      "noLetters": "या सेवेसाठी अद्याप कोणतेही पत्र तयार केलेले नाही.",
+      "documents": "अपलोड केलेले दस्तऐवज",
       "updateStatus": "स्थिती अपडेट करा",
       "selectNewStatus": "नवीन स्थिती निवडा",
       "addNote": "टिप्पणी जोडा",

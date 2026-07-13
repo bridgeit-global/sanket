@@ -1,5 +1,6 @@
 import { auth } from '@/app/(auth)/auth';
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 
 import { AddressMasterPage } from '@/components/address-master-page';
 import { hasModuleAccess } from '@/lib/db/queries';
@@ -19,7 +20,9 @@ export default async function AddressMasterRoutePage() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-7xl p-4 sm:py-8">
-        <AddressMasterPage />
+        <Suspense fallback={null}>
+          <AddressMasterPage />
+        </Suspense>
       </div>
     </div>
   );

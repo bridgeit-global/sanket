@@ -6,6 +6,7 @@ import { throwOnSupabaseError } from '@/lib/db/errors';
 import { TABLES } from './schema';
 import {
   mapBeneficiaryServiceRow,
+  mapBeneficiaryServiceAttachmentRow,
   mapBoothMasterRow,
   mapChatRow,
   mapCommunityServiceAreaRow,
@@ -48,6 +49,7 @@ import { ChatSDKError } from '../errors';
 import { notifyPush, sendPushToUser } from '@/lib/push/send';
 import type {
   BeneficiaryService,
+  BeneficiaryServiceAttachment,
   Chat,
   CommunityServiceArea,
   DailyProgramme,
@@ -1318,6 +1320,80 @@ export async function getBeneficiaryServicesByStatus(
   }
 }
 
+export async function getBeneficiaryServiceAttachments(
+  serviceId: string,
+): Promise<Array<BeneficiaryServiceAttachment>> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.beneficiaryServiceAttachment)
+      .select('*')
+      .eq('service_id', serviceId)
+      .order('created_at', { ascending: true });
+    throwOnSupabaseError(error, 'Failed to get beneficiary service attachments');
+    return (data ?? []).map(mapBeneficiaryServiceAttachmentRow);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get beneficiary service attachments',
+    );
+  }
+}
+
+export async function createBeneficiaryServiceAttachment({
+  serviceId,
+  fileName,
+  fileSizeKb,
+  fileUrl,
+}: {
+  serviceId: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl?: string;
+}): Promise<BeneficiaryServiceAttachment> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.beneficiaryServiceAttachment)
+      .insert(
+        toSnakeCaseKeys({
+          serviceId,
+          fileName,
+          fileSizeKb,
+          fileUrl: fileUrl || null,
+          createdAt: new Date().toISOString(),
+        }),
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create beneficiary service attachment');
+    return mapBeneficiaryServiceAttachmentRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create beneficiary service attachment',
+    );
+  }
+}
+
+export async function deleteBeneficiaryServiceAttachment(
+  id: string,
+): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from(TABLES.beneficiaryServiceAttachment)
+      .delete()
+      .eq('id', id);
+    throwOnSupabaseError(error, 'Failed to delete beneficiary service attachment');
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete beneficiary service attachment',
+    );
+  }
+}
+
 export async function createVoterTask({
   serviceId,
   voterId,
@@ -1782,7 +1858,11 @@ export async function hasModuleAccess(userId: string, moduleKey: string): Promis
     const moduleKeysToCheck =
       moduleKey === 'daily-programme' || moduleKey === 'calendar'
         ? ['daily-programme', 'calendar']
-        : [moduleKey];
+        : moduleKey === 'io-register' ||
+            moduleKey === 'inward' ||
+            moduleKey === 'outward'
+          ? ['io-register', 'inward', 'outward']
+          : [moduleKey];
 
     const { data: userRecord, error: userError } = await supabase
       .from(TABLES.user)
@@ -3164,6 +3244,7 @@ export async function createLetter({
   renderedHtml,
   paperSize,
   createdBy,
+  beneficiaryServiceId,
 }: {
   letterMasterId?: string | null;
   letterType: string;
@@ -3174,6 +3255,7 @@ export async function createLetter({
   renderedHtml: string;
   paperSize?: 'a4' | 'a5' | 'b5';
   createdBy?: string | null;
+  beneficiaryServiceId?: string | null;
 }): Promise<Letter> {
   try {
     const { resolveLetterPaperSize } = await import('@/lib/letters/paper-size');
@@ -3191,6 +3273,7 @@ export async function createLetter({
           renderedHtml,
           paperSize: resolveLetterPaperSize(paperSize, letterType),
           createdBy: createdBy || null,
+          beneficiaryServiceId: beneficiaryServiceId || null,
           createdAt: now,
           updatedAt: now,
         }),
@@ -3207,15 +3290,21 @@ export async function createLetter({
 
 export async function getLetters({
   limit = 50,
+  beneficiaryServiceId,
 }: {
   limit?: number;
+  beneficiaryServiceId?: string;
 } = {}): Promise<Array<Letter>> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from(TABLES.letter)
       .select('*')
       .order('created_at', { ascending: false })
       .limit(limit);
+    if (beneficiaryServiceId) {
+      query = query.eq('beneficiary_service_id', beneficiaryServiceId);
+    }
+    const { data, error } = await query;
     throwOnSupabaseError(error, 'Failed to get letters');
     return (data ?? []).map(mapLetterRow);
   } catch (error) {

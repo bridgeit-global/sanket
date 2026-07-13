@@ -15,7 +15,7 @@ import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
 import { useTranslations } from '@/hooks/use-translations';
 import type { VoterTask, BeneficiaryService } from '@/lib/db/schema';
 import { TablePagination } from '@/components/table-pagination';
-import { QrCode, Share2 } from 'lucide-react';
+import { QrCode, Share2, FileText, Paperclip } from 'lucide-react';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
 import {
@@ -341,6 +341,12 @@ export function TaskManagement({
     const [isLoading, setIsLoading] = useState(true);
     const [selectedTask, setSelectedTask] = useState<TaskWithService | null>(null);
     const [showTaskDialog, setShowTaskDialog] = useState(false);
+    const [linkedLetters, setLinkedLetters] = useState<
+        Array<{ id: string; title: string; referenceNo: string; letterType: string }>
+    >([]);
+    const [serviceAttachments, setServiceAttachments] = useState<
+        Array<{ id: string; fileName: string; fileUrl: string | null }>
+    >([]);
     const [showEscalationDialog, setShowEscalationDialog] = useState(false);
     const [escalationReason, setEscalationReason] = useState('');
     const [escalationPriority, setEscalationPriority] = useState<'high' | 'urgent'>('high');
@@ -353,6 +359,51 @@ export function TaskManagement({
     const [filterTokenInput, setFilterTokenInput] = useState<string>(mergedInitial.token);
     const [filterMobileInput, setFilterMobileInput] = useState<string>(mergedInitial.mobile);
     const [filterVoterIdInput, setFilterVoterIdInput] = useState<string>(mergedInitial.voterId);
+
+    // Load letters + document uploads linked to the selected service when the
+    // manage dialog opens.
+    useEffect(() => {
+        const serviceId = selectedTask?.serviceId;
+        if (!showTaskDialog || !serviceId) {
+            setLinkedLetters([]);
+            setServiceAttachments([]);
+            return;
+        }
+        let cancelled = false;
+        (async () => {
+            try {
+                const [lettersRes, attachmentsRes] = await Promise.all([
+                    fetch(
+                        `/api/letters?limit=50&beneficiaryServiceId=${encodeURIComponent(serviceId)}`,
+                    ),
+                    fetch(
+                        `/operator/api/beneficiary-services/${encodeURIComponent(serviceId)}/attachments`,
+                    ),
+                ]);
+                if (cancelled) return;
+                if (lettersRes.ok) {
+                    const json = await lettersRes.json();
+                    setLinkedLetters(json?.letters ?? []);
+                } else {
+                    setLinkedLetters([]);
+                }
+                if (attachmentsRes.ok) {
+                    const json = await attachmentsRes.json();
+                    setServiceAttachments(Array.isArray(json) ? json : []);
+                } else {
+                    setServiceAttachments([]);
+                }
+            } catch {
+                if (!cancelled) {
+                    setLinkedLetters([]);
+                    setServiceAttachments([]);
+                }
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
+    }, [showTaskDialog, selectedTask?.serviceId]);
     const [serviceCatalog, setServiceCatalog] = useState<ServiceCatalogOption[]>([]);
     const [showQrScanner, setShowQrScanner] = useState(false);
     const [pendingAutoFocusToken, setPendingAutoFocusToken] = useState<string | null>(null);
@@ -1197,6 +1248,80 @@ export function TaskManagement({
                                     {formatTaskType(selectedTask.taskType)}
                                 </p>
                             </div>
+
+                            {selectedTask.serviceId && (
+                                <div className="space-y-3 rounded-md border p-3">
+                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                        <Label>{t('taskManagement.dialog.letters')}</Label>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() =>
+                                                router.push(
+                                                    `/modules/letter-generation?beneficiaryServiceId=${encodeURIComponent(
+                                                        selectedTask.serviceId,
+                                                    )}`,
+                                                )
+                                            }
+                                        >
+                                            <FileText className="mr-2 size-4" />
+                                            {t('taskManagement.dialog.generateLetter')}
+                                        </Button>
+                                    </div>
+                                    {linkedLetters.length > 0 ? (
+                                        <ul className="space-y-1">
+                                            {linkedLetters.map((letter) => (
+                                                <li
+                                                    key={letter.id}
+                                                    className="flex items-center gap-2 text-sm"
+                                                >
+                                                    <FileText className="size-3.5 text-muted-foreground" />
+                                                    <span className="truncate">{letter.title}</span>
+                                                    {letter.referenceNo && (
+                                                        <span className="text-muted-foreground">
+                                                            · {letter.referenceNo}
+                                                        </span>
+                                                    )}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    ) : (
+                                        <p className="text-xs text-muted-foreground">
+                                            {t('taskManagement.dialog.noLetters')}
+                                        </p>
+                                    )}
+                                    {serviceAttachments.length > 0 && (
+                                        <div className="space-y-1 border-t pt-2">
+                                            <Label className="text-xs text-muted-foreground">
+                                                {t('taskManagement.dialog.documents')}
+                                            </Label>
+                                            <ul className="space-y-1">
+                                                {serviceAttachments.map((att) => (
+                                                    <li key={att.id} className="text-sm">
+                                                        {att.fileUrl ? (
+                                                            <a
+                                                                href={att.fileUrl}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="flex items-center gap-2 text-primary hover:underline"
+                                                            >
+                                                                <Paperclip className="size-3.5" />
+                                                                <span className="truncate">{att.fileName}</span>
+                                                            </a>
+                                                        ) : (
+                                                            <span className="flex items-center gap-2">
+                                                                <Paperclip className="size-3.5" />
+                                                                <span className="truncate">{att.fileName}</span>
+                                                            </span>
+                                                        )}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                             <div>
                                 <Label htmlFor="new-status">{t('taskManagement.dialog.updateStatus')}</Label>

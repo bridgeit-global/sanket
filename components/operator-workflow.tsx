@@ -11,11 +11,14 @@ import { SidebarToggle } from '@/components/sidebar-toggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { toast } from '@/components/toast';
-import { BeneficiaryServiceForm } from '@/components/beneficiary-service-form';
+import {
+    BeneficiaryServiceForm,
+    uploadBeneficiaryServiceAttachments,
+} from '@/components/beneficiary-service-form';
 import { PhoneUpdateForm, type MobileNumberEntry } from '@/components/phone-update-form';
 import { TaskManagement } from '@/components/task-management';
 import { useTranslations } from '@/hooks/use-translations';
-import { Share2 } from 'lucide-react';
+import { Share2, FileText } from 'lucide-react';
 import { AadhaarQrScanButton, AadhaarQrScannerDialog } from '@/components/aadhaar-qr-scanner-dialog';
 import { EpicQrScanButton, EpicQrScannerDialog } from '@/components/epic-qr-scanner-dialog';
 import { EpicBarcodeScanButton, EpicBarcodeScannerDialog } from '@/components/epic-barcode-scanner-dialog';
@@ -757,6 +760,10 @@ export function BeneficiaryManagement({
 
         const servicePayload = { ...(serviceData as Record<string, unknown>) };
         servicePayload.programmeLabel = undefined;
+        const attachments = Array.isArray(serviceData.attachments)
+            ? (serviceData.attachments as File[])
+            : [];
+        servicePayload.attachments = undefined;
 
         try {
             const response = await fetch('/operator/api/create-beneficiary-service', {
@@ -777,6 +784,22 @@ export function BeneficiaryManagement({
             }
 
             const result = await response.json();
+
+            if (attachments.length > 0 && result?.serviceId) {
+                const { failed } = await uploadBeneficiaryServiceAttachments(
+                    result.serviceId,
+                    attachments,
+                );
+                if (failed > 0) {
+                    toast({
+                        type: 'error',
+                        description: t('beneficiaryService.form.attachments.uploadFailed', {
+                            count: failed,
+                        }),
+                    });
+                }
+            }
+
             setCreatedService(result.service);
             setShowConfirmation(false);
             clearSearchStateIfNeeded();
@@ -1194,6 +1217,18 @@ export function BeneficiaryManagement({
                                     <Button onClick={handleShareThermalTicket} className="flex-1">
                                         <Share2 className="mr-2 h-4 w-4" />
                                         Share Thermal Ticket
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        className="flex-1"
+                                        onClick={() =>
+                                            router.push(
+                                                `/modules/letter-generation?beneficiaryServiceId=${encodeURIComponent(createdService.id)}`,
+                                            )
+                                        }
+                                    >
+                                        <FileText className="mr-2 h-4 w-4" />
+                                        {t('operator.completion.generateLetter')}
                                     </Button>
                                 </div>
                             </CardContent>

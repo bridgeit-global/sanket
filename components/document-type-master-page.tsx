@@ -49,7 +49,12 @@ export function DocumentTypeMasterPage() {
     void refreshDocumentTypes();
   }, [refreshDocumentTypes]);
 
-  const backHref = fromOutward ? '/modules/outward' : '/modules/letter-generation';
+  const beneficiaryServiceId = searchParams.get('beneficiaryServiceId');
+  const backHref = fromOutward
+    ? '/modules/io-register?tab=outward'
+    : beneficiaryServiceId
+      ? `/modules/letter-generation?beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}`
+      : '/modules/operator';
   const backLabel = fromOutward
     ? t('register.outward')
     : t('letterGeneration.documentTypesMaster.backToLetterGeneration');

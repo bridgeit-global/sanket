@@ -45,8 +45,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const limitParam = searchParams.get('limit');
     const limit = Math.max(1, Math.min(200, Number(limitParam ?? 50) || 50));
+    const beneficiaryServiceId =
+      searchParams.get('beneficiaryServiceId') || undefined;
 
-    const letters = await getLetters({ limit });
+    const letters = await getLetters({ limit, beneficiaryServiceId });
     return NextResponse.json({ letters });
   } catch (error) {
     console.error('Error fetching letters:', error);
@@ -77,6 +79,7 @@ export async function POST(request: NextRequest) {
       fields,
       renderedHtml,
       paperSize,
+      beneficiaryServiceId,
     } = body ?? {};
 
     if (!letterType || !letterLocale || !title || !renderedHtml) {
@@ -158,6 +161,9 @@ export async function POST(request: NextRequest) {
       renderedHtml: nextHtml,
       paperSize: resolveLetterPaperSize(paperSize, letterType),
       createdBy: session.user.id,
+      beneficiaryServiceId: beneficiaryServiceId
+        ? String(beneficiaryServiceId)
+        : null,
     });
 
     return NextResponse.json({ letter }, { status: 201 });

@@ -22,6 +22,12 @@ interface ComboboxProps {
     disabled?: boolean;
     className?: string;
     emptyMessage?: string;
+    /**
+     * Allow committing arbitrary typed text that is not in `options`.
+     * When enabled, a "create" row is shown for the current query and the
+     * typed value is committed on Enter or when focus leaves the field.
+     */
+    allowCustom?: boolean;
 }
 
 export function Combobox({
@@ -32,6 +38,7 @@ export function Combobox({
     disabled = false,
     className,
     emptyMessage = 'No options found',
+    allowCustom = false,
 }: ComboboxProps) {
     const [open, setOpen] = React.useState(false);
     const [searchQuery, setSearchQuery] = React.useState('');
@@ -51,6 +58,12 @@ export function Combobox({
         );
     }, [options, searchQuery]);
 
+    const trimmedQuery = searchQuery.trim();
+    const hasExactMatch = options.some(
+        (opt) => opt.label.toLowerCase() === trimmedQuery.toLowerCase(),
+    );
+    const showCreate = allowCustom && trimmedQuery.length > 0 && !hasExactMatch;
+
     // Reset highlighted index when filtered options change
     React.useEffect(() => {
         setHighlightedIndex(0);
@@ -64,6 +77,14 @@ export function Combobox({
                 containerRef.current &&
                 !containerRef.current.contains(event.target as Node)
             ) {
+                const pendingQuery = searchQuery.trim();
+                if (
+                    allowCustom &&
+                    pendingQuery.length > 0 &&
+                    pendingQuery !== (selectedOption?.label ?? value ?? '')
+                ) {
+                    onValueChange?.(pendingQuery);
+                }
                 setOpen(false);
                 setSearchQuery('');
                 setHighlightedIndex(0);
@@ -74,7 +95,7 @@ export function Combobox({
             document.addEventListener('mousedown', handleClickOutside);
             return () => document.removeEventListener('mousedown', handleClickOutside);
         }
-    }, [open]);
+    }, [open, allowCustom, searchQuery, selectedOption, value, onValueChange]);
 
     // Focus input when dropdown opens
     React.useEffect(() => {
@@ -138,6 +159,8 @@ export function Combobox({
             e.preventDefault();
             if (open && filteredOptions.length > 0) {
                 handleSelect(filteredOptions[highlightedIndex]?.value || filteredOptions[0].value);
+            } else if (open && showCreate) {
+                handleSelect(trimmedQuery);
             } else if (!open) {
                 setOpen(true);
             }
@@ -150,7 +173,7 @@ export function Combobox({
                 <Input
                     ref={inputRef}
                     type="text"
-                    value={open ? searchQuery : selectedOption?.label || ''}
+                    value={open ? searchQuery : selectedOption?.label ?? value ?? ''}
                     onChange={handleInputChange}
                     onFocus={handleInputFocus}
                     onKeyDown={handleKeyDown}
@@ -177,12 +200,22 @@ export function Combobox({
                     id="combobox-options"
                     className="absolute z-50 w-full mt-1 max-h-60 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
                 >
-                    {filteredOptions.length === 0 ? (
+                    {filteredOptions.length === 0 && !showCreate ? (
                         <div className="px-3 py-2 text-sm text-muted-foreground">
                             {emptyMessage}
                         </div>
                     ) : (
                         <div className="p-1">
+                            {showCreate && (
+                                <div
+                                    onClick={() => handleSelect(trimmedQuery)}
+                                    className="relative flex w-full cursor-default select-none items-center gap-1 rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                                    role="option"
+                                    aria-selected={false}
+                                >
+                                    <span className="truncate">{trimmedQuery}</span>
+                                </div>
+                            )}
                             {filteredOptions.map((option, index) => (
                                 <div
                                     key={option.value}

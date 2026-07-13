@@ -6,16 +6,15 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
-  FileDown,
   FileType,
   Calendar,
   ImageIcon,
   Loader2,
   MapPin,
   Plus,
-  Printer,
   RefreshCw,
   Save,
+  Send,
   Trash2,
   Upload,
   X,
@@ -25,6 +24,7 @@ import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Combobox } from '@/components/ui/combobox';
 import {
   Card,
   CardContent,
@@ -97,7 +97,7 @@ import {
   resolveLetterPaperSize,
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
-import { exportElementToPdf, printPdfBlob } from '@/lib/pdf/export-element-to-pdf';
+import { exportElementToPdf } from '@/lib/pdf/export-element-to-pdf';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { ModulePageHeader } from '@/components/module-page-header';
 import {
@@ -880,7 +880,17 @@ type LetterMasterRow = {
   updatedAt: string | Date;
 };
 
-export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
+export function LetterGeneration({
+  isAdmin = false,
+  beneficiaryServiceId,
+  prefillName,
+  prefillAddress,
+}: {
+  isAdmin?: boolean;
+  beneficiaryServiceId?: string;
+  prefillName?: string;
+  prefillAddress?: string;
+}) {
   const { t, locale } = useTranslations();
   const [letterLocale, setLetterLocale] = useState<LetterLocale>(locale);
   /** Field labels / options follow letter language, not UI locale. */
@@ -891,8 +901,12 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   const prevLetterLocaleRef = useRef<LetterLocale>(locale);
   const [activeTab, setActiveTab] = useState<LetterType>('fees');
   const [isSaving, setIsSaving] = useState(false);
-  const [downloadingLetterId, setDownloadingLetterId] = useState<string | null>(null);
-  const [printingLetterId, setPrintingLetterId] = useState<string | null>(null);
+  const [addingToOutwardLetterId, setAddingToOutwardLetterId] = useState<
+    string | null
+  >(null);
+  const [outwardAddedReferenceNos, setOutwardAddedReferenceNos] = useState<
+    Set<string>
+  >(() => new Set());
   const [isGeneratorCollapsed, setIsGeneratorCollapsed] = useState(false);
 
   const [feesFields, setFeesFields] = useState<FeesLetterFields>(() =>
@@ -1517,6 +1531,45 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     }
   };
 
+  const schoolNameOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const opts: { value: string; label: string }[] = [];
+    for (const a of addresses) {
+      if (!a.isActive || a.addressType !== 'school') continue;
+      const name = getAddressMasterName(a, letterLocale).trim();
+      if (!name || seen.has(name)) continue;
+      seen.add(name);
+      opts.push({ value: name, label: name });
+    }
+    return opts;
+  }, [addresses, letterLocale]);
+
+  // Selecting a saved institute name autofills its address; typed custom
+  // names are kept as-is without touching the address selection.
+  const handleSchoolNameSelect = (
+    letterType: 'fees' | 'school-admission' | 'school-transfer',
+    value: string,
+  ) => {
+    const master = addresses.find(
+      (a) =>
+        a.isActive &&
+        a.addressType === 'school' &&
+        getAddressMasterName(a, letterLocale) === value,
+    );
+    if (master) {
+      handleSchoolAddressSelect(master.id);
+    } else if (letterType === 'fees') {
+      setFeesFields((prev) => ({ ...prev, schoolName: value }));
+    } else if (letterType === 'school-admission') {
+      setSchoolAdmissionFields((prev) => ({ ...prev, schoolName: value }));
+    } else {
+      setSchoolTransferFields((prev) => ({ ...prev, schoolName: value }));
+    }
+    if (fieldErrors.schoolName) {
+      setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
+    }
+  };
+
   const handleApplicantAddressSelect = (id: string | null, seedText = '') => {
     setAddressSelections((prev) => ({ ...prev, applicant: id }));
     setFieldErrors((prev) => ({ ...prev, applicantAddress: undefined }));
@@ -1672,7 +1725,10 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   const refreshSavedLetters = async () => {
     setSavedLettersLoading(true);
     try {
-      const res = await fetch('/api/letters?limit=50');
+      const query = beneficiaryServiceId
+        ? `/api/letters?limit=50&beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}`
+        : '/api/letters?limit=50';
+      const res = await fetch(query);
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to fetch letters');
       setSavedLetters((json?.letters ?? []) as SavedLetterRow[]);
@@ -1689,8 +1745,58 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
     void refreshLetterMasters();
     void refreshAddresses();
     void refreshDocumentTypes();
+    // Preload reference numbers already present in the outward register so the
+    // "Add to Outward Register" action stays disabled across reloads.
+    void (async () => {
+      try {
+        const res = await fetch('/api/register?type=outward');
+        if (!res.ok) return;
+        const entries = (await res.json()) as Array<{ refNo?: string | null }>;
+        const refs = new Set(
+          entries
+            .map((entry) => entry.refNo)
+            .filter((ref): ref is string => Boolean(ref)),
+        );
+        if (refs.size > 0) setOutwardAddedReferenceNos(refs);
+      } catch {
+        // best-effort; in-session guard still applies
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Best-effort prefill from the linked beneficiary/voter. Only fills empty
+  // fields, and only once on mount, so operator edits are never clobbered.
+  const prefillAppliedRef = useRef(false);
+  useEffect(() => {
+    if (prefillAppliedRef.current) return;
+    const name = (prefillName ?? '').trim();
+    const address = (prefillAddress ?? '').trim();
+    if (!name && !address) return;
+    prefillAppliedRef.current = true;
+    if (name) {
+      setFeesFields((p) => ({ ...p, studentName: p.studentName || name }));
+      setSchoolAdmissionFields((p) => ({
+        ...p,
+        studentName: p.studentName || name,
+      }));
+      setSchoolTransferFields((p) => ({
+        ...p,
+        studentName: p.studentName || name,
+      }));
+      setRationFields((p) => ({ ...p, fullName: p.fullName || name }));
+      setIncomeFields((p) => ({ ...p, fullName: p.fullName || name }));
+      setDomicileFields((p) => ({ ...p, fullName: p.fullName || name }));
+    }
+    if (address) {
+      setSchoolAdmissionFields((p) => ({ ...p, address: p.address || address }));
+      setSchoolTransferFields((p) => ({ ...p, address: p.address || address }));
+      setRationFields((p) => ({ ...p, address: p.address || address }));
+      setIncomeFields((p) => ({ ...p, address: p.address || address }));
+      setDomicileFields((p) => ({ ...p, address: p.address || address }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillName, prefillAddress]);
 
   useEffect(() => {
     if (!addressSelections.school) return;
@@ -2202,6 +2308,7 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
           fields: activeFields,
           renderedHtml: activeBody,
           paperSize: paperSizeDraft,
+          beneficiaryServiceId: beneficiaryServiceId ?? null,
         }),
       });
       const json = await res.json();
@@ -2293,74 +2400,107 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
   const resolveSavedLetterPaperSize = (letter: SavedLetterRow): LetterPaperSize =>
     resolveLetterPaperSize(letter.paperSize, letter.letterType);
 
-  const handlePrintSavedLetter = async (letter: SavedLetterRow) => {
-    setPrintingLetterId(letter.id);
-    let exportHost: HTMLDivElement | null = null;
-    try {
-      const paperSize = resolveSavedLetterPaperSize(letter);
-      exportHost = createLetterExportElement(letter.renderedHtml, {
-        paperSize,
-        letterLocale: letter.letterLocale,
-      });
-      document.body.appendChild(exportHost);
-      // Print via PDF so Chrome cannot stamp URL/date headers (HTML @page cannot suppress them).
-      const blob = await exportElementToPdf({
-        element: exportHost,
-        fileName: `${letter.title}-${letter.referenceNo || 'letter'}`,
-        format: paperSize,
-        orientation: 'portrait',
-        marginMm: LETTER_PAPER_MARGIN_MM[paperSize],
-        scale: 2,
-        captureWidthPx: getLetterPaperContentWidthPx(paperSize),
-        destination: 'blob',
-        pageBackground: {
-          headerHeightMm: getLetterheadContentPaddingMm(paperSize),
-        },
-      });
-      exportHost.remove();
-      exportHost = null;
-      // Stop loader as soon as the print dialog can open — cancel does not always fire afterprint.
-      setPrintingLetterId(null);
-      await printPdfBlob(blob);
-    } catch (error) {
-      console.error('Saved letter print failed', error);
-      toast.error(t('letterGeneration.printPopupBlocked'));
-    } finally {
-      exportHost?.remove();
-      setPrintingLetterId(null);
+  const deriveOutwardRecipient = (letter: SavedLetterRow): string => {
+    const fields = (letter.fields ?? {}) as Record<string, unknown>;
+    const candidates = [
+      fields.schoolName,
+      fields.officeAddress,
+      fields.rationOfficeAddress,
+      fields.toRationOffice,
+      fields.fullName,
+      fields.parentName,
+      fields.studentName,
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return candidate.trim();
+      }
     }
+    return letter.title;
   };
 
-  const handleDownloadSavedLetter = async (letter: SavedLetterRow) => {
-    setDownloadingLetterId(letter.id);
+  // Push a saved letter into the outward register, reusing its reference number
+  // and attaching the generated PDF so the letter travels with the entry.
+  const handleAddLetterToOutward = async (letter: SavedLetterRow) => {
+    if (outwardAddedReferenceNos.has(letter.referenceNo)) return;
+    setAddingToOutwardLetterId(letter.id);
     let exportHost: HTMLDivElement | null = null;
     try {
-      const paperSize = resolveSavedLetterPaperSize(letter);
-      exportHost = createLetterExportElement(letter.renderedHtml, {
-        paperSize,
-        letterLocale: letter.letterLocale,
+      const parsed = parseReference(letter.referenceNo || '');
+      const entryDate = new Date(letter.createdAt);
+      const dateString = Number.isNaN(entryDate.getTime())
+        ? new Date().toISOString().slice(0, 10)
+        : entryDate.toISOString().slice(0, 10);
+
+      const res = await fetch('/api/register', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          type: 'outward',
+          documentType: parsed.prefix || undefined,
+          date: dateString,
+          fromTo: deriveOutwardRecipient(letter),
+          subject: letter.title,
+          refNo: letter.referenceNo,
+          autoSequence: false,
+        }),
       });
-      document.body.appendChild(exportHost);
-      await exportElementToPdf({
-        element: exportHost,
-        fileName: `${letter.title}-${letter.referenceNo || 'letter'}`,
-        format: paperSize,
-        orientation: 'portrait',
-        marginMm: LETTER_PAPER_MARGIN_MM[paperSize],
-        scale: 2,
-        captureWidthPx: getLetterPaperContentWidthPx(paperSize),
-        // Header clearance only — no letterhead background image.
-        pageBackground: {
-          headerHeightMm: getLetterheadContentPaddingMm(paperSize),
-        },
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.error || 'Failed to add letter to outward register');
+      }
+
+      const entryId = json?.id;
+      if (entryId) {
+        const paperSize = resolveSavedLetterPaperSize(letter);
+        exportHost = createLetterExportElement(letter.renderedHtml, {
+          paperSize,
+          letterLocale: letter.letterLocale,
+        });
+        document.body.appendChild(exportHost);
+        const blob = await exportElementToPdf({
+          element: exportHost,
+          fileName: `${letter.title}-${letter.referenceNo || 'letter'}`,
+          format: paperSize,
+          orientation: 'portrait',
+          marginMm: LETTER_PAPER_MARGIN_MM[paperSize],
+          scale: 2,
+          captureWidthPx: getLetterPaperContentWidthPx(paperSize),
+          destination: 'blob',
+          pageBackground: {
+            headerHeightMm: getLetterheadContentPaddingMm(paperSize),
+          },
+        });
+        exportHost.remove();
+        exportHost = null;
+
+        const safeName = `${letter.referenceNo || letter.title || 'letter'}`
+          .replace(/[^\w.-]+/g, '_')
+          .slice(0, 80);
+        const formData = new FormData();
+        formData.append(
+          'file',
+          new File([blob], `${safeName}.pdf`, { type: 'application/pdf' }),
+        );
+        // Best-effort attachment; the register entry is already created.
+        await fetch(`/api/register/${entryId}/attachments`, {
+          method: 'POST',
+          body: formData,
+        });
+      }
+
+      setOutwardAddedReferenceNos((prev) => {
+        const next = new Set(prev);
+        next.add(letter.referenceNo);
+        return next;
       });
-      toast.success(t('letterGeneration.pdfSuccess'));
+      toast.success(t('letterGeneration.savedLetters.addToOutwardSuccess'));
     } catch (error) {
-      console.error('Saved letter PDF export failed', error);
-      toast.error(t('letterGeneration.pdfError'));
+      console.error('Add letter to outward failed', error);
+      toast.error(t('letterGeneration.savedLetters.addToOutwardError'));
     } finally {
       exportHost?.remove();
-      setDownloadingLetterId(null);
+      setAddingToOutwardLetterId(null);
     }
   };
 
@@ -2430,24 +2570,29 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
         size="sm"
         variant="outline"
         className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
-        onClick={() => void handleDownloadSavedLetter(letter)}
-        disabled={downloadingLetterId === letter.id}
+        onClick={() => setSelectedSavedLetterId(letter.id)}
       >
-        {downloadingLetterId === letter.id ? (
-          <Loader2 className="mr-2 size-4 animate-spin" />
-        ) : (
-          <FileDown className="mr-2 size-4" />
-        )}
-        {t('letterGeneration.savedLetters.actions.download')}
+        <Eye className="mr-2 size-4" />
+        {t('letterGeneration.savedLetters.actions.preview')}
       </Button>
       <Button
         size="sm"
         variant="outline"
         className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
-        onClick={() => setSelectedSavedLetterId(letter.id)}
+        onClick={() => void handleAddLetterToOutward(letter)}
+        disabled={
+          addingToOutwardLetterId === letter.id ||
+          outwardAddedReferenceNos.has(letter.referenceNo)
+        }
       >
-        <Eye className="mr-2 size-4" />
-        {t('letterGeneration.savedLetters.actions.preview')}
+        {addingToOutwardLetterId === letter.id ? (
+          <Loader2 className="mr-2 size-4 animate-spin" />
+        ) : (
+          <Send className="mr-2 size-4" />
+        )}
+        {outwardAddedReferenceNos.has(letter.referenceNo)
+          ? t('letterGeneration.savedLetters.actions.addedToOutward')
+          : t('letterGeneration.savedLetters.actions.addToOutward')}
       </Button>
       {/* <Button
         size="sm"
@@ -2578,13 +2723,25 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
         actions={
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" asChild>
-              <Link href="/modules/letter-generation/document-types">
+              <Link
+                href={
+                  beneficiaryServiceId
+                    ? `/modules/letter-generation/document-types?beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}`
+                    : '/modules/letter-generation/document-types'
+                }
+              >
                 <FileType className="mr-2 size-4" />
                 {t('letterGeneration.documentTypesMaster.manageLink')}
               </Link>
             </Button>
             <Button variant="outline" asChild>
-              <Link href="/modules/letter-generation/addresses">
+              <Link
+                href={
+                  beneficiaryServiceId
+                    ? `/modules/letter-generation/addresses?beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}`
+                    : '/modules/letter-generation/addresses'
+                }
+              >
                 <MapPin className="mr-2 size-4" />
                 {t('letterGeneration.addresses.manageLink')}
               </Link>
@@ -2706,16 +2863,23 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         required
                         error={fieldErrors.schoolName}
                       >
-                        <LocaleTextInput
-                          locale={letterLocale}
+                        <Combobox
+                          options={schoolNameOptions}
                           value={feesFields.schoolName}
-                          onValueChange={(schoolName) => {
-                            setFeesFields({ ...feesFields, schoolName });
-                            if (fieldErrors.schoolName) {
-                              setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
-                            }
-                          }}
-                          required
+                          onValueChange={(value) =>
+                            handleSchoolNameSelect('fees', value)
+                          }
+                          allowCustom
+                          placeholder={
+                            letterLocale === 'mr'
+                              ? 'संस्था निवडा किंवा टाइप करा'
+                              : 'Select or type institute name'
+                          }
+                          emptyMessage={
+                            letterLocale === 'mr'
+                              ? 'जतन केलेली संस्था नाही'
+                              : 'No saved institutes'
+                          }
                         />
                       </FieldGroup>
                       <LetterAddressField
@@ -2784,19 +2948,23 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         required
                         error={fieldErrors.schoolName}
                       >
-                        <LocaleTextInput
-                          locale={letterLocale}
+                        <Combobox
+                          options={schoolNameOptions}
                           value={schoolAdmissionFields.schoolName}
-                          onValueChange={(schoolName) => {
-                            setSchoolAdmissionFields({
-                              ...schoolAdmissionFields,
-                              schoolName,
-                            });
-                            if (fieldErrors.schoolName) {
-                              setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
-                            }
-                          }}
-                          required
+                          onValueChange={(value) =>
+                            handleSchoolNameSelect('school-admission', value)
+                          }
+                          allowCustom
+                          placeholder={
+                            letterLocale === 'mr'
+                              ? 'संस्था निवडा किंवा टाइप करा'
+                              : 'Select or type institute name'
+                          }
+                          emptyMessage={
+                            letterLocale === 'mr'
+                              ? 'जतन केलेली संस्था नाही'
+                              : 'No saved institutes'
+                          }
                         />
                       </FieldGroup>
                       <LetterAddressField
@@ -2926,19 +3094,23 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                         required
                         error={fieldErrors.schoolName}
                       >
-                        <LocaleTextInput
-                          locale={letterLocale}
+                        <Combobox
+                          options={schoolNameOptions}
                           value={schoolTransferFields.schoolName}
-                          onValueChange={(schoolName) => {
-                            setSchoolTransferFields({
-                              ...schoolTransferFields,
-                              schoolName,
-                            });
-                            if (fieldErrors.schoolName) {
-                              setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
-                            }
-                          }}
-                          required
+                          onValueChange={(value) =>
+                            handleSchoolNameSelect('school-transfer', value)
+                          }
+                          allowCustom
+                          placeholder={
+                            letterLocale === 'mr'
+                              ? 'संस्था निवडा किंवा टाइप करा'
+                              : 'Select or type institute name'
+                          }
+                          emptyMessage={
+                            letterLocale === 'mr'
+                              ? 'जतन केलेली संस्था नाही'
+                              : 'No saved institutes'
+                          }
                         />
                       </FieldGroup>
                       <LetterAddressField
@@ -4163,29 +4335,26 @@ export function LetterGeneration({ isAdmin = false }: { isAdmin?: boolean }) {
                                   size="sm"
                                   variant="outline"
                                   className="w-full sm:w-auto"
-                                  onClick={() => void handlePrintSavedLetter(selectedSavedLetter)}
-                                  disabled={printingLetterId === selectedSavedLetter.id}
+                                  onClick={() =>
+                                    void handleAddLetterToOutward(selectedSavedLetter)
+                                  }
+                                  disabled={
+                                    addingToOutwardLetterId === selectedSavedLetter.id ||
+                                    outwardAddedReferenceNos.has(
+                                      selectedSavedLetter.referenceNo,
+                                    )
+                                  }
                                 >
-                                  {printingLetterId === selectedSavedLetter.id ? (
+                                  {addingToOutwardLetterId === selectedSavedLetter.id ? (
                                     <Loader2 className="mr-2 size-4 animate-spin" />
                                   ) : (
-                                    <Printer className="mr-2 size-4" />
+                                    <Send className="mr-2 size-4" />
                                   )}
-                                  {t('letterGeneration.savedLetters.actions.print')}
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="w-full sm:w-auto"
-                                  onClick={() => void handleDownloadSavedLetter(selectedSavedLetter)}
-                                  disabled={downloadingLetterId === selectedSavedLetter.id}
-                                >
-                                  {downloadingLetterId === selectedSavedLetter.id ? (
-                                    <Loader2 className="mr-2 size-4 animate-spin" />
-                                  ) : (
-                                    <FileDown className="mr-2 size-4" />
-                                  )}
-                                  {t('letterGeneration.savedLetters.actions.download')}
+                                  {outwardAddedReferenceNos.has(
+                                    selectedSavedLetter.referenceNo,
+                                  )
+                                    ? t('letterGeneration.savedLetters.actions.addedToOutward')
+                                    : t('letterGeneration.savedLetters.actions.addToOutward')}
                                 </Button>
                               </div>
                             </div>
