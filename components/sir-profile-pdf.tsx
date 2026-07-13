@@ -10,10 +10,24 @@ import {
   exportElementToPdf,
   A4_PORTRAIT_CONTENT_WIDTH_PX,
 } from '@/lib/pdf/export-element-to-pdf';
+import {
+  SIR_CREDIT_LOGO,
+  SIR_MLA_NAME,
+  SIR_MLA_WORDMARK,
+  SIR_MLA_PHOTO,
+  SIR_ASSEMBLY_CONSTITUENCY,
+} from '@/lib/sir/constants';
 import type { SirProfile } from '@/lib/sir/types';
 
 interface SirProfilePdfProps {
   profile: SirProfile;
+}
+
+/** Title-case a name: first letter of each word capitalized, rest lowercase. */
+function toTitleCase(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/(^|[\s'-])([a-z])/g, (_m, sep, ch) => sep + ch.toUpperCase());
 }
 
 function Field({ label, value }: { label: string; value: string }) {
@@ -117,12 +131,6 @@ export function SirProfilePdf({ profile }: SirProfilePdfProps) {
     }
   };
 
-  const primaryPhone = profile.mobileNumbers
-    .slice()
-    .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((m) => m.mobileNumber)
-    .join(', ');
-
   return (
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -146,7 +154,48 @@ export function SirProfilePdf({ profile }: SirProfilePdfProps) {
       </CardHeader>
       <CardContent>
         <div ref={printRef} className="bg-white text-black">
-          <div className="mb-4 text-center">
+          {/* Branded letterhead: MLA portrait, wordmark and NCP election symbol */}
+          <div className="flex items-center justify-between gap-4 border-b-4 border-[#d6006e] pb-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={SIR_MLA_PHOTO}
+              alt=""
+              crossOrigin="anonymous"
+              className="size-16 shrink-0 rounded-full border-2 border-[#d6006e] object-cover sm:size-20"
+            />
+            <div className="flex min-w-0 flex-1 flex-col items-center text-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={SIR_MLA_WORDMARK}
+                alt=""
+                crossOrigin="anonymous"
+                className="h-9 object-contain sm:h-11"
+              />
+              <p className="mt-1 text-sm font-bold text-black sm:text-base">
+                {SIR_MLA_NAME}
+              </p>
+              <p className="text-[11px] font-medium text-neutral-600 sm:text-xs">
+                {t('sir.credit.mlaDesignation')}
+              </p>
+              <p className="text-[11px] text-neutral-600 sm:text-xs">
+                {profile.assemblyConstituency} {t('sir.fields.assemblyConstituency')}
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col items-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={SIR_CREDIT_LOGO}
+                alt=""
+                crossOrigin="anonymous"
+                className="size-14 object-contain sm:size-16"
+              />
+              <span className="text-[9px] font-medium uppercase tracking-wide text-neutral-500">
+                {t('sir.credit.electionSymbol')}
+              </span>
+            </div>
+          </div>
+
+          <div className="my-4 text-center">
             <h2 className="text-xl font-bold">{t('sir.documentTitle')}</h2>
             <p className="text-sm text-muted-foreground">
               {profile.state} / {profile.district} / {profile.assemblyConstituency}
@@ -154,14 +203,14 @@ export function SirProfilePdf({ profile }: SirProfilePdfProps) {
           </div>
           <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
             <Field label={t('sir.fields.epicNumber')} value={profile.epicNumber} />
-            <Field label={t('sir.fields.name')} value={profile.fullName} />
+            <Field label={t('sir.fields.name')} value={toTitleCase(profile.fullName)} />
             <Field
               label={t('sir.fields.age')}
               value={profile.age != null ? String(profile.age) : na}
             />
             <Field
               label={t('sir.fields.relativeName')}
-              value={profile.relationName || na}
+              value={profile.relationName ? toTitleCase(profile.relationName) : na}
             />
             <Field label={t('sir.fields.state')} value={profile.state} />
             <Field label={t('sir.fields.district')} value={profile.district} />
@@ -177,10 +226,27 @@ export function SirProfilePdf({ profile }: SirProfilePdfProps) {
               label={t('sir.fields.partSerialNumber')}
               value={profile.srNo || na}
             />
-            <Field
-              label={t('sir.fields.phoneNumbers')}
-              value={primaryPhone || na}
+          </div>
+
+          <div className="mt-6 flex items-center gap-3 border-t-2 border-[#d6006e] pt-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={SIR_CREDIT_LOGO}
+              alt=""
+              crossOrigin="anonymous"
+              className="size-14 shrink-0 object-contain"
             />
+            <div className="text-xs leading-snug text-neutral-600">
+              <p>
+                {t('sir.credit.line', {
+                  mla: SIR_MLA_NAME,
+                  ac: SIR_ASSEMBLY_CONSTITUENCY,
+                })}
+              </p>
+              <p className="mt-0.5 font-medium text-[#d6006e]">
+                {t('sir.credit.party')}
+              </p>
+            </div>
           </div>
         </div>
       </CardContent>

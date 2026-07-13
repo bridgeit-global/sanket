@@ -224,6 +224,13 @@
     "actionFailed": "Something went wrong. Please try again.",
     "profileTitle": "Voter Profile",
     "documentTitle": "SIR Voter Profile",
+    "credit": {
+      "title": "Produced with the support of Hon'ble MLA",
+      "line": "{mla}, {ac} Assembly Constituency",
+      "mlaDesignation": "Member of Legislative Assembly",
+      "party": "Nationalist Congress Party",
+      "electionSymbol": "NCP"
+    },
     "notAvailable": "Not available",
     "download": "Download",
     "share": "Share",
