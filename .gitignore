@@ -19,6 +19,9 @@ public/sw.js.map
 .DS_Store
 *.pem
 
+# typescript
+*.tsbuildinfo
+
 # debug
 npm-debug.log*
 yarn-debug.log*
