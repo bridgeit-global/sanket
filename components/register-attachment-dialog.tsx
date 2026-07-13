@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -49,8 +49,25 @@ export function RegisterAttachmentDialog({
 }: RegisterAttachmentDialogProps) {
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [opening, setOpening] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Inline preview state - previewing in-app avoids opening browser tabs.
+  const [previewAttachment, setPreviewAttachment] = useState<Attachment | null>(
+    null,
+  );
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const previewIframeRef = useRef<HTMLIFrameElement>(null);
+
+  // Revoke the object URL when the preview closes or the component unmounts.
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -151,39 +168,120 @@ export function RegisterAttachmentDialog({
     }
   };
 
-  const handleView = (attachment: Attachment) => {
-    if (attachment.fileUrl) {
-      window.open(attachment.fileUrl, '_blank');
-    } else {
-      toast.error('File URL not available');
+  const closePreview = (isOpen: boolean) => {
+    if (!isOpen) {
+      setPreviewAttachment(null);
+      setPreviewUrl(null);
     }
   };
 
-  const handleDownload = (attachment: Attachment) => {
-    if (attachment.fileUrl) {
+  // Preview the file inline inside the app instead of opening a browser tab.
+  // This avoids the "a new tab opens on every click" problem entirely.
+  const handleView = async (attachment: Attachment) => {
+    if (!attachment.fileUrl) {
+      toast.error('File URL not available');
+      return;
+    }
+    setOpening(attachment.id);
+    try {
+      const response = await fetch(attachment.fileUrl);
+      if (!response.ok) throw new Error('Failed to fetch file');
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      setPreviewUrl(objectUrl);
+      setPreviewAttachment(attachment);
+    } catch (error) {
+      console.error('Preview error:', error);
+      toast.error('Failed to open document');
+    } finally {
+      setOpening(null);
+    }
+  };
+
+  const handleDownload = async (attachment: Attachment) => {
+    if (!attachment.fileUrl) {
+      toast.error('File URL not available');
+      return;
+    }
+    try {
+      // Fetch as a blob so the download happens in-place instead of opening a
+      // new tab (the `download` attribute is ignored for cross-origin URLs).
+      const response = await fetch(attachment.fileUrl);
+      if (!response.ok) throw new Error('Failed to fetch file');
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = attachment.fileUrl;
+      link.href = objectUrl;
       link.download = attachment.fileName;
-      link.target = '_blank';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    } else {
-      toast.error('File URL not available');
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      console.error('Download error:', error);
+      // Fallback: reuse the shared preview tab rather than spawning a new one.
+      window.open(attachment.fileUrl, 'attachment-preview');
     }
   };
 
-  const handlePrint = (attachment: Attachment) => {
-    if (attachment.fileUrl) {
-      const printWindow = window.open(attachment.fileUrl, '_blank');
-      if (printWindow) {
-        printWindow.addEventListener('load', () => {
-          printWindow.print();
-        });
-      }
-    } else {
+  // Print via a hidden iframe so nothing opens in a new browser tab.
+  const handlePrint = async (attachment: Attachment) => {
+    if (!attachment.fileUrl) {
       toast.error('File URL not available');
+      return;
     }
+    setOpening(attachment.id);
+    try {
+      const response = await fetch(attachment.fileUrl);
+      if (!response.ok) throw new Error('Failed to fetch file');
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      iframe.src = objectUrl;
+      iframe.onload = () => {
+        try {
+          iframe.contentWindow?.focus();
+          iframe.contentWindow?.print();
+        } catch (printError) {
+          console.error('Print error:', printError);
+        }
+        // Clean up after the print dialog has had time to open.
+        window.setTimeout(() => {
+          document.body.removeChild(iframe);
+          URL.revokeObjectURL(objectUrl);
+        }, 60000);
+      };
+      document.body.appendChild(iframe);
+    } catch (error) {
+      console.error('Print error:', error);
+      toast.error('Failed to print document');
+    } finally {
+      setOpening(null);
+    }
+  };
+
+  const handlePreviewPrint = () => {
+    try {
+      previewIframeRef.current?.contentWindow?.focus();
+      previewIframeRef.current?.contentWindow?.print();
+    } catch (error) {
+      console.error('Print error:', error);
+    }
+  };
+
+  const getFileExt = (fileName: string) =>
+    fileName.split('.').pop()?.toLowerCase() ?? '';
+
+  const canPreviewInline = (fileName: string) => {
+    const ext = getFileExt(fileName);
+    return ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'txt'].includes(ext);
   };
 
   const getFileIcon = (fileName: string) => {
@@ -205,6 +303,7 @@ export function RegisterAttachmentDialog({
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
@@ -287,9 +386,14 @@ export function RegisterAttachmentDialog({
                       size="icon"
                       className="h-8 w-8"
                       onClick={() => handleView(attachment)}
+                      disabled={opening === attachment.id}
                       title="View"
                     >
-                      <Eye className="h-4 w-4" />
+                      {opening === attachment.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
                     </Button>
                     <Button
                       variant="ghost"
@@ -305,6 +409,7 @@ export function RegisterAttachmentDialog({
                       size="icon"
                       className="h-8 w-8"
                       onClick={() => handlePrint(attachment)}
+                      disabled={opening === attachment.id}
                       title="Print"
                     >
                       <Printer className="h-4 w-4" />
@@ -331,6 +436,78 @@ export function RegisterAttachmentDialog({
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Inline document preview - keeps everything in-app (no browser tabs) */}
+    <Dialog
+      open={!!previewAttachment}
+      onOpenChange={closePreview}
+    >
+      <DialogContent className="max-w-5xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0">
+        <DialogHeader className="p-4 pr-14 border-b">
+          <DialogTitle className="truncate text-base">
+            {previewAttachment?.fileName}
+          </DialogTitle>
+          <DialogDescription className="sr-only">
+            Document preview
+          </DialogDescription>
+          <div className="flex items-center gap-1 absolute right-12 top-3.5">
+            {previewAttachment &&
+              canPreviewInline(previewAttachment.fileName) && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={handlePreviewPrint}
+                  title="Print"
+                >
+                  <Printer className="h-4 w-4" />
+                </Button>
+              )}
+            {previewAttachment && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => handleDownload(previewAttachment)}
+                title="Download"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </DialogHeader>
+
+        <div className="flex-1 min-h-0 bg-muted/30">
+          {previewUrl &&
+          previewAttachment &&
+          canPreviewInline(previewAttachment.fileName) ? (
+            <iframe
+              ref={previewIframeRef}
+              src={previewUrl}
+              title={previewAttachment.fileName}
+              className="w-full h-full border-0"
+            />
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full gap-3 text-center p-6">
+              <FileText className="h-12 w-12 text-muted-foreground opacity-50" />
+              <p className="text-sm text-muted-foreground">
+                Preview isn&apos;t available for this file type.
+              </p>
+              {previewAttachment && (
+                <Button
+                  variant="outline"
+                  onClick={() => handleDownload(previewAttachment)}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Download to view
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 

@@ -2,8 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { CalendarDays, Inbox, Send, FolderKanban, Phone, Users, UserCheck } from 'lucide-react';
+import { Phone, Users, UserCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { useTranslations } from '@/hooks/use-translations';
@@ -17,6 +16,7 @@ interface DashboardContentProps {
 export function DashboardContent({ data }: DashboardContentProps) {
   const router = useRouter();
   const { t } = useTranslations();
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -31,7 +31,15 @@ export function DashboardContent({ data }: DashboardContentProps) {
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-3">
-            <div className="flex flex-col gap-1 rounded-lg border p-4">
+            <button
+              type="button"
+              onClick={() =>
+                router.push(
+                  `/modules/daily-programme?start=${today}&end=${today}`,
+                )
+              }
+              className="flex flex-col gap-1 rounded-lg border p-4 text-left transition-colors hover:border-primary/50 hover:bg-muted/50"
+            >
               <span className="text-xs uppercase tracking-wide text-muted-foreground">
                 {t('dashboard.meetings')}
               </span>
@@ -39,19 +47,49 @@ export function DashboardContent({ data }: DashboardContentProps) {
               <span className="text-xs text-muted-foreground">
                 {t('dashboard.asPerDailyProgramme')}
               </span>
-            </div>
+            </button>
             <div className="flex flex-col gap-1 rounded-lg border p-4">
               <span className="text-xs uppercase tracking-wide text-muted-foreground">
                 {t('dashboard.inwardOutward')}
               </span>
               <span className="text-2xl font-semibold">
-                {data.stats.inward} / {data.stats.outward}
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      `/modules/io-register?tab=inward&startDate=${today}&endDate=${today}`,
+                    )
+                  }
+                  className="rounded transition-colors hover:text-primary hover:underline"
+                >
+                  {data.stats.inward}
+                </button>
+                <span className="text-muted-foreground"> / </span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    router.push(
+                      `/modules/io-register?tab=outward&startDate=${today}&endDate=${today}`,
+                    )
+                  }
+                  className="rounded transition-colors hover:text-primary hover:underline"
+                >
+                  {data.stats.outward}
+                </button>
               </span>
               <span className="text-xs text-muted-foreground">
                 {t('dashboard.registeredToday')}
               </span>
             </div>
-            <div className="flex flex-col gap-1 rounded-lg border p-4">
+            <button
+              type="button"
+              onClick={() =>
+                router.push(
+                  `/modules/projects?status=${encodeURIComponent('In Progress')}`,
+                )
+              }
+              className="flex flex-col gap-1 rounded-lg border p-4 text-left transition-colors hover:border-primary/50 hover:bg-muted/50"
+            >
               <span className="text-xs uppercase tracking-wide text-muted-foreground">
                 {t('dashboard.projects')}
               </span>
@@ -59,25 +97,8 @@ export function DashboardContent({ data }: DashboardContentProps) {
               <span className="text-xs text-muted-foreground">
                 {t('dashboard.inProgressForConstituency')}
               </span>
-            </div>
+            </button>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Phone className="h-5 w-5" />
-            Phone Number Updates
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <PhoneUpdatesChart
-            phoneUpdatesBySource={data.phoneUpdates.bySource}
-            phoneUpdatesByUser={data.phoneUpdates.byUser}
-            totalUpdates={data.phoneUpdates.today}
-            totalVotersWithPhone={data.phoneUpdates.totalVotersWithPhone}
-          />
         </CardContent>
       </Card>
 
@@ -162,165 +183,22 @@ export function DashboardContent({ data }: DashboardContentProps) {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-2 md:gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('dashboard.upcomingProgrammes')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.upcoming.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                {t('dashboard.noUpcomingProgrammes')}
-              </p>
-            ) : (
-              <ul className="flex flex-col gap-3 text-sm">
-                {data.upcoming.map((item) => (
-                  <li
-                    key={item.id}
-                    className="flex items-start justify-between gap-2"
-                  >
-                    <div>
-                      <p className="font-medium">{item.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.location}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-                      {item.startTime}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>{t('dashboard.quickActions')}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-3 text-sm">
-              <Button
-                variant="outline"
-                className="h-auto flex-col items-start p-3"
-                onClick={() => router.push('/modules/daily-programme')}
-              >
-                <CalendarDays className="mb-1 h-4 w-4" />
-                {t('dashboard.dailyProgramme')}
-              </Button>
-              <Button
-                variant="outline"
-                className="h-auto flex-col items-start p-3"
-                onClick={() => router.push('/modules/io-register?tab=inward')}
-              >
-                <Inbox className="mb-1 h-4 w-4" />
-                {t('dashboard.inward')}
-              </Button>
-              <Button
-                variant="outline"
-                className="h-auto flex-col items-start p-3"
-                onClick={() => router.push('/modules/projects')}
-              >
-                <FolderKanban className="mb-1 h-4 w-4" />
-                {t('dashboard.addProject')}
-              </Button>
-              <Button
-                variant="outline"
-                className="h-auto flex-col items-start p-3"
-                onClick={() => router.push('/modules/io-register?tab=outward')}
-              >
-                <Send className="mb-1 h-4 w-4" />
-                {t('dashboard.outward')}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {data.phoneUpdates.recent.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Phone className="h-5 w-5" />
-              Recent Phone Number Updates
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {data.phoneUpdates.recent.map((update) => (
-                <div
-                  key={update.id}
-                  className="flex flex-col gap-2 rounded-lg border p-4 text-sm"
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <p className="font-medium">
-                        {update.voterFullName || update.epicNumber}
-                      </p>
-                      <p className="text-xs text-muted-foreground font-mono">
-                        EPIC: {update.epicNumber}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xs text-muted-foreground">
-                        {format(new Date(update.createdAt), 'MMM dd, HH:mm')}
-                      </span>
-                      <p className="text-xs text-muted-foreground">
-                        {update.sourceModule === 'profile_update'
-                          ? 'Profile Update'
-                          : 'Beneficiary Management'}
-                      </p>
-                    </div>
-                  </div>
-                  {(update.oldMobileNoPrimary !== update.newMobileNoPrimary ||
-                    update.oldMobileNoSecondary !== update.newMobileNoSecondary) && (
-                    <div className="mt-2 space-y-1">
-                      {update.oldMobileNoPrimary !== update.newMobileNoPrimary && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            Primary:
-                          </span>
-                          {update.oldMobileNoPrimary && (
-                            <span className="text-xs line-through text-muted-foreground font-mono">
-                              {update.oldMobileNoPrimary}
-                            </span>
-                          )}
-                          <span className="text-xs">→</span>
-                          <span className="text-xs font-mono font-medium">
-                            {update.newMobileNoPrimary || 'Removed'}
-                          </span>
-                        </div>
-                      )}
-                      {update.oldMobileNoSecondary !== update.newMobileNoSecondary && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground">
-                            Secondary:
-                          </span>
-                          {update.oldMobileNoSecondary && (
-                            <span className="text-xs line-through text-muted-foreground font-mono">
-                              {update.oldMobileNoSecondary}
-                            </span>
-                          )}
-                          <span className="text-xs">→</span>
-                          <span className="text-xs font-mono font-medium">
-                            {update.newMobileNoSecondary || 'Removed'}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {update.updatedBy && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Updated by: {update.updatedBy}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Phone className="h-5 w-5" />
+            Phone Number Updates
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <PhoneUpdatesChart
+            phoneUpdatesBySource={data.phoneUpdates.bySource}
+            phoneUpdatesByUser={data.phoneUpdates.byUser}
+            totalUpdates={data.phoneUpdates.today}
+            totalVotersWithPhone={data.phoneUpdates.totalVotersWithPhone}
+          />
+        </CardContent>
+      </Card>
     </div>
   );
 }
