@@ -158,30 +158,37 @@ export function SirProfilePdf({ profile }: SirProfilePdfProps) {
 
     setIsBusy(true);
     try {
-      // Prepare the attachment by downloading it, so the user can attach it in
-      // the WhatsApp chat that opens next.
+      // Generate the PDF, upload it to storage and get back a compact short link
+      // that can be shared directly inside the WhatsApp message text.
       const blob = await exportElementToPdf({
         element: printRef.current,
         fileName,
         captureWidthPx: A4_PORTRAIT_CONTENT_WIDTH_PX,
         destination: 'blob',
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${fileName}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
 
-      // Open a WhatsApp chat with the voter's number and a prefilled message.
-      const message = `${toTitleCase(profile.fullName)} (${profile.epicNumber}) - ${t('sir.documentTitle')}`;
+      const formData = new FormData();
+      formData.append('file', new File([blob], `${fileName}.pdf`, {
+        type: 'application/pdf',
+      }));
+      formData.append('epicNumber', profile.epicNumber);
+
+      const response = await fetch('/api/sir/share-link', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!response.ok) {
+        throw new Error('Failed to create share link');
+      }
+      const { shortUrl } = (await response.json()) as { shortUrl: string };
+
+      // Open a WhatsApp chat with the voter's number and a prefilled message
+      // containing the short link to the profile document.
+      const message = `${toTitleCase(profile.fullName)} (${profile.epicNumber}) - ${t('sir.documentTitle')}\n${shortUrl}`;
       window.open(buildWhatsAppUrl(message), '_blank', 'noopener,noreferrer');
-      await registerActivity('share');
-      toast({ type: 'success', description: t('sir.whatsappAttachHint') });
+      toast({ type: 'success', description: t('sir.shareLinkSuccess') });
     } catch (_error) {
-      toast({ type: 'error', description: t('sir.actionFailed') });
+      toast({ type: 'error', description: t('sir.shareLinkFailed') });
     } finally {
       setIsBusy(false);
     }

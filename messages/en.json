@@ -240,6 +240,8 @@
     "share": "Share",
     "shareWhatsApp": "WhatsApp",
     "whatsappAttachHint": "PDF downloaded. Attach it in the WhatsApp chat that just opened.",
+    "shareLinkSuccess": "Link ready. Shared to WhatsApp.",
+    "shareLinkFailed": "Couldn't create the share link. Please try again.",
     "noPhoneToShare": "No phone number available to share on WhatsApp.",
     "downloadSuccess": "PDF downloaded",
     "shareSuccess": "Shared successfully",

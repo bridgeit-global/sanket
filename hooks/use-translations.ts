@@ -30,9 +30,13 @@ export function useTranslations() {
   };
 
   const t = (key: string, params?: Record<string, string | number>): string => {
+    // Always fall back to the statically-bundled English catalog. `enMessages`
+    // is a hard import in this module, so it is guaranteed to be present even if
+    // the context `messages` is momentarily empty or stale (e.g. an outdated
+    // service-worker-cached bundle). This prevents raw keys from ever rendering.
     const value =
       resolveKey(messages, key) ??
-      (locale !== 'en' ? resolveKey(enMessages as Record<string, unknown>, key) : null);
+      resolveKey(enMessages as Record<string, unknown>, key);
 
     if (!value) {
       console.warn(`Translation key not found: ${key}`);

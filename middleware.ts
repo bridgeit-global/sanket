@@ -37,6 +37,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Public short-link redirects (shared externally, e.g. over WhatsApp)
+  if (pathname.startsWith('/s/')) {
+    return NextResponse.next();
+  }
+
   // Landing page — public; authenticated redirect is handled in app/page.tsx
   if (pathname === '/') {
     return NextResponse.next();

@@ -54,6 +54,7 @@ export const TABLES = {
   cadreWhatsAppMessage: 'CadreWhatsAppMessage',
   admFundingCategory: 'AdmFundingCategory',
   admWork: 'AdmWork',
+  shortUrl: 'ShortUrl',
 } as const;
 
 export type Role = {
@@ -485,6 +486,17 @@ export type SirActivityLog = {
   epicNumber: string;
   action: SirActivityAction;
   performedBy: string;
+  createdAt: Date;
+};
+
+export type ShortUrl = {
+  id: string;
+  code: string;
+  targetUrl: string | null;
+  storageBucket: string | null;
+  storagePath: string | null;
+  createdBy: string | null;
+  expiresAt: Date | null;
   createdAt: Date;
 };
 
