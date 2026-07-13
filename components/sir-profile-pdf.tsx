@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Download, MessageCircle } from 'lucide-react';
+import { Download, MessageCircle, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/components/toast';
@@ -32,11 +32,11 @@ function toTitleCase(value: string): string {
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex flex-col gap-0.5 border-b border-border py-2">
-      <span className="text-xs uppercase tracking-wide text-muted-foreground">
+    <div className="flex flex-col gap-0.5 border-b border-neutral-200 py-2">
+      <span className="text-xs uppercase tracking-wide text-neutral-500">
         {label}
       </span>
-      <span className="text-base font-medium text-foreground">{value || '-'}</span>
+      <span className="text-base font-medium text-black">{value || '-'}</span>
     </div>
   );
 }
@@ -74,6 +74,60 @@ export function SirProfilePdf({ profile }: SirProfilePdfProps) {
       await registerActivity('download');
       toast({ type: 'success', description: t('sir.downloadSuccess') });
     } catch (_error) {
+      toast({ type: 'error', description: t('sir.actionFailed') });
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  // Share the generated PDF through the device's native share sheet (mobile).
+  // Falls back to a plain download where the Web Share API can't share files.
+  const handleNativeShare = async () => {
+    if (!printRef.current) return;
+    setIsBusy(true);
+    try {
+      const blob = await exportElementToPdf({
+        element: printRef.current,
+        fileName,
+        captureWidthPx: A4_PORTRAIT_CONTENT_WIDTH_PX,
+        destination: 'blob',
+      });
+
+      const file = new File([blob], `${fileName}.pdf`, {
+        type: 'application/pdf',
+      });
+      const shareData: ShareData = {
+        files: [file],
+        title: t('sir.documentTitle'),
+        text: `${toTitleCase(profile.fullName)} (${profile.epicNumber}) - ${t('sir.documentTitle')}`,
+      };
+
+      const canShareFiles =
+        typeof navigator !== 'undefined' &&
+        typeof navigator.canShare === 'function' &&
+        navigator.canShare(shareData);
+
+      if (canShareFiles && typeof navigator.share === 'function') {
+        await navigator.share(shareData);
+        await registerActivity('share');
+        toast({ type: 'success', description: t('sir.shareSuccess') });
+        return;
+      }
+
+      // Fallback: no file sharing support — download the PDF instead.
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileName}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      await registerActivity('share');
+      toast({ type: 'success', description: t('sir.shareUnavailable') });
+    } catch (error) {
+      // User dismissing the native share sheet throws AbortError; ignore it.
+      if (error instanceof DOMException && error.name === 'AbortError') return;
       toast({ type: 'error', description: t('sir.actionFailed') });
     } finally {
       setIsBusy(false);
@@ -137,7 +191,7 @@ export function SirProfilePdf({ profile }: SirProfilePdfProps) {
     <Card>
       <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <CardTitle>{t('sir.profileTitle')}</CardTitle>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             type="button"
             variant="outline"
@@ -147,6 +201,16 @@ export function SirProfilePdf({ profile }: SirProfilePdfProps) {
           >
             <Download className="mr-2 size-4" />
             {t('sir.download')}
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleNativeShare}
+            disabled={isBusy}
+          >
+            <Share2 className="mr-2 size-4" />
+            {t('sir.share')}
           </Button>
           <Button
             type="button"
@@ -204,8 +268,8 @@ export function SirProfilePdf({ profile }: SirProfilePdfProps) {
           </div>
 
           <div className="my-4 text-center">
-            <h2 className="text-xl font-bold">{t('sir.documentTitle')}</h2>
-            <p className="text-sm text-muted-foreground">
+            <h2 className="text-xl font-bold text-black">{t('sir.documentTitle')}</h2>
+            <p className="text-sm text-neutral-600">
               {profile.state} / {profile.district} / {profile.assemblyConstituency}
             </p>
           </div>

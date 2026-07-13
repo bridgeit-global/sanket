@@ -227,7 +227,7 @@
     "searchAnother": "Search Another",
     "actionFailed": "Something went wrong. Please try again.",
     "profileTitle": "Voter Profile",
-    "documentTitle": "SIR Voter Profile",
+    "documentTitle": "Voter Roll - 2024",
     "credit": {
       "title": "Produced with the support of Hon'ble MLA",
       "line": "{mla}, {ac} Assembly Constituency",
@@ -243,6 +243,7 @@
     "noPhoneToShare": "No phone number available to share on WhatsApp.",
     "downloadSuccess": "PDF downloaded",
     "shareSuccess": "Shared successfully",
+    "shareUnavailable": "Sharing isn't supported on this device. The PDF has been downloaded instead.",
     "fields": {
       "epicNumber": "Epic Number",
       "name": "Name",

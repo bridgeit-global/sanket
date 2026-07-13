@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, Plus, Search, Trash2 } from 'lucide-react';
+import Form from 'next/form';
+import { ArrowLeft, LogOut, Plus, Search, Trash2 } from 'lucide-react';
+import { signOutAction } from '@/app/(auth)/actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -270,11 +272,17 @@ export function SirWorkflow() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
+      <div className="flex items-start justify-between gap-3">
         <div>
           <h1 className="text-3xl font-bold">{t('sir.title')}</h1>
           <p className="mt-1 text-muted-foreground">{t('sir.subtitle')}</p>
         </div>
+        <Form action={signOutAction}>
+          <Button type="submit" variant="outline" size="sm">
+            <LogOut className="mr-2 size-4" />
+            {t('userNav.signOut')}
+          </Button>
+        </Form>
       </div>
 
       {step === 'search' && (
