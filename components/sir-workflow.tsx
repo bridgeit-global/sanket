@@ -12,7 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { SidebarToggle } from '@/components/sidebar-toggle';
 import { toast } from '@/components/toast';
 import { useTranslations } from '@/hooks/use-translations';
 import { isValidIndianMobile } from '@/lib/indian-mobile';
@@ -37,12 +36,13 @@ const MAX_PHONES = 5;
 interface PhoneEntry {
   id: string;
   value: string;
+  existing: boolean;
 }
 
 let phoneIdCounter = 0;
-function makePhoneEntry(value = ''): PhoneEntry {
+function makePhoneEntry(value = '', existing = false): PhoneEntry {
   phoneIdCounter += 1;
-  return { id: `phone-${phoneIdCounter}`, value };
+  return { id: `phone-${phoneIdCounter}`, value, existing };
 }
 
 export function SirWorkflow() {
@@ -67,6 +67,11 @@ export function SirWorkflow() {
     setProfile(null);
     setPhones([makePhoneEntry()]);
     setDob('');
+    setHadPhone(false);
+    setHadDob(false);
+    setSearchTerm('');
+    setResults([]);
+    setHasSearched(false);
   };
 
   const handleSearch = async () => {
@@ -126,7 +131,7 @@ export function SirWorkflow() {
         .map((m) => m.mobileNumber);
       setPhones(
         existingPhones.length > 0
-          ? existingPhones.map((value) => makePhoneEntry(value))
+          ? existingPhones.map((value) => makePhoneEntry(value, true))
           : [makePhoneEntry()],
       );
       setHadPhone(existingPhones.length > 0);
@@ -139,7 +144,11 @@ export function SirWorkflow() {
   };
 
   const updatePhone = (id: string, value: string) => {
-    setPhones((prev) => prev.map((p) => (p.id === id ? { ...p, value } : p)));
+    // Accept digits only, capped at a 10-digit Indian mobile number.
+    const digits = value.replace(/\D/g, '').slice(0, 10);
+    setPhones((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, value: digits } : p)),
+    );
   };
 
   const addPhone = () => {
@@ -159,6 +168,16 @@ export function SirWorkflow() {
       .map((p) => p.value.trim())
       .filter((p) => p.length > 0);
 
+    // When phone and DOB already exist and nothing new was added, there is
+    // nothing to save, so move straight to the profile step.
+    const hasNewPhone = phones.some(
+      (p) => !p.existing && p.value.trim().length > 0,
+    );
+    if (hadPhone && hadDob && !hasNewPhone) {
+      setStep('profile');
+      return;
+    }
+
     // First phone mandatory only when the voter currently has none.
     if (!hadPhone && trimmedPhones.length === 0) {
       toast({ type: 'error', description: t('sir.phoneRequired') });
@@ -169,6 +188,13 @@ export function SirWorkflow() {
         toast({ type: 'error', description: t('sir.invalidMobile') });
         return;
       }
+    }
+
+    // Only keep numbers that don't already exist in the list (no duplicates).
+    const uniquePhones = Array.from(new Set(trimmedPhones));
+    if (uniquePhones.length !== trimmedPhones.length) {
+      toast({ type: 'error', description: t('sir.duplicatePhone') });
+      return;
     }
 
     // DOB mandatory only when the voter currently has none.
@@ -185,8 +211,9 @@ export function SirWorkflow() {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            mobileNumbers: trimmedPhones,
-            dob: dob.trim() || undefined,
+            mobileNumbers: uniquePhones,
+            // Only add the DOB when the voter doesn't already have one.
+            dob: hadDob ? undefined : dob.trim() || undefined,
           }),
         },
       );
@@ -212,7 +239,6 @@ export function SirWorkflow() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <SidebarToggle />
         <div>
           <h1 className="text-3xl font-bold">{t('sir.title')}</h1>
           <p className="mt-1 text-muted-foreground">{t('sir.subtitle')}</p>
@@ -372,14 +398,15 @@ export function SirWorkflow() {
                       id={`sir-${phone.id}`}
                       type="tel"
                       inputMode="numeric"
-                      maxLength={13}
+                      maxLength={10}
                       value={phone.value}
                       onChange={(e) => updatePhone(phone.id, e.target.value)}
                       placeholder={t('sir.enterMobileNumber')}
                       className="font-mono"
+                      disabled={phone.existing}
                     />
                   </div>
-                  {phones.length > 1 && (
+                  {!phone.existing && phones.length > 1 && (
                     <Button
                       type="button"
                       variant="ghost"
@@ -406,9 +433,10 @@ export function SirWorkflow() {
                 type="date"
                 value={dob}
                 onChange={(e) => setDob(e.target.value)}
+                disabled={hadDob}
               />
               <p className="text-xs text-muted-foreground">
-                {hadDob ? t('sir.dobOptionalHelp') : t('sir.dobRequiredHelp')}
+                {hadDob ? t('sir.dobExistsHelp') : t('sir.dobRequiredHelp')}
               </p>
             </div>
 
@@ -418,7 +446,11 @@ export function SirWorkflow() {
                 disabled={isSaving}
                 className="flex-1"
               >
-                {isSaving ? t('sir.saving') : t('sir.saveContinue')}
+                {isSaving
+                  ? t('sir.saving')
+                  : hadPhone && hadDob
+                    ? t('sir.continue')
+                    : t('sir.saveContinue')}
               </Button>
               <Button type="button" variant="outline" onClick={resetToSearch}>
                 <ArrowLeft className="mr-2 size-4" />

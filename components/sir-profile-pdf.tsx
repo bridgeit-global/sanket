@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { Download, Share2 } from 'lucide-react';
+import { Download, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from '@/components/toast';
@@ -80,6 +80,17 @@ export function SirProfilePdf({ profile }: SirProfilePdfProps) {
     }
   };
 
+  // Voter's primary mobile number formatted for a wa.me deep link (India +91).
+  const buildWhatsAppUrl = (message: string) => {
+    const primary = profile.mobileNumbers
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder)[0]?.mobileNumber;
+    const digits = (primary || '').replace(/\D/g, '');
+    const to = digits.length === 10 ? `91${digits}` : digits;
+    const base = to ? `https://wa.me/${to}` : 'https://wa.me/';
+    return `${base}?text=${encodeURIComponent(message)}`;
+  };
+
   const handleShare = async () => {
     if (!printRef.current) return;
     setIsBusy(true);
@@ -94,23 +105,23 @@ export function SirProfilePdf({ profile }: SirProfilePdfProps) {
         type: 'application/pdf',
       });
 
-      const shareData: ShareData = {
-        files: [file],
-        title: fileName,
-        text: `${profile.fullName} (${profile.epicNumber})`,
-      };
+      const message = `${toTitleCase(profile.fullName)} (${profile.epicNumber}) - ${t('sir.documentTitle')}`;
 
       const canShareFiles =
         typeof navigator !== 'undefined' &&
         typeof navigator.canShare === 'function' &&
         navigator.canShare({ files: [file] });
 
+      // Mobile: the Web Share sheet is the only way to attach the PDF itself;
+      // the user can pick WhatsApp from it and the file goes along.
       if (canShareFiles && typeof navigator.share === 'function') {
-        await navigator.share(shareData);
+        await navigator.share({ files: [file], title: fileName, text: message });
         await registerActivity('share');
         toast({ type: 'success', description: t('sir.shareSuccess') });
       } else {
-        // Desktop / unsupported: fall back to a download.
+        // Desktop / unsupported: WhatsApp links can't carry attachments, so
+        // download the PDF and open WhatsApp with a prefilled message so the
+        // user can attach the just-downloaded file.
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -119,8 +130,9 @@ export function SirProfilePdf({ profile }: SirProfilePdfProps) {
         a.click();
         a.remove();
         URL.revokeObjectURL(url);
-        await registerActivity('download');
-        toast({ type: 'success', description: t('sir.downloadSuccess') });
+        window.open(buildWhatsAppUrl(message), '_blank', 'noopener,noreferrer');
+        await registerActivity('share');
+        toast({ type: 'success', description: t('sir.whatsappAttachHint') });
       }
     } catch (error) {
       // AbortError => user dismissed the native share sheet; not an error.
@@ -146,9 +158,15 @@ export function SirProfilePdf({ profile }: SirProfilePdfProps) {
             <Download className="mr-2 size-4" />
             {t('sir.download')}
           </Button>
-          <Button type="button" size="sm" onClick={handleShare} disabled={isBusy}>
-            <Share2 className="mr-2 size-4" />
-            {t('sir.share')}
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleShare}
+            disabled={isBusy}
+            className="bg-[#25D366] text-white hover:bg-[#1ebe5b]"
+          >
+            <MessageCircle className="mr-2 size-4" />
+            {t('sir.shareWhatsApp')}
           </Button>
         </div>
       </CardHeader>
