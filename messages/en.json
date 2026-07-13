@@ -218,6 +218,7 @@
     "dobOptionalHelp": "You may update the date of birth (optional).",
     "dobExistsHelp": "Date of birth is already recorded and cannot be changed.",
     "dobRequired": "Please update the date of birth",
+    "dobMinAge": "Voter must be at least 18 years old",
     "saveContinue": "Save & Continue",
     "continue": "Continue",
     "saving": "Saving...",
@@ -239,6 +240,7 @@
     "share": "Share",
     "shareWhatsApp": "WhatsApp",
     "whatsappAttachHint": "PDF downloaded. Attach it in the WhatsApp chat that just opened.",
+    "noPhoneToShare": "No phone number available to share on WhatsApp.",
     "downloadSuccess": "PDF downloaded",
     "shareSuccess": "Shared successfully",
     "fields": {
@@ -1442,6 +1444,12 @@
       "hasAccount": "Already have an account? ",
       "signInLink": "Sign in",
       "signInSuffix": " instead."
+    },
+    "bloLogin": {
+      "title": "BLO Sign In",
+      "description": "For Booth Level Officers only. Use your user ID and password to sign in.",
+      "submit": "Sign in",
+      "notAuthorized": "Invalid credentials, or this account is not a BLO account."
     },
     "messages": {
       "invalidCredentials": "Invalid credentials!",

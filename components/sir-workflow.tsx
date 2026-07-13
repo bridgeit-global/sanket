@@ -61,6 +61,15 @@ export function SirWorkflow() {
   const [hadPhone, setHadPhone] = useState(false);
   const [hadDob, setHadDob] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [phoneErrors, setPhoneErrors] = useState<Record<string, string>>({});
+  const [dobError, setDobError] = useState<string | null>(null);
+
+  // Voters must be at least 18: the latest allowed DOB is 18 years ago today.
+  const maxDobDate = (() => {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 18);
+    return d.toISOString().split('T')[0];
+  })();
 
   const resetToSearch = () => {
     setStep('search');
@@ -69,6 +78,8 @@ export function SirWorkflow() {
     setDob('');
     setHadPhone(false);
     setHadDob(false);
+    setPhoneErrors({});
+    setDobError(null);
     setSearchTerm('');
     setResults([]);
     setHasSearched(false);
@@ -149,6 +160,12 @@ export function SirWorkflow() {
     setPhones((prev) =>
       prev.map((p) => (p.id === id ? { ...p, value: digits } : p)),
     );
+    setPhoneErrors((prev) => {
+      if (!prev[id]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
   };
 
   const addPhone = () => {
@@ -164,10 +181,6 @@ export function SirWorkflow() {
   const handleSaveAndContinue = async () => {
     if (!profile) return;
 
-    const trimmedPhones = phones
-      .map((p) => p.value.trim())
-      .filter((p) => p.length > 0);
-
     // When phone and DOB already exist and nothing new was added, there is
     // nothing to save, so move straight to the profile step.
     const hasNewPhone = phones.some(
@@ -178,30 +191,49 @@ export function SirWorkflow() {
       return;
     }
 
-    // First phone mandatory only when the voter currently has none.
-    if (!hadPhone && trimmedPhones.length === 0) {
-      toast({ type: 'error', description: t('sir.phoneRequired') });
-      return;
-    }
-    for (const p of trimmedPhones) {
-      if (!isValidIndianMobile(p)) {
-        toast({ type: 'error', description: t('sir.invalidMobile') });
-        return;
+    // Validate each field and surface errors inline on the offending inputs.
+    const nextPhoneErrors: Record<string, string> = {};
+    const seen = new Set<string>();
+    for (const p of phones) {
+      const value = p.value.trim();
+      if (!value) continue;
+      if (!isValidIndianMobile(value)) {
+        nextPhoneErrors[p.id] = t('sir.invalidMobile');
+      } else if (seen.has(value)) {
+        nextPhoneErrors[p.id] = t('sir.duplicatePhone');
+      } else {
+        seen.add(value);
       }
     }
 
-    // Only keep numbers that don't already exist in the list (no duplicates).
-    const uniquePhones = Array.from(new Set(trimmedPhones));
-    if (uniquePhones.length !== trimmedPhones.length) {
-      toast({ type: 'error', description: t('sir.duplicatePhone') });
+    // First phone mandatory only when the voter currently has none.
+    const hasAnyPhone = phones.some((p) => p.value.trim().length > 0);
+    if (!hadPhone && !hasAnyPhone && phones[0]) {
+      nextPhoneErrors[phones[0].id] = t('sir.phoneRequired');
+    }
+
+    // DOB mandatory only when the voter currently has none, and the voter must
+    // be at least 18 years old (DOB no later than 18 years ago).
+    let nextDobError: string | null = null;
+    if (!hadDob) {
+      if (!dob.trim()) {
+        nextDobError = t('sir.dobRequired');
+      } else if (dob > maxDobDate) {
+        nextDobError = t('sir.dobMinAge');
+      }
+    }
+
+    setPhoneErrors(nextPhoneErrors);
+    setDobError(nextDobError);
+
+    if (Object.keys(nextPhoneErrors).length > 0 || nextDobError) {
       return;
     }
 
-    // DOB mandatory only when the voter currently has none.
-    if (!hadDob && !dob.trim()) {
-      toast({ type: 'error', description: t('sir.dobRequired') });
-      return;
-    }
+    const trimmedPhones = phones
+      .map((p) => p.value.trim())
+      .filter((p) => p.length > 0);
+    const uniquePhones = Array.from(new Set(trimmedPhones));
 
     setIsSaving(true);
     try {
@@ -402,9 +434,19 @@ export function SirWorkflow() {
                       value={phone.value}
                       onChange={(e) => updatePhone(phone.id, e.target.value)}
                       placeholder={t('sir.enterMobileNumber')}
-                      className="font-mono"
+                      aria-invalid={Boolean(phoneErrors[phone.id])}
+                      className={
+                        phoneErrors[phone.id]
+                          ? 'font-mono border-red-500 focus-visible:ring-red-500'
+                          : 'font-mono'
+                      }
                       disabled={phone.existing}
                     />
+                    {phoneErrors[phone.id] && (
+                      <p className="mt-1 text-xs text-red-500">
+                        {phoneErrors[phone.id]}
+                      </p>
+                    )}
                   </div>
                   {!phone.existing && phones.length > 1 && (
                     <Button
@@ -432,12 +474,24 @@ export function SirWorkflow() {
                 id="sir-dob"
                 type="date"
                 value={dob}
-                onChange={(e) => setDob(e.target.value)}
+                max={maxDobDate}
+                onChange={(e) => {
+                  setDob(e.target.value);
+                  setDobError(null);
+                }}
                 disabled={hadDob}
+                aria-invalid={Boolean(dobError)}
+                className={
+                  dobError ? 'border-red-500 focus-visible:ring-red-500' : ''
+                }
               />
-              <p className="text-xs text-muted-foreground">
-                {hadDob ? t('sir.dobExistsHelp') : t('sir.dobRequiredHelp')}
-              </p>
+              {dobError ? (
+                <p className="text-xs text-red-500">{dobError}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {hadDob ? t('sir.dobExistsHelp') : t('sir.dobRequiredHelp')}
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col gap-3 sm:flex-row">

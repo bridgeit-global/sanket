@@ -93,50 +93,40 @@ export function SirProfilePdf({ profile }: SirProfilePdfProps) {
 
   const handleShare = async () => {
     if (!printRef.current) return;
+
+    const primary = profile.mobileNumbers
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder)[0]?.mobileNumber;
+    if (!primary) {
+      toast({ type: 'error', description: t('sir.noPhoneToShare') });
+      return;
+    }
+
     setIsBusy(true);
     try {
+      // Prepare the attachment by downloading it, so the user can attach it in
+      // the WhatsApp chat that opens next.
       const blob = await exportElementToPdf({
         element: printRef.current,
         fileName,
         captureWidthPx: A4_PORTRAIT_CONTENT_WIDTH_PX,
         destination: 'blob',
       });
-      const file = new File([blob], `${fileName}.pdf`, {
-        type: 'application/pdf',
-      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${fileName}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
 
+      // Open a WhatsApp chat with the voter's number and a prefilled message.
       const message = `${toTitleCase(profile.fullName)} (${profile.epicNumber}) - ${t('sir.documentTitle')}`;
-
-      const canShareFiles =
-        typeof navigator !== 'undefined' &&
-        typeof navigator.canShare === 'function' &&
-        navigator.canShare({ files: [file] });
-
-      // Mobile: the Web Share sheet is the only way to attach the PDF itself;
-      // the user can pick WhatsApp from it and the file goes along.
-      if (canShareFiles && typeof navigator.share === 'function') {
-        await navigator.share({ files: [file], title: fileName, text: message });
-        await registerActivity('share');
-        toast({ type: 'success', description: t('sir.shareSuccess') });
-      } else {
-        // Desktop / unsupported: WhatsApp links can't carry attachments, so
-        // download the PDF and open WhatsApp with a prefilled message so the
-        // user can attach the just-downloaded file.
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${fileName}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-        window.open(buildWhatsAppUrl(message), '_blank', 'noopener,noreferrer');
-        await registerActivity('share');
-        toast({ type: 'success', description: t('sir.whatsappAttachHint') });
-      }
-    } catch (error) {
-      // AbortError => user dismissed the native share sheet; not an error.
-      if (error instanceof DOMException && error.name === 'AbortError') return;
+      window.open(buildWhatsAppUrl(message), '_blank', 'noopener,noreferrer');
+      await registerActivity('share');
+      toast({ type: 'success', description: t('sir.whatsappAttachHint') });
+    } catch (_error) {
       toast({ type: 'error', description: t('sir.actionFailed') });
     } finally {
       setIsBusy(false);

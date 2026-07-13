@@ -43,7 +43,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // Allow access to login and register pages without authentication
-  if (['/login', '/register'].includes(pathname)) {
+  if (['/login', '/register', '/blo-login'].includes(pathname)) {
     const token = await getToken({
       req: request,
       secret: process.env.AUTH_SECRET,
@@ -148,6 +148,7 @@ export const config = {
     '/api/:path*',
     '/login',
     '/register',
+    '/blo-login',
 
     /*
      * Match all request paths except for the ones starting with:

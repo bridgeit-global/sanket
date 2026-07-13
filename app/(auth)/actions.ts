@@ -41,6 +41,35 @@ export const login = async (
   }
 };
 
+export const bloLogin = async (
+  _: LoginActionState,
+  formData: FormData,
+): Promise<LoginActionState> => {
+  try {
+    const validatedData = authFormSchema.parse({
+      userId: formData.get('userId'),
+      password: formData.get('password'),
+    });
+
+    // Restrict this entrypoint to BLO-role users only. Non-BLO credentials
+    // (even if otherwise valid) are rejected by the credentials provider.
+    await signIn('credentials', {
+      userId: validatedData.userId,
+      password: validatedData.password,
+      requireRole: 'blo',
+      redirect: false,
+    });
+
+    return { status: 'success' };
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return { status: 'invalid_data' };
+    }
+
+    return { status: 'failed' };
+  }
+};
+
 export interface RegisterActionState {
   status:
   | 'idle'

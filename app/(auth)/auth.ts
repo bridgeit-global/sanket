@@ -58,7 +58,7 @@ export const {
   providers: [
     Credentials({
       credentials: {},
-      async authorize({ userId, password }: any) {
+      async authorize({ userId, password, requireRole }: any) {
         const users = await getUser(userId);
 
         if (users.length === 0) {
@@ -110,6 +110,12 @@ export const {
         // Special case: if calendar access, also grant daily-programme access
         if (accessibleModules.has('calendar')) {
           accessibleModules.add('daily-programme');
+        }
+
+        // Role-restricted login (e.g. the dedicated BLO login page): reject
+        // users whose role does not match the required role for this entrypoint.
+        if (requireRole && roleName !== String(requireRole).toLowerCase()) {
+          return null;
         }
 
         return {
