@@ -50,6 +50,15 @@ export {
 export { getCurrentElectionId } from './election';
 
 export {
+  type SirPartAndSerial,
+  type SirActivityStats,
+  type SirActivityUserStat,
+  getSirPartAndSerial,
+  logSirActivity,
+  getSirActivityStats,
+} from './sir-queries';
+
+export {
   type ElectionMasterOption,
   type VoterWithElectionData,
   type MobileNumberWithSortOrder,

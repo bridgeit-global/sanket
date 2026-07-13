@@ -1,6 +1,7 @@
 import 'server-only';
 
-import { getPhoneUpdateStats, getBeneficiaryServiceStats, getDashboardCounts } from './queries';
+import { getPhoneUpdateStats, getBeneficiaryServiceStats, getDashboardCounts, getSirActivityStats } from './queries';
+import type { SirActivityStats } from './sir-queries';
 
 export interface DashboardData {
   stats: {
@@ -42,6 +43,7 @@ export interface DashboardData {
       community: number;
     };
   };
+  sirActivity: SirActivityStats;
   upcoming: Array<{
     id: string;
     date: string;
@@ -59,10 +61,12 @@ export async function getDashboardData(): Promise<DashboardData> {
     dashboardCounts,
     phoneUpdateStats,
     beneficiaryServiceStats,
+    sirActivity,
   ] = await Promise.all([
     getDashboardCounts(todayStr),
     getPhoneUpdateStats(),
     getBeneficiaryServiceStats(),
+    getSirActivityStats(),
   ]);
 
   return {
@@ -94,6 +98,7 @@ export async function getDashboardData(): Promise<DashboardData> {
         community: beneficiaryServiceStats.byType.community || 0,
       },
     },
+    sirActivity,
     upcoming: dashboardCounts.programmeItems.slice(0, 3).map((item) => ({
       id: item.id,
       date: item.date,

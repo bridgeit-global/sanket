@@ -20,6 +20,7 @@ import {
   FileText,
   Landmark,
   BookOpenText,
+  ClipboardCheck,
 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { ModuleDefinition } from '@/lib/module-constants';
@@ -35,6 +36,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   dashboard: LayoutDashboard,
   'daily-programme': CalendarDays,
   'back-office': Building2,
+  sir: ClipboardCheck,
   operator: Briefcase,
   'field-visitor': MapPin,
   'data-export': FileDown,
@@ -56,6 +58,7 @@ const getModuleTranslationKey = (moduleKey: string): string => {
     dashboard: 'modules.dashboard.label',
     'daily-programme': 'modules.dailyProgramme.label',
     'back-office': 'modules.backOffice.label',
+    sir: 'modules.sir.label',
     operator: 'modules.operator.label',
     'field-visitor': 'modules.fieldVisitor.label',
     hierarchy: 'modules.hierarchy.label',

@@ -2,11 +2,12 @@
 
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Phone, Users, UserCheck } from 'lucide-react';
+import { Phone, Users, UserCheck, ClipboardCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { useTranslations } from '@/hooks/use-translations';
 import { PhoneUpdatesChart } from '@/components/phone-updates-chart';
+import { SirActivityChart } from '@/components/sir-activity-chart';
 import type { DashboardData } from '@/lib/db/dashboard-queries';
 
 interface DashboardContentProps {
@@ -197,6 +198,18 @@ export function DashboardContent({ data }: DashboardContentProps) {
             totalUpdates={data.phoneUpdates.today}
             totalVotersWithPhone={data.phoneUpdates.totalVotersWithPhone}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ClipboardCheck className="h-5 w-5" />
+            {t('sir.dashboard.title')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <SirActivityChart stats={data.sirActivity} />
         </CardContent>
       </Card>
     </div>

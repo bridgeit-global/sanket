@@ -1,0 +1,33 @@
+---
+description: Always use the Supabase client for database access (no raw pgSql)
+globs: lib/db/**/*.ts,app/api/**/*.ts
+alwaysApply: false
+---
+
+# Database access: Supabase client only
+
+All new database access MUST go through the Supabase JS client
+(`import { supabase } from '@/lib/supabase/server'`) using `supabase.from(...)`.
+Do NOT introduce raw `pgSql` / `postgres` tagged-template queries in new code.
+
+- Use `.select()`, `.insert()`, `.update()`, `.delete()`, `.eq()`, `.in()`, `.gte()`, `.maybeSingle()` etc.
+- Always check the returned `error` via `throwOnSupabaseError(error, '...')` from `@/lib/db/errors`.
+- If an aggregation/grouping is awkward in the query, fetch the rows within a
+  bounded filter and aggregate in TypeScript rather than reaching for raw SQL.
+
+```typescript
+// BAD - raw tagged-template SQL
+const rows = await pgSql`SELECT booth_no, sr_no FROM "ElectionMapping" WHERE epic_number = ${epic}`;
+
+// GOOD - Supabase client
+const { data, error } = await supabase
+  .from('ElectionMapping')
+  .select('booth_no, sr_no')
+  .eq('epic_number', epic)
+  .eq('election_id', electionId)
+  .maybeSingle();
+throwOnSupabaseError(error, 'Failed to get election mapping');
+```
+
+Existing `pgSql`-based queries in `lib/db/raw-queries.ts` are legacy; leave them
+untouched unless explicitly migrating, but never add new raw-SQL callers.

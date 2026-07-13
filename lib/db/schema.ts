@@ -37,6 +37,7 @@ export const TABLES = {
   registerAttachment: 'RegisterAttachment',
   exportJob: 'ExportJob',
   phoneUpdateHistory: 'PhoneUpdateHistory',
+  sirActivityLog: 'SirActivityLog',
   voterProfile: 'VoterProfile',
   userPartAssignment: 'UserPartAssignment',
   pushSubscription: 'PushSubscription',
@@ -474,6 +475,16 @@ export type PhoneUpdateHistory = {
   newMobileNoSecondary: string | null;
   updatedBy: string;
   sourceModule: string;
+  createdAt: Date;
+};
+
+export type SirActivityAction = 'search' | 'download' | 'share';
+
+export type SirActivityLog = {
+  id: string;
+  epicNumber: string;
+  action: SirActivityAction;
+  performedBy: string;
   createdAt: Date;
 };
 
