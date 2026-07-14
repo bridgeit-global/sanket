@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 import { useTranslations } from '@/hooks/use-translations';
-import type { SirActivityBucket, SirActivityStats } from '@/lib/db/sir-queries';
+import type {
+  SirActivityBucket,
+  SirActivityGroupStat,
+  SirActivityStats,
+} from '@/lib/db/sir-queries';
 import {
   Dialog,
   DialogContent,
@@ -29,7 +33,11 @@ const FALLBACKS: Record<string, string> = {
   'sir.dashboard.downloadedToday': 'Downloads Today',
   'sir.dashboard.downloadedWeek': 'Downloads This Week',
   'sir.dashboard.byUser': 'By User',
+  'sir.dashboard.byWard': 'By Ward',
+  'sir.dashboard.byPart': 'By Part',
   'sir.dashboard.user': 'User',
+  'sir.dashboard.ward': 'Ward',
+  'sir.dashboard.part': 'Part',
   'sir.dashboard.searchedTodayShort': 'Searched (Today)',
   'sir.dashboard.searchedWeekShort': 'Searched (Week)',
   'sir.dashboard.downloadedTodayShort': 'Downloaded (Today)',
@@ -100,6 +108,97 @@ function CountCell({
   );
 }
 
+function ActivityGroupTable({
+  title,
+  labelHeader,
+  rows,
+  t,
+  openBucket,
+}: {
+  title: string;
+  labelHeader: string;
+  rows: SirActivityGroupStat[];
+  t: (key: string, params?: Record<string, string | number>) => string;
+  openBucket: (label: string, bucket: SirActivityBucket, groupLabel?: string) => void;
+}) {
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="space-y-3">
+      <h4 className="text-sm font-semibold text-foreground">{title}</h4>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-xs text-muted-foreground">
+              <th className="py-2 pr-2 font-medium">{labelHeader}</th>
+              <th className="py-2 px-2 text-right font-medium">
+                {t('sir.dashboard.searchedTodayShort')}
+              </th>
+              <th className="py-2 px-2 text-right font-medium">
+                {t('sir.dashboard.searchedWeekShort')}
+              </th>
+              <th className="py-2 px-2 text-right font-medium">
+                {t('sir.dashboard.downloadedTodayShort')}
+              </th>
+              <th className="py-2 pl-2 text-right font-medium">
+                {t('sir.dashboard.downloadedWeekShort')}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.label} className="border-b last:border-0">
+                <td className="py-2 pr-2 font-mono">{row.label}</td>
+                <CountCell
+                  bucket={row.searchedToday}
+                  onClick={() =>
+                    openBucket(
+                      t('sir.dashboard.searchedTodayShort'),
+                      row.searchedToday,
+                      row.label,
+                    )
+                  }
+                />
+                <CountCell
+                  bucket={row.searchedWeek}
+                  onClick={() =>
+                    openBucket(
+                      t('sir.dashboard.searchedWeekShort'),
+                      row.searchedWeek,
+                      row.label,
+                    )
+                  }
+                />
+                <CountCell
+                  bucket={row.downloadedToday}
+                  onClick={() =>
+                    openBucket(
+                      t('sir.dashboard.downloadedTodayShort'),
+                      row.downloadedToday,
+                      row.label,
+                    )
+                  }
+                />
+                <CountCell
+                  bucket={row.downloadedWeek}
+                  className="pl-2"
+                  onClick={() =>
+                    openBucket(
+                      t('sir.dashboard.downloadedWeekShort'),
+                      row.downloadedWeek,
+                      row.label,
+                    )
+                  }
+                />
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export function SirActivityChart({ stats }: SirActivityChartProps) {
   const { t: translate } = useTranslations();
   const [drillDown, setDrillDown] = useState<DrillDownState>(null);
@@ -115,13 +214,22 @@ export function SirActivityChart({ stats }: SirActivityChartProps) {
     );
   };
 
-  const openBucket = (label: string, bucket: SirActivityBucket, userId?: string) => {
+  const openBucket = (
+    label: string,
+    bucket: SirActivityBucket,
+    groupLabel?: string,
+  ) => {
     if (bucket.count === 0) return;
     setDrillDown({
-      title: userId ? `${label} — ${userId}` : label,
+      title: groupLabel ? `${label} — ${groupLabel}` : label,
       voterIds: bucket.voterIds,
     });
   };
+
+  const hasAnyGroup =
+    stats.byUser.length > 0 ||
+    (stats.byWard?.length ?? 0) > 0 ||
+    (stats.byPart?.length ?? 0) > 0;
 
   return (
     <div className="space-y-6">
@@ -166,81 +274,30 @@ export function SirActivityChart({ stats }: SirActivityChartProps) {
         />
       </div>
 
-      {stats.byUser.length > 0 ? (
-        <div className="space-y-3">
-          <h4 className="text-sm font-semibold text-foreground">
-            {t('sir.dashboard.byUser')}
-          </h4>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b text-left text-xs text-muted-foreground">
-                  <th className="py-2 pr-2 font-medium">{t('sir.dashboard.user')}</th>
-                  <th className="py-2 px-2 text-right font-medium">
-                    {t('sir.dashboard.searchedTodayShort')}
-                  </th>
-                  <th className="py-2 px-2 text-right font-medium">
-                    {t('sir.dashboard.searchedWeekShort')}
-                  </th>
-                  <th className="py-2 px-2 text-right font-medium">
-                    {t('sir.dashboard.downloadedTodayShort')}
-                  </th>
-                  <th className="py-2 pl-2 text-right font-medium">
-                    {t('sir.dashboard.downloadedWeekShort')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.byUser.map((u) => (
-                  <tr key={u.userId} className="border-b last:border-0">
-                    <td className="py-2 pr-2 font-mono">{u.userId}</td>
-                    <CountCell
-                      bucket={u.searchedToday}
-                      onClick={() =>
-                        openBucket(
-                          t('sir.dashboard.searchedTodayShort'),
-                          u.searchedToday,
-                          u.userId,
-                        )
-                      }
-                    />
-                    <CountCell
-                      bucket={u.searchedWeek}
-                      onClick={() =>
-                        openBucket(
-                          t('sir.dashboard.searchedWeekShort'),
-                          u.searchedWeek,
-                          u.userId,
-                        )
-                      }
-                    />
-                    <CountCell
-                      bucket={u.downloadedToday}
-                      onClick={() =>
-                        openBucket(
-                          t('sir.dashboard.downloadedTodayShort'),
-                          u.downloadedToday,
-                          u.userId,
-                        )
-                      }
-                    />
-                    <CountCell
-                      bucket={u.downloadedWeek}
-                      className="pl-2"
-                      onClick={() =>
-                        openBucket(
-                          t('sir.dashboard.downloadedWeekShort'),
-                          u.downloadedWeek,
-                          u.userId,
-                        )
-                      }
-                    />
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      {hasAnyGroup ? (
+        <>
+          <ActivityGroupTable
+            title={t('sir.dashboard.byUser')}
+            labelHeader={t('sir.dashboard.user')}
+            rows={stats.byUser}
+            t={t}
+            openBucket={openBucket}
+          />
+          <ActivityGroupTable
+            title={t('sir.dashboard.byWard')}
+            labelHeader={t('sir.dashboard.ward')}
+            rows={stats.byWard ?? []}
+            t={t}
+            openBucket={openBucket}
+          />
+          <ActivityGroupTable
+            title={t('sir.dashboard.byPart')}
+            labelHeader={t('sir.dashboard.part')}
+            rows={stats.byPart ?? []}
+            t={t}
+            openBucket={openBucket}
+          />
+        </>
       ) : (
         <p className="py-4 text-center text-sm text-muted-foreground">
           {t('sir.dashboard.noActivity')}
@@ -255,7 +312,9 @@ export function SirActivityChart({ stats }: SirActivityChartProps) {
       >
         <DialogContent className="max-h-[85dvh] max-w-md overflow-hidden sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{drillDown?.title ?? t('sir.dashboard.drillDownTitle')}</DialogTitle>
+            <DialogTitle>
+              {drillDown?.title ?? t('sir.dashboard.drillDownTitle')}
+            </DialogTitle>
             <DialogDescription>
               {t('sir.dashboard.voterCount', {
                 count: drillDown?.voterIds.length ?? 0,

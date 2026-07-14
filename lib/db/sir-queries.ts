@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase/server';
 import { throwOnSupabaseError } from '@/lib/db/errors';
 import { ChatSDKError } from '../errors';
 import { TABLES } from './schema';
-import { SIR_ELECTION_ID } from '@/lib/sir/constants';
+import { SIR_ELECTION_ID, wardNoFromElectionId } from '@/lib/sir/constants';
 import type { SirActivityAction } from './schema';
 
 export type SirPartAndSerial = {
@@ -66,12 +66,18 @@ export type SirActivityBucket = {
   voterIds: string[];
 };
 
-export type SirActivityUserStat = {
-  userId: string;
+export type SirActivityGroupStat = {
+  /** Display key: user id, ward no, or part no. */
+  label: string;
   searchedToday: SirActivityBucket;
   searchedWeek: SirActivityBucket;
   downloadedToday: SirActivityBucket;
   downloadedWeek: SirActivityBucket;
+};
+
+/** @deprecated Prefer SirActivityGroupStat; kept for existing callers. */
+export type SirActivityUserStat = SirActivityGroupStat & {
+  userId: string;
 };
 
 export type SirActivityStats = {
@@ -80,6 +86,8 @@ export type SirActivityStats = {
   downloadedToday: SirActivityBucket;
   downloadedWeek: SirActivityBucket;
   byUser: SirActivityUserStat[];
+  byWard: SirActivityGroupStat[];
+  byPart: SirActivityGroupStat[];
 };
 
 type SirActivityRow = {
@@ -88,6 +96,23 @@ type SirActivityRow = {
   performed_by: string;
   created_at: string;
 };
+
+type ElectionMappingLookupRow = {
+  epic_number: string;
+  election_id: string;
+  booth_no: string | null;
+};
+
+type VoterGeo = {
+  wardNo: string;
+  partNo: string;
+};
+
+type VoterGeoResolved = VoterGeo & {
+  wardYear: number;
+};
+
+const UNKNOWN_GEO = '—';
 
 function startOfToday(): Date {
   const d = new Date();
@@ -104,10 +129,124 @@ function startOfWeek(): Date {
   return d;
 }
 
+type ActivitySets = {
+  searchedToday: Set<string>;
+  searchedWeek: Set<string>;
+  downloadedToday: Set<string>;
+  downloadedWeek: Set<string>;
+};
+
+const makeSets = (): ActivitySets => ({
+  searchedToday: new Set(),
+  searchedWeek: new Set(),
+  downloadedToday: new Set(),
+  downloadedWeek: new Set(),
+});
+
+const toBucket = (ids: Set<string>): SirActivityBucket => ({
+  count: ids.size,
+  voterIds: Array.from(ids).sort((a, b) => a.localeCompare(b)),
+});
+
+function addToSets(
+  sets: ActivitySets,
+  epic: string,
+  isSearch: boolean,
+  isDownload: boolean,
+  isToday: boolean,
+): void {
+  if (isSearch) {
+    sets.searchedWeek.add(epic);
+    if (isToday) sets.searchedToday.add(epic);
+  }
+  if (isDownload) {
+    sets.downloadedWeek.add(epic);
+    if (isToday) sets.downloadedToday.add(epic);
+  }
+}
+
+function setsToGroupStat(
+  label: string,
+  sets: ActivitySets,
+): SirActivityGroupStat {
+  return {
+    label,
+    searchedToday: toBucket(sets.searchedToday),
+    searchedWeek: toBucket(sets.searchedWeek),
+    downloadedToday: toBucket(sets.downloadedToday),
+    downloadedWeek: toBucket(sets.downloadedWeek),
+  };
+}
+
+function sortGroups(groups: SirActivityGroupStat[]): SirActivityGroupStat[] {
+  return groups.sort((a, b) => {
+    const byDownloads = b.downloadedWeek.count - a.downloadedWeek.count;
+    if (byDownloads !== 0) return byDownloads;
+    return a.label.localeCompare(b.label, undefined, { numeric: true });
+  });
+}
+
 /**
- * Per-user SIR activity, counting DISTINCT voter ids (epic_number) so repeated
- * searches/downloads of the same voter count once. Split into search vs
- * download (download + share) for today and this week. Supabase client only.
+ * Resolve ward (BMC election_id leading digits) and part (SIR election booth_no)
+ * for a batch of voter EPICs via ElectionMapping.
+ */
+async function resolveVoterGeo(
+  epicNumbers: string[],
+): Promise<Map<string, VoterGeo>> {
+  const geoByEpic = new Map<string, VoterGeoResolved>();
+  if (epicNumbers.length === 0) return geoByEpic;
+
+  for (const epic of epicNumbers) {
+    geoByEpic.set(epic, {
+      wardNo: UNKNOWN_GEO,
+      partNo: UNKNOWN_GEO,
+      wardYear: -1,
+    });
+  }
+
+  // Supabase `.in()` stays reliable in moderate batches.
+  const CHUNK = 200;
+  for (let i = 0; i < epicNumbers.length; i += CHUNK) {
+    const chunk = epicNumbers.slice(i, i + CHUNK);
+    const { data, error } = await supabase
+      .from(TABLES.electionMapping)
+      .select('epic_number, election_id, booth_no')
+      .in('epic_number', chunk);
+    throwOnSupabaseError(error, 'Failed to resolve SIR activity geography');
+
+    const rows = (data ?? []) as ElectionMappingLookupRow[];
+    for (const row of rows) {
+      const geo = geoByEpic.get(row.epic_number);
+      if (!geo) continue;
+
+      const ward = wardNoFromElectionId(row.election_id);
+      if (ward) {
+        const yearMatch = /(\d{4})\s*$/.exec(row.election_id);
+        const year = yearMatch ? Number(yearMatch[1]) : 0;
+        if (geo.wardNo === UNKNOWN_GEO || year >= geo.wardYear) {
+          geo.wardNo = ward;
+          geo.wardYear = year;
+        }
+      }
+
+      if (
+        row.election_id === SIR_ELECTION_ID &&
+        row.booth_no != null &&
+        String(row.booth_no).trim() !== ''
+      ) {
+        geo.partNo = String(row.booth_no);
+      }
+    }
+  }
+
+  return geoByEpic;
+}
+
+/**
+ * Per-user / per-ward / per-part SIR activity, counting DISTINCT voter ids
+ * (epic_number) so repeated searches/downloads of the same voter count once.
+ * Ward comes from ElectionMapping BMC election ids (e.g. 140BMC2026 → 140).
+ * Part comes from ElectionMapping booth_no for SIR_ELECTION_ID (172VS2024).
  */
 export async function getSirActivityStats(): Promise<SirActivityStats> {
   try {
@@ -136,20 +275,12 @@ export async function getSirActivityStats(): Promise<SirActivityStats> {
       }
     }
 
-    type Sets = {
-      searchedToday: Set<string>;
-      searchedWeek: Set<string>;
-      downloadedToday: Set<string>;
-      downloadedWeek: Set<string>;
-    };
-    const makeSets = (): Sets => ({
-      searchedToday: new Set(),
-      searchedWeek: new Set(),
-      downloadedToday: new Set(),
-      downloadedWeek: new Set(),
-    });
+    const uniqueEpics = Array.from(new Set(rows.map((r) => r.epic_number)));
+    const geoByEpic = await resolveVoterGeo(uniqueEpics);
 
-    const perUser = new Map<string, Sets>();
+    const perUser = new Map<string, ActivitySets>();
+    const perWard = new Map<string, ActivitySets>();
+    const perPart = new Map<string, ActivitySets>();
     const overall = makeSets();
 
     for (const row of rows) {
@@ -158,45 +289,53 @@ export async function getSirActivityStats(): Promise<SirActivityStats> {
       const isDownload = row.action === 'download' || row.action === 'share';
       const isSearch = row.action === 'search';
       const epic = row.epic_number;
+      const geo = geoByEpic.get(epic) ?? {
+        wardNo: UNKNOWN_GEO,
+        partNo: UNKNOWN_GEO,
+      };
 
-      let sets = perUser.get(row.performed_by);
-      if (!sets) {
-        sets = makeSets();
-        perUser.set(row.performed_by, sets);
+      let userSets = perUser.get(row.performed_by);
+      if (!userSets) {
+        userSets = makeSets();
+        perUser.set(row.performed_by, userSets);
       }
 
-      if (isSearch) {
-        sets.searchedWeek.add(epic);
-        overall.searchedWeek.add(epic);
-        if (isToday) {
-          sets.searchedToday.add(epic);
-          overall.searchedToday.add(epic);
-        }
+      let wardSets = perWard.get(geo.wardNo);
+      if (!wardSets) {
+        wardSets = makeSets();
+        perWard.set(geo.wardNo, wardSets);
       }
-      if (isDownload) {
-        sets.downloadedWeek.add(epic);
-        overall.downloadedWeek.add(epic);
-        if (isToday) {
-          sets.downloadedToday.add(epic);
-          overall.downloadedToday.add(epic);
-        }
+
+      let partSets = perPart.get(geo.partNo);
+      if (!partSets) {
+        partSets = makeSets();
+        perPart.set(geo.partNo, partSets);
       }
+
+      addToSets(userSets, epic, isSearch, isDownload, isToday);
+      addToSets(wardSets, epic, isSearch, isDownload, isToday);
+      addToSets(partSets, epic, isSearch, isDownload, isToday);
+      addToSets(overall, epic, isSearch, isDownload, isToday);
     }
 
-    const toBucket = (ids: Set<string>): SirActivityBucket => ({
-      count: ids.size,
-      voterIds: Array.from(ids).sort((a, b) => a.localeCompare(b)),
-    });
-
     const byUser: SirActivityUserStat[] = Array.from(perUser.entries())
-      .map(([performedBy, sets]) => ({
-        userId: userIdMap.get(performedBy) ?? 'Unknown',
-        searchedToday: toBucket(sets.searchedToday),
-        searchedWeek: toBucket(sets.searchedWeek),
-        downloadedToday: toBucket(sets.downloadedToday),
-        downloadedWeek: toBucket(sets.downloadedWeek),
-      }))
+      .map(([performedBy, sets]) => {
+        const userId = userIdMap.get(performedBy) ?? 'Unknown';
+        return { userId, ...setsToGroupStat(userId, sets) };
+      })
       .sort((a, b) => b.downloadedWeek.count - a.downloadedWeek.count);
+
+    const byWard = sortGroups(
+      Array.from(perWard.entries()).map(([wardNo, sets]) =>
+        setsToGroupStat(wardNo, sets),
+      ),
+    );
+
+    const byPart = sortGroups(
+      Array.from(perPart.entries()).map(([partNo, sets]) =>
+        setsToGroupStat(partNo, sets),
+      ),
+    );
 
     return {
       searchedToday: toBucket(overall.searchedToday),
@@ -204,6 +343,8 @@ export async function getSirActivityStats(): Promise<SirActivityStats> {
       downloadedToday: toBucket(overall.downloadedToday),
       downloadedWeek: toBucket(overall.downloadedWeek),
       byUser,
+      byWard,
+      byPart,
     };
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;

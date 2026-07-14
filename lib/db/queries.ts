@@ -52,6 +52,7 @@ export { getCurrentElectionId } from './election';
 export {
   type SirPartAndSerial,
   type SirActivityBucket,
+  type SirActivityGroupStat,
   type SirActivityStats,
   type SirActivityUserStat,
   getSirPartAndSerial,

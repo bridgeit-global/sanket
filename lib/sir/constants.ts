@@ -8,6 +8,18 @@
  */
 export const SIR_ELECTION_ID = process.env.SIR_ELECTION_ID || '172VS2024';
 
+/**
+ * Municipal ward elections use IDs like `140BMC2026`. The leading digits are
+ * the ward number for that voter in ElectionMapping.
+ */
+export const BMC_ELECTION_ID_WARD_RE = /^(\d+)BMC/i;
+
+/** Extract ward number from a BMC-style election id, or null if not BMC. */
+export function wardNoFromElectionId(electionId: string): string | null {
+  const match = BMC_ELECTION_ID_WARD_RE.exec(electionId.trim());
+  return match?.[1] ?? null;
+}
+
 export const SIR_STATE = 'Maharashtra';
 export const SIR_DISTRICT = 'Mumbai Suburban';
 export const SIR_ASSEMBLY_CONSTITUENCY = 'Anushakti Nagar';
