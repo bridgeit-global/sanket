@@ -2,6 +2,7 @@
 
 import { useLanguage } from '@/components/language-provider';
 import enMessages from '@/messages/en.json';
+import mrMessages from '@/messages/mr.json';
 
 type NestedKeyOf<ObjectType extends object> = {
   [Key in keyof ObjectType & (string | number)]: ObjectType[Key] extends object
@@ -11,8 +12,13 @@ type NestedKeyOf<ObjectType extends object> = {
 
 type TranslationKey = NestedKeyOf<typeof import('@/messages/en.json')>;
 
+const CATALOGS = {
+  en: enMessages as Record<string, unknown>,
+  mr: mrMessages as Record<string, unknown>,
+} as const;
+
 export function useTranslations() {
-  const { locale, setLocale, messages } = useLanguage();
+  const { locale, setLocale } = useLanguage();
 
   const resolveKey = (catalog: Record<string, unknown>, key: string): string | null => {
     const keys = key.split('.');
@@ -30,13 +36,12 @@ export function useTranslations() {
   };
 
   const t = (key: string, params?: Record<string, string | number>): string => {
-    // Always fall back to the statically-bundled English catalog. `enMessages`
-    // is a hard import in this module, so it is guaranteed to be present even if
-    // the context `messages` is momentarily empty or stale (e.g. an outdated
-    // service-worker-cached bundle). This prevents raw keys from ever rendering.
+    // Resolve from statically imported catalogs keyed by locale. This avoids
+    // raw keys when the LanguageProvider context messages are empty, stale, or
+    // out of sync with a service-worker-cached component chunk.
     const value =
-      resolveKey(messages, key) ??
-      resolveKey(enMessages as Record<string, unknown>, key);
+      resolveKey(CATALOGS[locale] ?? CATALOGS.en, key) ??
+      resolveKey(CATALOGS.en, key);
 
     if (!value) {
       console.warn(`Translation key not found: ${key}`);

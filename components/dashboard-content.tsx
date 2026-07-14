@@ -18,6 +18,9 @@ export function DashboardContent({ data }: DashboardContentProps) {
   const router = useRouter();
   const { t } = useTranslations();
   const today = format(new Date(), 'yyyy-MM-dd');
+  const sirTitle = t('sir.dashboard.title');
+  const sirDashboardTitle =
+    sirTitle === 'sir.dashboard.title' ? 'SIR Activity' : sirTitle;
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -205,7 +208,7 @@ export function DashboardContent({ data }: DashboardContentProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ClipboardCheck className="h-5 w-5" />
-            {t('sir.dashboard.title')}
+            {sirDashboardTitle}
           </CardTitle>
         </CardHeader>
         <CardContent>

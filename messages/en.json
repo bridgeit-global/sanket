@@ -270,7 +270,11 @@
       "searchedWeekShort": "Searched (Week)",
       "downloadedTodayShort": "Downloaded (Today)",
       "downloadedWeekShort": "Downloaded (Week)",
-      "noActivity": "No SIR activity yet"
+      "noActivity": "No SIR activity yet",
+      "drillDownTitle": "Voter IDs",
+      "drillDownEmpty": "No voters in this bucket",
+      "drillDownHint": "Click a count to see voter IDs",
+      "voterCount": "{count, plural, one {# voter} other {# voters}}"
     }
   },
   "backOffice": {

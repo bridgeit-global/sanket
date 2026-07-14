@@ -270,7 +270,11 @@
       "searchedWeekShort": "शोधले (आठवडा)",
       "downloadedTodayShort": "डाउनलोड (आज)",
       "downloadedWeekShort": "डाउनलोड (आठवडा)",
-      "noActivity": "अद्याप एसआयआर क्रियाकलाप नाही"
+      "noActivity": "अद्याप एसआयआर क्रियाकलाप नाही",
+      "drillDownTitle": "मतदार आयडी",
+      "drillDownEmpty": "या गटात कोणतेही मतदार नाहीत",
+      "drillDownHint": "मतदार आयडी पाहण्यासाठी संख्यावर क्लिक करा",
+      "voterCount": "{count, plural, one {# मतदार} other {# मतदार}}"
     }
   },
   "backOffice": {

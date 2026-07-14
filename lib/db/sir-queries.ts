@@ -60,19 +60,25 @@ export async function logSirActivity(
   }
 }
 
+export type SirActivityBucket = {
+  count: number;
+  /** Distinct voter IDs (EPIC numbers) in this bucket, sorted. */
+  voterIds: string[];
+};
+
 export type SirActivityUserStat = {
   userId: string;
-  searchedToday: number;
-  searchedWeek: number;
-  downloadedToday: number;
-  downloadedWeek: number;
+  searchedToday: SirActivityBucket;
+  searchedWeek: SirActivityBucket;
+  downloadedToday: SirActivityBucket;
+  downloadedWeek: SirActivityBucket;
 };
 
 export type SirActivityStats = {
-  searchedToday: number;
-  searchedWeek: number;
-  downloadedToday: number;
-  downloadedWeek: number;
+  searchedToday: SirActivityBucket;
+  searchedWeek: SirActivityBucket;
+  downloadedToday: SirActivityBucket;
+  downloadedWeek: SirActivityBucket;
   byUser: SirActivityUserStat[];
 };
 
@@ -177,21 +183,26 @@ export async function getSirActivityStats(): Promise<SirActivityStats> {
       }
     }
 
+    const toBucket = (ids: Set<string>): SirActivityBucket => ({
+      count: ids.size,
+      voterIds: Array.from(ids).sort((a, b) => a.localeCompare(b)),
+    });
+
     const byUser: SirActivityUserStat[] = Array.from(perUser.entries())
       .map(([performedBy, sets]) => ({
         userId: userIdMap.get(performedBy) ?? 'Unknown',
-        searchedToday: sets.searchedToday.size,
-        searchedWeek: sets.searchedWeek.size,
-        downloadedToday: sets.downloadedToday.size,
-        downloadedWeek: sets.downloadedWeek.size,
+        searchedToday: toBucket(sets.searchedToday),
+        searchedWeek: toBucket(sets.searchedWeek),
+        downloadedToday: toBucket(sets.downloadedToday),
+        downloadedWeek: toBucket(sets.downloadedWeek),
       }))
-      .sort((a, b) => b.downloadedWeek - a.downloadedWeek);
+      .sort((a, b) => b.downloadedWeek.count - a.downloadedWeek.count);
 
     return {
-      searchedToday: overall.searchedToday.size,
-      searchedWeek: overall.searchedWeek.size,
-      downloadedToday: overall.downloadedToday.size,
-      downloadedWeek: overall.downloadedWeek.size,
+      searchedToday: toBucket(overall.searchedToday),
+      searchedWeek: toBucket(overall.searchedWeek),
+      downloadedToday: toBucket(overall.downloadedToday),
+      downloadedWeek: toBucket(overall.downloadedWeek),
       byUser,
     };
   } catch (error) {
