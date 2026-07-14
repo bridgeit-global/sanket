@@ -1,10 +1,10 @@
 'use client';
 
-import Link from 'next/link';
-import { ChevronRight, Link2, Pencil } from 'lucide-react';
+import { ChevronRight, Pencil } from 'lucide-react';
 import { ContactWithCall } from './contact-with-call';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { MemberVoterIdField } from './member-voter-id-field';
 import {
   getMemberDisplayName,
   getMemberPhone,
@@ -25,6 +25,7 @@ interface CompactMemberCardProps {
   member: CadreMemberCard;
   canEdit?: boolean;
   onEdit?: (member: CadreMemberCard) => void;
+  onVoterIdUpdated?: () => void;
   detail?: 'minimal' | 'full';
 }
 
@@ -32,6 +33,7 @@ export function CompactMemberCard({
   member,
   canEdit,
   onEdit,
+  onVoterIdUpdated,
   detail = 'minimal',
 }: CompactMemberCardProps) {
   const name = getMemberDisplayName(member);
@@ -141,22 +143,12 @@ export function CompactMemberCard({
             })
           : null}
 
-        {showFullDetail && member.epicNumber ? (
-          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <Link2 className="size-3 shrink-0" aria-hidden />
-            {member.linkedVoter ? (
-              <Link
-                href={`/modules/voter/${member.linkedVoter.epicNumber}`}
-                className="truncate hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                ID: {member.epicNumber}
-              </Link>
-            ) : (
-              <span className="truncate">ID: {member.epicNumber}</span>
-            )}
-          </div>
-        ) : null}
+        <MemberVoterIdField
+          member={member}
+          canEdit={canEdit}
+          onUpdated={onVoterIdUpdated}
+          compact
+        />
       </div>
 
       <ContactWithCall phone={phone} compact />

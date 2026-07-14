@@ -20,6 +20,7 @@ interface MemberListProps {
   members: CadreMemberCard[];
   canEdit?: boolean;
   onEdit?: (member: CadreMemberCard) => void;
+  onVoterIdUpdated?: () => void;
   pagination: MemberListPaginationProps;
   emptyMessage?: string;
   emptyHint?: string;
@@ -32,6 +33,7 @@ export function MemberList({
   members,
   canEdit,
   onEdit,
+  onVoterIdUpdated,
   pagination,
   emptyMessage = 'No members match the current filters',
   emptyHint = 'Try a different ward, vertical, or search term.',
@@ -73,6 +75,7 @@ export function MemberList({
             member={member}
             canEdit={canEdit}
             onEdit={onEdit}
+            onVoterIdUpdated={onVoterIdUpdated}
             detail={compactDetail ? 'full' : 'minimal'}
           />
         ))}
@@ -85,6 +88,7 @@ export function MemberList({
             member={member}
             canEdit={canEdit}
             onEdit={onEdit}
+            onVoterIdUpdated={onVoterIdUpdated}
           />
         ))}
       </>

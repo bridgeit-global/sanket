@@ -29,6 +29,9 @@ export async function GET(request: NextRequest) {
   const wardGeoId = searchParams.get('wardGeoId')?.trim() ?? '';
   const boothNo = searchParams.get('boothNo')?.trim() ?? '';
   const memberId = searchParams.get('memberId')?.trim() ?? '';
+  const voterIdParam = searchParams.get('voterId')?.trim() ?? '';
+  const hasEpic =
+    voterIdParam === 'linked' ? 'yes' : voterIdParam === 'missing' ? 'no' : undefined;
 
   try {
     const config = await getCadreConfig();
@@ -42,6 +45,7 @@ export async function GET(request: NextRequest) {
       wardGeoId: wardGeoId || undefined,
       boothNo: boothNo || undefined,
       memberId: memberId || undefined,
+      hasEpic,
       geoUnits: config.geoUnits,
     });
 

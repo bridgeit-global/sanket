@@ -726,6 +726,7 @@ export async function getCadreMembersPaginated(filters: {
   constituencyId?: string;
   page: number;
   pageSize: number;
+  hasEpic?: 'yes' | 'no';
 }): Promise<CadreMembersPage> {
   const page = Math.max(1, filters.page);
   const pageSize = Math.max(1, filters.pageSize);
@@ -754,6 +755,11 @@ export async function getCadreMembersPaginated(filters: {
       `constituency_id.eq.${filters.constituencyId},constituency_id.is.null`,
     );
   }
+  if (filters.hasEpic === 'yes') {
+    query = query.not('epic_number', 'is', null);
+  } else if (filters.hasEpic === 'no') {
+    query = query.is('epic_number', null);
+  }
 
   const { data, error, count } = await query.range(from, to);
   throwOnSupabaseError(error, 'Failed to load cadre members');
@@ -772,6 +778,35 @@ function chunkIds(ids: string[], size: number): string[][] {
     chunks.push(ids.slice(index, index + size));
   }
   return chunks;
+}
+
+async function filterMemberIdsByEpicStatus(
+  memberIds: Set<string>,
+  hasEpic: 'yes' | 'no',
+): Promise<Set<string>> {
+  if (memberIds.size === 0) return memberIds;
+
+  const matched = new Set<string>();
+  for (const chunk of chunkIds([...memberIds], POST_FETCH_CHUNK)) {
+    let query = supabase
+      .from(TABLES.cadreMember)
+      .select('id')
+      .in('id', chunk)
+      .eq('is_active', true);
+
+    if (hasEpic === 'yes') {
+      query = query.not('epic_number', 'is', null);
+    } else {
+      query = query.is('epic_number', null);
+    }
+
+    const { data, error } = await query;
+    throwOnSupabaseError(error, 'Failed to filter members by voter ID status');
+    for (const row of data ?? []) {
+      matched.add(String(row.id));
+    }
+  }
+  return matched;
 }
 
 function intersectMemberIdSets(a: Set<string>, b: Set<string>): Set<string> {
@@ -1008,6 +1043,7 @@ export async function getCadreMembersPage(filters: {
   wardGeoId?: string;
   boothNo?: string;
   memberId?: string;
+  hasEpic?: 'yes' | 'no';
   geoUnits: CadreConfig['geoUnits'];
 }): Promise<CadreMembersPage> {
   const page = Math.max(1, filters.page);
@@ -1046,6 +1082,13 @@ export async function getCadreMembersPage(filters: {
   }
 
   if (query) {
+    if (filters.hasEpic) {
+      allowed = await filterMemberIdsByEpicStatus(allowed, filters.hasEpic);
+      if (allowed.size === 0) {
+        return { members: [], total: 0, page, pageSize, totalPages: 1 };
+      }
+    }
+
     allowed = await resolveSearchMemberIds(
       query,
       filters.constituencyId,
@@ -1090,7 +1133,15 @@ export async function getCadreMembersPage(filters: {
       verticalId: filters.verticalId,
       page,
       pageSize,
+      hasEpic: filters.hasEpic,
     });
+  }
+
+  if (filters.hasEpic) {
+    allowed = await filterMemberIdsByEpicStatus(allowed, filters.hasEpic);
+    if (allowed.size === 0) {
+      return { members: [], total: 0, page, pageSize, totalPages: 1 };
+    }
   }
 
   const sortedIds = [...allowed].sort();
@@ -1329,7 +1380,7 @@ export async function updateCadreMember(
 ): Promise<CadreMember> {
   const { data: existing, error: existingError } = await supabase
     .from(TABLES.cadreMember)
-    .select('id')
+    .select('id, person_name, person_phone, person_email')
     .eq('id', id)
     .maybeSingle();
   throwOnSupabaseError(existingError, 'Failed to load cadre member');
@@ -1342,9 +1393,21 @@ export async function updateCadreMember(
     updated_at: new Date().toISOString(),
   };
   if (input.constituencyId !== undefined) patch.constituency_id = input.constituencyId;
-  patch.person_name = input.personName ?? person.personName;
-  patch.person_phone = input.personPhone ?? person.personPhone;
-  patch.person_email = input.personEmail ?? person.personEmail;
+  if (input.personName !== undefined) {
+    patch.person_name = input.personName ?? person.personName;
+  } else if (person.personName && !existing.person_name) {
+    patch.person_name = person.personName;
+  }
+  if (input.personPhone !== undefined) {
+    patch.person_phone = input.personPhone ?? person.personPhone;
+  } else if (person.personPhone && !existing.person_phone) {
+    patch.person_phone = person.personPhone;
+  }
+  if (input.personEmail !== undefined) {
+    patch.person_email = input.personEmail ?? person.personEmail;
+  } else if (person.personEmail && !existing.person_email) {
+    patch.person_email = person.personEmail;
+  }
   if (input.photoUrl !== undefined) patch.photo_url = input.photoUrl;
   if (input.userId !== undefined) patch.user_id = input.userId;
   if (input.epicNumber !== undefined) patch.epic_number = input.epicNumber;
@@ -1831,25 +1894,36 @@ export async function getCadreMembersForWardScope(
     ...(boothGeoUnits ?? []).map((row) => String(row.id)),
   ];
 
-  const { data: postRows, error: postError } = await supabase
-    .from(TABLES.cadreMemberPost)
-    .select('member_id')
-    .in('ward_geo_id', scopedGeoIds);
-  throwOnSupabaseError(postError, 'Failed to load ward member posts');
+  const memberIdSet = new Set<string>();
+  for (const chunk of chunkIds(scopedGeoIds, POST_FETCH_CHUNK)) {
+    const { data: postRows, error: postError } = await supabase
+      .from(TABLES.cadreMemberPost)
+      .select('member_id')
+      .in('ward_geo_id', chunk);
+    throwOnSupabaseError(postError, 'Failed to load ward member posts');
+    for (const row of postRows ?? []) {
+      memberIdSet.add(String(row.member_id));
+    }
+  }
 
-  const memberIds = [
-    ...new Set((postRows ?? []).map((row) => String(row.member_id))),
-  ];
+  const memberIds = [...memberIdSet];
   if (memberIds.length === 0) return [];
 
-  const { data, error } = await supabase
-    .from(TABLES.cadreMember)
-    .select('*')
-    .in('id', memberIds)
-    .eq('is_active', true)
-    .or(`constituency_id.eq.${constituencyId},constituency_id.is.null`);
-  throwOnSupabaseError(error, 'Failed to load ward members');
-  return buildMemberCards((data ?? []).map(mapCadreMemberRow));
+  const memberRows: ReturnType<typeof mapCadreMemberRow>[] = [];
+  for (const chunk of chunkIds(memberIds, POST_FETCH_CHUNK)) {
+    const { data, error } = await supabase
+      .from(TABLES.cadreMember)
+      .select('*')
+      .in('id', chunk)
+      .eq('is_active', true)
+      .or(`constituency_id.eq.${constituencyId},constituency_id.is.null`);
+    throwOnSupabaseError(error, 'Failed to load ward members');
+    for (const row of data ?? []) {
+      memberRows.push(mapCadreMemberRow(row));
+    }
+  }
+
+  return buildMemberCards(memberRows);
 }
 
 export async function getCadreCommitteeMembers(filters: {
@@ -1884,14 +1958,20 @@ export async function getCadreCommitteeMembers(filters: {
 
   if (committeeMemberIds.size === 0) return [];
 
-  const { data, error } = await supabase
-    .from(TABLES.cadreMember)
-    .select('*')
-    .in('id', Array.from(committeeMemberIds))
-    .eq('is_active', true)
-    .or(`constituency_id.eq.${filters.constituencyId},constituency_id.is.null`);
-  throwOnSupabaseError(error, 'Failed to load committee members');
-  return buildMemberCards((data ?? []).map(mapCadreMemberRow));
+  const memberRows: ReturnType<typeof mapCadreMemberRow>[] = [];
+  for (const chunk of chunkIds([...committeeMemberIds], POST_FETCH_CHUNK)) {
+    const { data, error } = await supabase
+      .from(TABLES.cadreMember)
+      .select('*')
+      .in('id', chunk)
+      .eq('is_active', true)
+      .or(`constituency_id.eq.${filters.constituencyId},constituency_id.is.null`);
+    throwOnSupabaseError(error, 'Failed to load committee members');
+    for (const row of data ?? []) {
+      memberRows.push(mapCadreMemberRow(row));
+    }
+  }
+  return buildMemberCards(memberRows);
 }
 
 export async function getCadreHierarchyLeaders(filters: {

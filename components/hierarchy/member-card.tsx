@@ -1,11 +1,11 @@
 'use client';
 
 import { memo } from 'react';
-import Link from 'next/link';
-import { ChevronRight, Link2, Pencil, Phone } from 'lucide-react';
+import { ChevronRight, Pencil, Phone } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MemberAvatar } from './member-avatar';
+import { MemberVoterIdField } from './member-voter-id-field';
 import {
   getMemberDisplayName,
   getMemberPhone,
@@ -24,12 +24,14 @@ interface MemberCardProps {
   member: CadreMemberCard;
   canEdit?: boolean;
   onEdit?: (member: CadreMemberCard) => void;
+  onVoterIdUpdated?: () => void;
 }
 
 export const MemberCard = memo(function MemberCard({
   member,
   canEdit,
   onEdit,
+  onVoterIdUpdated,
 }: MemberCardProps) {
   const name = getMemberDisplayName(member);
   const phone = getMemberPhone(member);
@@ -108,22 +110,11 @@ export const MemberCard = memo(function MemberCard({
         ))}
       </div>
 
-      {member.epicNumber && (
-        <div className="mt-2 flex items-center gap-1 text-xs text-muted-foreground">
-          <Link2 className="size-3 shrink-0" />
-          {member.linkedVoter ? (
-            <Link
-              href={`/modules/voter/${member.linkedVoter.epicNumber}`}
-              className="hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              ID: {member.epicNumber}
-            </Link>
-          ) : (
-            <span>ID: {member.epicNumber}</span>
-          )}
-        </div>
-      )}
+      <MemberVoterIdField
+        member={member}
+        canEdit={canEdit}
+        onUpdated={onVoterIdUpdated}
+      />
 
       {geoChip && (
         <div className="mt-2">

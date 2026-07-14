@@ -13,7 +13,24 @@ export const HIERARCHY_URL_PARAMS = {
   page: 'page',
   pageSize: 'pageSize',
   view: 'view',
+  voterId: 'voterId',
 } as const;
+
+export const VOTER_ID_FILTERS = {
+  all: '',
+  linked: 'linked',
+  missing: 'missing',
+} as const;
+
+export type VoterIdFilter =
+  (typeof VOTER_ID_FILTERS)[keyof typeof VOTER_ID_FILTERS];
+
+export function parseVoterIdFilterParam(value: string | null): VoterIdFilter {
+  if (value === VOTER_ID_FILTERS.linked || value === VOTER_ID_FILTERS.missing) {
+    return value;
+  }
+  return VOTER_ID_FILTERS.all;
+}
 
 export const HIERARCHY_VIEWS = {
   canvas: 'canvas',
@@ -165,7 +182,19 @@ export type MemberFilterState = {
   wardGeoId?: string;
   boothNo?: string;
   memberId?: string;
+  voterId?: VoterIdFilter;
 };
+
+export function memberMatchesVoterIdFilter(
+  member: CadreMemberCard,
+  voterId: VoterIdFilter | undefined,
+): boolean {
+  if (!voterId) return true;
+  const hasEpic = Boolean(member.epicNumber?.trim());
+  if (voterId === VOTER_ID_FILTERS.linked) return hasEpic;
+  if (voterId === VOTER_ID_FILTERS.missing) return !hasEpic;
+  return true;
+}
 
 export function filterMembers(
   members: CadreMemberCard[],
@@ -177,6 +206,7 @@ export function filterMembers(
   const wardGeoId = filters.wardGeoId?.trim() ?? '';
   const boothNo = filters.boothNo?.trim() ?? '';
   const memberId = filters.memberId?.trim() ?? '';
+  const voterId = filters.voterId;
 
   return members.filter((member) => {
     if (memberId && member.id !== memberId) return false;
@@ -185,6 +215,7 @@ export function filterMembers(
     if (positionId && !memberMatchesPosition(member, positionId)) return false;
     if (wardGeoId && !memberMatchesWard(member, wardGeoId)) return false;
     if (boothNo && !memberMatchesBooth(member, boothNo)) return false;
+    if (!memberMatchesVoterIdFilter(member, voterId)) return false;
     return true;
   });
 }

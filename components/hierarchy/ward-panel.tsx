@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { LeadershipSection, PanelActionLink } from './leadership-section';
+import { LeadershipSection, PanelActionLink, PanelSectionHeader } from './leadership-section';
+import { MemberVoterIdField } from './member-voter-id-field';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { getMemberDisplayName } from '@/lib/hierarchy/geo-attribution';
@@ -30,6 +31,7 @@ interface WardPanelProps {
   onViewWardCommittee: (verticalId: string) => void;
   onViewBoothCommittee: (boothNo: string, verticalId: string) => void;
   onAddBoothCommitteeMember: (boothNo: string) => void;
+  onVoterIdUpdated?: () => void;
 }
 
 function formatBoothLabel(boothNo: string): string {
@@ -37,7 +39,24 @@ function formatBoothLabel(boothNo: string): string {
   return Number.isFinite(numeric) ? String(numeric).padStart(2, '0') : boothNo;
 }
 
-import { PanelSectionHeader } from './leadership-section';
+function boothNumbersMatch(a: string, b: string): boolean {
+  const na = Number.parseInt(a, 10);
+  const nb = Number.parseInt(b, 10);
+  if (Number.isFinite(na) && Number.isFinite(nb)) return na === nb;
+  return a.trim() === b.trim();
+}
+
+function resolveBoothKey(
+  boothNumbers: string[],
+  target: string | undefined,
+): string | null {
+  if (!target?.trim()) return null;
+  return boothNumbers.find((boothNo) => boothNumbersMatch(boothNo, target)) ?? null;
+}
+
+export function boothSectionDomId(boothNo: string): string {
+  return `booth-section-${boothNo}`;
+}
 
 export function WardPanel({
   wardGeoId,
@@ -50,23 +69,48 @@ export function WardPanel({
   onViewWardCommittee,
   onViewBoothCommittee,
   onAddBoothCommitteeMember,
+  onVoterIdUpdated,
 }: WardPanelProps) {
   const { t } = useTranslations();
+  const resolvedExpandedBooth = useMemo(
+    () => resolveBoothKey(boothNumbers, initialExpandedBooth),
+    [boothNumbers, initialExpandedBooth],
+  );
+
   const [expandedBooths, setExpandedBooths] = useState<Set<string>>(() => {
     const initial = new Set<string>();
-    if (initialExpandedBooth) initial.add(initialExpandedBooth);
+    if (resolvedExpandedBooth) initial.add(resolvedExpandedBooth);
     return initial;
   });
 
   useEffect(() => {
-    if (!initialExpandedBooth) return;
+    if (!resolvedExpandedBooth) return;
+
     setExpandedBooths((prev) => {
-      if (prev.has(initialExpandedBooth)) return prev;
+      if (prev.has(resolvedExpandedBooth)) return prev;
       const next = new Set(prev);
-      next.add(initialExpandedBooth);
+      next.add(resolvedExpandedBooth);
       return next;
     });
-  }, [initialExpandedBooth]);
+
+    let cancelled = false;
+    const scrollToBooth = () => {
+      if (cancelled) return;
+      document
+        .getElementById(boothSectionDomId(resolvedExpandedBooth))
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+
+    // Retry briefly so scroll still works after the loading spinner unmounts
+    // and the expanded booth section finishes painting.
+    const frame = requestAnimationFrame(scrollToBooth);
+    const retry = window.setTimeout(scrollToBooth, 150);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(frame);
+      window.clearTimeout(retry);
+    };
+  }, [resolvedExpandedBooth, wardGeoId]);
 
   const sortedVerticals = useMemo(
     () => [...activeVerticals].sort((a, b) => a.sortOrder - b.sortOrder),
@@ -109,6 +153,8 @@ export function WardPanel({
         vacantLabel={vacantLabel}
         viewCommitteeLabel={viewCommitteeLabel}
         onViewCommittee={onViewWardCommittee}
+        canEdit={canEdit}
+        onVoterIdUpdated={onVoterIdUpdated}
       />
 
       <div className="overflow-hidden rounded-xl border border-primary/20 dark:border-primary/50">
@@ -130,7 +176,8 @@ export function WardPanel({
               return (
                 <div
                   key={boothNo}
-                  className="border-b border-border last:border-b-0"
+                  id={boothSectionDomId(boothNo)}
+                  className="scroll-mt-24 border-b border-border last:border-b-0"
                 >
                   <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm font-semibold">
@@ -156,7 +203,7 @@ export function WardPanel({
                             key={entry.verticalId}
                             className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
                           >
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0 flex-1 space-y-1.5">
                               <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
                                 {t('hierarchyModule.verticalHeadLabel', {
                                   vertical: entry.verticalName,
@@ -165,12 +212,20 @@ export function WardPanel({
                               <p
                                 className={
                                   entry.head
-                                    ? 'mt-1 text-sm font-medium'
-                                    : 'mt-1 text-sm italic text-muted-foreground'
+                                    ? 'text-sm font-medium'
+                                    : 'text-sm italic text-muted-foreground'
                                 }
                               >
                                 {entry.head ? getMemberDisplayName(entry.head) : vacantLabel}
                               </p>
+                              {entry.head ? (
+                                <MemberVoterIdField
+                                  member={entry.head}
+                                  canEdit={canEdit}
+                                  onUpdated={onVoterIdUpdated}
+                                  compact
+                                />
+                              ) : null}
                             </div>
                             <PanelActionLink
                               onClick={() => onViewBoothCommittee(boothNo, entry.verticalId)}

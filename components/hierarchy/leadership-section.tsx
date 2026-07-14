@@ -2,6 +2,7 @@
 
 import { ChevronRight } from 'lucide-react';
 import { ContactWithCall } from './contact-with-call';
+import { MemberVoterIdField } from './member-voter-id-field';
 import {
   getMemberDisplayName,
   getMemberPhone,
@@ -63,6 +64,8 @@ interface LeadershipSectionProps {
   vacantLabel: string;
   viewCommitteeLabel: string;
   onViewCommittee?: (verticalId: string) => void;
+  canEdit?: boolean;
+  onVoterIdUpdated?: () => void;
 }
 
 export function LeadershipSection({
@@ -71,6 +74,8 @@ export function LeadershipSection({
   vacantLabel,
   viewCommitteeLabel,
   onViewCommittee,
+  canEdit,
+  onVoterIdUpdated,
 }: LeadershipSectionProps) {
   const { t } = useTranslations();
 
@@ -89,13 +94,13 @@ export function LeadershipSection({
               key={entry.verticalId}
               className="flex flex-col gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2.5"
             >
-              <div className="min-w-0">
+              <div className="min-w-0 space-y-1.5">
                 <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
                   {t('hierarchyModule.verticalHeadLabel', { vertical: entry.verticalName })}
                 </p>
                 <p
                   className={cn(
-                    'mt-1 truncate text-sm',
+                    'truncate text-sm',
                     entry.head
                       ? 'font-semibold text-foreground'
                       : 'italic text-muted-foreground',
@@ -103,6 +108,14 @@ export function LeadershipSection({
                 >
                   {headName}
                 </p>
+                {entry.head ? (
+                  <MemberVoterIdField
+                    member={entry.head}
+                    canEdit={canEdit}
+                    onUpdated={onVoterIdUpdated}
+                    compact
+                  />
+                ) : null}
               </div>
 
               {entry.head && headPhone ? (

@@ -37,11 +37,13 @@ import type {
 import {
   HIERARCHY_URL_PARAMS,
   HIERARCHY_VIEWS,
+  VOTER_ID_FILTERS,
   extractWardNumber,
   filterMembers,
   paginateMembers,
   parseMemberPageParam,
   parseMemberPageSizeParam,
+  parseVoterIdFilterParam,
   sortMembers,
 } from '@/lib/hierarchy/member-list';
 import {
@@ -54,6 +56,10 @@ import {
   type HierarchyCanvasData,
 } from '@/lib/hierarchy/canvas-data';
 import { getMemberDisplayName } from '@/lib/hierarchy/geo-attribution';
+import {
+  buildBoothSearchOptions,
+  resolveHierarchyGeoNavigation,
+} from '@/lib/hierarchy/geo-search-navigation';
 import { useTranslations } from '@/hooks/use-translations';
 
 const DEFAULT_CONSTITUENCY_ID = '172';
@@ -67,6 +73,7 @@ const FILTER_URL_KEYS = [
   'booth',
   'member',
   'view',
+  'voterId',
 ] as const;
 
 function formatWardLabel(wardName: string): string {
@@ -121,6 +128,9 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const wardGeoId = searchParams.get(HIERARCHY_URL_PARAMS.ward) ?? '';
   const boothNo = searchParams.get(HIERARCHY_URL_PARAMS.booth) ?? '';
   const focusMemberId = searchParams.get(HIERARCHY_URL_PARAMS.member) ?? '';
+  const voterIdFilter = parseVoterIdFilterParam(
+    searchParams.get(HIERARCHY_URL_PARAMS.voterId),
+  );
   const pageFromUrl = parseMemberPageParam(searchParams.get(HIERARCHY_URL_PARAMS.page));
   const pageSize = parseMemberPageSizeParam(searchParams.get(HIERARCHY_URL_PARAMS.pageSize));
   const viewMode = searchParams.get(HIERARCHY_URL_PARAMS.view) ?? '';
@@ -152,6 +162,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       ward?: string;
       booth?: string;
       member?: string;
+      voterId?: string;
       page?: number;
       pageSize?: number;
       view?: string;
@@ -167,11 +178,12 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         ward: updates.ward ?? wardGeoId,
         booth: updates.booth ?? boothNo,
         member: clearsMemberFocus ? '' : (updates.member ?? focusMemberId),
+        voterId: 'voterId' in updates ? (updates.voterId ?? '') : voterIdFilter,
         view: 'view' in updates ? (updates.view ?? '') : viewMode,
       };
       const nextPage = updates.page !== undefined
         ? updates.page
-        : clearsMemberFocus || 'search' in updates
+        : clearsMemberFocus || 'search' in updates || 'voterId' in updates
           ? 1
           : pageFromUrl;
       const nextPageSize = updates.pageSize ?? pageSize;
@@ -183,6 +195,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       if (next.ward.trim()) params.set(HIERARCHY_URL_PARAMS.ward, next.ward.trim());
       if (next.booth.trim()) params.set(HIERARCHY_URL_PARAMS.booth, next.booth.trim());
       if (next.member.trim()) params.set(HIERARCHY_URL_PARAMS.member, next.member.trim());
+      if (next.voterId.trim()) params.set(HIERARCHY_URL_PARAMS.voterId, next.voterId.trim());
       if (next.view.trim()) params.set(HIERARCHY_URL_PARAMS.view, next.view.trim());
       if (nextPage > 1) params.set(HIERARCHY_URL_PARAMS.page, String(nextPage));
       if (nextPageSize !== parseMemberPageSizeParam(null)) {
@@ -200,21 +213,12 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       wardGeoId,
       boothNo,
       focusMemberId,
+      voterIdFilter,
       pageFromUrl,
       pageSize,
       viewMode,
     ],
   );
-
-  const commitSearch = useCallback(() => {
-    const trimmed = searchDraft.trim();
-    if (trimmed === searchQuery.trim()) return;
-    pendingSearchRef.current = trimmed;
-    setIsSearchPending(true);
-    startSearchTransition(() => {
-      setUrlParams({ search: searchDraft });
-    });
-  }, [searchDraft, searchQuery, setUrlParams, startSearchTransition]);
 
   const loadConfig = useCallback(async () => {
     const res = await fetch('/api/hierarchy/config');
@@ -295,6 +299,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       if (searchQuery.trim()) params.set('q', searchQuery.trim());
       if (verticalId.trim()) params.set('verticalId', verticalId.trim());
       if (focusMemberId.trim()) params.set('memberId', focusMemberId.trim());
+      if (voterIdFilter) params.set('voterId', voterIdFilter);
 
       const res = await fetch(`/api/hierarchy/members?${params}`, { signal });
       if (!res.ok) {
@@ -318,7 +323,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         page: data.pagination?.page ?? pageFromUrl,
       });
     },
-    [pageFromUrl, pageSize, searchQuery, verticalId, focusMemberId],
+    [pageFromUrl, pageSize, searchQuery, verticalId, focusMemberId, voterIdFilter],
   );
 
   const loadScopedMembers = useCallback(
@@ -386,6 +391,74 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         .sort((a, b) => extractWardNumber(a.name) - extractWardNumber(b.name)),
     [config?.geoUnits],
   );
+
+  const commitSearch = useCallback(() => {
+    const trimmed = searchDraft.trim();
+    if (!trimmed) {
+      if (searchQuery.trim()) {
+        pendingSearchRef.current = '';
+        setIsSearchPending(true);
+        startSearchTransition(() => {
+          setUrlParams({ search: '' });
+        });
+      }
+      return;
+    }
+
+    const geoTarget = resolveHierarchyGeoNavigation(trimmed, {
+      wards: wardOptions,
+      booths: buildBoothSearchOptions(
+        config?.geoUnits ?? [],
+        DEFAULT_CONSTITUENCY_ID,
+      ),
+      currentWardGeoId: wardGeoId || undefined,
+    });
+
+    if (geoTarget) {
+      pendingSearchRef.current = null;
+      setIsSearchPending(false);
+      setSearchDraft('');
+      if (geoTarget.type === 'ward') {
+        setUrlParams({
+          search: '',
+          ward: geoTarget.wardGeoId,
+          booth: '',
+          member: '',
+          position: '',
+          view: '',
+          page: 1,
+        });
+        scrollToTop();
+      } else {
+        setUrlParams({
+          search: '',
+          ward: geoTarget.wardGeoId,
+          booth: geoTarget.boothNo,
+          member: '',
+          position: '',
+          view: '',
+          page: 1,
+        });
+        // WardPanel scrolls the matched booth section into view.
+      }
+      return;
+    }
+
+    if (trimmed === searchQuery.trim()) return;
+    pendingSearchRef.current = trimmed;
+    setIsSearchPending(true);
+    startSearchTransition(() => {
+      setUrlParams({ search: searchDraft });
+    });
+  }, [
+    searchDraft,
+    searchQuery,
+    setUrlParams,
+    startSearchTransition,
+    wardOptions,
+    config?.geoUnits,
+    wardGeoId,
+  ]);
 
   const wardGeoIds = useMemo(() => wardOptions.map((ward) => ward.id), [wardOptions]);
 
@@ -609,6 +682,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         filterMembers(scopedMembers, {
           search: searchQuery,
           memberId: focusMemberId,
+          voterId: voterIdFilter,
         }),
       );
     }
@@ -620,6 +694,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         wardGeoId,
         boothNo,
         memberId: focusMemberId,
+        voterId: voterIdFilter,
       }),
     );
   }, [
@@ -629,6 +704,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     wardGeoId,
     boothNo,
     focusMemberId,
+    voterIdFilter,
     showTalukaCommittee,
     showWardCommittee,
     showBoothCommittee,
@@ -894,6 +970,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       members={memberPagination.items}
       canEdit={canEdit}
       onEdit={canEdit ? handleEdit : undefined}
+      onVoterIdUpdated={canEdit ? () => { void refresh(); } : undefined}
       variant={usesCompactMemberList ? 'compact' : 'default'}
       compactDetail={memberListCompactDetail}
       sectionTitle={memberListSectionTitle}
@@ -976,7 +1053,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       )}
 
       {!showCanvas && (
-        <div className="shrink-0">
+        <div className="shrink-0 space-y-2">
           <div className="flex gap-2">
             <div className="relative min-w-0 flex-1">
               <Input
@@ -1028,6 +1105,42 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               </span>
             </Button>
           </div>
+          {(showCommitteeList || isGlobalSearch || showAllMembers) && (
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="hierarchy-voter-id-filter"
+                className="text-xs text-muted-foreground"
+              >
+                {t('hierarchyModule.voterIdFilterLabel')}
+              </Label>
+              <Select
+                value={voterIdFilter || 'all'}
+                onValueChange={(value) =>
+                  setUrlParams({
+                    voterId: value === 'all' ? '' : value,
+                  })
+                }
+              >
+                <SelectTrigger
+                  id="hierarchy-voter-id-filter"
+                  className="h-10 w-full rounded-xl sm:w-56"
+                >
+                  <SelectValue placeholder={t('hierarchyModule.voterIdFilterAll')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">
+                    {t('hierarchyModule.voterIdFilterAll')}
+                  </SelectItem>
+                  <SelectItem value={VOTER_ID_FILTERS.linked}>
+                    {t('hierarchyModule.voterIdFilterLinked')}
+                  </SelectItem>
+                  <SelectItem value={VOTER_ID_FILTERS.missing}>
+                    {t('hierarchyModule.voterIdFilterMissing')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
       )}
 
@@ -1093,6 +1206,8 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               vacantLabel={vacantLabel}
               viewCommitteeLabel={viewCommitteeLabel}
               onViewCommittee={openTalukaCommittee}
+              canEdit={canEdit}
+              onVoterIdUpdated={canEdit ? () => { void refresh(); } : undefined}
             />
 
             {wardAccessEntries.length === 0 ? (
@@ -1121,6 +1236,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             onViewWardCommittee={openViewWardCommittee}
             onViewBoothCommittee={openViewBoothCommittee}
             onAddBoothCommitteeMember={openAddBoothCommitteeMember}
+            onVoterIdUpdated={canEdit ? () => { void refresh(); } : undefined}
           />
         ) : (
           <div className="flex flex-col gap-3">{memberListBlock}</div>

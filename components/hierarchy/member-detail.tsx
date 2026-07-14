@@ -1,11 +1,11 @@
 'use client';
 
-import Link from 'next/link';
 import { Phone, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MemberAvatar } from './member-avatar';
+import { MemberVoterIdField } from './member-voter-id-field';
 import {
   getMemberDisplayName,
   getMemberPhone,
@@ -18,9 +18,16 @@ import type { CadreMemberCard } from '@/lib/hierarchy/types';
 interface MemberDetailProps {
   member: CadreMemberCard;
   onClose: () => void;
+  canEdit?: boolean;
+  onVoterIdUpdated?: () => void;
 }
 
-export function MemberDetail({ member, onClose }: MemberDetailProps) {
+export function MemberDetail({
+  member,
+  onClose,
+  canEdit,
+  onVoterIdUpdated,
+}: MemberDetailProps) {
   const name = getMemberDisplayName(member);
   const phone = getMemberPhone(member);
 
@@ -71,21 +78,11 @@ export function MemberDetail({ member, onClose }: MemberDetailProps) {
           })}
         </div>
 
-        {member.epicNumber && (
-          <div className="text-xs">
-            <span className="text-muted-foreground">Voter ID: </span>
-            {member.linkedVoter ? (
-              <Link
-                href={`/modules/voter/${member.linkedVoter.epicNumber}`}
-                className="text-primary underline"
-              >
-                {member.epicNumber}
-              </Link>
-            ) : (
-              member.epicNumber
-            )}
-          </div>
-        )}
+        <MemberVoterIdField
+          member={member}
+          canEdit={canEdit}
+          onUpdated={onVoterIdUpdated}
+        />
 
         {member.notes && (
           <div className="text-xs">
