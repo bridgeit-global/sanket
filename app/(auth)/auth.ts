@@ -112,7 +112,7 @@ export const {
           accessibleModules.add('daily-programme');
         }
 
-        // Role-restricted login (e.g. the dedicated BLO login page): reject
+        // Role-restricted login (e.g. the dedicated BLA login page): reject
         // users whose role does not match the required role for this entrypoint.
         if (requireRole && roleName !== String(requireRole).toLowerCase()) {
           return null;

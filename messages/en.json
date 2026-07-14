@@ -1448,11 +1448,11 @@
       "signInLink": "Sign in",
       "signInSuffix": " instead."
     },
-    "bloLogin": {
-      "title": "BLO Sign In",
-      "description": "For Booth Level Officers only. Use your user ID and password to sign in.",
+    "blaLogin": {
+      "title": "BLA Sign In",
+      "description": "For Booth Level Agents only. Use your user ID and password to sign in.",
       "submit": "Sign in",
-      "notAuthorized": "Invalid credentials, or this account is not a BLO account."
+      "notAuthorized": "Invalid credentials, or this account is not a BLA account."
     },
     "messages": {
       "invalidCredentials": "Invalid credentials!",

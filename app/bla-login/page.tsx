@@ -10,7 +10,7 @@ import { SubmitButton } from '@/components/submit-button';
 import { Button } from '@/components/ui/button';
 import { useTranslations } from '@/hooks/use-translations';
 
-import { bloLogin, type LoginActionState } from '../(auth)/actions';
+import { blaLogin, type LoginActionState } from '../(auth)/actions';
 import { useSession } from 'next-auth/react';
 
 export default function Page() {
@@ -21,7 +21,7 @@ export default function Page() {
   const [isSuccessful, setIsSuccessful] = useState(false);
 
   const [state, formAction] = useActionState<LoginActionState, FormData>(
-    bloLogin,
+    blaLogin,
     {
       status: 'idle',
     },
@@ -33,7 +33,7 @@ export default function Page() {
     if (state.status === 'failed') {
       toast({
         type: 'error',
-        description: t('auth.bloLogin.notAuthorized'),
+        description: t('auth.blaLogin.notAuthorized'),
       });
     } else if (state.status === 'invalid_data') {
       toast({
@@ -78,15 +78,15 @@ export default function Page() {
       <div className="w-full max-w-md overflow-hidden rounded-2xl flex flex-col gap-12">
         <div className="flex flex-col items-center justify-center gap-2 px-4 text-center sm:px-16">
           <h3 className="text-xl font-semibold dark:text-zinc-50">
-            {t('auth.bloLogin.title')}
+            {t('auth.blaLogin.title')}
           </h3>
           <p className="text-sm text-gray-500 dark:text-zinc-400">
-            {t('auth.bloLogin.description')}
+            {t('auth.blaLogin.description')}
           </p>
         </div>
         <AuthForm action={handleSubmit} defaultUserId={userId}>
           <SubmitButton isSuccessful={isSuccessful}>
-            {t('auth.bloLogin.submit')}
+            {t('auth.blaLogin.submit')}
           </SubmitButton>
         </AuthForm>
       </div>

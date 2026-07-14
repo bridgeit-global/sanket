@@ -41,7 +41,7 @@ export const login = async (
   }
 };
 
-export const bloLogin = async (
+export const blaLogin = async (
   _: LoginActionState,
   formData: FormData,
 ): Promise<LoginActionState> => {
@@ -51,12 +51,12 @@ export const bloLogin = async (
       password: formData.get('password'),
     });
 
-    // Restrict this entrypoint to BLO-role users only. Non-BLO credentials
+    // Restrict this entrypoint to BLA-role users only. Non-BLA credentials
     // (even if otherwise valid) are rejected by the credentials provider.
     await signIn('credentials', {
       userId: validatedData.userId,
       password: validatedData.password,
-      requireRole: 'blo',
+      requireRole: 'bla',
       redirect: false,
     });
 
