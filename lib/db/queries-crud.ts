@@ -4795,33 +4795,40 @@ export async function updateUserDetails(
 
 export async function getDashboardCounts(todayStr: string): Promise<{
   programmeItems: DailyProgramme[];
+  programmeCount: number;
   inwardCount: number;
   outwardCount: number;
   projectsCount: number;
 }> {
-  const [programmeItems, inwardResult, outwardResult, projectsResult] = await Promise.all([
-    pgSql`
+  const [programmeItems, programmeCountResult, inwardResult, outwardResult, projectsResult] =
+    await Promise.all([
+      pgSql`
       SELECT * FROM "DailyProgramme"
       WHERE date = ${todayStr}
       ORDER BY start_time ASC
       LIMIT 5
     `,
-    pgSql`
+      pgSql`
+      SELECT COUNT(*)::int AS count FROM "DailyProgramme"
+      WHERE date = ${todayStr}
+    `,
+      pgSql`
       SELECT COUNT(*)::int AS count FROM "RegisterEntry"
       WHERE type = 'inward' AND date >= ${todayStr}
     `,
-    pgSql`
+      pgSql`
       SELECT COUNT(*)::int AS count FROM "RegisterEntry"
       WHERE type = 'outward' AND date >= ${todayStr}
     `,
-    pgSql`
+      pgSql`
       SELECT COUNT(*)::int AS count FROM "MlaProject"
       WHERE status = 'In Progress'
     `,
-  ]);
+    ]);
 
   return {
     programmeItems: programmeItems.map(mapDailyProgrammeRow),
+    programmeCount: Number(programmeCountResult[0]?.count) || 0,
     inwardCount: Number(inwardResult[0]?.count) || 0,
     outwardCount: Number(outwardResult[0]?.count) || 0,
     projectsCount: Number(projectsResult[0]?.count) || 0,

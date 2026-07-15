@@ -29,11 +29,12 @@ export async function GET(request: NextRequest) {
       getBeneficiaryServiceStats(),
     ]);
 
-    const { programmeItems, inwardCount, outwardCount, projectsCount } = dashboardCounts;
+    const { programmeItems, programmeCount, inwardCount, outwardCount, projectsCount } =
+      dashboardCounts;
 
     return NextResponse.json({
       stats: {
-        meetings: programmeItems.length,
+        meetings: programmeCount,
         inward: inwardCount,
         outward: outwardCount,
         projects: projectsCount,

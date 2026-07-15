@@ -71,7 +71,7 @@ export async function getDashboardData(): Promise<DashboardData> {
 
   return {
     stats: {
-      meetings: dashboardCounts.programmeItems.length,
+      meetings: dashboardCounts.programmeCount,
       inward: dashboardCounts.inwardCount,
       outward: dashboardCounts.outwardCount,
       projects: dashboardCounts.projectsCount,
