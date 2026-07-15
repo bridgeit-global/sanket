@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Phone, Users, UserCheck, ClipboardCheck } from 'lucide-react';
+import { Phone, Users, ClipboardCheck } from 'lucide-react';
 import { format } from 'date-fns';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { useTranslations } from '@/hooks/use-translations';
@@ -116,7 +116,11 @@ export function DashboardContent({ data }: DashboardContentProps) {
         <CardContent>
           <div className="space-y-6">
             {/* Today's Services Created - Prominent Metric */}
-            <div className="flex flex-col gap-1 rounded-lg border p-4 bg-primary/5">
+            <button
+              type="button"
+              onClick={() => router.push('/modules/operator?tab=manage&status=all')}
+              className="flex w-full flex-col gap-1 rounded-lg border p-4 bg-primary/5 text-left transition-colors hover:border-primary/50 hover:bg-primary/10"
+            >
               <span className="text-xs uppercase tracking-wide text-muted-foreground">
                 Services Created Today
               </span>
@@ -126,61 +130,52 @@ export function DashboardContent({ data }: DashboardContentProps) {
               <span className="text-xs text-muted-foreground">
                 out of {data.beneficiaryServices.totalServices} total services
               </span>
-            </div>
+            </button>
 
             {/* Status Breakdown */}
             <div>
               <h4 className="text-sm font-semibold mb-3">Status Breakdown</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="text-center p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                <button
+                  type="button"
+                  onClick={() => router.push('/modules/operator?tab=manage&status=pending')}
+                  className="text-center p-3 bg-yellow-50 rounded-lg border border-yellow-200 transition-colors hover:bg-yellow-100 hover:border-yellow-300"
+                >
                   <div className="text-2xl font-bold text-yellow-600">
                     {data.beneficiaryServices.byStatus.pending}
                   </div>
                   <div className="text-xs text-gray-600">Pending</div>
-                </div>
-                <div className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push('/modules/operator?tab=manage&status=in_progress')}
+                  className="text-center p-3 bg-blue-50 rounded-lg border border-blue-200 transition-colors hover:bg-blue-100 hover:border-blue-300"
+                >
                   <div className="text-2xl font-bold text-blue-600">
                     {data.beneficiaryServices.byStatus.in_progress}
                   </div>
                   <div className="text-xs text-gray-600">In Progress</div>
-                </div>
-                <div className="text-center p-3 bg-green-50 rounded-lg border border-green-200">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push('/modules/operator?tab=manage&status=completed')}
+                  className="text-center p-3 bg-green-50 rounded-lg border border-green-200 transition-colors hover:bg-green-100 hover:border-green-300"
+                >
                   <div className="text-2xl font-bold text-green-600">
                     {data.beneficiaryServices.byStatus.completed}
                   </div>
                   <div className="text-xs text-gray-600">Completed</div>
-                </div>
-                <div className="text-center p-3 bg-red-50 rounded-lg border border-red-200">
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push('/modules/operator?tab=manage&status=cancelled')}
+                  className="text-center p-3 bg-red-50 rounded-lg border border-red-200 transition-colors hover:bg-red-100 hover:border-red-300"
+                >
                   <div className="text-2xl font-bold text-red-600">
                     {data.beneficiaryServices.byStatus.cancelled}
                   </div>
                   <div className="text-xs text-gray-600">Cancelled</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Type Breakdown */}
-            <div>
-              <h4 className="text-sm font-semibold mb-3">Type Breakdown</h4>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="text-center p-3 bg-purple-50 rounded-lg border border-purple-200">
-                  <div className="flex items-center justify-center gap-2 mb-1">
-                    <UserCheck className="h-4 w-4 text-purple-600" />
-                    <div className="text-2xl font-bold text-purple-600">
-                      {data.beneficiaryServices.byType.individual}
-                    </div>
-                  </div>
-                  <div className="text-xs text-gray-600">Individual</div>
-                </div>
-                <div className="text-center p-3 bg-indigo-50 rounded-lg border border-indigo-200">
-                  <div className="flex items-center justify-center gap-2 mb-1">
-                    <Users className="h-4 w-4 text-indigo-600" />
-                    <div className="text-2xl font-bold text-indigo-600">
-                      {data.beneficiaryServices.byType.community}
-                    </div>
-                  </div>
-                  <div className="text-xs text-gray-600">Community</div>
-                </div>
+                </button>
               </div>
             </div>
           </div>
