@@ -448,6 +448,8 @@
     "birthdayToday": "Today",
     "birthdayInDays": "in {days, plural, one {# day} other {# days}}",
     "turningAge": "turning {age}",
+    "openWhatsApp": "Open WhatsApp chat with {phone}",
+    "callPhone": "Call {phone}",
     "quickActions": "Quick actions",
     "addProject": "Add Project",
     "dailyProgramme": "Daily Programme",

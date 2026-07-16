@@ -448,6 +448,8 @@
     "birthdayToday": "आज",
     "birthdayInDays": "{days, plural, one {# दिवसात} other {# दिवसांत}}",
     "turningAge": "{age} वर्षे पूर्ण होत आहेत",
+    "openWhatsApp": "{phone} वर WhatsApp चॅट उघडा",
+    "callPhone": "{phone} वर कॉल करा",
     "quickActions": "द्रुत कृती",
     "addProject": "प्रकल्प जोडा",
     "dailyProgramme": "दैनंदिन कार्यक्रम",

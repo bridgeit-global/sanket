@@ -16,3 +16,12 @@ export function normalizeIndianMobileDigits(input: string): string {
 export function isValidIndianMobile(input: string): boolean {
     return INDIAN_MOBILE_TEN_DIGITS.test(normalizeIndianMobileDigits(input));
 }
+
+/** Build a wa.me deep link for an Indian mobile number (adds 91 when needed). */
+export function toWhatsAppChatUrl(input: string, message?: string): string | null {
+    const digits = normalizeIndianMobileDigits(input);
+    if (!INDIAN_MOBILE_TEN_DIGITS.test(digits)) return null;
+    const base = `https://wa.me/91${digits}`;
+    if (!message) return base;
+    return `${base}?text=${encodeURIComponent(message)}`;
+}

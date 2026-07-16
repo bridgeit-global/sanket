@@ -3,6 +3,10 @@ import 'server-only';
 import { format, differenceInCalendarDays, startOfDay } from 'date-fns';
 import { supabase } from '@/lib/supabase/server';
 import { throwOnSupabaseError } from '@/lib/db/errors';
+import {
+  isValidIndianMobile,
+  normalizeIndianMobileDigits,
+} from '@/lib/indian-mobile';
 import { TABLES } from './schema';
 import { getPhoneUpdateStats, getBeneficiaryServiceStats, getDashboardCounts, getSirActivityStats } from './queries';
 import type { SirActivityStats } from './sir-queries';
@@ -15,6 +19,8 @@ export type UpcomingCadreBirthday = {
   memberId: string;
   personName: string;
   personPhone: string | null;
+  /** Unique valid Indian mobiles (WhatsApp, person phone, linked voter mobiles). */
+  phones: string[];
   epicNumber: string;
   dob: string;
   nextBirthday: string;
@@ -239,6 +245,41 @@ export async function getUpcomingCadreBirthdays(
     if (label) primaryPostLabelByMember.set(memberId, label);
   }
 
+  const whatsappByMember = new Map<string, string>();
+  for (const chunk of chunkIds(memberIds, EPIC_FETCH_CHUNK)) {
+    const whatsappRes = await supabase
+      .from(TABLES.cadreMemberWhatsApp)
+      .select('member_id, whatsapp_phone')
+      .in('member_id', chunk);
+    throwOnSupabaseError(whatsappRes.error, 'Failed to load WhatsApp numbers for birthdays');
+    for (const row of whatsappRes.data ?? []) {
+      const phone = row.whatsapp_phone != null ? String(row.whatsapp_phone).trim() : '';
+      if (!phone) continue;
+      whatsappByMember.set(String(row.member_id), phone);
+    }
+  }
+
+  const voterMobilesByEpic = new Map<string, string[]>();
+  const epicsWithDob = [
+    ...new Set(membersWithDob.map((row) => String(row.epic_number).trim())),
+  ];
+  for (const chunk of chunkIds(epicsWithDob, EPIC_FETCH_CHUNK)) {
+    const mobilesRes = await supabase
+      .from(TABLES.voterMobileNumber)
+      .select('epic_number, mobile_number, sort_order')
+      .in('epic_number', chunk)
+      .order('sort_order', { ascending: true });
+    throwOnSupabaseError(mobilesRes.error, 'Failed to load voter mobiles for birthdays');
+    for (const row of mobilesRes.data ?? []) {
+      const epic = String(row.epic_number);
+      const mobile = row.mobile_number != null ? String(row.mobile_number).trim() : '';
+      if (!mobile) continue;
+      const list = voterMobilesByEpic.get(epic) ?? [];
+      list.push(mobile);
+      voterMobilesByEpic.set(epic, list);
+    }
+  }
+
   const today = new Date();
   const results: UpcomingCadreBirthday[] = [];
 
@@ -267,10 +308,30 @@ export async function getUpcomingCadreBirthdays(
       voter.fullName ||
       epicNumber;
 
+    const personPhone =
+      row.person_phone != null ? String(row.person_phone).trim() || null : null;
+    const memberId = String(row.id);
+    const phoneCandidates = [
+      whatsappByMember.get(memberId) ?? null,
+      personPhone,
+      ...(voterMobilesByEpic.get(epicNumber) ?? []),
+    ];
+    const phones: string[] = [];
+    const seen = new Set<string>();
+    for (const candidate of phoneCandidates) {
+      if (!candidate) continue;
+      if (!isValidIndianMobile(candidate)) continue;
+      const digits = normalizeIndianMobileDigits(candidate);
+      if (seen.has(digits)) continue;
+      seen.add(digits);
+      phones.push(digits);
+    }
+
     results.push({
-      memberId: String(row.id),
+      memberId,
       personName,
-      personPhone: row.person_phone != null ? String(row.person_phone) : null,
+      personPhone,
+      phones,
       epicNumber,
       dob: voter.dob,
       nextBirthday: format(nextDate, 'yyyy-MM-dd'),
@@ -279,7 +340,7 @@ export async function getUpcomingCadreBirthdays(
         turningAge != null && turningAge > 0 && turningAge <= 150
           ? turningAge
           : null,
-      primaryPostLabel: primaryPostLabelByMember.get(String(row.id)) ?? null,
+      primaryPostLabel: primaryPostLabelByMember.get(memberId) ?? null,
     });
   }
 
