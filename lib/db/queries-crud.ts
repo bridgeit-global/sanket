@@ -5059,9 +5059,7 @@ export async function createAdmFundingCategory({
       .limit(1);
     throwOnSupabaseError(orderError, 'Failed to get ADM category order');
 
-    const nextOrder =
-      Number(orderRows?.[0]?.display_order ?? orderRows?.[0]?.displayOrder ?? 0) +
-      1;
+    const nextOrder = Number(orderRows?.[0]?.display_order ?? 0) + 1;
 
     const now = new Date().toISOString();
     const baseCode = toAdmCategoryCode(trimmed);
