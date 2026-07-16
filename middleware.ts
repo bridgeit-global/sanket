@@ -32,6 +32,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Cron jobs authenticate with CRON_SECRET inside the route handler
+  if (pathname.startsWith('/api/cron/')) {
+    return NextResponse.next();
+  }
+
   // Public static assets (required for next/image upstream fallback on the landing page)
   if (pathname.startsWith('/images/')) {
     return NextResponse.next();

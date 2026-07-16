@@ -4,6 +4,7 @@ import webpush from 'web-push';
 import {
   deleteStaleSubscriptions,
   getPushSubscriptionsForUser,
+  getSubscribedTestAdminUserIds,
   getUserIdsWithModuleAccess,
 } from '@/lib/push/subscriptions';
 import type { PushNotificationPayload } from '@/lib/push/types';
@@ -91,6 +92,15 @@ export async function sendPushToModule(
 ): Promise<void> {
   const userIds = await getUserIdsWithModuleAccess(moduleKey);
   await sendPushToUsers(userIds, payload, options);
+}
+
+/** Test: push only to login user `admin` if they subscribed via Profile. */
+export async function sendPushToSubscribedAdmins(
+  payload: PushNotificationPayload,
+): Promise<string[]> {
+  const userIds = await getSubscribedTestAdminUserIds();
+  await sendPushToUsers(userIds, payload);
+  return userIds;
 }
 
 export function notifyPush(

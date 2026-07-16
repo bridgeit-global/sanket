@@ -133,3 +133,29 @@ export async function deleteStaleSubscriptions(endpoints: string[]) {
     .in('endpoint', endpoints);
   throwOnSupabaseError(error, 'Failed to delete stale subscriptions');
 }
+
+/**
+ * Test helper: the single login user `user_id = 'admin'`, only if they
+ * have enabled push from Profile.
+ */
+export async function getSubscribedTestAdminUserIds(): Promise<string[]> {
+  const { data: user, error: userError } = await supabase
+    .from(TABLES.user)
+    .select('id')
+    .eq('user_id', 'admin')
+    .maybeSingle();
+  throwOnSupabaseError(userError, 'Failed to get admin user');
+  if (!user) return [];
+
+  const userId = String(user.id);
+
+  const { data: sub, error: subsError } = await supabase
+    .from(TABLES.pushSubscription)
+    .select('user_id')
+    .eq('user_id', userId)
+    .limit(1)
+    .maybeSingle();
+  throwOnSupabaseError(subsError, 'Failed to get admin push subscription');
+
+  return sub ? [userId] : [];
+}
