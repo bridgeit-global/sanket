@@ -53,7 +53,10 @@ export const TABLES = {
   cadreWhatsAppBroadcast: 'CadreWhatsAppBroadcast',
   cadreWhatsAppMessage: 'CadreWhatsAppMessage',
   admFundingCategory: 'AdmFundingCategory',
-  admWork: 'AdmWork',
+  admFundRecord: 'AdmFundRecord',
+  admFundAllocation: 'AdmFundAllocation',
+  admDocument: 'AdmDocument',
+  projectGroundMedia: 'ProjectGroundMedia',
   shortUrl: 'ShortUrl',
 } as const;
 
@@ -403,12 +406,33 @@ export type DailyProgrammeAttachment = {
   createdAt: Date;
 };
 
+export type ProjectApprovalStatus = 'Pending' | 'Approved' | 'Rejected';
+export type ProjectNocStatus = 'NotRequired' | 'Pending' | 'Obtained' | 'Rejected';
+export type ProjectDocumentKind =
+  | 'approval_pdf'
+  | 'sanction_letter'
+  | 'noc'
+  | 'supporting';
+export type ProjectPhysicalStatus = 'WNS' | 'WIP' | 'WC';
+
 export type MlaProject = {
   id: string;
   name: string;
   ward: string | null;
   type: string | null;
   status: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
+  department: string | null;
+  category: string | null;
+  estimatedCost: number;
+  approvalStatus: ProjectApprovalStatus;
+  nocRequired: boolean;
+  nocStatus: ProjectNocStatus;
+  remarks: string | null;
+  physicalStatus: ProjectPhysicalStatus;
+  bhoomiPujanDone: boolean;
+  bhoomiPujanDate: string | null;
+  lokarpanDone: boolean;
+  lokarpanDate: string | null;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -420,6 +444,20 @@ export type ProjectAttachment = {
   fileName: string;
   fileSizeKb: number;
   fileUrl: string | null;
+  documentKind: ProjectDocumentKind;
+  version: number;
+  versionGroupId: string;
+  uploadedBy: string | null;
+  createdAt: Date;
+};
+
+export type ProjectGroundMedia = {
+  id: string;
+  projectId: string;
+  photoType: 'before' | 'after';
+  fileUrl: string;
+  fileName: string;
+  sortOrder: number;
   createdAt: Date;
 };
 
@@ -629,45 +667,69 @@ export type CadreMemberPost = {
   updatedAt: Date;
 };
 
-export type AdmPhysicalStatus = 'WNS' | 'WIP' | 'WC';
+export type AdmPhysicalStatus = ProjectPhysicalStatus;
 
 export type AdmFundingCategory = {
   id: string;
   code: string;
   name: string;
-  masterBudget: number;
   displayOrder: number;
   createdAt: Date;
   updatedAt: Date;
 };
 
-export type AdmWork = {
+export type AdmFundRecord = {
   id: string;
   categoryId: string;
-  projectId: string | null;
-  name: string;
-  workBudget: number;
-  physicalStatus: AdmPhysicalStatus;
-  bhoomiPujanDone: boolean;
-  bhoomiPujanDate: string | null;
-  lokarpanDone: boolean;
-  lokarpanDate: string | null;
-  beforePhotoUrl: string | null;
-  beforePhotoName: string | null;
-  afterPhotoUrl: string | null;
-  afterPhotoName: string | null;
+  financialYear: string;
+  projectYear: string;
+  budget: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type AdmFundAllocation = {
+  id: string;
+  fundRecordId: string;
+  projectId: string;
+  allocatedBudget: number;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
 };
 
-export type AdmWorkWithProject = AdmWork & {
-  projectName: string | null;
+export type AdmFundAllocationWithProject = AdmFundAllocation & {
+  projectName: string;
+  projectDepartment: string | null;
+  projectCategory: string | null;
+  projectEstimatedCost: number;
+  projectApprovalStatus: ProjectApprovalStatus;
 };
 
-export type AdmFundingCategoryWithWorks = AdmFundingCategory & {
-  works: AdmWorkWithProject[];
+export type AdmDocument = {
+  id: string;
+  fundRecordId: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl: string | null;
+  kind: string;
+  label: string | null;
+  uploadedBy: string;
+  createdAt: Date;
+};
+
+export type AdmFundRecordWithDetails = AdmFundRecord & {
+  categoryName: string;
+  categoryCode: string;
+  allocations: AdmFundAllocationWithProject[];
+  documents: AdmDocument[];
   allocatedBudget: number;
+};
+
+export type AdmFundingCategoryWithFunds = AdmFundingCategory & {
+  fundRecords: AdmFundRecordWithDetails[];
+  allocatedBudget: number;
+  totalBudget: number;
 };
 
 export type CadreMemberWhatsApp = {

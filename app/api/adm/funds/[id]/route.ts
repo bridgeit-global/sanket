@@ -2,12 +2,12 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import {
-  getAdmWorkById,
-  updateAdmWork,
-  deleteAdmWork,
+  getAdmFundRecordById,
+  updateAdmFundRecord,
+  deleteAdmFundRecord,
   hasModuleAccess,
 } from '@/lib/db/queries';
-import { admWorkFormSchema, validateForm } from '@/lib/validations';
+import { admFundRecordSchema, validateForm } from '@/lib/validations';
 
 export async function PUT(
   request: NextRequest,
@@ -26,16 +26,15 @@ export async function PUT(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const existing = await getAdmWorkById(id);
+    const existing = await getAdmFundRecordById(id);
     if (!existing) {
-      return NextResponse.json({ error: 'Work not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Fund record not found' }, { status: 404 });
     }
 
     const body = await request.json();
-    const validation = validateForm(admWorkFormSchema, {
-      ...existing,
-      ...body,
-      categoryId: body.categoryId ?? existing.categoryId,
+    const validation = validateForm(admFundRecordSchema, {
+      financialYear: body.financialYear ?? existing.financialYear,
+      budget: body.budget ?? existing.budget,
     });
     if (!validation.success) {
       return NextResponse.json(
@@ -44,22 +43,16 @@ export async function PUT(
       );
     }
 
-    const updated = await updateAdmWork(id, {
-      name: validation.data.name,
-      workBudget: validation.data.workBudget,
-      projectId: validation.data.projectId ?? null,
-      physicalStatus: validation.data.physicalStatus,
-      bhoomiPujanDone: validation.data.bhoomiPujanDone ?? false,
-      bhoomiPujanDate: validation.data.bhoomiPujanDate ?? null,
-      lokarpanDone: validation.data.lokarpanDone ?? false,
-      lokarpanDate: validation.data.lokarpanDate ?? null,
+    const updated = await updateAdmFundRecord(id, {
+      ...validation.data,
+      // Keep DB project_year in lockstep with financial year (UI no longer collects it)
+      projectYear: validation.data.financialYear,
     });
-
     return NextResponse.json(updated);
   } catch (error) {
-    console.error('Error updating ADM work:', error);
+    console.error('Error updating ADM fund record:', error);
     return NextResponse.json(
-      { error: 'Failed to update work' },
+      { error: 'Failed to update fund record' },
       { status: 500 },
     );
   }
@@ -82,17 +75,17 @@ export async function DELETE(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    const existing = await getAdmWorkById(id);
+    const existing = await getAdmFundRecordById(id);
     if (!existing) {
-      return NextResponse.json({ error: 'Work not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Fund record not found' }, { status: 404 });
     }
 
-    await deleteAdmWork(id);
+    await deleteAdmFundRecord(id);
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting ADM work:', error);
+    console.error('Error deleting ADM fund record:', error);
     return NextResponse.json(
-      { error: 'Failed to delete work' },
+      { error: 'Failed to delete fund record' },
       { status: 500 },
     );
   }

@@ -1,9 +1,13 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { createAdmWork, hasModuleAccess } from '@/lib/db/queries';
-import { admWorkFormSchema, validateForm } from '@/lib/validations';
+import {
+  createAdmFundingCategory,
+  hasModuleAccess,
+} from '@/lib/db/queries';
+import { admFundingCategorySchema, validateForm } from '@/lib/validations';
 
+/** Create (or return existing) fund type / funding category by name. */
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -18,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const validation = validateForm(admWorkFormSchema, body);
+    const validation = validateForm(admFundingCategorySchema, body);
     if (!validation.success) {
       return NextResponse.json(
         { error: validation.errors[Object.keys(validation.errors)[0]] },
@@ -26,20 +30,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const work = await createAdmWork({
-      categoryId: validation.data.categoryId,
+    const category = await createAdmFundingCategory({
       name: validation.data.name,
-      workBudget: validation.data.workBudget,
-      projectId: validation.data.projectId ?? null,
-      physicalStatus: validation.data.physicalStatus,
-      createdBy: session.user.id,
     });
 
-    return NextResponse.json(work, { status: 201 });
+    return NextResponse.json(category, { status: 201 });
   } catch (error) {
-    console.error('Error creating ADM work:', error);
+    console.error('Error creating ADM funding category:', error);
     return NextResponse.json(
-      { error: 'Failed to create work' },
+      { error: 'Failed to create fund type' },
       { status: 500 },
     );
   }

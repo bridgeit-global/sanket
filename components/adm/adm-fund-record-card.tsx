@@ -1,0 +1,553 @@
+'use client';
+
+import { useRef, useState } from 'react';
+import Link from 'next/link';
+import {
+  ExternalLink,
+  FileText,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { useTranslations } from '@/hooks/use-translations';
+import { financialYearOptions } from '@/lib/adm/financial-year';
+import { formatCurrency } from '@/lib/mla-office-utils';
+import type {
+  AdmFundRecordWithDetails,
+  AdmFundAllocationWithProject,
+  AdmDocument,
+} from '@/lib/db/schema';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { AdmCroreAmountInput } from './adm-crore-amount-input';
+
+export interface AdmProjectOption {
+  id: string;
+  name: string;
+}
+
+interface AdmFundRecordCardProps {
+  fund: AdmFundRecordWithDetails;
+  projects: AdmProjectOption[];
+  onUpdateFund: (
+    fundId: string,
+    values: { financialYear: string; budget: number },
+  ) => Promise<void>;
+  onDeleteFund: (fundId: string) => void;
+  onAddAllocation: (
+    fundRecordId: string,
+    projectId: string,
+    allocatedBudget: number,
+  ) => Promise<void>;
+  onCreateProject: (
+    fundRecordId: string,
+    values: {
+      name: string;
+      department?: string;
+      allocatedBudget: number;
+    },
+  ) => Promise<void>;
+  onUpdateAllocation: (id: string, allocatedBudget: number) => Promise<void>;
+  onDeleteAllocation: (allocation: AdmFundAllocationWithProject) => void;
+  onUploadDocument: (
+    fundRecordId: string,
+    file: File,
+    kind: string,
+  ) => Promise<void>;
+  onDeleteDocument: (fundRecordId: string, document: AdmDocument) => void;
+}
+
+export function AdmFundRecordCard({
+  fund,
+  projects,
+  onUpdateFund,
+  onDeleteFund,
+  onAddAllocation,
+  onCreateProject,
+  onUpdateAllocation,
+  onDeleteAllocation,
+  onUploadDocument,
+  onDeleteDocument,
+}: AdmFundRecordCardProps) {
+  const { t } = useTranslations();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [editing, setEditing] = useState(false);
+  const [financialYear, setFinancialYear] = useState(fund.financialYear);
+  const [budget, setBudget] = useState(fund.budget);
+  const [saving, setSaving] = useState(false);
+
+  const [projectId, setProjectId] = useState('');
+  const [allocatedBudget, setAllocatedBudget] = useState(0);
+  const [addingAllocation, setAddingAllocation] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDepartment, setNewProjectDepartment] = useState('');
+  const [newProjectBudget, setNewProjectBudget] = useState(0);
+  const [creatingProject, setCreatingProject] = useState(false);
+
+  const isOverallocated = fund.allocatedBudget > fund.budget;
+  const allocatedProjectIds = new Set(fund.allocations.map((a) => a.projectId));
+  const availableProjects = projects.filter((p) => !allocatedProjectIds.has(p.id));
+  const fyOptions = financialYearOptions(financialYear);
+
+  const handleSaveFund = async () => {
+    setSaving(true);
+    try {
+      await onUpdateFund(fund.id, { financialYear, budget });
+      setEditing(false);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t('adm.failedToSave'),
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleAddAllocation = async () => {
+    if (!projectId) return;
+    setAddingAllocation(true);
+    try {
+      await onAddAllocation(fund.id, projectId, allocatedBudget);
+      setProjectId('');
+      setAllocatedBudget(0);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t('adm.failedToSave'),
+      );
+    } finally {
+      setAddingAllocation(false);
+    }
+  };
+
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim()) return;
+    setCreatingProject(true);
+    try {
+      await onCreateProject(fund.id, {
+        name: newProjectName.trim(),
+        department: newProjectDepartment.trim() || undefined,
+        allocatedBudget: newProjectBudget,
+      });
+      setCreateProjectOpen(false);
+      setNewProjectName('');
+      setNewProjectDepartment('');
+      setNewProjectBudget(0);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t('adm.failedToSave'),
+      );
+    } finally {
+      setCreatingProject(false);
+    }
+  };
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      await onUploadDocument(fund.id, file, 'general');
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t('adm.failedToSave'),
+      );
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary" className="font-semibold uppercase">
+              {fund.categoryName}
+            </Badge>
+            <span className="text-xs text-muted-foreground">
+              {fund.categoryCode}
+            </span>
+          </div>
+          {editing ? (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label>{t('adm.financialYear')}</Label>
+                <Select value={financialYear} onValueChange={setFinancialYear}>
+                  <SelectTrigger className="min-h-10 w-full">
+                    <SelectValue placeholder={t('adm.financialYear')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {fyOptions.map((fy) => (
+                      <SelectItem key={fy} value={fy}>
+                        {fy}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <AdmCroreAmountInput
+                label={t('adm.fundBudgetCrore')}
+                valueRupees={budget}
+                onChangeRupees={setBudget}
+                inputClassName="min-h-10"
+                className="space-y-1"
+              />
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-4 text-sm">
+              <span>
+                {t('adm.financialYear')}:{' '}
+                <span className="font-semibold">{fund.financialYear}</span>
+              </span>
+              <span>
+                {t('adm.fundBudget')}:{' '}
+                <span className="font-semibold">
+                  {formatCurrency(fund.budget)}
+                </span>
+              </span>
+              <span className={cn(isOverallocated && 'text-destructive')}>
+                {t('adm.budgetUsed')}:{' '}
+                <span className="font-semibold">
+                  {formatCurrency(fund.allocatedBudget)}
+                </span>
+              </span>
+              {isOverallocated && (
+                <Badge
+                  variant="outline"
+                  className="border-destructive/40 bg-destructive/10 text-destructive"
+                >
+                  {t('adm.budgetOverallocated')}
+                </Badge>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex gap-2">
+          {editing ? (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                className="min-h-9"
+                disabled={saving}
+                onClick={handleSaveFund}
+              >
+                {t('adm.save')}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="min-h-9"
+                onClick={() => {
+                  setFinancialYear(fund.financialYear);
+                  setBudget(fund.budget);
+                  setEditing(false);
+                }}
+              >
+                {t('adm.cancel')}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="min-h-9"
+                onClick={() => setEditing(true)}
+              >
+                <Pencil className="mr-1 h-3.5 w-3.5" />
+                {t('adm.edit')}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="min-h-9 text-destructive hover:text-destructive"
+                onClick={() => onDeleteFund(fund.id)}
+              >
+                <Trash2 className="mr-1 h-3.5 w-3.5" />
+                {t('adm.delete')}
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t('adm.associatedProjects')}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="min-h-9"
+            onClick={() => setCreateProjectOpen(true)}
+          >
+            <Plus className="mr-1 h-3.5 w-3.5" />
+            {t('adm.createProject')}
+          </Button>
+        </div>
+        {fund.allocations.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('adm.noAllocations')}</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('adm.projectName')}</TableHead>
+                <TableHead>{t('adm.department')}</TableHead>
+                <TableHead>{t('adm.allocatedBudget')}</TableHead>
+                <TableHead className="w-28" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {fund.allocations.map((allocation) => (
+                <TableRow key={allocation.id}>
+                  <TableCell>
+                    <Link
+                      href={`/modules/projects/${allocation.projectId}`}
+                      className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                    >
+                      {allocation.projectName}
+                      <ExternalLink className="h-3.5 w-3.5" />
+                    </Link>
+                  </TableCell>
+                  <TableCell>
+                    {allocation.projectDepartment || '—'}
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      key={`${allocation.id}-${allocation.allocatedBudget}`}
+                      type="number"
+                      min={0}
+                      className="min-h-9 w-32"
+                      defaultValue={allocation.allocatedBudget}
+                      onBlur={async (e) => {
+                        const next =
+                          Number.parseInt(e.target.value, 10) || 0;
+                        if (next !== allocation.allocatedBudget) {
+                          await onUpdateAllocation(allocation.id, next);
+                        }
+                      }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => onDeleteAllocation(allocation)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+
+        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-3 sm:flex-row sm:items-end">
+          <div className="flex-1 space-y-1">
+            <Label>{t('adm.linkProject')}</Label>
+            <select
+              className="flex min-h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+            >
+              <option value="">{t('adm.selectProject')}</option>
+              {availableProjects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1 sm:w-40">
+            <Label>{t('adm.allocatedBudget')}</Label>
+            <Input
+              type="number"
+              min={0}
+              value={allocatedBudget || ''}
+              onChange={(e) =>
+                setAllocatedBudget(Number.parseInt(e.target.value, 10) || 0)
+              }
+              className="min-h-10"
+            />
+          </div>
+          <Button
+            type="button"
+            className="min-h-10"
+            disabled={!projectId || addingAllocation}
+            onClick={handleAddAllocation}
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            {t('adm.addAllocation')}
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t('adm.admDocuments')}
+          </p>
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleUpload(file);
+              }}
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="min-h-9"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="mr-1 h-3.5 w-3.5" />
+              {uploading ? t('adm.uploading') : t('adm.uploadDocument')}
+            </Button>
+          </div>
+        </div>
+        {fund.documents.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('adm.noDocuments')}</p>
+        ) : (
+          <ul className="space-y-2">
+            {fund.documents.map((doc) => (
+              <li
+                key={doc.id}
+                className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
+              >
+                <div className="flex min-w-0 items-center gap-2">
+                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  {doc.fileUrl ? (
+                    <a
+                      href={doc.fileUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="truncate text-primary hover:underline"
+                    >
+                      {doc.label || doc.fileName}
+                    </a>
+                  ) : (
+                    <span className="truncate">{doc.label || doc.fileName}</span>
+                  )}
+                  <span className="shrink-0 text-xs text-muted-foreground">
+                    {doc.kind}
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onDeleteDocument(fund.id, doc)}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <Dialog open={createProjectOpen} onOpenChange={setCreateProjectOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('adm.createProject')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {t('adm.createProjectHint', {
+                fundType: fund.categoryName,
+              })}
+            </p>
+            <div className="space-y-2">
+              <Label>{t('adm.projectName')}</Label>
+              <Input
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                className="min-h-11"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('adm.department')}</Label>
+              <Input
+                value={newProjectDepartment}
+                onChange={(e) => setNewProjectDepartment(e.target.value)}
+                className="min-h-11"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('adm.allocatedBudget')}</Label>
+              <Input
+                type="number"
+                min={0}
+                value={newProjectBudget || ''}
+                onChange={(e) =>
+                  setNewProjectBudget(Number.parseInt(e.target.value, 10) || 0)
+                }
+                className="min-h-11"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCreateProjectOpen(false)}
+            >
+              {t('adm.cancel')}
+            </Button>
+            <Button
+              type="button"
+              disabled={creatingProject || !newProjectName.trim()}
+              onClick={handleCreateProject}
+            >
+              {t('adm.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

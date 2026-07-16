@@ -1,8 +1,8 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { getProjects, createProject } from '@/lib/db/queries';
-import { hasModuleAccess } from '@/lib/db/queries';
+import { getProjects, createProject, hasModuleAccess } from '@/lib/db/queries';
+import { projectFormSchema, validateForm } from '@/lib/validations';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,7 +12,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check module access
     const hasAccess = await hasModuleAccess(session.user.id, 'projects');
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
@@ -48,27 +47,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Check module access
     const hasAccess = await hasModuleAccess(session.user.id, 'projects');
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
     const body = await request.json();
-    const { name, ward, type, status } = body;
-
-    if (!name) {
+    const validation = validateForm(projectFormSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'name is required' },
+        { error: validation.errors[Object.keys(validation.errors)[0]] },
         { status: 400 },
       );
     }
 
     const project = await createProject({
-      name,
-      ward,
-      type,
-      status,
+      ...validation.data,
       createdBy: session.user.id,
     });
 
@@ -81,4 +75,3 @@ export async function POST(request: NextRequest) {
     );
   }
 }
-

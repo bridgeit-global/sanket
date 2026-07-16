@@ -41,6 +41,10 @@ interface Project {
   ward?: string;
   type?: string;
   status: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
+  department?: string | null;
+  category?: string | null;
+  estimatedCost?: number;
+  approvalStatus?: 'Pending' | 'Approved' | 'Rejected';
 }
 
 export function ProjectsModule() {
@@ -57,6 +61,10 @@ export function ProjectsModule() {
     ward: '',
     type: '',
     status: 'Concept' as Project['status'],
+    department: '',
+    category: '',
+    estimatedCost: 0,
+    approvalStatus: 'Pending' as 'Pending' | 'Approved' | 'Rejected',
   });
   const [selectedWards, setSelectedWards] = useState<string[]>([]);
   const [selectedParts, setSelectedParts] = useState<string[]>([]);
@@ -173,6 +181,10 @@ export function ProjectsModule() {
       ward: project.ward || '',
       type: project.type || '',
       status: project.status,
+      department: project.department || '',
+      category: project.category || '',
+      estimatedCost: project.estimatedCost || 0,
+      approvalStatus: project.approvalStatus || 'Pending',
     });
     // Parse ward string to extract ward numbers and part numbers
     if (project.ward) {
@@ -227,7 +239,16 @@ export function ProjectsModule() {
   };
 
   const resetForm = () => {
-    setForm({ name: '', ward: '', type: '', status: 'Concept' });
+    setForm({
+      name: '',
+      ward: '',
+      type: '',
+      status: 'Concept',
+      department: '',
+      category: '',
+      estimatedCost: 0,
+      approvalStatus: 'Pending',
+    });
     setSelectedWards([]);
     setSelectedParts([]);
     setEditingId(null);
@@ -339,6 +360,62 @@ export function ProjectsModule() {
                   <SelectItem value="Proposal">{t('projects.proposal')}</SelectItem>
                   <SelectItem value="In Progress">{t('projects.inProgress')}</SelectItem>
                   <SelectItem value="Completed">{t('projects.completed')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="department">{t('projects.department')}</Label>
+              <Input
+                id="department"
+                value={form.department}
+                onChange={(e) =>
+                  setForm({ ...form, department: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="category">{t('projects.category')}</Label>
+              <Input
+                id="category"
+                value={form.category}
+                onChange={(e) =>
+                  setForm({ ...form, category: e.target.value })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="estimatedCost">{t('projects.estimatedCost')}</Label>
+              <Input
+                id="estimatedCost"
+                type="number"
+                min={0}
+                value={form.estimatedCost || ''}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    estimatedCost: Number.parseInt(e.target.value, 10) || 0,
+                  })
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="approvalStatus">{t('projects.approvalStatus')}</Label>
+              <Select
+                value={form.approvalStatus}
+                onValueChange={(value) =>
+                  setForm({
+                    ...form,
+                    approvalStatus: value as 'Pending' | 'Approved' | 'Rejected',
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pending">{t('projects.approvalPending')}</SelectItem>
+                  <SelectItem value="Approved">{t('projects.approvalApproved')}</SelectItem>
+                  <SelectItem value="Rejected">{t('projects.approvalRejected')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>

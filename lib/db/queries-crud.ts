@@ -22,7 +22,11 @@ import {
   mapMessageRow,
   mapMlaProjectRow,
   mapAdmFundingCategoryRow,
-  mapAdmWorkRow,
+  mapAdmFundRecordRow,
+  mapAdmFundAllocationRow,
+  mapAdmDocumentRow,
+  mapProjectAttachmentRow,
+  mapProjectGroundMediaRow,
   mapRegisterAttachmentRow,
   mapRegisterEntryRow,
   mapRoleModulePermissionRow,
@@ -65,9 +69,15 @@ import type {
   DocumentTypeMaster,
   MlaProject,
   AdmFundingCategory,
-  AdmWork,
-  AdmFundingCategoryWithWorks,
-  AdmPhysicalStatus,
+  AdmFundRecord,
+  AdmFundAllocation,
+  AdmFundAllocationWithProject,
+  AdmDocument,
+  AdmFundingCategoryWithFunds,
+  AdmFundRecordWithDetails,
+  ProjectAttachment,
+  ProjectGroundMedia,
+  ProjectDocumentKind,
   RegisterAttachment,
   RegisterEntry,
   Role,
@@ -3696,12 +3706,36 @@ export async function createProject({
   ward,
   type,
   status,
+  department,
+  category,
+  estimatedCost,
+  approvalStatus,
+  nocRequired,
+  nocStatus,
+  remarks,
+  physicalStatus,
+  bhoomiPujanDone,
+  bhoomiPujanDate,
+  lokarpanDone,
+  lokarpanDate,
   createdBy,
 }: {
   name: string;
   ward?: string;
   type?: string;
   status?: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
+  department?: string | null;
+  category?: string | null;
+  estimatedCost?: number;
+  approvalStatus?: MlaProject['approvalStatus'];
+  nocRequired?: boolean;
+  nocStatus?: MlaProject['nocStatus'];
+  remarks?: string | null;
+  physicalStatus?: MlaProject['physicalStatus'];
+  bhoomiPujanDone?: boolean;
+  bhoomiPujanDate?: string | null;
+  lokarpanDone?: boolean;
+  lokarpanDate?: string | null;
   createdBy: string;
 }): Promise<MlaProject> {
   try {
@@ -3714,6 +3748,18 @@ export async function createProject({
           ward: ward || null,
           type: type || null,
           status: status || 'Concept',
+          department: department ?? null,
+          category: category ?? null,
+          estimatedCost: estimatedCost ?? 0,
+          approvalStatus: approvalStatus ?? 'Pending',
+          nocRequired: nocRequired ?? false,
+          nocStatus: nocStatus ?? (nocRequired ? 'Pending' : 'NotRequired'),
+          remarks: remarks ?? null,
+          physicalStatus: physicalStatus ?? 'WNS',
+          bhoomiPujanDone: bhoomiPujanDone ?? false,
+          bhoomiPujanDate: bhoomiPujanDate ?? null,
+          lokarpanDone: lokarpanDone ?? false,
+          lokarpanDate: lokarpanDate ?? null,
           createdBy,
           createdAt: now,
           updatedAt: now,
@@ -4837,7 +4883,7 @@ export async function getDashboardCounts(todayStr: string): Promise<{
 
 // ─── ADM (Asset Development & Fund Management) ───────────────────────────────
 
-export async function getAdmDashboard(): Promise<AdmFundingCategoryWithWorks[]> {
+export async function getAdmDashboard(): Promise<AdmFundingCategoryWithFunds[]> {
   try {
     const { data: categories, error: catError } = await supabase
       .from(TABLES.admFundingCategory)
@@ -4845,53 +4891,111 @@ export async function getAdmDashboard(): Promise<AdmFundingCategoryWithWorks[]> 
       .order('display_order', { ascending: true });
     throwOnSupabaseError(catError, 'Failed to get ADM categories');
 
-    const { data: works, error: workError } = await supabase
-      .from(TABLES.admWork)
+    const { data: fundRows, error: fundError } = await supabase
+      .from(TABLES.admFundRecord)
+      .select('*')
+      .order('financial_year', { ascending: false });
+    throwOnSupabaseError(fundError, 'Failed to get ADM fund records');
+
+    const { data: allocationRows, error: allocError } = await supabase
+      .from(TABLES.admFundAllocation)
       .select('*')
       .order('created_at', { ascending: true });
-    throwOnSupabaseError(workError, 'Failed to get ADM works');
+    throwOnSupabaseError(allocError, 'Failed to get ADM allocations');
+
+    const { data: documentRows, error: docError } = await supabase
+      .from(TABLES.admDocument)
+      .select('*')
+      .order('created_at', { ascending: false });
+    throwOnSupabaseError(docError, 'Failed to get ADM documents');
 
     const projectIds = [
       ...new Set(
-        (works ?? [])
-          .map((row) => row.project_id as string | null)
-          .filter((id): id is string => Boolean(id)),
+        (allocationRows ?? []).map((row) => String(row.project_id ?? row.projectId)),
       ),
     ];
 
-    const projectNameById = new Map<string, string>();
+    const projectById = new Map<string, MlaProject>();
     if (projectIds.length > 0) {
       const { data: projects, error: projectError } = await supabase
         .from(TABLES.mlaProject)
-        .select('id, name')
+        .select('*')
         .in('id', projectIds);
       throwOnSupabaseError(projectError, 'Failed to get linked projects');
       for (const project of projects ?? []) {
-        projectNameById.set(String(project.id), String(project.name));
+        const mapped = mapMlaProjectRow(project);
+        projectById.set(mapped.id, mapped);
       }
     }
 
-    const worksByCategory = new Map<string, AdmFundingCategoryWithWorks['works']>();
-
-    for (const row of works ?? []) {
-      const work = mapAdmWorkRow(row);
-      const enriched = {
-        ...work,
-        projectName: work.projectId ? projectNameById.get(work.projectId) ?? null : null,
+    const allocationsByFund = new Map<string, AdmFundAllocationWithProject[]>();
+    for (const row of allocationRows ?? []) {
+      const allocation = mapAdmFundAllocationRow(row);
+      const project = projectById.get(allocation.projectId);
+      const enriched: AdmFundAllocationWithProject = {
+        ...allocation,
+        projectName: project?.name ?? 'Unknown project',
+        projectDepartment: project?.department ?? null,
+        projectCategory: project?.category ?? null,
+        projectEstimatedCost: project?.estimatedCost ?? 0,
+        projectApprovalStatus: project?.approvalStatus ?? 'Pending',
       };
-      const list = worksByCategory.get(work.categoryId) ?? [];
+      const list = allocationsByFund.get(allocation.fundRecordId) ?? [];
       list.push(enriched);
-      worksByCategory.set(work.categoryId, list);
+      allocationsByFund.set(allocation.fundRecordId, list);
+    }
+
+    const documentsByFund = new Map<string, AdmDocument[]>();
+    for (const row of documentRows ?? []) {
+      const doc = mapAdmDocumentRow(row);
+      const list = documentsByFund.get(doc.fundRecordId) ?? [];
+      list.push(doc);
+      documentsByFund.set(doc.fundRecordId, list);
+    }
+
+    const categoryById = new Map(
+      (categories ?? []).map((row) => {
+        const category = mapAdmFundingCategoryRow(row);
+        return [category.id, category] as const;
+      }),
+    );
+
+    const fundsByCategory = new Map<string, AdmFundRecordWithDetails[]>();
+    for (const row of fundRows ?? []) {
+      const fund = mapAdmFundRecordRow(row);
+      const category = categoryById.get(fund.categoryId);
+      const allocations = allocationsByFund.get(fund.id) ?? [];
+      const documents = documentsByFund.get(fund.id) ?? [];
+      const allocatedBudget = allocations.reduce(
+        (sum, a) => sum + a.allocatedBudget,
+        0,
+      );
+      const detailed: AdmFundRecordWithDetails = {
+        ...fund,
+        categoryName: category?.name ?? 'Unknown',
+        categoryCode: category?.code ?? '',
+        allocations,
+        documents,
+        allocatedBudget,
+      };
+      const list = fundsByCategory.get(fund.categoryId) ?? [];
+      list.push(detailed);
+      fundsByCategory.set(fund.categoryId, list);
     }
 
     return (categories ?? []).map((row) => {
       const category = mapAdmFundingCategoryRow(row);
-      const categoryWorks = worksByCategory.get(category.id) ?? [];
-      const allocatedBudget = categoryWorks.reduce((sum, w) => sum + w.workBudget, 0);
+      const fundRecords = fundsByCategory.get(category.id) ?? [];
+      const allocatedBudget = fundRecords.reduce(
+        (sum, f) => sum + f.allocatedBudget,
+        0,
+      );
+      const totalBudget = fundRecords.reduce((sum, f) => sum + f.budget, 0);
       return {
         ...category,
-        works: categoryWorks,
+        fundRecords,
         allocatedBudget,
+        totalBudget,
       };
     });
   } catch (error) {
@@ -4900,71 +5004,302 @@ export async function getAdmDashboard(): Promise<AdmFundingCategoryWithWorks[]> 
   }
 }
 
-export async function getAdmWorkById(id: string): Promise<AdmWork | null> {
-  try {
-    const { data, error } = await supabase
-      .from(TABLES.admWork)
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-    throwOnSupabaseError(error, 'Failed to get ADM work');
-    return data ? mapAdmWorkRow(data) : null;
-  } catch (error) {
-    if (error instanceof ChatSDKError) throw error;
-    throw new ChatSDKError('bad_request:database', 'Failed to get ADM work');
-  }
+function toAdmCategoryCode(name: string): string {
+  const slug = name
+    .trim()
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 16);
+  return slug || 'CUSTOM';
 }
 
-export async function updateAdmCategoryBudget(
-  id: string,
-  masterBudget: number,
+export async function findAdmFundingCategoryByName(
+  name: string,
 ): Promise<AdmFundingCategory | null> {
   try {
+    const trimmed = name.trim();
+    if (!trimmed) return null;
+
     const { data, error } = await supabase
       .from(TABLES.admFundingCategory)
-      .update({
-        master_budget: masterBudget,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id)
       .select('*')
+      .ilike('name', trimmed)
+      .limit(1)
       .maybeSingle();
-    throwOnSupabaseError(error, 'Failed to update ADM category budget');
+    throwOnSupabaseError(error, 'Failed to find ADM funding category');
     return data ? mapAdmFundingCategoryRow(data) : null;
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
-    throw new ChatSDKError('bad_request:database', 'Failed to update ADM category budget');
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to find ADM funding category',
+    );
   }
 }
 
-export async function createAdmWork({
-  categoryId,
+export async function createAdmFundingCategory({
   name,
-  workBudget,
-  projectId,
-  physicalStatus,
-  createdBy,
+}: {
+  name: string;
+}): Promise<AdmFundingCategory> {
+  try {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      throw new ChatSDKError('bad_request:database', 'Fund type name is required');
+    }
+
+    const existing = await findAdmFundingCategoryByName(trimmed);
+    if (existing) return existing;
+
+    const { data: orderRows, error: orderError } = await supabase
+      .from(TABLES.admFundingCategory)
+      .select('display_order')
+      .order('display_order', { ascending: false })
+      .limit(1);
+    throwOnSupabaseError(orderError, 'Failed to get ADM category order');
+
+    const nextOrder =
+      Number(orderRows?.[0]?.display_order ?? orderRows?.[0]?.displayOrder ?? 0) +
+      1;
+
+    const now = new Date().toISOString();
+    const baseCode = toAdmCategoryCode(trimmed);
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code =
+        attempt === 0
+          ? baseCode.slice(0, 20)
+          : `${baseCode.slice(0, 16)}-${attempt + 1}`.slice(0, 20);
+
+      const { data, error } = await supabase
+        .from(TABLES.admFundingCategory)
+        .insert(
+          toSnakeCaseKeys({
+            code,
+            name: trimmed,
+            displayOrder: nextOrder,
+            createdAt: now,
+            updatedAt: now,
+          }),
+        )
+        .select('*')
+        .single();
+
+      if (!error && data) {
+        return mapAdmFundingCategoryRow(data);
+      }
+
+      const isUniqueViolation =
+        error?.code === '23505' ||
+        String(error?.message ?? '').toLowerCase().includes('duplicate');
+      if (!isUniqueViolation) {
+        throwOnSupabaseError(error, 'Failed to create ADM funding category');
+      }
+    }
+
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create ADM funding category',
+    );
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create ADM funding category',
+    );
+  }
+}
+
+export async function getAdmFundRecordById(
+  id: string,
+): Promise<AdmFundRecord | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.admFundRecord)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get ADM fund record');
+    return data ? mapAdmFundRecordRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get ADM fund record');
+  }
+}
+
+export async function createAdmFundRecord({
+  categoryId,
+  financialYear,
+  projectYear,
+  budget,
 }: {
   categoryId: string;
-  name: string;
-  workBudget: number;
-  projectId?: string | null;
-  physicalStatus?: AdmPhysicalStatus;
-  createdBy: string;
-}): Promise<AdmWork> {
+  financialYear: string;
+  projectYear: string;
+  budget: number;
+}): Promise<AdmFundRecord> {
   try {
     const now = new Date().toISOString();
     const { data, error } = await supabase
-      .from(TABLES.admWork)
+      .from(TABLES.admFundRecord)
       .insert(
         toSnakeCaseKeys({
           categoryId,
-          name,
-          workBudget,
-          projectId: projectId ?? null,
-          physicalStatus: physicalStatus ?? 'WNS',
-          bhoomiPujanDone: false,
-          lokarpanDone: false,
+          financialYear,
+          projectYear,
+          budget,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create ADM fund record');
+    return mapAdmFundRecordRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to create ADM fund record');
+  }
+}
+
+export async function updateAdmFundRecord(
+  id: string,
+  data: Partial<Pick<AdmFundRecord, 'financialYear' | 'projectYear' | 'budget'>>,
+): Promise<AdmFundRecord | null> {
+  try {
+    const snakePatch = toSnakeCaseKeys({
+      ...data,
+      updatedAt: new Date().toISOString(),
+    });
+    const { data: updated, error } = await supabase
+      .from(TABLES.admFundRecord)
+      .update(snakePatch)
+      .eq('id', id)
+      .select('*')
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to update ADM fund record');
+    return updated ? mapAdmFundRecordRow(updated) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to update ADM fund record');
+  }
+}
+
+export async function deleteAdmFundRecord(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from(TABLES.admFundRecord)
+      .delete()
+      .eq('id', id);
+    throwOnSupabaseError(error, 'Failed to delete ADM fund record');
+    return true;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to delete ADM fund record');
+  }
+}
+
+export async function getAdmFundAllocationById(
+  id: string,
+): Promise<AdmFundAllocation | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.admFundAllocation)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get ADM allocation');
+    return data ? mapAdmFundAllocationRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get ADM allocation');
+  }
+}
+
+export async function getAdmAllocationsByProjectId(
+  projectId: string,
+): Promise<
+  Array<
+    AdmFundAllocation & {
+      fundRecord: AdmFundRecord;
+      categoryName: string;
+      categoryCode: string;
+    }
+  >
+> {
+  try {
+    const { data: allocations, error } = await supabase
+      .from(TABLES.admFundAllocation)
+      .select('*')
+      .eq('project_id', projectId);
+    throwOnSupabaseError(error, 'Failed to get project ADM allocations');
+
+    if (!allocations?.length) return [];
+
+    const fundIds = allocations.map((a) => String(a.fund_record_id));
+    const { data: funds, error: fundError } = await supabase
+      .from(TABLES.admFundRecord)
+      .select('*')
+      .in('id', fundIds);
+    throwOnSupabaseError(fundError, 'Failed to get fund records for allocations');
+
+    const fundById = new Map(
+      (funds ?? []).map((f) => [String(f.id), mapAdmFundRecordRow(f)]),
+    );
+    const categoryIds = [
+      ...new Set(Array.from(fundById.values()).map((f) => f.categoryId)),
+    ];
+    const { data: categories, error: catError } = await supabase
+      .from(TABLES.admFundingCategory)
+      .select('*')
+      .in('id', categoryIds);
+    throwOnSupabaseError(catError, 'Failed to get categories for allocations');
+
+    const categoryById = new Map(
+      (categories ?? []).map((c) => [String(c.id), mapAdmFundingCategoryRow(c)]),
+    );
+
+    return allocations.map((row) => {
+      const allocation = mapAdmFundAllocationRow(row);
+      const fundRecord = fundById.get(allocation.fundRecordId)!;
+      const category = categoryById.get(fundRecord.categoryId);
+      return {
+        ...allocation,
+        fundRecord,
+        categoryName: category?.name ?? '',
+        categoryCode: category?.code ?? '',
+      };
+    });
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get project ADM allocations',
+    );
+  }
+}
+
+export async function createAdmFundAllocation({
+  fundRecordId,
+  projectId,
+  allocatedBudget,
+  createdBy,
+}: {
+  fundRecordId: string;
+  projectId: string;
+  allocatedBudget: number;
+  createdBy: string;
+}): Promise<AdmFundAllocation> {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.admFundAllocation)
+      .insert(
+        toSnakeCaseKeys({
+          fundRecordId,
+          projectId,
+          allocatedBudget,
           createdBy,
           createdAt: now,
           updatedAt: now,
@@ -4972,44 +5307,349 @@ export async function createAdmWork({
       )
       .select('*')
       .single();
-    throwOnSupabaseError(error, 'Failed to create ADM work');
-    return mapAdmWorkRow(data);
+    throwOnSupabaseError(error, 'Failed to create ADM allocation');
+    return mapAdmFundAllocationRow(data);
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
-    throw new ChatSDKError('bad_request:database', 'Failed to create ADM work');
+    throw new ChatSDKError('bad_request:database', 'Failed to create ADM allocation');
   }
 }
 
-export async function updateAdmWork(
+export async function updateAdmFundAllocation(
   id: string,
-  data: Partial<
-    Omit<AdmWork, 'id' | 'createdBy' | 'createdAt'>
-  >,
-): Promise<AdmWork | null> {
+  data: Partial<Pick<AdmFundAllocation, 'allocatedBudget' | 'projectId'>>,
+): Promise<AdmFundAllocation | null> {
   try {
-    const snakePatch = toSnakeCaseKeys({ ...data, updatedAt: new Date().toISOString() });
+    const snakePatch = toSnakeCaseKeys({
+      ...data,
+      updatedAt: new Date().toISOString(),
+    });
     const { data: updated, error } = await supabase
-      .from(TABLES.admWork)
+      .from(TABLES.admFundAllocation)
       .update(snakePatch)
       .eq('id', id)
       .select('*')
       .maybeSingle();
-    throwOnSupabaseError(error, 'Failed to update ADM work');
-    return updated ? mapAdmWorkRow(updated) : null;
+    throwOnSupabaseError(error, 'Failed to update ADM allocation');
+    return updated ? mapAdmFundAllocationRow(updated) : null;
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
-    throw new ChatSDKError('bad_request:database', 'Failed to update ADM work');
+    throw new ChatSDKError('bad_request:database', 'Failed to update ADM allocation');
   }
 }
 
-export async function deleteAdmWork(id: string): Promise<boolean> {
+export async function deleteAdmFundAllocation(id: string): Promise<boolean> {
   try {
-    const { error } = await supabase.from(TABLES.admWork).delete().eq('id', id);
-    throwOnSupabaseError(error, 'Failed to delete ADM work');
+    const { error } = await supabase
+      .from(TABLES.admFundAllocation)
+      .delete()
+      .eq('id', id);
+    throwOnSupabaseError(error, 'Failed to delete ADM allocation');
     return true;
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
-    throw new ChatSDKError('bad_request:database', 'Failed to delete ADM work');
+    throw new ChatSDKError('bad_request:database', 'Failed to delete ADM allocation');
+  }
+}
+
+export async function createAdmDocument({
+  fundRecordId,
+  fileName,
+  fileSizeKb,
+  fileUrl,
+  kind,
+  label,
+  uploadedBy,
+}: {
+  fundRecordId: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl: string | null;
+  kind?: string;
+  label?: string | null;
+  uploadedBy: string;
+}): Promise<AdmDocument> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.admDocument)
+      .insert(
+        toSnakeCaseKeys({
+          fundRecordId,
+          fileName,
+          fileSizeKb,
+          fileUrl,
+          kind: kind ?? 'general',
+          label: label ?? null,
+          uploadedBy,
+          createdAt: new Date().toISOString(),
+        }),
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create ADM document');
+    return mapAdmDocumentRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to create ADM document');
+  }
+}
+
+export async function getAdmDocumentsByFundRecordId(
+  fundRecordId: string,
+): Promise<AdmDocument[]> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.admDocument)
+      .select('*')
+      .eq('fund_record_id', fundRecordId)
+      .order('created_at', { ascending: false });
+    throwOnSupabaseError(error, 'Failed to get ADM documents');
+    return (data ?? []).map(mapAdmDocumentRow);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get ADM documents');
+  }
+}
+
+export async function getAdmDocumentById(
+  id: string,
+): Promise<AdmDocument | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.admDocument)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get ADM document');
+    return data ? mapAdmDocumentRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get ADM document');
+  }
+}
+
+export async function deleteAdmDocument(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase.from(TABLES.admDocument).delete().eq('id', id);
+    throwOnSupabaseError(error, 'Failed to delete ADM document');
+    return true;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to delete ADM document');
+  }
+}
+
+// ─── Project documents & ground media ────────────────────────────────────────
+
+export async function getProjectAttachments(
+  projectId: string,
+): Promise<ProjectAttachment[]> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.projectAttachment)
+      .select('*')
+      .eq('project_id', projectId)
+      .order('created_at', { ascending: false });
+    throwOnSupabaseError(error, 'Failed to get project attachments');
+    return (data ?? []).map(mapProjectAttachmentRow);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get project attachments');
+  }
+}
+
+export async function createProjectAttachment({
+  projectId,
+  fileName,
+  fileSizeKb,
+  fileUrl,
+  documentKind,
+  version,
+  versionGroupId,
+  uploadedBy,
+}: {
+  projectId: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl: string | null;
+  documentKind: ProjectDocumentKind;
+  version: number;
+  versionGroupId: string;
+  uploadedBy: string;
+}): Promise<ProjectAttachment> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.projectAttachment)
+      .insert(
+        toSnakeCaseKeys({
+          projectId,
+          fileName,
+          fileSizeKb,
+          fileUrl,
+          documentKind,
+          version,
+          versionGroupId,
+          uploadedBy,
+          createdAt: new Date().toISOString(),
+        }),
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create project attachment');
+    return mapProjectAttachmentRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create project attachment',
+    );
+  }
+}
+
+export async function getProjectAttachmentById(
+  id: string,
+): Promise<ProjectAttachment | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.projectAttachment)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get project attachment');
+    return data ? mapProjectAttachmentRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get project attachment');
+  }
+}
+
+export async function getLatestProjectAttachmentVersion(
+  versionGroupId: string,
+): Promise<number> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.projectAttachment)
+      .select('version')
+      .eq('version_group_id', versionGroupId)
+      .order('version', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get attachment version');
+    return data ? Number(data.version) : 0;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get attachment version',
+    );
+  }
+}
+
+export async function deleteProjectAttachment(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from(TABLES.projectAttachment)
+      .delete()
+      .eq('id', id);
+    throwOnSupabaseError(error, 'Failed to delete project attachment');
+    return true;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete project attachment',
+    );
+  }
+}
+
+export async function getProjectGroundMedia(
+  projectId: string,
+): Promise<ProjectGroundMedia[]> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.projectGroundMedia)
+      .select('*')
+      .eq('project_id', projectId)
+      .order('sort_order', { ascending: true })
+      .order('created_at', { ascending: true });
+    throwOnSupabaseError(error, 'Failed to get project ground media');
+    return (data ?? []).map(mapProjectGroundMediaRow);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get project ground media');
+  }
+}
+
+export async function createProjectGroundMedia({
+  projectId,
+  photoType,
+  fileUrl,
+  fileName,
+  sortOrder,
+}: {
+  projectId: string;
+  photoType: 'before' | 'after';
+  fileUrl: string;
+  fileName: string;
+  sortOrder?: number;
+}): Promise<ProjectGroundMedia> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.projectGroundMedia)
+      .insert(
+        toSnakeCaseKeys({
+          projectId,
+          photoType,
+          fileUrl,
+          fileName,
+          sortOrder: sortOrder ?? 0,
+          createdAt: new Date().toISOString(),
+        }),
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create project ground media');
+    return mapProjectGroundMediaRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create project ground media',
+    );
+  }
+}
+
+export async function getProjectGroundMediaById(
+  id: string,
+): Promise<ProjectGroundMedia | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.projectGroundMedia)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get project ground media');
+    return data ? mapProjectGroundMediaRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get project ground media');
+  }
+}
+
+export async function deleteProjectGroundMedia(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from(TABLES.projectGroundMedia)
+      .delete()
+      .eq('id', id);
+    throwOnSupabaseError(error, 'Failed to delete project ground media');
+    return true;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete project ground media',
+    );
   }
 }
 

@@ -5,22 +5,20 @@ import {
 } from '@/lib/indian-mobile';
 
 // Project form validation
-export const projectFormSchema = z.object({
-  name: z.string().min(1, 'Project name is required').max(255, 'Project name is too long'),
-  ward: z.string().max(100, 'Ward name is too long').optional(),
-  type: z.string().max(100, 'Type is too long').optional(),
-  status: z.enum(['Concept', 'Proposal', 'In Progress', 'Completed']),
-});
-
-export type ProjectFormData = z.infer<typeof projectFormSchema>;
-
-export const admWorkFormSchema = z
+export const projectFormSchema = z
   .object({
-    name: z.string().min(1, 'Work name is required').max(500, 'Work name is too long'),
-    categoryId: z.string().uuid('Invalid category'),
-    workBudget: z.number().int().min(0, 'Budget must be zero or positive'),
-    projectId: z.string().uuid().nullable().optional(),
-    physicalStatus: z.enum(['WNS', 'WIP', 'WC']),
+    name: z.string().min(1, 'Project name is required').max(255, 'Project name is too long'),
+    ward: z.string().max(100, 'Ward name is too long').optional(),
+    type: z.string().max(100, 'Type is too long').optional(),
+    status: z.enum(['Concept', 'Proposal', 'In Progress', 'Completed']),
+    department: z.string().max(255).optional().nullable(),
+    category: z.string().max(255).optional().nullable(),
+    estimatedCost: z.number().int().min(0).optional(),
+    approvalStatus: z.enum(['Pending', 'Approved', 'Rejected']).optional(),
+    nocRequired: z.boolean().optional(),
+    nocStatus: z.enum(['NotRequired', 'Pending', 'Obtained', 'Rejected']).optional(),
+    remarks: z.string().max(5000).optional().nullable(),
+    physicalStatus: z.enum(['WNS', 'WIP', 'WC']).optional(),
     bhoomiPujanDone: z.boolean().optional(),
     bhoomiPujanDate: z.string().nullable().optional(),
     lokarpanDone: z.boolean().optional(),
@@ -43,13 +41,37 @@ export const admWorkFormSchema = z
     }
   });
 
-export type AdmWorkFormData = z.infer<typeof admWorkFormSchema>;
+export type ProjectFormData = z.infer<typeof projectFormSchema>;
 
-export const admCategoryBudgetSchema = z.object({
-  masterBudget: z.number().int().min(0, 'Budget must be zero or positive'),
+export const admFundRecordSchema = z.object({
+  financialYear: z.string().min(1, 'Financial year is required').max(20),
+  budget: z.number().int().min(0, 'Budget must be zero or positive'),
 });
 
-export type AdmCategoryBudgetData = z.infer<typeof admCategoryBudgetSchema>;
+export type AdmFundRecordData = z.infer<typeof admFundRecordSchema>;
+
+export const admFundingCategorySchema = z.object({
+  name: z.string().trim().min(1, 'Fund type is required').max(255),
+});
+
+export type AdmFundingCategoryData = z.infer<typeof admFundingCategorySchema>;
+
+export const admFundAllocationSchema = z.object({
+  fundRecordId: z.string().uuid('Invalid fund record'),
+  projectId: z.string().uuid('Project is required'),
+  allocatedBudget: z.number().int().min(0, 'Budget must be zero or positive'),
+});
+
+export type AdmFundAllocationData = z.infer<typeof admFundAllocationSchema>;
+
+export const projectDocumentKindSchema = z.enum([
+  'approval_pdf',
+  'sanction_letter',
+  'noc',
+  'supporting',
+]);
+
+export type ProjectDocumentKindData = z.infer<typeof projectDocumentKindSchema>;
 
 export const REGISTER_ENTRY_FIELD_LIMITS = {
   fromTo: 500,

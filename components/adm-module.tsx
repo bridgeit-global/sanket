@@ -2,27 +2,28 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { Plus, Search } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { AdmSkeleton } from '@/components/module-skeleton';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { useTranslations } from '@/hooks/use-translations';
-import type { AdmFundingCategoryWithWorks, AdmWorkWithProject } from '@/lib/db/schema';
+import type {
+  AdmFundingCategory,
+  AdmFundRecordWithDetails,
+  AdmFundAllocationWithProject,
+  AdmDocument,
+  AdmFundingCategoryWithFunds,
+} from '@/lib/db/schema';
 import {
   buildAdmSearchParams,
-  getAdmCategoryElementId,
+  getAdmFundElementId,
   parseAdmFiltersFromSearchParams,
 } from '@/lib/adm/url-params';
 import { AdmProfileBanner } from './adm/adm-profile-banner';
-import { AdmCategoryAccordion } from './adm/adm-category-accordion';
-import {
-  AdmWorkFormDialog,
-  type AdmProjectOption,
-  type AdmWorkFormValues,
-} from './adm/adm-work-form-dialog';
+import { AdmFundsList } from './adm/adm-funds-list';
+import type { AdmProjectOption } from './adm/adm-fund-record-card';
 
 export function AdmModule() {
   const router = useRouter();
@@ -31,26 +32,27 @@ export function AdmModule() {
   const urlState = parseAdmFiltersFromSearchParams(searchParams);
   const { t } = useTranslations();
 
-  const [categories, setCategories] = useState<AdmFundingCategoryWithWorks[]>([]);
+  const [categories, setCategories] = useState<AdmFundingCategory[]>([]);
+  const [funds, setFunds] = useState<AdmFundRecordWithDetails[]>([]);
   const [projects, setProjects] = useState<AdmProjectOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(urlState.search);
-  const [expandedCategory, setExpandedCategory] = useState(urlState.expanded);
-  const shouldScrollToExpanded = useRef(Boolean(urlState.expanded));
+  const [focusFundId, setFocusFundId] = useState(urlState.fund);
+  const shouldScrollToFund = useRef(Boolean(urlState.fund));
 
-  const [workDialogOpen, setWorkDialogOpen] = useState(false);
-  const [workDialogMode, setWorkDialogMode] = useState<'create' | 'edit'>('create');
-  const [activeCategory, setActiveCategory] = useState<AdmFundingCategoryWithWorks | null>(null);
-  const [editingWork, setEditingWork] = useState<AdmWorkWithProject | null>(null);
-
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [workToDelete, setWorkToDelete] = useState<AdmWorkWithProject | null>(null);
+  const [deleteFundId, setDeleteFundId] = useState<string | null>(null);
+  const [deleteAllocation, setDeleteAllocation] =
+    useState<AdmFundAllocationWithProject | null>(null);
+  const [deleteDocument, setDeleteDocument] = useState<{
+    fundRecordId: string;
+    document: AdmDocument;
+  } | null>(null);
 
   const syncUrl = useCallback(
     (updates: Partial<typeof urlState>) => {
       const params = buildAdmSearchParams(
         {
-          expanded: updates.expanded ?? expandedCategory,
+          fund: updates.fund ?? focusFundId,
           search: updates.search ?? searchTerm,
         },
         new URLSearchParams(searchParams.toString()),
@@ -58,7 +60,7 @@ export function AdmModule() {
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
-    [router, pathname, searchParams, expandedCategory, searchTerm],
+    [router, pathname, searchParams, focusFundId, searchTerm],
   );
 
   useEffect(() => {
@@ -66,17 +68,17 @@ export function AdmModule() {
   }, []);
 
   useEffect(() => {
-    if (loading || !expandedCategory || !shouldScrollToExpanded.current) return;
+    if (loading || !focusFundId || !shouldScrollToFund.current) return;
 
     const frame = requestAnimationFrame(() => {
       document
-        .getElementById(getAdmCategoryElementId(expandedCategory))
+        .getElementById(getAdmFundElementId(focusFundId))
         ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      shouldScrollToExpanded.current = false;
+      shouldScrollToFund.current = false;
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [loading, expandedCategory, categories]);
+  }, [loading, focusFundId, funds]);
 
   const loadDashboard = async () => {
     try {
@@ -90,8 +92,23 @@ export function AdmModule() {
         throw new Error('Failed to load dashboard');
       }
 
-      const dashboardData = await dashboardRes.json();
-      setCategories(dashboardData);
+      const dashboardData =
+        (await dashboardRes.json()) as AdmFundingCategoryWithFunds[];
+      setCategories(
+        dashboardData.map(
+          ({ fundRecords: _funds, allocatedBudget: _a, totalBudget: _t, ...cat }) =>
+            cat,
+        ),
+      );
+      setFunds(
+        dashboardData
+          .flatMap((c) => c.fundRecords)
+          .sort((a, b) => {
+            const fy = b.financialYear.localeCompare(a.financialYear);
+            if (fy !== 0) return fy;
+            return a.categoryName.localeCompare(b.categoryName);
+          }),
+      );
 
       if (projectsRes.ok) {
         const projectsData = await projectsRes.json();
@@ -105,157 +122,215 @@ export function AdmModule() {
     }
   };
 
-  const handleExpandedChange = (categoryId: string) => {
-    setExpandedCategory(categoryId);
-    syncUrl({ expanded: categoryId });
-  };
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
     syncUrl({ search: value });
   };
 
-  const openCreateWork = (category: AdmFundingCategoryWithWorks) => {
-    setActiveCategory(category);
-    setEditingWork(null);
-    setWorkDialogMode('create');
-    setWorkDialogOpen(true);
-  };
+  const handleCreateFund = async (values: {
+    categoryId?: string;
+    categoryName?: string;
+    financialYear: string;
+    budget: number;
+  }) => {
+    let categoryId = values.categoryId;
 
-  const openEditWork = (work: AdmWorkWithProject) => {
-    const category = categories.find((c) => c.id === work.categoryId) ?? null;
-    setActiveCategory(category);
-    setEditingWork(work);
-    setWorkDialogMode('edit');
-    setWorkDialogOpen(true);
-  };
-
-  const handleWorkSubmit = async (values: AdmWorkFormValues) => {
-    try {
-      if (workDialogMode === 'create') {
-        const response = await fetch('/api/adm/works', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(values),
-        });
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || 'Failed to create work');
-        }
-        toast.success(t('adm.workAddedSuccess'));
-      } else if (editingWork) {
-        const response = await fetch(`/api/adm/works/${editingWork.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(values),
-        });
-        if (!response.ok) {
-          const data = await response.json();
-          throw new Error(data.error || 'Failed to update work');
-        }
-        toast.success(t('adm.workUpdatedSuccess'));
-      }
-      await loadDashboard();
-    } catch (error) {
-      console.error('Error saving work:', error);
-      toast.error(error instanceof Error ? error.message : t('adm.failedToSave'));
-      throw error;
-    }
-  };
-
-  const handleUpdateWork = async (id: string, patch: Record<string, unknown>) => {
-    const work = categories
-      .flatMap((c) => c.works)
-      .find((w) => w.id === id);
-    if (!work) return;
-
-    try {
-      const response = await fetch(`/api/adm/works/${id}`, {
-        method: 'PUT',
+    if (!categoryId && values.categoryName) {
+      const categoryRes = await fetch('/api/adm/categories', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: work.name,
-          categoryId: work.categoryId,
-          workBudget: work.workBudget,
-          projectId: work.projectId,
-          physicalStatus: work.physicalStatus,
-          bhoomiPujanDone: work.bhoomiPujanDone,
-          bhoomiPujanDate: work.bhoomiPujanDate,
-          lokarpanDone: work.lokarpanDone,
-          lokarpanDate: work.lokarpanDate,
-          ...patch,
-        }),
+        body: JSON.stringify({ name: values.categoryName }),
       });
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to update');
+      if (!categoryRes.ok) {
+        const data = await categoryRes.json();
+        throw new Error(data.error || 'Failed to create fund type');
       }
-      await loadDashboard();
-    } catch (error) {
-      console.error('Error updating work:', error);
-      toast.error(error instanceof Error ? error.message : t('adm.failedToSave'));
+      const category = await categoryRes.json();
+      categoryId = category.id as string;
     }
+
+    if (!categoryId) {
+      throw new Error('Fund type is required');
+    }
+
+    const response = await fetch(`/api/adm/categories/${categoryId}/funds`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        financialYear: values.financialYear,
+        budget: values.budget,
+      }),
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to create fund');
+    }
+    toast.success(t('adm.fundCreatedSuccess'));
+    await loadDashboard();
   };
 
-  const handleDeleteWork = async () => {
-    if (!workToDelete) return;
+  const handleUpdateFund = async (
+    fundId: string,
+    values: { financialYear: string; budget: number },
+  ) => {
+    const response = await fetch(`/api/adm/funds/${fundId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(values),
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to update fund');
+    }
+    toast.success(t('adm.fundUpdatedSuccess'));
+    await loadDashboard();
+  };
+
+  const handleDeleteFund = async () => {
+    if (!deleteFundId) return;
     try {
-      const response = await fetch(`/api/adm/works/${workToDelete.id}`, {
+      const response = await fetch(`/api/adm/funds/${deleteFundId}`, {
         method: 'DELETE',
       });
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || 'Failed to delete');
       }
-      toast.success(t('adm.workDeletedSuccess'));
-      setDeleteDialogOpen(false);
-      setWorkToDelete(null);
-      await loadDashboard();
-    } catch (error) {
-      console.error('Error deleting work:', error);
-      toast.error(error instanceof Error ? error.message : t('adm.failedToDelete'));
-    }
-  };
-
-  const handlePhotoUpload = async (
-    workId: string,
-    type: 'before' | 'after',
-    file: File,
-  ) => {
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', type);
-      const response = await fetch(`/api/adm/works/${workId}/photos`, {
-        method: 'POST',
-        body: formData,
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to upload');
+      toast.success(t('adm.fundDeletedSuccess'));
+      setDeleteFundId(null);
+      if (focusFundId === deleteFundId) {
+        setFocusFundId('');
+        syncUrl({ fund: '' });
       }
-      toast.success(t('adm.photoUploadedSuccess'));
       await loadDashboard();
     } catch (error) {
-      console.error('Error uploading photo:', error);
-      toast.error(error instanceof Error ? error.message : t('adm.failedToUpload'));
+      toast.error(
+        error instanceof Error ? error.message : t('adm.failedToDelete'),
+      );
     }
   };
 
-  const handlePhotoRemove = async (workId: string, type: 'before' | 'after') => {
+  const handleAddAllocation = async (
+    fundRecordId: string,
+    projectId: string,
+    allocatedBudget: number,
+  ) => {
+    const response = await fetch('/api/adm/allocations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fundRecordId, projectId, allocatedBudget }),
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to add allocation');
+    }
+    toast.success(t('adm.allocationAddedSuccess'));
+    await loadDashboard();
+  };
+
+  const handleCreateProject = async (
+    fundRecordId: string,
+    values: {
+      name: string;
+      department?: string;
+      allocatedBudget: number;
+    },
+  ) => {
+    const response = await fetch('/api/adm/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: values.name,
+        department: values.department,
+        status: 'Concept',
+        fundRecordId,
+        allocatedBudget: values.allocatedBudget,
+      }),
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to create project');
+    }
+    toast.success(t('adm.projectCreatedSuccess'));
+    await loadDashboard();
+  };
+
+  const handleUpdateAllocation = async (
+    id: string,
+    allocatedBudget: number,
+  ) => {
+    const response = await fetch(`/api/adm/allocations/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ allocatedBudget }),
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to update allocation');
+    }
+    toast.success(t('adm.allocationUpdatedSuccess'));
+    await loadDashboard();
+  };
+
+  const handleDeleteAllocation = async () => {
+    if (!deleteAllocation) return;
     try {
       const response = await fetch(
-        `/api/adm/works/${workId}/photos?type=${type}`,
+        `/api/adm/allocations/${deleteAllocation.id}`,
         { method: 'DELETE' },
       );
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || 'Failed to remove');
+        throw new Error(data.error || 'Failed to delete');
       }
-      toast.success(t('adm.photoRemovedSuccess'));
+      toast.success(t('adm.allocationDeletedSuccess'));
+      setDeleteAllocation(null);
       await loadDashboard();
     } catch (error) {
-      console.error('Error removing photo:', error);
-      toast.error(error instanceof Error ? error.message : t('adm.failedToUpload'));
+      toast.error(
+        error instanceof Error ? error.message : t('adm.failedToDelete'),
+      );
+    }
+  };
+
+  const handleUploadDocument = async (
+    fundRecordId: string,
+    file: File,
+    kind: string,
+  ) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('kind', kind);
+    const response = await fetch(`/api/adm/funds/${fundRecordId}/documents`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to upload');
+    }
+    toast.success(t('adm.documentUploadedSuccess'));
+    await loadDashboard();
+  };
+
+  const handleDeleteDocument = async () => {
+    if (!deleteDocument) return;
+    try {
+      const response = await fetch(
+        `/api/adm/funds/${deleteDocument.fundRecordId}/documents?documentId=${deleteDocument.document.id}`,
+        { method: 'DELETE' },
+      );
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to delete');
+      }
+      toast.success(t('adm.documentDeletedSuccess'));
+      setDeleteDocument(null);
+      await loadDashboard();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t('adm.failedToDelete'),
+      );
     }
   };
 
@@ -263,24 +338,11 @@ export function AdmModule() {
     return <AdmSkeleton />;
   }
 
-  const firstCategory = categories[0];
-
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <ModulePageHeader
         title={t('adm.title')}
         description={t('adm.description')}
-        actions={
-          firstCategory ? (
-            <Button
-              className="min-h-11"
-              onClick={() => openCreateWork(firstCategory)}
-            >
-              <Plus className="mr-1 h-4 w-4" />
-              {t('adm.addWork')}
-            </Button>
-          ) : undefined
-        }
       />
 
       <AdmProfileBanner />
@@ -295,53 +357,52 @@ export function AdmModule() {
         />
       </div>
 
-      <AdmCategoryAccordion
+      <AdmFundsList
         categories={categories}
-        expandedCategory={expandedCategory}
+        funds={funds}
         searchTerm={searchTerm}
-        onExpandedChange={handleExpandedChange}
-        onAddWork={openCreateWork}
-        onEditWork={openEditWork}
-        onDeleteWork={(work) => {
-          setWorkToDelete(work);
-          setDeleteDialogOpen(true);
-        }}
-        onUpdateWork={handleUpdateWork}
-        onPhotoUpload={handlePhotoUpload}
-        onPhotoRemove={handlePhotoRemove}
+        projects={projects}
+        onCreateFund={handleCreateFund}
+        onUpdateFund={handleUpdateFund}
+        onDeleteFund={(id) => setDeleteFundId(id)}
+        onAddAllocation={handleAddAllocation}
+        onCreateProject={handleCreateProject}
+        onUpdateAllocation={handleUpdateAllocation}
+        onDeleteAllocation={(a) => setDeleteAllocation(a)}
+        onUploadDocument={handleUploadDocument}
+        onDeleteDocument={(fundRecordId, document) =>
+          setDeleteDocument({ fundRecordId, document })
+        }
       />
 
-      {activeCategory && (
-        <AdmWorkFormDialog
-          open={workDialogOpen}
-          onOpenChange={setWorkDialogOpen}
-          categoryId={activeCategory.id}
-          categoryName={activeCategory.name}
-          mode={workDialogMode}
-          projects={projects}
-          initialValues={
-            editingWork
-              ? {
-                  name: editingWork.name,
-                  categoryId: editingWork.categoryId,
-                  workBudget: editingWork.workBudget,
-                  projectId: editingWork.projectId,
-                  physicalStatus: editingWork.physicalStatus,
-                }
-              : { categoryId: activeCategory.id }
-          }
-          onSubmit={handleWorkSubmit}
-        />
-      )}
-
       <ConfirmDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        title={t('adm.deleteWork')}
-        description={t('adm.deleteWorkDescription')}
+        open={Boolean(deleteFundId)}
+        onOpenChange={(open) => !open && setDeleteFundId(null)}
+        title={t('adm.deleteFund')}
+        description={t('adm.deleteFundDescription')}
         confirmText={t('adm.delete')}
         variant="destructive"
-        onConfirm={handleDeleteWork}
+        onConfirm={handleDeleteFund}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteAllocation)}
+        onOpenChange={(open) => !open && setDeleteAllocation(null)}
+        title={t('adm.deleteAllocation')}
+        description={t('adm.deleteAllocationDescription')}
+        confirmText={t('adm.delete')}
+        variant="destructive"
+        onConfirm={handleDeleteAllocation}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteDocument)}
+        onOpenChange={(open) => !open && setDeleteDocument(null)}
+        title={t('adm.deleteDocument')}
+        description={t('adm.deleteDocumentDescription')}
+        confirmText={t('adm.delete')}
+        variant="destructive"
+        onConfirm={handleDeleteDocument}
       />
     </div>
   );

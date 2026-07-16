@@ -1,10 +1,10 @@
 export const ADM_URL_PARAMS = {
-  expanded: 'expanded',
+  fund: 'fund',
   search: 'search',
 } as const;
 
 export type AdmFilterState = {
-  expanded: string;
+  fund: string;
   search: string;
 };
 
@@ -12,13 +12,13 @@ export function parseAdmFiltersFromSearchParams(
   params: URLSearchParams,
 ): AdmFilterState {
   return {
-    expanded: params.get(ADM_URL_PARAMS.expanded) ?? '',
+    fund: params.get(ADM_URL_PARAMS.fund) ?? '',
     search: params.get(ADM_URL_PARAMS.search) ?? '',
   };
 }
 
-export function getAdmCategoryElementId(categoryId: string): string {
-  return `adm-category-${categoryId}`;
+export function getAdmFundElementId(fundId: string): string {
+  return `adm-fund-${fundId}`;
 }
 
 export function buildAdmSearchParams(
@@ -32,8 +32,11 @@ export function buildAdmSearchParams(
     else params.set(key, value);
   };
 
-  setOrDelete(ADM_URL_PARAMS.expanded, state.expanded);
+  setOrDelete(ADM_URL_PARAMS.fund, state.fund);
   setOrDelete(ADM_URL_PARAMS.search, state.search);
+
+  // Drop legacy category accordion param
+  params.delete('expanded');
 
   return params;
 }

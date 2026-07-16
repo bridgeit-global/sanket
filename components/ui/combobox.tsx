@@ -158,7 +158,10 @@ export function Combobox({
         } else if (e.key === 'Enter') {
             e.preventDefault();
             if (open && filteredOptions.length > 0) {
-                handleSelect(filteredOptions[highlightedIndex]?.value || filteredOptions[0].value);
+                handleSelect(
+                    filteredOptions[highlightedIndex]?.value ||
+                        filteredOptions[0].value,
+                );
             } else if (open && showCreate) {
                 handleSelect(trimmedQuery);
             } else if (!open) {
@@ -198,7 +201,7 @@ export function Combobox({
             {open && (
                 <div
                     id="combobox-options"
-                    className="absolute z-50 w-full mt-1 max-h-60 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+                    className="absolute z-[60] w-full mt-1 max-h-60 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
                 >
                     {filteredOptions.length === 0 && !showCreate ? (
                         <div className="px-3 py-2 text-sm text-muted-foreground">

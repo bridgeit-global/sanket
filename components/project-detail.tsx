@@ -55,6 +55,18 @@ import {
   defaultReferencePrefix,
 } from '@/lib/letters/reference-sequence';
 import type { DocumentTypeMasterRow } from '@/components/document-type-master-page';
+import {
+  ProjectDetailExtras,
+  ProjectRosterFields,
+  type ProjectFundAllocationView,
+} from '@/components/project-detail-extras';
+import type {
+  ProjectAttachment,
+  ProjectGroundMedia,
+  ProjectApprovalStatus,
+  ProjectNocStatus,
+  ProjectPhysicalStatus,
+} from '@/lib/db/schema';
 
 interface Attachment {
   id: string;
@@ -85,7 +97,22 @@ interface Project {
   ward?: string;
   type?: string;
   status: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
+  department?: string | null;
+  category?: string | null;
+  estimatedCost?: number;
+  approvalStatus?: ProjectApprovalStatus;
+  nocRequired?: boolean;
+  nocStatus?: ProjectNocStatus;
+  remarks?: string | null;
+  physicalStatus?: ProjectPhysicalStatus;
+  bhoomiPujanDone?: boolean;
+  bhoomiPujanDate?: string | null;
+  lokarpanDone?: boolean;
+  lokarpanDate?: string | null;
   registerEntries?: RegisterEntry[];
+  documents?: ProjectAttachment[];
+  groundMedia?: ProjectGroundMedia[];
+  fundAllocations?: ProjectFundAllocationView[];
 }
 
 interface ProjectDetailProps {
@@ -109,7 +136,25 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     ward: '',
     type: '',
     status: 'Concept' as Project['status'],
+    department: '',
+    category: '',
+    estimatedCost: 0,
+    approvalStatus: 'Pending' as ProjectApprovalStatus,
+    nocRequired: false,
+    nocStatus: 'NotRequired' as ProjectNocStatus,
+    remarks: '',
+    physicalStatus: 'WNS' as ProjectPhysicalStatus,
+    bhoomiPujanDone: false,
+    bhoomiPujanDate: null as string | null,
+    lokarpanDone: false,
+    lokarpanDate: null as string | null,
   });
+
+  const [documents, setDocuments] = useState<ProjectAttachment[]>([]);
+  const [groundMedia, setGroundMedia] = useState<ProjectGroundMedia[]>([]);
+  const [fundAllocations, setFundAllocations] = useState<
+    ProjectFundAllocationView[]
+  >([]);
 
   // Ward and Part values state for WardBeatCombobox
   const [selectedWards, setSelectedWards] = useState<string[]>([]);
@@ -195,11 +240,26 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         const data = await response.json();
         setProject(data);
         setEntries(data.registerEntries || []);
+        setDocuments(data.documents || []);
+        setGroundMedia(data.groundMedia || []);
+        setFundAllocations(data.fundAllocations || []);
         setProjectForm({
           name: data.name,
           ward: data.ward || '',
           type: data.type || '',
           status: data.status,
+          department: data.department || '',
+          category: data.category || '',
+          estimatedCost: data.estimatedCost || 0,
+          approvalStatus: data.approvalStatus || 'Pending',
+          nocRequired: data.nocRequired || false,
+          nocStatus: data.nocStatus || 'NotRequired',
+          remarks: data.remarks || '',
+          physicalStatus: data.physicalStatus || 'WNS',
+          bhoomiPujanDone: data.bhoomiPujanDone || false,
+          bhoomiPujanDate: data.bhoomiPujanDate || null,
+          lokarpanDone: data.lokarpanDone || false,
+          lokarpanDate: data.lokarpanDate || null,
         });
         // Parse ward string to extract ward numbers and part numbers
         if (data.ward) {
@@ -711,14 +771,24 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 size="sm"
                 onClick={() => {
                   if (project) {
-                    // Reset form to current project values when starting to edit
                     setProjectForm({
                       name: project.name,
                       ward: project.ward || '',
                       type: project.type || '',
                       status: project.status,
+                      department: project.department || '',
+                      category: project.category || '',
+                      estimatedCost: project.estimatedCost || 0,
+                      approvalStatus: project.approvalStatus || 'Pending',
+                      nocRequired: project.nocRequired || false,
+                      nocStatus: project.nocStatus || 'NotRequired',
+                      remarks: project.remarks || '',
+                      physicalStatus: project.physicalStatus || 'WNS',
+                      bhoomiPujanDone: project.bhoomiPujanDone || false,
+                      bhoomiPujanDate: project.bhoomiPujanDate || null,
+                      lokarpanDone: project.lokarpanDone || false,
+                      lokarpanDate: project.lokarpanDate || null,
                     });
-                    // Parse ward string to extract ward numbers and part numbers
                     if (project.ward) {
                       const wards: string[] = [];
                       const parts: string[] = [];
@@ -816,20 +886,44 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="md:col-span-4">
+                <ProjectRosterFields
+                  department={projectForm.department}
+                  category={projectForm.category}
+                  estimatedCost={projectForm.estimatedCost}
+                  approvalStatus={projectForm.approvalStatus}
+                  nocRequired={projectForm.nocRequired}
+                  nocStatus={projectForm.nocStatus}
+                  remarks={projectForm.remarks}
+                  onChange={(patch) =>
+                    setProjectForm((prev) => ({ ...prev, ...patch }) as typeof prev)
+                  }
+                />
+              </div>
               <div className="md:col-span-4 flex gap-2 justify-end">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    // Reset form to current project values when canceling
                     if (project) {
                       setProjectForm({
                         name: project.name,
                         ward: project.ward || '',
                         type: project.type || '',
                         status: project.status,
+                        department: project.department || '',
+                        category: project.category || '',
+                        estimatedCost: project.estimatedCost || 0,
+                        approvalStatus: project.approvalStatus || 'Pending',
+                        nocRequired: project.nocRequired || false,
+                        nocStatus: project.nocStatus || 'NotRequired',
+                        remarks: project.remarks || '',
+                        physicalStatus: project.physicalStatus || 'WNS',
+                        bhoomiPujanDone: project.bhoomiPujanDone || false,
+                        bhoomiPujanDate: project.bhoomiPujanDate || null,
+                        lokarpanDone: project.lokarpanDone || false,
+                        lokarpanDate: project.lokarpanDate || null,
                       });
-                      // Parse ward string to extract ward numbers and part numbers
                       if (project.ward) {
                         const wards: string[] = [];
                         const parts: string[] = [];
@@ -861,6 +955,34 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           </CardContent>
         )}
       </Card>
+
+      <div className="no-print">
+        <ProjectDetailExtras
+          projectId={projectId}
+          physicalStatus={project.physicalStatus || 'WNS'}
+          bhoomiPujanDone={project.bhoomiPujanDone || false}
+          bhoomiPujanDate={project.bhoomiPujanDate || null}
+          lokarpanDone={project.lokarpanDone || false}
+          lokarpanDate={project.lokarpanDate || null}
+          documents={documents}
+          groundMedia={groundMedia}
+          fundAllocations={fundAllocations}
+          onPatchProject={async (patch) => {
+            const response = await fetch(`/api/projects/${projectId}`, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...projectForm, ...patch }),
+            });
+            if (response.ok) {
+              await loadProject();
+              toast.success('Project updated successfully');
+            } else {
+              toast.error('Failed to update project');
+            }
+          }}
+          onRefresh={loadProject}
+        />
+      </div>
 
       {/* Statistics */}
       <div className="grid gap-4 md:grid-cols-3 no-print">

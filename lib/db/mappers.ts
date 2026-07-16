@@ -48,10 +48,14 @@ import type {
   VoterProfile,
   VoterTask,
   AdmFundingCategory,
-  AdmWork,
-  AdmWorkWithProject,
-  AdmFundingCategoryWithWorks,
-  AdmPhysicalStatus,
+  AdmFundRecord,
+  AdmFundAllocation,
+  AdmDocument,
+  ProjectGroundMedia,
+  ProjectApprovalStatus,
+  ProjectNocStatus,
+  ProjectPhysicalStatus,
+  ProjectDocumentKind,
 } from './schema';
 import { getDefaultLetterPaperSize } from '@/lib/letters/paper-size';
 import { isAddressType } from '@/lib/letters/address-types';
@@ -508,6 +512,26 @@ export function mapMlaProjectRow(row: Row): MlaProject {
     ward: toStringOrNull(row.ward),
     type: toStringOrNull(row.type),
     status: row.status as MlaProject['status'],
+    department: toStringOrNull(row.department),
+    category: toStringOrNull(row.category),
+    estimatedCost: Number(row.estimated_cost ?? row.estimatedCost ?? 0),
+    approvalStatus: (row.approval_status ??
+      row.approvalStatus ??
+      'Pending') as ProjectApprovalStatus,
+    nocRequired: Boolean(row.noc_required ?? row.nocRequired ?? false),
+    nocStatus: (row.noc_status ?? row.nocStatus ?? 'NotRequired') as ProjectNocStatus,
+    remarks: toStringOrNull(row.remarks),
+    physicalStatus: (row.physical_status ??
+      row.physicalStatus ??
+      'WNS') as ProjectPhysicalStatus,
+    bhoomiPujanDone: Boolean(row.bhoomi_pujan_done ?? row.bhoomiPujanDone ?? false),
+    bhoomiPujanDate: row.bhoomi_pujan_date ?? row.bhoomiPujanDate
+      ? formatDateField(row.bhoomi_pujan_date ?? row.bhoomiPujanDate)
+      : null,
+    lokarpanDone: Boolean(row.lokarpan_done ?? row.lokarpanDone ?? false),
+    lokarpanDate: row.lokarpan_date ?? row.lokarpanDate
+      ? formatDateField(row.lokarpan_date ?? row.lokarpanDate)
+      : null,
     createdBy: String(row.created_by ?? row.createdBy),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),
@@ -519,36 +543,59 @@ export function mapAdmFundingCategoryRow(row: Row): AdmFundingCategory {
     id: String(row.id),
     code: String(row.code),
     name: String(row.name),
-    masterBudget: Number(row.master_budget ?? row.masterBudget ?? 0),
     displayOrder: Number(row.display_order ?? row.displayOrder ?? 0),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),
   };
 }
 
-export function mapAdmWorkRow(row: Row): AdmWork {
+export function mapAdmFundRecordRow(row: Row): AdmFundRecord {
   return {
     id: String(row.id),
     categoryId: String(row.category_id ?? row.categoryId),
-    projectId: toStringOrNull(row.project_id ?? row.projectId),
-    name: String(row.name),
-    workBudget: Number(row.work_budget ?? row.workBudget ?? 0),
-    physicalStatus: (row.physical_status ?? row.physicalStatus ?? 'WNS') as AdmPhysicalStatus,
-    bhoomiPujanDone: Boolean(row.bhoomi_pujan_done ?? row.bhoomiPujanDone),
-    bhoomiPujanDate: row.bhoomi_pujan_date ?? row.bhoomiPujanDate
-      ? formatDateField(row.bhoomi_pujan_date ?? row.bhoomiPujanDate)
-      : null,
-    lokarpanDone: Boolean(row.lokarpan_done ?? row.lokarpanDone),
-    lokarpanDate: row.lokarpan_date ?? row.lokarpanDate
-      ? formatDateField(row.lokarpan_date ?? row.lokarpanDate)
-      : null,
-    beforePhotoUrl: toStringOrNull(row.before_photo_url ?? row.beforePhotoUrl),
-    beforePhotoName: toStringOrNull(row.before_photo_name ?? row.beforePhotoName),
-    afterPhotoUrl: toStringOrNull(row.after_photo_url ?? row.afterPhotoUrl),
-    afterPhotoName: toStringOrNull(row.after_photo_name ?? row.afterPhotoName),
+    financialYear: String(row.financial_year ?? row.financialYear),
+    projectYear: String(row.project_year ?? row.projectYear),
+    budget: Number(row.budget ?? 0),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapAdmFundAllocationRow(row: Row): AdmFundAllocation {
+  return {
+    id: String(row.id),
+    fundRecordId: String(row.fund_record_id ?? row.fundRecordId),
+    projectId: String(row.project_id ?? row.projectId),
+    allocatedBudget: Number(row.allocated_budget ?? row.allocatedBudget ?? 0),
     createdBy: String(row.created_by ?? row.createdBy),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapAdmDocumentRow(row: Row): AdmDocument {
+  return {
+    id: String(row.id),
+    fundRecordId: String(row.fund_record_id ?? row.fundRecordId),
+    fileName: String(row.file_name ?? row.fileName),
+    fileSizeKb: Number(row.file_size_kb ?? row.fileSizeKb ?? 0),
+    fileUrl: toStringOrNull(row.file_url ?? row.fileUrl),
+    kind: String(row.kind ?? 'general'),
+    label: toStringOrNull(row.label),
+    uploadedBy: String(row.uploaded_by ?? row.uploadedBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+  };
+}
+
+export function mapProjectGroundMediaRow(row: Row): ProjectGroundMedia {
+  return {
+    id: String(row.id),
+    projectId: String(row.project_id ?? row.projectId),
+    photoType: (row.photo_type ?? row.photoType) as 'before' | 'after',
+    fileUrl: String(row.file_url ?? row.fileUrl),
+    fileName: String(row.file_name ?? row.fileName),
+    sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
+    createdAt: toDate(row.created_at ?? row.createdAt),
   };
 }
 
@@ -559,6 +606,14 @@ export function mapProjectAttachmentRow(row: Row): ProjectAttachment {
     fileName: String(row.file_name ?? row.fileName),
     fileSizeKb: Number(row.file_size_kb ?? row.fileSizeKb),
     fileUrl: toStringOrNull(row.file_url ?? row.fileUrl),
+    documentKind: (row.document_kind ??
+      row.documentKind ??
+      'supporting') as ProjectDocumentKind,
+    version: Number(row.version ?? 1),
+    versionGroupId: String(
+      row.version_group_id ?? row.versionGroupId ?? row.id,
+    ),
+    uploadedBy: toStringOrNull(row.uploaded_by ?? row.uploadedBy),
     createdAt: toDate(row.created_at ?? row.createdAt),
   };
 }
