@@ -2,8 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Phone, Users, ClipboardCheck } from 'lucide-react';
-import { format } from 'date-fns';
+import { Cake, Phone, Users, ClipboardCheck } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { useTranslations } from '@/hooks/use-translations';
 import { PhoneUpdatesChart } from '@/components/phone-updates-chart';
@@ -103,6 +103,56 @@ export function DashboardContent({ data }: DashboardContentProps) {
               </span>
             </button>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Cake className="h-5 w-5" />
+            {t('dashboard.upcomingBirthdays')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {data.upcomingBirthdays.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              {t('dashboard.noUpcomingBirthdays')}
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-3 text-sm">
+              {data.upcomingBirthdays.map((item) => {
+                const whenLabel =
+                  item.daysUntil === 0
+                    ? t('dashboard.birthdayToday')
+                    : t('dashboard.birthdayInDays', { days: item.daysUntil });
+                const dateLabel = format(parseISO(item.nextBirthday), 'd MMM');
+                return (
+                  <li
+                    key={item.memberId}
+                    className="flex items-start justify-between gap-3"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium truncate">{item.personName}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {[
+                          item.primaryPostLabel,
+                          item.personPhone,
+                          item.turningAge != null
+                            ? t('dashboard.turningAge', { age: item.turningAge })
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary whitespace-nowrap">
+                      {whenLabel} · {dateLabel}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </CardContent>
       </Card>
 
