@@ -2814,6 +2814,12 @@ const DEFAULT_DOCUMENT_TYPE_SEEDS: Array<{
   { code: 'VIP', labelEn: 'VIP', labelMr: 'VIP', sortOrder: 1 },
   { code: 'Department', labelEn: 'Department', labelMr: 'विभाग', sortOrder: 2 },
   { code: 'General', labelEn: 'General', labelMr: 'सामान्य', sortOrder: 3 },
+  {
+    code: 'SanctionOrder',
+    labelEn: 'Sanction Order',
+    labelMr: 'प्रशासकीय मंजुरी आदेश',
+    sortOrder: 4,
+  },
 ];
 
 export async function ensureDocumentTypeDefaults(): Promise<void> {
@@ -3470,6 +3476,7 @@ export async function getRegisterEntriesWithAttachments({
   endDate,
   projectIds,
   projectStatus,
+  search,
   limit = 100,
 }: {
   type?: 'inward' | 'outward';
@@ -3477,6 +3484,7 @@ export async function getRegisterEntriesWithAttachments({
   endDate?: Date | string;
   projectIds?: string[];
   projectStatus?: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
+  search?: string;
   limit?: number;
 } = {}): Promise<Array<RegisterEntry & { attachments: RegisterAttachment[] }>> {
   try {
@@ -3488,6 +3496,15 @@ export async function getRegisterEntriesWithAttachments({
       conditions.push(pgSql`re.project_id = ANY(${projectIds})`);
     }
     if (projectStatus) conditions.push(pgSql`mp.status = ${projectStatus}`);
+    const searchTerm = search?.trim();
+    if (searchTerm) {
+      const like = `%${searchTerm}%`;
+      conditions.push(pgSql`(
+        re.ref_no ILIKE ${like}
+        OR re.subject ILIKE ${like}
+        OR re.from_to ILIKE ${like}
+      )`);
+    }
 
     const whereClause =
       conditions.length > 0
@@ -3567,11 +3584,62 @@ export async function getRegisterEntriesWithAttachments({
       }
     }
 
-    return Array.from(entriesMap.values()).slice(0, limit);
+    const entries = Array.from(entriesMap.values()).slice(0, limit);
+    const linkFlags = await getRegisterEntryLinkFlags(entries.map((e) => e.id));
+    for (const entry of entries) {
+      const flags = linkFlags.get(entry.id);
+      entry.linkedToAdm = flags?.linkedToAdm ?? false;
+      entry.linkedToProject = flags?.linkedToProject ?? false;
+    }
+    return entries;
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to get register entries with attachments');
   }
+}
+
+/** Whether register entries are linked from ADM docs or project attachments. */
+export async function getRegisterEntryLinkFlags(
+  entryIds: string[],
+): Promise<Map<string, { linkedToAdm: boolean; linkedToProject: boolean }>> {
+  const result = new Map<string, { linkedToAdm: boolean; linkedToProject: boolean }>();
+  if (entryIds.length === 0) return result;
+
+  for (const id of entryIds) {
+    result.set(id, { linkedToAdm: false, linkedToProject: false });
+  }
+
+  try {
+    const { data: admDocs, error: admError } = await supabase
+      .from(TABLES.admDocument)
+      .select('register_entry_id')
+      .in('register_entry_id', entryIds);
+    throwOnSupabaseError(admError, 'Failed to get ADM document links');
+    for (const row of admDocs ?? []) {
+      const id = String(row.register_entry_id);
+      const flags = result.get(id);
+      if (flags) flags.linkedToAdm = true;
+    }
+
+    const { data: projectDocs, error: projectError } = await supabase
+      .from(TABLES.projectAttachment)
+      .select('register_entry_id')
+      .in('register_entry_id', entryIds);
+    throwOnSupabaseError(projectError, 'Failed to get project attachment links');
+    for (const row of projectDocs ?? []) {
+      const id = String(row.register_entry_id);
+      const flags = result.get(id);
+      if (flags) flags.linkedToProject = true;
+    }
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get register entry link flags',
+    );
+  }
+
+  return result;
 }
 
 export async function getRegisterEntriesByProjectId(
@@ -4937,6 +5005,8 @@ export async function getAdmDashboard(): Promise<AdmFundingCategoryWithFunds[]> 
         projectName: project?.name ?? 'Unknown project',
         projectDepartment: project?.department ?? null,
         projectCategory: project?.category ?? null,
+        projectTaluka: project?.taluka ?? null,
+        projectVillage: project?.village ?? null,
         projectEstimatedCost: project?.estimatedCost ?? 0,
         projectApprovalStatus: project?.approvalStatus ?? 'Pending',
       };
@@ -4945,9 +5015,17 @@ export async function getAdmDashboard(): Promise<AdmFundingCategoryWithFunds[]> 
       allocationsByFund.set(allocation.fundRecordId, list);
     }
 
+    for (const [, list] of allocationsByFund) {
+      list.sort((a, b) => {
+        if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+        return a.createdAt.getTime() - b.createdAt.getTime();
+      });
+    }
+
+    const mappedDocs = (documentRows ?? []).map(mapAdmDocumentRow);
+    const enrichedDocs = await enrichAdmDocumentsWithRegister(mappedDocs);
     const documentsByFund = new Map<string, AdmDocument[]>();
-    for (const row of documentRows ?? []) {
-      const doc = mapAdmDocumentRow(row);
+    for (const doc of enrichedDocs) {
       const list = documentsByFund.get(doc.fundRecordId) ?? [];
       list.push(doc);
       documentsByFund.set(doc.fundRecordId, list);
@@ -5283,11 +5361,25 @@ export async function createAdmFundAllocation({
   projectId,
   allocatedBudget,
   createdBy,
+  workCode,
+  sortOrder,
+  mlaRecommendationRef,
+  technicalSanctionRef,
+  technicalSanctionDate,
+  technicalSanctionAmount,
+  governmentFixedAmount,
 }: {
   fundRecordId: string;
   projectId: string;
   allocatedBudget: number;
   createdBy: string;
+  workCode?: string | null;
+  sortOrder?: number;
+  mlaRecommendationRef?: string | null;
+  technicalSanctionRef?: string | null;
+  technicalSanctionDate?: string | null;
+  technicalSanctionAmount?: number;
+  governmentFixedAmount?: number;
 }): Promise<AdmFundAllocation> {
   try {
     const now = new Date().toISOString();
@@ -5298,6 +5390,13 @@ export async function createAdmFundAllocation({
           fundRecordId,
           projectId,
           allocatedBudget,
+          workCode: workCode ?? null,
+          sortOrder: sortOrder ?? 0,
+          mlaRecommendationRef: mlaRecommendationRef ?? null,
+          technicalSanctionRef: technicalSanctionRef ?? null,
+          technicalSanctionDate: technicalSanctionDate ?? null,
+          technicalSanctionAmount: technicalSanctionAmount ?? 0,
+          governmentFixedAmount: governmentFixedAmount ?? 0,
           createdBy,
           createdAt: now,
           updatedAt: now,
@@ -5315,7 +5414,20 @@ export async function createAdmFundAllocation({
 
 export async function updateAdmFundAllocation(
   id: string,
-  data: Partial<Pick<AdmFundAllocation, 'allocatedBudget' | 'projectId'>>,
+  data: Partial<
+    Pick<
+      AdmFundAllocation,
+      | 'allocatedBudget'
+      | 'projectId'
+      | 'workCode'
+      | 'sortOrder'
+      | 'mlaRecommendationRef'
+      | 'technicalSanctionRef'
+      | 'technicalSanctionDate'
+      | 'technicalSanctionAmount'
+      | 'governmentFixedAmount'
+    >
+  >,
 ): Promise<AdmFundAllocation | null> {
   try {
     const snakePatch = toSnakeCaseKeys({
@@ -5352,31 +5464,42 @@ export async function deleteAdmFundAllocation(id: string): Promise<boolean> {
 
 export async function createAdmDocument({
   fundRecordId,
-  fileName,
-  fileSizeKb,
-  fileUrl,
+  registerEntryId,
+  amountUnit = 'rupees',
   kind,
   label,
   uploadedBy,
 }: {
   fundRecordId: string;
-  fileName: string;
-  fileSizeKb: number;
-  fileUrl: string | null;
+  registerEntryId: string;
+  amountUnit?: AdmAmountUnit;
   kind?: string;
   label?: string | null;
   uploadedBy: string;
 }): Promise<AdmDocument> {
   try {
+    const entry = await getRegisterEntryById(registerEntryId);
+    if (!entry || entry.type !== 'inward') {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Inward register entry is required',
+      );
+    }
+
+    const attachments = await getRegisterAttachments(registerEntryId);
+    const primary = attachments[0] ?? null;
+
     const { data, error } = await supabase
       .from(TABLES.admDocument)
       .insert(
         toSnakeCaseKeys({
           fundRecordId,
-          fileName,
-          fileSizeKb,
-          fileUrl,
-          kind: kind ?? 'general',
+          registerEntryId,
+          amountUnit,
+          fileName: primary?.fileName ?? null,
+          fileSizeKb: primary?.fileSizeKb ?? 0,
+          fileUrl: primary?.fileUrl ?? null,
+          kind: kind ?? 'sanction_order',
           label: label ?? null,
           uploadedBy,
           createdAt: new Date().toISOString(),
@@ -5385,11 +5508,98 @@ export async function createAdmDocument({
       .select('*')
       .single();
     throwOnSupabaseError(error, 'Failed to create ADM document');
-    return mapAdmDocumentRow(data);
+    const docs = await enrichAdmDocumentsWithRegister([mapAdmDocumentRow(data)]);
+    return docs[0];
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to create ADM document');
   }
+}
+
+export async function updateAdmDocument(
+  id: string,
+  data: Partial<Pick<AdmDocument, 'amountUnit' | 'kind' | 'label'>>,
+): Promise<AdmDocument | null> {
+  try {
+    const snakePatch = toSnakeCaseKeys(data);
+    const { data: updated, error } = await supabase
+      .from(TABLES.admDocument)
+      .update(snakePatch)
+      .eq('id', id)
+      .select('*')
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to update ADM document');
+    if (!updated) return null;
+    const docs = await enrichAdmDocumentsWithRegister([
+      mapAdmDocumentRow(updated),
+    ]);
+    return docs[0];
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to update ADM document');
+  }
+}
+
+async function enrichAdmDocumentsWithRegister(
+  docs: AdmDocument[],
+): Promise<AdmDocument[]> {
+  const registerIds = [
+    ...new Set(
+      docs
+        .map((d) => d.registerEntryId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  if (registerIds.length === 0) return docs;
+
+  const { data: entries, error: entryError } = await supabase
+    .from(TABLES.registerEntry)
+    .select('*')
+    .in('id', registerIds);
+  throwOnSupabaseError(entryError, 'Failed to get register entries for ADM docs');
+
+  const { data: attachments, error: attachError } = await supabase
+    .from(TABLES.registerAttachment)
+    .select('*')
+    .in('entry_id', registerIds)
+    .order('created_at', { ascending: true });
+  throwOnSupabaseError(
+    attachError,
+    'Failed to get register attachments for ADM docs',
+  );
+
+  const entryById = new Map(
+    (entries ?? []).map((row) => {
+      const mapped = mapRegisterEntryRow(row);
+      return [mapped.id, mapped] as const;
+    }),
+  );
+  const firstAttachmentByEntry = new Map<string, RegisterAttachment>();
+  for (const row of attachments ?? []) {
+    const mapped = mapRegisterAttachmentRow(row);
+    if (!firstAttachmentByEntry.has(mapped.entryId)) {
+      firstAttachmentByEntry.set(mapped.entryId, mapped);
+    }
+  }
+
+  return docs.map((doc) => {
+    if (!doc.registerEntryId) return doc;
+    const entry = entryById.get(doc.registerEntryId);
+    const attachment = firstAttachmentByEntry.get(doc.registerEntryId);
+    return {
+      ...doc,
+      registerRefNo: entry?.refNo ?? null,
+      registerSubject: entry?.subject ?? null,
+      registerDate: entry?.date ?? null,
+      registerFromTo: entry?.fromTo ?? null,
+      registerDocumentType: entry?.documentType ?? null,
+      attachmentFileUrl: attachment?.fileUrl ?? doc.fileUrl,
+      attachmentFileName: attachment?.fileName ?? doc.fileName,
+      fileUrl: attachment?.fileUrl ?? doc.fileUrl,
+      fileName: attachment?.fileName ?? doc.fileName,
+      fileSizeKb: attachment?.fileSizeKb ?? doc.fileSizeKb,
+    };
+  });
 }
 
 export async function getAdmDocumentsByFundRecordId(
@@ -5402,7 +5612,7 @@ export async function getAdmDocumentsByFundRecordId(
       .eq('fund_record_id', fundRecordId)
       .order('created_at', { ascending: false });
     throwOnSupabaseError(error, 'Failed to get ADM documents');
-    return (data ?? []).map(mapAdmDocumentRow);
+    return enrichAdmDocumentsWithRegister((data ?? []).map(mapAdmDocumentRow));
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to get ADM documents');

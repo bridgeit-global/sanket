@@ -13,6 +13,8 @@ export const projectFormSchema = z
     status: z.enum(['Concept', 'Proposal', 'In Progress', 'Completed']),
     department: z.string().max(255).optional().nullable(),
     category: z.string().max(255).optional().nullable(),
+    taluka: z.string().max(255).optional().nullable(),
+    village: z.string().max(255).optional().nullable(),
     estimatedCost: z.number().int().min(0).optional(),
     approvalStatus: z.enum(['Pending', 'Approved', 'Rejected']).optional(),
     nocRequired: z.boolean().optional(),
@@ -56,13 +58,31 @@ export const admFundingCategorySchema = z.object({
 
 export type AdmFundingCategoryData = z.infer<typeof admFundingCategorySchema>;
 
+export const admAmountUnitSchema = z.enum(['rupees', 'thousands', 'lakhs']);
+
 export const admFundAllocationSchema = z.object({
   fundRecordId: z.string().uuid('Invalid fund record'),
   projectId: z.string().uuid('Project is required'),
   allocatedBudget: z.number().int().min(0, 'Budget must be zero or positive'),
+  workCode: z.string().max(100).optional().nullable(),
+  sortOrder: z.number().int().min(0).optional(),
+  mlaRecommendationRef: z.string().max(255).optional().nullable(),
+  technicalSanctionRef: z.string().max(255).optional().nullable(),
+  technicalSanctionDate: z.string().nullable().optional(),
+  technicalSanctionAmount: z.number().int().min(0).optional(),
+  governmentFixedAmount: z.number().int().min(0).optional(),
 });
 
 export type AdmFundAllocationData = z.infer<typeof admFundAllocationSchema>;
+
+export const admDocumentLinkSchema = z.object({
+  registerEntryId: z.string().uuid('Inward register entry is required'),
+  amountUnit: admAmountUnitSchema.optional(),
+  kind: z.string().max(100).optional(),
+  label: z.string().max(255).optional().nullable(),
+});
+
+export type AdmDocumentLinkData = z.infer<typeof admDocumentLinkSchema>;
 
 export const projectDocumentKindSchema = z.enum([
   'approval_pdf',
@@ -72,6 +92,14 @@ export const projectDocumentKindSchema = z.enum([
 ]);
 
 export type ProjectDocumentKindData = z.infer<typeof projectDocumentKindSchema>;
+
+export const projectDocumentLinkSchema = z.object({
+  registerEntryId: z.string().uuid('Inward register entry is required'),
+  documentKind: projectDocumentKindSchema,
+  versionGroupId: z.string().uuid().optional(),
+});
+
+export type ProjectDocumentLinkData = z.infer<typeof projectDocumentLinkSchema>;
 
 export const REGISTER_ENTRY_FIELD_LIMITS = {
   fromTo: 500,
