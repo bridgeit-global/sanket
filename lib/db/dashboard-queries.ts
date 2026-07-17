@@ -11,7 +11,7 @@ import { TABLES } from './schema';
 import { getPhoneUpdateStats, getBeneficiaryServiceStats, getDashboardCounts, getSirActivityStats } from './queries';
 import type { SirActivityStats } from './sir-queries';
 
-const BIRTHDAY_WINDOW_DAYS = 30;
+const BIRTHDAY_WINDOW_DAYS = 7;
 const BIRTHDAY_LIST_LIMIT = 15;
 const EPIC_FETCH_CHUNK = 100;
 

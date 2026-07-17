@@ -444,7 +444,7 @@
     "upcomingProgrammes": "Upcoming programmes",
     "noUpcomingProgrammes": "No upcoming programmes",
     "upcomingBirthdays": "Upcoming cadre birthdays",
-    "noUpcomingBirthdays": "No cadre birthdays in the next 30 days",
+    "noUpcomingBirthdays": "No cadre birthdays in the next 7 days",
     "birthdayToday": "Today",
     "birthdayInDays": "in {days, plural, one {# day} other {# days}}",
     "turningAge": "turning {age}",
