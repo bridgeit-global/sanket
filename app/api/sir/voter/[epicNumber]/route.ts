@@ -107,9 +107,12 @@ export async function PATCH(
     const existingMobileMap = await getVoterMobileNumbersByEpicNumbers([
       decodedEpicNumber,
     ]);
-    const hasExistingPhone =
-      (existingMobileMap.get(decodedEpicNumber) || []).length > 0;
+    const existingMobiles = existingMobileMap.get(decodedEpicNumber) || [];
+    const hasExistingPhone = existingMobiles.length > 0;
     const hasExistingDob = Boolean(voter.dob);
+    const existingMobileDigits = new Set(
+      existingMobiles.map((m) => normalizeIndianMobileDigits(m.mobileNumber)),
+    );
 
     // Validate and normalize phone numbers.
     let normalizedMobileNumbers: string[] | undefined;
@@ -124,7 +127,12 @@ export async function PATCH(
         .map((n) => n.trim())
         .filter((n) => n.length > 0);
 
+      // Only newly added numbers must satisfy Indian-mobile rules. Numbers
+      // already stored for this voter are accepted as-is (they are immutable
+      // in the SIR UI and may predate the current validation).
       for (const n of provided) {
+        const digits = normalizeIndianMobileDigits(n);
+        if (existingMobileDigits.has(digits)) continue;
         if (!isValidIndianMobile(n)) {
           return NextResponse.json(
             { error: 'Enter valid 10-digit Indian mobile numbers' },

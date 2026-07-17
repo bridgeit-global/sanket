@@ -194,12 +194,14 @@ export function SirWorkflow() {
     }
 
     // Validate each field and surface errors inline on the offending inputs.
+    // Existing (locked) numbers are kept as-is — they may predate stricter
+    // Indian-mobile rules and must not block adding new numbers or DOB.
     const nextPhoneErrors: Record<string, string> = {};
     const seen = new Set<string>();
     for (const p of phones) {
       const value = p.value.trim();
       if (!value) continue;
-      if (!isValidIndianMobile(value)) {
+      if (!p.existing && !isValidIndianMobile(value)) {
         nextPhoneErrors[p.id] = t('sir.invalidMobile');
       } else if (seen.has(value)) {
         nextPhoneErrors[p.id] = t('sir.duplicatePhone');
