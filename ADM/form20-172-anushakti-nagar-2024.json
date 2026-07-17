@@ -1,0 +1,5116 @@
+{
+  "documentType": "FORM_20_FINAL_RESULT_SHEET",
+  "electionType": "LEGISLATIVE_ASSEMBLY",
+  "assemblyConstituency": {
+    "number": 172,
+    "name": "ANUSHAKTI NAGAR",
+    "fullName": "172-ANUSHAKTI NAGAR"
+  },
+  "place": "ANUSHAKTI NAGAR",
+  "totalElectors": 269151,
+  "metadata": {
+    "user": "ROACS13A172",
+    "generatedAt": "2024-11-23T17:15:00+05:30",
+    "encoreAuditRef": "1732362303",
+    "pdfTitle": "Form20 Generated",
+    "pages": 12,
+    "sourceFile": "1f956de7-2bd9-4357-ab77-c45aff231c23.pdf"
+  },
+  "candidates": [
+    {
+      "serial": 1,
+      "name": "ADV. ACHARYA NAVIN VIDYADHAR"
+    },
+    {
+      "serial": 2,
+      "name": "FAHAD AHMAD"
+    },
+    {
+      "serial": 3,
+      "name": "MAHENDRA TULSHIRAM BHINGARDIVE"
+    },
+    {
+      "serial": 4,
+      "name": "SANA MALIK"
+    },
+    {
+      "serial": 5,
+      "name": "ALIYA AZAD SANJAR"
+    },
+    {
+      "serial": 6,
+      "name": "BALASAHEB JAGANNATH SABLE"
+    },
+    {
+      "serial": 7,
+      "name": "MAHESH APPA SAWANT"
+    },
+    {
+      "serial": 8,
+      "name": "SATISH WAMAN RAJGURU"
+    },
+    {
+      "serial": 9,
+      "name": "JAYPRAKASH BABULAL AGARWAL"
+    }
+  ],
+  "results": {
+    "evm": {
+      "byCandidate": {
+        "ADV. ACHARYA NAVIN VIDYADHAR": 28198,
+        "FAHAD AHMAD": 45815,
+        "MAHENDRA TULSHIRAM BHINGARDIVE": 1778,
+        "SANA MALIK": 49140,
+        "ALIYA AZAD SANJAR": 923,
+        "BALASAHEB JAGANNATH SABLE": 569,
+        "MAHESH APPA SAWANT": 642,
+        "SATISH WAMAN RAJGURU": 10456,
+        "JAYPRAKASH BABULAL AGARWAL": 4059
+      },
+      "totalValidVotes": 141580,
+      "rejectedVotes": 0,
+      "nota": 3826,
+      "totalVotes": 145406,
+      "tenderedVotes": 19
+    },
+    "postalBallot": {
+      "byCandidate": {
+        "ADV. ACHARYA NAVIN VIDYADHAR": 164,
+        "FAHAD AHMAD": 148,
+        "MAHENDRA TULSHIRAM BHINGARDIVE": 17,
+        "SANA MALIK": 201,
+        "ALIYA AZAD SANJAR": 1,
+        "BALASAHEB JAGANNATH SABLE": 2,
+        "MAHESH APPA SAWANT": 4,
+        "SATISH WAMAN RAJGURU": 58,
+        "JAYPRAKASH BABULAL AGARWAL": 16
+      },
+      "totalValidVotes": 611,
+      "rejectedVotes": 15,
+      "nota": 58,
+      "totalVotes": 684,
+      "tenderedVotes": 0
+    },
+    "grandTotal": {
+      "byCandidate": {
+        "ADV. ACHARYA NAVIN VIDYADHAR": 28362,
+        "FAHAD AHMAD": 45963,
+        "MAHENDRA TULSHIRAM BHINGARDIVE": 1795,
+        "SANA MALIK": 49341,
+        "ALIYA AZAD SANJAR": 924,
+        "BALASAHEB JAGANNATH SABLE": 571,
+        "MAHESH APPA SAWANT": 646,
+        "SATISH WAMAN RAJGURU": 10514,
+        "JAYPRAKASH BABULAL AGARWAL": 4075
+      },
+      "totalValidVotes": 142191,
+      "rejectedVotes": 15,
+      "nota": 3884,
+      "totalVotesPolled": 146090,
+      "tenderedVotes": 19
+    }
+  },
+  "winner": {
+    "name": "SANA MALIK",
+    "totalVotes": 49341,
+    "runnerUp": "FAHAD AHMAD",
+    "runnerUpVotes": 45963,
+    "margin": 3378
+  },
+  "turnout": {
+    "votesPolled": 146090,
+    "electors": 269151,
+    "percentage": 54.28
+  },
+  "pollingStations": {
+    "count": 262,
+    "from": 1,
+    "to": 262,
+    "rows": [
+      {
+        "pollingStation": 1,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 25,
+          "FAHAD AHMAD": 182,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 203,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 160,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 596,
+        "rejectedVotes": 0,
+        "nota": 8,
+        "totalVotes": 604,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 2,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 14,
+          "FAHAD AHMAD": 142,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 160,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 107,
+          "JAYPRAKASH BABULAL AGARWAL": 20
+        },
+        "totalValidVotes": 454,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 459,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 3,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 40,
+          "FAHAD AHMAD": 152,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 256,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 84,
+          "JAYPRAKASH BABULAL AGARWAL": 17
+        },
+        "totalValidVotes": 559,
+        "rejectedVotes": 0,
+        "nota": 14,
+        "totalVotes": 573,
+        "tenderedVotes": 1
+      },
+      {
+        "pollingStation": 4,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 43,
+          "FAHAD AHMAD": 129,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 9,
+          "SANA MALIK": 188,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 38,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 424,
+        "rejectedVotes": 0,
+        "nota": 10,
+        "totalVotes": 434,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 5,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 18,
+          "FAHAD AHMAD": 343,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 133,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 28,
+          "JAYPRAKASH BABULAL AGARWAL": 36
+        },
+        "totalValidVotes": 570,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 577,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 6,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 7,
+          "FAHAD AHMAD": 380,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 163,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 11,
+          "JAYPRAKASH BABULAL AGARWAL": 29
+        },
+        "totalValidVotes": 600,
+        "rejectedVotes": 0,
+        "nota": 3,
+        "totalVotes": 603,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 7,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 68,
+          "FAHAD AHMAD": 120,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 10,
+          "SANA MALIK": 143,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 122,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 483,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 490,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 8,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 177,
+          "FAHAD AHMAD": 194,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 169,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 35,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 594,
+        "rejectedVotes": 0,
+        "nota": 20,
+        "totalVotes": 614,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 9,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 143,
+          "FAHAD AHMAD": 299,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 127,
+          "ALIYA AZAD SANJAR": 7,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 63,
+          "JAYPRAKASH BABULAL AGARWAL": 12
+        },
+        "totalValidVotes": 655,
+        "rejectedVotes": 0,
+        "nota": 10,
+        "totalVotes": 665,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 10,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 82,
+          "FAHAD AHMAD": 184,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 172,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 15,
+          "JAYPRAKASH BABULAL AGARWAL": 13
+        },
+        "totalValidVotes": 474,
+        "rejectedVotes": 0,
+        "nota": 14,
+        "totalVotes": 488,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 11,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 197,
+          "FAHAD AHMAD": 193,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 126,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 28,
+          "JAYPRAKASH BABULAL AGARWAL": 8
+        },
+        "totalValidVotes": 558,
+        "rejectedVotes": 0,
+        "nota": 9,
+        "totalVotes": 567,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 12,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 218,
+          "FAHAD AHMAD": 186,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 165,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 16,
+          "JAYPRAKASH BABULAL AGARWAL": 15
+        },
+        "totalValidVotes": 605,
+        "rejectedVotes": 0,
+        "nota": 13,
+        "totalVotes": 618,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 13,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 143,
+          "FAHAD AHMAD": 312,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 164,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 29,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 667,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 678,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 14,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 26,
+          "FAHAD AHMAD": 275,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 118,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 14,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 447,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 452,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 15,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 40,
+          "FAHAD AHMAD": 238,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 217,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 24,
+          "JAYPRAKASH BABULAL AGARWAL": 20
+        },
+        "totalValidVotes": 552,
+        "rejectedVotes": 0,
+        "nota": 4,
+        "totalVotes": 556,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 16,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 101,
+          "FAHAD AHMAD": 155,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 136,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 35,
+          "JAYPRAKASH BABULAL AGARWAL": 13
+        },
+        "totalValidVotes": 450,
+        "rejectedVotes": 0,
+        "nota": 8,
+        "totalVotes": 458,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 17,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 69,
+          "FAHAD AHMAD": 360,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 201,
+          "ALIYA AZAD SANJAR": 9,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 7,
+          "JAYPRAKASH BABULAL AGARWAL": 25
+        },
+        "totalValidVotes": 681,
+        "rejectedVotes": 0,
+        "nota": 3,
+        "totalVotes": 684,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 18,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 61,
+          "FAHAD AHMAD": 394,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 200,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 8,
+          "JAYPRAKASH BABULAL AGARWAL": 23
+        },
+        "totalValidVotes": 695,
+        "rejectedVotes": 0,
+        "nota": 6,
+        "totalVotes": 701,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 19,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 17,
+          "FAHAD AHMAD": 327,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 93,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 1,
+          "JAYPRAKASH BABULAL AGARWAL": 18
+        },
+        "totalValidVotes": 461,
+        "rejectedVotes": 0,
+        "nota": 4,
+        "totalVotes": 465,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 20,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 61,
+          "FAHAD AHMAD": 238,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 159,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 9,
+          "JAYPRAKASH BABULAL AGARWAL": 16
+        },
+        "totalValidVotes": 495,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 500,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 21,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 340,
+          "FAHAD AHMAD": 178,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 103,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 25,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 667,
+        "rejectedVotes": 0,
+        "nota": 16,
+        "totalVotes": 683,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 22,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 52,
+          "FAHAD AHMAD": 140,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 79,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 5,
+          "JAYPRAKASH BABULAL AGARWAL": 5
+        },
+        "totalValidVotes": 288,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 295,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 23,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 67,
+          "FAHAD AHMAD": 195,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 118,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 25,
+          "JAYPRAKASH BABULAL AGARWAL": 16
+        },
+        "totalValidVotes": 430,
+        "rejectedVotes": 0,
+        "nota": 10,
+        "totalVotes": 440,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 24,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 99,
+          "FAHAD AHMAD": 346,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 236,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 29,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 733,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 744,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 25,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 258,
+          "FAHAD AHMAD": 77,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 116,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 12,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 483,
+        "rejectedVotes": 0,
+        "nota": 10,
+        "totalVotes": 493,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 26,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 261,
+          "FAHAD AHMAD": 83,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 9,
+          "SANA MALIK": 175,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 33,
+          "JAYPRAKASH BABULAL AGARWAL": 6
+        },
+        "totalValidVotes": 576,
+        "rejectedVotes": 0,
+        "nota": 10,
+        "totalVotes": 586,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 27,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 297,
+          "FAHAD AHMAD": 112,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 90,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 4,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 34,
+          "JAYPRAKASH BABULAL AGARWAL": 12
+        },
+        "totalValidVotes": 560,
+        "rejectedVotes": 0,
+        "nota": 9,
+        "totalVotes": 569,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 28,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 286,
+          "FAHAD AHMAD": 121,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 135,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 25,
+          "JAYPRAKASH BABULAL AGARWAL": 17
+        },
+        "totalValidVotes": 593,
+        "rejectedVotes": 0,
+        "nota": 18,
+        "totalVotes": 611,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 29,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 121,
+          "FAHAD AHMAD": 78,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 10,
+          "SANA MALIK": 165,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 5,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 24,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 415,
+        "rejectedVotes": 0,
+        "nota": 4,
+        "totalVotes": 419,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 30,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 197,
+          "FAHAD AHMAD": 141,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 15,
+          "SANA MALIK": 205,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 6,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 73,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 649,
+        "rejectedVotes": 0,
+        "nota": 17,
+        "totalVotes": 666,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 31,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 156,
+          "FAHAD AHMAD": 133,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 13,
+          "SANA MALIK": 249,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 11,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 53,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 633,
+        "rejectedVotes": 0,
+        "nota": 20,
+        "totalVotes": 653,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 32,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 201,
+          "FAHAD AHMAD": 139,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 12,
+          "SANA MALIK": 195,
+          "ALIYA AZAD SANJAR": 7,
+          "BALASAHEB JAGANNATH SABLE": 5,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 42,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 612,
+        "rejectedVotes": 0,
+        "nota": 25,
+        "totalVotes": 637,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 33,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 256,
+          "FAHAD AHMAD": 134,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 179,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 5,
+          "SATISH WAMAN RAJGURU": 44,
+          "JAYPRAKASH BABULAL AGARWAL": 15
+        },
+        "totalValidVotes": 644,
+        "rejectedVotes": 0,
+        "nota": 17,
+        "totalVotes": 661,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 34,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 237,
+          "FAHAD AHMAD": 96,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 175,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 11,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 35,
+          "JAYPRAKASH BABULAL AGARWAL": 17
+        },
+        "totalValidVotes": 579,
+        "rejectedVotes": 0,
+        "nota": 19,
+        "totalVotes": 598,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 35,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 201,
+          "FAHAD AHMAD": 100,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 176,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 13,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 19,
+          "JAYPRAKASH BABULAL AGARWAL": 7
+        },
+        "totalValidVotes": 526,
+        "rejectedVotes": 0,
+        "nota": 18,
+        "totalVotes": 544,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 36,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 233,
+          "FAHAD AHMAD": 107,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 10,
+          "SANA MALIK": 134,
+          "ALIYA AZAD SANJAR": 7,
+          "BALASAHEB JAGANNATH SABLE": 13,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 18,
+          "JAYPRAKASH BABULAL AGARWAL": 13
+        },
+        "totalValidVotes": 537,
+        "rejectedVotes": 0,
+        "nota": 12,
+        "totalVotes": 549,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 37,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 171,
+          "FAHAD AHMAD": 75,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 16,
+          "SANA MALIK": 189,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 15,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 12,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 490,
+        "rejectedVotes": 0,
+        "nota": 14,
+        "totalVotes": 504,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 38,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 156,
+          "FAHAD AHMAD": 80,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 12,
+          "SANA MALIK": 187,
+          "ALIYA AZAD SANJAR": 6,
+          "BALASAHEB JAGANNATH SABLE": 6,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 44,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 504,
+        "rejectedVotes": 0,
+        "nota": 9,
+        "totalVotes": 513,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 39,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 184,
+          "FAHAD AHMAD": 84,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 137,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 8,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 78,
+          "JAYPRAKASH BABULAL AGARWAL": 16
+        },
+        "totalValidVotes": 517,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 528,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 40,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 96,
+          "FAHAD AHMAD": 63,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 89,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 22,
+          "JAYPRAKASH BABULAL AGARWAL": 13
+        },
+        "totalValidVotes": 296,
+        "rejectedVotes": 0,
+        "nota": 4,
+        "totalVotes": 300,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 41,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 43,
+          "FAHAD AHMAD": 72,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 11,
+          "SANA MALIK": 179,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 37,
+          "JAYPRAKASH BABULAL AGARWAL": 13
+        },
+        "totalValidVotes": 361,
+        "rejectedVotes": 0,
+        "nota": 6,
+        "totalVotes": 367,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 42,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 138,
+          "FAHAD AHMAD": 73,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 115,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 5,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 25,
+          "JAYPRAKASH BABULAL AGARWAL": 12
+        },
+        "totalValidVotes": 378,
+        "rejectedVotes": 0,
+        "nota": 10,
+        "totalVotes": 388,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 43,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 135,
+          "FAHAD AHMAD": 139,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 19,
+          "SANA MALIK": 208,
+          "ALIYA AZAD SANJAR": 8,
+          "BALASAHEB JAGANNATH SABLE": 6,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 31,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 561,
+        "rejectedVotes": 0,
+        "nota": 10,
+        "totalVotes": 571,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 44,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 68,
+          "FAHAD AHMAD": 131,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 18,
+          "SANA MALIK": 240,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 5,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 11,
+          "JAYPRAKASH BABULAL AGARWAL": 15
+        },
+        "totalValidVotes": 492,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 497,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 45,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 52,
+          "FAHAD AHMAD": 167,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 21,
+          "SANA MALIK": 462,
+          "ALIYA AZAD SANJAR": 6,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 13,
+          "JAYPRAKASH BABULAL AGARWAL": 16
+        },
+        "totalValidVotes": 744,
+        "rejectedVotes": 0,
+        "nota": 6,
+        "totalVotes": 750,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 46,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 70,
+          "FAHAD AHMAD": 159,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 12,
+          "SANA MALIK": 389,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 5,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 4,
+          "JAYPRAKASH BABULAL AGARWAL": 7
+        },
+        "totalValidVotes": 655,
+        "rejectedVotes": 0,
+        "nota": 17,
+        "totalVotes": 672,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 47,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 300,
+          "FAHAD AHMAD": 140,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 9,
+          "SANA MALIK": 288,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 4,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 760,
+        "rejectedVotes": 0,
+        "nota": 26,
+        "totalVotes": 786,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 48,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 199,
+          "FAHAD AHMAD": 133,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 214,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 4,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 567,
+        "rejectedVotes": 0,
+        "nota": 24,
+        "totalVotes": 591,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 49,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 237,
+          "FAHAD AHMAD": 139,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 203,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 7,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 4,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 611,
+        "rejectedVotes": 0,
+        "nota": 53,
+        "totalVotes": 664,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 50,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 132,
+          "FAHAD AHMAD": 164,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 9,
+          "SANA MALIK": 420,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 5,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 5,
+          "JAYPRAKASH BABULAL AGARWAL": 7
+        },
+        "totalValidVotes": 747,
+        "rejectedVotes": 0,
+        "nota": 41,
+        "totalVotes": 788,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 51,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 353,
+          "FAHAD AHMAD": 181,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 10,
+          "SANA MALIK": 287,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 14,
+          "JAYPRAKASH BABULAL AGARWAL": 17
+        },
+        "totalValidVotes": 868,
+        "rejectedVotes": 0,
+        "nota": 44,
+        "totalVotes": 912,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 52,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 48,
+          "FAHAD AHMAD": 85,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 93,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 4,
+          "JAYPRAKASH BABULAL AGARWAL": 7
+        },
+        "totalValidVotes": 247,
+        "rejectedVotes": 0,
+        "nota": 15,
+        "totalVotes": 262,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 53,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 102,
+          "FAHAD AHMAD": 56,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 161,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 6,
+          "JAYPRAKASH BABULAL AGARWAL": 5
+        },
+        "totalValidVotes": 341,
+        "rejectedVotes": 0,
+        "nota": 18,
+        "totalVotes": 359,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 54,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 238,
+          "FAHAD AHMAD": 116,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 11,
+          "SANA MALIK": 275,
+          "ALIYA AZAD SANJAR": 7,
+          "BALASAHEB JAGANNATH SABLE": 6,
+          "MAHESH APPA SAWANT": 5,
+          "SATISH WAMAN RAJGURU": 4,
+          "JAYPRAKASH BABULAL AGARWAL": 16
+        },
+        "totalValidVotes": 678,
+        "rejectedVotes": 0,
+        "nota": 65,
+        "totalVotes": 743,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 55,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 172,
+          "FAHAD AHMAD": 100,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 355,
+          "ALIYA AZAD SANJAR": 7,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 56,
+          "JAYPRAKASH BABULAL AGARWAL": 6
+        },
+        "totalValidVotes": 706,
+        "rejectedVotes": 0,
+        "nota": 30,
+        "totalVotes": 736,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 56,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 160,
+          "FAHAD AHMAD": 113,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 330,
+          "ALIYA AZAD SANJAR": 8,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 4,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 634,
+        "rejectedVotes": 0,
+        "nota": 18,
+        "totalVotes": 652,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 57,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 65,
+          "FAHAD AHMAD": 139,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 11,
+          "SANA MALIK": 392,
+          "ALIYA AZAD SANJAR": 8,
+          "BALASAHEB JAGANNATH SABLE": 5,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 197,
+          "JAYPRAKASH BABULAL AGARWAL": 17
+        },
+        "totalValidVotes": 835,
+        "rejectedVotes": 0,
+        "nota": 18,
+        "totalVotes": 853,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 58,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 56,
+          "FAHAD AHMAD": 146,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 338,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 133,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 698,
+        "rejectedVotes": 0,
+        "nota": 12,
+        "totalVotes": 710,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 59,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 174,
+          "FAHAD AHMAD": 130,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 16,
+          "SANA MALIK": 452,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 4,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 58,
+          "JAYPRAKASH BABULAL AGARWAL": 22
+        },
+        "totalValidVotes": 861,
+        "rejectedVotes": 0,
+        "nota": 26,
+        "totalVotes": 887,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 60,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 164,
+          "FAHAD AHMAD": 71,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 347,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 22,
+          "JAYPRAKASH BABULAL AGARWAL": 12
+        },
+        "totalValidVotes": 629,
+        "rejectedVotes": 0,
+        "nota": 18,
+        "totalVotes": 647,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 61,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 262,
+          "FAHAD AHMAD": 78,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 262,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 5,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 624,
+        "rejectedVotes": 0,
+        "nota": 40,
+        "totalVotes": 664,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 62,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 198,
+          "FAHAD AHMAD": 94,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 323,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 7,
+          "JAYPRAKASH BABULAL AGARWAL": 24
+        },
+        "totalValidVotes": 661,
+        "rejectedVotes": 0,
+        "nota": 66,
+        "totalVotes": 727,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 63,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 106,
+          "FAHAD AHMAD": 53,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 370,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 3,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 554,
+        "rejectedVotes": 0,
+        "nota": 16,
+        "totalVotes": 570,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 64,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 162,
+          "FAHAD AHMAD": 99,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 15,
+          "SANA MALIK": 234,
+          "ALIYA AZAD SANJAR": 12,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 15,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 555,
+        "rejectedVotes": 0,
+        "nota": 49,
+        "totalVotes": 604,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 65,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 208,
+          "FAHAD AHMAD": 107,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 235,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 13,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 582,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 589,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 66,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 241,
+          "FAHAD AHMAD": 91,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 206,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 9,
+          "JAYPRAKASH BABULAL AGARWAL": 5
+        },
+        "totalValidVotes": 557,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 568,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 67,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 166,
+          "FAHAD AHMAD": 92,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 197,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 15,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 497,
+        "rejectedVotes": 0,
+        "nota": 8,
+        "totalVotes": 505,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 68,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 104,
+          "FAHAD AHMAD": 58,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 101,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 5,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 35,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 320,
+        "rejectedVotes": 0,
+        "nota": 27,
+        "totalVotes": 347,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 69,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 72,
+          "FAHAD AHMAD": 76,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 192,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 8,
+          "JAYPRAKASH BABULAL AGARWAL": 30
+        },
+        "totalValidVotes": 389,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 396,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 70,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 45,
+          "FAHAD AHMAD": 108,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 281,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 12,
+          "JAYPRAKASH BABULAL AGARWAL": 8
+        },
+        "totalValidVotes": 462,
+        "rejectedVotes": 0,
+        "nota": 8,
+        "totalVotes": 470,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 71,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 33,
+          "FAHAD AHMAD": 120,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 360,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 9,
+          "MAHESH APPA SAWANT": 5,
+          "SATISH WAMAN RAJGURU": 2,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 543,
+        "rejectedVotes": 0,
+        "nota": 9,
+        "totalVotes": 552,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 72,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 130,
+          "FAHAD AHMAD": 104,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 350,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 12,
+          "JAYPRAKASH BABULAL AGARWAL": 29
+        },
+        "totalValidVotes": 638,
+        "rejectedVotes": 0,
+        "nota": 17,
+        "totalVotes": 655,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 73,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 121,
+          "FAHAD AHMAD": 86,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 242,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 4,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 10,
+          "JAYPRAKASH BABULAL AGARWAL": 25
+        },
+        "totalValidVotes": 501,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 512,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 74,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 74,
+          "FAHAD AHMAD": 70,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 230,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 12,
+          "JAYPRAKASH BABULAL AGARWAL": 17
+        },
+        "totalValidVotes": 412,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 423,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 75,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 8,
+          "FAHAD AHMAD": 389,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 109,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 0,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 518,
+        "rejectedVotes": 0,
+        "nota": 3,
+        "totalVotes": 521,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 76,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 2,
+          "FAHAD AHMAD": 406,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 165,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 1,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 598,
+        "rejectedVotes": 0,
+        "nota": 4,
+        "totalVotes": 602,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 77,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 5,
+          "FAHAD AHMAD": 358,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 212,
+          "ALIYA AZAD SANJAR": 8,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 2,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 606,
+        "rejectedVotes": 0,
+        "nota": 3,
+        "totalVotes": 609,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 78,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 7,
+          "FAHAD AHMAD": 408,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 117,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 0,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 551,
+        "rejectedVotes": 0,
+        "nota": 2,
+        "totalVotes": 553,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 79,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 6,
+          "FAHAD AHMAD": 261,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 78,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 0,
+          "JAYPRAKASH BABULAL AGARWAL": 8
+        },
+        "totalValidVotes": 361,
+        "rejectedVotes": 0,
+        "nota": 3,
+        "totalVotes": 364,
+        "tenderedVotes": 1
+      },
+      {
+        "pollingStation": 80,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 4,
+          "FAHAD AHMAD": 395,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 168,
+          "ALIYA AZAD SANJAR": 7,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 4,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 597,
+        "rejectedVotes": 0,
+        "nota": 6,
+        "totalVotes": 603,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 81,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 10,
+          "FAHAD AHMAD": 350,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 133,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 1,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 510,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 515,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 82,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 5,
+          "FAHAD AHMAD": 332,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 119,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 1,
+          "JAYPRAKASH BABULAL AGARWAL": 13
+        },
+        "totalValidVotes": 480,
+        "rejectedVotes": 0,
+        "nota": 4,
+        "totalVotes": 484,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 83,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 2,
+          "FAHAD AHMAD": 373,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 123,
+          "ALIYA AZAD SANJAR": 6,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 0,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 518,
+        "rejectedVotes": 0,
+        "nota": 3,
+        "totalVotes": 521,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 84,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 10,
+          "FAHAD AHMAD": 328,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 113,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 0,
+          "JAYPRAKASH BABULAL AGARWAL": 7
+        },
+        "totalValidVotes": 466,
+        "rejectedVotes": 0,
+        "nota": 6,
+        "totalVotes": 472,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 85,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 9,
+          "FAHAD AHMAD": 416,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 158,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 2,
+          "JAYPRAKASH BABULAL AGARWAL": 15
+        },
+        "totalValidVotes": 609,
+        "rejectedVotes": 0,
+        "nota": 1,
+        "totalVotes": 610,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 86,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 1,
+          "FAHAD AHMAD": 434,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 125,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 1,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 582,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 589,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 87,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 3,
+          "FAHAD AHMAD": 527,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 116,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 1,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 663,
+        "rejectedVotes": 0,
+        "nota": 0,
+        "totalVotes": 663,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 88,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 1,
+          "FAHAD AHMAD": 388,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 78,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 3,
+          "JAYPRAKASH BABULAL AGARWAL": 6
+        },
+        "totalValidVotes": 480,
+        "rejectedVotes": 0,
+        "nota": 1,
+        "totalVotes": 481,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 89,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 3,
+          "FAHAD AHMAD": 239,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 79,
+          "ALIYA AZAD SANJAR": 10,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 0,
+          "JAYPRAKASH BABULAL AGARWAL": 2
+        },
+        "totalValidVotes": 335,
+        "rejectedVotes": 0,
+        "nota": 4,
+        "totalVotes": 339,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 90,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 14,
+          "FAHAD AHMAD": 439,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 133,
+          "ALIYA AZAD SANJAR": 9,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 1,
+          "JAYPRAKASH BABULAL AGARWAL": 12
+        },
+        "totalValidVotes": 611,
+        "rejectedVotes": 0,
+        "nota": 3,
+        "totalVotes": 614,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 91,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 7,
+          "FAHAD AHMAD": 412,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 101,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 1,
+          "JAYPRAKASH BABULAL AGARWAL": 6
+        },
+        "totalValidVotes": 533,
+        "rejectedVotes": 0,
+        "nota": 6,
+        "totalVotes": 539,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 92,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 62,
+          "FAHAD AHMAD": 239,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 117,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 1,
+          "JAYPRAKASH BABULAL AGARWAL": 8
+        },
+        "totalValidVotes": 429,
+        "rejectedVotes": 0,
+        "nota": 6,
+        "totalVotes": 435,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 93,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 7,
+          "FAHAD AHMAD": 466,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 169,
+          "ALIYA AZAD SANJAR": 6,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 2,
+          "JAYPRAKASH BABULAL AGARWAL": 5
+        },
+        "totalValidVotes": 664,
+        "rejectedVotes": 0,
+        "nota": 3,
+        "totalVotes": 667,
+        "tenderedVotes": 1
+      },
+      {
+        "pollingStation": 94,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 1,
+          "FAHAD AHMAD": 458,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 141,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 2,
+          "JAYPRAKASH BABULAL AGARWAL": 18
+        },
+        "totalValidVotes": 627,
+        "rejectedVotes": 0,
+        "nota": 2,
+        "totalVotes": 629,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 95,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 5,
+          "FAHAD AHMAD": 457,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 154,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 2,
+          "JAYPRAKASH BABULAL AGARWAL": 28
+        },
+        "totalValidVotes": 653,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 658,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 96,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 16,
+          "FAHAD AHMAD": 512,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 159,
+          "ALIYA AZAD SANJAR": 6,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 0,
+          "JAYPRAKASH BABULAL AGARWAL": 17
+        },
+        "totalValidVotes": 719,
+        "rejectedVotes": 0,
+        "nota": 3,
+        "totalVotes": 722,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 97,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 12,
+          "FAHAD AHMAD": 400,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 123,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 2,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 562,
+        "rejectedVotes": 0,
+        "nota": 1,
+        "totalVotes": 563,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 98,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 19,
+          "FAHAD AHMAD": 455,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 120,
+          "ALIYA AZAD SANJAR": 7,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 3,
+          "JAYPRAKASH BABULAL AGARWAL": 19
+        },
+        "totalValidVotes": 629,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 634,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 99,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 11,
+          "FAHAD AHMAD": 425,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 158,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 1,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 617,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 622,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 100,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 12,
+          "FAHAD AHMAD": 419,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 103,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 0,
+          "JAYPRAKASH BABULAL AGARWAL": 12
+        },
+        "totalValidVotes": 551,
+        "rejectedVotes": 0,
+        "nota": 2,
+        "totalVotes": 553,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 101,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 8,
+          "FAHAD AHMAD": 263,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 146,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 1,
+          "JAYPRAKASH BABULAL AGARWAL": 5
+        },
+        "totalValidVotes": 430,
+        "rejectedVotes": 0,
+        "nota": 10,
+        "totalVotes": 440,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 102,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 17,
+          "FAHAD AHMAD": 335,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 201,
+          "ALIYA AZAD SANJAR": 6,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 4,
+          "JAYPRAKASH BABULAL AGARWAL": 12
+        },
+        "totalValidVotes": 582,
+        "rejectedVotes": 0,
+        "nota": 4,
+        "totalVotes": 586,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 103,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 13,
+          "FAHAD AHMAD": 320,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 134,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 9,
+          "JAYPRAKASH BABULAL AGARWAL": 7
+        },
+        "totalValidVotes": 486,
+        "rejectedVotes": 0,
+        "nota": 1,
+        "totalVotes": 487,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 104,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 16,
+          "FAHAD AHMAD": 386,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 168,
+          "ALIYA AZAD SANJAR": 9,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 3,
+          "JAYPRAKASH BABULAL AGARWAL": 13
+        },
+        "totalValidVotes": 600,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 605,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 105,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 6,
+          "FAHAD AHMAD": 283,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 55,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 1,
+          "JAYPRAKASH BABULAL AGARWAL": 4
+        },
+        "totalValidVotes": 354,
+        "rejectedVotes": 0,
+        "nota": 6,
+        "totalVotes": 360,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 106,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 8,
+          "FAHAD AHMAD": 321,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 126,
+          "ALIYA AZAD SANJAR": 13,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 0,
+          "JAYPRAKASH BABULAL AGARWAL": 6
+        },
+        "totalValidVotes": 476,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 483,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 107,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 21,
+          "FAHAD AHMAD": 330,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 148,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 2,
+          "JAYPRAKASH BABULAL AGARWAL": 6
+        },
+        "totalValidVotes": 517,
+        "rejectedVotes": 0,
+        "nota": 3,
+        "totalVotes": 520,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 108,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 22,
+          "FAHAD AHMAD": 360,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 124,
+          "ALIYA AZAD SANJAR": 6,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 0,
+          "JAYPRAKASH BABULAL AGARWAL": 3
+        },
+        "totalValidVotes": 517,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 522,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 109,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 8,
+          "FAHAD AHMAD": 313,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 122,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 1,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 457,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 462,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 110,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 15,
+          "FAHAD AHMAD": 348,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 102,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 1,
+          "JAYPRAKASH BABULAL AGARWAL": 5
+        },
+        "totalValidVotes": 477,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 482,
+        "tenderedVotes": 1
+      },
+      {
+        "pollingStation": 111,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 7,
+          "FAHAD AHMAD": 392,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 120,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 2,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 540,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 545,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 112,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 10,
+          "FAHAD AHMAD": 290,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 90,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 3,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 409,
+        "rejectedVotes": 0,
+        "nota": 3,
+        "totalVotes": 412,
+        "tenderedVotes": 1
+      },
+      {
+        "pollingStation": 113,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 9,
+          "FAHAD AHMAD": 333,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 118,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 2,
+          "JAYPRAKASH BABULAL AGARWAL": 8
+        },
+        "totalValidVotes": 478,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 483,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 114,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 11,
+          "FAHAD AHMAD": 371,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 129,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 2,
+          "JAYPRAKASH BABULAL AGARWAL": 7
+        },
+        "totalValidVotes": 528,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 533,
+        "tenderedVotes": 1
+      },
+      {
+        "pollingStation": 115,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 36,
+          "FAHAD AHMAD": 257,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 226,
+          "ALIYA AZAD SANJAR": 8,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 2,
+          "JAYPRAKASH BABULAL AGARWAL": 6
+        },
+        "totalValidVotes": 539,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 546,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 116,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 14,
+          "FAHAD AHMAD": 412,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 165,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 1,
+          "JAYPRAKASH BABULAL AGARWAL": 16
+        },
+        "totalValidVotes": 617,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 622,
+        "tenderedVotes": 1
+      },
+      {
+        "pollingStation": 117,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 14,
+          "FAHAD AHMAD": 340,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 140,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 5,
+          "JAYPRAKASH BABULAL AGARWAL": 17
+        },
+        "totalValidVotes": 521,
+        "rejectedVotes": 0,
+        "nota": 4,
+        "totalVotes": 525,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 118,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 59,
+          "FAHAD AHMAD": 250,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 171,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 2,
+          "JAYPRAKASH BABULAL AGARWAL": 12
+        },
+        "totalValidVotes": 504,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 511,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 119,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 29,
+          "FAHAD AHMAD": 313,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 136,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 2,
+          "JAYPRAKASH BABULAL AGARWAL": 8
+        },
+        "totalValidVotes": 497,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 502,
+        "tenderedVotes": 1
+      },
+      {
+        "pollingStation": 120,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 33,
+          "FAHAD AHMAD": 282,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 144,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 2,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 478,
+        "rejectedVotes": 0,
+        "nota": 4,
+        "totalVotes": 482,
+        "tenderedVotes": 1
+      },
+      {
+        "pollingStation": 121,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 10,
+          "FAHAD AHMAD": 317,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 114,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 4,
+          "JAYPRAKASH BABULAL AGARWAL": 8
+        },
+        "totalValidVotes": 458,
+        "rejectedVotes": 0,
+        "nota": 4,
+        "totalVotes": 462,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 122,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 14,
+          "FAHAD AHMAD": 451,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 193,
+          "ALIYA AZAD SANJAR": 6,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 6,
+          "JAYPRAKASH BABULAL AGARWAL": 17
+        },
+        "totalValidVotes": 694,
+        "rejectedVotes": 0,
+        "nota": 6,
+        "totalVotes": 700,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 123,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 51,
+          "FAHAD AHMAD": 305,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 234,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 2,
+          "JAYPRAKASH BABULAL AGARWAL": 12
+        },
+        "totalValidVotes": 614,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 621,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 124,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 41,
+          "FAHAD AHMAD": 235,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 200,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 3,
+          "JAYPRAKASH BABULAL AGARWAL": 5
+        },
+        "totalValidVotes": 499,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 506,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 125,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 128,
+          "FAHAD AHMAD": 209,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 389,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 5,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 8,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 761,
+        "rejectedVotes": 0,
+        "nota": 19,
+        "totalVotes": 780,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 126,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 131,
+          "FAHAD AHMAD": 308,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 144,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 11,
+          "JAYPRAKASH BABULAL AGARWAL": 66
+        },
+        "totalValidVotes": 671,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 682,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 127,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 111,
+          "FAHAD AHMAD": 372,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 165,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 5,
+          "SATISH WAMAN RAJGURU": 14,
+          "JAYPRAKASH BABULAL AGARWAL": 37
+        },
+        "totalValidVotes": 713,
+        "rejectedVotes": 0,
+        "nota": 9,
+        "totalVotes": 722,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 128,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 114,
+          "FAHAD AHMAD": 303,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 156,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 3,
+          "JAYPRAKASH BABULAL AGARWAL": 12
+        },
+        "totalValidVotes": 598,
+        "rejectedVotes": 0,
+        "nota": 15,
+        "totalVotes": 613,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 129,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 89,
+          "FAHAD AHMAD": 354,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 127,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 18,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 610,
+        "rejectedVotes": 0,
+        "nota": 10,
+        "totalVotes": 620,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 130,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 143,
+          "FAHAD AHMAD": 239,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 270,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 6,
+          "JAYPRAKASH BABULAL AGARWAL": 13
+        },
+        "totalValidVotes": 686,
+        "rejectedVotes": 0,
+        "nota": 10,
+        "totalVotes": 696,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 131,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 343,
+          "FAHAD AHMAD": 114,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 256,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 6,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 5,
+          "JAYPRAKASH BABULAL AGARWAL": 7
+        },
+        "totalValidVotes": 745,
+        "rejectedVotes": 0,
+        "nota": 17,
+        "totalVotes": 762,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 132,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 298,
+          "FAHAD AHMAD": 88,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 284,
+          "ALIYA AZAD SANJAR": 12,
+          "BALASAHEB JAGANNATH SABLE": 6,
+          "MAHESH APPA SAWANT": 9,
+          "SATISH WAMAN RAJGURU": 6,
+          "JAYPRAKASH BABULAL AGARWAL": 16
+        },
+        "totalValidVotes": 723,
+        "rejectedVotes": 0,
+        "nota": 25,
+        "totalVotes": 748,
+        "tenderedVotes": 3
+      },
+      {
+        "pollingStation": 133,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 330,
+          "FAHAD AHMAD": 68,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 291,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 7,
+          "SATISH WAMAN RAJGURU": 7,
+          "JAYPRAKASH BABULAL AGARWAL": 12
+        },
+        "totalValidVotes": 721,
+        "rejectedVotes": 0,
+        "nota": 20,
+        "totalVotes": 741,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 134,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 147,
+          "FAHAD AHMAD": 93,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 227,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 21,
+          "JAYPRAKASH BABULAL AGARWAL": 3
+        },
+        "totalValidVotes": 497,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 504,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 135,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 183,
+          "FAHAD AHMAD": 116,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 10,
+          "SANA MALIK": 333,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 45,
+          "JAYPRAKASH BABULAL AGARWAL": 27
+        },
+        "totalValidVotes": 723,
+        "rejectedVotes": 0,
+        "nota": 19,
+        "totalVotes": 742,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 136,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 177,
+          "FAHAD AHMAD": 160,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 153,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 44,
+          "JAYPRAKASH BABULAL AGARWAL": 8
+        },
+        "totalValidVotes": 556,
+        "rejectedVotes": 0,
+        "nota": 37,
+        "totalVotes": 593,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 137,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 139,
+          "FAHAD AHMAD": 124,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 119,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 25,
+          "JAYPRAKASH BABULAL AGARWAL": 8
+        },
+        "totalValidVotes": 425,
+        "rejectedVotes": 0,
+        "nota": 33,
+        "totalVotes": 458,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 138,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 139,
+          "FAHAD AHMAD": 119,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 14,
+          "SANA MALIK": 134,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 31,
+          "JAYPRAKASH BABULAL AGARWAL": 7
+        },
+        "totalValidVotes": 449,
+        "rejectedVotes": 0,
+        "nota": 27,
+        "totalVotes": 476,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 139,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 150,
+          "FAHAD AHMAD": 121,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 13,
+          "SANA MALIK": 166,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 39,
+          "JAYPRAKASH BABULAL AGARWAL": 19
+        },
+        "totalValidVotes": 516,
+        "rejectedVotes": 0,
+        "nota": 23,
+        "totalVotes": 539,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 140,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 207,
+          "FAHAD AHMAD": 92,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 136,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 40,
+          "JAYPRAKASH BABULAL AGARWAL": 2
+        },
+        "totalValidVotes": 485,
+        "rejectedVotes": 0,
+        "nota": 32,
+        "totalVotes": 517,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 141,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 169,
+          "FAHAD AHMAD": 125,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 12,
+          "SANA MALIK": 107,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 4,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 20,
+          "JAYPRAKASH BABULAL AGARWAL": 4
+        },
+        "totalValidVotes": 445,
+        "rejectedVotes": 0,
+        "nota": 25,
+        "totalVotes": 470,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 142,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 178,
+          "FAHAD AHMAD": 143,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 13,
+          "SANA MALIK": 133,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 8,
+          "SATISH WAMAN RAJGURU": 26,
+          "JAYPRAKASH BABULAL AGARWAL": 17
+        },
+        "totalValidVotes": 520,
+        "rejectedVotes": 0,
+        "nota": 53,
+        "totalVotes": 573,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 143,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 213,
+          "FAHAD AHMAD": 126,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 124,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 6,
+          "SATISH WAMAN RAJGURU": 35,
+          "JAYPRAKASH BABULAL AGARWAL": 8
+        },
+        "totalValidVotes": 526,
+        "rejectedVotes": 0,
+        "nota": 27,
+        "totalVotes": 553,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 144,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 162,
+          "FAHAD AHMAD": 154,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 9,
+          "SANA MALIK": 118,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 29,
+          "JAYPRAKASH BABULAL AGARWAL": 15
+        },
+        "totalValidVotes": 496,
+        "rejectedVotes": 0,
+        "nota": 29,
+        "totalVotes": 525,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 145,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 161,
+          "FAHAD AHMAD": 135,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 14,
+          "SANA MALIK": 131,
+          "ALIYA AZAD SANJAR": 7,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 33,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 495,
+        "rejectedVotes": 0,
+        "nota": 28,
+        "totalVotes": 523,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 146,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 181,
+          "FAHAD AHMAD": 157,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 13,
+          "SANA MALIK": 165,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 23,
+          "JAYPRAKASH BABULAL AGARWAL": 19
+        },
+        "totalValidVotes": 562,
+        "rejectedVotes": 0,
+        "nota": 33,
+        "totalVotes": 595,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 147,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 168,
+          "FAHAD AHMAD": 179,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 11,
+          "SANA MALIK": 144,
+          "ALIYA AZAD SANJAR": 7,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 24,
+          "JAYPRAKASH BABULAL AGARWAL": 20
+        },
+        "totalValidVotes": 554,
+        "rejectedVotes": 0,
+        "nota": 51,
+        "totalVotes": 605,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 148,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 117,
+          "FAHAD AHMAD": 86,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 124,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 4,
+          "JAYPRAKASH BABULAL AGARWAL": 29
+        },
+        "totalValidVotes": 370,
+        "rejectedVotes": 0,
+        "nota": 28,
+        "totalVotes": 398,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 149,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 111,
+          "FAHAD AHMAD": 119,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 10,
+          "SANA MALIK": 215,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 5,
+          "JAYPRAKASH BABULAL AGARWAL": 7
+        },
+        "totalValidVotes": 473,
+        "rejectedVotes": 0,
+        "nota": 44,
+        "totalVotes": 517,
+        "tenderedVotes": 1
+      },
+      {
+        "pollingStation": 150,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 166,
+          "FAHAD AHMAD": 128,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 10,
+          "SANA MALIK": 139,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 3,
+          "JAYPRAKASH BABULAL AGARWAL": 19
+        },
+        "totalValidVotes": 472,
+        "rejectedVotes": 0,
+        "nota": 29,
+        "totalVotes": 501,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 151,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 127,
+          "FAHAD AHMAD": 81,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 97,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 6,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 330,
+        "rejectedVotes": 0,
+        "nota": 25,
+        "totalVotes": 355,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 152,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 123,
+          "FAHAD AHMAD": 56,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 95,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 4,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 300,
+        "rejectedVotes": 0,
+        "nota": 28,
+        "totalVotes": 328,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 153,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 153,
+          "FAHAD AHMAD": 98,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 130,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 11,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 422,
+        "rejectedVotes": 0,
+        "nota": 46,
+        "totalVotes": 468,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 154,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 145,
+          "FAHAD AHMAD": 107,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 115,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 22,
+          "JAYPRAKASH BABULAL AGARWAL": 8
+        },
+        "totalValidVotes": 414,
+        "rejectedVotes": 0,
+        "nota": 24,
+        "totalVotes": 438,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 155,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 224,
+          "FAHAD AHMAD": 138,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 156,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 5,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 18,
+          "JAYPRAKASH BABULAL AGARWAL": 18
+        },
+        "totalValidVotes": 567,
+        "rejectedVotes": 0,
+        "nota": 50,
+        "totalVotes": 617,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 156,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 131,
+          "FAHAD AHMAD": 115,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 11,
+          "SANA MALIK": 85,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 8,
+          "JAYPRAKASH BABULAL AGARWAL": 4
+        },
+        "totalValidVotes": 360,
+        "rejectedVotes": 0,
+        "nota": 30,
+        "totalVotes": 390,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 157,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 198,
+          "FAHAD AHMAD": 115,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 163,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 6,
+          "JAYPRAKASH BABULAL AGARWAL": 17
+        },
+        "totalValidVotes": 507,
+        "rejectedVotes": 0,
+        "nota": 49,
+        "totalVotes": 556,
+        "tenderedVotes": 1
+      },
+      {
+        "pollingStation": 158,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 126,
+          "FAHAD AHMAD": 88,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 14,
+          "SANA MALIK": 83,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 1,
+          "JAYPRAKASH BABULAL AGARWAL": 17
+        },
+        "totalValidVotes": 333,
+        "rejectedVotes": 0,
+        "nota": 27,
+        "totalVotes": 360,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 159,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 79,
+          "FAHAD AHMAD": 136,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 164,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 7,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 22,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 433,
+        "rejectedVotes": 0,
+        "nota": 26,
+        "totalVotes": 459,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 160,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 180,
+          "FAHAD AHMAD": 127,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 135,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 55,
+          "JAYPRAKASH BABULAL AGARWAL": 15
+        },
+        "totalValidVotes": 530,
+        "rejectedVotes": 0,
+        "nota": 21,
+        "totalVotes": 551,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 161,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 76,
+          "FAHAD AHMAD": 156,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 157,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 39,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 452,
+        "rejectedVotes": 0,
+        "nota": 22,
+        "totalVotes": 474,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 162,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 219,
+          "FAHAD AHMAD": 215,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 140,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 111,
+          "JAYPRAKASH BABULAL AGARWAL": 18
+        },
+        "totalValidVotes": 715,
+        "rejectedVotes": 0,
+        "nota": 13,
+        "totalVotes": 728,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 163,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 175,
+          "FAHAD AHMAD": 284,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 181,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 52,
+          "JAYPRAKASH BABULAL AGARWAL": 13
+        },
+        "totalValidVotes": 717,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 728,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 164,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 72,
+          "FAHAD AHMAD": 139,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 104,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 115,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 453,
+        "rejectedVotes": 0,
+        "nota": 9,
+        "totalVotes": 462,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 165,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 58,
+          "FAHAD AHMAD": 92,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 9,
+          "SANA MALIK": 132,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 185,
+          "JAYPRAKASH BABULAL AGARWAL": 16
+        },
+        "totalValidVotes": 496,
+        "rejectedVotes": 0,
+        "nota": 18,
+        "totalVotes": 514,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 166,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 47,
+          "FAHAD AHMAD": 107,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 105,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 138,
+          "JAYPRAKASH BABULAL AGARWAL": 6
+        },
+        "totalValidVotes": 413,
+        "rejectedVotes": 0,
+        "nota": 13,
+        "totalVotes": 426,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 167,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 46,
+          "FAHAD AHMAD": 91,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 12,
+          "SANA MALIK": 144,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 6,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 148,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 459,
+        "rejectedVotes": 0,
+        "nota": 16,
+        "totalVotes": 475,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 168,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 28,
+          "FAHAD AHMAD": 95,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 12,
+          "SANA MALIK": 85,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 328,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 566,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 571,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 169,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 52,
+          "FAHAD AHMAD": 107,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 152,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 157,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 491,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 498,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 170,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 67,
+          "FAHAD AHMAD": 83,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 11,
+          "SANA MALIK": 85,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 133,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 390,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 401,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 171,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 39,
+          "FAHAD AHMAD": 74,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 107,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 149,
+          "JAYPRAKASH BABULAL AGARWAL": 7
+        },
+        "totalValidVotes": 384,
+        "rejectedVotes": 0,
+        "nota": 3,
+        "totalVotes": 387,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 172,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 53,
+          "FAHAD AHMAD": 117,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 16,
+          "SANA MALIK": 137,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 215,
+          "JAYPRAKASH BABULAL AGARWAL": 15
+        },
+        "totalValidVotes": 562,
+        "rejectedVotes": 0,
+        "nota": 12,
+        "totalVotes": 574,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 173,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 33,
+          "FAHAD AHMAD": 50,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 12,
+          "SANA MALIK": 72,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 120,
+          "JAYPRAKASH BABULAL AGARWAL": 7
+        },
+        "totalValidVotes": 301,
+        "rejectedVotes": 0,
+        "nota": 4,
+        "totalVotes": 305,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 174,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 473,
+          "FAHAD AHMAD": 84,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 96,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 17,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 694,
+        "rejectedVotes": 0,
+        "nota": 16,
+        "totalVotes": 710,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 175,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 384,
+          "FAHAD AHMAD": 109,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 128,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 17,
+          "JAYPRAKASH BABULAL AGARWAL": 8
+        },
+        "totalValidVotes": 659,
+        "rejectedVotes": 0,
+        "nota": 32,
+        "totalVotes": 691,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 176,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 152,
+          "FAHAD AHMAD": 105,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 217,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 118,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 620,
+        "rejectedVotes": 0,
+        "nota": 21,
+        "totalVotes": 641,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 177,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 108,
+          "FAHAD AHMAD": 123,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 154,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 27,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 432,
+        "rejectedVotes": 0,
+        "nota": 36,
+        "totalVotes": 468,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 178,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 122,
+          "FAHAD AHMAD": 116,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 10,
+          "SANA MALIK": 81,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 19,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 364,
+        "rejectedVotes": 0,
+        "nota": 30,
+        "totalVotes": 394,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 179,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 129,
+          "FAHAD AHMAD": 99,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 118,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 25,
+          "JAYPRAKASH BABULAL AGARWAL": 3
+        },
+        "totalValidVotes": 379,
+        "rejectedVotes": 0,
+        "nota": 39,
+        "totalVotes": 418,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 180,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 104,
+          "FAHAD AHMAD": 107,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 10,
+          "SANA MALIK": 69,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 26,
+          "JAYPRAKASH BABULAL AGARWAL": 6
+        },
+        "totalValidVotes": 327,
+        "rejectedVotes": 0,
+        "nota": 17,
+        "totalVotes": 344,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 181,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 175,
+          "FAHAD AHMAD": 72,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 137,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 4,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 418,
+        "rejectedVotes": 0,
+        "nota": 29,
+        "totalVotes": 447,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 182,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 132,
+          "FAHAD AHMAD": 89,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 132,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 12,
+          "JAYPRAKASH BABULAL AGARWAL": 6
+        },
+        "totalValidVotes": 380,
+        "rejectedVotes": 0,
+        "nota": 25,
+        "totalVotes": 405,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 183,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 54,
+          "FAHAD AHMAD": 127,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 14,
+          "SANA MALIK": 183,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 214,
+          "JAYPRAKASH BABULAL AGARWAL": 15
+        },
+        "totalValidVotes": 617,
+        "rejectedVotes": 0,
+        "nota": 14,
+        "totalVotes": 631,
+        "tenderedVotes": 1
+      },
+      {
+        "pollingStation": 184,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 30,
+          "FAHAD AHMAD": 69,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 11,
+          "SANA MALIK": 105,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 154,
+          "JAYPRAKASH BABULAL AGARWAL": 12
+        },
+        "totalValidVotes": 391,
+        "rejectedVotes": 0,
+        "nota": 5,
+        "totalVotes": 396,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 185,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 42,
+          "FAHAD AHMAD": 116,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 139,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 6,
+          "SATISH WAMAN RAJGURU": 101,
+          "JAYPRAKASH BABULAL AGARWAL": 13
+        },
+        "totalValidVotes": 432,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 443,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 186,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 51,
+          "FAHAD AHMAD": 106,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 14,
+          "SANA MALIK": 118,
+          "ALIYA AZAD SANJAR": 7,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 87,
+          "JAYPRAKASH BABULAL AGARWAL": 12
+        },
+        "totalValidVotes": 397,
+        "rejectedVotes": 0,
+        "nota": 9,
+        "totalVotes": 406,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 187,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 100,
+          "FAHAD AHMAD": 106,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 205,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 25,
+          "JAYPRAKASH BABULAL AGARWAL": 24
+        },
+        "totalValidVotes": 469,
+        "rejectedVotes": 0,
+        "nota": 13,
+        "totalVotes": 482,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 188,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 165,
+          "FAHAD AHMAD": 146,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 226,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 16,
+          "JAYPRAKASH BABULAL AGARWAL": 23
+        },
+        "totalValidVotes": 585,
+        "rejectedVotes": 0,
+        "nota": 13,
+        "totalVotes": 598,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 189,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 189,
+          "FAHAD AHMAD": 135,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 0,
+          "SANA MALIK": 93,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 6,
+          "JAYPRAKASH BABULAL AGARWAL": 8
+        },
+        "totalValidVotes": 435,
+        "rejectedVotes": 0,
+        "nota": 8,
+        "totalVotes": 443,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 190,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 149,
+          "FAHAD AHMAD": 145,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 11,
+          "SANA MALIK": 291,
+          "ALIYA AZAD SANJAR": 7,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 19,
+          "JAYPRAKASH BABULAL AGARWAL": 20
+        },
+        "totalValidVotes": 648,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 655,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 191,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 113,
+          "FAHAD AHMAD": 107,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 147,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 6,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 396,
+        "rejectedVotes": 0,
+        "nota": 31,
+        "totalVotes": 427,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 192,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 60,
+          "FAHAD AHMAD": 58,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 99,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 5,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 242,
+        "rejectedVotes": 0,
+        "nota": 13,
+        "totalVotes": 255,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 193,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 84,
+          "FAHAD AHMAD": 159,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 3,
+          "SANA MALIK": 156,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 7,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 424,
+        "rejectedVotes": 0,
+        "nota": 4,
+        "totalVotes": 428,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 194,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 60,
+          "FAHAD AHMAD": 152,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 159,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 16,
+          "JAYPRAKASH BABULAL AGARWAL": 3
+        },
+        "totalValidVotes": 395,
+        "rejectedVotes": 0,
+        "nota": 12,
+        "totalVotes": 407,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 195,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 129,
+          "FAHAD AHMAD": 128,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 15,
+          "SANA MALIK": 281,
+          "ALIYA AZAD SANJAR": 10,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 6,
+          "SATISH WAMAN RAJGURU": 43,
+          "JAYPRAKASH BABULAL AGARWAL": 34
+        },
+        "totalValidVotes": 647,
+        "rejectedVotes": 0,
+        "nota": 24,
+        "totalVotes": 671,
+        "tenderedVotes": 1
+      },
+      {
+        "pollingStation": 196,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 113,
+          "FAHAD AHMAD": 109,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 11,
+          "SANA MALIK": 344,
+          "ALIYA AZAD SANJAR": 7,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 8,
+          "SATISH WAMAN RAJGURU": 11,
+          "JAYPRAKASH BABULAL AGARWAL": 24
+        },
+        "totalValidVotes": 630,
+        "rejectedVotes": 0,
+        "nota": 9,
+        "totalVotes": 639,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 197,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 115,
+          "FAHAD AHMAD": 110,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 202,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 53,
+          "JAYPRAKASH BABULAL AGARWAL": 21
+        },
+        "totalValidVotes": 514,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 525,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 198,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 61,
+          "FAHAD AHMAD": 69,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 214,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 6,
+          "SATISH WAMAN RAJGURU": 146,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 522,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 529,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 199,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 60,
+          "FAHAD AHMAD": 87,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 311,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 160,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 643,
+        "rejectedVotes": 0,
+        "nota": 16,
+        "totalVotes": 659,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 200,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 80,
+          "FAHAD AHMAD": 68,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 10,
+          "SANA MALIK": 194,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 160,
+          "JAYPRAKASH BABULAL AGARWAL": 13
+        },
+        "totalValidVotes": 533,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 544,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 201,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 101,
+          "FAHAD AHMAD": 96,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 16,
+          "SANA MALIK": 270,
+          "ALIYA AZAD SANJAR": 8,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 230,
+          "JAYPRAKASH BABULAL AGARWAL": 29
+        },
+        "totalValidVotes": 756,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 767,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 202,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 55,
+          "FAHAD AHMAD": 75,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 9,
+          "SANA MALIK": 207,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 167,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 532,
+        "rejectedVotes": 0,
+        "nota": 9,
+        "totalVotes": 541,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 203,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 82,
+          "FAHAD AHMAD": 92,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 19,
+          "SANA MALIK": 269,
+          "ALIYA AZAD SANJAR": 12,
+          "BALASAHEB JAGANNATH SABLE": 4,
+          "MAHESH APPA SAWANT": 5,
+          "SATISH WAMAN RAJGURU": 198,
+          "JAYPRAKASH BABULAL AGARWAL": 27
+        },
+        "totalValidVotes": 708,
+        "rejectedVotes": 0,
+        "nota": 13,
+        "totalVotes": 721,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 204,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 89,
+          "FAHAD AHMAD": 80,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 256,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 6,
+          "SATISH WAMAN RAJGURU": 110,
+          "JAYPRAKASH BABULAL AGARWAL": 31
+        },
+        "totalValidVotes": 584,
+        "rejectedVotes": 0,
+        "nota": 17,
+        "totalVotes": 601,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 205,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 91,
+          "FAHAD AHMAD": 87,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 247,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 95,
+          "JAYPRAKASH BABULAL AGARWAL": 22
+        },
+        "totalValidVotes": 557,
+        "rejectedVotes": 0,
+        "nota": 12,
+        "totalVotes": 569,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 206,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 54,
+          "FAHAD AHMAD": 82,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 155,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 40,
+          "JAYPRAKASH BABULAL AGARWAL": 19
+        },
+        "totalValidVotes": 358,
+        "rejectedVotes": 0,
+        "nota": 8,
+        "totalVotes": 366,
+        "tenderedVotes": 1
+      },
+      {
+        "pollingStation": 207,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 92,
+          "FAHAD AHMAD": 86,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 20,
+          "SANA MALIK": 223,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 78,
+          "JAYPRAKASH BABULAL AGARWAL": 27
+        },
+        "totalValidVotes": 532,
+        "rejectedVotes": 0,
+        "nota": 13,
+        "totalVotes": 545,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 208,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 85,
+          "FAHAD AHMAD": 89,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 17,
+          "SANA MALIK": 246,
+          "ALIYA AZAD SANJAR": 9,
+          "BALASAHEB JAGANNATH SABLE": 4,
+          "MAHESH APPA SAWANT": 6,
+          "SATISH WAMAN RAJGURU": 136,
+          "JAYPRAKASH BABULAL AGARWAL": 22
+        },
+        "totalValidVotes": 614,
+        "rejectedVotes": 0,
+        "nota": 17,
+        "totalVotes": 631,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 209,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 51,
+          "FAHAD AHMAD": 57,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 140,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 37,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 314,
+        "rejectedVotes": 0,
+        "nota": 2,
+        "totalVotes": 316,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 210,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 54,
+          "FAHAD AHMAD": 72,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 118,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 62,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 324,
+        "rejectedVotes": 0,
+        "nota": 8,
+        "totalVotes": 332,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 211,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 44,
+          "FAHAD AHMAD": 97,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 9,
+          "SANA MALIK": 157,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 107,
+          "JAYPRAKASH BABULAL AGARWAL": 28
+        },
+        "totalValidVotes": 446,
+        "rejectedVotes": 0,
+        "nota": 9,
+        "totalVotes": 455,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 212,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 38,
+          "FAHAD AHMAD": 94,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 127,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 175,
+          "JAYPRAKASH BABULAL AGARWAL": 66
+        },
+        "totalValidVotes": 512,
+        "rejectedVotes": 0,
+        "nota": 6,
+        "totalVotes": 518,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 213,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 54,
+          "FAHAD AHMAD": 172,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 162,
+          "ALIYA AZAD SANJAR": 7,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 217,
+          "JAYPRAKASH BABULAL AGARWAL": 31
+        },
+        "totalValidVotes": 654,
+        "rejectedVotes": 0,
+        "nota": 13,
+        "totalVotes": 667,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 214,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 55,
+          "FAHAD AHMAD": 110,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 22,
+          "SANA MALIK": 144,
+          "ALIYA AZAD SANJAR": 7,
+          "BALASAHEB JAGANNATH SABLE": 5,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 325,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 681,
+        "rejectedVotes": 0,
+        "nota": 13,
+        "totalVotes": 694,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 215,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 55,
+          "FAHAD AHMAD": 74,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 207,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 154,
+          "JAYPRAKASH BABULAL AGARWAL": 24
+        },
+        "totalValidVotes": 530,
+        "rejectedVotes": 0,
+        "nota": 16,
+        "totalVotes": 546,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 216,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 116,
+          "FAHAD AHMAD": 127,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 13,
+          "SANA MALIK": 244,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 203,
+          "JAYPRAKASH BABULAL AGARWAL": 22
+        },
+        "totalValidVotes": 730,
+        "rejectedVotes": 0,
+        "nota": 15,
+        "totalVotes": 745,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 217,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 139,
+          "FAHAD AHMAD": 131,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 215,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 8,
+          "JAYPRAKASH BABULAL AGARWAL": 18
+        },
+        "totalValidVotes": 526,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 537,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 218,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 155,
+          "FAHAD AHMAD": 105,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 339,
+          "ALIYA AZAD SANJAR": 10,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 44,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 675,
+        "rejectedVotes": 0,
+        "nota": 22,
+        "totalVotes": 697,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 219,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 131,
+          "FAHAD AHMAD": 116,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 202,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 10,
+          "JAYPRAKASH BABULAL AGARWAL": 25
+        },
+        "totalValidVotes": 490,
+        "rejectedVotes": 0,
+        "nota": 18,
+        "totalVotes": 508,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 220,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 71,
+          "FAHAD AHMAD": 149,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 256,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 24,
+          "JAYPRAKASH BABULAL AGARWAL": 44
+        },
+        "totalValidVotes": 556,
+        "rejectedVotes": 0,
+        "nota": 3,
+        "totalVotes": 559,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 221,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 89,
+          "FAHAD AHMAD": 148,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 208,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 33,
+          "JAYPRAKASH BABULAL AGARWAL": 90
+        },
+        "totalValidVotes": 579,
+        "rejectedVotes": 0,
+        "nota": 25,
+        "totalVotes": 604,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 222,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 136,
+          "FAHAD AHMAD": 141,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 19,
+          "SANA MALIK": 227,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 13,
+          "JAYPRAKASH BABULAL AGARWAL": 31
+        },
+        "totalValidVotes": 576,
+        "rejectedVotes": 0,
+        "nota": 13,
+        "totalVotes": 589,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 223,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 161,
+          "FAHAD AHMAD": 52,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 150,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 12,
+          "JAYPRAKASH BABULAL AGARWAL": 11
+        },
+        "totalValidVotes": 397,
+        "rejectedVotes": 0,
+        "nota": 8,
+        "totalVotes": 405,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 224,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 198,
+          "FAHAD AHMAD": 147,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 12,
+          "SANA MALIK": 186,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 8,
+          "JAYPRAKASH BABULAL AGARWAL": 22
+        },
+        "totalValidVotes": 582,
+        "rejectedVotes": 0,
+        "nota": 14,
+        "totalVotes": 596,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 225,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 210,
+          "FAHAD AHMAD": 111,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 10,
+          "SANA MALIK": 219,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 5,
+          "MAHESH APPA SAWANT": 4,
+          "SATISH WAMAN RAJGURU": 20,
+          "JAYPRAKASH BABULAL AGARWAL": 26
+        },
+        "totalValidVotes": 609,
+        "rejectedVotes": 0,
+        "nota": 18,
+        "totalVotes": 627,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 226,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 105,
+          "FAHAD AHMAD": 128,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 10,
+          "SANA MALIK": 216,
+          "ALIYA AZAD SANJAR": 6,
+          "BALASAHEB JAGANNATH SABLE": 5,
+          "MAHESH APPA SAWANT": 5,
+          "SATISH WAMAN RAJGURU": 197,
+          "JAYPRAKASH BABULAL AGARWAL": 16
+        },
+        "totalValidVotes": 688,
+        "rejectedVotes": 0,
+        "nota": 12,
+        "totalVotes": 700,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 227,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 96,
+          "FAHAD AHMAD": 137,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 15,
+          "SANA MALIK": 265,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 4,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 22,
+          "JAYPRAKASH BABULAL AGARWAL": 40
+        },
+        "totalValidVotes": 586,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 597,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 228,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 74,
+          "FAHAD AHMAD": 77,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 12,
+          "SANA MALIK": 133,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 0,
+          "SATISH WAMAN RAJGURU": 19,
+          "JAYPRAKASH BABULAL AGARWAL": 9
+        },
+        "totalValidVotes": 328,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 335,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 229,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 95,
+          "FAHAD AHMAD": 62,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 273,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 14,
+          "JAYPRAKASH BABULAL AGARWAL": 10
+        },
+        "totalValidVotes": 467,
+        "rejectedVotes": 0,
+        "nota": 23,
+        "totalVotes": 490,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 230,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 104,
+          "FAHAD AHMAD": 220,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 9,
+          "SANA MALIK": 241,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 79,
+          "JAYPRAKASH BABULAL AGARWAL": 22
+        },
+        "totalValidVotes": 681,
+        "rejectedVotes": 0,
+        "nota": 20,
+        "totalVotes": 701,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 231,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 141,
+          "FAHAD AHMAD": 250,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 9,
+          "SANA MALIK": 293,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 87,
+          "JAYPRAKASH BABULAL AGARWAL": 35
+        },
+        "totalValidVotes": 823,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 834,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 232,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 45,
+          "FAHAD AHMAD": 125,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 11,
+          "SANA MALIK": 244,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 12,
+          "JAYPRAKASH BABULAL AGARWAL": 19
+        },
+        "totalValidVotes": 459,
+        "rejectedVotes": 0,
+        "nota": 9,
+        "totalVotes": 468,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 233,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 99,
+          "FAHAD AHMAD": 92,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 70,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 83,
+          "JAYPRAKASH BABULAL AGARWAL": 14
+        },
+        "totalValidVotes": 368,
+        "rejectedVotes": 0,
+        "nota": 25,
+        "totalVotes": 393,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 234,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 272,
+          "FAHAD AHMAD": 128,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 270,
+          "ALIYA AZAD SANJAR": 7,
+          "BALASAHEB JAGANNATH SABLE": 4,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 12,
+          "JAYPRAKASH BABULAL AGARWAL": 24
+        },
+        "totalValidVotes": 727,
+        "rejectedVotes": 0,
+        "nota": 17,
+        "totalVotes": 744,
+        "tenderedVotes": 1
+      },
+      {
+        "pollingStation": 235,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 242,
+          "FAHAD AHMAD": 110,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 275,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 20,
+          "JAYPRAKASH BABULAL AGARWAL": 20
+        },
+        "totalValidVotes": 681,
+        "rejectedVotes": 0,
+        "nota": 18,
+        "totalVotes": 699,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 236,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 157,
+          "FAHAD AHMAD": 107,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 306,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 5,
+          "SATISH WAMAN RAJGURU": 17,
+          "JAYPRAKASH BABULAL AGARWAL": 24
+        },
+        "totalValidVotes": 630,
+        "rejectedVotes": 0,
+        "nota": 18,
+        "totalVotes": 648,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 237,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 128,
+          "FAHAD AHMAD": 150,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 12,
+          "SANA MALIK": 260,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 21,
+          "JAYPRAKASH BABULAL AGARWAL": 33
+        },
+        "totalValidVotes": 612,
+        "rejectedVotes": 0,
+        "nota": 9,
+        "totalVotes": 621,
+        "tenderedVotes": 1
+      },
+      {
+        "pollingStation": 238,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 128,
+          "FAHAD AHMAD": 126,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 186,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 60,
+          "JAYPRAKASH BABULAL AGARWAL": 28
+        },
+        "totalValidVotes": 539,
+        "rejectedVotes": 0,
+        "nota": 16,
+        "totalVotes": 555,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 239,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 143,
+          "FAHAD AHMAD": 126,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 132,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 24,
+          "JAYPRAKASH BABULAL AGARWAL": 17
+        },
+        "totalValidVotes": 454,
+        "rejectedVotes": 0,
+        "nota": 14,
+        "totalVotes": 468,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 240,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 52,
+          "FAHAD AHMAD": 63,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 190,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 5,
+          "SATISH WAMAN RAJGURU": 52,
+          "JAYPRAKASH BABULAL AGARWAL": 33
+        },
+        "totalValidVotes": 406,
+        "rejectedVotes": 0,
+        "nota": 15,
+        "totalVotes": 421,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 241,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 99,
+          "FAHAD AHMAD": 97,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 11,
+          "SANA MALIK": 232,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 34,
+          "JAYPRAKASH BABULAL AGARWAL": 26
+        },
+        "totalValidVotes": 506,
+        "rejectedVotes": 0,
+        "nota": 17,
+        "totalVotes": 523,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 242,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 97,
+          "FAHAD AHMAD": 124,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 8,
+          "SANA MALIK": 270,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 47,
+          "JAYPRAKASH BABULAL AGARWAL": 34
+        },
+        "totalValidVotes": 585,
+        "rejectedVotes": 0,
+        "nota": 13,
+        "totalVotes": 598,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 243,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 69,
+          "FAHAD AHMAD": 91,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 141,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 53,
+          "JAYPRAKASH BABULAL AGARWAL": 24
+        },
+        "totalValidVotes": 387,
+        "rejectedVotes": 0,
+        "nota": 7,
+        "totalVotes": 394,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 244,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 39,
+          "FAHAD AHMAD": 73,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 197,
+          "ALIYA AZAD SANJAR": 6,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 32,
+          "JAYPRAKASH BABULAL AGARWAL": 21
+        },
+        "totalValidVotes": 376,
+        "rejectedVotes": 0,
+        "nota": 15,
+        "totalVotes": 391,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 245,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 114,
+          "FAHAD AHMAD": 85,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 1,
+          "SANA MALIK": 205,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 5,
+          "SATISH WAMAN RAJGURU": 80,
+          "JAYPRAKASH BABULAL AGARWAL": 23
+        },
+        "totalValidVotes": 518,
+        "rejectedVotes": 0,
+        "nota": 10,
+        "totalVotes": 528,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 246,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 110,
+          "FAHAD AHMAD": 126,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 11,
+          "SANA MALIK": 251,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 6,
+          "SATISH WAMAN RAJGURU": 53,
+          "JAYPRAKASH BABULAL AGARWAL": 17
+        },
+        "totalValidVotes": 580,
+        "rejectedVotes": 0,
+        "nota": 10,
+        "totalVotes": 590,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 247,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 136,
+          "FAHAD AHMAD": 106,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 232,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 91,
+          "JAYPRAKASH BABULAL AGARWAL": 30
+        },
+        "totalValidVotes": 610,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 621,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 248,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 124,
+          "FAHAD AHMAD": 155,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 292,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 94,
+          "JAYPRAKASH BABULAL AGARWAL": 32
+        },
+        "totalValidVotes": 709,
+        "rejectedVotes": 0,
+        "nota": 16,
+        "totalVotes": 725,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 249,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 92,
+          "FAHAD AHMAD": 121,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 4,
+          "SANA MALIK": 235,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 3,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 62,
+          "JAYPRAKASH BABULAL AGARWAL": 31
+        },
+        "totalValidVotes": 553,
+        "rejectedVotes": 0,
+        "nota": 18,
+        "totalVotes": 571,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 250,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 112,
+          "FAHAD AHMAD": 118,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 256,
+          "ALIYA AZAD SANJAR": 4,
+          "BALASAHEB JAGANNATH SABLE": 4,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 70,
+          "JAYPRAKASH BABULAL AGARWAL": 29
+        },
+        "totalValidVotes": 601,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 612,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 251,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 156,
+          "FAHAD AHMAD": 104,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 9,
+          "SANA MALIK": 209,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 15,
+          "JAYPRAKASH BABULAL AGARWAL": 17
+        },
+        "totalValidVotes": 519,
+        "rejectedVotes": 0,
+        "nota": 19,
+        "totalVotes": 538,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 252,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 186,
+          "FAHAD AHMAD": 74,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 10,
+          "SANA MALIK": 337,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 0,
+          "MAHESH APPA SAWANT": 3,
+          "SATISH WAMAN RAJGURU": 18,
+          "JAYPRAKASH BABULAL AGARWAL": 16
+        },
+        "totalValidVotes": 649,
+        "rejectedVotes": 0,
+        "nota": 21,
+        "totalVotes": 670,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 253,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 112,
+          "FAHAD AHMAD": 98,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 300,
+          "ALIYA AZAD SANJAR": 3,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 31,
+          "SATISH WAMAN RAJGURU": 10,
+          "JAYPRAKASH BABULAL AGARWAL": 20
+        },
+        "totalValidVotes": 581,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 592,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 254,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 29,
+          "FAHAD AHMAD": 194,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 385,
+          "ALIYA AZAD SANJAR": 6,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 9,
+          "SATISH WAMAN RAJGURU": 38,
+          "JAYPRAKASH BABULAL AGARWAL": 16
+        },
+        "totalValidVotes": 686,
+        "rejectedVotes": 0,
+        "nota": 6,
+        "totalVotes": 692,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 255,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 91,
+          "FAHAD AHMAD": 88,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 11,
+          "SANA MALIK": 288,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 34,
+          "SATISH WAMAN RAJGURU": 13,
+          "JAYPRAKASH BABULAL AGARWAL": 17
+        },
+        "totalValidVotes": 546,
+        "rejectedVotes": 0,
+        "nota": 10,
+        "totalVotes": 556,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 256,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 109,
+          "FAHAD AHMAD": 69,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 13,
+          "SANA MALIK": 353,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 16,
+          "SATISH WAMAN RAJGURU": 10,
+          "JAYPRAKASH BABULAL AGARWAL": 12
+        },
+        "totalValidVotes": 588,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 599,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 257,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 100,
+          "FAHAD AHMAD": 38,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 11,
+          "SANA MALIK": 236,
+          "ALIYA AZAD SANJAR": 6,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 24,
+          "SATISH WAMAN RAJGURU": 8,
+          "JAYPRAKASH BABULAL AGARWAL": 20
+        },
+        "totalValidVotes": 445,
+        "rejectedVotes": 0,
+        "nota": 11,
+        "totalVotes": 456,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 258,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 102,
+          "FAHAD AHMAD": 60,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 6,
+          "SANA MALIK": 264,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 1,
+          "MAHESH APPA SAWANT": 16,
+          "SATISH WAMAN RAJGURU": 5,
+          "JAYPRAKASH BABULAL AGARWAL": 21
+        },
+        "totalValidVotes": 476,
+        "rejectedVotes": 0,
+        "nota": 9,
+        "totalVotes": 485,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 259,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 169,
+          "FAHAD AHMAD": 153,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 5,
+          "SANA MALIK": 265,
+          "ALIYA AZAD SANJAR": 1,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 14,
+          "JAYPRAKASH BABULAL AGARWAL": 15
+        },
+        "totalValidVotes": 626,
+        "rejectedVotes": 0,
+        "nota": 20,
+        "totalVotes": 646,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 260,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 241,
+          "FAHAD AHMAD": 114,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 9,
+          "SANA MALIK": 312,
+          "ALIYA AZAD SANJAR": 2,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 2,
+          "SATISH WAMAN RAJGURU": 7,
+          "JAYPRAKASH BABULAL AGARWAL": 4
+        },
+        "totalValidVotes": 693,
+        "rejectedVotes": 0,
+        "nota": 6,
+        "totalVotes": 699,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 261,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 212,
+          "FAHAD AHMAD": 189,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 7,
+          "SANA MALIK": 266,
+          "ALIYA AZAD SANJAR": 0,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 3,
+          "JAYPRAKASH BABULAL AGARWAL": 21
+        },
+        "totalValidVotes": 701,
+        "rejectedVotes": 0,
+        "nota": 31,
+        "totalVotes": 732,
+        "tenderedVotes": 0
+      },
+      {
+        "pollingStation": 262,
+        "votes": {
+          "ADV. ACHARYA NAVIN VIDYADHAR": 111,
+          "FAHAD AHMAD": 175,
+          "MAHENDRA TULSHIRAM BHINGARDIVE": 2,
+          "SANA MALIK": 280,
+          "ALIYA AZAD SANJAR": 5,
+          "BALASAHEB JAGANNATH SABLE": 2,
+          "MAHESH APPA SAWANT": 1,
+          "SATISH WAMAN RAJGURU": 41,
+          "JAYPRAKASH BABULAL AGARWAL": 16
+        },
+        "totalValidVotes": 633,
+        "rejectedVotes": 0,
+        "nota": 16,
+        "totalVotes": 649,
+        "tenderedVotes": 0
+      }
+    ]
+  },
+  "verification": {
+    "allPollingStationRowsSumToPdfEvmTotals": true,
+    "pdfSummaryArithmeticConsistent": true,
+    "rowIntegrityErrors": [],
+    "stationsParsed": 262
+  }
+}
