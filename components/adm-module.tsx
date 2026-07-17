@@ -23,7 +23,12 @@ import {
 } from '@/lib/adm/url-params';
 import { AdmProfileBanner } from './adm/adm-profile-banner';
 import { AdmFundsList } from './adm/adm-funds-list';
-import type { AdmProjectOption } from './adm/adm-fund-record-card';
+import type {
+  AdmAllocationUpdateValues,
+  AdmProjectOption,
+  AdmWorkFormValues,
+} from './adm/adm-fund-record-card';
+import type { AdmAmountUnit } from '@/lib/adm/amount-unit';
 
 export function AdmModule() {
   const router = useRouter();
@@ -213,12 +218,12 @@ export function AdmModule() {
   const handleAddAllocation = async (
     fundRecordId: string,
     projectId: string,
-    allocatedBudget: number,
+    values: AdmAllocationUpdateValues,
   ) => {
     const response = await fetch('/api/adm/allocations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fundRecordId, projectId, allocatedBudget }),
+      body: JSON.stringify({ fundRecordId, projectId, ...values }),
     });
     if (!response.ok) {
       const data = await response.json();
@@ -230,11 +235,7 @@ export function AdmModule() {
 
   const handleCreateProject = async (
     fundRecordId: string,
-    values: {
-      name: string;
-      department?: string;
-      allocatedBudget: number;
-    },
+    values: AdmWorkFormValues,
   ) => {
     const response = await fetch('/api/adm/projects', {
       method: 'POST',
@@ -242,9 +243,17 @@ export function AdmModule() {
       body: JSON.stringify({
         name: values.name,
         department: values.department,
+        taluka: values.taluka,
+        village: values.village,
         status: 'Concept',
         fundRecordId,
         allocatedBudget: values.allocatedBudget,
+        workCode: values.workCode,
+        mlaRecommendationRef: values.mlaRecommendationRef,
+        technicalSanctionRef: values.technicalSanctionRef,
+        technicalSanctionDate: values.technicalSanctionDate,
+        technicalSanctionAmount: values.technicalSanctionAmount,
+        governmentFixedAmount: values.governmentFixedAmount,
       }),
     });
     if (!response.ok) {
@@ -257,12 +266,12 @@ export function AdmModule() {
 
   const handleUpdateAllocation = async (
     id: string,
-    allocatedBudget: number,
+    values: AdmAllocationUpdateValues,
   ) => {
     const response = await fetch(`/api/adm/allocations/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ allocatedBudget }),
+      body: JSON.stringify(values),
     });
     if (!response.ok) {
       const data = await response.json();
@@ -293,23 +302,45 @@ export function AdmModule() {
     }
   };
 
-  const handleUploadDocument = async (
+  const handleLinkDocument = async (
     fundRecordId: string,
-    file: File,
-    kind: string,
+    values: { registerEntryId: string; amountUnit: AdmAmountUnit },
   ) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('kind', kind);
     const response = await fetch(`/api/adm/funds/${fundRecordId}/documents`, {
       method: 'POST',
-      body: formData,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        registerEntryId: values.registerEntryId,
+        amountUnit: values.amountUnit,
+        kind: 'sanction_order',
+      }),
     });
     if (!response.ok) {
       const data = await response.json();
-      throw new Error(data.error || 'Failed to upload');
+      throw new Error(data.error || 'Failed to link document');
     }
-    toast.success(t('adm.documentUploadedSuccess'));
+    toast.success(t('adm.documentLinkedSuccess'));
+    await loadDashboard();
+  };
+
+  const handleUpdateDocument = async (
+    fundRecordId: string,
+    documentId: string,
+    values: { amountUnit: AdmAmountUnit },
+  ) => {
+    const response = await fetch(`/api/adm/funds/${fundRecordId}/documents`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        documentId,
+        amountUnit: values.amountUnit,
+      }),
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to update document');
+    }
+    toast.success(t('adm.documentUpdatedSuccess'));
     await loadDashboard();
   };
 
@@ -369,7 +400,8 @@ export function AdmModule() {
         onCreateProject={handleCreateProject}
         onUpdateAllocation={handleUpdateAllocation}
         onDeleteAllocation={(a) => setDeleteAllocation(a)}
-        onUploadDocument={handleUploadDocument}
+        onLinkDocument={handleLinkDocument}
+        onUpdateDocument={handleUpdateDocument}
         onDeleteDocument={(fundRecordId, document) =>
           setDeleteDocument({ fundRecordId, document })
         }

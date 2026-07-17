@@ -35,8 +35,11 @@ import { getAdmFundElementId } from '@/lib/adm/url-params';
 import { AdmCroreAmountInput } from './adm-crore-amount-input';
 import {
   AdmFundRecordCard,
+  type AdmAllocationUpdateValues,
   type AdmProjectOption,
+  type AdmWorkFormValues,
 } from './adm-fund-record-card';
+import type { AdmAmountUnit } from '@/lib/adm/amount-unit';
 
 interface AdmFundsListProps {
   categories: AdmFundingCategory[];
@@ -57,22 +60,25 @@ interface AdmFundsListProps {
   onAddAllocation: (
     fundRecordId: string,
     projectId: string,
-    allocatedBudget: number,
+    values: AdmAllocationUpdateValues,
   ) => Promise<void>;
   onCreateProject: (
     fundRecordId: string,
-    values: {
-      name: string;
-      department?: string;
-      allocatedBudget: number;
-    },
+    values: AdmWorkFormValues,
   ) => Promise<void>;
-  onUpdateAllocation: (id: string, allocatedBudget: number) => Promise<void>;
+  onUpdateAllocation: (
+    id: string,
+    values: AdmAllocationUpdateValues,
+  ) => Promise<void>;
   onDeleteAllocation: (allocation: AdmFundAllocationWithProject) => void;
-  onUploadDocument: (
+  onLinkDocument: (
     fundRecordId: string,
-    file: File,
-    kind: string,
+    values: { registerEntryId: string; amountUnit: AdmAmountUnit },
+  ) => Promise<void>;
+  onUpdateDocument: (
+    fundRecordId: string,
+    documentId: string,
+    values: { amountUnit: AdmAmountUnit },
   ) => Promise<void>;
   onDeleteDocument: (fundRecordId: string, document: AdmDocument) => void;
 }
@@ -91,7 +97,10 @@ function filterFunds(
       f.allocations.some(
         (a) =>
           a.projectName.toLowerCase().includes(q) ||
-          (a.projectDepartment?.toLowerCase().includes(q) ?? false),
+          (a.projectDepartment?.toLowerCase().includes(q) ?? false) ||
+          (a.workCode?.toLowerCase().includes(q) ?? false) ||
+          (a.projectTaluka?.toLowerCase().includes(q) ?? false) ||
+          (a.projectVillage?.toLowerCase().includes(q) ?? false),
       ),
   );
 }
@@ -108,7 +117,8 @@ export function AdmFundsList({
   onCreateProject,
   onUpdateAllocation,
   onDeleteAllocation,
-  onUploadDocument,
+  onLinkDocument,
+  onUpdateDocument,
   onDeleteDocument,
 }: AdmFundsListProps) {
   const { t } = useTranslations();
@@ -221,7 +231,8 @@ export function AdmFundsList({
                 onCreateProject={onCreateProject}
                 onUpdateAllocation={onUpdateAllocation}
                 onDeleteAllocation={onDeleteAllocation}
-                onUploadDocument={onUploadDocument}
+                onLinkDocument={onLinkDocument}
+                onUpdateDocument={onUpdateDocument}
                 onDeleteDocument={onDeleteDocument}
               />
             </div>

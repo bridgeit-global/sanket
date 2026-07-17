@@ -34,6 +34,8 @@ export async function GET() {
         name: p.name,
         ward: p.ward,
         status: p.status,
+        taluka: p.taluka,
+        village: p.village,
       })),
     );
   } catch (error) {
@@ -60,7 +62,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { fundRecordId, allocatedBudget, ...projectFields } = body;
+    const {
+      fundRecordId,
+      allocatedBudget,
+      workCode,
+      sortOrder,
+      mlaRecommendationRef,
+      technicalSanctionRef,
+      technicalSanctionDate,
+      technicalSanctionAmount,
+      governmentFixedAmount,
+      ...projectFields
+    } = body;
 
     const validation = validateForm(projectFormSchema, {
       status: 'Concept',
@@ -95,6 +108,28 @@ export async function POST(request: NextRequest) {
         projectId: project.id,
         allocatedBudget:
           typeof allocatedBudget === 'number' ? allocatedBudget : 0,
+        workCode: typeof workCode === 'string' ? workCode : null,
+        sortOrder: typeof sortOrder === 'number' ? sortOrder : 0,
+        mlaRecommendationRef:
+          typeof mlaRecommendationRef === 'string'
+            ? mlaRecommendationRef
+            : null,
+        technicalSanctionRef:
+          typeof technicalSanctionRef === 'string'
+            ? technicalSanctionRef
+            : null,
+        technicalSanctionDate:
+          typeof technicalSanctionDate === 'string'
+            ? technicalSanctionDate
+            : null,
+        technicalSanctionAmount:
+          typeof technicalSanctionAmount === 'number'
+            ? technicalSanctionAmount
+            : 0,
+        governmentFixedAmount:
+          typeof governmentFixedAmount === 'number'
+            ? governmentFixedAmount
+            : 0,
         createdBy: session.user.id,
       });
     }

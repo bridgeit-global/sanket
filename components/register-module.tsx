@@ -307,6 +307,9 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
       if (filters.projectStatus && filters.projectStatus !== 'all') {
         params.set('projectStatus', filters.projectStatus);
       }
+      if (searchTerm.trim()) {
+        params.set('search', searchTerm.trim());
+      }
 
       const [entriesRes, projectsRes, documentTypesRes] = await Promise.all([
         fetch(`/api/register?${params.toString()}`),

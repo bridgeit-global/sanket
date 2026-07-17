@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { ExternalLink, FileText, Plus, Trash2, Upload, X } from 'lucide-react';
+import { ExternalLink, FileText, Link2, Plus, Trash2, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,6 +18,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslations } from '@/hooks/use-translations';
 import { formatCurrency } from '@/lib/mla-office-utils';
 import { AdmMilestoneRow } from '@/components/adm/adm-milestone-row';
+import { AdmInwardLinkDialog } from '@/components/adm/adm-inward-link-dialog';
+import { toast } from 'sonner';
 import type {
   ProjectAttachment,
   ProjectGroundMedia,
@@ -76,11 +78,16 @@ export function ProjectDetailExtras({
   onRefresh,
 }: ProjectDetailExtrasProps) {
   const { t } = useTranslations();
-  const docInputRef = useRef<HTMLInputElement>(null);
   const beforeInputRef = useRef<HTMLInputElement>(null);
   const afterInputRef = useRef<HTMLInputElement>(null);
   const [docKind, setDocKind] = useState<ProjectDocumentKind>('supporting');
-  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [linkingDoc, setLinkingDoc] = useState(false);
+  const [inwardMode, setInwardMode] = useState<'link' | 'register' | null>(
+    null,
+  );
+  const [versionGroupIdForLink, setVersionGroupIdForLink] = useState<
+    string | undefined
+  >();
   const [uploadingBefore, setUploadingBefore] = useState(false);
   const [uploadingAfter, setUploadingAfter] = useState(false);
 
@@ -109,25 +116,30 @@ export function ProjectDetailExtras({
   }
   const latestDocs = Array.from(latestByGroup.values());
 
-  const uploadDocument = async (file: File, versionGroupId?: string) => {
-    setUploadingDoc(true);
+  const linkDocument = async (
+    registerEntryId: string,
+    versionGroupId?: string,
+  ) => {
+    setLinkingDoc(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('documentKind', docKind);
-      if (versionGroupId) formData.append('versionGroupId', versionGroupId);
       const res = await fetch(`/api/projects/${projectId}/documents`, {
         method: 'POST',
-        body: formData,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          registerEntryId,
+          documentKind: docKind,
+          versionGroupId,
+        }),
       });
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || 'Upload failed');
+        throw new Error(data.error || 'Link failed');
       }
+      toast.success(t('adm.documentLinkedSuccess'));
       await onRefresh();
     } finally {
-      setUploadingDoc(false);
-      if (docInputRef.current) docInputRef.current.value = '';
+      setLinkingDoc(false);
+      setVersionGroupIdForLink(undefined);
     }
   };
 
@@ -395,23 +407,29 @@ export function ProjectDetailExtras({
             </div>
             <Button
               type="button"
+              variant="outline"
               className="min-h-11"
-              disabled={uploadingDoc}
-              onClick={() => docInputRef.current?.click()}
-            >
-              <Upload className="mr-1 h-4 w-4" />
-              {t('projects.uploadDocument')}
-            </Button>
-            <input
-              ref={docInputRef}
-              type="file"
-              className="hidden"
-              accept=".pdf,image/*,.doc,.docx"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (file) await uploadDocument(file);
+              disabled={linkingDoc}
+              onClick={() => {
+                setVersionGroupIdForLink(undefined);
+                setInwardMode('link');
               }}
-            />
+            >
+              <Link2 className="mr-1 h-4 w-4" />
+              {t('adm.linkInward')}
+            </Button>
+            <Button
+              type="button"
+              className="min-h-11"
+              disabled={linkingDoc}
+              onClick={() => {
+                setVersionGroupIdForLink(undefined);
+                setInwardMode('register');
+              }}
+            >
+              <Plus className="mr-1 h-4 w-4" />
+              {t('adm.registerAndLink')}
+            </Button>
           </div>
 
           {latestDocs.length === 0 ? (
@@ -424,6 +442,8 @@ export function ProjectDetailExtras({
                 const versions = documents
                   .filter((d) => d.versionGroupId === doc.versionGroupId)
                   .sort((a, b) => b.version - a.version);
+                const title =
+                  doc.registerSubject || doc.fileName || kindLabel(doc.documentKind);
                 return (
                   <li
                     key={doc.versionGroupId}
@@ -440,13 +460,19 @@ export function ProjectDetailExtras({
                             className="inline-flex items-center gap-1 text-primary hover:underline"
                           >
                             <FileText className="h-3.5 w-3.5" />
-                            {doc.fileName}
+                            {title}
                           </a>
                         ) : (
-                          <span>{doc.fileName}</span>
+                          <span>{title}</span>
                         )}
                         <p className="text-xs text-muted-foreground">
-                          {t('projects.version')} {doc.version}
+                          {[
+                            doc.registerRefNo,
+                            doc.registerDate,
+                            `${t('projects.version')} ${doc.version}`,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
                         </p>
                       </div>
                       <div className="flex gap-1">
@@ -456,16 +482,8 @@ export function ProjectDetailExtras({
                           variant="outline"
                           onClick={() => {
                             setDocKind(doc.documentKind);
-                            const input = document.createElement('input');
-                            input.type = 'file';
-                            input.accept = '.pdf,image/*,.doc,.docx';
-                            input.onchange = async () => {
-                              const file = input.files?.[0];
-                              if (file) {
-                                await uploadDocument(file, doc.versionGroupId);
-                              }
-                            };
-                            input.click();
+                            setVersionGroupIdForLink(doc.versionGroupId);
+                            setInwardMode('link');
                           }}
                         >
                           {t('projects.uploadNewVersion')}
@@ -493,10 +511,10 @@ export function ProjectDetailExtras({
                                 rel="noreferrer"
                                 className="text-primary hover:underline"
                               >
-                                {v.fileName}
+                                {v.registerSubject || v.fileName}
                               </a>
                             ) : (
-                              v.fileName
+                              v.registerSubject || v.fileName
                             )}
                           </li>
                         ))}
@@ -507,6 +525,21 @@ export function ProjectDetailExtras({
               })}
             </ul>
           )}
+
+          <AdmInwardLinkDialog
+            open={inwardMode !== null}
+            onOpenChange={(open) => {
+              if (!open) {
+                setInwardMode(null);
+                setVersionGroupIdForLink(undefined);
+              }
+            }}
+            mode={inwardMode ?? 'link'}
+            showAmountUnit={false}
+            onLinked={async ({ registerEntryId }) => {
+              await linkDocument(registerEntryId, versionGroupIdForLink);
+            }}
+          />
         </CardContent>
       </Card>
     </div>
@@ -516,6 +549,8 @@ export function ProjectDetailExtras({
 export function ProjectRosterFields({
   department,
   category,
+  taluka,
+  village,
   estimatedCost,
   approvalStatus,
   nocRequired,
@@ -525,6 +560,8 @@ export function ProjectRosterFields({
 }: {
   department: string;
   category: string;
+  taluka: string;
+  village: string;
   estimatedCost: number;
   approvalStatus: ProjectApprovalStatus;
   nocRequired: boolean;
@@ -549,6 +586,22 @@ export function ProjectRosterFields({
         <Input
           value={category}
           onChange={(e) => onChange({ category: e.target.value })}
+          className="min-h-11"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>{t('adm.taluka')}</Label>
+        <Input
+          value={taluka}
+          onChange={(e) => onChange({ taluka: e.target.value })}
+          className="min-h-11"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>{t('adm.village')}</Label>
+        <Input
+          value={village}
+          onChange={(e) => onChange({ village: e.target.value })}
           className="min-h-11"
         />
       </div>

@@ -185,6 +185,7 @@ export {
   updateAdmFundAllocation,
   deleteAdmFundAllocation,
   createAdmDocument,
+  updateAdmDocument,
   getAdmDocumentsByFundRecordId,
   getAdmDocumentById,
   deleteAdmDocument,

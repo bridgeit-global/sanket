@@ -6,6 +6,7 @@ import {
   getProjectById,
   getAdmFundRecordById,
   hasModuleAccess,
+  updateProject,
 } from '@/lib/db/queries';
 import { admFundAllocationSchema, validateForm } from '@/lib/validations';
 
@@ -41,10 +42,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
+    const taluka =
+      typeof body.taluka === 'string' ? body.taluka.trim() || null : undefined;
+    const village =
+      typeof body.village === 'string' ? body.village.trim() || null : undefined;
+    if (taluka !== undefined || village !== undefined) {
+      await updateProject(project.id, {
+        ...(taluka !== undefined ? { taluka } : {}),
+        ...(village !== undefined ? { village } : {}),
+      });
+    }
+
     const allocation = await createAdmFundAllocation({
       fundRecordId: validation.data.fundRecordId,
       projectId: validation.data.projectId,
       allocatedBudget: validation.data.allocatedBudget,
+      workCode: validation.data.workCode,
+      sortOrder: validation.data.sortOrder,
+      mlaRecommendationRef: validation.data.mlaRecommendationRef,
+      technicalSanctionRef: validation.data.technicalSanctionRef,
+      technicalSanctionDate: validation.data.technicalSanctionDate,
+      technicalSanctionAmount: validation.data.technicalSanctionAmount,
+      governmentFixedAmount: validation.data.governmentFixedAmount,
       createdBy: session.user.id,
     });
 

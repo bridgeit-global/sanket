@@ -68,6 +68,7 @@ import type {
   AddressMaster,
   DocumentTypeMaster,
   MlaProject,
+  AdmAmountUnit,
   AdmFundingCategory,
   AdmFundRecord,
   AdmFundAllocation,
@@ -3776,6 +3777,8 @@ export async function createProject({
   status,
   department,
   category,
+  taluka,
+  village,
   estimatedCost,
   approvalStatus,
   nocRequired,
@@ -3794,6 +3797,8 @@ export async function createProject({
   status?: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
   department?: string | null;
   category?: string | null;
+  taluka?: string | null;
+  village?: string | null;
   estimatedCost?: number;
   approvalStatus?: MlaProject['approvalStatus'];
   nocRequired?: boolean;
@@ -3818,6 +3823,8 @@ export async function createProject({
           status: status || 'Concept',
           department: department ?? null,
           category: category ?? null,
+          taluka: taluka ?? null,
+          village: village ?? null,
           estimatedCost: estimatedCost ?? 0,
           approvalStatus: approvalStatus ?? 'Pending',
           nocRequired: nocRequired ?? false,
@@ -5629,7 +5636,9 @@ export async function getAdmDocumentById(
       .eq('id', id)
       .maybeSingle();
     throwOnSupabaseError(error, 'Failed to get ADM document');
-    return data ? mapAdmDocumentRow(data) : null;
+    if (!data) return null;
+    const docs = await enrichAdmDocumentsWithRegister([mapAdmDocumentRow(data)]);
+    return docs[0] ?? null;
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to get ADM document');
@@ -5649,6 +5658,68 @@ export async function deleteAdmDocument(id: string): Promise<boolean> {
 
 // ─── Project documents & ground media ────────────────────────────────────────
 
+async function enrichProjectAttachmentsWithRegister(
+  docs: ProjectAttachment[],
+): Promise<ProjectAttachment[]> {
+  const registerIds = [
+    ...new Set(
+      docs
+        .map((d) => d.registerEntryId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  if (registerIds.length === 0) return docs;
+
+  const { data: entries, error: entryError } = await supabase
+    .from(TABLES.registerEntry)
+    .select('*')
+    .in('id', registerIds);
+  throwOnSupabaseError(
+    entryError,
+    'Failed to get register entries for project docs',
+  );
+
+  const { data: attachments, error: attachError } = await supabase
+    .from(TABLES.registerAttachment)
+    .select('*')
+    .in('entry_id', registerIds)
+    .order('created_at', { ascending: true });
+  throwOnSupabaseError(
+    attachError,
+    'Failed to get register attachments for project docs',
+  );
+
+  const entryById = new Map(
+    (entries ?? []).map((row) => {
+      const mapped = mapRegisterEntryRow(row);
+      return [mapped.id, mapped] as const;
+    }),
+  );
+  const firstAttachmentByEntry = new Map<string, RegisterAttachment>();
+  for (const row of attachments ?? []) {
+    const mapped = mapRegisterAttachmentRow(row);
+    if (!firstAttachmentByEntry.has(mapped.entryId)) {
+      firstAttachmentByEntry.set(mapped.entryId, mapped);
+    }
+  }
+
+  return docs.map((doc) => {
+    if (!doc.registerEntryId) return doc;
+    const entry = entryById.get(doc.registerEntryId);
+    const attachment = firstAttachmentByEntry.get(doc.registerEntryId);
+    return {
+      ...doc,
+      registerRefNo: entry?.refNo ?? null,
+      registerSubject: entry?.subject ?? null,
+      registerDate: entry?.date ?? null,
+      registerFromTo: entry?.fromTo ?? null,
+      fileUrl: attachment?.fileUrl ?? doc.fileUrl,
+      fileName: attachment?.fileName ?? doc.fileName,
+      fileSizeKb: attachment?.fileSizeKb ?? doc.fileSizeKb,
+    };
+  });
+}
+
 export async function getProjectAttachments(
   projectId: string,
 ): Promise<ProjectAttachment[]> {
@@ -5659,7 +5730,9 @@ export async function getProjectAttachments(
       .eq('project_id', projectId)
       .order('created_at', { ascending: false });
     throwOnSupabaseError(error, 'Failed to get project attachments');
-    return (data ?? []).map(mapProjectAttachmentRow);
+    return enrichProjectAttachmentsWithRegister(
+      (data ?? []).map(mapProjectAttachmentRow),
+    );
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to get project attachments');
@@ -5668,6 +5741,7 @@ export async function getProjectAttachments(
 
 export async function createProjectAttachment({
   projectId,
+  registerEntryId,
   fileName,
   fileSizeKb,
   fileUrl,
@@ -5677,23 +5751,36 @@ export async function createProjectAttachment({
   uploadedBy,
 }: {
   projectId: string;
-  fileName: string;
-  fileSizeKb: number;
-  fileUrl: string | null;
+  registerEntryId: string;
+  fileName?: string | null;
+  fileSizeKb?: number;
+  fileUrl?: string | null;
   documentKind: ProjectDocumentKind;
   version: number;
   versionGroupId: string;
   uploadedBy: string;
 }): Promise<ProjectAttachment> {
   try {
+    const entry = await getRegisterEntryById(registerEntryId);
+    if (!entry || entry.type !== 'inward') {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Inward register entry is required',
+      );
+    }
+
+    const attachments = await getRegisterAttachments(registerEntryId);
+    const primary = attachments[0] ?? null;
+
     const { data, error } = await supabase
       .from(TABLES.projectAttachment)
       .insert(
         toSnakeCaseKeys({
           projectId,
-          fileName,
-          fileSizeKb,
-          fileUrl,
+          registerEntryId,
+          fileName: primary?.fileName ?? fileName ?? null,
+          fileSizeKb: primary?.fileSizeKb ?? fileSizeKb ?? 0,
+          fileUrl: primary?.fileUrl ?? fileUrl ?? null,
           documentKind,
           version,
           versionGroupId,
@@ -5704,7 +5791,10 @@ export async function createProjectAttachment({
       .select('*')
       .single();
     throwOnSupabaseError(error, 'Failed to create project attachment');
-    return mapProjectAttachmentRow(data);
+    const docs = await enrichProjectAttachmentsWithRegister([
+      mapProjectAttachmentRow(data),
+    ]);
+    return docs[0];
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError(
@@ -5724,7 +5814,11 @@ export async function getProjectAttachmentById(
       .eq('id', id)
       .maybeSingle();
     throwOnSupabaseError(error, 'Failed to get project attachment');
-    return data ? mapProjectAttachmentRow(data) : null;
+    if (!data) return null;
+    const docs = await enrichProjectAttachmentsWithRegister([
+      mapProjectAttachmentRow(data),
+    ]);
+    return docs[0] ?? null;
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to get project attachment');
