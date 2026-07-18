@@ -27,6 +27,7 @@ import type {
   LetterMaster,
   AddressMaster,
   DocumentTypeMaster,
+  LetterAddressTypeLink,
   MlaProject,
   PhoneUpdateHistory,
   ProjectAttachment,
@@ -302,6 +303,18 @@ export function mapDocumentTypeMasterRow(row: Row): DocumentTypeMaster {
     sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),
     updatedBy: toStringOrNull(row.updated_by ?? row.updatedBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapLetterAddressTypeLinkRow(row: Row): LetterAddressTypeLink {
+  return {
+    id: String(row.id),
+    letterType: String(row.letter_type ?? row.letterType),
+    addressField: String(row.address_field ?? row.addressField),
+    addressType: mapAddressType(row.address_type ?? row.addressType),
+    sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),
   };

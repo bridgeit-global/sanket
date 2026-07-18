@@ -100,13 +100,13 @@ export const DEFAULT_SIGNATORY: Record<LetterLocale, string> = {
 };
 
 export const DEFAULT_RATION_OFFICE_ADDRESS: Record<LetterLocale, string> = {
-  mr: 'शिवाजीनगर ४४ ई कार्यालय, शिवाजीनगर, गोवंडी, मुंबई - ४०० ०४३',
-  en: 'Shivajinagar 44-E Office, Shivajinagar, Govandi, Mumbai - 400 043',
+  mr: 'शिवाजी नगर बस डेपो बाजी प्रभु, देशपांडे रोड, गोवंडी, मुंबई, महाराष्ट्र - ४०००४३',
+  en: 'Shivaji Nagar Bus Depot Baji Prabhu, Deshpande Road, Govandi, Mumbai, Maharashtra - 400043',
 };
 
 export const DEFAULT_OFFICE_ADDRESS: Record<LetterLocale, string> = {
-  mr: 'तहसीलदार कार्यालय, कुर्ला, मुंबई',
-  en: 'Tahsildar Office, Kurla, Mumbai',
+  mr: 'तहसीलदार कार्यालय कुर्ला (मुलुंड), पहिला मजला, टोपिवाला कॉलेज इमारत, सरोजिनी नायडू रोड, मुलुंड (पश्चिम), मुंबई, महाराष्ट्र - ४०००८०',
+  en: 'Tahsildar Office Kurla (Mulund), 1st Floor, Topiwala College Building, Sarojini Naidu Road, Mulund (W), Mumbai, Maharashtra - 400080',
 };
 
 export function isLetterType(value: unknown): value is LetterType {

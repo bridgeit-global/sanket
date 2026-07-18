@@ -106,6 +106,11 @@ import {
   type AddressMasterRow,
 } from '@/components/letter-address-field';
 import {
+  resolveAddressTypeForLetterField,
+  type LetterAddressField as LetterAddressFieldKey,
+} from '@/lib/letters/letter-address-fields';
+import type { LetterAddressTypeLinkRow } from '@/components/letter-address-link-manager';
+import {
   AddressTranslationReviewDialog,
   type AddressTranslationReviewResult,
 } from '@/components/address-translation-review-dialog';
@@ -468,12 +473,11 @@ const LETTER_FONT_STACK: Record<LetterLocale, string> = {
   mr: `"Noto Sans Devanagari", "Nirmala UI", system-ui, -apple-system, sans-serif`,
 };
 
-/** Shared typography for preview / print / PDF so all three stay WYSIWYG. */
-const LETTER_PRINT_FONT_SIZE_PX: Record<LetterPaperSize, number> = {
-  a4: 15,
-  a5: 13,
-  b5: 14,
-};
+/**
+ * Shared typography for preview / print / PDF so all three stay WYSIWYG.
+ * Font size is fixed across A4 / A5 / B5 — paper size only changes page geometry.
+ */
+const LETTER_PRINT_FONT_SIZE_PX = 15;
 
 const LETTER_PRINT_LINE_HEIGHT = 1.75;
 
@@ -500,7 +504,6 @@ function createLetterExportElement(
   const host = document.createElement('div');
   const contentHtml = stripLetterheadFromHtml(html);
   const paperSize = options?.paperSize ?? 'a4';
-  const fontSizePx = LETTER_PRINT_FONT_SIZE_PX[paperSize];
   const fontFamily = LETTER_FONT_STACK[options?.letterLocale ?? 'mr'];
 
   // Letterhead is drawn per-page by the PDF exporter — capture text only so
@@ -511,7 +514,7 @@ function createLetterExportElement(
   host.style.boxSizing = 'border-box';
   host.style.width = `${getLetterPaperContentWidthPx(paperSize)}px`;
   host.style.fontFamily = fontFamily;
-  host.style.fontSize = `${fontSizePx}px`;
+  host.style.fontSize = `${LETTER_PRINT_FONT_SIZE_PX}px`;
   host.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
   host.innerHTML = contentHtml;
 
@@ -521,8 +524,8 @@ function createLetterExportElement(
     // Collapse template source whitespace (newlines/indent). Line breaks come
     // from <br> / block elements — pre-wrap was blowing A5 letters onto 3 pages.
     letterContent.style.whiteSpace = 'normal';
-    letterContent.style.fontSize = `${fontSizePx}px`;
-    // Keep template line-height when set (fees A5 is tuned to 1.55). Forcing
+    letterContent.style.fontSize = `${LETTER_PRINT_FONT_SIZE_PX}px`;
+    // Keep template line-height when set (fees is tuned to 1.55). Forcing
     // 1.75 here made the last line sit on the page edge and get clipped in PDF.
     if (!letterContent.style.lineHeight) {
       letterContent.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
@@ -553,7 +556,6 @@ function LetterPreview({
 }) {
   const resolvedLetterhead = resolveLetterheadUrl(paperSize, letterheadUrl);
   const contentHtml = stripLetterheadFromHtml(html);
-  const fontSizePx = LETTER_PRINT_FONT_SIZE_PX[paperSize];
 
   return (
     <div
@@ -567,7 +569,7 @@ function LetterPreview({
         width: '100%',
         maxWidth: getLetterPaperWidthPx(paperSize),
         fontFamily: LETTER_FONT_STACK[letterLocale],
-        fontSize: `${fontSizePx}px`,
+        fontSize: `${LETTER_PRINT_FONT_SIZE_PX}px`,
         lineHeight: LETTER_PRINT_LINE_HEIGHT,
       }}
     >
@@ -938,6 +940,12 @@ export function LetterGeneration({
   const [letterMasters, setLetterMasters] = useState<LetterMasterRow[]>([]);
   const [letterMastersLoading, setLetterMastersLoading] = useState(false);
   const [addresses, setAddresses] = useState<AddressMasterRow[]>([]);
+  const [addressTypeLinks, setAddressTypeLinks] = useState<LetterAddressTypeLinkRow[]>([]);
+  const addressTypeForField = useCallback(
+    (field: LetterAddressFieldKey) =>
+      resolveAddressTypeForLetterField(addressTypeLinks, activeTab, field),
+    [addressTypeLinks, activeTab],
+  );
   const [documentTypes, setDocumentTypes] = useState<DocumentTypeMasterRow[]>([]);
   const [addressSelections, setAddressSelections] = useState<AddressSelectionState>({
     school: null,
@@ -1531,18 +1539,20 @@ export function LetterGeneration({
     }
   };
 
+  const schoolAddressType = addressTypeForField('school');
+
   const schoolNameOptions = useMemo(() => {
     const seen = new Set<string>();
     const opts: { value: string; label: string }[] = [];
     for (const a of addresses) {
-      if (!a.isActive || a.addressType !== 'school') continue;
+      if (!a.isActive || a.addressType !== schoolAddressType) continue;
       const name = getAddressMasterName(a, letterLocale).trim();
       if (!name || seen.has(name)) continue;
       seen.add(name);
       opts.push({ value: name, label: name });
     }
     return opts;
-  }, [addresses, letterLocale]);
+  }, [addresses, letterLocale, schoolAddressType]);
 
   // Selecting a saved institute name autofills its address; typed custom
   // names are kept as-is without touching the address selection.
@@ -1553,7 +1563,7 @@ export function LetterGeneration({
     const master = addresses.find(
       (a) =>
         a.isActive &&
-        a.addressType === 'school' &&
+        a.addressType === schoolAddressType &&
         getAddressMasterName(a, letterLocale) === value,
     );
     if (master) {
@@ -1722,6 +1732,18 @@ export function LetterGeneration({
     }
   };
 
+  const refreshAddressTypeLinks = async () => {
+    try {
+      const res = await fetch('/api/letter-address-links');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch letter address links');
+      setAddressTypeLinks((json?.links ?? []) as LetterAddressTypeLinkRow[]);
+    } catch (error) {
+      console.error('Failed to fetch letter address links', error);
+      toast.error(t('letterGeneration.letterAddressLinks.fetchError'));
+    }
+  };
+
   const refreshSavedLetters = async () => {
     setSavedLettersLoading(true);
     try {
@@ -1745,6 +1767,7 @@ export function LetterGeneration({
     void refreshLetterMasters();
     void refreshAddresses();
     void refreshDocumentTypes();
+    void refreshAddressTypeLinks();
     // Preload reference numbers already present in the outward register so the
     // "Add to Outward Register" action stays disabled across reloads.
     void (async () => {
@@ -2180,7 +2203,7 @@ export function LetterGeneration({
 
         if (schoolAddressText.trim() && schoolNameValue.trim()) {
           const created = await createAddressMasterFromManualEntry({
-            addressType: 'school',
+            addressType: addressTypeForField('school'),
             name: schoolNameValue,
             parts: manualAddressParts.school,
           });
@@ -2209,7 +2232,7 @@ export function LetterGeneration({
 
         if (applicantAddressText.trim()) {
           const created = await createAddressMasterFromManualEntry({
-            addressType: 'general',
+            addressType: addressTypeForField('applicant'),
             name: deriveAddressMasterName(applicantAddressText, 'Applicant Address'),
             parts: manualAddressParts.applicant,
           });
@@ -2226,7 +2249,7 @@ export function LetterGeneration({
         const rationOfficeText = rationFields.rationOfficeAddress ?? '';
         if (rationOfficeText.trim()) {
           const created = await createAddressMasterFromManualEntry({
-            addressType: 'ration_office',
+            addressType: addressTypeForField('rationOffice'),
             name: deriveAddressMasterName(rationOfficeText, 'Ration Office'),
             parts: manualAddressParts.rationOffice,
           });
@@ -2244,7 +2267,7 @@ export function LetterGeneration({
           const fromText = rationFields.fromRationOffice ?? '';
           if (fromText.trim() && hasAddressContent(manualAddressParts.fromRationOffice)) {
             const created = await createAddressMasterFromManualEntry({
-              addressType: 'ration_office',
+              addressType: addressTypeForField('fromRationOffice'),
               name: deriveAddressMasterName(fromText, 'Ration Office'),
               parts: manualAddressParts.fromRationOffice,
             });
@@ -2261,7 +2284,7 @@ export function LetterGeneration({
           const toText = rationFields.toRationOffice ?? '';
           if (toText.trim() && hasAddressContent(manualAddressParts.toRationOffice)) {
             const created = await createAddressMasterFromManualEntry({
-              addressType: 'ration_office',
+              addressType: addressTypeForField('toRationOffice'),
               name: deriveAddressMasterName(toText, 'Ration Office'),
               parts: manualAddressParts.toRationOffice,
             });
@@ -2281,7 +2304,7 @@ export function LetterGeneration({
           '';
         if (officeText.trim()) {
           const created = await createAddressMasterFromManualEntry({
-            addressType: 'office',
+            addressType: addressTypeForField('office'),
             name: deriveAddressMasterName(officeText, 'Office Address'),
             parts: manualAddressParts.office,
           });
@@ -2884,7 +2907,7 @@ export function LetterGeneration({
                       </FieldGroup>
                       <LetterAddressField
                         label={letterLocale === 'mr' ? 'संस्था पत्ता' : 'Institute Address'}
-                        addressType="school"
+                        addressType={addressTypeForField('school')}
                         locale={letterLocale}
                         selectedAddressId={addressSelections.school}
                         addresses={addresses}
@@ -2969,7 +2992,7 @@ export function LetterGeneration({
                       </FieldGroup>
                       <LetterAddressField
                         label={letterLocale === 'mr' ? 'संस्था पत्ता' : 'Institute Address'}
-                        addressType="school"
+                        addressType={addressTypeForField('school')}
                         locale={letterLocale}
                         selectedAddressId={addressSelections.school}
                         addresses={addresses}
@@ -3051,7 +3074,7 @@ export function LetterGeneration({
                       </FieldGroup>
                       <LetterAddressField
                         label={lt('letterGeneration.fields.address')}
-                        addressType="general"
+                        addressType={addressTypeForField('applicant')}
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
@@ -3115,7 +3138,7 @@ export function LetterGeneration({
                       </FieldGroup>
                       <LetterAddressField
                         label={letterLocale === 'mr' ? 'संस्था पत्ता' : 'Institute Address'}
-                        addressType="school"
+                        addressType={addressTypeForField('school')}
                         locale={letterLocale}
                         selectedAddressId={addressSelections.school}
                         addresses={addresses}
@@ -3197,7 +3220,7 @@ export function LetterGeneration({
                       </FieldGroup>
                       <LetterAddressField
                         label={lt('letterGeneration.fields.address')}
-                        addressType="general"
+                        addressType={addressTypeForField('applicant')}
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
@@ -3366,7 +3389,7 @@ export function LetterGeneration({
                         </div>
                         <LetterAddressField
                           label={lt('letterGeneration.fields.address')}
-                          addressType="general"
+                          addressType={addressTypeForField('applicant')}
                           locale={letterLocale}
                           selectedAddressId={addressSelections.applicant}
                           addresses={addresses}
@@ -3409,7 +3432,7 @@ export function LetterGeneration({
                           <div className="grid gap-4 sm:grid-cols-2">
                             <LetterAddressField
                               label={lt('letterGeneration.fields.fromRationOffice')}
-                              addressType="ration_office"
+                              addressType={addressTypeForField('fromRationOffice')}
                               locale={letterLocale}
                               selectedAddressId={addressSelections.fromRationOffice}
                               addresses={addresses}
@@ -3432,7 +3455,7 @@ export function LetterGeneration({
                             />
                             <LetterAddressField
                               label={lt('letterGeneration.fields.toRationOffice')}
-                              addressType="ration_office"
+                              addressType={addressTypeForField('toRationOffice')}
                               locale={letterLocale}
                               selectedAddressId={addressSelections.toRationOffice}
                               addresses={addresses}
@@ -3544,7 +3567,7 @@ export function LetterGeneration({
                         </FieldGroup>
                         <LetterAddressField
                           label={lt('letterGeneration.fields.rationOfficeAddress')}
-                          addressType="ration_office"
+                          addressType={addressTypeForField('rationOffice')}
                           locale={letterLocale}
                           selectedAddressId={addressSelections.rationOffice}
                           addresses={addresses}
@@ -3635,7 +3658,7 @@ export function LetterGeneration({
                       </div>
                       <LetterAddressField
                         label={lt('letterGeneration.fields.address')}
-                        addressType="general"
+                        addressType={addressTypeForField('applicant')}
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
@@ -3652,7 +3675,7 @@ export function LetterGeneration({
                       />
                       <LetterAddressField
                         label={lt('letterGeneration.fields.officeAddress')}
-                        addressType="office"
+                        addressType={addressTypeForField('office')}
                         locale={letterLocale}
                         selectedAddressId={addressSelections.office}
                         addresses={addresses}
@@ -3796,7 +3819,7 @@ export function LetterGeneration({
                       </div>
                       <LetterAddressField
                         label={lt('letterGeneration.fields.address')}
-                        addressType="general"
+                        addressType={addressTypeForField('applicant')}
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
@@ -3813,7 +3836,7 @@ export function LetterGeneration({
                       />
                       <LetterAddressField
                         label={lt('letterGeneration.fields.officeAddress')}
-                        addressType="office"
+                        addressType={addressTypeForField('office')}
                         locale={letterLocale}
                         selectedAddressId={addressSelections.office}
                         addresses={addresses}

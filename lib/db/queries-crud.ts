@@ -18,6 +18,7 @@ import {
   mapLetterMasterRow,
   mapAddressMasterRow,
   mapDocumentTypeMasterRow,
+  mapLetterAddressTypeLinkRow,
   mapLetterRow,
   mapMessageRow,
   mapMlaProjectRow,
@@ -67,6 +68,7 @@ import type {
   LetterMaster,
   AddressMaster,
   DocumentTypeMaster,
+  LetterAddressTypeLink,
   MlaProject,
   AdmAmountUnit,
   AdmFundingCategory,
@@ -2799,6 +2801,173 @@ export async function deleteAddressMaster(id: string): Promise<void> {
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to delete address master');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Letter ↔ address-type links (autofill mapping)
+// ---------------------------------------------------------------------------
+
+export async function ensureLetterAddressTypeLinkDefaults(): Promise<void> {
+  try {
+    const { getDefaultLetterAddressTypeLinks } = await import(
+      '@/lib/letters/letter-address-fields'
+    );
+    const defaults = getDefaultLetterAddressTypeLinks();
+
+    const { data: existingRows, error: existingError } = await supabase
+      .from(TABLES.letterAddressTypeLink)
+      .select('letter_type, address_field');
+    throwOnSupabaseError(existingError, 'Failed to list letter address type links');
+
+    const existingKeys = new Set(
+      (existingRows ?? []).map(
+        (row) => `${String(row.letter_type)}:${String(row.address_field)}`,
+      ),
+    );
+    const missing = defaults.filter(
+      (item) => !existingKeys.has(`${item.letterType}:${item.addressField}`),
+    );
+    if (missing.length === 0) return;
+
+    const now = new Date().toISOString();
+    const { error } = await supabase.from(TABLES.letterAddressTypeLink).insert(
+      missing.map((item) =>
+        toSnakeCaseKeys({
+          letterType: item.letterType,
+          addressField: item.addressField,
+          addressType: item.addressType,
+          sortOrder: item.sortOrder,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      ),
+    );
+    throwOnSupabaseError(error, 'Failed to seed letter address type links');
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to seed letter address type links',
+    );
+  }
+}
+
+export async function getLetterAddressTypeLinks({
+  letterType,
+}: {
+  letterType?: string;
+} = {}): Promise<Array<LetterAddressTypeLink>> {
+  try {
+    await ensureLetterAddressTypeLinkDefaults();
+    let query = supabase
+      .from(TABLES.letterAddressTypeLink)
+      .select('*')
+      .order('letter_type', { ascending: true })
+      .order('sort_order', { ascending: true });
+
+    if (letterType) {
+      query = query.eq('letter_type', letterType);
+    }
+
+    const { data, error } = await query;
+    throwOnSupabaseError(error, 'Failed to get letter address type links');
+    return (data ?? []).map(mapLetterAddressTypeLinkRow);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get letter address type links',
+    );
+  }
+}
+
+export async function upsertLetterAddressTypeLink({
+  letterType,
+  addressField,
+  addressType,
+  sortOrder = 0,
+}: {
+  letterType: string;
+  addressField: string;
+  addressType: LetterAddressTypeLink['addressType'];
+  sortOrder?: number;
+}): Promise<LetterAddressTypeLink> {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.letterAddressTypeLink)
+      .upsert(
+        toSnakeCaseKeys({
+          letterType,
+          addressField,
+          addressType,
+          sortOrder,
+          updatedAt: now,
+          createdAt: now,
+        }),
+        { onConflict: 'letter_type,address_field' },
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to upsert letter address type link');
+    return mapLetterAddressTypeLinkRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to upsert letter address type link',
+    );
+  }
+}
+
+export async function updateLetterAddressTypeLink({
+  id,
+  addressType,
+  sortOrder,
+}: {
+  id: string;
+  addressType: LetterAddressTypeLink['addressType'];
+  sortOrder?: number;
+}): Promise<LetterAddressTypeLink> {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.letterAddressTypeLink)
+      .update(
+        toSnakeCaseKeys({
+          addressType,
+          ...(sortOrder !== undefined ? { sortOrder } : {}),
+          updatedAt: now,
+        }),
+      )
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to update letter address type link');
+    return mapLetterAddressTypeLinkRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update letter address type link',
+    );
+  }
+}
+
+export async function deleteLetterAddressTypeLink(id: string): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from(TABLES.letterAddressTypeLink)
+      .delete()
+      .eq('id', id);
+    throwOnSupabaseError(error, 'Failed to delete letter address type link');
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete letter address type link',
+    );
   }
 }
 

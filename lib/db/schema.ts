@@ -16,6 +16,7 @@ export const TABLES = {
   letter: 'Letter',
   letterMaster: 'LetterMaster',
   addressMaster: 'AddressMaster',
+  letterAddressTypeLink: 'LetterAddressTypeLink',
   documentTypeMaster: 'DocumentTypeMaster',
   voterMaster: 'VoterMaster',
   electionMaster: 'ElectionMaster',
@@ -200,6 +201,16 @@ export type DocumentTypeMaster = {
   sortOrder: number;
   createdBy: string | null;
   updatedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type LetterAddressTypeLink = {
+  id: string;
+  letterType: string;
+  addressField: string;
+  addressType: 'school' | 'office' | 'ration_office' | 'general';
+  sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
 };

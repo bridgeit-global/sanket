@@ -7,6 +7,10 @@ import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { DocumentTypeMasterManager } from '@/components/document-type-master-manager';
+import {
+  LetterAddressLinkManager,
+  type LetterAddressTypeLinkRow,
+} from '@/components/letter-address-link-manager';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { Button } from '@/components/ui/button';
 import { useTranslations } from '@/hooks/use-translations';
@@ -28,7 +32,9 @@ export function DocumentTypeMasterPage() {
   const tRef = useRef(t);
   tRef.current = t;
   const [documentTypes, setDocumentTypes] = useState<DocumentTypeMasterRow[]>([]);
+  const [links, setLinks] = useState<LetterAddressTypeLinkRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [linksLoading, setLinksLoading] = useState(false);
 
   const refreshDocumentTypes = useCallback(async () => {
     setLoading(true);
@@ -45,9 +51,25 @@ export function DocumentTypeMasterPage() {
     }
   }, []);
 
+  const refreshLinks = useCallback(async () => {
+    setLinksLoading(true);
+    try {
+      const res = await fetch('/api/letter-address-links');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch links');
+      setLinks((json?.links ?? []) as LetterAddressTypeLinkRow[]);
+    } catch (error) {
+      console.error('Failed to fetch letter address links', error);
+      toast.error(tRef.current('letterGeneration.letterAddressLinks.fetchError'));
+    } finally {
+      setLinksLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void refreshDocumentTypes();
-  }, [refreshDocumentTypes]);
+    void refreshLinks();
+  }, [refreshDocumentTypes, refreshLinks]);
 
   const beneficiaryServiceId = searchParams.get('beneficiaryServiceId');
   const backHref = fromOutward
@@ -72,6 +94,12 @@ export function DocumentTypeMasterPage() {
             </Link>
           </Button>
         }
+      />
+
+      <LetterAddressLinkManager
+        links={links}
+        loading={linksLoading}
+        onRefresh={refreshLinks}
       />
 
       <DocumentTypeMasterManager

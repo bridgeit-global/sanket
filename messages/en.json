@@ -735,6 +735,30 @@
         "general": "General / Applicant"
       }
     },
+    "letterAddressLinks": {
+      "title": "Letter ↔ Address Type Links",
+      "description": "Map each letter’s address fields to an address type so pickers and autofill show the right Address Master entries.",
+      "add": "Add / Update Link",
+      "empty": "No links yet. Add a letter field → address type mapping.",
+      "saveSuccess": "Letter address link saved",
+      "saveError": "Failed to save letter address link",
+      "deleteSuccess": "Letter address link deleted",
+      "deleteError": "Failed to delete letter address link",
+      "fetchError": "Failed to load letter address links",
+      "columns": {
+        "letterType": "Letter",
+        "addressField": "Address field",
+        "addressType": "Address type"
+      },
+      "fields": {
+        "school": "School / Institute",
+        "applicant": "Applicant",
+        "rationOffice": "Ration office",
+        "office": "Government office",
+        "fromRationOffice": "From ration office",
+        "toRationOffice": "To ration office"
+      }
+    },
     "documentTypesMaster": {
       "title": "Document Types",
       "description": "Manage document types used as reference prefixes for letters and outward register.",

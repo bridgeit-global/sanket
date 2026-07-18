@@ -7,6 +7,10 @@ import { ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { AddressMasterManager } from '@/components/address-master-manager';
+import {
+  LetterAddressLinkManager,
+  type LetterAddressTypeLinkRow,
+} from '@/components/letter-address-link-manager';
 import type { AddressMasterRow } from '@/components/letter-address-field';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { Button } from '@/components/ui/button';
@@ -22,7 +26,9 @@ export function AddressMasterPage() {
   const tRef = useRef(t);
   tRef.current = t;
   const [addresses, setAddresses] = useState<AddressMasterRow[]>([]);
+  const [links, setLinks] = useState<LetterAddressTypeLinkRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [linksLoading, setLinksLoading] = useState(false);
 
   const refreshAddresses = useCallback(async () => {
     setLoading(true);
@@ -39,9 +45,25 @@ export function AddressMasterPage() {
     }
   }, []);
 
+  const refreshLinks = useCallback(async () => {
+    setLinksLoading(true);
+    try {
+      const res = await fetch('/api/letter-address-links');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch links');
+      setLinks((json?.links ?? []) as LetterAddressTypeLinkRow[]);
+    } catch (error) {
+      console.error('Failed to fetch letter address links', error);
+      toast.error(tRef.current('letterGeneration.letterAddressLinks.fetchError'));
+    } finally {
+      setLinksLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     void refreshAddresses();
-  }, [refreshAddresses]);
+    void refreshLinks();
+  }, [refreshAddresses, refreshLinks]);
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -56,6 +78,12 @@ export function AddressMasterPage() {
             </Link>
           </Button>
         }
+      />
+
+      <LetterAddressLinkManager
+        links={links}
+        loading={linksLoading}
+        onRefresh={refreshLinks}
       />
 
       <AddressMasterManager
