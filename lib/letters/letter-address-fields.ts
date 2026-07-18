@@ -151,3 +151,4 @@ export function resolveAddressTypeForLetterField(
 }
 
 export { LETTER_TYPES, ADDRESS_TYPES, isLetterType, isAddressType };
+export type { AddressType, LetterType };
