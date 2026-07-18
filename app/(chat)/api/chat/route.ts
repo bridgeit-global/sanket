@@ -21,6 +21,7 @@ import {
 import { convertToUIMessages, generateUUID } from '@/lib/utils';
 import { webSearchTool } from '@/lib/ai/tools/web-search';
 import { sqlQueryTool } from '@/lib/ai/tools/sql-query';
+import { form20QueryTool } from '@/lib/ai/tools/form20-query';
 import { isProductionEnvironment } from '@/lib/constants';
 import { myProvider } from '@/lib/ai/providers';
 import { entitlementsByUserRole } from '@/lib/ai/entitlements';
@@ -159,6 +160,7 @@ export async function POST(request: Request) {
         const activeTools = {
           webSearch: webSearchTool(),
           sqlQuery: sqlQueryTool,
+          form20Query: form20QueryTool,
         };
 
         // Add a small delay to prevent concurrency issues

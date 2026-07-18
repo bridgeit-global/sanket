@@ -1,5 +1,4 @@
 'use client';
-import cx from 'classnames';
 import { AnimatePresence, motion } from 'framer-motion';
 import { memo, useState } from 'react';
 import type { Vote } from '@/lib/db/schema';
@@ -173,8 +172,11 @@ const PurePreviewMessage = ({
 
                 if (state === 'input-available') {
                   return (
-                    <div key={toolCallId} className="skeleton my-4">
-                      <div className="animate-pulse bg-gray-200 h-24 rounded-lg" />
+                    <div key={toolCallId} className="skeleton my-4 space-y-2">
+                      <p className="text-sm text-muted-foreground animate-pulse">
+                        Running SQL query…
+                      </p>
+                      <div className="animate-pulse bg-muted h-24 rounded-lg" />
                     </div>
                   );
                 }
@@ -198,6 +200,49 @@ const PurePreviewMessage = ({
                     error: output?.error ? String(output.error) : undefined,
                     details: undefined as string | undefined,
                     note: undefined as string | undefined,
+                  };
+
+                  return (
+                    <div key={toolCallId} className="my-4">
+                      <SqlQueryResults data={dataForComponent} />
+                    </div>
+                  );
+                }
+              }
+
+              if ((type as string) === 'tool-form20Query') {
+                const { toolCallId, state } = part as any;
+
+                if (state === 'input-available') {
+                  return (
+                    <div key={toolCallId} className="skeleton my-4 space-y-2">
+                      <p className="text-sm text-muted-foreground animate-pulse">
+                        Loading Form 20 results…
+                      </p>
+                      <div className="animate-pulse bg-muted h-24 rounded-lg" />
+                    </div>
+                  );
+                }
+
+                if (state === 'output-available') {
+                  const { output } = part as any;
+
+                  const rowCount = typeof output?.rowCount === 'number' ? output.rowCount : 0;
+                  const rows = Array.isArray(output?.results) ? output.results : [];
+                  const columns =
+                    rows.length > 0 ? Object.keys(rows[0] as Record<string, unknown>) : [];
+                  const hasMore = Boolean(output?.truncated) || rowCount > rows.length;
+
+                  const dataForComponent = {
+                    query: `Form 20 · ${String(output?.mappingSource ?? 'ElectionMapping')}`,
+                    rowCount,
+                    columns,
+                    data: rows,
+                    hasMore,
+                    summary: String(output?.answer ?? output?.summary ?? ''),
+                    error: output?.error ? String(output.error) : undefined,
+                    details: undefined as string | undefined,
+                    note: output?.note ? String(output.note) : undefined,
                   };
 
                   return (
@@ -411,32 +456,65 @@ export const PreviewMessage = memo(
   },
 );
 
+/** True when the assistant message already shows text, reasoning, or a tool call. */
+export function messageHasVisibleActivity(message: ChatMessage | undefined): boolean {
+  if (!message || message.role !== 'assistant') return false;
+  for (const part of message.parts ?? []) {
+    const type = part.type as string;
+    if (type === 'text' && 'text' in part && String((part as { text?: string }).text ?? '').trim()) {
+      return true;
+    }
+    if (
+      type === 'reasoning' &&
+      'text' in part &&
+      String((part as { text?: string }).text ?? '').trim()
+    ) {
+      return true;
+    }
+    if (type.startsWith('tool-')) return true;
+  }
+  return false;
+}
+
+/** Show the in-chat working indicator while waiting for tokens or before tool UI appears. */
+export function shouldShowThinkingMessage(
+  status: UseChatHelpers<ChatMessage>['status'],
+  messages: ChatMessage[],
+): boolean {
+  if (status !== 'submitted' && status !== 'streaming') return false;
+  if (messages.length === 0) return false;
+  const last = messages[messages.length - 1];
+  if (status === 'submitted') return last.role === 'user';
+  if (last.role === 'user') return true;
+  return last.role === 'assistant' && !messageHasVisibleActivity(last);
+}
+
 export const ThinkingMessage = () => {
   const role = 'assistant';
 
   return (
     <motion.div
       data-testid="message-assistant-loading"
-      className="w-full mx-auto max-w-3xl px-4 group/message min-h-96"
+      className="w-full mx-auto max-w-3xl px-4 group/message"
       initial={{ y: 5, opacity: 0 }}
-      animate={{ y: 0, opacity: 1, transition: { delay: 1 } }}
+      animate={{ y: 0, opacity: 1 }}
       data-role={role}
     >
-      <div
-        className={cx(
-          'flex gap-4 group-data-[role=user]/message:px-3 w-full group-data-[role=user]/message:w-fit group-data-[role=user]/message:ml-auto group-data-[role=user]/message:max-w-2xl group-data-[role=user]/message:py-2 rounded-xl',
-          {
-            'group-data-[role=user]/message:bg-muted': true,
-          },
-        )}
-      >
-        <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border">
-          <SparklesIcon size={14} />
+      <div className="flex gap-4 w-full">
+        <div className="size-8 flex items-center rounded-full justify-center ring-1 shrink-0 ring-border bg-background">
+          <span className="animate-pulse">
+            <SparklesIcon size={14} />
+          </span>
         </div>
 
-        <div className="flex flex-col gap-2 w-full">
-          <div className="flex flex-col gap-4 text-muted-foreground">
-            Hmm...
+        <div className="flex flex-col gap-2 w-full justify-center min-h-8">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className="inline-flex gap-1" aria-hidden>
+              <span className="size-1.5 rounded-full bg-muted-foreground/70 animate-bounce [animation-delay:0ms]" />
+              <span className="size-1.5 rounded-full bg-muted-foreground/70 animate-bounce [animation-delay:150ms]" />
+              <span className="size-1.5 rounded-full bg-muted-foreground/70 animate-bounce [animation-delay:300ms]" />
+            </span>
+            <span>Working on your request…</span>
           </div>
         </div>
       </div>

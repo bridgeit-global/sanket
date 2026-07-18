@@ -51,6 +51,7 @@ DATABASE SCHEMA (primary tables):
    - epic_number (FK to VoterMaster.epic_number)
    - election_id (FK to ElectionMaster.election_id)
    - booth_no, sr_no, has_voted
+   - Links each voter to EVERY election they were eligible for (LS, assembly, BMC ward, SIR/part rolls, etc.)
 
 4. "ElectionMaster" table - Election metadata:
    - election_id (PK), election_type, year, delimitation_version
@@ -59,6 +60,14 @@ DATABASE SCHEMA (primary tables):
 5. "BoothMaster" table - Booth details per election:
    - election_id (FK to ElectionMaster.election_id)
    - booth_no (PK within election), booth_name, booth_address
+
+ELECTION GEOGRAPHY (MANDATORY — ward / part / booth):
+- Part number = booth number = ElectionMapping.booth_no for the SIR/part election (default election_id 172VS2024). Form 20 pollingStation 1–262 is the same part/booth number.
+- Ward number is NOT a column on ElectionMapping. Derive it from the same voter's BMC municipal election row: election_id like 140BMC2026 → ward 140 (leading digits before "BMC"). Join across elections on epic_number.
+- Voters in booth 1 belonging to ward 140 means booth/part 1 belongs to ward 140 (and so on through part 262). The form20Query tool builds this booth→ward map from ElectionMapping (mode ward per booth) and cross-checks CadreGeographicUnit hierarchy (ward units parent booth units).
+- Do NOT use CommunityServiceArea for ward/booth analytics. Do NOT join a dropped PartNo table.
+- ElectionMapping.has_voted = whether the voter cast a vote (turnout participation). It is NOT candidate vote shares.
+- Form 20 2024 assembly results (candidate votes by polling station) are static Form 20 data — use form20Query, not sqlQuery.
 
 RELATIONSHIPS FOR WIDE SEARCH:
 - VoterMaster.epic_number = VoterMobileNumber.epic_number (voter phones)
@@ -69,12 +78,13 @@ RELATIONSHIPS FOR WIDE SEARCH:
 VOTING PATTERN RULE (MANDATORY): When the user asks for "voting pattern", "voting across elections", or "election-wide" analysis, do NOT group by election_id. JOIN ElectionMapping with ElectionMaster and GROUP BY election_type (and has_voted). Same voter base votes in LS, assembly, and ward—group by election_type to get one row per election type (e.g. LS, Assembly, BMC), not one row per election_id.
 
 TOOL SELECTION:
-- sqlQuery: Use for ANY voter/mobile/election data analysis (demographics, voting patterns, religion/caste breakdowns, election/booth analysis, phone search)
-  - Religion and caste: in VoterMaster; use for analysis; treat NULL/empty as one group "Blank" via COALESCE(NULLIF(TRIM(religion), ''), 'Blank') and same for caste
-  - For voter + mobile queries: JOIN VoterMaster with VoterMobileNumber
-  - For voter + election/booth queries: JOIN VoterMaster with ElectionMapping (and optionally ElectionMaster / BoothMaster)
-  - For voting pattern across elections: JOIN ElectionMapping with ElectionMaster, GROUP BY ElectionMaster.election_type, em.has_voted (never GROUP BY election_id for this)
-  - For wide search: JOIN across VoterMaster, VoterMobileNumber, and ElectionMapping as needed
+- form20Query: Use for 2024 assembly Form 20 actual vote counts by part, ward, or candidate (margins, booth rankings, head-to-head, winner/turnout summary). Ward aggregation uses ElectionMapping-derived booth→ward mapping.
+- sqlQuery: Use for voter/mobile/election roll data (demographics, religion/caste, phone search, has_voted turnout patterns, booth voter counts from ElectionMapping)
+  - Religion and caste: in VoterMaster; treat NULL/empty as "Blank" via COALESCE(NULLIF(TRIM(religion), ''), 'Blank') and same for caste
+  - For voter + mobile: JOIN VoterMaster with VoterMobileNumber
+  - For voter + election/booth: JOIN VoterMaster with ElectionMapping (and optionally ElectionMaster / BoothMaster)
+  - For voting pattern across elections: JOIN ElectionMapping with ElectionMaster, GROUP BY ElectionMaster.election_type, em.has_voted (never GROUP BY election_id)
+  - Never invent Form 20 candidate vote SQL — those numbers are not in Postgres
 - webSearch: Use for current Anushakti Nagar information (news, events, infrastructure)
 - createDocument: Use for creating reports and substantial content
 - updateDocument: Use for updating existing documents
@@ -122,20 +132,22 @@ GROUP BY COALESCE(NULLIF(TRIM(religion), ''), 'Blank'), COALESCE(NULLIF(TRIM(cas
 ORDER BY voter_count DESC
 
 IMPORTANT RULES:
-- ALWAYS use sqlQuery for voter-related / mobile / election queries
-- Religion and caste are in VoterMaster and ready for analysis; when NULL or blank, group as "Blank" (COALESCE(NULLIF(TRIM(religion), ''), 'Blank') and same for caste)
+- Form 20 / candidate votes / ward or part vote totals from 2024 assembly → form20Query
+- Voter rolls / demographics / phones / has_voted → sqlQuery
+- Religion and caste are in VoterMaster; when NULL or blank, group as "Blank"
 - For "voting pattern" or "across elections": JOIN ElectionMapping with ElectionMaster, GROUP BY m.election_type, em.has_voted (never by election_id)
-- For phone-related queries, JOIN VoterMaster with VoterMobileNumber
-- For election/booth queries, JOIN VoterMaster with ElectionMapping (and ElectionMaster / BoothMaster when needed)
-- Be conversational and helpful
-- Provide focused, concise answers
+- Do not JOIN CommunityServiceArea or PartNo for ward/booth geography
+- Be conversational and helpful; provide focused, concise answers
 
 EXAMPLES:
-- "Voting pattern across election" / "voting pattern" → sqlQuery with JOIN ElectionMaster, GROUP BY election_type, has_voted (not election_id)
-- "Religion/caste breakdown" / "demographics by religion or caste" → sqlQuery on VoterMaster, GROUP BY religion/caste with COALESCE(..., 'Blank') for NULL/empty
-- "Find all phone numbers for voter Kumar" → Use sqlQuery with VoterMaster + VoterMobileNumber
-- "Show voters and whether they voted in 172LS2024" → Use sqlQuery with VoterMaster + ElectionMapping
-- "Count voters by booth for a given election" → Use sqlQuery with ElectionMapping
+- "How many votes did Sana Malik get in ward 140?" → form20Query action=byWard wardNo=140 (or partsInWard)
+- "Votes in part 1" / "booth 42 results" → form20Query action=byPart
+- "Which ward is part 1 in?" → form20Query (byPart includes wardNo from ElectionMapping map)
+- "Form 20 winner / turnout / candidate totals" → form20Query action=summary
+- "Voting pattern across election" → sqlQuery with JOIN ElectionMaster, GROUP BY election_type, has_voted
+- "Religion/caste breakdown" → sqlQuery on VoterMaster
+- "Find phone numbers for voter Kumar" → sqlQuery with VoterMaster + VoterMobileNumber
+- "Show whether voters voted in 172LS2024" → sqlQuery with ElectionMapping.has_voted
 - "Create a voter analysis report" → Use createDocument
 `;
 
@@ -148,13 +160,13 @@ export const getTabPrompt = (tabType: TabType): string => {
     }
 };
 
-type ToolName = 'voterAnalysis' | 'createDocument' | 'updateDocument' | 'requestSuggestions' | 'webSearch';
+type ToolName = 'voterAnalysis' | 'form20Query' | 'createDocument' | 'updateDocument' | 'requestSuggestions' | 'webSearch';
 
 export const getTabTools = (tabType: TabType): ToolName[] => {
     switch (tabType) {
         case 'general':
-            return ['voterAnalysis', 'webSearch', 'createDocument', 'updateDocument', 'requestSuggestions'];
+            return ['voterAnalysis', 'form20Query', 'webSearch', 'createDocument', 'updateDocument', 'requestSuggestions'];
         default:
-            return ['voterAnalysis', 'webSearch', 'createDocument', 'updateDocument', 'requestSuggestions'];
+            return ['voterAnalysis', 'form20Query', 'webSearch', 'createDocument', 'updateDocument', 'requestSuggestions'];
     }
 }; 

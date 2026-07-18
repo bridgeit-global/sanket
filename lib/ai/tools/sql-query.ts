@@ -45,6 +45,8 @@ function validateSingleSelectOnly(query: string): { allowed: true } | { allowed:
 export const sqlQueryTool = tool({
     description: `Execute custom SQL queries on the voter database. Only SELECT queries are accepted. Use table names in double quotes for PostgreSQL.
 
+FORM 20 / CANDIDATE VOTE COUNTS: Not stored in Postgres. For 2024 assembly Form 20 results by part/ward/candidate, use the form20Query tool instead.
+
 VOTING PATTERN / ELECTION-WIDE ANALYSIS (MANDATORY):
 - When the user asks for "voting pattern", "voting across elections", "election-wide" analysis, or comparison across elections: do NOT group by election_id.
 - ALWAYS GROUP BY election_type (and optionally constituency_type) in "ElectionMaster". Same voter base votes in LS, assembly, and ward—grouping by election_id splits them into many rows; grouping by election_type gives one row per election type (e.g. LS, Assembly, BMC).

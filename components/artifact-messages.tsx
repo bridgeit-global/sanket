@@ -1,4 +1,8 @@
-import { PreviewMessage, ThinkingMessage } from './message';
+import {
+  PreviewMessage,
+  ThinkingMessage,
+  shouldShowThinkingMessage,
+} from './message';
 import type { Vote } from '@/lib/db/schema';
 import { memo } from 'react';
 import equal from 'fast-deep-equal';
@@ -67,9 +71,7 @@ function PureArtifactMessages({
         />
       ))}
 
-      {status === 'submitted' &&
-        messages.length > 0 &&
-        messages[messages.length - 1].role === 'user' && <ThinkingMessage />}
+      {shouldShowThinkingMessage(status, messages) && <ThinkingMessage />}
 
       <motion.div
         ref={messagesEndRef}

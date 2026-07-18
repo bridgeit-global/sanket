@@ -41,7 +41,9 @@ export function SqlQueryResults({ data }: SqlQueryResultsProps) {
   return (
     <div className="space-y-4 p-4 bg-white rounded-lg shadow border">
       <div className="flex justify-between items-start">
-        <h3 className="text-lg font-semibold text-gray-800">SQL Query Results</h3>
+        <h3 className="text-lg font-semibold text-gray-800">
+          {data.query.startsWith('Form 20') ? 'Form 20 Results' : 'SQL Query Results'}
+        </h3>
         <div className="text-sm text-gray-500">
           {data.rowCount} row{data.rowCount !== 1 ? 's' : ''}
         </div>
@@ -53,6 +55,12 @@ export function SqlQueryResults({ data }: SqlQueryResultsProps) {
       </div>
 
       <div className="text-sm text-gray-600">{data.summary}</div>
+
+      {data.note && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <p className="text-sm text-blue-800">{data.note}</p>
+        </div>
+      )}
 
       {data.data.length > 0 && (
         <div className="overflow-x-auto">

@@ -31,7 +31,7 @@ const google = createGoogleGenerativeAI({
 });
 
 // Gemini 2.5 Flash Lite model for all use cases
-const GEMINI_MODEL = 'gemini-3-flash-preview';
+const GEMINI_MODEL = 'gemini-3.5-flash';
 
 // Create Gemini model instances
 const geminiModel = google(GEMINI_MODEL);

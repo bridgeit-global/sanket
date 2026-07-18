@@ -1,4 +1,8 @@
-import { PreviewMessage, ThinkingMessage } from './message';
+import {
+  PreviewMessage,
+  ThinkingMessage,
+  shouldShowThinkingMessage,
+} from './message';
 import { Greeting } from './greeting';
 import { memo } from 'react';
 import type { Vote } from '@/lib/db/schema';
@@ -72,10 +76,7 @@ function PureMessages({
         />
       ))}
 
-      {status === 'submitted' &&
-        messages.length > 0 &&
-        messages.length - 1 >= 0 &&
-        messages[messages.length - 1].role === 'user' && <ThinkingMessage />}
+      {shouldShowThinkingMessage(status, messages) && <ThinkingMessage />}
 
       <motion.div
         ref={messagesEndRef}
