@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { put, del } from '@vercel/blob';
 import { auth } from '@/app/(auth)/auth';
 import {
   getProjectById,
@@ -11,20 +10,11 @@ import {
   deleteProjectAttachment,
   hasModuleAccess,
 } from '@/lib/db/queries';
-import { projectDocumentKindSchema } from '@/lib/validations';
+import {
+  projectDocumentLinkSchema,
+  validateForm,
+} from '@/lib/validations';
 import { randomUUID } from 'crypto';
-
-const ALLOWED_MIME_TYPES = [
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-];
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export async function GET(
   _request: NextRequest,
@@ -59,6 +49,7 @@ export async function GET(
   }
 }
 
+/** Link an inward register entry as a project document (no direct file upload). */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -81,53 +72,28 @@ export async function POST(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
-    const formData = await request.formData();
-    const file = formData.get('file') as File | null;
-    const kindResult = projectDocumentKindSchema.safeParse(
-      formData.get('documentKind') || 'supporting',
-    );
-    const versionGroupIdParam = formData.get('versionGroupId');
-
-    if (!kindResult.success) {
-      return NextResponse.json({ error: 'Invalid document kind' }, { status: 400 });
-    }
-
-    if (!file) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
+    const body = await request.json();
+    const validation = validateForm(projectDocumentLinkSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'File size should be less than 10MB' },
+        { error: validation.errors[Object.keys(validation.errors)[0]] },
         { status: 400 },
       );
     }
 
-    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-      return NextResponse.json({ error: 'File type not allowed' }, { status: 400 });
-    }
-
     const versionGroupId =
-      typeof versionGroupIdParam === 'string' && versionGroupIdParam
-        ? versionGroupIdParam
+      validation.data.versionGroupId && validation.data.versionGroupId.length > 0
+        ? validation.data.versionGroupId
         : randomUUID();
 
-    const latestVersion = versionGroupIdParam
+    const latestVersion = validation.data.versionGroupId
       ? await getLatestProjectAttachmentVersion(versionGroupId)
       : 0;
 
-    const filename = `projects/${id}/docs/${Date.now()}-${file.name}`;
-    const blob = await put(filename, await file.arrayBuffer(), {
-      access: 'public',
-      contentType: file.type,
-    });
-
     const attachment = await createProjectAttachment({
       projectId: id,
-      fileName: file.name,
-      fileSizeKb: Math.round(file.size / 1024),
-      fileUrl: blob.url,
-      documentKind: kindResult.data,
+      registerEntryId: validation.data.registerEntryId,
+      documentKind: validation.data.documentKind,
       version: latestVersion + 1,
       versionGroupId,
       uploadedBy: session.user.id,
@@ -135,9 +101,16 @@ export async function POST(
 
     return NextResponse.json(attachment, { status: 201 });
   } catch (error) {
-    console.error('Error uploading project document:', error);
+    console.error('Error linking project document:', error);
+    const message = error instanceof Error ? error.message : '';
+    if (message.includes('Inward register entry is required')) {
+      return NextResponse.json(
+        { error: 'Inward register entry is required' },
+        { status: 400 },
+      );
+    }
     return NextResponse.json(
-      { error: 'Failed to upload document' },
+      { error: 'Failed to link document' },
       { status: 500 },
     );
   }
@@ -172,14 +145,6 @@ export async function DELETE(
     const existing = await getProjectAttachmentById(documentId);
     if (!existing || existing.projectId !== projectId) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
-    }
-
-    if (existing.fileUrl) {
-      try {
-        await del(existing.fileUrl);
-      } catch {
-        // non-fatal
-      }
     }
 
     await deleteProjectAttachment(documentId);

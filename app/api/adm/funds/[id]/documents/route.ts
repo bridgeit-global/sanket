@@ -1,30 +1,25 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { put, del } from '@vercel/blob';
 import { auth } from '@/app/(auth)/auth';
 import {
   getAdmFundRecordById,
   getAdmDocumentsByFundRecordId,
   createAdmDocument,
   getAdmDocumentById,
+  updateAdmDocument,
   deleteAdmDocument,
   hasModuleAccess,
 } from '@/lib/db/queries';
+import { admDocumentLinkSchema, validateForm } from '@/lib/validations';
+import { z } from 'zod';
+import { admAmountUnitSchema } from '@/lib/validations';
 
-const ALLOWED_MIME_TYPES = [
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'image/gif',
-  'image/webp',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'text/plain',
-];
-
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const patchSchema = z.object({
+  documentId: z.string().uuid(),
+  amountUnit: admAmountUnitSchema.optional(),
+  kind: z.string().max(100).optional(),
+  label: z.string().max(255).nullable().optional(),
+});
 
 export async function GET(
   _request: NextRequest,
@@ -59,6 +54,7 @@ export async function GET(
   }
 }
 
+/** Link an inward register entry as an ADM sanction document (no direct file upload). */
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -81,50 +77,83 @@ export async function POST(
       return NextResponse.json({ error: 'Fund record not found' }, { status: 404 });
     }
 
-    const formData = await request.formData();
-    const file = formData.get('file') as File | null;
-    const kind = String(formData.get('kind') || 'general');
-    const label = formData.get('label') ? String(formData.get('label')) : null;
-
-    if (!file) {
-      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
+    const body = await request.json();
+    const validation = validateForm(admDocumentLinkSchema, body);
+    if (!validation.success) {
       return NextResponse.json(
-        { error: 'File size should be less than 10MB' },
+        { error: validation.errors[Object.keys(validation.errors)[0]] },
         { status: 400 },
       );
     }
-
-    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'File type not allowed' },
-        { status: 400 },
-      );
-    }
-
-    const filename = `adm/funds/${id}/${Date.now()}-${file.name}`;
-    const blob = await put(filename, await file.arrayBuffer(), {
-      access: 'public',
-      contentType: file.type,
-    });
 
     const document = await createAdmDocument({
       fundRecordId: id,
-      fileName: file.name,
-      fileSizeKb: Math.round(file.size / 1024),
-      fileUrl: blob.url,
-      kind,
-      label,
+      registerEntryId: validation.data.registerEntryId,
+      amountUnit: validation.data.amountUnit ?? 'rupees',
+      kind: validation.data.kind ?? 'sanction_order',
+      label: validation.data.label,
       uploadedBy: session.user.id,
     });
 
     return NextResponse.json(document, { status: 201 });
   } catch (error) {
-    console.error('Error uploading ADM document:', error);
+    console.error('Error linking ADM document:', error);
+    const message = error instanceof Error ? error.message : '';
+    if (message.includes('Inward register entry is required')) {
+      return NextResponse.json(
+        { error: 'Inward register entry is required' },
+        { status: 400 },
+      );
+    }
     return NextResponse.json(
-      { error: 'Failed to upload document' },
+      { error: 'Failed to link document' },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const session = await auth();
+    const { id: fundRecordId } = await params;
+
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const hasAccess = await hasModuleAccess(session.user.id, 'adm');
+    if (!hasAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const validation = validateForm(patchSchema, body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: validation.errors[Object.keys(validation.errors)[0]] },
+        { status: 400 },
+      );
+    }
+
+    const existing = await getAdmDocumentById(validation.data.documentId);
+    if (!existing || existing.fundRecordId !== fundRecordId) {
+      return NextResponse.json({ error: 'Document not found' }, { status: 404 });
+    }
+
+    const updated = await updateAdmDocument(validation.data.documentId, {
+      amountUnit: validation.data.amountUnit,
+      kind: validation.data.kind,
+      label: validation.data.label,
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error('Error updating ADM document:', error);
+    return NextResponse.json(
+      { error: 'Failed to update document' },
       { status: 500 },
     );
   }
@@ -159,14 +188,6 @@ export async function DELETE(
     const existing = await getAdmDocumentById(documentId);
     if (!existing || existing.fundRecordId !== fundRecordId) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
-    }
-
-    if (existing.fileUrl) {
-      try {
-        await del(existing.fileUrl);
-      } catch {
-        // non-fatal
-      }
     }
 
     await deleteAdmDocument(documentId);

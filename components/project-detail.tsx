@@ -99,6 +99,8 @@ interface Project {
   status: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
   department?: string | null;
   category?: string | null;
+  taluka?: string | null;
+  village?: string | null;
   estimatedCost?: number;
   approvalStatus?: ProjectApprovalStatus;
   nocRequired?: boolean;
@@ -138,6 +140,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     status: 'Concept' as Project['status'],
     department: '',
     category: '',
+    taluka: '',
+    village: '',
     estimatedCost: 0,
     approvalStatus: 'Pending' as ProjectApprovalStatus,
     nocRequired: false,
@@ -250,6 +254,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           status: data.status,
           department: data.department || '',
           category: data.category || '',
+          taluka: data.taluka || '',
+          village: data.village || '',
           estimatedCost: data.estimatedCost || 0,
           approvalStatus: data.approvalStatus || 'Pending',
           nocRequired: data.nocRequired || false,
@@ -778,6 +784,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                       status: project.status,
                       department: project.department || '',
                       category: project.category || '',
+                      taluka: project.taluka || '',
+                      village: project.village || '',
                       estimatedCost: project.estimatedCost || 0,
                       approvalStatus: project.approvalStatus || 'Pending',
                       nocRequired: project.nocRequired || false,
@@ -890,6 +898,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 <ProjectRosterFields
                   department={projectForm.department}
                   category={projectForm.category}
+                  taluka={projectForm.taluka}
+                  village={projectForm.village}
                   estimatedCost={projectForm.estimatedCost}
                   approvalStatus={projectForm.approvalStatus}
                   nocRequired={projectForm.nocRequired}
@@ -913,6 +923,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                         status: project.status,
                         department: project.department || '',
                         category: project.category || '',
+                        taluka: project.taluka || '',
+                        village: project.village || '',
                         estimatedCost: project.estimatedCost || 0,
                         approvalStatus: project.approvalStatus || 'Pending',
                         nocRequired: project.nocRequired || false,
