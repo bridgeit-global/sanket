@@ -9,6 +9,15 @@ import {
   deleteRegisterAttachment,
 } from '@/lib/db/queries';
 import { hasModuleAccess } from '@/lib/db/queries';
+import { canAccessInwardRegister } from '@/lib/register/access';
+
+async function canAccessEntry(
+  userId: string,
+  entryType: 'inward' | 'outward',
+): Promise<boolean> {
+  if (entryType === 'inward') return canAccessInwardRegister(userId);
+  return hasModuleAccess(userId, 'outward');
+}
 
 // Allowed file types for document uploads
 const ALLOWED_MIME_TYPES = [
@@ -44,9 +53,7 @@ export async function GET(
       return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
     }
 
-    // Check module access based on entry type
-    const moduleKey = entry.type === 'inward' ? 'inward' : 'outward';
-    const hasAccess = await hasModuleAccess(session.user.id, moduleKey);
+    const hasAccess = await canAccessEntry(session.user.id, entry.type);
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -80,9 +87,7 @@ export async function POST(
       return NextResponse.json({ error: 'Entry not found' }, { status: 404 });
     }
 
-    // Check module access based on entry type
-    const moduleKey = entry.type === 'inward' ? 'inward' : 'outward';
-    const hasAccess = await hasModuleAccess(session.user.id, moduleKey);
+    const hasAccess = await canAccessEntry(session.user.id, entry.type);
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -156,8 +161,7 @@ export async function DELETE(
     }
 
     // Check module access based on entry type
-    const moduleKey = entry.type === 'inward' ? 'inward' : 'outward';
-    const hasAccess = await hasModuleAccess(session.user.id, moduleKey);
+    const hasAccess = await canAccessEntry(session.user.id, entry.type);
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }

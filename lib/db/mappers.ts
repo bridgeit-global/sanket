@@ -514,6 +514,8 @@ export function mapMlaProjectRow(row: Row): MlaProject {
     status: row.status as MlaProject['status'],
     department: toStringOrNull(row.department),
     category: toStringOrNull(row.category),
+    taluka: toStringOrNull(row.taluka),
+    village: toStringOrNull(row.village),
     estimatedCost: Number(row.estimated_cost ?? row.estimatedCost ?? 0),
     approvalStatus: (row.approval_status ??
       row.approvalStatus ??
@@ -567,6 +569,23 @@ export function mapAdmFundAllocationRow(row: Row): AdmFundAllocation {
     fundRecordId: String(row.fund_record_id ?? row.fundRecordId),
     projectId: String(row.project_id ?? row.projectId),
     allocatedBudget: Number(row.allocated_budget ?? row.allocatedBudget ?? 0),
+    workCode: toStringOrNull(row.work_code ?? row.workCode),
+    sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
+    mlaRecommendationRef: toStringOrNull(
+      row.mla_recommendation_ref ?? row.mlaRecommendationRef,
+    ),
+    technicalSanctionRef: toStringOrNull(
+      row.technical_sanction_ref ?? row.technicalSanctionRef,
+    ),
+    technicalSanctionDate: row.technical_sanction_date ?? row.technicalSanctionDate
+      ? formatDateField(row.technical_sanction_date ?? row.technicalSanctionDate)
+      : null,
+    technicalSanctionAmount: Number(
+      row.technical_sanction_amount ?? row.technicalSanctionAmount ?? 0,
+    ),
+    governmentFixedAmount: Number(
+      row.government_fixed_amount ?? row.governmentFixedAmount ?? 0,
+    ),
     createdBy: String(row.created_by ?? row.createdBy),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),
@@ -577,13 +596,38 @@ export function mapAdmDocumentRow(row: Row): AdmDocument {
   return {
     id: String(row.id),
     fundRecordId: String(row.fund_record_id ?? row.fundRecordId),
-    fileName: String(row.file_name ?? row.fileName),
+    registerEntryId: toStringOrNull(
+      row.register_entry_id ?? row.registerEntryId,
+    ),
+    amountUnit: (row.amount_unit ??
+      row.amountUnit ??
+      'rupees') as AdmDocument['amountUnit'],
+    fileName: toStringOrNull(row.file_name ?? row.fileName),
     fileSizeKb: Number(row.file_size_kb ?? row.fileSizeKb ?? 0),
     fileUrl: toStringOrNull(row.file_url ?? row.fileUrl),
-    kind: String(row.kind ?? 'general'),
+    kind: String(row.kind ?? 'sanction_order'),
     label: toStringOrNull(row.label),
     uploadedBy: String(row.uploaded_by ?? row.uploadedBy),
     createdAt: toDate(row.created_at ?? row.createdAt),
+    registerRefNo: toStringOrNull(row.register_ref_no ?? row.registerRefNo),
+    registerSubject: toStringOrNull(
+      row.register_subject ?? row.registerSubject,
+    ),
+    registerDate: row.register_date ?? row.registerDate
+      ? formatDateField(row.register_date ?? row.registerDate)
+      : null,
+    registerFromTo: toStringOrNull(
+      row.register_from_to ?? row.registerFromTo,
+    ),
+    registerDocumentType: toStringOrNull(
+      row.register_document_type ?? row.registerDocumentType,
+    ),
+    attachmentFileUrl: toStringOrNull(
+      row.attachment_file_url ?? row.attachmentFileUrl,
+    ),
+    attachmentFileName: toStringOrNull(
+      row.attachment_file_name ?? row.attachmentFileName,
+    ),
   };
 }
 
@@ -603,8 +647,11 @@ export function mapProjectAttachmentRow(row: Row): ProjectAttachment {
   return {
     id: String(row.id),
     projectId: String(row.project_id ?? row.projectId),
-    fileName: String(row.file_name ?? row.fileName),
-    fileSizeKb: Number(row.file_size_kb ?? row.fileSizeKb),
+    registerEntryId: toStringOrNull(
+      row.register_entry_id ?? row.registerEntryId,
+    ),
+    fileName: toStringOrNull(row.file_name ?? row.fileName),
+    fileSizeKb: Number(row.file_size_kb ?? row.fileSizeKb ?? 0),
     fileUrl: toStringOrNull(row.file_url ?? row.fileUrl),
     documentKind: (row.document_kind ??
       row.documentKind ??
@@ -615,6 +662,16 @@ export function mapProjectAttachmentRow(row: Row): ProjectAttachment {
     ),
     uploadedBy: toStringOrNull(row.uploaded_by ?? row.uploadedBy),
     createdAt: toDate(row.created_at ?? row.createdAt),
+    registerRefNo: toStringOrNull(row.register_ref_no ?? row.registerRefNo),
+    registerSubject: toStringOrNull(
+      row.register_subject ?? row.registerSubject,
+    ),
+    registerDate: row.register_date ?? row.registerDate
+      ? formatDateField(row.register_date ?? row.registerDate)
+      : null,
+    registerFromTo: toStringOrNull(
+      row.register_from_to ?? row.registerFromTo,
+    ),
   };
 }
 

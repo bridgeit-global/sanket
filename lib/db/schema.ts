@@ -423,6 +423,8 @@ export type MlaProject = {
   status: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
   department: string | null;
   category: string | null;
+  taluka: string | null;
+  village: string | null;
   estimatedCost: number;
   approvalStatus: ProjectApprovalStatus;
   nocRequired: boolean;
@@ -441,7 +443,8 @@ export type MlaProject = {
 export type ProjectAttachment = {
   id: string;
   projectId: string;
-  fileName: string;
+  registerEntryId: string | null;
+  fileName: string | null;
   fileSizeKb: number;
   fileUrl: string | null;
   documentKind: ProjectDocumentKind;
@@ -449,6 +452,11 @@ export type ProjectAttachment = {
   versionGroupId: string;
   uploadedBy: string | null;
   createdAt: Date;
+  /** Populated when joined with RegisterEntry */
+  registerRefNo?: string | null;
+  registerSubject?: string | null;
+  registerDate?: string | null;
+  registerFromTo?: string | null;
 };
 
 export type ProjectGroundMedia = {
@@ -475,6 +483,9 @@ export type RegisterEntry = {
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
+  /** Populated when listing with ADM/project link counts */
+  linkedToAdm?: boolean;
+  linkedToProject?: boolean;
 };
 
 export type RegisterAttachment = {
@@ -688,11 +699,20 @@ export type AdmFundRecord = {
   updatedAt: Date;
 };
 
+export type AdmAmountUnit = 'rupees' | 'thousands' | 'lakhs';
+
 export type AdmFundAllocation = {
   id: string;
   fundRecordId: string;
   projectId: string;
   allocatedBudget: number;
+  workCode: string | null;
+  sortOrder: number;
+  mlaRecommendationRef: string | null;
+  technicalSanctionRef: string | null;
+  technicalSanctionDate: string | null;
+  technicalSanctionAmount: number;
+  governmentFixedAmount: number;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -702,6 +722,8 @@ export type AdmFundAllocationWithProject = AdmFundAllocation & {
   projectName: string;
   projectDepartment: string | null;
   projectCategory: string | null;
+  projectTaluka: string | null;
+  projectVillage: string | null;
   projectEstimatedCost: number;
   projectApprovalStatus: ProjectApprovalStatus;
 };
@@ -709,13 +731,23 @@ export type AdmFundAllocationWithProject = AdmFundAllocation & {
 export type AdmDocument = {
   id: string;
   fundRecordId: string;
-  fileName: string;
+  registerEntryId: string | null;
+  amountUnit: AdmAmountUnit;
+  fileName: string | null;
   fileSizeKb: number;
   fileUrl: string | null;
   kind: string;
   label: string | null;
   uploadedBy: string;
   createdAt: Date;
+  /** Populated when joined with RegisterEntry / attachments */
+  registerRefNo?: string | null;
+  registerSubject?: string | null;
+  registerDate?: string | null;
+  registerFromTo?: string | null;
+  registerDocumentType?: string | null;
+  attachmentFileUrl?: string | null;
+  attachmentFileName?: string | null;
 };
 
 export type AdmFundRecordWithDetails = AdmFundRecord & {

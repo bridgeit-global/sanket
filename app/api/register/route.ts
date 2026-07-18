@@ -9,6 +9,7 @@ import {
 } from '@/lib/db/queries';
 import { hasModuleAccess } from '@/lib/db/queries';
 import { parseReference } from '@/lib/letters/reference-sequence';
+import { canAccessInwardRegister } from '@/lib/register/access';
 import { registerEntryFormSchema, validateForm } from '@/lib/validations';
 
 export async function GET(request: NextRequest) {
@@ -30,10 +31,15 @@ export async function GET(request: NextRequest) {
       | 'In Progress'
       | 'Completed'
       | null;
+    const search = searchParams.get('search')?.trim() || undefined;
+    const limitParam = searchParams.get('limit');
+    const limit = limitParam
+      ? Math.min(Math.max(Number.parseInt(limitParam, 10) || 100, 1), 200)
+      : 100;
 
-    // Check module access based on type
+    // Check module access based on type (ADM users may search/create inward for linking)
     if (type === 'inward') {
-      const hasAccess = await hasModuleAccess(session.user.id, 'inward');
+      const hasAccess = await canAccessInwardRegister(session.user.id);
       if (!hasAccess) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
@@ -43,11 +49,28 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
     } else {
-      // If no type specified, check both
-      const hasInward = await hasModuleAccess(session.user.id, 'inward');
-      const hasOutward = await hasModuleAccess(session.user.id, 'outward');
-      if (!hasInward && !hasOutward) {
+      const [hasInward, hasOutward, hasAdm] = await Promise.all([
+        hasModuleAccess(session.user.id, 'inward'),
+        hasModuleAccess(session.user.id, 'outward'),
+        hasModuleAccess(session.user.id, 'adm'),
+      ]);
+      if (!hasInward && !hasOutward && !hasAdm) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+      // ADM-only users (no I/O modules) may only list inward
+      if (!hasInward && !hasOutward && hasAdm) {
+        const entries = await getRegisterEntriesWithAttachments({
+          type: 'inward',
+          startDate: startDateParam ? new Date(startDateParam) : undefined,
+          endDate: endDateParam ? new Date(endDateParam) : undefined,
+          projectIds: projectIdsParam
+            ? projectIdsParam.split(',').filter(Boolean)
+            : undefined,
+          projectStatus: projectStatusParam || undefined,
+          search,
+          limit,
+        });
+        return NextResponse.json(entries);
       }
     }
 
@@ -58,13 +81,14 @@ export async function GET(request: NextRequest) {
       : undefined;
     const projectStatus = projectStatusParam || undefined;
 
-    // Use the optimized query that includes attachments
     const entries = await getRegisterEntriesWithAttachments({
       type: type || undefined,
       startDate,
       endDate,
       projectIds,
       projectStatus,
+      search,
+      limit,
     });
 
     return NextResponse.json(entries);
@@ -106,6 +130,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (type !== 'inward' && type !== 'outward') {
+      return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
+    }
+
     const requestedType = String(documentType || 'General').trim();
     const docType = await getDocumentTypeByCode(requestedType, {
       activeOnly: true,
@@ -117,11 +145,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check module access based on type
-    const moduleKey = type === 'inward' ? 'inward' : 'outward';
-    const hasAccess = await hasModuleAccess(session.user.id, moduleKey);
-    if (!hasAccess) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    // Check module access based on type (ADM may create inward for sanction linking)
+    if (type === 'inward') {
+      const hasAccess = await canAccessInwardRegister(session.user.id);
+      if (!hasAccess) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
+    } else {
+      const hasAccess = await hasModuleAccess(session.user.id, 'outward');
+      if (!hasAccess) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+      }
     }
 
     let resolvedRefNo = refNo ? String(refNo).trim() || undefined : undefined;

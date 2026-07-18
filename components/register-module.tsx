@@ -86,6 +86,8 @@ interface RegisterEntry {
   refNo?: string;
   officer?: string;
   attachments?: Attachment[];
+  linkedToAdm?: boolean;
+  linkedToProject?: boolean;
 }
 
 interface Project {
@@ -1141,7 +1143,19 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
                         </TableCell>
                         <TableCell>{entry.fromTo}</TableCell>
                         <TableCell className="font-medium">
-                          {entry.subject}
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span>{entry.subject}</span>
+                            {entry.linkedToAdm && (
+                              <Badge variant="outline" className="text-[10px]">
+                                Linked to ADM
+                              </Badge>
+                            )}
+                            {entry.linkedToProject && (
+                              <Badge variant="outline" className="text-[10px]">
+                                Linked to Project
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>{project?.name || '-'}</TableCell>
                         <TableCell>{entry.mode || '-'}</TableCell>

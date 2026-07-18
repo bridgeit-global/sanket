@@ -9,7 +9,16 @@ import {
   getDocumentTypeByCode,
 } from '@/lib/db/queries';
 import { hasModuleAccess } from '@/lib/db/queries';
+import { canAccessInwardRegister } from '@/lib/register/access';
 import { registerEntryFormSchema, validateForm } from '@/lib/validations';
+
+async function canAccessEntry(
+  userId: string,
+  entryType: 'inward' | 'outward',
+): Promise<boolean> {
+  if (entryType === 'inward') return canAccessInwardRegister(userId);
+  return hasModuleAccess(userId, 'outward');
+}
 
 export async function GET(
   request: NextRequest,
@@ -28,9 +37,7 @@ export async function GET(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    // Check module access based on entry type
-    const moduleKey = entry.type === 'inward' ? 'inward' : 'outward';
-    const hasAccess = await hasModuleAccess(session.user.id, moduleKey);
+    const hasAccess = await canAccessEntry(session.user.id, entry.type);
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
@@ -64,7 +71,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    // Check module access based on entry type
+    // Full I/O edit stays on inward/outward modules (not ADM-only link access)
     const moduleKey = entry.type === 'inward' ? 'inward' : 'outward';
     const hasAccess = await hasModuleAccess(session.user.id, moduleKey);
     if (!hasAccess) {
@@ -151,7 +158,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
 
-    // Check module access based on entry type
+    // Delete stays on full I/O module access
     const moduleKey = entry.type === 'inward' ? 'inward' : 'outward';
     const hasAccess = await hasModuleAccess(session.user.id, moduleKey);
     if (!hasAccess) {
@@ -163,6 +170,20 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting register entry:', error);
+    const message = error instanceof Error ? error.message : '';
+    if (
+      message.includes('foreign key') ||
+      message.includes('violates foreign key') ||
+      message.includes('23503')
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            'Cannot delete: this entry is linked to an ADM document or project attachment',
+        },
+        { status: 409 },
+      );
+    }
     return NextResponse.json(
       { error: 'Failed to delete register entry' },
       { status: 500 },
