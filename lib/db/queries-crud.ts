@@ -68,6 +68,7 @@ import type {
   AddressMaster,
   DocumentTypeMaster,
   MlaProject,
+  AdmAmountUnit,
   AdmFundingCategory,
   AdmFundRecord,
   AdmFundAllocation,
@@ -5466,40 +5467,65 @@ export async function createAdmDocument({
   fundRecordId,
   registerEntryId,
   amountUnit = 'rupees',
+  fileName,
+  fileSizeKb,
+  fileUrl,
   kind,
   label,
   uploadedBy,
 }: {
   fundRecordId: string;
-  registerEntryId: string;
+  /** When set, file metadata is taken from the inward register attachment. */
+  registerEntryId?: string | null;
   amountUnit?: AdmAmountUnit;
+  fileName?: string | null;
+  fileSizeKb?: number;
+  fileUrl?: string | null;
   kind?: string;
   label?: string | null;
   uploadedBy: string;
 }): Promise<AdmDocument> {
   try {
-    const entry = await getRegisterEntryById(registerEntryId);
-    if (!entry || entry.type !== 'inward') {
-      throw new ChatSDKError(
-        'bad_request:database',
-        'Inward register entry is required',
-      );
+    let resolvedFileName = fileName ?? null;
+    let resolvedFileSizeKb = fileSizeKb ?? 0;
+    let resolvedFileUrl = fileUrl ?? null;
+    let resolvedRegisterEntryId = registerEntryId ?? null;
+
+    if (registerEntryId) {
+      const entry = await getRegisterEntryById(registerEntryId);
+      if (!entry || entry.type !== 'inward') {
+        throw new ChatSDKError(
+          'bad_request:database',
+          'Inward register entry is required',
+        );
+      }
+
+      const attachments = await getRegisterAttachments(registerEntryId);
+      const primary = attachments[0] ?? null;
+      resolvedRegisterEntryId = registerEntryId;
+      resolvedFileName = primary?.fileName ?? resolvedFileName;
+      resolvedFileSizeKb = primary?.fileSizeKb ?? resolvedFileSizeKb;
+      resolvedFileUrl = primary?.fileUrl ?? resolvedFileUrl;
     }
 
-    const attachments = await getRegisterAttachments(registerEntryId);
-    const primary = attachments[0] ?? null;
+    if (!resolvedFileName && !resolvedFileUrl) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Document file or inward register entry is required',
+      );
+    }
 
     const { data, error } = await supabase
       .from(TABLES.admDocument)
       .insert(
         toSnakeCaseKeys({
           fundRecordId,
-          registerEntryId,
+          registerEntryId: resolvedRegisterEntryId,
           amountUnit,
-          fileName: primary?.fileName ?? null,
-          fileSizeKb: primary?.fileSizeKb ?? 0,
-          fileUrl: primary?.fileUrl ?? null,
-          kind: kind ?? 'sanction_order',
+          fileName: resolvedFileName,
+          fileSizeKb: resolvedFileSizeKb,
+          fileUrl: resolvedFileUrl,
+          kind: kind ?? (resolvedRegisterEntryId ? 'sanction_order' : 'general'),
           label: label ?? null,
           uploadedBy,
           createdAt: new Date().toISOString(),
