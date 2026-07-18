@@ -9,6 +9,7 @@ import {
   mapVoterMasterRow,
 } from './mappers';
 import { ChatSDKError } from '../errors';
+import { startOfDayIST } from '@/lib/ist-date';
 import type {
   BeneficiaryService,
   DailyProgramme,
@@ -932,8 +933,7 @@ export async function getRelatedVoters(
 
 export async function getPhoneUpdateStats() {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = startOfDayIST();
 
     const [todayCountRow] = await pgSql`
       SELECT COUNT(*)::int AS count
@@ -1041,8 +1041,7 @@ export async function getPhoneUpdateStats() {
 
 export async function getBeneficiaryServiceStats() {
   try {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = startOfDayIST();
 
     const [todayCountRow] = await pgSql`
       SELECT COUNT(*)::int AS count

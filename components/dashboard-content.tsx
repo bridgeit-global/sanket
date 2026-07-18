@@ -9,7 +9,17 @@ import { useTranslations } from '@/hooks/use-translations';
 import { PhoneUpdatesChart } from '@/components/phone-updates-chart';
 import { SirActivityChart } from '@/components/sir-activity-chart';
 import { toWhatsAppChatUrl } from '@/lib/indian-mobile';
+import { getTodayDateStringIST } from '@/lib/ist-date';
 import type { DashboardData } from '@/lib/db/dashboard-queries';
+
+const BIRTHDAY_WHATSAPP_MESSAGE = `HAPPY BIRTHDAY!!
+🎉 वाढदिवसाच्या हार्दिक शुभेच्छा! 🎂
+
+आपल्याला उत्तम आरोग्य, दीर्घायुष्य, सुख, समृद्धी आणि भरभरून यश लाभो, हीच सदिच्छा. समाजसेवेतील आपले कार्य असेच जोमाने सुरू राहो.
+
+शुभेच्छांसह,
+सना मलिक शेख
+आमदार, अणुशक्तीनगर`;
 
 interface DashboardContentProps {
   data: DashboardData;
@@ -31,7 +41,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 export function DashboardContent({ data }: DashboardContentProps) {
   const router = useRouter();
   const { t } = useTranslations();
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const today = getTodayDateStringIST();
   const sirTitle = t('sir.dashboard.title');
   const sirDashboardTitle =
     sirTitle === 'sir.dashboard.title' ? 'SIR Activity' : sirTitle;
@@ -160,7 +170,10 @@ export function DashboardContent({ data }: DashboardContentProps) {
                       {item.phones.length > 0 ? (
                         <div className="mt-1.5 flex flex-wrap items-center gap-2">
                           {item.phones.map((phone) => {
-                            const whatsappHref = toWhatsAppChatUrl(phone);
+                            const whatsappHref = toWhatsAppChatUrl(
+                              phone,
+                              BIRTHDAY_WHATSAPP_MESSAGE,
+                            );
                             const callHref = `tel:+91${phone}`;
                             return (
                               <span

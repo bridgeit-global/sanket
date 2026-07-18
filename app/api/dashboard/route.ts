@@ -6,6 +6,7 @@ import {
   getPhoneUpdateStats,
   getBeneficiaryServiceStats,
 } from '@/lib/db/queries';
+import { getTodayDateStringIST } from '@/lib/ist-date';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,9 +16,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const todayStr = today.toISOString().split('T')[0];
+    const todayStr = getTodayDateStringIST();
 
     const [
       dashboardCounts,

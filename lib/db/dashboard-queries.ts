@@ -1,12 +1,18 @@
 import 'server-only';
 
-import { format, differenceInCalendarDays, startOfDay } from 'date-fns';
 import { supabase } from '@/lib/supabase/server';
 import { throwOnSupabaseError } from '@/lib/db/errors';
 import {
   isValidIndianMobile,
   normalizeIndianMobileDigits,
 } from '@/lib/indian-mobile';
+import {
+  type CalendarYmd,
+  differenceInCalendarDaysYmd,
+  formatYmd,
+  getCalendarYmd,
+  getTodayDateStringIST,
+} from '@/lib/ist-date';
 import { TABLES } from './schema';
 import { getPhoneUpdateStats, getBeneficiaryServiceStats, getDashboardCounts, getSirActivityStats } from './queries';
 import type { SirActivityStats } from './sir-queries';
@@ -120,28 +126,33 @@ function isLeapYear(year: number): boolean {
   return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
 }
 
-function birthdayDateInYear(year: number, month: number, day: number): Date {
+function birthdayDateInYear(
+  year: number,
+  month: number,
+  day: number,
+): CalendarYmd {
   let safeDay = day;
   if (month === 2 && day === 29 && !isLeapYear(year)) {
     safeDay = 28;
   }
-  return startOfDay(new Date(year, month - 1, safeDay));
+  return { year, month, day: safeDay };
 }
 
+/** Next birthday on/after `from`, using Asia/Kolkata calendar days. */
 function nextBirthdayOccurrence(
   month: number,
   day: number,
   from: Date,
-): { date: Date; daysUntil: number } {
-  const today = startOfDay(from);
-  const thisYear = birthdayDateInYear(today.getFullYear(), month, day);
+): { date: CalendarYmd; daysUntil: number } {
+  const today = getCalendarYmd(from);
+  const thisYear = birthdayDateInYear(today.year, month, day);
   const next =
-    thisYear.getTime() >= today.getTime()
+    differenceInCalendarDaysYmd(thisYear, today) >= 0
       ? thisYear
-      : birthdayDateInYear(today.getFullYear() + 1, month, day);
+      : birthdayDateInYear(today.year + 1, month, day);
   return {
     date: next,
-    daysUntil: differenceInCalendarDays(next, today),
+    daysUntil: differenceInCalendarDaysYmd(next, today),
   };
 }
 
@@ -300,7 +311,7 @@ export async function getUpcomingCadreBirthdays(
 
     const turningAge =
       parts.year != null && parts.year > 1900
-        ? nextDate.getFullYear() - parts.year
+        ? nextDate.year - parts.year
         : null;
 
     const personName =
@@ -334,7 +345,7 @@ export async function getUpcomingCadreBirthdays(
       phones,
       epicNumber,
       dob: voter.dob,
-      nextBirthday: format(nextDate, 'yyyy-MM-dd'),
+      nextBirthday: formatYmd(nextDate),
       daysUntil,
       turningAge:
         turningAge != null && turningAge > 0 && turningAge <= 150
@@ -353,8 +364,7 @@ export async function getUpcomingCadreBirthdays(
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
+  const todayStr = getTodayDateStringIST();
 
   const [
     dashboardCounts,

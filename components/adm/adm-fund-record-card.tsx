@@ -191,12 +191,9 @@ export function AdmFundRecordCard({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="secondary" className="font-semibold uppercase">
+            <Badge variant="secondary" className="font-semibold">
               {fund.categoryName}
             </Badge>
-            <span className="text-xs text-muted-foreground">
-              {fund.categoryCode}
-            </span>
           </div>
           {editing ? (
             <div className="grid gap-3 sm:grid-cols-2">

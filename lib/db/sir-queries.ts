@@ -5,6 +5,7 @@ import { throwOnSupabaseError } from '@/lib/db/errors';
 import { ChatSDKError } from '../errors';
 import { TABLES } from './schema';
 import { SIR_ELECTION_ID, wardNoFromElectionId } from '@/lib/sir/constants';
+import { startOfDayIST, startOfWeekIST } from '@/lib/ist-date';
 import type { SirActivityAction } from './schema';
 
 export type SirPartAndSerial = {
@@ -115,18 +116,12 @@ type VoterGeoResolved = VoterGeo & {
 const UNKNOWN_GEO = '—';
 
 function startOfToday(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
+  return startOfDayIST();
 }
 
-/** Monday 00:00 of the current week. */
+/** Monday 00:00 IST of the current week. */
 function startOfWeek(): Date {
-  const d = startOfToday();
-  const day = d.getDay(); // 0 = Sunday
-  const diff = (day + 6) % 7; // days since Monday
-  d.setDate(d.getDate() - diff);
-  return d;
+  return startOfWeekIST();
 }
 
 type ActivitySets = {
