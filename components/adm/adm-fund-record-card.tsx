@@ -205,10 +205,20 @@ export function AdmFundRecordCard({
     }
   };
 
+  const handleBudgetBlur = async (
+    allocation: AdmFundAllocationWithProject,
+    rawValue: string,
+  ) => {
+    const next = Number.parseInt(rawValue, 10) || 0;
+    if (next !== allocation.allocatedBudget) {
+      await onUpdateAllocation(allocation.id, next);
+    }
+  };
+
   return (
-    <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+    <div className="space-y-4 rounded-xl border border-border bg-card p-3 sm:p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-2">
+        <div className="min-w-0 flex-1 space-y-2">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary" className="font-semibold">
               {fund.categoryName}
@@ -224,7 +234,7 @@ export function AdmFundRecordCard({
               <div className="space-y-1">
                 <Label>{t('adm.financialYear')}</Label>
                 <Select value={financialYear} onValueChange={setFinancialYear}>
-                  <SelectTrigger className="min-h-10 w-full">
+                  <SelectTrigger className="min-h-11 w-full">
                     <SelectValue placeholder={t('adm.financialYear')} />
                   </SelectTrigger>
                   <SelectContent>
@@ -240,12 +250,12 @@ export function AdmFundRecordCard({
                 label={t('adm.fundBudgetCrore')}
                 valueRupees={budget}
                 onChangeRupees={setBudget}
-                inputClassName="min-h-10"
+                inputClassName="min-h-11"
                 className="space-y-1"
               />
             </div>
           ) : (
-            <div className="flex flex-wrap gap-4 text-sm">
+            <div className="flex flex-col gap-2 text-sm sm:flex-row sm:flex-wrap sm:gap-x-4 sm:gap-y-2">
               <span>
                 {t('adm.financialYear')}:{' '}
                 <span className="font-semibold">{fund.financialYear}</span>
@@ -271,7 +281,7 @@ export function AdmFundRecordCard({
               {isOverallocated && (
                 <Badge
                   variant="outline"
-                  className="border-destructive/40 bg-destructive/10 text-destructive"
+                  className="w-fit border-destructive/40 bg-destructive/10 text-destructive"
                 >
                   {t('adm.budgetOverallocated')}
                 </Badge>
@@ -279,7 +289,7 @@ export function AdmFundRecordCard({
             </div>
           )}
           {sourceDocuments.length > 0 ? (
-            <div className="flex flex-wrap gap-2 pt-1">
+            <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:flex-wrap">
               {sourceDocuments.map((doc) => {
                 const href = doc.attachmentFileUrl || doc.fileUrl;
                 if (!href) return null;
@@ -289,24 +299,26 @@ export function AdmFundRecordCard({
                     href={href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                    className="inline-flex min-h-11 w-full items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-primary hover:bg-muted/40 sm:w-auto sm:min-h-9 sm:border-0 sm:px-0 sm:py-0 sm:hover:bg-transparent sm:hover:underline"
                   >
-                    <FileText className="h-3.5 w-3.5" />
-                    {doc.label || doc.fileName || t('adm.sourceDetailsPdf')}
-                    <ExternalLink className="h-3 w-3" />
+                    <FileText className="h-3.5 w-3.5 shrink-0" />
+                    <span className="min-w-0 truncate">
+                      {doc.label || doc.fileName || t('adm.sourceDetailsPdf')}
+                    </span>
+                    <ExternalLink className="h-3 w-3 shrink-0" />
                   </a>
                 );
               })}
             </div>
           ) : null}
         </div>
-        <div className="flex gap-2">
+        <div className="flex w-full gap-2 sm:w-auto">
           {editing ? (
             <>
               <Button
                 type="button"
                 size="sm"
-                className="min-h-9"
+                className="min-h-11 flex-1 sm:min-h-9 sm:flex-none"
                 disabled={saving}
                 onClick={handleSaveFund}
               >
@@ -316,7 +328,7 @@ export function AdmFundRecordCard({
                 type="button"
                 size="sm"
                 variant="outline"
-                className="min-h-9"
+                className="min-h-11 flex-1 sm:min-h-9 sm:flex-none"
                 onClick={() => {
                   setFinancialYear(fund.financialYear);
                   setBudget(fund.budget);
@@ -332,7 +344,7 @@ export function AdmFundRecordCard({
                 type="button"
                 size="sm"
                 variant="outline"
-                className="min-h-9"
+                className="min-h-11 flex-1 sm:min-h-9 sm:flex-none"
                 onClick={() => setEditing(true)}
               >
                 <Pencil className="mr-1 h-3.5 w-3.5" />
@@ -342,7 +354,7 @@ export function AdmFundRecordCard({
                 type="button"
                 size="sm"
                 variant="outline"
-                className="min-h-9 text-destructive hover:text-destructive"
+                className="min-h-11 flex-1 text-destructive hover:text-destructive sm:min-h-9 sm:flex-none"
                 onClick={() => onDeleteFund(fund.id)}
               >
                 <Trash2 className="mr-1 h-3.5 w-3.5" />
@@ -354,7 +366,7 @@ export function AdmFundRecordCard({
       </div>
 
       <div className="space-y-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t('adm.associatedProjects')}
           </p>
@@ -362,7 +374,7 @@ export function AdmFundRecordCard({
             type="button"
             size="sm"
             variant="outline"
-            className="min-h-9"
+            className="min-h-11 w-full sm:min-h-9 sm:w-auto"
             onClick={() => setCreateProjectOpen(true)}
           >
             <Plus className="mr-1 h-3.5 w-3.5" />
@@ -372,114 +384,208 @@ export function AdmFundRecordCard({
         {fund.allocations.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('adm.noAllocations')}</p>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="whitespace-nowrap">
-                    {t('adm.workCode')}
-                  </TableHead>
-                  <TableHead>{t('adm.projectName')}</TableHead>
-                  <TableHead className="whitespace-nowrap">
-                    {t('adm.location')}
-                  </TableHead>
-                  <TableHead className="whitespace-nowrap">
-                    {t('adm.physicalStatus')}
-                  </TableHead>
-                  <TableHead className="whitespace-nowrap">
-                    {t('adm.recommendation')}
-                  </TableHead>
-                  <TableHead className="whitespace-nowrap">
-                    {t('adm.tsAmount')}
-                  </TableHead>
-                  <TableHead className="whitespace-nowrap">
-                    {t('adm.asAmount')}
-                  </TableHead>
-                  <TableHead className="whitespace-nowrap">
-                    {t('adm.allocatedBudget')}
-                  </TableHead>
-                  <TableHead className="w-28" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {fund.allocations.map((allocation) => (
-                  <TableRow key={allocation.id}>
-                    <TableCell className="font-mono text-xs whitespace-nowrap">
-                      {allocation.workCode || '—'}
-                    </TableCell>
-                    <TableCell>
+          <>
+            <div className="space-y-3 lg:hidden">
+              {fund.allocations.map((allocation) => (
+                <div
+                  key={allocation.id}
+                  className="space-y-3 rounded-lg border border-border bg-background p-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 space-y-1">
+                      <p className="font-mono text-xs text-muted-foreground">
+                        {allocation.workCode || '—'}
+                      </p>
                       <Link
                         href={`/modules/projects/${allocation.projectId}`}
-                        className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                        className="inline-flex items-start gap-1 font-medium text-primary hover:underline"
                       >
-                        <span className="max-w-[18rem] truncate">
+                        <span className="break-words">
                           {allocation.projectName}
                         </span>
-                        <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                        <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                       </Link>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {locationLabel(allocation)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="whitespace-nowrap">
-                        {t(physicalStatusKey(allocation.projectPhysicalStatus))}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="max-w-[10rem] truncate text-xs text-muted-foreground">
-                      {allocation.mlaRecommendationRef || '—'}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm">
-                      {formatAdmAmount(
-                        allocation.technicalSanctionAmount,
-                        'thousands',
-                      )}
-                    </TableCell>
-                    <TableCell className="whitespace-nowrap text-sm">
-                      {formatAdmAmount(
-                        allocation.governmentFixedAmount,
-                        'thousands',
-                      )}
-                    </TableCell>
-                    <TableCell>
+                      <p className="text-sm text-muted-foreground">
+                        {locationLabel(allocation)}
+                      </p>
+                    </div>
+                    <Badge variant="outline" className="shrink-0 whitespace-nowrap">
+                      {t(physicalStatusKey(allocation.projectPhysicalStatus))}
+                    </Badge>
+                  </div>
+
+                  <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                    <div className="col-span-2 min-w-0">
+                      <dt className="text-xs text-muted-foreground">
+                        {t('adm.recommendation')}
+                      </dt>
+                      <dd className="break-words">
+                        {allocation.mlaRecommendationRef || '—'}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted-foreground">
+                        {t('adm.tsAmount')}
+                      </dt>
+                      <dd>
+                        {formatAdmAmount(
+                          allocation.technicalSanctionAmount,
+                          'thousands',
+                        )}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted-foreground">
+                        {t('adm.asAmount')}
+                      </dt>
+                      <dd>
+                        {formatAdmAmount(
+                          allocation.governmentFixedAmount,
+                          'thousands',
+                        )}
+                      </dd>
+                    </div>
+                  </dl>
+
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <Label htmlFor={`alloc-budget-${allocation.id}`}>
+                        {t('adm.allocatedBudget')}
+                      </Label>
                       <Input
+                        id={`alloc-budget-${allocation.id}`}
                         key={`${allocation.id}-${allocation.allocatedBudget}`}
                         type="number"
                         min={0}
-                        className="min-h-9 w-32"
+                        className="min-h-11 w-full"
                         defaultValue={allocation.allocatedBudget}
-                        onBlur={async (e) => {
-                          const next =
-                            Number.parseInt(e.target.value, 10) || 0;
-                          if (next !== allocation.allocatedBudget) {
-                            await onUpdateAllocation(allocation.id, next);
-                          }
-                        }}
+                        onBlur={(e) =>
+                          void handleBudgetBlur(allocation, e.target.value)
+                        }
                       />
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive"
-                        onClick={() => onDeleteAllocation(allocation)}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </TableCell>
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      className="min-h-11 w-full text-destructive hover:text-destructive sm:w-auto"
+                      onClick={() => onDeleteAllocation(allocation)}
+                    >
+                      <Trash2 className="mr-1 h-3.5 w-3.5" />
+                      {t('adm.delete')}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="hidden overflow-x-auto lg:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="whitespace-nowrap">
+                      {t('adm.workCode')}
+                    </TableHead>
+                    <TableHead>{t('adm.projectName')}</TableHead>
+                    <TableHead className="whitespace-nowrap">
+                      {t('adm.location')}
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap">
+                      {t('adm.physicalStatus')}
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap">
+                      {t('adm.recommendation')}
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap">
+                      {t('adm.tsAmount')}
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap">
+                      {t('adm.asAmount')}
+                    </TableHead>
+                    <TableHead className="whitespace-nowrap">
+                      {t('adm.allocatedBudget')}
+                    </TableHead>
+                    <TableHead className="w-28" />
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+                </TableHeader>
+                <TableBody>
+                  {fund.allocations.map((allocation) => (
+                    <TableRow key={allocation.id}>
+                      <TableCell className="whitespace-nowrap font-mono text-xs">
+                        {allocation.workCode || '—'}
+                      </TableCell>
+                      <TableCell>
+                        <Link
+                          href={`/modules/projects/${allocation.projectId}`}
+                          className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                        >
+                          <span className="max-w-[18rem] truncate">
+                            {allocation.projectName}
+                          </span>
+                          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {locationLabel(allocation)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="whitespace-nowrap">
+                          {t(
+                            physicalStatusKey(allocation.projectPhysicalStatus),
+                          )}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="max-w-[10rem] truncate text-xs text-muted-foreground">
+                        {allocation.mlaRecommendationRef || '—'}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {formatAdmAmount(
+                          allocation.technicalSanctionAmount,
+                          'thousands',
+                        )}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {formatAdmAmount(
+                          allocation.governmentFixedAmount,
+                          'thousands',
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          key={`${allocation.id}-${allocation.allocatedBudget}`}
+                          type="number"
+                          min={0}
+                          className="min-h-9 w-32"
+                          defaultValue={allocation.allocatedBudget}
+                          onBlur={(e) =>
+                            void handleBudgetBlur(allocation, e.target.value)
+                          }
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => onDeleteAllocation(allocation)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </>
         )}
 
         <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-3 sm:flex-row sm:items-end">
-          <div className="flex-1 space-y-1">
+          <div className="min-w-0 flex-1 space-y-1">
             <Label>{t('adm.linkProject')}</Label>
             <select
-              className="flex min-h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              className="flex min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
               value={projectId}
               onChange={(e) => setProjectId(e.target.value)}
             >
@@ -500,12 +606,12 @@ export function AdmFundRecordCard({
               onChange={(e) =>
                 setAllocatedBudget(Number.parseInt(e.target.value, 10) || 0)
               }
-              className="min-h-10"
+              className="min-h-11"
             />
           </div>
           <Button
             type="button"
-            className="min-h-10"
+            className="min-h-11 w-full sm:w-auto"
             disabled={!projectId || addingAllocation}
             onClick={handleAddAllocation}
           >
@@ -516,7 +622,7 @@ export function AdmFundRecordCard({
       </div>
 
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t('adm.admDocuments')}
           </p>
@@ -534,7 +640,7 @@ export function AdmFundRecordCard({
               type="button"
               size="sm"
               variant="outline"
-              className="min-h-9"
+              className="min-h-11 w-full sm:min-h-9 sm:w-auto"
               disabled={uploading}
               onClick={() => fileInputRef.current?.click()}
             >
@@ -550,33 +656,37 @@ export function AdmFundRecordCard({
             {fund.documents.map((doc) => (
               <li
                 key={doc.id}
-                className="flex items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
+                className="flex flex-col gap-2 rounded-md border border-border px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="flex min-w-0 items-center gap-2">
-                  <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  {doc.fileUrl ? (
-                    <a
-                      href={doc.fileUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="truncate text-primary hover:underline"
-                    >
-                      {doc.label || doc.fileName}
-                    </a>
-                  ) : (
-                    <span className="truncate">{doc.label || doc.fileName}</span>
-                  )}
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {doc.kind}
-                  </span>
+                <div className="flex min-w-0 items-start gap-2 sm:items-center">
+                  <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground sm:mt-0" />
+                  <div className="min-w-0 flex-1">
+                    {doc.fileUrl ? (
+                      <a
+                        href={doc.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="break-words text-primary hover:underline"
+                      >
+                        {doc.label || doc.fileName}
+                      </a>
+                    ) : (
+                      <span className="break-words">
+                        {doc.label || doc.fileName}
+                      </span>
+                    )}
+                    <p className="text-xs text-muted-foreground">{doc.kind}</p>
+                  </div>
                 </div>
                 <Button
                   type="button"
                   size="sm"
                   variant="ghost"
+                  className="min-h-11 w-full sm:min-h-9 sm:w-auto"
                   onClick={() => onDeleteDocument(fund.id, doc)}
                 >
-                  <X className="h-3.5 w-3.5" />
+                  <X className="mr-1 h-3.5 w-3.5 sm:mr-0" />
+                  <span className="sm:hidden">{t('adm.delete')}</span>
                 </Button>
               </li>
             ))}
@@ -585,7 +695,7 @@ export function AdmFundRecordCard({
       </div>
 
       <Dialog open={createProjectOpen} onOpenChange={setCreateProjectOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-md overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t('adm.createProject')}</DialogTitle>
           </DialogHeader>

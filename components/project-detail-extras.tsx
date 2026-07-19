@@ -14,6 +14,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslations } from '@/hooks/use-translations';
 import { formatCurrency } from '@/lib/mla-office-utils';
@@ -83,6 +88,9 @@ export function ProjectDetailExtras({
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [uploadingBefore, setUploadingBefore] = useState(false);
   const [uploadingAfter, setUploadingAfter] = useState(false);
+  const [lightboxPhoto, setLightboxPhoto] = useState<ProjectGroundMedia | null>(
+    null,
+  );
 
   const kindLabel = (kind: ProjectDocumentKind) => {
     switch (kind) {
@@ -192,9 +200,9 @@ export function ProjectDetailExtras({
               {fundAllocations.map((a) => (
                 <li
                   key={a.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-sm"
+                  className="flex flex-col gap-2 rounded-md border border-border px-3 py-2 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
                 >
-                  <div>
+                  <div className="min-w-0">
                     <p className="font-medium">
                       {a.categoryName} ({a.categoryCode})
                     </p>
@@ -205,7 +213,7 @@ export function ProjectDetailExtras({
                   </div>
                   <Link
                     href={`/modules/adm?fund=${a.fundRecord.id}`}
-                    className="inline-flex items-center gap-1 text-primary hover:underline"
+                    className="inline-flex min-h-11 items-center justify-center gap-1 rounded-md border border-border px-3 text-primary hover:bg-muted/40 sm:min-h-0 sm:justify-start sm:border-0 sm:px-0 sm:hover:bg-transparent sm:hover:underline"
                   >
                     {t('projects.viewAdmFund')}
                     <ExternalLink className="h-3.5 w-3.5" />
@@ -299,7 +307,7 @@ export function ProjectDetailExtras({
             const inputRef = type === 'before' ? beforeInputRef : afterInputRef;
             return (
               <div key={type} className="space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm font-medium">
                     {type === 'before'
                       ? t('projects.photosBefore')
@@ -309,7 +317,7 @@ export function ProjectDetailExtras({
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="min-h-9"
+                    className="min-h-11 w-full sm:min-h-9 sm:w-auto"
                     disabled={uploading}
                     onClick={() => inputRef.current?.click()}
                   >
@@ -333,30 +341,42 @@ export function ProjectDetailExtras({
                     {t('projects.noPhotos')}
                   </p>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {photos.map((photo) => (
                       <div
                         key={photo.id}
-                        className="relative overflow-hidden rounded-md border border-border"
+                        className="overflow-hidden rounded-md border border-border"
                       >
-                        <div className="relative h-28 w-full">
+                        <button
+                          type="button"
+                          className="relative block aspect-[4/3] w-full bg-muted/40"
+                          onClick={() => setLightboxPhoto(photo)}
+                          aria-label={photo.fileName}
+                        >
                           <Image
                             src={photo.fileUrl}
                             alt={photo.fileName}
                             fill
-                            className="object-cover"
+                            className="object-contain"
                             unoptimized
+                            sizes="(max-width: 640px) 100vw, 50vw"
                           />
+                        </button>
+                        <div className="flex items-center justify-between gap-2 border-t border-border px-2 py-1.5">
+                          <p className="min-w-0 truncate text-xs text-muted-foreground">
+                            {photo.fileName}
+                          </p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="min-h-9 shrink-0 text-destructive hover:text-destructive"
+                            onClick={() => deletePhoto(photo.id)}
+                            aria-label={t('adm.delete')}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="secondary"
-                          className="absolute right-1 top-1 h-7 w-7 p-0"
-                          onClick={() => deletePhoto(photo.id)}
-                        >
-                          <X className="h-3.5 w-3.5" />
-                        </Button>
                       </div>
                     ))}
                   </div>
@@ -366,6 +386,31 @@ export function ProjectDetailExtras({
           })}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={Boolean(lightboxPhoto)}
+        onOpenChange={(open) => {
+          if (!open) setLightboxPhoto(null);
+        }}
+      >
+        <DialogContent className="max-h-[90dvh] w-[calc(100%-1rem)] max-w-4xl overflow-hidden p-3 sm:p-6">
+          <DialogTitle className="truncate pr-8 text-sm sm:text-base">
+            {lightboxPhoto?.fileName ?? t('projects.groundMedia')}
+          </DialogTitle>
+          {lightboxPhoto ? (
+            <div className="relative mx-auto flex max-h-[75dvh] w-full items-center justify-center bg-muted/30">
+              <Image
+                src={lightboxPhoto.fileUrl}
+                alt={lightboxPhoto.fileName}
+                width={1600}
+                height={1200}
+                className="max-h-[75dvh] w-auto max-w-full object-contain"
+                unoptimized
+              />
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardHeader>
@@ -395,7 +440,7 @@ export function ProjectDetailExtras({
             </div>
             <Button
               type="button"
-              className="min-h-11"
+              className="min-h-11 w-full sm:w-auto"
               disabled={uploadingDoc}
               onClick={() => docInputRef.current?.click()}
             >

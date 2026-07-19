@@ -16,7 +16,7 @@ export default async function AdmPage() {
   }
 
   return (
-    <div className="container mx-auto p-4 sm:py-8 max-w-7xl">
+    <div className="container mx-auto max-w-7xl px-3 py-4 sm:px-4 sm:py-8">
       <AdmModule />
     </div>
   );

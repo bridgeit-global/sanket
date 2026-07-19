@@ -184,7 +184,11 @@ export function AdmFundsList({
             ? t('adm.noFundsHint')
             : t('adm.fundsCount', { count: String(funds.length) })}
         </p>
-        <Button type="button" className="min-h-11" onClick={openCreateFund}>
+        <Button
+          type="button"
+          className="min-h-11 w-full sm:w-auto"
+          onClick={openCreateFund}
+        >
           <Plus className="mr-1 h-4 w-4" />
           {t('adm.newFund')}
         </Button>
@@ -233,7 +237,7 @@ export function AdmFundsList({
       )}
 
       <Dialog open={fundDialogOpen} onOpenChange={setFundDialogOpen}>
-        <DialogContent className="max-w-md overflow-visible">
+        <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-md overflow-visible">
           <DialogHeader>
             <DialogTitle>{t('adm.newFund')}</DialogTitle>
           </DialogHeader>
