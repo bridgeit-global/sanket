@@ -261,6 +261,10 @@ function partMargin(row: Form20PollingStationRow): {
   return { leadingCandidate: leadName, margin: leadVotes - runnerVotes };
 }
 
+/** Explicit default for topParts ranking (up to 262 stations). Not applied to other Form 20 queries. */
+export const FORM20_RANKING_DEFAULT_LIMIT = 30;
+export const FORM20_RANKING_MAX_LIMIT = 100;
+
 export function rankParts(options: {
   metric: TopPartMetric;
   candidate?: string;
@@ -268,7 +272,10 @@ export function rankParts(options: {
   ascending?: boolean;
   boothToWard?: Map<string, string>;
 }): { rows: RankedPartRow[]; truncated: boolean; total: number } {
-  const limit = Math.min(Math.max(options.limit ?? 30, 1), 100);
+  const limit = Math.min(
+    Math.max(options.limit ?? FORM20_RANKING_DEFAULT_LIMIT, 1),
+    FORM20_RANKING_MAX_LIMIT,
+  );
   const ascending = options.ascending ?? false;
 
   const ranked: RankedPartRow[] = form20.pollingStations.rows.map((row) => {

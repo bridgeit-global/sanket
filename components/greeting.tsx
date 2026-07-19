@@ -13,7 +13,7 @@ export const Greeting = () => {
         transition={{ delay: 0.5 }}
         className="text-lg sm:text-xl lg:text-2xl font-semibold text-center"
       >
-        Hello there!
+        Anushakti Nagar analytics
       </motion.div>
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -22,7 +22,7 @@ export const Greeting = () => {
         transition={{ delay: 0.6 }}
         className="text-base sm:text-lg lg:text-xl text-zinc-500 text-center mt-1 sm:mt-2"
       >
-        How can I help you today?
+        Voter roll and 2024 Form 20 results for AC 172
       </motion.div>
     </div>
   );

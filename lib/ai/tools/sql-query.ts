@@ -5,6 +5,9 @@ import { Parser } from 'node-sql-parser/build/postgresql';
 
 const PG_OPT = { database: 'Postgresql' as const };
 
+/** Safety cap for unbounded voter-roll SELECTs. Prefer a LIMIT in the SQL itself. */
+const SQL_RESULT_CAP = 50;
+
 /**
  * Deterministic guard rail: only allow a single SELECT statement.
  * Rejects multiple statements, non-SELECT statements, and parse errors.
@@ -44,6 +47,8 @@ function validateSingleSelectOnly(query: string): { allowed: true } | { allowed:
 
 export const sqlQueryTool = tool({
     description: `Execute custom SQL queries on the voter database. Only SELECT queries are accepted. Use table names in double quotes for PostgreSQL.
+
+RESULT SIZE: Prefer LIMIT in your SQL. The tool returns at most ${SQL_RESULT_CAP} rows to the UI when a query would otherwise return a large voter-roll result set; rowCount still reports the full match count.
 
 FORM 20 / CANDIDATE VOTE COUNTS: Not stored in Postgres. For 2024 assembly Form 20 results by part/ward/candidate, use the form20Query tool instead.
 
@@ -158,13 +163,15 @@ ORDER BY voter_count DESC`,
             const result = await sql.unsafe(query);
 
             const rowCount = Array.isArray(result) ? result.length : 0;
+            const results = Array.isArray(result) ? result.slice(0, SQL_RESULT_CAP) : [];
 
             return {
                 query,
                 description,
                 answer: `Query executed successfully. Found ${rowCount} rows.`,
                 rowCount,
-                results: Array.isArray(result) ? result.slice(0, 50) : [],
+                results,
+                truncated: rowCount > results.length,
                 sql: query,
             };
         } catch (error) {

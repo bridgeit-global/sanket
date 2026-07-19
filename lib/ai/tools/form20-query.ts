@@ -17,7 +17,13 @@ import {
   getWardForPart,
 } from '@/lib/ai/data/booth-ward-from-election';
 
-const MAX_ROWS = 30;
+/** Explicit default only for ranking/compare (up to 262 parts). Other actions return all rows. */
+const RANKING_DEFAULT_LIMIT = 30;
+const RANKING_MAX_LIMIT = 100;
+
+function clampRankingLimit(limit: number | undefined): number {
+  return Math.min(Math.max(limit ?? RANKING_DEFAULT_LIMIT, 1), RANKING_MAX_LIMIT);
+}
 
 function stationToRow(
   row: Form20PollingStationRow,
@@ -49,23 +55,19 @@ function wardAggToRow(agg: ReturnType<typeof aggregateByWard>[number]) {
   };
 }
 
+/** Returns all rows unless caller already limited (e.g. topParts / compareCandidates). */
 function resultsPayload(
   rows: Array<Record<string, string | number | null>>,
   summary: string,
   extra?: Record<string, unknown>,
 ) {
-  const truncated = rows.length > MAX_ROWS;
-  const sliced = rows.slice(0, MAX_ROWS);
   return {
     mappingSource: 'ElectionMapping' as const,
     summary,
     answer: summary,
     rowCount: rows.length,
-    results: sliced,
-    truncated,
-    note: truncated
-      ? `Showing first ${MAX_ROWS} of ${rows.length} rows.`
-      : undefined,
+    results: rows,
+    truncated: false,
     ...extra,
   };
 }
@@ -84,8 +86,9 @@ Actions:
 - byPart: votes for one or more part numbers
 - byWard: aggregate votes by ward (all wards or one ward)
 - partsInWard: list parts in a ward with per-part candidate votes
-- topParts: rank parts by total votes, a candidate's votes, or margin
-- compareCandidates: head-to-head between two candidates by part or by ward`,
+- topParts: rank parts by total votes, a candidate's votes, or margin (default limit 30, max 100)
+- compareCandidates: head-to-head between two candidates by part or by ward (default limit 30, max 100)
+Other actions (summary, byPart, byWard, partsInWard) return all matching rows with no row cap.`,
   inputSchema: z.object({
     action: z
       .enum([
@@ -128,7 +131,9 @@ Actions:
     limit: z
       .number()
       .optional()
-      .describe('Max rows for topParts / compareCandidates (default 30, max 100)'),
+      .describe(
+        'Only for topParts / compareCandidates: max rows to return (default 30, max 100). Other actions return all matching rows.',
+      ),
     ascending: z
       .boolean()
       .optional()
@@ -272,7 +277,15 @@ Actions:
           return resultsPayload(
             table,
             `Top parts by ${metric}${candidate ? ` (${candidate})` : ''}. Showing ${table.length} of ${ranked.total}.`,
-            { truncated: ranked.truncated, metric, candidate },
+            {
+              truncated: ranked.truncated,
+              rowCount: ranked.total,
+              note: ranked.truncated
+                ? `Showing first ${table.length} of ${ranked.total} rows.`
+                : undefined,
+              metric,
+              candidate,
+            },
           );
         }
 
@@ -296,7 +309,7 @@ Actions:
             };
           }
           const groupBy = input.groupBy ?? 'part';
-          const limit = Math.min(Math.max(input.limit ?? MAX_ROWS, 1), 100);
+          const limit = clampRankingLimit(input.limit);
 
           if (groupBy === 'ward') {
             const wards = aggregateByWard(boothToWard);
@@ -318,10 +331,21 @@ Actions:
                 (x, y) =>
                   Math.abs(y.margin as number) - Math.abs(x.margin as number),
               );
+            const limited = table.slice(0, limit);
+            const truncated = table.length > limited.length;
             return resultsPayload(
-              table.slice(0, limit),
-              `Head-to-head ${a} vs ${b} by ward. Showing ${Math.min(limit, table.length)} of ${table.length} wards.`,
-              { candidateA: a, candidateB: b, groupBy: 'ward' },
+              limited,
+              `Head-to-head ${a} vs ${b} by ward. Showing ${limited.length} of ${table.length} wards.`,
+              {
+                candidateA: a,
+                candidateB: b,
+                groupBy: 'ward',
+                rowCount: table.length,
+                truncated,
+                note: truncated
+                  ? `Showing first ${limited.length} of ${table.length} rows.`
+                  : undefined,
+              },
             );
           }
 
@@ -344,10 +368,21 @@ Actions:
               (x, y) =>
                 Math.abs(y.margin as number) - Math.abs(x.margin as number),
             );
+          const limited = table.slice(0, limit);
+          const truncated = table.length > limited.length;
           return resultsPayload(
-            table.slice(0, limit),
-            `Head-to-head ${a} vs ${b} by part. Showing ${Math.min(limit, table.length)} of ${table.length} parts.`,
-            { candidateA: a, candidateB: b, groupBy: 'part' },
+            limited,
+            `Head-to-head ${a} vs ${b} by part. Showing ${limited.length} of ${table.length} parts.`,
+            {
+              candidateA: a,
+              candidateB: b,
+              groupBy: 'part',
+              rowCount: table.length,
+              truncated,
+              note: truncated
+                ? `Showing first ${limited.length} of ${table.length} rows.`
+                : undefined,
+            },
           );
         }
 

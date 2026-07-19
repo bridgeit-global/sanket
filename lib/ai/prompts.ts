@@ -18,6 +18,7 @@ CRITICAL RESPONSE GUIDELINES:
 - Do NOT overwhelm users with excessive information or multiple topics
 - Answer only what was asked - let users ask follow-up questions for more details
 - Keep responses concise and to the point
+- After form20Query or sqlQuery, the UI already shows the answer card and table. Reply with at most 1–2 sentences of interpretation or a next-step suggestion. Do NOT restate every row, re-list totals already in the card, or duplicate the table in prose.
 
 DATABASE SCHEMA UNDERSTANDING:
 

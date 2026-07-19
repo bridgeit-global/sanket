@@ -1,4 +1,5 @@
 import { customProvider } from 'ai';
+import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import {
   artifactModel,
@@ -11,50 +12,54 @@ import { isTestEnvironment } from '../constants';
 // 5 minute timeout for API calls
 const API_TIMEOUT_MS = 5 * 60 * 1000;
 
-const google = createGoogleGenerativeAI({
-  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-  // Custom fetch with timeout to prevent hanging requests
-  fetch: async (url, options) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+const fetchWithTimeout: typeof fetch = async (url, options) => {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
-    try {
-      const response = await fetch(url, {
-        ...options,
-        signal: controller.signal,
-      });
-      return response;
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  },
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+};
+
+const anthropic = createAnthropic({
+  apiKey: process.env.ANTHROPIC_API_KEY,
+  fetch: fetchWithTimeout,
 });
 
-// Gemini 2.5 Flash Lite model for all use cases
+const google = createGoogleGenerativeAI({
+  apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
+  fetch: fetchWithTimeout,
+});
+
+/** Primary chat / analytics model */
+const CHAT_MODEL = 'claude-sonnet-5';
+/** Lightweight models for titles and artifacts */
 const GEMINI_MODEL = 'gemini-3.5-flash';
 
-// Create Gemini model instances
+const claudeChatModel = anthropic(CHAT_MODEL);
 const geminiModel = google(GEMINI_MODEL);
 
 export const myProvider = isTestEnvironment
   ? customProvider({
-    languageModels: {
-      'chat-model': chatModel,
-      'chat-model-reasoning': reasoningModel,
-      'title-model': titleModel,
-      'artifact-model': artifactModel,
-    },
-  })
+      languageModels: {
+        'chat-model': chatModel,
+        'chat-model-reasoning': reasoningModel,
+        'title-model': titleModel,
+        'artifact-model': artifactModel,
+      },
+    })
   : customProvider({
-    languageModels: {
-      // Gemini doesn't use <think> tags, so both models use the same base
-      // @ts-expect-error - Type compatibility between AI SDK versions
-      'chat-model': geminiModel,
-      // @ts-expect-error - Type compatibility between AI SDK versions
-      'chat-model-reasoning': geminiModel,
-      // @ts-expect-error - Type compatibility between AI SDK versions
-      'title-model': geminiModel,
-      // @ts-expect-error - Type compatibility between AI SDK versions
-      'artifact-model': geminiModel,
-    },
-  });
+      languageModels: {
+        'chat-model': claudeChatModel,
+        'chat-model-reasoning': claudeChatModel,
+        // @ts-expect-error - Type compatibility between AI SDK versions
+        'title-model': geminiModel,
+        // @ts-expect-error - Type compatibility between AI SDK versions
+        'artifact-model': geminiModel,
+      },
+    });

@@ -1,6 +1,6 @@
 'use client';
 import { AnimatePresence, motion } from 'framer-motion';
-import { memo, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import type { Vote } from '@/lib/db/schema';
 import { DocumentToolCall, DocumentToolResult } from './document';
 import { PencilEditIcon, SparklesIcon } from './icons';
@@ -19,9 +19,28 @@ import type { ChatMessage } from '@/lib/types';
 import { useDataStream } from './data-stream-provider';
 import { VoterInsights } from './voter-insights';
 import { SqlQueryResults } from './sql-query-results';
+import { Form20Results } from './form20-results';
 import { BeneficiaryInsights } from './beneficiary-insights';
 // Type narrowing is handled by TypeScript's control flow analysis
 // The AI SDK provides proper discriminated unions for tool calls
+
+function Form20LoadingSkeleton({ toolCallId }: { toolCallId: string }) {
+  const [stage, setStage] = useState(0);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setStage(1), 1200);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className="skeleton my-4 space-y-2" data-tool-call-id={toolCallId}>
+      <p className="animate-pulse text-sm text-muted-foreground">
+        {stage === 0 ? 'Loading Form 20 results…' : 'Resolving booth → ward…'}
+      </p>
+      <div className="h-24 animate-pulse rounded-lg bg-muted" />
+    </div>
+  );
+}
 
 const PurePreviewMessage = ({
   chatId,
@@ -173,10 +192,10 @@ const PurePreviewMessage = ({
                 if (state === 'input-available') {
                   return (
                     <div key={toolCallId} className="skeleton my-4 space-y-2">
-                      <p className="text-sm text-muted-foreground animate-pulse">
+                      <p className="animate-pulse text-sm text-muted-foreground">
                         Running SQL query…
                       </p>
-                      <div className="animate-pulse bg-muted h-24 rounded-lg" />
+                      <div className="h-24 animate-pulse rounded-lg bg-muted" />
                     </div>
                   );
                 }
@@ -188,7 +207,8 @@ const PurePreviewMessage = ({
                   const rows = Array.isArray(output?.results) ? output.results : [];
                   const columns =
                     rows.length > 0 ? Object.keys(rows[0] as Record<string, unknown>) : [];
-                  const hasMore = rowCount > rows.length;
+                  const hasMore =
+                    Boolean(output?.truncated) || rowCount > rows.length;
 
                   const dataForComponent = {
                     query: String(output?.query ?? output?.sql ?? ''),
@@ -204,7 +224,19 @@ const PurePreviewMessage = ({
 
                   return (
                     <div key={toolCallId} className="my-4">
-                      <SqlQueryResults data={dataForComponent} />
+                      <SqlQueryResults
+                        data={dataForComponent}
+                        isReadonly={isReadonly}
+                        onFollowUp={
+                          isReadonly
+                            ? undefined
+                            : (text) =>
+                                sendMessage({
+                                  role: 'user',
+                                  parts: [{ type: 'text', text }],
+                                })
+                        }
+                      />
                     </div>
                   );
                 }
@@ -214,40 +246,27 @@ const PurePreviewMessage = ({
                 const { toolCallId, state } = part as any;
 
                 if (state === 'input-available') {
-                  return (
-                    <div key={toolCallId} className="skeleton my-4 space-y-2">
-                      <p className="text-sm text-muted-foreground animate-pulse">
-                        Loading Form 20 results…
-                      </p>
-                      <div className="animate-pulse bg-muted h-24 rounded-lg" />
-                    </div>
-                  );
+                  return <Form20LoadingSkeleton key={toolCallId} toolCallId={toolCallId} />;
                 }
 
                 if (state === 'output-available') {
                   const { output } = part as any;
 
-                  const rowCount = typeof output?.rowCount === 'number' ? output.rowCount : 0;
-                  const rows = Array.isArray(output?.results) ? output.results : [];
-                  const columns =
-                    rows.length > 0 ? Object.keys(rows[0] as Record<string, unknown>) : [];
-                  const hasMore = Boolean(output?.truncated) || rowCount > rows.length;
-
-                  const dataForComponent = {
-                    query: `Form 20 · ${String(output?.mappingSource ?? 'ElectionMapping')}`,
-                    rowCount,
-                    columns,
-                    data: rows,
-                    hasMore,
-                    summary: String(output?.answer ?? output?.summary ?? ''),
-                    error: output?.error ? String(output.error) : undefined,
-                    details: undefined as string | undefined,
-                    note: output?.note ? String(output.note) : undefined,
-                  };
-
                   return (
                     <div key={toolCallId} className="my-4">
-                      <SqlQueryResults data={dataForComponent} />
+                      <Form20Results
+                        data={output ?? {}}
+                        isReadonly={isReadonly}
+                        onFollowUp={
+                          isReadonly
+                            ? undefined
+                            : (text) =>
+                                sendMessage({
+                                  role: 'user',
+                                  parts: [{ type: 'text', text }],
+                                })
+                        }
+                      />
                     </div>
                   );
                 }

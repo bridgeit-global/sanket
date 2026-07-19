@@ -180,7 +180,7 @@ export async function POST(request: Request) {
           },
         });
         result.consumeStream();
-        // Only send reasoning for reasoning model (Gemini doesn't use think tags for regular chat)
+        // Only send reasoning for reasoning model
         const isReasoningModel = selectedChatModel === 'chat-model-reasoning';
         dataStream.merge(
           result.toUIMessageStream({

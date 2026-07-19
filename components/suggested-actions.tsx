@@ -20,35 +20,37 @@ function PureSuggestedActions({
 }: SuggestedActionsProps) {
   const suggestedActions = [
     {
-      title: 'Voter demographics overview',
-      label: 'complete constituency stats',
-      action: 'Show me comprehensive voter demographics and statistics for Anushakti Nagar constituency',
+      title: 'Form 20 winner & turnout',
+      label: '2024 candidate votes',
+      action:
+        'Show Form 20 2024 winner, margin, and turnout summary for Anushakti Nagar AC 172',
+    },
+    {
+      title: 'Votes in ward 140',
+      label: 'Form 20 by ward',
+      action: 'How many Form 20 votes were cast in ward 140 in the 2024 assembly election?',
+    },
+    {
+      title: 'Votes in part 1',
+      label: 'Form 20 by booth/part',
+      action: 'Show Form 20 2024 candidate vote counts for part 1',
+    },
+    {
+      title: 'Demographics by religion',
+      label: 'voter roll analysis',
+      action: 'Show voter demographics broken down by religion for Anushakti Nagar',
+    },
+    {
+      title: 'Who did not vote',
+      label: '2024 turnout (has_voted)',
+      action:
+        'Show how many voters did not vote (has_voted = false) in the 2024 elections for Anushakti Nagar',
     },
     {
       title: 'Search voter by name',
-      label: 'find individual voters',
+      label: 'find on the voter roll',
       action: 'Search for voters with the name "Rajesh" in Anushakti Nagar constituency',
     },
-    {
-      title: '2024 voting analysis',
-      label: 'election participation data',
-      action: 'Show me the voting patterns and statistics for the 2024 elections in Anushakti Nagar',
-    },
-    {
-      title: 'Booth-wise distribution',
-      label: 'polling center analysis',
-      action: 'Show me the distribution of voters across all polling booths in Anushakti Nagar',
-    },
-    {
-      title: 'Age & gender breakdown',
-      label: 'demographic insights',
-      action: 'Show me all voters aged between 25 and 35 years in the constituency',
-    },
-    {
-      title: 'Non-voters analysis',
-      label: 'engagement opportunities',
-      action: 'Show me all voters who did not vote in the 2024 elections',
-    }
   ];
 
   return (
