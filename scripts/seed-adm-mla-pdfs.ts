@@ -11,7 +11,7 @@ import {
   resolveSupabaseUrl,
 } from '../lib/supabase/config';
 
-dotenv.config({ path: '.env.local.prod' });
+dotenv.config({ path: '.env.local' });
 dotenv.config();
 
 type SeedWork = {
