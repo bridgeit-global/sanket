@@ -1,0 +1,50 @@
+{
+  "sourcePdf": "mla1-24-25-0.58-details.pdf",
+  "financialYear": "2024-25",
+  "batchLabel": "MLA-1",
+  "budgetCrore": 0.58,
+  "works": [
+    {
+      "sortOrder": 1,
+      "workCode": "ML/2425/0408",
+      "taluka": "Anushakti Nagar",
+      "village": "Greater Mumbai",
+      "ward": null,
+      "name": "Construction of shed, drains, and footpaths near Jay Adishakti Bhavani Mitra Mandal, MHADA Colony, Vashi Naka, Chembur (SC/ST)",
+      "physicalStatus": "WC",
+      "mlaRecommendationRef": "PROP/7202400141, 05/07/2024",
+      "technicalSanctionRef": "VDPC/MSD/1988",
+      "technicalSanctionDate": "2024-08-14",
+      "technicalSanctionAmountThousands": 2400.0,
+      "administrativeSanctionAmountThousands": 2400.0
+    },
+    {
+      "sortOrder": 2,
+      "workCode": "ML/2425/0409",
+      "taluka": "Anushakti Nagar",
+      "village": "Greater Mumbai",
+      "ward": null,
+      "name": "Construction of a water pump room near the well at Bharat Nagar, Vashi Naka (SC/ST)",
+      "physicalStatus": "WC",
+      "mlaRecommendationRef": "PROP/7202400141, 05/07/2024",
+      "technicalSanctionRef": "VDPC/MSD/1987",
+      "technicalSanctionDate": "2024-08-14",
+      "technicalSanctionAmountThousands": 1000.0,
+      "administrativeSanctionAmountThousands": 1000.0
+    },
+    {
+      "sortOrder": 3,
+      "workCode": "ML/2425/0410",
+      "taluka": "Anushakti Nagar",
+      "village": "Greater Mumbai",
+      "ward": null,
+      "name": "Construction of a toilet near B. A.R.C. Labor Colony, Mandala Village",
+      "physicalStatus": "WC",
+      "mlaRecommendationRef": "PROP/7202400141, 05/07/2024",
+      "technicalSanctionRef": "VDPC/MSD/1989",
+      "technicalSanctionDate": "2024-08-07",
+      "technicalSanctionAmountThousands": 2400.0,
+      "administrativeSanctionAmountThousands": 2400.0
+    }
+  ]
+}

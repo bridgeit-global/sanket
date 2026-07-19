@@ -35,6 +35,7 @@ export async function PUT(
     const validation = validateForm(admFundRecordSchema, {
       financialYear: body.financialYear ?? existing.financialYear,
       budget: body.budget ?? existing.budget,
+      batchLabel: body.batchLabel ?? existing.batchLabel,
     });
     if (!validation.success) {
       return NextResponse.json(
@@ -44,7 +45,9 @@ export async function PUT(
     }
 
     const updated = await updateAdmFundRecord(id, {
-      ...validation.data,
+      financialYear: validation.data.financialYear,
+      budget: validation.data.budget,
+      batchLabel: validation.data.batchLabel?.trim() ?? existing.batchLabel,
       // Keep DB project_year in lockstep with financial year (UI no longer collects it)
       projectYear: validation.data.financialYear,
     });

@@ -48,6 +48,7 @@ export type ProjectFormData = z.infer<typeof projectFormSchema>;
 export const admFundRecordSchema = z.object({
   financialYear: z.string().min(1, 'Financial year is required').max(20),
   budget: z.number().int().min(0, 'Budget must be zero or positive'),
+  batchLabel: z.string().max(50).optional(),
 });
 
 export type AdmFundRecordData = z.infer<typeof admFundRecordSchema>;

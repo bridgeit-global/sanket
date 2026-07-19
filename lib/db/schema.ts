@@ -705,6 +705,8 @@ export type AdmFundRecord = {
   categoryId: string;
   financialYear: string;
   projectYear: string;
+  /** Distinguishes multiple fund batches in the same FY (e.g. MLA-1, MLA-2). */
+  batchLabel: string;
   budget: number;
   createdAt: Date;
   updatedAt: Date;
@@ -735,6 +737,8 @@ export type AdmFundAllocationWithProject = AdmFundAllocation & {
   projectCategory: string | null;
   projectTaluka: string | null;
   projectVillage: string | null;
+  projectWard: string | null;
+  projectPhysicalStatus: ProjectPhysicalStatus;
   projectEstimatedCost: number;
   projectApprovalStatus: ProjectApprovalStatus;
 };

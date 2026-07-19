@@ -46,6 +46,13 @@ export async function POST(request: NextRequest) {
       projectId: validation.data.projectId,
       allocatedBudget: validation.data.allocatedBudget,
       createdBy: session.user.id,
+      workCode: validation.data.workCode,
+      sortOrder: validation.data.sortOrder,
+      mlaRecommendationRef: validation.data.mlaRecommendationRef,
+      technicalSanctionRef: validation.data.technicalSanctionRef,
+      technicalSanctionDate: validation.data.technicalSanctionDate,
+      technicalSanctionAmount: validation.data.technicalSanctionAmount,
+      governmentFixedAmount: validation.data.governmentFixedAmount,
     });
 
     return NextResponse.json(allocation, { status: 201 });

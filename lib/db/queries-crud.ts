@@ -3946,6 +3946,8 @@ export async function createProject({
   status,
   department,
   category,
+  taluka,
+  village,
   estimatedCost,
   approvalStatus,
   nocRequired,
@@ -3964,6 +3966,8 @@ export async function createProject({
   status?: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
   department?: string | null;
   category?: string | null;
+  taluka?: string | null;
+  village?: string | null;
   estimatedCost?: number;
   approvalStatus?: MlaProject['approvalStatus'];
   nocRequired?: boolean;
@@ -3988,6 +3992,8 @@ export async function createProject({
           status: status || 'Concept',
           department: department ?? null,
           category: category ?? null,
+          taluka: taluka ?? null,
+          village: village ?? null,
           estimatedCost: estimatedCost ?? 0,
           approvalStatus: approvalStatus ?? 'Pending',
           nocRequired: nocRequired ?? false,
@@ -5177,6 +5183,8 @@ export async function getAdmDashboard(): Promise<AdmFundingCategoryWithFunds[]> 
         projectCategory: project?.category ?? null,
         projectTaluka: project?.taluka ?? null,
         projectVillage: project?.village ?? null,
+        projectWard: project?.ward ?? null,
+        projectPhysicalStatus: project?.physicalStatus ?? 'WNS',
         projectEstimatedCost: project?.estimatedCost ?? 0,
         projectApprovalStatus: project?.approvalStatus ?? 'Pending',
       };
@@ -5378,11 +5386,13 @@ export async function createAdmFundRecord({
   categoryId,
   financialYear,
   projectYear,
+  batchLabel = '',
   budget,
 }: {
   categoryId: string;
   financialYear: string;
   projectYear: string;
+  batchLabel?: string;
   budget: number;
 }): Promise<AdmFundRecord> {
   try {
@@ -5394,6 +5404,7 @@ export async function createAdmFundRecord({
           categoryId,
           financialYear,
           projectYear,
+          batchLabel: batchLabel.trim(),
           budget,
           createdAt: now,
           updatedAt: now,
@@ -5411,7 +5422,9 @@ export async function createAdmFundRecord({
 
 export async function updateAdmFundRecord(
   id: string,
-  data: Partial<Pick<AdmFundRecord, 'financialYear' | 'projectYear' | 'budget'>>,
+  data: Partial<
+    Pick<AdmFundRecord, 'financialYear' | 'projectYear' | 'batchLabel' | 'budget'>
+  >,
 ): Promise<AdmFundRecord | null> {
   try {
     const snakePatch = toSnakeCaseKeys({

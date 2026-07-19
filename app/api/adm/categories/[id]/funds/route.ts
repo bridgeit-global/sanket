@@ -33,11 +33,12 @@ export async function POST(
       );
     }
 
-    // project_year column is retained for DB uniqueness; keep it synced to financial year
+    // project_year kept in sync with financial year; batch_label allows multiple batches per FY
     const fund = await createAdmFundRecord({
       categoryId,
       financialYear: validation.data.financialYear,
       projectYear: validation.data.financialYear,
+      batchLabel: validation.data.batchLabel?.trim() ?? '',
       budget: validation.data.budget,
     });
 

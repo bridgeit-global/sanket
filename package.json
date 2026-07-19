@@ -14,6 +14,7 @@
     "supabase:types": "bash scripts/supabase-gen-types.sh",
     "db:verify": "npx tsx scripts/verify-db-connection.ts",
     "db:seed:addresses": "npx tsx scripts/seed-address-master.ts",
+    "db:seed:adm-mla": "npx tsx scripts/seed-adm-mla-pdfs.ts",
     "test": "export PLAYWRIGHT=True && pnpm exec playwright test"
   },
   "dependencies": {

@@ -60,7 +60,18 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { fundRecordId, allocatedBudget, ...projectFields } = body;
+    const {
+      fundRecordId,
+      allocatedBudget,
+      workCode,
+      sortOrder,
+      mlaRecommendationRef,
+      technicalSanctionRef,
+      technicalSanctionDate,
+      technicalSanctionAmount,
+      governmentFixedAmount,
+      ...projectFields
+    } = body;
 
     const validation = validateForm(projectFormSchema, {
       status: 'Concept',
@@ -90,12 +101,32 @@ export async function POST(request: NextRequest) {
 
     let allocation = null;
     if (fundRecordId) {
+      const asAmount =
+        typeof governmentFixedAmount === 'number'
+          ? governmentFixedAmount
+          : typeof allocatedBudget === 'number'
+            ? allocatedBudget
+            : 0;
       allocation = await createAdmFundAllocation({
         fundRecordId,
         projectId: project.id,
-        allocatedBudget:
-          typeof allocatedBudget === 'number' ? allocatedBudget : 0,
+        allocatedBudget: asAmount,
         createdBy: session.user.id,
+        workCode: typeof workCode === 'string' ? workCode : null,
+        sortOrder: typeof sortOrder === 'number' ? sortOrder : undefined,
+        mlaRecommendationRef:
+          typeof mlaRecommendationRef === 'string' ? mlaRecommendationRef : null,
+        technicalSanctionRef:
+          typeof technicalSanctionRef === 'string' ? technicalSanctionRef : null,
+        technicalSanctionDate:
+          typeof technicalSanctionDate === 'string'
+            ? technicalSanctionDate
+            : null,
+        technicalSanctionAmount:
+          typeof technicalSanctionAmount === 'number'
+            ? technicalSanctionAmount
+            : undefined,
+        governmentFixedAmount: asAmount,
       });
     }
 

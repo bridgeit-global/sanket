@@ -13,6 +13,13 @@ import { validateForm } from '@/lib/validations';
 const patchSchema = z.object({
   allocatedBudget: z.number().int().min(0).optional(),
   projectId: z.string().uuid().optional(),
+  workCode: z.string().max(100).nullable().optional(),
+  sortOrder: z.number().int().min(0).optional(),
+  mlaRecommendationRef: z.string().max(255).nullable().optional(),
+  technicalSanctionRef: z.string().max(255).nullable().optional(),
+  technicalSanctionDate: z.string().nullable().optional(),
+  technicalSanctionAmount: z.number().int().min(0).optional(),
+  governmentFixedAmount: z.number().int().min(0).optional(),
 });
 
 export async function PUT(

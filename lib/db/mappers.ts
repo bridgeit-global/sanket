@@ -570,6 +570,7 @@ export function mapAdmFundRecordRow(row: Row): AdmFundRecord {
     categoryId: String(row.category_id ?? row.categoryId),
     financialYear: String(row.financial_year ?? row.financialYear),
     projectYear: String(row.project_year ?? row.projectYear),
+    batchLabel: String(row.batch_label ?? row.batchLabel ?? ''),
     budget: Number(row.budget ?? 0),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),

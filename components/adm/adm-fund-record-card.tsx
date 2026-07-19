@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/table';
 import { useTranslations } from '@/hooks/use-translations';
 import { financialYearOptions } from '@/lib/adm/financial-year';
+import { formatAdmAmount } from '@/lib/adm/amount-unit';
 import { formatCurrency } from '@/lib/mla-office-utils';
 import type {
   AdmFundRecordWithDetails,
@@ -52,6 +53,23 @@ import { AdmCroreAmountInput } from './adm-crore-amount-input';
 export interface AdmProjectOption {
   id: string;
   name: string;
+}
+
+function locationLabel(allocation: AdmFundAllocationWithProject): string {
+  const parts = [
+    allocation.projectWard ? `Ward ${allocation.projectWard}` : null,
+    allocation.projectVillage,
+    allocation.projectTaluka,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(' · ') : '—';
+}
+
+function physicalStatusKey(
+  status: AdmFundAllocationWithProject['projectPhysicalStatus'],
+): string {
+  if (status === 'WC') return 'adm.physicalStatusWc';
+  if (status === 'WIP') return 'adm.physicalStatusWip';
+  return 'adm.physicalStatusWns';
 }
 
 interface AdmFundRecordCardProps {
@@ -119,6 +137,7 @@ export function AdmFundRecordCard({
   const allocatedProjectIds = new Set(fund.allocations.map((a) => a.projectId));
   const availableProjects = projects.filter((p) => !allocatedProjectIds.has(p.id));
   const fyOptions = financialYearOptions(financialYear);
+  const sourceDocuments = fund.documents.filter((d) => d.kind === 'source_details');
 
   const handleSaveFund = async () => {
     setSaving(true);
@@ -194,6 +213,11 @@ export function AdmFundRecordCard({
             <Badge variant="secondary" className="font-semibold">
               {fund.categoryName}
             </Badge>
+            {fund.batchLabel ? (
+              <Badge variant="outline" className="font-medium">
+                {fund.batchLabel}
+              </Badge>
+            ) : null}
           </div>
           {editing ? (
             <div className="grid gap-3 sm:grid-cols-2">
@@ -226,6 +250,12 @@ export function AdmFundRecordCard({
                 {t('adm.financialYear')}:{' '}
                 <span className="font-semibold">{fund.financialYear}</span>
               </span>
+              {fund.batchLabel ? (
+                <span>
+                  {t('adm.batchLabel')}:{' '}
+                  <span className="font-semibold">{fund.batchLabel}</span>
+                </span>
+              ) : null}
               <span>
                 {t('adm.fundBudget')}:{' '}
                 <span className="font-semibold">
@@ -248,6 +278,27 @@ export function AdmFundRecordCard({
               )}
             </div>
           )}
+          {sourceDocuments.length > 0 ? (
+            <div className="flex flex-wrap gap-2 pt-1">
+              {sourceDocuments.map((doc) => {
+                const href = doc.attachmentFileUrl || doc.fileUrl;
+                if (!href) return null;
+                return (
+                  <a
+                    key={doc.id}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    {doc.label || doc.fileName || t('adm.sourceDetailsPdf')}
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                );
+              })}
+            </div>
+          ) : null}
         </div>
         <div className="flex gap-2">
           {editing ? (
@@ -321,61 +372,107 @@ export function AdmFundRecordCard({
         {fund.allocations.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('adm.noAllocations')}</p>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('adm.projectName')}</TableHead>
-                <TableHead>{t('adm.department')}</TableHead>
-                <TableHead>{t('adm.allocatedBudget')}</TableHead>
-                <TableHead className="w-28" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {fund.allocations.map((allocation) => (
-                <TableRow key={allocation.id}>
-                  <TableCell>
-                    <Link
-                      href={`/modules/projects/${allocation.projectId}`}
-                      className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
-                    >
-                      {allocation.projectName}
-                      <ExternalLink className="h-3.5 w-3.5" />
-                    </Link>
-                  </TableCell>
-                  <TableCell>
-                    {allocation.projectDepartment || '—'}
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      key={`${allocation.id}-${allocation.allocatedBudget}`}
-                      type="number"
-                      min={0}
-                      className="min-h-9 w-32"
-                      defaultValue={allocation.allocatedBudget}
-                      onBlur={async (e) => {
-                        const next =
-                          Number.parseInt(e.target.value, 10) || 0;
-                        if (next !== allocation.allocatedBudget) {
-                          await onUpdateAllocation(allocation.id, next);
-                        }
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => onDeleteAllocation(allocation)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="whitespace-nowrap">
+                    {t('adm.workCode')}
+                  </TableHead>
+                  <TableHead>{t('adm.projectName')}</TableHead>
+                  <TableHead className="whitespace-nowrap">
+                    {t('adm.location')}
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap">
+                    {t('adm.physicalStatus')}
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap">
+                    {t('adm.recommendation')}
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap">
+                    {t('adm.tsAmount')}
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap">
+                    {t('adm.asAmount')}
+                  </TableHead>
+                  <TableHead className="whitespace-nowrap">
+                    {t('adm.allocatedBudget')}
+                  </TableHead>
+                  <TableHead className="w-28" />
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {fund.allocations.map((allocation) => (
+                  <TableRow key={allocation.id}>
+                    <TableCell className="font-mono text-xs whitespace-nowrap">
+                      {allocation.workCode || '—'}
+                    </TableCell>
+                    <TableCell>
+                      <Link
+                        href={`/modules/projects/${allocation.projectId}`}
+                        className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                      >
+                        <span className="max-w-[18rem] truncate">
+                          {allocation.projectName}
+                        </span>
+                        <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                      </Link>
+                    </TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {locationLabel(allocation)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="whitespace-nowrap">
+                        {t(physicalStatusKey(allocation.projectPhysicalStatus))}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="max-w-[10rem] truncate text-xs text-muted-foreground">
+                      {allocation.mlaRecommendationRef || '—'}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-sm">
+                      {formatAdmAmount(
+                        allocation.technicalSanctionAmount,
+                        'thousands',
+                      )}
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-sm">
+                      {formatAdmAmount(
+                        allocation.governmentFixedAmount,
+                        'thousands',
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        key={`${allocation.id}-${allocation.allocatedBudget}`}
+                        type="number"
+                        min={0}
+                        className="min-h-9 w-32"
+                        defaultValue={allocation.allocatedBudget}
+                        onBlur={async (e) => {
+                          const next =
+                            Number.parseInt(e.target.value, 10) || 0;
+                          if (next !== allocation.allocatedBudget) {
+                            await onUpdateAllocation(allocation.id, next);
+                          }
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => onDeleteAllocation(allocation)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
 
         <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-3 sm:flex-row sm:items-end">

@@ -88,9 +88,12 @@ function filterFunds(
       f.categoryName.toLowerCase().includes(q) ||
       f.categoryCode.toLowerCase().includes(q) ||
       f.financialYear.toLowerCase().includes(q) ||
+      f.batchLabel.toLowerCase().includes(q) ||
       f.allocations.some(
         (a) =>
           a.projectName.toLowerCase().includes(q) ||
+          (a.workCode?.toLowerCase().includes(q) ?? false) ||
+          (a.projectWard?.toLowerCase().includes(q) ?? false) ||
           (a.projectDepartment?.toLowerCase().includes(q) ?? false),
       ),
   );
