@@ -14,6 +14,7 @@ export async function GET(_request: NextRequest) {
     const body = services.map((row) => ({
       id: row.id,
       name: row.name,
+      category: row.category,
       sortOrder: row.sortOrder,
     }));
 

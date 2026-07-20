@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Paperclip, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -130,8 +130,51 @@ export interface BeneficiaryServiceFormProps {
 type IndividualServiceRow = {
     id: string;
     name: string;
+    category: string | null;
     sortOrder: number;
 };
+
+function buildServiceComboboxOptions(
+    services: IndividualServiceRow[],
+    customLabel: string,
+): Array<{
+    value: string;
+    label: string;
+    disabled?: boolean;
+    renderLabel?: (label: string) => ReactNode;
+}> {
+    const options: Array<{
+        value: string;
+        label: string;
+        disabled?: boolean;
+        renderLabel?: (label: string) => ReactNode;
+    }> = [];
+
+    let lastCategory: string | null = null;
+    for (const service of services) {
+        const category = service.category?.trim() || 'Other';
+        if (category !== lastCategory) {
+            options.push({
+                value: `__category__${category}`,
+                label: category,
+                disabled: true,
+            });
+            lastCategory = category;
+        }
+        options.push({
+            value: service.name,
+            label: service.name,
+        });
+    }
+
+    options.push({
+        value: 'custom',
+        label: customLabel,
+        renderLabel: (label) => <span className="italic">{label}</span>,
+    });
+
+    return options;
+}
 
 export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
     const { voter, onServiceCreated, onServiceDataReady, onPrevious, onCancel, initialData } = props;
@@ -419,17 +462,10 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
                                                 : t('common.loading')
                                         }
                                         disabled={!servicesLoaded}
-                                        options={[
-                                            ...individualServices.map((service) => ({
-                                                value: service.name,
-                                                label: service.name,
-                                            })),
-                                            {
-                                                value: 'custom',
-                                                label: t('beneficiaryService.form.fields.customService'),
-                                                renderLabel: (label) => <span className="italic">{label}</span>,
-                                            },
-                                        ]}
+                                        options={buildServiceComboboxOptions(
+                                            individualServices,
+                                            t('beneficiaryService.form.fields.customService'),
+                                        )}
                                     />
 
                                     {isCustomService && (

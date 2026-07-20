@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/components/toast';
 import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
@@ -51,6 +51,7 @@ interface TaskResponse {
 interface ServiceCatalogOption {
     id: string;
     name: string;
+    category: string | null;
 }
 
 function extractTokenFromQrPayload(payload: string): string | null {
@@ -473,9 +474,10 @@ export function TaskManagement({
                     const data = await res.json();
                     setServiceCatalog(
                         (Array.isArray(data) ? data : data.services ?? []).map(
-                            (s: { id: string; name: string }) => ({
+                            (s: { id: string; name: string; category?: string | null }) => ({
                             id: s.id,
                             name: s.name,
+                            category: s.category ?? null,
                         })),
                     );
                 }
@@ -879,11 +881,25 @@ export function TaskManagement({
                                     </SelectTrigger>
                                     <SelectContent>
                                         <SelectItem value="all">{t('taskManagement.filters.allServices')}</SelectItem>
-                                        {serviceCatalog.map((service) => (
-                                            <SelectItem key={service.id} value={service.name}>
-                                                {service.name}
-                                            </SelectItem>
-                                        ))}
+                                        {(() => {
+                                            const groups = new Map<string, ServiceCatalogOption[]>();
+                                            for (const service of serviceCatalog) {
+                                                const key = service.category?.trim() || 'Other';
+                                                const list = groups.get(key) ?? [];
+                                                list.push(service);
+                                                groups.set(key, list);
+                                            }
+                                            return Array.from(groups.entries()).map(([category, services]) => (
+                                                <SelectGroup key={category}>
+                                                    <SelectLabel>{category}</SelectLabel>
+                                                    {services.map((service) => (
+                                                        <SelectItem key={service.id} value={service.name}>
+                                                            {service.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectGroup>
+                                            ));
+                                        })()}
                                     </SelectContent>
                                 </Select>
                             </div>

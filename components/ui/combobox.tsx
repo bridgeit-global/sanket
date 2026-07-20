@@ -11,6 +11,8 @@ interface ComboboxOption {
     className?: string;
     /** Always shown in the list, even when the search query does not match. */
     pinned?: boolean;
+    /** Non-selectable section header (e.g. category group). */
+    disabled?: boolean;
     renderLabel?: (label: string) => React.ReactNode;
 }
 
@@ -49,13 +51,33 @@ export function Combobox({
 
     const selectedOption = options.find((opt) => opt.value === value);
 
-    // Filter options based on search query (pinned options always remain visible)
+    // Filter options based on search query (pinned options always remain visible).
+    // Category headers stay only when at least one following selectable option matches.
     const filteredOptions = React.useMemo(() => {
         if (!searchQuery.trim()) return options;
         const query = searchQuery.toLowerCase();
-        return options.filter(
-            (opt) => opt.pinned || opt.label.toLowerCase().includes(query)
+        const matched = options.filter(
+            (opt) =>
+                opt.pinned ||
+                (!opt.disabled && opt.label.toLowerCase().includes(query)),
         );
+        const matchedValues = new Set(matched.map((opt) => opt.value));
+        const result: typeof options = [];
+        let pendingHeader: (typeof options)[number] | null = null;
+        for (const opt of options) {
+            if (opt.disabled) {
+                pendingHeader = opt;
+                continue;
+            }
+            if (matchedValues.has(opt.value) || opt.pinned) {
+                if (pendingHeader) {
+                    result.push(pendingHeader);
+                    pendingHeader = null;
+                }
+                result.push(opt);
+            }
+        }
+        return result;
     }, [options, searchQuery]);
 
     const trimmedQuery = searchQuery.trim();
@@ -105,6 +127,8 @@ export function Combobox({
     }, [open]);
 
     const handleSelect = (optionValue: string) => {
+        const option = options.find((opt) => opt.value === optionValue);
+        if (option?.disabled) return;
         onValueChange?.(optionValue);
         setOpen(false);
         setSearchQuery('');
@@ -131,8 +155,13 @@ export function Combobox({
                 setOpen(true);
             } else {
                 setHighlightedIndex((prev) => {
-                    const newIndex = prev < filteredOptions.length - 1 ? prev + 1 : prev;
-                    // Scroll into view after state update
+                    let newIndex = prev;
+                    for (let i = prev + 1; i < filteredOptions.length; i++) {
+                        if (!filteredOptions[i]?.disabled) {
+                            newIndex = i;
+                            break;
+                        }
+                    }
                     setTimeout(() => {
                         optionRefs.current[newIndex]?.scrollIntoView({
                             block: 'nearest',
@@ -145,8 +174,13 @@ export function Combobox({
             e.preventDefault();
             if (open) {
                 setHighlightedIndex((prev) => {
-                    const newIndex = prev > 0 ? prev - 1 : 0;
-                    // Scroll into view after state update
+                    let newIndex = prev;
+                    for (let i = prev - 1; i >= 0; i--) {
+                        if (!filteredOptions[i]?.disabled) {
+                            newIndex = i;
+                            break;
+                        }
+                    }
                     setTimeout(() => {
                         optionRefs.current[newIndex]?.scrollIntoView({
                             block: 'nearest',
@@ -158,10 +192,12 @@ export function Combobox({
         } else if (e.key === 'Enter') {
             e.preventDefault();
             if (open && filteredOptions.length > 0) {
-                handleSelect(
-                    filteredOptions[highlightedIndex]?.value ||
-                        filteredOptions[0].value,
-                );
+                const highlighted = filteredOptions[highlightedIndex];
+                const fallback = filteredOptions.find((opt) => !opt.disabled);
+                const selected = highlighted && !highlighted.disabled ? highlighted : fallback;
+                if (selected) {
+                    handleSelect(selected.value);
+                }
             } else if (open && showCreate) {
                 handleSelect(trimmedQuery);
             } else if (!open) {
@@ -225,18 +261,30 @@ export function Combobox({
                                     ref={(el) => {
                                         optionRefs.current[index] = el;
                                     }}
-                                    onClick={() => handleSelect(option.value)}
-                                    onMouseEnter={() => setHighlightedIndex(index)}
+                                    onClick={() => {
+                                        if (!option.disabled) handleSelect(option.value);
+                                    }}
+                                    onMouseEnter={() => {
+                                        if (!option.disabled) setHighlightedIndex(index);
+                                    }}
                                     className={cn(
-                                        'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
-                                        value === option.value && 'bg-accent text-accent-foreground',
-                                        highlightedIndex === index && 'bg-accent text-accent-foreground',
+                                        'relative flex w-full select-none items-center rounded-sm py-1.5 pl-8 pr-2 text-sm outline-none',
+                                        option.disabled
+                                            ? 'cursor-default px-2 pl-2 pt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground'
+                                            : 'cursor-default hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
+                                        !option.disabled &&
+                                            value === option.value &&
+                                            'bg-accent text-accent-foreground',
+                                        !option.disabled &&
+                                            highlightedIndex === index &&
+                                            'bg-accent text-accent-foreground',
                                         option.className
                                     )}
-                                    role="option"
-                                    aria-selected={value === option.value}
+                                    role={option.disabled ? 'presentation' : 'option'}
+                                    aria-selected={option.disabled ? undefined : value === option.value}
+                                    aria-disabled={option.disabled || undefined}
                                 >
-                                    {value === option.value && (
+                                    {!option.disabled && value === option.value && (
                                         <span className="absolute left-2 flex h-3.5 w-3.5 items-center justify-center">
                                             <Check className="h-4 w-4" />
                                         </span>

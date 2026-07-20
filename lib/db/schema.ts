@@ -336,6 +336,7 @@ export type BeneficiaryServiceAttachment = {
 export type ServiceCatalog = {
   id: string;
   name: string;
+  category: string | null;
   sortOrder: number;
   isActive: boolean;
   createdAt: Date;
