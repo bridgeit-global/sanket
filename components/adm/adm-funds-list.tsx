@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -31,18 +31,18 @@ import {
   financialYearOptions,
   getCurrentFinancialYear,
 } from '@/lib/adm/financial-year';
-import { getAdmFundElementId } from '@/lib/adm/url-params';
 import { AdmCroreAmountInput } from './adm-crore-amount-input';
-import {
-  AdmFundRecordCard,
-  type AdmProjectOption,
-} from './adm-fund-record-card';
+import { AdmFundDetail, type AdmProjectOption } from './adm-fund-detail';
+import { AdmFundSummaryRow } from './adm-fund-summary-row';
 
 interface AdmFundsListProps {
   categories: AdmFundingCategory[];
   funds: AdmFundRecordWithDetails[];
   searchTerm: string;
+  selectedFundId: string;
   projects: AdmProjectOption[];
+  onSelectFund: (fundId: string) => void;
+  onBackToList: () => void;
   onCreateFund: (values: {
     categoryId?: string;
     categoryName?: string;
@@ -103,7 +103,10 @@ export function AdmFundsList({
   categories,
   funds,
   searchTerm,
+  selectedFundId,
   projects,
+  onSelectFund,
+  onBackToList,
   onCreateFund,
   onUpdateFund,
   onDeleteFund,
@@ -124,12 +127,19 @@ export function AdmFundsList({
   const [saving, setSaving] = useState(false);
 
   const filteredFunds = filterFunds(funds, searchTerm);
+  const selectedFund = funds.find((fund) => fund.id === selectedFundId);
   const hasSearch = searchTerm.trim().length > 0;
   const fyOptions = financialYearOptions(financialYear);
   const fundTypeOptions = categories.map((c) => ({
     value: c.id,
     label: c.name,
   }));
+
+  useEffect(() => {
+    if (selectedFundId && !selectedFund) {
+      onBackToList();
+    }
+  }, [selectedFundId, selectedFund, onBackToList]);
 
   const openCreateFund = () => {
     setFundTypeValue(categories[0]?.id ?? '');
@@ -178,62 +188,67 @@ export function AdmFundsList({
 
   return (
     <>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-muted-foreground">
-          {funds.length === 0
-            ? t('adm.noFundsHint')
-            : t('adm.fundsCount', { count: String(funds.length) })}
-        </p>
-        <Button
-          type="button"
-          className="min-h-11 w-full sm:w-auto"
-          onClick={openCreateFund}
-        >
-          <Plus className="mr-1 h-4 w-4" />
-          {t('adm.newFund')}
-        </Button>
-      </div>
-
-      {filteredFunds.length === 0 ? (
-        <div className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 px-6 py-10 text-center">
-          <p className="text-sm font-medium text-muted-foreground">
-            {hasSearch ? t('adm.noFundsMatch') : t('adm.noFunds')}
-          </p>
-          {!hasSearch && (
+      {selectedFundId && selectedFund ? (
+        <AdmFundDetail
+          fund={selectedFund}
+          projects={projects}
+          onBack={onBackToList}
+          onUpdateFund={onUpdateFund}
+          onDeleteFund={onDeleteFund}
+          onAddAllocation={onAddAllocation}
+          onCreateProject={onCreateProject}
+          onUpdateAllocation={onUpdateAllocation}
+          onDeleteAllocation={onDeleteAllocation}
+          onUploadDocument={onUploadDocument}
+          onDeleteDocument={onDeleteDocument}
+        />
+      ) : (
+        <>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted-foreground">
+              {funds.length === 0
+                ? t('adm.noFundsHint')
+                : t('adm.fundsCount', { count: String(funds.length) })}
+            </p>
             <Button
               type="button"
-              variant="outline"
-              className="min-h-10"
+              className="min-h-11 w-full sm:w-auto"
               onClick={openCreateFund}
             >
               <Plus className="mr-1 h-4 w-4" />
               {t('adm.newFund')}
             </Button>
-          )}
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {filteredFunds.map((fund) => (
-            <div
-              key={fund.id}
-              id={getAdmFundElementId(fund.id)}
-              className="scroll-mt-4"
-            >
-              <AdmFundRecordCard
-                fund={fund}
-                projects={projects}
-                onUpdateFund={onUpdateFund}
-                onDeleteFund={onDeleteFund}
-                onAddAllocation={onAddAllocation}
-                onCreateProject={onCreateProject}
-                onUpdateAllocation={onUpdateAllocation}
-                onDeleteAllocation={onDeleteAllocation}
-                onUploadDocument={onUploadDocument}
-                onDeleteDocument={onDeleteDocument}
-              />
+          </div>
+
+          {filteredFunds.length === 0 ? (
+            <div className="flex min-h-40 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-muted/20 px-6 py-10 text-center">
+              <p className="text-sm font-medium text-muted-foreground">
+                {hasSearch ? t('adm.noFundsMatch') : t('adm.noFunds')}
+              </p>
+              {!hasSearch && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="min-h-10"
+                  onClick={openCreateFund}
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  {t('adm.newFund')}
+                </Button>
+              )}
             </div>
-          ))}
-        </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              {filteredFunds.map((fund) => (
+                <AdmFundSummaryRow
+                  key={fund.id}
+                  fund={fund}
+                  onSelect={onSelectFund}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       <Dialog open={fundDialogOpen} onOpenChange={setFundDialogOpen}>

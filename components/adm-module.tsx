@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { toast } from 'sonner';
@@ -18,12 +18,11 @@ import type {
 } from '@/lib/db/schema';
 import {
   buildAdmSearchParams,
-  getAdmFundElementId,
   parseAdmFiltersFromSearchParams,
 } from '@/lib/adm/url-params';
 import { AdmProfileBanner } from './adm/adm-profile-banner';
 import { AdmFundsList } from './adm/adm-funds-list';
-import type { AdmProjectOption } from './adm/adm-fund-record-card';
+import type { AdmProjectOption } from './adm/adm-fund-detail';
 
 export function AdmModule() {
   const router = useRouter();
@@ -38,7 +37,6 @@ export function AdmModule() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(urlState.search);
   const [focusFundId, setFocusFundId] = useState(urlState.fund);
-  const shouldScrollToFund = useRef(Boolean(urlState.fund));
 
   const [deleteFundId, setDeleteFundId] = useState<string | null>(null);
   const [deleteAllocation, setDeleteAllocation] =
@@ -66,19 +64,6 @@ export function AdmModule() {
   useEffect(() => {
     loadDashboard();
   }, []);
-
-  useEffect(() => {
-    if (loading || !focusFundId || !shouldScrollToFund.current) return;
-
-    const frame = requestAnimationFrame(() => {
-      document
-        .getElementById(getAdmFundElementId(focusFundId))
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      shouldScrollToFund.current = false;
-    });
-
-    return () => cancelAnimationFrame(frame);
-  }, [loading, focusFundId, funds]);
 
   const loadDashboard = async () => {
     try {
@@ -126,6 +111,16 @@ export function AdmModule() {
     setSearchTerm(value);
     syncUrl({ search: value });
   };
+
+  const handleSelectFund = (fundId: string) => {
+    setFocusFundId(fundId);
+    syncUrl({ fund: fundId });
+  };
+
+  const handleBackToList = useCallback(() => {
+    setFocusFundId('');
+    syncUrl({ fund: '' });
+  }, [syncUrl]);
 
   const handleCreateFund = async (values: {
     categoryId?: string;
@@ -352,7 +347,9 @@ export function AdmModule() {
         <Input
           value={searchTerm}
           onChange={(e) => handleSearchChange(e.target.value)}
-          placeholder={t('adm.searchPlaceholder')}
+          placeholder={
+            focusFundId ? t('adm.searchFundsPlaceholder') : t('adm.searchPlaceholder')
+          }
           className="min-h-11 pl-9"
         />
       </div>
@@ -361,7 +358,10 @@ export function AdmModule() {
         categories={categories}
         funds={funds}
         searchTerm={searchTerm}
+        selectedFundId={focusFundId}
         projects={projects}
+        onSelectFund={handleSelectFund}
+        onBackToList={handleBackToList}
         onCreateFund={handleCreateFund}
         onUpdateFund={handleUpdateFund}
         onDeleteFund={(id) => setDeleteFundId(id)}
