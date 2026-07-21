@@ -2818,7 +2818,7 @@ export function LetterGeneration({
                     value={activeTab}
                     onValueChange={(value: LetterType) => setActiveTab(value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="[&>span]:text-left">
                       <SelectValue
                         placeholder={lt('letterGeneration.placeholders.letterType')}
                       />
