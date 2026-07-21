@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState, useCallback, type Dispatch, type SetStateAction } from 'react';
 import {
+  ArrowLeft,
   ChevronDown,
   ChevronUp,
   Eye,
@@ -2790,12 +2791,22 @@ export function LetterGeneration({
       {service ? (
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader className="p-4 sm:p-6">
-            <CardTitle className="text-base">
-              {t('letterGeneration.serviceInfo.title')}
-            </CardTitle>
-            <CardDescription>
-              {t('letterGeneration.serviceInfo.description')}
-            </CardDescription>
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1.5">
+                <CardTitle className="text-base">
+                  {t('letterGeneration.serviceInfo.title')}
+                </CardTitle>
+                <CardDescription>
+                  {t('letterGeneration.serviceInfo.description')}
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" asChild className="shrink-0">
+                <Link href="/modules/operator?tab=manage">
+                  <ArrowLeft className="mr-2 size-4" />
+                  {t('letterGeneration.backToBeneficiary')}
+                </Link>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
             <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">

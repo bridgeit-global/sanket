@@ -617,6 +617,7 @@
   "letterGeneration": {
     "title": "पत्र निर्मिती",
     "description": "तपशील भरा आणि अधिकृत पत्रे PDF स्वरूपात तयार करा.",
+    "backToBeneficiary": "लाभार्थीकडे परत जा",
     "serviceInfo": {
       "title": "लाभार्थी सेवा",
       "description": "हे पत्र खालील नोंदवलेल्या सेवेसाठी तयार केले जात आहे.",

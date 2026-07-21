@@ -617,6 +617,7 @@
   "letterGeneration": {
     "title": "Letter Generation",
     "description": "Fill in the details manually and generate official letters as PDF.",
+    "backToBeneficiary": "Back to Beneficiary",
     "serviceInfo": {
       "title": "Beneficiary Service",
       "description": "This letter is being generated for the following recorded service.",
