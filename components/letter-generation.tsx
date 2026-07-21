@@ -1813,15 +1813,6 @@ export function LetterGeneration({
     if (!name && !address) return;
     prefillAppliedRef.current = true;
     if (name) {
-      setFeesFields((p) => ({ ...p, studentName: p.studentName || name }));
-      setSchoolAdmissionFields((p) => ({
-        ...p,
-        studentName: p.studentName || name,
-      }));
-      setSchoolTransferFields((p) => ({
-        ...p,
-        studentName: p.studentName || name,
-      }));
       setRationFields((p) => ({ ...p, fullName: p.fullName || name }));
       setIncomeFields((p) => ({ ...p, fullName: p.fullName || name }));
       setDomicileFields((p) => ({ ...p, fullName: p.fullName || name }));
