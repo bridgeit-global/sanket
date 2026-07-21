@@ -478,9 +478,17 @@ const LETTER_FONT_STACK: Record<LetterLocale, string> = {
 
 /**
  * Shared typography for preview / print / PDF so all three stay WYSIWYG.
- * Font size is fixed across A4 / A5 / B5 — paper size only changes page geometry.
+ * Font size scales with paper size: A4 (big) → B5 (medium) → A5 (small).
  */
-const LETTER_PRINT_FONT_SIZE_PX = 15;
+const LETTER_PRINT_FONT_SIZE_PX: Record<LetterPaperSize, number> = {
+  a4: 16,
+  b5: 15,
+  a5: 14,
+};
+
+function getLetterPrintFontSizePx(paperSize: LetterPaperSize): number {
+  return LETTER_PRINT_FONT_SIZE_PX[paperSize];
+}
 
 const LETTER_PRINT_LINE_HEIGHT = 1.75;
 
@@ -508,6 +516,7 @@ function createLetterExportElement(
   const contentHtml = stripLetterheadFromHtml(html);
   const paperSize = options?.paperSize ?? 'a4';
   const fontFamily = LETTER_FONT_STACK[options?.letterLocale ?? 'mr'];
+  const fontSizePx = getLetterPrintFontSizePx(paperSize);
 
   // Letterhead is drawn per-page by the PDF exporter — capture text only so
   // margins/header clearance stay aligned with print/preview.
@@ -517,7 +526,7 @@ function createLetterExportElement(
   host.style.boxSizing = 'border-box';
   host.style.width = `${getLetterPaperContentWidthPx(paperSize)}px`;
   host.style.fontFamily = fontFamily;
-  host.style.fontSize = `${LETTER_PRINT_FONT_SIZE_PX}px`;
+  host.style.fontSize = `${fontSizePx}px`;
   host.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
   host.innerHTML = contentHtml;
 
@@ -527,7 +536,7 @@ function createLetterExportElement(
     // Collapse template source whitespace (newlines/indent). Line breaks come
     // from <br> / block elements — pre-wrap was blowing A5 letters onto 3 pages.
     letterContent.style.whiteSpace = 'normal';
-    letterContent.style.fontSize = `${LETTER_PRINT_FONT_SIZE_PX}px`;
+    letterContent.style.fontSize = `${fontSizePx}px`;
     // Keep template line-height when set (fees is tuned to 1.55). Forcing
     // 1.75 here made the last line sit on the page edge and get clipped in PDF.
     if (!letterContent.style.lineHeight) {
@@ -572,7 +581,7 @@ function LetterPreview({
         width: '100%',
         maxWidth: getLetterPaperWidthPx(paperSize),
         fontFamily: LETTER_FONT_STACK[letterLocale],
-        fontSize: `${LETTER_PRINT_FONT_SIZE_PX}px`,
+        fontSize: `${getLetterPrintFontSizePx(paperSize)}px`,
         lineHeight: LETTER_PRINT_LINE_HEIGHT,
       }}
     >

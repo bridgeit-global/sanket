@@ -659,9 +659,9 @@
       "label": "Paper size: {size}",
       "hint": "Change size above to customize",
       "options": {
-        "a4": "A4",
-        "a5": "A5",
-        "b5": "B5"
+        "a4": "A4 (big)",
+        "b5": "B5 (medium)",
+        "a5": "A5 (small)"
       }
     },
     "generatePdf": "Generate PDF",
