@@ -19,6 +19,8 @@ type SeedAddress = {
   line1Mr: string;
   line2En: string;
   line2Mr: string;
+  line3En?: string;
+  line3Mr?: string;
   cityEn: string;
   cityMr: string;
   stateEn: string;
@@ -68,6 +70,8 @@ async function main() {
     line1_mr: item.line1Mr,
     line2_en: item.line2En ?? '',
     line2_mr: item.line2Mr ?? '',
+    line3_en: item.line3En ?? '',
+    line3_mr: item.line3Mr ?? '',
     city_en: item.cityEn,
     city_mr: item.cityMr,
     state_en: item.stateEn,

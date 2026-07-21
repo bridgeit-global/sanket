@@ -748,6 +748,7 @@
       "fields": {
         "line1": "Line 1",
         "line2": "Line 2",
+        "line3": "Line 3",
         "city": "City",
         "state": "State",
         "pincode": "Pincode"

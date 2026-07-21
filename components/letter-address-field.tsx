@@ -29,6 +29,8 @@ export type AddressMasterRow = {
   line1Mr: string;
   line2En: string;
   line2Mr: string;
+  line3En: string;
+  line3Mr: string;
   cityEn: string;
   cityMr: string;
   stateEn: string;
@@ -177,6 +179,8 @@ export function LetterAddressField({
       line1Mr: selected.line1Mr,
       line2En: selected.line2En,
       line2Mr: selected.line2Mr,
+      line3En: selected.line3En,
+      line3Mr: selected.line3Mr,
       cityEn: selected.cityEn,
       cityMr: selected.cityMr,
       stateEn: selected.stateEn,

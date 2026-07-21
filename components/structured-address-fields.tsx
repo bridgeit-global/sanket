@@ -27,14 +27,16 @@ import type { LetterLocale } from '@/lib/letters/templates';
 const LINE_FIELDS = [
   { key: 'line1', en: 'line1En', mr: 'line1Mr' },
   { key: 'line2', en: 'line2En', mr: 'line2Mr' },
+  { key: 'line3', en: 'line3En', mr: 'line3Mr' },
 ] as const;
 
 function localeKey(
-  field: 'line1' | 'line2' | 'city' | 'state',
+  field: 'line1' | 'line2' | 'line3' | 'city' | 'state',
   locale: LetterLocale,
 ): keyof AddressMasterAddressParts {
   if (field === 'line1') return locale === 'mr' ? 'line1Mr' : 'line1En';
   if (field === 'line2') return locale === 'mr' ? 'line2Mr' : 'line2En';
+  if (field === 'line3') return locale === 'mr' ? 'line3Mr' : 'line3En';
   if (field === 'city') return locale === 'mr' ? 'cityMr' : 'cityEn';
   return locale === 'mr' ? 'stateMr' : 'stateEn';
 }
@@ -172,7 +174,7 @@ export function StructuredAddressFields({
       <div className="space-y-3">
         {LINE_FIELDS.map((field) => {
           const fieldKey = localeKey(field.key, locale);
-          const required = field.key !== 'line2';
+          const required = field.key === 'line1';
           return (
             <div key={field.key} className="space-y-1.5">
               <Label className="text-xs">

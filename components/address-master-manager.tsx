@@ -85,6 +85,8 @@ const LOCALE_PART_KEYS = [
   'line1Mr',
   'line2En',
   'line2Mr',
+  'line3En',
+  'line3Mr',
   'cityEn',
   'cityMr',
   'stateEn',
@@ -121,11 +123,19 @@ async function translateAddressText(
 function streetLinesForLocale(
   parts: AddressMasterAddressParts,
   locale: LetterLocale,
-): { line1: string; line2: string } {
+): { line1: string; line2: string; line3: string } {
   if (locale === 'mr') {
-    return { line1: parts.line1Mr.trim(), line2: parts.line2Mr.trim() };
+    return {
+      line1: parts.line1Mr.trim(),
+      line2: parts.line2Mr.trim(),
+      line3: parts.line3Mr.trim(),
+    };
   }
-  return { line1: parts.line1En.trim(), line2: parts.line2En.trim() };
+  return {
+    line1: parts.line1En.trim(),
+    line2: parts.line2En.trim(),
+    line3: parts.line3En.trim(),
+  };
 }
 
 async function translateStreetLines(
@@ -133,7 +143,7 @@ async function translateStreetLines(
   sourceLocale: LetterLocale,
   targetLocale: LetterLocale,
 ): Promise<Partial<AddressMasterAddressParts>> {
-  const { line1, line2 } = streetLinesForLocale(parts, sourceLocale);
+  const { line1, line2, line3 } = streetLinesForLocale(parts, sourceLocale);
   const result: Partial<AddressMasterAddressParts> = {};
 
   if (line1) {
@@ -146,6 +156,12 @@ async function translateStreetLines(
     const translated = await translateAddressText(line2, targetLocale);
     if (targetLocale === 'mr') result.line2Mr = translated;
     else result.line2En = translated;
+  }
+
+  if (line3) {
+    const translated = await translateAddressText(line3, targetLocale);
+    if (targetLocale === 'mr') result.line3Mr = translated;
+    else result.line3En = translated;
   }
 
   return result;
@@ -208,6 +224,8 @@ export function AddressMasterManager({
       line1Mr: address.line1Mr,
       line2En: address.line2En,
       line2Mr: address.line2Mr,
+      line3En: address.line3En,
+      line3Mr: address.line3Mr,
       cityEn: address.cityEn,
       cityMr: address.cityMr,
       stateEn: address.stateEn,

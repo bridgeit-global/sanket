@@ -1121,12 +1121,14 @@ export function LetterGeneration({
         ? Boolean(
             parts.line1Mr.trim() ||
               parts.line2Mr.trim() ||
+              parts.line3Mr.trim() ||
               parts.cityMr.trim() ||
               parts.stateMr.trim(),
           )
         : Boolean(
             parts.line1En.trim() ||
               parts.line2En.trim() ||
+              parts.line3En.trim() ||
               parts.cityEn.trim() ||
               parts.stateEn.trim(),
           );
@@ -1436,8 +1438,8 @@ export function LetterGeneration({
     // Pincode-only updates don't need translation and can be mis-parsed.
     const hasAddressLines =
       sourceLocale === 'mr'
-        ? Boolean(parts.line1Mr.trim() || parts.line2Mr.trim() || parts.cityMr.trim() || parts.stateMr.trim())
-        : Boolean(parts.line1En.trim() || parts.line2En.trim() || parts.cityEn.trim() || parts.stateEn.trim());
+        ? Boolean(parts.line1Mr.trim() || parts.line2Mr.trim() || parts.line3Mr.trim() || parts.cityMr.trim() || parts.stateMr.trim())
+        : Boolean(parts.line1En.trim() || parts.line2En.trim() || parts.line3En.trim() || parts.cityEn.trim() || parts.stateEn.trim());
     if (!hasAddressLines) return;
 
     const nextReqId = (translateReqIdRef.current[key] ?? 0) + 1;
@@ -1568,6 +1570,8 @@ export function LetterGeneration({
     line1Mr: address.line1Mr,
     line2En: address.line2En,
     line2Mr: address.line2Mr,
+    line3En: address.line3En,
+    line3Mr: address.line3Mr,
     cityEn: address.cityEn,
     cityMr: address.cityMr,
     stateEn: address.stateEn,
