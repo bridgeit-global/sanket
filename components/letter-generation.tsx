@@ -1596,6 +1596,10 @@ export function LetterGeneration({
         setManualAddressParts((prev) => ({ ...prev, school: addressRowToParts(selected) }));
       }
     } else {
+      // Manual entry starts blank — don't carry over the previous name.
+      setFeesFields((prev) => ({ ...prev, schoolName: '' }));
+      setSchoolAdmissionFields((prev) => ({ ...prev, schoolName: '' }));
+      setSchoolTransferFields((prev) => ({ ...prev, schoolName: '' }));
       seedManualAddressPartsFromText('school', seedText);
     }
   };
@@ -1635,6 +1639,12 @@ export function LetterGeneration({
         }));
       }
     } else {
+      // Manual entry starts blank — don't carry over the previous name.
+      setRationOfficeNames((prev) => ({ ...prev, rationOffice: '' }));
+      rationOfficeNamesRef.current = {
+        ...rationOfficeNamesRef.current,
+        rationOffice: '',
+      };
       seedManualAddressPartsFromText('rationOffice', seedText);
     }
   };
@@ -1663,6 +1673,12 @@ export function LetterGeneration({
         }));
       }
     } else {
+      // Manual entry starts blank — don't carry over the previous name.
+      setRationOfficeNames((prev) => ({ ...prev, fromRationOffice: '' }));
+      rationOfficeNamesRef.current = {
+        ...rationOfficeNamesRef.current,
+        fromRationOffice: '',
+      };
       seedManualAddressPartsFromText('fromRationOffice', seedText);
     }
   };
@@ -1691,6 +1707,12 @@ export function LetterGeneration({
         }));
       }
     } else {
+      // Manual entry starts blank — don't carry over the previous name.
+      setRationOfficeNames((prev) => ({ ...prev, toRationOffice: '' }));
+      rationOfficeNamesRef.current = {
+        ...rationOfficeNamesRef.current,
+        toRationOffice: '',
+      };
       seedManualAddressPartsFromText('toRationOffice', seedText);
     }
   };
@@ -1715,6 +1737,9 @@ export function LetterGeneration({
         setManualAddressParts((prev) => ({ ...prev, office: addressRowToParts(selected) }));
       }
     } else {
+      // Manual entry starts blank — don't carry over the previous name.
+      setIncomeFields((prev) => ({ ...prev, officeName: '' }));
+      setDomicileFields((prev) => ({ ...prev, officeName: '' }));
       seedManualAddressPartsFromText('office', seedText);
     }
   };
