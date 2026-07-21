@@ -114,6 +114,40 @@ export function formatAddressMaster(
   return `${base} - ${pincode}`;
 }
 
+/**
+ * Format an address with each street line on its own line and the
+ * city/state/pincode grouped on a final line. Intended for recipient address
+ * blocks in letter templates, so the separator defaults to an HTML `<br>`.
+ */
+export function formatAddressMasterMultiline(
+  parts: AddressMasterAddressParts,
+  locale: LetterLocale,
+  separator = '<br>',
+): string {
+  const city = pickLocaleField(parts, locale, 'city').trim();
+  const state = pickLocaleField(parts, locale, 'state').trim();
+
+  const streetLines = [
+    stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line1'), city, state),
+    stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line2'), city, state),
+    stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line3'), city, state),
+  ]
+    .map((value) => localizeAddressText(value, locale))
+    .filter(Boolean);
+
+  const locationSegments = [
+    localizeAddressText(city, locale),
+    localizeAddressText(state, locale),
+  ].filter(Boolean);
+  let locationLine = locationSegments.join(', ');
+  const pincode = toLocaleDigits(parts.pincode.trim(), locale);
+  if (pincode) {
+    locationLine = locationLine ? `${locationLine} - ${pincode}` : pincode;
+  }
+
+  return [...streetLines, locationLine].filter(Boolean).join(separator);
+}
+
 export function hasAddressContent(parts: AddressMasterAddressParts): boolean {
   return Boolean(
     formatAddressMaster(parts, 'en').trim() || formatAddressMaster(parts, 'mr').trim(),
