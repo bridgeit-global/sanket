@@ -1,6 +1,6 @@
 /**
  * Upsert ServiceCatalog from ADM beneficiary service master list.
- * Deactivates catalog rows not in the seed; activates/upserts the 88 services.
+ * Deactivates catalog rows not in the seed; activates/upserts the 89 services.
  * Usage: pnpm db:seed:services
  */
 import { readFileSync } from 'node:fs';
