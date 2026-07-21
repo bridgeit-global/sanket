@@ -1531,7 +1531,10 @@ export function LetterGeneration({
         ? combineNameAndAddress(rationOfficeNamesRef.current[key], formatted)
         : formatted;
     applyManualAddressToLetterFields(key, value);
-    triggerAutoTranslateManualAddressParts(key, parts);
+    // The beneficiary's (applicant's) address is not translated.
+    if (key !== 'applicant') {
+      triggerAutoTranslateManualAddressParts(key, parts);
+    }
   };
 
   const handleRationOfficeNameChange = (
@@ -2275,34 +2278,8 @@ export function LetterGeneration({
         }
       }
 
-      if (!addressSelections.applicant) {
-        const applicantAddressText =
-          (activeTab === 'school-admission'
-            ? schoolAdmissionFields.address
-            : activeTab === 'school-transfer'
-              ? schoolTransferFields.address
-              : isRationLetterType(activeTab)
-                ? rationFields.address
-                : activeTab === 'income'
-                  ? incomeFields.address
-                  : activeTab === 'domicile'
-                    ? domicileFields.address
-                    : '') ?? '';
-
-        if (applicantAddressText.trim()) {
-          const created = await createAddressMasterFromManualEntry({
-            addressType: addressTypeForField('applicant'),
-            name: deriveAddressMasterName(applicantAddressText, 'Applicant Address'),
-            parts: manualAddressParts.applicant,
-          });
-          if (created?.id) {
-            setAddresses((prev) =>
-              prev.some((a) => a.id === created.id) ? prev : [created, ...prev],
-            );
-            setAddressSelections((prev) => ({ ...prev, applicant: created.id }));
-          }
-        }
-      }
+      // The beneficiary's (applicant's) address is intentionally not auto-saved
+      // to Address Master or translated during letter generation.
 
       if (!addressSelections.rationOffice && isRationLetterType(activeTab)) {
         const rationOfficeText = rationFields.rationOfficeAddress ?? '';
