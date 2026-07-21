@@ -25,7 +25,6 @@ import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Combobox } from '@/components/ui/combobox';
 import {
   Card,
   CardContent,
@@ -435,6 +434,7 @@ function incomeDefaults(locale: LetterLocale): IncomeLetterFields {
     salutation: resolveSalutation(locale, 'male'),
     fullName: '',
     address: '',
+    officeName: '',
     officeAddress: '',
     aadhaarNo: '',
     annualIncome: '',
@@ -448,6 +448,7 @@ function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
     salutation: resolveSalutation(locale, 'male'),
     fullName: '',
     address: '',
+    officeName: '',
     officeAddress: '',
     aadhaarNo: '',
   };
@@ -853,8 +854,20 @@ function applyMasterAddressToFields(
   }
 
   if (officeText) {
-    setters.setIncomeFields((prev) => ({ ...prev, officeAddress: officeText }));
-    setters.setDomicileFields((prev) => ({ ...prev, officeAddress: officeText }));
+    const officeMaster = addresses.find((item) => item.id === selections.office);
+    const officeName = officeMaster
+      ? getAddressMasterName(officeMaster, locale)
+      : '';
+    setters.setIncomeFields((prev) => ({
+      ...prev,
+      officeName: officeName || prev.officeName,
+      officeAddress: officeText,
+    }));
+    setters.setDomicileFields((prev) => ({
+      ...prev,
+      officeName: officeName || prev.officeName,
+      officeAddress: officeText,
+    }));
   }
 }
 
@@ -1554,47 +1567,6 @@ export function LetterGeneration({
     }
   };
 
-  const schoolAddressType = addressTypeForField('school');
-
-  const schoolNameOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const opts: { value: string; label: string }[] = [];
-    for (const a of addresses) {
-      if (!a.isActive || a.addressType !== schoolAddressType) continue;
-      const name = getAddressMasterName(a, letterLocale).trim();
-      if (!name || seen.has(name)) continue;
-      seen.add(name);
-      opts.push({ value: name, label: name });
-    }
-    return opts;
-  }, [addresses, letterLocale, schoolAddressType]);
-
-  // Selecting a saved institute name autofills its address; typed custom
-  // names are kept as-is without touching the address selection.
-  const handleSchoolNameSelect = (
-    letterType: 'fees' | 'school-admission' | 'school-transfer',
-    value: string,
-  ) => {
-    const master = addresses.find(
-      (a) =>
-        a.isActive &&
-        a.addressType === schoolAddressType &&
-        getAddressMasterName(a, letterLocale) === value,
-    );
-    if (master) {
-      handleSchoolAddressSelect(master.id);
-    } else if (letterType === 'fees') {
-      setFeesFields((prev) => ({ ...prev, schoolName: value }));
-    } else if (letterType === 'school-admission') {
-      setSchoolAdmissionFields((prev) => ({ ...prev, schoolName: value }));
-    } else {
-      setSchoolTransferFields((prev) => ({ ...prev, schoolName: value }));
-    }
-    if (fieldErrors.schoolName) {
-      setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
-    }
-  };
-
   const handleApplicantAddressSelect = (id: string | null, seedText = '') => {
     setAddressSelections((prev) => ({ ...prev, applicant: id }));
     setFieldErrors((prev) => ({ ...prev, applicantAddress: undefined }));
@@ -1701,6 +1673,12 @@ export function LetterGeneration({
       }
       const selected = addresses.find((a) => a.id === id);
       if (selected) {
+        const officeName = getAddressMasterName(selected, letterLocale);
+        if (officeName) {
+          setIncomeFields((prev) => ({ ...prev, officeName }));
+          setDomicileFields((prev) => ({ ...prev, officeName }));
+          setFieldErrors((prev) => ({ ...prev, officeName: undefined }));
+        }
         setManualAddressParts((prev) => ({ ...prev, office: addressRowToParts(selected) }));
       }
     } else {
@@ -1844,6 +1822,21 @@ export function LetterGeneration({
       prev.schoolName?.trim() ? prev : { ...prev, schoolName },
     );
   }, [addressSelections.school, addresses, letterLocale]);
+
+  useEffect(() => {
+    if (!addressSelections.office) return;
+    if (addresses.length === 0) return;
+
+    const selected = addresses.find((a) => a.id === addressSelections.office);
+    if (!selected) return;
+    const officeName = getAddressMasterName(selected, letterLocale);
+    if (!officeName.trim()) return;
+
+    setIncomeFields((prev) => (prev.officeName?.trim() ? prev : { ...prev, officeName }));
+    setDomicileFields((prev) =>
+      prev.officeName?.trim() ? prev : { ...prev, officeName },
+    );
+  }, [addressSelections.office, addresses, letterLocale]);
 
   const activeLetterMaster = useMemo(() => {
     return (
@@ -2068,12 +2061,14 @@ export function LetterGeneration({
       requireField(errors, 'fullName', incomeFields.fullName, requiredMsg);
       requireField(errors, 'aadhaarNo', incomeFields.aadhaarNo, requiredMsg);
       requireField(errors, 'annualIncome', incomeFields.annualIncome, requiredMsg);
+      requireField(errors, 'officeName', incomeFields.officeName, requiredMsg);
       requireAddress('applicant', incomeFields.address);
       requireAddress('office', incomeFields.officeAddress);
     } else if (activeTab === 'domicile') {
       requireField(errors, 'salutation', domicileFields.salutation, requiredMsg);
       requireField(errors, 'fullName', domicileFields.fullName, requiredMsg);
       requireField(errors, 'aadhaarNo', domicileFields.aadhaarNo, requiredMsg);
+      requireField(errors, 'officeName', domicileFields.officeName, requiredMsg);
       requireAddress('applicant', domicileFields.address);
       requireAddress('office', domicileFields.officeAddress);
     }
@@ -2982,23 +2977,21 @@ export function LetterGeneration({
                         required
                         error={fieldErrors.schoolName}
                       >
-                        <Combobox
-                          options={schoolNameOptions}
+                        <LocaleTextInput
+                          locale={letterLocale}
                           value={feesFields.schoolName}
-                          onValueChange={(value) =>
-                            handleSchoolNameSelect('fees', value)
-                          }
-                          allowCustom
+                          onValueChange={(value) => {
+                            setFeesFields((prev) => ({ ...prev, schoolName: value }));
+                            if (fieldErrors.schoolName) {
+                              setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
+                            }
+                          }}
                           placeholder={
                             letterLocale === 'mr'
-                              ? 'संस्था निवडा किंवा टाइप करा'
-                              : 'Select or type institute name'
+                              ? 'संस्था नाव टाइप करा'
+                              : 'Type institute name'
                           }
-                          emptyMessage={
-                            letterLocale === 'mr'
-                              ? 'जतन केलेली संस्था नाही'
-                              : 'No saved institutes'
-                          }
+                          required
                         />
                       </FieldGroup>
                       <LetterAddressField
@@ -3067,23 +3060,24 @@ export function LetterGeneration({
                         required
                         error={fieldErrors.schoolName}
                       >
-                        <Combobox
-                          options={schoolNameOptions}
+                        <LocaleTextInput
+                          locale={letterLocale}
                           value={schoolAdmissionFields.schoolName}
-                          onValueChange={(value) =>
-                            handleSchoolNameSelect('school-admission', value)
-                          }
-                          allowCustom
+                          onValueChange={(value) => {
+                            setSchoolAdmissionFields((prev) => ({
+                              ...prev,
+                              schoolName: value,
+                            }));
+                            if (fieldErrors.schoolName) {
+                              setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
+                            }
+                          }}
                           placeholder={
                             letterLocale === 'mr'
-                              ? 'संस्था निवडा किंवा टाइप करा'
-                              : 'Select or type institute name'
+                              ? 'संस्था नाव टाइप करा'
+                              : 'Type institute name'
                           }
-                          emptyMessage={
-                            letterLocale === 'mr'
-                              ? 'जतन केलेली संस्था नाही'
-                              : 'No saved institutes'
-                          }
+                          required
                         />
                       </FieldGroup>
                       <LetterAddressField
@@ -3213,23 +3207,24 @@ export function LetterGeneration({
                         required
                         error={fieldErrors.schoolName}
                       >
-                        <Combobox
-                          options={schoolNameOptions}
+                        <LocaleTextInput
+                          locale={letterLocale}
                           value={schoolTransferFields.schoolName}
-                          onValueChange={(value) =>
-                            handleSchoolNameSelect('school-transfer', value)
-                          }
-                          allowCustom
+                          onValueChange={(value) => {
+                            setSchoolTransferFields((prev) => ({
+                              ...prev,
+                              schoolName: value,
+                            }));
+                            if (fieldErrors.schoolName) {
+                              setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
+                            }
+                          }}
                           placeholder={
                             letterLocale === 'mr'
-                              ? 'संस्था निवडा किंवा टाइप करा'
-                              : 'Select or type institute name'
+                              ? 'संस्था नाव टाइप करा'
+                              : 'Type institute name'
                           }
-                          emptyMessage={
-                            letterLocale === 'mr'
-                              ? 'जतन केलेली संस्था नाही'
-                              : 'No saved institutes'
-                          }
+                          required
                         />
                       </FieldGroup>
                       <LetterAddressField
@@ -3769,6 +3764,28 @@ export function LetterGeneration({
                           handleApplicantAddressSelect(id, incomeFields.address)
                         }
                       />
+                      <FieldGroup
+                        label={letterLocale === 'mr' ? 'कार्यालय नाव' : 'Office Name'}
+                        required
+                        error={fieldErrors.officeName}
+                      >
+                        <LocaleTextInput
+                          locale={letterLocale}
+                          value={incomeFields.officeName}
+                          onValueChange={(value) => {
+                            setIncomeFields((prev) => ({ ...prev, officeName: value }));
+                            if (fieldErrors.officeName) {
+                              setFieldErrors((prev) => ({ ...prev, officeName: undefined }));
+                            }
+                          }}
+                          placeholder={
+                            letterLocale === 'mr'
+                              ? 'कार्यालय नाव टाइप करा'
+                              : 'Type office name'
+                          }
+                          required
+                        />
+                      </FieldGroup>
                       <LetterAddressField
                         label={lt('letterGeneration.fields.officeAddress')}
                         addressType={addressTypeForField('office')}
@@ -3930,6 +3947,28 @@ export function LetterGeneration({
                           handleApplicantAddressSelect(id, domicileFields.address)
                         }
                       />
+                      <FieldGroup
+                        label={letterLocale === 'mr' ? 'कार्यालय नाव' : 'Office Name'}
+                        required
+                        error={fieldErrors.officeName}
+                      >
+                        <LocaleTextInput
+                          locale={letterLocale}
+                          value={domicileFields.officeName}
+                          onValueChange={(value) => {
+                            setDomicileFields((prev) => ({ ...prev, officeName: value }));
+                            if (fieldErrors.officeName) {
+                              setFieldErrors((prev) => ({ ...prev, officeName: undefined }));
+                            }
+                          }}
+                          placeholder={
+                            letterLocale === 'mr'
+                              ? 'कार्यालय नाव टाइप करा'
+                              : 'Type office name'
+                          }
+                          required
+                        />
+                      </FieldGroup>
                       <LetterAddressField
                         label={lt('letterGeneration.fields.officeAddress')}
                         addressType={addressTypeForField('office')}

@@ -72,6 +72,7 @@ export type IncomeLetterFields = CommonLetterFields & {
   salutation: string;
   fullName: string;
   address: string;
+  officeName: string;
   officeAddress: string;
   aadhaarNo: string;
   annualIncome: string;
@@ -82,6 +83,7 @@ export type DomicileLetterFields = CommonLetterFields & {
   salutation: string;
   fullName: string;
   address: string;
+  officeName: string;
   officeAddress: string;
   aadhaarNo: string;
 };

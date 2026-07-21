@@ -147,6 +147,7 @@ export function buildRenderFields(
         locale,
       ),
       annualIncome: formatIndianAmount(incomeFields.annualIncome, locale),
+      officeName: incomeFields.officeName,
       officeAddress: incomeFields.officeAddress,
     };
   } else if (type === 'domicile') {
@@ -158,6 +159,7 @@ export function buildRenderFields(
         toWesternDigits(domicileFields.aadhaarNo).replace(/\D/g, ''),
         locale,
       ),
+      officeName: domicileFields.officeName,
       officeAddress: domicileFields.officeAddress,
     };
   } else if (type === 'school-admission') {
