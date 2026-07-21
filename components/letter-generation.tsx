@@ -112,11 +112,6 @@ import {
 } from '@/lib/letters/letter-address-fields';
 import type { LetterAddressTypeLinkRow } from '@/components/letter-address-link-manager';
 import {
-  AddressTranslationReviewDialog,
-  type AddressTranslationReviewResult,
-} from '@/components/address-translation-review-dialog';
-import {
-  EMPTY_ADDRESS_PARTS,
   formatAddressMaster,
   formatAddressMasterMultiline,
   hasAddressContent,
@@ -1082,35 +1077,6 @@ export function LetterGeneration({
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [fieldErrors, setFieldErrors] = useState<LetterFieldErrors>({});
-  const [addressReview, setAddressReview] = useState<{
-    targetLocale: LetterLocale;
-    initialName: string;
-    initialParts: AddressMasterAddressParts;
-  } | null>(null);
-  const [isConfirmingAddressReview, setIsConfirmingAddressReview] = useState(false);
-  const addressReviewResolverRef = useRef<
-    ((result: AddressTranslationReviewResult | null) => void) | null
-  >(null);
-
-  const requestAddressTranslationReview = (request: {
-    targetLocale: LetterLocale;
-    initialName: string;
-    initialParts: AddressMasterAddressParts;
-  }): Promise<AddressTranslationReviewResult | null> => {
-    return new Promise((resolve) => {
-      addressReviewResolverRef.current = resolve;
-      setAddressReview(request);
-    });
-  };
-
-  const resolveAddressReview = (result: AddressTranslationReviewResult | null) => {
-    const resolver = addressReviewResolverRef.current;
-    addressReviewResolverRef.current = null;
-    setAddressReview(null);
-    setIsConfirmingAddressReview(false);
-    resolver?.(result);
-  };
-
   const deriveAddressMasterName = (rawAddress: string, fallback: string) => {
     const firstLine =
       rawAddress
@@ -1152,7 +1118,7 @@ export function LetterGeneration({
       console.error('Failed to translate address name for auto-save', error);
     }
 
-    let reviewParts = { ...parts };
+    let translatedParts = { ...parts };
     const hasTargetContent =
       targetLocale === 'mr'
         ? Boolean(
@@ -1183,7 +1149,7 @@ export function LetterGeneration({
           if (res.ok) {
             const translated = String(json?.translated ?? '').trim();
             if (translated) {
-              reviewParts = sanitizeAddressPartsLocations(
+              translatedParts = sanitizeAddressPartsLocations(
                 localizeAddressPartsDigits(
                   mergeAddressParts(
                     parts,
@@ -1195,28 +1161,23 @@ export function LetterGeneration({
             }
           }
         } catch (error) {
-          console.error('Failed to translate address for auto-save review', error);
+          console.error('Failed to translate address for auto-save', error);
         }
       }
     }
 
-    const reviewed = await requestAddressTranslationReview({
-      targetLocale,
-      initialName: translatedName,
-      initialParts: reviewParts,
-    });
-    if (!reviewed) return null;
-
-    const reviewedName = filterLocaleText(reviewed.name, targetLocale).trim();
+    // Translate directly on save — no review modal.
+    const otherLocaleName = filterLocaleText(translatedName, targetLocale).trim();
     if (letterLocale === 'en') {
-      nameMr = reviewedName;
+      nameMr = otherLocaleName;
     } else {
-      nameEn = reviewedName;
+      nameEn = otherLocaleName;
     }
     if (!nameEn) nameEn = trimmedName;
+    if (!nameMr) nameMr = trimmedName;
 
     const mergedParts = sanitizeAddressPartsLocations(
-      localizeAddressPartsDigits(mergeAddressParts(parts, reviewed.parts), 'mr'),
+      localizeAddressPartsDigits(mergeAddressParts(parts, translatedParts), 'mr'),
     );
 
     try {
@@ -4677,19 +4638,6 @@ export function LetterGeneration({
           )}
         </CardContent>
       </Card>
-
-      <AddressTranslationReviewDialog
-        open={Boolean(addressReview)}
-        targetLocale={addressReview?.targetLocale ?? 'mr'}
-        initialName={addressReview?.initialName ?? ''}
-        initialParts={addressReview?.initialParts ?? EMPTY_ADDRESS_PARTS}
-        isConfirming={isConfirmingAddressReview}
-        onConfirm={(result) => {
-          setIsConfirmingAddressReview(true);
-          resolveAddressReview(result);
-        }}
-        onCancel={() => resolveAddressReview(null)}
-      />
 
       <ConfirmDialog
         open={deleteDialogOpen}

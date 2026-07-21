@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { StructuredAddressFields } from '@/components/structured-address-fields';
+import { BilingualAddressFields } from '@/components/bilingual-address-fields';
 import type { AddressType } from '@/lib/letters/address-types';
 import { letterMessage } from '@/lib/letters/letter-messages';
 import { filterLocaleText } from '@/lib/letters/locale-text';
@@ -257,11 +257,9 @@ export function LetterAddressField({
               ) : null}
             </div>
           ) : null}
-          <StructuredAddressFields
-            locale={locale}
+          <BilingualAddressFields
             parts={addressParts}
             onPartsChange={updateAddressParts}
-            previewText={formatAddressMaster(addressParts, locale)}
             pincodeError={pincodeError}
           />
         </div>
