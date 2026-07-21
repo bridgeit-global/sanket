@@ -61,6 +61,19 @@ export default async function LetterGenerationPage({
           beneficiaryServiceId={beneficiaryServiceId}
           prefillName={prefillName}
           prefillAddress={prefillAddress}
+          service={{
+            id: service.id,
+            serviceName: service.serviceName,
+            serviceType: service.serviceType,
+            status: service.status,
+            priority: service.priority,
+            token: service.token,
+            description: service.description,
+            createdAt:
+              service.createdAt instanceof Date
+                ? service.createdAt.toISOString()
+                : String(service.createdAt),
+          }}
         />
       </div>
     </div>

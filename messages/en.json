@@ -617,6 +617,34 @@
   "letterGeneration": {
     "title": "Letter Generation",
     "description": "Fill in the details manually and generate official letters as PDF.",
+    "serviceInfo": {
+      "title": "Beneficiary Service",
+      "description": "This letter is being generated for the following recorded service.",
+      "beneficiaryName": "Beneficiary",
+      "serviceName": "Service",
+      "serviceType": "Type",
+      "status": "Status",
+      "priority": "Priority",
+      "token": "Token",
+      "createdAt": "Created",
+      "notes": "Description",
+      "types": {
+        "individual": "Individual",
+        "community": "Community"
+      },
+      "statuses": {
+        "pending": "Pending",
+        "in_progress": "In Progress",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "priorities": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "urgent": "Urgent"
+      }
+    },
     "generator": {
       "actions": {
         "collapse": "Collapse",

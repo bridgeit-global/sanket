@@ -882,16 +882,29 @@ type LetterMasterRow = {
   updatedAt: string | Date;
 };
 
+export type BeneficiaryServiceInfo = {
+  id: string;
+  serviceName: string;
+  serviceType: 'individual' | 'community';
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  token: string;
+  description: string | null;
+  createdAt: string;
+};
+
 export function LetterGeneration({
   isAdmin = false,
   beneficiaryServiceId,
   prefillName,
   prefillAddress,
+  service,
 }: {
   isAdmin?: boolean;
   beneficiaryServiceId?: string;
   prefillName?: string;
   prefillAddress?: string;
+  service?: BeneficiaryServiceInfo;
 }) {
   const { t, locale } = useTranslations();
   const [letterLocale, setLetterLocale] = useState<LetterLocale>(locale);
@@ -2773,6 +2786,86 @@ export function LetterGeneration({
           </div>
         }
       />
+
+      {service ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="p-4 sm:p-6">
+            <CardTitle className="text-base">
+              {t('letterGeneration.serviceInfo.title')}
+            </CardTitle>
+            <CardDescription>
+              {t('letterGeneration.serviceInfo.description')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+              {prefillName ? (
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('letterGeneration.serviceInfo.beneficiaryName')}
+                  </dt>
+                  <dd className="text-sm font-medium">{prefillName}</dd>
+                </div>
+              ) : null}
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('letterGeneration.serviceInfo.serviceName')}
+                </dt>
+                <dd className="text-sm font-medium">{service.serviceName}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('letterGeneration.serviceInfo.serviceType')}
+                </dt>
+                <dd className="text-sm font-medium">
+                  {t(`letterGeneration.serviceInfo.types.${service.serviceType}`)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('letterGeneration.serviceInfo.token')}
+                </dt>
+                <dd className="text-sm font-medium">{service.token}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('letterGeneration.serviceInfo.status')}
+                </dt>
+                <dd className="text-sm font-medium">
+                  {t(`letterGeneration.serviceInfo.statuses.${service.status}`)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('letterGeneration.serviceInfo.priority')}
+                </dt>
+                <dd className="text-sm font-medium">
+                  {t(`letterGeneration.serviceInfo.priorities.${service.priority}`)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('letterGeneration.serviceInfo.createdAt')}
+                </dt>
+                <dd className="text-sm font-medium">
+                  {new Date(service.createdAt).toLocaleDateString(
+                    locale === 'mr' ? 'mr-IN' : 'en-IN',
+                    { year: 'numeric', month: 'short', day: 'numeric' },
+                  )}
+                </dd>
+              </div>
+              {service.description ? (
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('letterGeneration.serviceInfo.notes')}
+                  </dt>
+                  <dd className="text-sm">{service.description}</dd>
+                </div>
+              ) : null}
+            </dl>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader

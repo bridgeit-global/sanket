@@ -617,6 +617,34 @@
   "letterGeneration": {
     "title": "पत्र निर्मिती",
     "description": "तपशील भरा आणि अधिकृत पत्रे PDF स्वरूपात तयार करा.",
+    "serviceInfo": {
+      "title": "लाभार्थी सेवा",
+      "description": "हे पत्र खालील नोंदवलेल्या सेवेसाठी तयार केले जात आहे.",
+      "beneficiaryName": "लाभार्थी",
+      "serviceName": "सेवा",
+      "serviceType": "प्रकार",
+      "status": "स्थिती",
+      "priority": "प्राधान्य",
+      "token": "टोकन",
+      "createdAt": "तयार केले",
+      "notes": "तपशील",
+      "types": {
+        "individual": "वैयक्तिक",
+        "community": "सामूहिक"
+      },
+      "statuses": {
+        "pending": "प्रलंबित",
+        "in_progress": "प्रगतीपथावर",
+        "completed": "पूर्ण",
+        "cancelled": "रद्द"
+      },
+      "priorities": {
+        "low": "कमी",
+        "medium": "मध्यम",
+        "high": "जास्त",
+        "urgent": "तातडीचे"
+      }
+    },
     "generator": {
       "actions": {
         "collapse": "आकुंचित करा",
