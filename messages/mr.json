@@ -859,7 +859,8 @@
         "regenerate": "पुन्हा तयार करा",
         "closePreview": "पूर्वावलोकन बंद",
         "addToOutward": "जावक नोंदीत जोडा",
-        "addedToOutward": "जावक नोंदीत जोडले"
+        "addedToOutward": "जावक नोंदीत जोडले",
+        "viewInOutward": "जावक नोंदीत पहा"
       },
       "addToOutwardSuccess": "पत्र जावक नोंदीत जोडले.",
       "addToOutwardError": "पत्र जावक नोंदीत जोडण्यात अयशस्वी.",

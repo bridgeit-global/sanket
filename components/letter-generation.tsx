@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
+  ExternalLink,
   FileType,
   Calendar,
   ImageIcon,
@@ -778,14 +779,20 @@ function getAddressMasterName(
   return address.name;
 }
 
+function combineNameAndAddress(name: string, addressText: string): string {
+  const trimmedName = name.trim();
+  const trimmedAddress = addressText.trim();
+  if (trimmedName && trimmedAddress) return `${trimmedName}, ${trimmedAddress}`;
+  return trimmedName || trimmedAddress;
+}
+
 function formatRationOfficeWithAddress(
   address: Pick<AddressMasterRow, 'name' | 'nameMr'> & AddressMasterAddressParts,
   locale: LetterLocale,
 ): string {
-  const name = getAddressMasterName(address, locale).trim();
-  const addressText = formatAddressMaster(address, locale).trim();
-  if (name && addressText) return `${name}, ${addressText}`;
-  return name || addressText;
+  const name = getAddressMasterName(address, locale);
+  const addressText = formatAddressMaster(address, locale);
+  return combineNameAndAddress(name, addressText);
 }
 
 function getRationOfficeLabelById(
@@ -995,6 +1002,15 @@ export function LetterGeneration({
   const [addressPincodeErrors, setAddressPincodeErrors] = useState<
     Partial<Record<ManualAddressKey, string>>
   >({});
+  // Manual entry names for ration office recipients (institute/office reuse
+  // their dedicated schoolName/officeName fields instead).
+  const [rationOfficeNames, setRationOfficeNames] = useState<{
+    rationOffice: string;
+    fromRationOffice: string;
+    toRationOffice: string;
+  }>({ rationOffice: '', fromRationOffice: '', toRationOffice: '' });
+  const rationOfficeNamesRef = useRef(rationOfficeNames);
+  rationOfficeNamesRef.current = rationOfficeNames;
   const translateTimersRef = useRef<Partial<Record<ManualAddressKey, number>>>({});
   const translateReqIdRef = useRef<Partial<Record<ManualAddressKey, number>>>({});
   const [templateDraft, setTemplateDraft] = useState('');
@@ -1508,8 +1524,25 @@ export function LetterGeneration({
     }
 
     const formatted = formatAddressMaster(parts, letterLocale);
-    applyManualAddressToLetterFields(key, formatted);
+    const value =
+      key === 'rationOffice' ||
+      key === 'fromRationOffice' ||
+      key === 'toRationOffice'
+        ? combineNameAndAddress(rationOfficeNamesRef.current[key], formatted)
+        : formatted;
+    applyManualAddressToLetterFields(key, value);
     triggerAutoTranslateManualAddressParts(key, parts);
+  };
+
+  const handleRationOfficeNameChange = (
+    key: 'rationOffice' | 'fromRationOffice' | 'toRationOffice',
+    name: string,
+  ) => {
+    setRationOfficeNames((prev) => ({ ...prev, [key]: name }));
+    rationOfficeNamesRef.current = { ...rationOfficeNamesRef.current, [key]: name };
+    const addressText = formatAddressMaster(manualAddressParts[key], letterLocale);
+    applyManualAddressToLetterFields(key, combineNameAndAddress(name, addressText));
+    setFieldErrors((prev) => ({ ...prev, [`${key}Address`]: undefined }));
   };
 
   // Manual entry always starts blank — don't prefill from the previously
@@ -2443,6 +2476,14 @@ export function LetterGeneration({
     return letter.title;
   };
 
+  // Deep-link into the outward register, pre-filtered to this letter's
+  // reference number so the user lands on the matching entry.
+  const buildOutwardEntryHref = (letter: SavedLetterRow): string => {
+    const params = new URLSearchParams({ tab: 'outward' });
+    if (letter.referenceNo) params.set('search', letter.referenceNo);
+    return `/modules/io-register?${params.toString()}`;
+  };
+
   // Push a saved letter into the outward register, reusing its reference number
   // and attaching the generated PDF so the letter travels with the entry.
   const handleAddLetterToOutward = async (letter: SavedLetterRow) => {
@@ -2618,6 +2659,19 @@ export function LetterGeneration({
           ? t('letterGeneration.savedLetters.actions.addedToOutward')
           : t('letterGeneration.savedLetters.actions.addToOutward')}
       </Button>
+      {outwardAddedReferenceNos.has(letter.referenceNo) && (
+        <Button
+          asChild
+          size="sm"
+          variant="outline"
+          className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+        >
+          <Link href={buildOutwardEntryHref(letter)}>
+            <ExternalLink className="mr-2 size-4" />
+            {t('letterGeneration.savedLetters.actions.viewInOutward')}
+          </Link>
+        </Button>
+      )}
       {/* <Button
         size="sm"
         variant="outline"
@@ -2972,28 +3026,6 @@ export function LetterGeneration({
                   <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
                     <TabsContent value="fees" className="mt-0 space-y-4">
                       {renderCommonFields(feesFields, setFeesFields)}
-                      <FieldGroup
-                        label={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}
-                        required
-                        error={fieldErrors.schoolName}
-                      >
-                        <LocaleTextInput
-                          locale={letterLocale}
-                          value={feesFields.schoolName}
-                          onValueChange={(value) => {
-                            setFeesFields((prev) => ({ ...prev, schoolName: value }));
-                            if (fieldErrors.schoolName) {
-                              setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
-                            }
-                          }}
-                          placeholder={
-                            letterLocale === 'mr'
-                              ? 'संस्था नाव टाइप करा'
-                              : 'Type institute name'
-                          }
-                          required
-                        />
-                      </FieldGroup>
                       <LetterAddressField
                         label={letterLocale === 'mr' ? 'संस्था पत्ता' : 'Institute Address'}
                         addressType={addressTypeForField('school')}
@@ -3007,6 +3039,21 @@ export function LetterGeneration({
                         pincodeError={addressPincodeErrors.school}
                         error={fieldErrors.schoolAddress}
                         required
+                        nameLabel={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}
+                        namePlaceholder={
+                          letterLocale === 'mr'
+                            ? 'संस्था नाव टाइप करा'
+                            : 'Type institute name'
+                        }
+                        nameValue={feesFields.schoolName}
+                        nameRequired
+                        nameError={fieldErrors.schoolName}
+                        onNameChange={(value) => {
+                          setFeesFields((prev) => ({ ...prev, schoolName: value }));
+                          if (fieldErrors.schoolName) {
+                            setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
+                          }
+                        }}
                         onSelectedAddressIdChange={(id) =>
                           handleSchoolAddressSelect(id, feesFields.schoolAddress)
                         }
@@ -3055,31 +3102,6 @@ export function LetterGeneration({
 
                     <TabsContent value="school-admission" className="mt-0 space-y-4">
                       {renderCommonFields(schoolAdmissionFields, setSchoolAdmissionFields)}
-                      <FieldGroup
-                        label={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}
-                        required
-                        error={fieldErrors.schoolName}
-                      >
-                        <LocaleTextInput
-                          locale={letterLocale}
-                          value={schoolAdmissionFields.schoolName}
-                          onValueChange={(value) => {
-                            setSchoolAdmissionFields((prev) => ({
-                              ...prev,
-                              schoolName: value,
-                            }));
-                            if (fieldErrors.schoolName) {
-                              setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
-                            }
-                          }}
-                          placeholder={
-                            letterLocale === 'mr'
-                              ? 'संस्था नाव टाइप करा'
-                              : 'Type institute name'
-                          }
-                          required
-                        />
-                      </FieldGroup>
                       <LetterAddressField
                         label={letterLocale === 'mr' ? 'संस्था पत्ता' : 'Institute Address'}
                         addressType={addressTypeForField('school')}
@@ -3093,6 +3115,24 @@ export function LetterGeneration({
                         pincodeError={addressPincodeErrors.school}
                         error={fieldErrors.schoolAddress}
                         required
+                        nameLabel={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}
+                        namePlaceholder={
+                          letterLocale === 'mr'
+                            ? 'संस्था नाव टाइप करा'
+                            : 'Type institute name'
+                        }
+                        nameValue={schoolAdmissionFields.schoolName}
+                        nameRequired
+                        nameError={fieldErrors.schoolName}
+                        onNameChange={(value) => {
+                          setSchoolAdmissionFields((prev) => ({
+                            ...prev,
+                            schoolName: value,
+                          }));
+                          if (fieldErrors.schoolName) {
+                            setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
+                          }
+                        }}
                         onSelectedAddressIdChange={(id) =>
                           handleSchoolAddressSelect(id, schoolAdmissionFields.schoolAddress)
                         }
@@ -3202,31 +3242,6 @@ export function LetterGeneration({
 
                     <TabsContent value="school-transfer" className="mt-0 space-y-4">
                       {renderCommonFields(schoolTransferFields, setSchoolTransferFields)}
-                      <FieldGroup
-                        label={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}
-                        required
-                        error={fieldErrors.schoolName}
-                      >
-                        <LocaleTextInput
-                          locale={letterLocale}
-                          value={schoolTransferFields.schoolName}
-                          onValueChange={(value) => {
-                            setSchoolTransferFields((prev) => ({
-                              ...prev,
-                              schoolName: value,
-                            }));
-                            if (fieldErrors.schoolName) {
-                              setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
-                            }
-                          }}
-                          placeholder={
-                            letterLocale === 'mr'
-                              ? 'संस्था नाव टाइप करा'
-                              : 'Type institute name'
-                          }
-                          required
-                        />
-                      </FieldGroup>
                       <LetterAddressField
                         label={letterLocale === 'mr' ? 'संस्था पत्ता' : 'Institute Address'}
                         addressType={addressTypeForField('school')}
@@ -3240,6 +3255,24 @@ export function LetterGeneration({
                         pincodeError={addressPincodeErrors.school}
                         error={fieldErrors.schoolAddress}
                         required
+                        nameLabel={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}
+                        namePlaceholder={
+                          letterLocale === 'mr'
+                            ? 'संस्था नाव टाइप करा'
+                            : 'Type institute name'
+                        }
+                        nameValue={schoolTransferFields.schoolName}
+                        nameRequired
+                        nameError={fieldErrors.schoolName}
+                        onNameChange={(value) => {
+                          setSchoolTransferFields((prev) => ({
+                            ...prev,
+                            schoolName: value,
+                          }));
+                          if (fieldErrors.schoolName) {
+                            setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
+                          }
+                        }}
                         onSelectedAddressIdChange={(id) =>
                           handleSchoolAddressSelect(id, schoolTransferFields.schoolAddress)
                         }
@@ -3537,6 +3570,20 @@ export function LetterGeneration({
                                 fieldErrors.fromRationOffice
                               }
                               required
+                              nameLabel={
+                                letterLocale === 'mr'
+                                  ? 'शिधावाटप कार्यालयाचे नाव'
+                                  : 'Ration Office Name'
+                              }
+                              namePlaceholder={
+                                letterLocale === 'mr'
+                                  ? 'शिधावाटप कार्यालयाचे नाव टाइप करा'
+                                  : 'Type ration office name'
+                              }
+                              nameValue={rationOfficeNames.fromRationOffice}
+                              onNameChange={(value) =>
+                                handleRationOfficeNameChange('fromRationOffice', value)
+                              }
                               onSelectedAddressIdChange={(id) =>
                                 handleFromRationOfficeAddressSelect(
                                   id,
@@ -3560,6 +3607,20 @@ export function LetterGeneration({
                                 fieldErrors.toRationOffice
                               }
                               required
+                              nameLabel={
+                                letterLocale === 'mr'
+                                  ? 'शिधावाटप कार्यालयाचे नाव'
+                                  : 'Ration Office Name'
+                              }
+                              namePlaceholder={
+                                letterLocale === 'mr'
+                                  ? 'शिधावाटप कार्यालयाचे नाव टाइप करा'
+                                  : 'Type ration office name'
+                              }
+                              nameValue={rationOfficeNames.toRationOffice}
+                              onNameChange={(value) =>
+                                handleRationOfficeNameChange('toRationOffice', value)
+                              }
                               onSelectedAddressIdChange={(id) =>
                                 handleToRationOfficeAddressSelect(
                                   id,
@@ -3669,6 +3730,20 @@ export function LetterGeneration({
                           pincodeError={addressPincodeErrors.rationOffice}
                           error={fieldErrors.rationOfficeAddress}
                           required
+                          nameLabel={
+                            letterLocale === 'mr'
+                              ? 'शिधावाटप कार्यालयाचे नाव'
+                              : 'Ration Office Name'
+                          }
+                          namePlaceholder={
+                            letterLocale === 'mr'
+                              ? 'शिधावाटप कार्यालयाचे नाव टाइप करा'
+                              : 'Type ration office name'
+                          }
+                          nameValue={rationOfficeNames.rationOffice}
+                          onNameChange={(value) =>
+                            handleRationOfficeNameChange('rationOffice', value)
+                          }
                           onSelectedAddressIdChange={(id) =>
                             handleRationOfficeAddressSelect(id, rationFields.rationOfficeAddress)
                           }
@@ -3764,28 +3839,6 @@ export function LetterGeneration({
                           handleApplicantAddressSelect(id, incomeFields.address)
                         }
                       />
-                      <FieldGroup
-                        label={letterLocale === 'mr' ? 'कार्यालय नाव' : 'Office Name'}
-                        required
-                        error={fieldErrors.officeName}
-                      >
-                        <LocaleTextInput
-                          locale={letterLocale}
-                          value={incomeFields.officeName}
-                          onValueChange={(value) => {
-                            setIncomeFields((prev) => ({ ...prev, officeName: value }));
-                            if (fieldErrors.officeName) {
-                              setFieldErrors((prev) => ({ ...prev, officeName: undefined }));
-                            }
-                          }}
-                          placeholder={
-                            letterLocale === 'mr'
-                              ? 'कार्यालय नाव टाइप करा'
-                              : 'Type office name'
-                          }
-                          required
-                        />
-                      </FieldGroup>
                       <LetterAddressField
                         label={lt('letterGeneration.fields.officeAddress')}
                         addressType={addressTypeForField('office')}
@@ -3799,6 +3852,21 @@ export function LetterGeneration({
                         pincodeError={addressPincodeErrors.office}
                         error={fieldErrors.officeAddress}
                         required
+                        nameLabel={letterLocale === 'mr' ? 'कार्यालय नाव' : 'Office Name'}
+                        namePlaceholder={
+                          letterLocale === 'mr'
+                            ? 'कार्यालय नाव टाइप करा'
+                            : 'Type office name'
+                        }
+                        nameValue={incomeFields.officeName}
+                        nameRequired
+                        nameError={fieldErrors.officeName}
+                        onNameChange={(value) => {
+                          setIncomeFields((prev) => ({ ...prev, officeName: value }));
+                          if (fieldErrors.officeName) {
+                            setFieldErrors((prev) => ({ ...prev, officeName: undefined }));
+                          }
+                        }}
                         onSelectedAddressIdChange={(id) =>
                           handleOfficeAddressSelect(id, incomeFields.officeAddress)
                         }
@@ -3947,28 +4015,6 @@ export function LetterGeneration({
                           handleApplicantAddressSelect(id, domicileFields.address)
                         }
                       />
-                      <FieldGroup
-                        label={letterLocale === 'mr' ? 'कार्यालय नाव' : 'Office Name'}
-                        required
-                        error={fieldErrors.officeName}
-                      >
-                        <LocaleTextInput
-                          locale={letterLocale}
-                          value={domicileFields.officeName}
-                          onValueChange={(value) => {
-                            setDomicileFields((prev) => ({ ...prev, officeName: value }));
-                            if (fieldErrors.officeName) {
-                              setFieldErrors((prev) => ({ ...prev, officeName: undefined }));
-                            }
-                          }}
-                          placeholder={
-                            letterLocale === 'mr'
-                              ? 'कार्यालय नाव टाइप करा'
-                              : 'Type office name'
-                          }
-                          required
-                        />
-                      </FieldGroup>
                       <LetterAddressField
                         label={lt('letterGeneration.fields.officeAddress')}
                         addressType={addressTypeForField('office')}
@@ -3982,6 +4028,21 @@ export function LetterGeneration({
                         pincodeError={addressPincodeErrors.office}
                         error={fieldErrors.officeAddress}
                         required
+                        nameLabel={letterLocale === 'mr' ? 'कार्यालय नाव' : 'Office Name'}
+                        namePlaceholder={
+                          letterLocale === 'mr'
+                            ? 'कार्यालय नाव टाइप करा'
+                            : 'Type office name'
+                        }
+                        nameValue={domicileFields.officeName}
+                        nameRequired
+                        nameError={fieldErrors.officeName}
+                        onNameChange={(value) => {
+                          setDomicileFields((prev) => ({ ...prev, officeName: value }));
+                          if (fieldErrors.officeName) {
+                            setFieldErrors((prev) => ({ ...prev, officeName: undefined }));
+                          }
+                        }}
                         onSelectedAddressIdChange={(id) =>
                           handleOfficeAddressSelect(id, domicileFields.officeAddress)
                         }
@@ -4514,6 +4575,23 @@ export function LetterGeneration({
                                     ? t('letterGeneration.savedLetters.actions.addedToOutward')
                                     : t('letterGeneration.savedLetters.actions.addToOutward')}
                                 </Button>
+                                {outwardAddedReferenceNos.has(
+                                  selectedSavedLetter.referenceNo,
+                                ) && (
+                                  <Button
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full sm:w-auto"
+                                  >
+                                    <Link
+                                      href={buildOutwardEntryHref(selectedSavedLetter)}
+                                    >
+                                      <ExternalLink className="mr-2 size-4" />
+                                      {t('letterGeneration.savedLetters.actions.viewInOutward')}
+                                    </Link>
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           </DialogHeader>
