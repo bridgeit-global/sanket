@@ -1485,9 +1485,10 @@ export function LetterGeneration({
     triggerAutoTranslateManualAddressParts(key, parts);
   };
 
-  const seedManualAddressPartsFromText = (key: ManualAddressKey, text: string) => {
-    const parsed = parseFreeTextAddressForLocale(text, letterLocale);
-    handleManualAddressPartsChange(key, mergeAddressParts(manualAddressParts[key], parsed));
+  // Manual entry always starts blank — don't prefill from the previously
+  // selected master address text.
+  const seedManualAddressPartsFromText = (key: ManualAddressKey, _text: string) => {
+    handleManualAddressPartsChange(key, createEmptyAddressParts());
   };
 
   const addressRowToParts = (address: AddressMasterRow): AddressMasterAddressParts => ({
