@@ -6,10 +6,10 @@ import {
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
 import {
+  computePageStartOffsetsPx,
   getAvoidSplitRangesPx,
   getContentBreakpointsPx,
   getLineRangesPx,
-  pickSliceHeightPx,
   snapCanvasCutToBlankRow,
 } from '@/lib/pdf/page-breaks';
 
@@ -362,56 +362,64 @@ export async function exportElementToPdf(
       captureElement.scrollHeight > 0
         ? canvas.height / captureElement.scrollHeight
         : domToCanvasScaleX;
-    const breakpointsPx = getContentBreakpointsPx(
-      captureElement,
-      domToCanvasScaleY,
-    );
-    const avoidRangesPx = getAvoidSplitRangesPx(
-      captureElement,
-      domToCanvasScaleY,
-    );
-    const lineRangesPx = getLineRangesPx(captureElement, domToCanvasScaleY);
+    // Paginate in DOM px (same as LetterPreview) then map cuts to canvas px so
+    // PDF page breaks match the inline/modal preview (WYSIWYG).
+    const contentRoot =
+      (captureElement.querySelector('.letter-content') as HTMLElement | null) ??
+      captureElement;
+    const domPageHeightPx = pageHeightPx / domToCanvasScaleY;
+    const domBreakpointsPx = getContentBreakpointsPx(contentRoot, 1);
+    const domAvoidRangesPx = getAvoidSplitRangesPx(contentRoot, 1);
+    const domLineRangesPx = getLineRangesPx(contentRoot, 1);
+    const totalDomHeightPx = contentRoot.scrollHeight;
+    const pageStartsDomPx = computePageStartOffsetsPx({
+      totalHeightPx: totalDomHeightPx,
+      pageHeightPx: domPageHeightPx,
+      breakpointsPx: domBreakpointsPx,
+      avoidRangesPx: domAvoidRangesPx,
+      lineRangesPx: domLineRangesPx,
+    });
+    const canvasAvoidRangesPx = domAvoidRangesPx.map((range) => ({
+      top: Math.floor(range.top * domToCanvasScaleY),
+      bottom: Math.ceil(range.bottom * domToCanvasScaleY),
+    }));
+    const sampleLine = domLineRangesPx[0];
+    const lineWindow = sampleLine
+      ? Math.max(48, (sampleLine.bottom - sampleLine.top) * 3 * domToCanvasScaleY)
+      : 96;
 
-    let renderedPx = 0;
-    let pageIndex = 0;
-    // We'll estimate total pages more accurately once we apply breakpoints.
-    let totalPages = Math.max(1, Math.ceil(canvas.height / pageHeightPx));
-
-    while (renderedPx < canvas.height) {
-      const domSliceHeightPx = pickSliceHeightPx({
-        renderedPx,
-        maxSliceHeightPx: pageHeightPx,
-        totalHeightPx: canvas.height,
-        breakpointsPx,
-        avoidRangesPx,
-        lineRangesPx,
-      });
-      if (domSliceHeightPx <= 0) break;
-
-      // html2canvas ink can drift from DOM rects — snap to a blank row so we
-      // never bisect a glyph (the bug letters still hit on Add to Outward).
-      const sampleLine = lineRangesPx[0];
-      const lineWindow = sampleLine
-        ? Math.max(48, (sampleLine.bottom - sampleLine.top) * 3)
-        : 96;
-      const snappedEnd = snapCanvasCutToBlankRow({
+    const pageCutCanvasPx: number[] = [0];
+    for (let i = 1; i < pageStartsDomPx.length; i++) {
+      const prevCut = pageCutCanvasPx[pageCutCanvasPx.length - 1] ?? 0;
+      let cutEnd = Math.round(pageStartsDomPx[i]! * domToCanvasScaleY);
+      cutEnd = snapCanvasCutToBlankRow({
         canvas,
-        proposedCutY: renderedPx + domSliceHeightPx,
-        minCutY: renderedPx + Math.min(80, Math.floor(domSliceHeightPx * 0.4)),
+        proposedCutY: cutEnd,
+        minCutY: prevCut + Math.min(80, Math.floor((cutEnd - prevCut) * 0.4)),
         searchWindowPx: lineWindow,
+        avoidRangesPx: canvasAvoidRangesPx,
       });
-      // Don't land inside a signature/closing avoid-range (e.g. the 75px gap
-      // between "Yours faithfully" and the name) — pull back to its top.
-      let cutEnd = snappedEnd;
-      for (const range of avoidRangesPx) {
+      for (const range of canvasAvoidRangesPx) {
         if (
           cutEnd > range.top + 1 &&
           cutEnd < range.bottom - 1 &&
-          range.top > renderedPx + 1
+          range.top > prevCut + 1
         ) {
           cutEnd = range.top;
         }
       }
+      cutEnd = Math.max(prevCut + 1, Math.min(cutEnd, canvas.height));
+      pageCutCanvasPx.push(cutEnd);
+    }
+    pageCutCanvasPx.push(canvas.height);
+
+    let pageIndex = 0;
+    // We'll estimate total pages more accurately once we apply breakpoints.
+    let totalPages = Math.max(1, pageCutCanvasPx.length - 1);
+
+    for (let cutIndex = 0; cutIndex < pageCutCanvasPx.length - 1; cutIndex++) {
+      const renderedPx = pageCutCanvasPx[cutIndex] ?? 0;
+      const cutEnd = pageCutCanvasPx[cutIndex + 1] ?? canvas.height;
       const sliceHeightPx = Math.max(
         1,
         Math.min(cutEnd - renderedPx, canvas.height - renderedPx),
@@ -527,7 +535,6 @@ export async function exportElementToPdf(
         doc.text(footerText, pageWidthMm / 2, footerY, { align: 'center' });
       }
 
-      renderedPx += sliceHeightPx;
       pageIndex += 1;
     }
 

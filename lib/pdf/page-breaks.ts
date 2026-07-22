@@ -310,15 +310,28 @@ export function computePageStartOffsetsPx(args: {
  * a blank (ink-free) row is found so glyphs are never split mid-line even when
  * DOM getClientRects drift from html2canvas output.
  */
+function isInsideAvoidRangeInterior(
+  y: number,
+  avoidRangesPx: AvoidSplitRangePx[],
+): boolean {
+  for (const range of avoidRangesPx) {
+    if (y > range.top + 1 && y < range.bottom - 1) return true;
+  }
+  return false;
+}
+
 export function snapCanvasCutToBlankRow(args: {
   canvas: HTMLCanvasElement;
   proposedCutY: number;
   minCutY: number;
   /** How far upward to search (canvas px). */
   searchWindowPx?: number;
+  /** Do not snap into interior blank gaps (e.g. signature spacing). */
+  avoidRangesPx?: AvoidSplitRangePx[];
 }): number {
   const { canvas, proposedCutY, minCutY } = args;
   const searchWindowPx = args.searchWindowPx ?? 120;
+  const avoidRangesPx = args.avoidRangesPx ?? [];
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return proposedCutY;
 
@@ -343,15 +356,18 @@ export function snapCanvasCutToBlankRow(args: {
     return true;
   };
 
+  const isValidBlankCut = (y: number): boolean =>
+    isBlankRow(y) && !isInsideAvoidRangeInterior(y, avoidRangesPx);
+
   // If the proposed cut is already in a gap, keep it.
-  if (isBlankRow(Math.max(0, cut - 1))) return cut;
+  if (isValidBlankCut(Math.max(0, cut - 1))) return cut;
 
   // Walk up through ink until we hit a blank gap between lines.
   let y = cut - 1;
-  while (y > limit && !isBlankRow(y)) {
+  while (y > limit && !isValidBlankCut(y)) {
     y -= 1;
   }
-  if (y <= limit && !isBlankRow(y)) {
+  if (y <= limit && !isValidBlankCut(y)) {
     // No blank gap found — keep DOM-based cut.
     return cut;
   }
@@ -359,7 +375,11 @@ export function snapCanvasCutToBlankRow(args: {
   // y is blank: move to the bottom edge of this blank band so we don't leave
   // a hairline of the next glyph on the current page.
   let blankBottom = y;
-  while (blankBottom + 1 < cut && isBlankRow(blankBottom + 1)) {
+  while (
+    blankBottom + 1 < cut &&
+    isBlankRow(blankBottom + 1) &&
+    !isInsideAvoidRangeInterior(blankBottom + 1, avoidRangesPx)
+  ) {
     blankBottom += 1;
   }
   return Math.max(limit, blankBottom);

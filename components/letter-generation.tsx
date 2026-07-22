@@ -509,42 +509,46 @@ function createLetterExportElement(
     paperSize?: LetterPaperSize;
     letterLocale?: LetterLocale;
   },
-): HTMLDivElement {
+): HTMLElement {
   const host = document.createElement('div');
   const contentHtml = stripLetterheadFromHtml(html);
   const paperSize = options?.paperSize ?? 'a4';
   const fontFamily = LETTER_FONT_STACK[options?.letterLocale ?? 'mr'];
-  const fontSizePx = getLetterPrintFontSizePx(paperSize);
+  const fallbackFontSizePx = getLetterPrintFontSizePx(paperSize);
 
-  // Letterhead is drawn per-page by the PDF exporter — capture text only so
-  // margins/header clearance stay aligned with print/preview.
-  host.style.position = 'relative';
-  host.style.background = 'transparent';
-  host.style.color = '#000';
-  host.style.boxSizing = 'border-box';
-  host.style.width = `${getLetterPaperContentWidthPx(paperSize)}px`;
-  host.style.fontFamily = fontFamily;
-  host.style.fontSize = `${fontSizePx}px`;
-  host.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
   host.innerHTML = contentHtml;
-
   const letterContent = host.querySelector('.letter-content');
-  if (letterContent instanceof HTMLElement) {
-    letterContent.style.margin = '0';
-    // Collapse template source whitespace (newlines/indent). Line breaks come
-    // from <br> / block elements — pre-wrap was blowing A5 letters onto 3 pages.
-    letterContent.style.whiteSpace = 'normal';
-    letterContent.style.fontSize = `${fontSizePx}px`;
-    // Keep template line-height when set (fees is tuned to 1.55). Forcing
-    // 1.75 here made the last line sit on the page edge and get clipped in PDF.
-    if (!letterContent.style.lineHeight) {
-      letterContent.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
-    }
-    letterContent.style.fontFamily = fontFamily;
-    letterContent.style.color = '#000';
+  if (!(letterContent instanceof HTMLElement)) {
+    host.style.position = 'relative';
+    host.style.background = 'transparent';
+    host.style.color = '#000';
+    host.style.boxSizing = 'border-box';
+    host.style.width = `${getLetterPaperContentWidthPx(paperSize)}px`;
+    host.style.fontFamily = fontFamily;
+    host.style.fontSize = `${fallbackFontSizePx}px`;
+    host.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
+    return host;
   }
 
-  return host;
+  // Capture `.letter-content` directly (same node shape as LetterPreview) so
+  // PDF typography and pagination match the inline/modal preview.
+  letterContent.style.position = 'relative';
+  letterContent.style.background = 'transparent';
+  letterContent.style.color = '#000';
+  letterContent.style.boxSizing = 'border-box';
+  letterContent.style.width = `${getLetterPaperContentWidthPx(paperSize)}px`;
+  letterContent.style.margin = '0';
+  letterContent.style.whiteSpace = 'normal';
+  letterContent.style.fontFamily = fontFamily;
+  // Preserve template font-size / line-height (fees uses 13px / 1.55 on A5).
+  if (!letterContent.style.fontSize) {
+    letterContent.style.fontSize = `${fallbackFontSizePx}px`;
+  }
+  if (!letterContent.style.lineHeight) {
+    letterContent.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
+  }
+
+  return letterContent;
 }
 
 function LetterPreview({
@@ -2611,7 +2615,7 @@ export function LetterGeneration({
   const handleAddLetterToOutward = async (letter: SavedLetterRow) => {
     if (outwardAddedReferenceNos.has(letter.referenceNo)) return;
     setAddingToOutwardLetterId(letter.id);
-    let exportHost: HTMLDivElement | null = null;
+    let exportHost: HTMLElement | null = null;
     try {
       const parsed = parseReference(letter.referenceNo || '');
       const entryDate = new Date(letter.createdAt);
@@ -2640,6 +2644,10 @@ export function LetterGeneration({
       const entryId = json?.id;
       if (entryId) {
         const paperSize = resolveSavedLetterPaperSize(letter);
+        const savedLetterheadUrl = resolveLetterheadUrl(
+          paperSize,
+          letterMasters.find((m) => m.id === letter.letterMasterId)?.letterheadUrl,
+        );
         exportHost = createLetterExportElement(letter.renderedHtml, {
           paperSize,
           letterLocale: letter.letterLocale,
@@ -2655,6 +2663,7 @@ export function LetterGeneration({
           captureWidthPx: getLetterPaperContentWidthPx(paperSize),
           destination: 'blob',
           pageBackground: {
+            imageUrl: savedLetterheadUrl ?? undefined,
             headerHeightMm: getLetterheadContentPaddingMm(paperSize),
           },
         });
