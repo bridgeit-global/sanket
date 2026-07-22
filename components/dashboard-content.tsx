@@ -1,7 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Cake, Phone, Users, ClipboardCheck } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ModulePageHeader } from '@/components/module-page-header';
@@ -10,6 +12,11 @@ import { PhoneUpdatesChart } from '@/components/phone-updates-chart';
 import { SirActivityChart } from '@/components/sir-activity-chart';
 import { toWhatsAppChatUrl } from '@/lib/indian-mobile';
 import { getTodayDateStringIST } from '@/lib/ist-date';
+import { getVerticalBadgeClass } from '@/lib/hierarchy/vertical-colors';
+import {
+  HIERARCHY_URL_PARAMS,
+  HIERARCHY_VIEWS,
+} from '@/lib/hierarchy/member-list';
 import type { DashboardData } from '@/lib/db/dashboard-queries';
 
 const BIRTHDAY_WHATSAPP_MESSAGE = `HAPPY BIRTHDAY!!
@@ -20,6 +27,14 @@ const BIRTHDAY_WHATSAPP_MESSAGE = `HAPPY BIRTHDAY!!
 शुभेच्छांसह,
 सना मलिक शेख
 आमदार, अणुशक्तीनगर`;
+
+function hierarchyMemberHref(memberId: string): string {
+  const params = new URLSearchParams({
+    [HIERARCHY_URL_PARAMS.view]: HIERARCHY_VIEWS.allMembers,
+    [HIERARCHY_URL_PARAMS.member]: memberId,
+  });
+  return `/modules/hierarchy?${params.toString()}`;
+}
 
 interface DashboardContentProps {
   data: DashboardData;
@@ -156,10 +171,30 @@ export function DashboardContent({ data }: DashboardContentProps) {
                     className="flex items-start justify-between gap-3"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium truncate">{item.personName}</p>
+                      <p className="font-medium truncate">
+                        <Link
+                          href={hierarchyMemberHref(item.memberId)}
+                          className="text-foreground hover:text-primary hover:underline underline-offset-2"
+                        >
+                          {item.personName}
+                        </Link>
+                      </p>
+                      {item.wings.length > 0 ? (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {item.wings.map((wing) => (
+                            <Badge
+                              key={wing.id}
+                              variant="secondary"
+                              className={`border-none px-1.5 py-0 text-[10px] font-semibold uppercase tracking-wide ${getVerticalBadgeClass(wing.name)}`}
+                            >
+                              {wing.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : null}
                       <p className="text-xs text-muted-foreground truncate">
                         {[
-                          item.primaryPostLabel,
+                          item.primaryPostLabel ?? t('dashboard.cadreMember'),
                           item.turningAge != null
                             ? t('dashboard.turningAge', { age: item.turningAge })
                             : null,

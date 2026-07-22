@@ -33,12 +33,14 @@ import {
   buildProjectsSearchParams,
   parseProjectsFiltersFromSearchParams,
 } from '@/lib/projects/url-params';
-import { WardBeatCombobox } from '@/components/ui/ward-beat-combobox';
+import { ProjectHierarchyGeoPickers } from '@/components/projects/project-hierarchy-geo-pickers';
 
 interface Project {
   id: string;
   name: string;
   ward?: string;
+  wardGeoId?: string | null;
+  boothNo?: string | null;
   type?: string;
   status: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
   department?: string | null;
@@ -59,6 +61,8 @@ export function ProjectsModule() {
   const [form, setForm] = useState({
     name: '',
     ward: '',
+    wardGeoId: null as string | null,
+    boothNo: null as string | null,
     type: '',
     status: 'Concept' as Project['status'],
     department: '',
@@ -66,8 +70,6 @@ export function ProjectsModule() {
     estimatedCost: 0,
     approvalStatus: 'Pending' as 'Pending' | 'Approved' | 'Rejected',
   });
-  const [selectedWards, setSelectedWards] = useState<string[]>([]);
-  const [selectedParts, setSelectedParts] = useState<string[]>([]);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
 
@@ -120,13 +122,11 @@ export function ProjectsModule() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Convert selected wards and parts to comma-separated string
-    const wardParts: string[] = [];
-    selectedWards.forEach(ward => wardParts.push(`Ward ${ward}`));
-    selectedParts.forEach(part => wardParts.push(`Part ${part}`));
     const formData = {
       ...form,
-      ward: wardParts.join(', '),
+      ward: form.ward || undefined,
+      wardGeoId: form.wardGeoId,
+      boothNo: form.boothNo,
     };
 
     // Validate form
@@ -179,6 +179,8 @@ export function ProjectsModule() {
     setForm({
       name: project.name,
       ward: project.ward || '',
+      wardGeoId: project.wardGeoId ?? null,
+      boothNo: project.boothNo ?? null,
       type: project.type || '',
       status: project.status,
       department: project.department || '',
@@ -186,26 +188,6 @@ export function ProjectsModule() {
       estimatedCost: project.estimatedCost || 0,
       approvalStatus: project.approvalStatus || 'Pending',
     });
-    // Parse ward string to extract ward numbers and part numbers
-    if (project.ward) {
-      const wards: string[] = [];
-      const parts: string[] = [];
-      const items = project.ward.split(',').map((w: string) => w.trim()).filter((w: string) => w.length > 0);
-      items.forEach((item) => {
-        const wardMatch = item.match(/^Ward\s+(\d+)$/i);
-        const partMatch = item.match(/^Part\s+(\d+)$/i);
-        if (wardMatch) {
-          wards.push(wardMatch[1]);
-        } else if (partMatch) {
-          parts.push(partMatch[1]);
-        }
-      });
-      setSelectedWards(wards);
-      setSelectedParts(parts);
-    } else {
-      setSelectedWards([]);
-      setSelectedParts([]);
-    }
   };
 
   const handleDelete = (id: string) => {
@@ -242,6 +224,8 @@ export function ProjectsModule() {
     setForm({
       name: '',
       ward: '',
+      wardGeoId: null,
+      boothNo: null,
       type: '',
       status: 'Concept',
       department: '',
@@ -249,8 +233,6 @@ export function ProjectsModule() {
       estimatedCost: 0,
       approvalStatus: 'Pending',
     });
-    setSelectedWards([]);
-    setSelectedParts([]);
     setEditingId(null);
     setFormErrors({});
   };
@@ -313,26 +295,18 @@ export function ProjectsModule() {
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="ward">{t('projects.wardBeat')}</Label>
-              <WardBeatCombobox
-                selectedWards={selectedWards}
-                selectedParts={selectedParts}
-                onWardToggle={(wardValue, checked) => {
-                  if (checked) {
-                    setSelectedWards(prev => [...prev, wardValue]);
-                  } else {
-                    setSelectedWards(prev => prev.filter(w => w !== wardValue));
-                  }
-                }}
-                onPartToggle={(partValue, checked) => {
-                  if (checked) {
-                    setSelectedParts(prev => [...prev, partValue]);
-                  } else {
-                    setSelectedParts(prev => prev.filter(p => p !== partValue));
-                  }
-                }}
-                placeholder="Select Ward No / Part No"
+            <div className="space-y-2 md:col-span-2">
+              <ProjectHierarchyGeoPickers
+                wardGeoId={form.wardGeoId}
+                boothNo={form.boothNo}
+                onChange={(geo) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    wardGeoId: geo.wardGeoId,
+                    boothNo: geo.boothNo,
+                    ward: geo.ward,
+                  }))
+                }
               />
             </div>
             <div className="space-y-2">

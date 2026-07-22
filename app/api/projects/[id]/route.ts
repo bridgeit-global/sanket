@@ -92,6 +92,9 @@ export async function PUT(
     const validation = validateForm(projectFormSchema, {
       name: body.name ?? existing.name,
       ward: body.ward ?? existing.ward ?? undefined,
+      wardGeoId:
+        body.wardGeoId !== undefined ? body.wardGeoId : existing.wardGeoId,
+      boothNo: body.boothNo !== undefined ? body.boothNo : existing.boothNo,
       type: body.type ?? existing.type ?? undefined,
       status: body.status ?? existing.status,
       department: body.department ?? existing.department,
@@ -118,12 +121,16 @@ export async function PUT(
     const updated = await updateProject(id, {
       ...validation.data,
       ward: validation.data.ward ?? null,
+      wardGeoId: validation.data.wardGeoId ?? null,
+      boothNo: validation.data.boothNo ?? null,
       type: validation.data.type ?? null,
       department: validation.data.department ?? null,
       category: validation.data.category ?? null,
       remarks: validation.data.remarks ?? null,
       bhoomiPujanDate: validation.data.bhoomiPujanDate ?? null,
       lokarpanDate: validation.data.lokarpanDate ?? null,
+      taluka: null,
+      village: null,
     });
 
     if (!updated) {

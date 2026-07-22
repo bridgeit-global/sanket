@@ -9,6 +9,8 @@ export const projectFormSchema = z
   .object({
     name: z.string().min(1, 'Project name is required').max(255, 'Project name is too long'),
     ward: z.string().max(100, 'Ward name is too long').optional(),
+    wardGeoId: z.string().uuid('Invalid ward').optional().nullable(),
+    boothNo: z.string().max(10).optional().nullable(),
     type: z.string().max(100, 'Type is too long').optional(),
     status: z.enum(['Concept', 'Proposal', 'In Progress', 'Completed']),
     department: z.string().max(255).optional().nullable(),
@@ -90,6 +92,7 @@ export const projectDocumentKindSchema = z.enum([
   'sanction_letter',
   'noc',
   'supporting',
+  'request_letter',
 ]);
 
 export type ProjectDocumentKindData = z.infer<typeof projectDocumentKindSchema>;

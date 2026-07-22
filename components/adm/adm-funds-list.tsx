@@ -65,6 +65,9 @@ interface AdmFundsListProps {
       name: string;
       department?: string;
       allocatedBudget: number;
+      ward?: string;
+      wardGeoId?: string | null;
+      boothNo?: string | null;
     },
   ) => Promise<void>;
   onUpdateAllocation: (id: string, allocatedBudget: number) => Promise<void>;
@@ -94,6 +97,8 @@ function filterFunds(
           a.projectName.toLowerCase().includes(q) ||
           (a.workCode?.toLowerCase().includes(q) ?? false) ||
           (a.projectWard?.toLowerCase().includes(q) ?? false) ||
+          (a.projectWardGeoName?.toLowerCase().includes(q) ?? false) ||
+          (a.projectBoothNo?.toLowerCase().includes(q) ?? false) ||
           (a.projectDepartment?.toLowerCase().includes(q) ?? false),
       ),
   );

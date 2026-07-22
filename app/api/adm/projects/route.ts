@@ -96,6 +96,8 @@ export async function POST(request: NextRequest) {
 
     const project = await createProject({
       ...validation.data,
+      taluka: null,
+      village: null,
       createdBy: session.user.id,
     });
 

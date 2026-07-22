@@ -89,6 +89,27 @@ async function main() {
   const categoryId = String(category.id);
   console.log(`MLA-FUND category id=${categoryId}`);
 
+  const { data: wardUnits, error: wardError } = await supabase
+    .from('CadreGeographicUnit')
+    .select('id, name')
+    .eq('type', 'ward')
+    .eq('is_active', true);
+  if (wardError) throw wardError;
+
+  const wardGeoIdByNumber = new Map<string, string>();
+  for (const row of wardUnits ?? []) {
+    const name = String(row.name).trim();
+    const match = name.match(/^Ward\s+(\d+)\b/i);
+    if (!match?.[1]) continue;
+    const wardNo = match[1];
+    if (/^Ward\s+\d+$/i.test(name)) {
+      wardGeoIdByNumber.set(wardNo, String(row.id));
+    } else if (!wardGeoIdByNumber.has(wardNo)) {
+      wardGeoIdByNumber.set(wardNo, String(row.id));
+    }
+  }
+  console.log(`Loaded ${wardGeoIdByNumber.size} hierarchy ward geo units`);
+
   for (const relativePath of SEED_FILES) {
     const seedPath = resolve(process.cwd(), relativePath);
     const batch = JSON.parse(readFileSync(seedPath, 'utf8')) as SeedBatch;
@@ -197,6 +218,9 @@ async function main() {
       const asAmount = thousandsToRupees(
         work.administrativeSanctionAmountThousands,
       );
+      const wardNo = work.ward?.trim() || null;
+      const wardGeoId = wardNo ? (wardGeoIdByNumber.get(wardNo) ?? null) : null;
+      const wardDisplay = wardNo ? `Ward ${wardNo}` : null;
 
       const existing =
         (work.workCode ? byWorkCode.get(work.workCode) : undefined) ??
@@ -207,9 +231,11 @@ async function main() {
           .from('MlaProject')
           .update({
             name: work.name,
-            ward: work.ward,
-            taluka: work.taluka,
-            village: work.village,
+            ward: wardDisplay,
+            ward_geo_id: wardGeoId,
+            booth_no: null,
+            taluka: null,
+            village: null,
             physical_status: work.physicalStatus,
             status: projectStatusFromPhysical(work.physicalStatus),
             estimated_cost: asAmount,
@@ -241,13 +267,15 @@ async function main() {
         .from('MlaProject')
         .insert({
           name: work.name,
-          ward: work.ward,
+          ward: wardDisplay,
+          ward_geo_id: wardGeoId,
+          booth_no: null,
           type: 'MLA Work',
           status: projectStatusFromPhysical(work.physicalStatus),
           department: 'MLA Fund',
           category: 'MLA Fund',
-          taluka: work.taluka,
-          village: work.village,
+          taluka: null,
+          village: null,
           estimated_cost: asAmount,
           approval_status: 'Approved',
           noc_required: false,

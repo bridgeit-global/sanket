@@ -65,6 +65,7 @@ const DOC_KINDS: ProjectDocumentKind[] = [
   'sanction_letter',
   'noc',
   'supporting',
+  'request_letter',
 ];
 
 export function ProjectDetailExtras({
@@ -100,6 +101,8 @@ export function ProjectDetailExtras({
         return t('projects.kindSanctionLetter');
       case 'noc':
         return t('projects.kindNoc');
+      case 'request_letter':
+        return t('projects.kindRequestLetter');
       default:
         return t('projects.kindSupporting');
     }
@@ -337,9 +340,11 @@ export function ProjectDetailExtras({
                   />
                 </div>
                 {photos.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    {t('projects.noPhotos')}
-                  </p>
+                  <div className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/20 p-4 text-center">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      {t('projects.photosPending')}
+                    </p>
+                  </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {photos.map((photo) => (

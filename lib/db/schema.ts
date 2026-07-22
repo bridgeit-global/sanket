@@ -426,13 +426,16 @@ export type ProjectDocumentKind =
   | 'approval_pdf'
   | 'sanction_letter'
   | 'noc'
-  | 'supporting';
+  | 'supporting'
+  | 'request_letter';
 export type ProjectPhysicalStatus = 'WNS' | 'WIP' | 'WC';
 
 export type MlaProject = {
   id: string;
   name: string;
   ward: string | null;
+  wardGeoId: string | null;
+  boothNo: string | null;
   type: string | null;
   status: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
   department: string | null;
@@ -734,6 +737,12 @@ export type AdmFundAllocation = {
   updatedAt: Date;
 };
 
+export type AdmProjectGroundPhoto = {
+  id: string;
+  fileUrl: string;
+  fileName: string;
+};
+
 export type AdmFundAllocationWithProject = AdmFundAllocation & {
   projectName: string;
   projectDepartment: string | null;
@@ -741,9 +750,14 @@ export type AdmFundAllocationWithProject = AdmFundAllocation & {
   projectTaluka: string | null;
   projectVillage: string | null;
   projectWard: string | null;
+  projectWardGeoId: string | null;
+  projectBoothNo: string | null;
+  projectWardGeoName: string | null;
   projectPhysicalStatus: ProjectPhysicalStatus;
   projectEstimatedCost: number;
   projectApprovalStatus: ProjectApprovalStatus;
+  projectBeforePhotos: AdmProjectGroundPhoto[];
+  projectAfterPhotos: AdmProjectGroundPhoto[];
 };
 
 export type AdmDocument = {

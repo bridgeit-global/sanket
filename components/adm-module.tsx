@@ -229,6 +229,9 @@ export function AdmModule() {
       name: string;
       department?: string;
       allocatedBudget: number;
+      ward?: string;
+      wardGeoId?: string | null;
+      boothNo?: string | null;
     },
   ) => {
     const response = await fetch('/api/adm/projects', {
@@ -237,6 +240,9 @@ export function AdmModule() {
       body: JSON.stringify({
         name: values.name,
         department: values.department,
+        ward: values.ward,
+        wardGeoId: values.wardGeoId,
+        boothNo: values.boothNo,
         status: 'Concept',
         fundRecordId,
         allocatedBudget: values.allocatedBudget,

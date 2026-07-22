@@ -3961,6 +3961,8 @@ export async function deleteRegisterAttachment(id: string): Promise<void> {
 export async function createProject({
   name,
   ward,
+  wardGeoId,
+  boothNo,
   type,
   status,
   department,
@@ -3981,6 +3983,8 @@ export async function createProject({
 }: {
   name: string;
   ward?: string;
+  wardGeoId?: string | null;
+  boothNo?: string | null;
   type?: string;
   status?: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
   department?: string | null;
@@ -4007,6 +4011,8 @@ export async function createProject({
         toSnakeCaseKeys({
           name,
           ward: ward || null,
+          wardGeoId: wardGeoId ?? null,
+          boothNo: boothNo ?? null,
           type: type || null,
           status: status || 'Concept',
           department: department ?? null,
@@ -5198,6 +5204,61 @@ export async function getAdmDashboard(): Promise<AdmFundingCategoryWithFunds[]> 
       }
     }
 
+    const wardGeoIds = [
+      ...new Set(
+        [...projectById.values()]
+          .map((p) => p.wardGeoId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const wardGeoNameById = new Map<string, string>();
+    if (wardGeoIds.length > 0) {
+      const { data: geoRows, error: geoError } = await supabase
+        .from(TABLES.cadreGeographicUnit)
+        .select('id, name')
+        .in('id', wardGeoIds);
+      throwOnSupabaseError(geoError, 'Failed to get project ward geo units');
+      for (const row of geoRows ?? []) {
+        wardGeoNameById.set(String(row.id), String(row.name));
+      }
+    }
+
+    const beforePhotosByProject = new Map<
+      string,
+      Array<{ id: string; fileUrl: string; fileName: string }>
+    >();
+    const afterPhotosByProject = new Map<
+      string,
+      Array<{ id: string; fileUrl: string; fileName: string }>
+    >();
+    if (projectIds.length > 0) {
+      const { data: mediaRows, error: mediaError } = await supabase
+        .from(TABLES.projectGroundMedia)
+        .select('id, project_id, photo_type, file_url, file_name, sort_order, created_at')
+        .in('project_id', projectIds)
+        .order('sort_order', { ascending: true })
+        .order('created_at', { ascending: true });
+      throwOnSupabaseError(mediaError, 'Failed to get project ground media');
+      for (const row of mediaRows ?? []) {
+        const projectId = String(row.project_id);
+        const photo = {
+          id: String(row.id),
+          fileUrl: String(row.file_url),
+          fileName: String(row.file_name ?? ''),
+        };
+        const photoType = String(row.photo_type);
+        if (photoType === 'after') {
+          const list = afterPhotosByProject.get(projectId) ?? [];
+          list.push(photo);
+          afterPhotosByProject.set(projectId, list);
+        } else if (photoType === 'before') {
+          const list = beforePhotosByProject.get(projectId) ?? [];
+          list.push(photo);
+          beforePhotosByProject.set(projectId, list);
+        }
+      }
+    }
+
     const allocationsByFund = new Map<string, AdmFundAllocationWithProject[]>();
     for (const row of allocationRows ?? []) {
       const allocation = mapAdmFundAllocationRow(row);
@@ -5210,9 +5271,18 @@ export async function getAdmDashboard(): Promise<AdmFundingCategoryWithFunds[]> 
         projectTaluka: project?.taluka ?? null,
         projectVillage: project?.village ?? null,
         projectWard: project?.ward ?? null,
+        projectWardGeoId: project?.wardGeoId ?? null,
+        projectBoothNo: project?.boothNo ?? null,
+        projectWardGeoName: project?.wardGeoId
+          ? (wardGeoNameById.get(project.wardGeoId) ?? null)
+          : null,
         projectPhysicalStatus: project?.physicalStatus ?? 'WNS',
         projectEstimatedCost: project?.estimatedCost ?? 0,
         projectApprovalStatus: project?.approvalStatus ?? 'Pending',
+        projectBeforePhotos:
+          beforePhotosByProject.get(allocation.projectId) ?? [],
+        projectAfterPhotos:
+          afterPhotosByProject.get(allocation.projectId) ?? [],
       };
       const list = allocationsByFund.get(allocation.fundRecordId) ?? [];
       list.push(enriched);

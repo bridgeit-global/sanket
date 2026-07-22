@@ -33,6 +33,9 @@ interface AdmFundDetailProps {
       name: string;
       department?: string;
       allocatedBudget: number;
+      ward?: string;
+      wardGeoId?: string | null;
+      boothNo?: string | null;
     },
   ) => Promise<void>;
   onUpdateAllocation: (id: string, allocatedBudget: number) => Promise<void>;

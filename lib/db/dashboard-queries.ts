@@ -33,6 +33,8 @@ export type UpcomingCadreBirthday = {
   daysUntil: number;
   turningAge: number | null;
   primaryPostLabel: string | null;
+  /** Cadre verticals (wings) assigned to the member, primary first. */
+  wings: Array<{ id: string; name: string }>;
 };
 
 export interface DashboardData {
@@ -205,6 +207,83 @@ export async function getUpcomingCadreBirthdays(
 
   const memberIds = membersWithDob.map((row) => String(row.id));
   const primaryPostLabelByMember = new Map<string, string>();
+  const wingsByMember = new Map<string, Array<{ id: string; name: string }>>();
+
+  type WingSortRow = {
+    id: string;
+    name: string;
+    isPrimary: boolean;
+    sortOrder: number;
+  };
+  const wingsSortByMember = new Map<string, WingSortRow[]>();
+  const verticalLinks: Array<{
+    memberId: string;
+    verticalId: string;
+    isPrimary: boolean;
+  }> = [];
+  for (const chunk of chunkIds(memberIds, EPIC_FETCH_CHUNK)) {
+    const verticalLinksRes = await supabase
+      .from(TABLES.cadreMemberVertical)
+      .select('member_id, vertical_id, is_primary')
+      .in('member_id', chunk);
+    throwOnSupabaseError(
+      verticalLinksRes.error,
+      'Failed to load cadre verticals for birthdays',
+    );
+    for (const row of verticalLinksRes.data ?? []) {
+      verticalLinks.push({
+        memberId: String(row.member_id),
+        verticalId: String(row.vertical_id),
+        isPrimary: Boolean(row.is_primary),
+      });
+    }
+  }
+
+  const verticalIds = [
+    ...new Set(verticalLinks.map((link) => link.verticalId)),
+  ];
+  const verticalById = new Map<string, { name: string; sortOrder: number }>();
+  if (verticalIds.length > 0) {
+    for (const chunk of chunkIds(verticalIds, EPIC_FETCH_CHUNK)) {
+      const verticalsRes = await supabase
+        .from(TABLES.cadreVertical)
+        .select('id, name, sort_order')
+        .in('id', chunk);
+      throwOnSupabaseError(
+        verticalsRes.error,
+        'Failed to load vertical names for birthdays',
+      );
+      for (const row of verticalsRes.data ?? []) {
+        verticalById.set(String(row.id), {
+          name: String(row.name),
+          sortOrder: Number(row.sort_order ?? 0),
+        });
+      }
+    }
+  }
+
+  for (const link of verticalLinks) {
+    const vertical = verticalById.get(link.verticalId);
+    if (!vertical) continue;
+    const list = wingsSortByMember.get(link.memberId) ?? [];
+    list.push({
+      id: link.verticalId,
+      name: vertical.name,
+      isPrimary: link.isPrimary,
+      sortOrder: vertical.sortOrder,
+    });
+    wingsSortByMember.set(link.memberId, list);
+  }
+  for (const [memberId, list] of wingsSortByMember) {
+    list.sort((a, b) => {
+      if (a.isPrimary !== b.isPrimary) return a.isPrimary ? -1 : 1;
+      return a.sortOrder - b.sortOrder;
+    });
+    wingsByMember.set(
+      memberId,
+      list.map(({ id, name }) => ({ id, name })),
+    );
+  }
 
   const firstPostByMember = new Map<
     string,
@@ -352,6 +431,7 @@ export async function getUpcomingCadreBirthdays(
           ? turningAge
           : null,
       primaryPostLabel: primaryPostLabelByMember.get(memberId) ?? null,
+      wings: wingsByMember.get(memberId) ?? [],
     });
   }
 

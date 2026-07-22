@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight, FileText } from 'lucide-react';
+import { ChevronRight, ExternalLink, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useTranslations } from '@/hooks/use-translations';
 import { formatCurrency } from '@/lib/mla-office-utils';
@@ -15,17 +15,19 @@ interface AdmFundSummaryRowProps {
 export function AdmFundSummaryRow({ fund, onSelect }: AdmFundSummaryRowProps) {
   const { t } = useTranslations();
   const isOverallocated = fund.allocatedBudget > fund.budget;
-  const sourceDocuments = fund.documents.filter((d) => d.kind === 'source_details');
+  const documentsWithUrl = fund.documents.filter(
+    (d) => d.attachmentFileUrl || d.fileUrl,
+  );
 
   return (
-    <button
-      type="button"
-      onClick={() => onSelect(fund.id)}
-      className="w-full rounded-lg border border-border bg-card p-3 text-left transition-colors hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      aria-label={t('adm.viewFund')}
-    >
+    <div className="rounded-lg border border-border bg-card p-3 transition-colors hover:bg-muted/30">
       <div className="space-y-3">
-        <div className="flex items-start justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => onSelect(fund.id)}
+          className="flex w-full items-start justify-between gap-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label={t('adm.viewFund')}
+        >
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="secondary" className="font-semibold">
@@ -36,33 +38,58 @@ export function AdmFundSummaryRow({ fund, onSelect }: AdmFundSummaryRowProps) {
                   {fund.batchLabel}
                 </Badge>
               ) : null}
-              {sourceDocuments.length > 0 ? (
-                <Badge variant="outline" className="font-medium">
-                  <FileText className="mr-1 h-3 w-3" />
-                  {sourceDocuments.length}
-                </Badge>
-              ) : null}
             </div>
             <p className="text-sm text-muted-foreground">
               {t('adm.financialYear')}: {fund.financialYear}
             </p>
           </div>
           <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-        </div>
+        </button>
 
-        <div className="grid grid-cols-1 gap-2 text-sm sm:grid-cols-3">
+        <button
+          type="button"
+          onClick={() => onSelect(fund.id)}
+          className="grid w-full grid-cols-1 gap-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:grid-cols-3"
+        >
           <span>
             {t('adm.fundBudget')}:{' '}
             <span className="font-semibold">{formatCurrency(fund.budget)}</span>
           </span>
           <span className={cn(isOverallocated && 'text-destructive')}>
             {t('adm.budgetUsed')}:{' '}
-            <span className="font-semibold">{formatCurrency(fund.allocatedBudget)}</span>
+            <span className="font-semibold">
+              {formatCurrency(fund.allocatedBudget)}
+            </span>
           </span>
           <span>
             {t('adm.projectsCount', { count: String(fund.allocations.length) })}
           </span>
-        </div>
+        </button>
+
+        {documentsWithUrl.length > 0 ? (
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+            {documentsWithUrl.map((doc) => {
+              const href = doc.attachmentFileUrl || doc.fileUrl;
+              if (!href) return null;
+              return (
+                <a
+                  key={doc.id}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex min-h-11 w-full items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-primary hover:bg-muted/40 sm:w-auto sm:min-h-9"
+                >
+                  <FileText className="h-3.5 w-3.5 shrink-0" />
+                  <span className="min-w-0 truncate">
+                    {doc.label || doc.fileName || t('adm.sourceDetailsPdf')}
+                  </span>
+                  <ExternalLink className="h-3 w-3 shrink-0" />
+                </a>
+              );
+            })}
+          </div>
+        ) : null}
 
         {isOverallocated ? (
           <Badge
@@ -73,6 +100,6 @@ export function AdmFundSummaryRow({ fund, onSelect }: AdmFundSummaryRowProps) {
           </Badge>
         ) : null}
       </div>
-    </button>
+    </div>
   );
 }

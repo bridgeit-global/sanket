@@ -39,7 +39,6 @@ import {
 } from '@/components/ui/table';
 import { useTranslations } from '@/hooks/use-translations';
 import { financialYearOptions } from '@/lib/adm/financial-year';
-import { formatAdmAmount } from '@/lib/adm/amount-unit';
 import { formatCurrency } from '@/lib/mla-office-utils';
 import type {
   AdmFundRecordWithDetails,
@@ -49,6 +48,9 @@ import type {
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { AdmCroreAmountInput } from './adm-crore-amount-input';
+import { ProjectHierarchyGeoPickers } from '@/components/projects/project-hierarchy-geo-pickers';
+import { formatProjectHierarchyLocation } from '@/lib/projects/hierarchy-geo';
+import { AdmProjectGroundPhotos } from './adm-project-ground-photos';
 
 export interface AdmProjectOption {
   id: string;
@@ -56,12 +58,11 @@ export interface AdmProjectOption {
 }
 
 function locationLabel(allocation: AdmFundAllocationWithProject): string {
-  const parts = [
-    allocation.projectWard ? `Ward ${allocation.projectWard}` : null,
-    allocation.projectVillage,
-    allocation.projectTaluka,
-  ].filter(Boolean);
-  return parts.length > 0 ? parts.join(' · ') : '—';
+  return formatProjectHierarchyLocation({
+    wardGeoName: allocation.projectWardGeoName,
+    ward: allocation.projectWard,
+    boothNo: allocation.projectBoothNo,
+  });
 }
 
 function physicalStatusKey(
@@ -91,6 +92,9 @@ interface AdmFundRecordCardProps {
       name: string;
       department?: string;
       allocatedBudget: number;
+      ward?: string;
+      wardGeoId?: string | null;
+      boothNo?: string | null;
     },
   ) => Promise<void>;
   onUpdateAllocation: (id: string, allocatedBudget: number) => Promise<void>;
@@ -131,6 +135,13 @@ export function AdmFundRecordCard({
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDepartment, setNewProjectDepartment] = useState('');
   const [newProjectBudget, setNewProjectBudget] = useState(0);
+  const [newProjectWard, setNewProjectWard] = useState('');
+  const [newProjectWardGeoId, setNewProjectWardGeoId] = useState<string | null>(
+    null,
+  );
+  const [newProjectBoothNo, setNewProjectBoothNo] = useState<string | null>(
+    null,
+  );
   const [creatingProject, setCreatingProject] = useState(false);
 
   const isOverallocated = fund.allocatedBudget > fund.budget;
@@ -177,11 +188,17 @@ export function AdmFundRecordCard({
         name: newProjectName.trim(),
         department: newProjectDepartment.trim() || undefined,
         allocatedBudget: newProjectBudget,
+        ward: newProjectWard || undefined,
+        wardGeoId: newProjectWardGeoId,
+        boothNo: newProjectBoothNo,
       });
       setCreateProjectOpen(false);
       setNewProjectName('');
       setNewProjectDepartment('');
       setNewProjectBudget(0);
+      setNewProjectWard('');
+      setNewProjectWardGeoId(null);
+      setNewProjectBoothNo(null);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : t('adm.failedToSave'),
@@ -414,35 +431,13 @@ export function AdmFundRecordCard({
                     </Badge>
                   </div>
 
-                  <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
-                    <div className="col-span-2 min-w-0">
+                  <dl className="grid grid-cols-1 gap-y-2 text-sm">
+                    <div className="min-w-0">
                       <dt className="text-xs text-muted-foreground">
                         {t('adm.recommendation')}
                       </dt>
                       <dd className="break-words">
                         {allocation.mlaRecommendationRef || '—'}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-muted-foreground">
-                        {t('adm.tsAmount')}
-                      </dt>
-                      <dd>
-                        {formatAdmAmount(
-                          allocation.technicalSanctionAmount,
-                          'thousands',
-                        )}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-xs text-muted-foreground">
-                        {t('adm.asAmount')}
-                      </dt>
-                      <dd>
-                        {formatAdmAmount(
-                          allocation.governmentFixedAmount,
-                          'thousands',
-                        )}
                       </dd>
                     </div>
                   </dl>
@@ -475,6 +470,11 @@ export function AdmFundRecordCard({
                       {t('adm.delete')}
                     </Button>
                   </div>
+
+                  <AdmProjectGroundPhotos
+                    beforePhotos={allocation.projectBeforePhotos}
+                    afterPhotos={allocation.projectAfterPhotos}
+                  />
                 </div>
               ))}
             </div>
@@ -497,13 +497,10 @@ export function AdmFundRecordCard({
                       {t('adm.recommendation')}
                     </TableHead>
                     <TableHead className="whitespace-nowrap">
-                      {t('adm.tsAmount')}
-                    </TableHead>
-                    <TableHead className="whitespace-nowrap">
-                      {t('adm.asAmount')}
-                    </TableHead>
-                    <TableHead className="whitespace-nowrap">
                       {t('adm.allocatedBudget')}
+                    </TableHead>
+                    <TableHead className="min-w-[18rem]">
+                      {t('projects.groundMedia')}
                     </TableHead>
                     <TableHead className="w-28" />
                   </TableRow>
@@ -538,18 +535,6 @@ export function AdmFundRecordCard({
                       <TableCell className="max-w-[10rem] truncate text-xs text-muted-foreground">
                         {allocation.mlaRecommendationRef || '—'}
                       </TableCell>
-                      <TableCell className="whitespace-nowrap text-sm">
-                        {formatAdmAmount(
-                          allocation.technicalSanctionAmount,
-                          'thousands',
-                        )}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-sm">
-                        {formatAdmAmount(
-                          allocation.governmentFixedAmount,
-                          'thousands',
-                        )}
-                      </TableCell>
                       <TableCell>
                         <Input
                           key={`${allocation.id}-${allocation.allocatedBudget}`}
@@ -560,6 +545,13 @@ export function AdmFundRecordCard({
                           onBlur={(e) =>
                             void handleBudgetBlur(allocation, e.target.value)
                           }
+                        />
+                      </TableCell>
+                      <TableCell className="align-top">
+                        <AdmProjectGroundPhotos
+                          beforePhotos={allocation.projectBeforePhotos}
+                          afterPhotos={allocation.projectAfterPhotos}
+                          className="min-w-[16rem]"
                         />
                       </TableCell>
                       <TableCell>
@@ -721,6 +713,15 @@ export function AdmFundRecordCard({
                 className="min-h-11"
               />
             </div>
+            <ProjectHierarchyGeoPickers
+              wardGeoId={newProjectWardGeoId}
+              boothNo={newProjectBoothNo}
+              onChange={(geo) => {
+                setNewProjectWardGeoId(geo.wardGeoId);
+                setNewProjectBoothNo(geo.boothNo);
+                setNewProjectWard(geo.ward);
+              }}
+            />
             <div className="space-y-2">
               <Label>{t('adm.allocatedBudget')}</Label>
               <Input

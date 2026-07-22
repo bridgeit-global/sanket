@@ -42,7 +42,7 @@ import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ProjectsSkeleton } from '@/components/module-skeleton';
 import { RegisterAttachmentDialog } from '@/components/register-attachment-dialog';
-import { WardBeatCombobox } from '@/components/ui/ward-beat-combobox';
+import { ProjectHierarchyGeoPickers } from '@/components/projects/project-hierarchy-geo-pickers';
 import { LimitedFormField } from '@/components/ui/limited-form-field';
 import {
   REGISTER_ENTRY_FIELD_LIMITS,
@@ -95,6 +95,8 @@ interface Project {
   id: string;
   name: string;
   ward?: string;
+  wardGeoId?: string | null;
+  boothNo?: string | null;
   type?: string;
   status: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
   department?: string | null;
@@ -134,6 +136,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const [projectForm, setProjectForm] = useState({
     name: '',
     ward: '',
+    wardGeoId: null as string | null,
+    boothNo: null as string | null,
     type: '',
     status: 'Concept' as Project['status'],
     department: '',
@@ -155,10 +159,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const [fundAllocations, setFundAllocations] = useState<
     ProjectFundAllocationView[]
   >([]);
-
-  // Ward and Part values state for WardBeatCombobox
-  const [selectedWards, setSelectedWards] = useState<string[]>([]);
-  const [selectedParts, setSelectedParts] = useState<string[]>([]);
 
   // Entry form
   const [entryForm, setEntryForm] = useState({
@@ -246,6 +246,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         setProjectForm({
           name: data.name,
           ward: data.ward || '',
+          wardGeoId: data.wardGeoId ?? null,
+          boothNo: data.boothNo ?? null,
           type: data.type || '',
           status: data.status,
           department: data.department || '',
@@ -261,28 +263,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           lokarpanDone: data.lokarpanDone || false,
           lokarpanDate: data.lokarpanDate || null,
         });
-        // Parse ward string to extract ward numbers and part numbers
-        if (data.ward) {
-          const wards: string[] = [];
-          const parts: string[] = [];
-          // Try to parse "Ward X" and "Part Y" patterns
-          const items = data.ward.split(',').map((w: string) => w.trim()).filter((w: string) => w.length > 0);
-          items.forEach((item: string) => {
-            const wardMatch = item.match(/^Ward\s+(\d+)$/i);
-            const partMatch = item.match(/^Part\s+(\d+)$/i);
-            if (wardMatch) {
-              wards.push(wardMatch[1]);
-            } else if (partMatch) {
-              parts.push(partMatch[1]);
-            }
-            // If no match, ignore (backward compatibility - old format won't be parsed)
-          });
-          setSelectedWards(wards);
-          setSelectedParts(parts);
-        } else {
-          setSelectedWards([]);
-          setSelectedParts([]);
-        }
       } else if (response.status === 404) {
         toast.error('Project not found');
         router.push('/modules/projects');
@@ -300,14 +280,11 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     if (!projectForm.name.trim()) return;
 
     try {
-      // Convert selected wards and parts to comma-separated string
-      const wardParts: string[] = [];
-      selectedWards.forEach(ward => wardParts.push(`Ward ${ward}`));
-      selectedParts.forEach(part => wardParts.push(`Part ${part}`));
-      const wardString = wardParts.join(', ');
       const projectData = {
         ...projectForm,
-        ward: wardString,
+        ward: projectForm.ward || undefined,
+        wardGeoId: projectForm.wardGeoId,
+        boothNo: projectForm.boothNo,
       };
 
       const response = await fetch(`/api/projects/${projectId}`, {
@@ -774,6 +751,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                     setProjectForm({
                       name: project.name,
                       ward: project.ward || '',
+                      wardGeoId: project.wardGeoId ?? null,
+                      boothNo: project.boothNo ?? null,
                       type: project.type || '',
                       status: project.status,
                       department: project.department || '',
@@ -789,25 +768,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                       lokarpanDone: project.lokarpanDone || false,
                       lokarpanDate: project.lokarpanDate || null,
                     });
-                    if (project.ward) {
-                      const wards: string[] = [];
-                      const parts: string[] = [];
-                      const items = project.ward.split(',').map((w: string) => w.trim()).filter((w: string) => w.length > 0);
-                      items.forEach((item) => {
-                        const wardMatch = item.match(/^Ward\s+(\d+)$/i);
-                        const partMatch = item.match(/^Part\s+(\d+)$/i);
-                        if (wardMatch) {
-                          wards.push(wardMatch[1]);
-                        } else if (partMatch) {
-                          parts.push(partMatch[1]);
-                        }
-                      });
-                      setSelectedWards(wards);
-                      setSelectedParts(parts);
-                    } else {
-                      setSelectedWards([]);
-                      setSelectedParts([]);
-                    }
                   }
                   setEditingProject(!editingProject);
                 }}
@@ -832,26 +792,18 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="ward">Ward / Beat</Label>
-                <WardBeatCombobox
-                  selectedWards={selectedWards}
-                  selectedParts={selectedParts}
-                  onWardToggle={(wardValue, checked) => {
-                    if (checked) {
-                      setSelectedWards(prev => [...prev, wardValue]);
-                    } else {
-                      setSelectedWards(prev => prev.filter(w => w !== wardValue));
-                    }
-                  }}
-                  onPartToggle={(partValue, checked) => {
-                    if (checked) {
-                      setSelectedParts(prev => [...prev, partValue]);
-                    } else {
-                      setSelectedParts(prev => prev.filter(p => p !== partValue));
-                    }
-                  }}
-                  placeholder="Select Ward No / Part No"
+              <div className="space-y-2 md:col-span-2">
+                <ProjectHierarchyGeoPickers
+                  wardGeoId={projectForm.wardGeoId}
+                  boothNo={projectForm.boothNo}
+                  onChange={(geo) =>
+                    setProjectForm((prev) => ({
+                      ...prev,
+                      wardGeoId: geo.wardGeoId,
+                      boothNo: geo.boothNo,
+                      ward: geo.ward,
+                    }))
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -909,6 +861,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                       setProjectForm({
                         name: project.name,
                         ward: project.ward || '',
+                        wardGeoId: project.wardGeoId ?? null,
+                        boothNo: project.boothNo ?? null,
                         type: project.type || '',
                         status: project.status,
                         department: project.department || '',
@@ -924,25 +878,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                         lokarpanDone: project.lokarpanDone || false,
                         lokarpanDate: project.lokarpanDate || null,
                       });
-                      if (project.ward) {
-                        const wards: string[] = [];
-                        const parts: string[] = [];
-                        const items = project.ward.split(',').map((w: string) => w.trim()).filter((w: string) => w.length > 0);
-                        items.forEach((item) => {
-                          const wardMatch = item.match(/^Ward\s+(\d+)$/i);
-                          const partMatch = item.match(/^Part\s+(\d+)$/i);
-                          if (wardMatch) {
-                            wards.push(wardMatch[1]);
-                          } else if (partMatch) {
-                            parts.push(partMatch[1]);
-                          }
-                        });
-                        setSelectedWards(wards);
-                        setSelectedParts(parts);
-                      } else {
-                        setSelectedWards([]);
-                        setSelectedParts([]);
-                      }
                     }
                     setEditingProject(false);
                   }}

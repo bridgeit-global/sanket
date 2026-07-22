@@ -526,6 +526,8 @@ export function mapMlaProjectRow(row: Row): MlaProject {
     id: String(row.id),
     name: String(row.name),
     ward: toStringOrNull(row.ward),
+    wardGeoId: toStringOrNull(row.ward_geo_id ?? row.wardGeoId),
+    boothNo: toStringOrNull(row.booth_no ?? row.boothNo),
     type: toStringOrNull(row.type),
     status: row.status as MlaProject['status'],
     department: toStringOrNull(row.department),
