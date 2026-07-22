@@ -524,6 +524,49 @@ function getLetterPrintFontSizePx(paperSize: LetterPaperSize): number {
 
 const LETTER_PRINT_LINE_HEIGHT = 1.75;
 
+const LETTER_PREVIEW_PAGE_GAP_PX = 16;
+
+/** Max dialog width so modal preview can use the full paper width at 96dpi. */
+function getLetterPreviewDialogMaxWidthClass(paperSize: LetterPaperSize): string {
+  switch (paperSize) {
+    case 'a4':
+      return 'max-w-[min(100%,940px)]';
+    case 'b5':
+      return 'max-w-[min(100%,820px)]';
+    case 'a5':
+      return 'max-w-[min(100%,700px)]';
+    default:
+      return 'max-w-3xl';
+  }
+}
+
+/**
+ * Visual scale for on-screen preview only — canonical page dimensions stay at
+ * 96dpi so pagination matches PDF/print; transform scale adjusts visibility.
+ */
+function computeLetterPreviewDisplayScale(
+  containerWidthPx: number,
+  paperSize: LetterPaperSize,
+  variant: 'inline' | 'modal',
+): number {
+  const paperWidthPx = getLetterPaperWidthPx(paperSize);
+  const availableWidthPx = Math.max(0, containerWidthPx - 8);
+  if (availableWidthPx <= 0 || paperWidthPx <= 0) return 1;
+
+  const fitScale = availableWidthPx / paperWidthPx;
+  const maxScale =
+    variant === 'modal'
+      ? paperSize === 'a5'
+        ? 1.2
+        : paperSize === 'b5'
+          ? 1.1
+          : 1
+      : 1;
+  const minScale = variant === 'modal' ? 0.7 : 0.55;
+
+  return Math.min(maxScale, Math.max(minScale, fitScale));
+}
+
 function getLetterBodyPaddingCss(
   paperSize: LetterPaperSize,
   hasLetterhead: boolean,
@@ -590,20 +633,24 @@ function LetterPreview({
   paperSize = 'a4',
   letterheadUrl,
   letterLocale,
+  variant = 'inline',
 }: {
   html: string;
   paperSize?: LetterPaperSize;
   letterheadUrl?: string | null;
   letterLocale: LetterLocale;
+  variant?: 'inline' | 'modal';
 }) {
   const resolvedLetterhead = resolveLetterheadUrl(paperSize, letterheadUrl);
   const contentHtml = stripLetterheadFromHtml(html);
   const hasLetterhead = Boolean(resolvedLetterhead);
   const bodyPadding = getLetterBodyPaddingCss(paperSize, hasLetterhead);
 
+  const rootRef = useRef<HTMLDivElement>(null);
   const pageFrameRef = useRef<HTMLDivElement>(null);
   const clipRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const [displayScale, setDisplayScale] = useState(1);
   // Y offsets where each preview page begins — aligned to text-line bottoms
   // so glyphs are never clipped mid-line (same logic as PDF export).
   const [pageStartOffsetsPx, setPageStartOffsetsPx] = useState<number[]>([0]);
@@ -675,19 +722,45 @@ function LetterPreview({
     };
   }, [contentHtml, paperSize, letterLocale, hasLetterhead, bodyPadding]);
 
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    const updateDisplayScale = () => {
+      const width = root.clientWidth;
+      if (width <= 0) return;
+      const next = computeLetterPreviewDisplayScale(width, paperSize, variant);
+      setDisplayScale((prev) => (Math.abs(prev - next) < 0.001 ? prev : next));
+    };
+
+    updateDisplayScale();
+
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => updateDisplayScale());
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [paperSize, variant]);
+
   const paperWidthPx = getLetterPaperWidthPx(paperSize);
   const paperHeightPx = getLetterPaperHeightPx(paperSize);
+  const scaledPaperWidthPx = paperWidthPx * displayScale;
+  const scaledPaperHeightPx = paperHeightPx * displayScale;
   const pageShellStyle = {
     width: `${paperWidthPx}px`,
     height: `${paperHeightPx}px`,
     fontFamily: LETTER_FONT_STACK[letterLocale],
     fontSize: `${getLetterPrintFontSizePx(paperSize)}px`,
     lineHeight: LETTER_PRINT_LINE_HEIGHT,
+    transform: `scale(${displayScale})`,
+    transformOrigin: 'top left',
   } as const;
 
   return (
-    <div className="overflow-x-auto">
-      <div className="mx-auto w-max space-y-4">
+    <div ref={rootRef} className="w-full">
+      <div className="mx-auto" style={{ width: scaledPaperWidthPx }}>
       {pageStartOffsetsPx.map((startOffsetPx, pageIndex) => {
         const nextStartPx = pageStartOffsetsPx[pageIndex + 1];
         const sliceHeightPx =
@@ -698,44 +771,56 @@ function LetterPreview({
         return (
           <div
             key={pageIndex}
-            ref={pageIndex === 0 ? pageFrameRef : undefined}
-            className="relative shrink-0 overflow-hidden rounded-lg border bg-white text-black"
-            style={pageShellStyle}
+            className="shrink-0"
+            style={{
+              width: scaledPaperWidthPx,
+              height: scaledPaperHeightPx,
+              marginBottom:
+                pageIndex < pageStartOffsetsPx.length - 1
+                  ? LETTER_PREVIEW_PAGE_GAP_PX
+                  : undefined,
+            }}
           >
-            {resolvedLetterhead && pageIndex === 0 ? (
-              <div
-                aria-hidden
-                className="pointer-events-none absolute inset-0 bg-no-repeat"
-                style={{
-                  backgroundImage: `url("${resolvedLetterhead}")`,
-                  backgroundSize: '100% 100%',
-                }}
-              />
-            ) : null}
-            <div className="absolute inset-0" style={{ padding: bodyPadding }}>
-              <div
-                ref={pageIndex === 0 ? clipRef : undefined}
-                className="h-full overflow-hidden"
-              >
-                {/* Cap visible height at the next safe break so lines aren't clipped mid-glyph. */}
+            <div
+              ref={pageIndex === 0 ? pageFrameRef : undefined}
+              className="relative overflow-hidden rounded-lg border bg-white text-black"
+              style={pageShellStyle}
+            >
+              {resolvedLetterhead && pageIndex === 0 ? (
                 <div
-                  className="overflow-hidden"
-                  style={
-                    sliceHeightPx != null ? { height: sliceHeightPx } : undefined
-                  }
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 bg-no-repeat"
+                  style={{
+                    backgroundImage: `url("${resolvedLetterhead}")`,
+                    backgroundSize: '100% 100%',
+                  }}
+                />
+              ) : null}
+              <div className="absolute inset-0" style={{ padding: bodyPadding }}>
+                <div
+                  ref={pageIndex === 0 ? clipRef : undefined}
+                  className="h-full overflow-hidden"
                 >
+                  {/* Cap visible height at the next safe break so lines aren't clipped mid-glyph. */}
                   <div
-                    ref={pageIndex === 0 ? contentRef : undefined}
-                    className={LETTER_PREVIEW_CONTENT_CLASSES}
-                    style={{
-                      transform:
-                        startOffsetPx > 0
-                          ? `translateY(-${startOffsetPx}px)`
-                          : undefined,
-                    }}
-                    // Letter HTML is generated from admin-editable templates stored in our database.
-                    dangerouslySetInnerHTML={{ __html: contentHtml }}
-                  />
+                    className="overflow-hidden"
+                    style={
+                      sliceHeightPx != null ? { height: sliceHeightPx } : undefined
+                    }
+                  >
+                    <div
+                      ref={pageIndex === 0 ? contentRef : undefined}
+                      className={LETTER_PREVIEW_CONTENT_CLASSES}
+                      style={{
+                        transform:
+                          startOffsetPx > 0
+                            ? `translateY(-${startOffsetPx}px)`
+                            : undefined,
+                      }}
+                      // Letter HTML is generated from admin-editable templates stored in our database.
+                      dangerouslySetInnerHTML={{ __html: contentHtml }}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -4413,6 +4498,7 @@ export function LetterGeneration({
                     paperSize={activePaperSize}
                     letterheadUrl={activeLetterheadUrl}
                     letterLocale={letterLocale}
+                    variant="inline"
                   />
                 </div>
               </div>
@@ -4824,7 +4910,16 @@ export function LetterGeneration({
                       if (!open) setSelectedSavedLetterId(null);
                     }}
                   >
-                    <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto p-4 sm:w-full sm:p-6">
+                    <DialogContent
+                      className={cn(
+                        'max-h-[90vh] w-[calc(100%-2rem)] overflow-y-auto p-4 sm:w-full sm:p-6',
+                        selectedSavedLetter
+                          ? getLetterPreviewDialogMaxWidthClass(
+                              resolveSavedLetterPaperSize(selectedSavedLetter),
+                            )
+                          : 'max-w-3xl',
+                      )}
+                    >
                       {selectedSavedLetter ? (
                         <>
                           <DialogHeader className="space-y-4">
@@ -4891,7 +4986,7 @@ export function LetterGeneration({
                               </div>
                             </div>
                           </DialogHeader>
-                          <div className="min-h-[60vh]">
+                          <div className="w-full">
                             <LetterPreview
                               html={selectedSavedLetter.renderedHtml}
                               paperSize={resolveSavedLetterPaperSize(selectedSavedLetter)}
@@ -4902,6 +4997,7 @@ export function LetterGeneration({
                                 )?.letterheadUrl,
                               )}
                               letterLocale={selectedSavedLetter.letterLocale}
+                              variant="modal"
                             />
                           </div>
                         </>
