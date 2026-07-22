@@ -82,6 +82,24 @@ export function getLetterPaperContentWidthPx(paperSize: LetterPaperSize): number
   return Math.round((contentWidthMm * 96) / 25.4);
 }
 
+/**
+ * CSS-px height of the text area on one PDF/preview page (below letterhead /
+ * top inset, above bottom margin). Preview + PDF must share this so breaks match.
+ */
+export function getLetterPageContentHeightCssPx(
+  paperSize: LetterPaperSize,
+  hasLetterhead: boolean,
+  headerPaddingMm: number,
+): number {
+  const { widthMm, heightMm } = LETTER_PAPER_DIMENSIONS_MM[paperSize];
+  const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
+  const topInsetMm = hasLetterhead ? headerPaddingMm : marginMm;
+  const contentHeightMm = Math.max(1, heightMm - topInsetMm - marginMm);
+  const contentWidthMm = Math.max(1, widthMm - marginMm * 2);
+  const contentWidthPx = getLetterPaperContentWidthPx(paperSize);
+  return contentHeightMm * (contentWidthPx / contentWidthMm);
+}
+
 export function getLetterPaperLabel(paperSize: LetterPaperSize): string {
   return paperSize.toUpperCase();
 }

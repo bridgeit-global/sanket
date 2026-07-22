@@ -41,11 +41,13 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   <p class="paragraph">
     आपण या प्रकरणाचा सहानुभूतीपूर्वक विचार करून सकारात्मक निर्णय घ्याल, अशी अपेक्षा आहे.
   </p>
+  <div class="letter-closing">
   <div class="right-tab">
     आपली विश्वासू,
   </div>
   <div class="right-tab-sign">
     (<span class="var">{{signatory}}</span>)
+  </div>
   </div>
 </div>`,
   'school-admission': `<div class="letter-content" style="white-space: normal; font-family: inherit; font-size: 15px; line-height: 1.75; color: #000; margin: 0;">  <style>    .var {      font-weight: bold;    }    .top-row {      display: flex;      justify-content: space-between;      margin-bottom: 18px;    }    .recipient {      margin-bottom: 14px;    }    .subject {      font-weight: bold;      margin-bottom: 14px;    }    .salutation {      margin-bottom: 6px;    }    .paragraph {      text-align: justify;      text-indent: 35px;      margin: 0;      padding: 0;    }    .signature {      text-align: right;      padding-right: 35px;      margin-top: 95px;    }  </style>  <div class="top-row">    <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>    <div>दि. <span class="var">{{date}}</span></div>  </div>  <div class="recipient">    प्रति,<br>    मुख्याध्यापक / प्राचार्य,<br>    <span style="font-weight: normal;">{{schoolName}}</span><br>    <span style="font-weight: normal;">{{schoolAddress}}</span>  </div>  <div class="subject">    <span style="font-weight: normal;">विषय:</span> <span class="var">{{studentName}}</span> या विद्यार्थ्यास इयत्ता <span class="var">{{standard}}</span> मध्ये प्रवेश मिळण्याबाबत शिफारस.  </div>  <div class="salutation">    महोदय/महोदया,  </div>  <p class="paragraph">    सदर पत्राद्वारे आपणास विनंती करण्यात येत आहे की, <span class="var">{{parentName}}</span>, रा. <span style="font-weight: normal;">{{address}}</span> यांचे पाल्य <span class="var">{{studentName}}</span> यास आपल्या शाळेत इयत्ता <span class="var">{{standard}}</span> मध्ये प्रवेश मिळण्याकरिता आपणाकडे शिफारस करण्यात येत आहे.  </p>  <p class="paragraph">    सदर विद्यार्थ्यास शिक्षणाची आवड असून, पुढील शिक्षणासाठी योग्य शैक्षणिक वातावरण मिळणे आवश्यक आहे. आपल्या शाळेत इयत्ता <span class="var">{{standard}}</span> मध्ये प्रवेश मिळाल्यास सदर विद्यार्थ्याच्या शिक्षणास निश्चितच मदत होईल.  </p>  <p class="paragraph">    <span class="var">{{reasonText}}</span>  </p>  <p class="paragraph">    तरी उपलब्ध जागा, प्रवेश नियम व आवश्यक कागदपत्रांची पडताळणी करून सदर विद्यार्थ्यास आपल्या शाळेत इयत्ता <span class="var">{{standard}}</span> मध्ये प्रवेश देण्याबाबत सहानुभूतीपूर्वक व नियमानुसार आवश्यक ती कार्यवाही करण्यात यावी, ही विनंती.  </p>  <div class="signature">    (<span class="var">{{signatory}}</span>)  </div></div>`,

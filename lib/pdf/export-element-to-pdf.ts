@@ -8,7 +8,9 @@ import {
 import {
   getAvoidSplitRangesPx,
   getContentBreakpointsPx,
+  getLineRangesPx,
   pickSliceHeightPx,
+  snapCanvasCutToBlankRow,
 } from '@/lib/pdf/page-breaks';
 
 type PdfPageFormat = LetterPaperSize;
@@ -351,18 +353,24 @@ export async function exportElementToPdf(
     const pageHeightPx = Math.floor(contentHeightMm * pxPerMm);
 
     // Break on text-line / table-row bottoms so glyphs are never sliced mid-line.
-    const domToCanvasScale =
+    // Prefer height scale for Y — width/height canvas ratios can differ slightly.
+    const domToCanvasScaleX =
       captureElement.scrollWidth > 0
         ? canvas.width / captureElement.scrollWidth
         : scale;
+    const domToCanvasScaleY =
+      captureElement.scrollHeight > 0
+        ? canvas.height / captureElement.scrollHeight
+        : domToCanvasScaleX;
     const breakpointsPx = getContentBreakpointsPx(
       captureElement,
-      domToCanvasScale,
+      domToCanvasScaleY,
     );
     const avoidRangesPx = getAvoidSplitRangesPx(
       captureElement,
-      domToCanvasScale,
+      domToCanvasScaleY,
     );
+    const lineRangesPx = getLineRangesPx(captureElement, domToCanvasScaleY);
 
     let renderedPx = 0;
     let pageIndex = 0;
@@ -370,13 +378,44 @@ export async function exportElementToPdf(
     let totalPages = Math.max(1, Math.ceil(canvas.height / pageHeightPx));
 
     while (renderedPx < canvas.height) {
-      const sliceHeightPx = pickSliceHeightPx({
+      const domSliceHeightPx = pickSliceHeightPx({
         renderedPx,
         maxSliceHeightPx: pageHeightPx,
         totalHeightPx: canvas.height,
         breakpointsPx,
         avoidRangesPx,
+        lineRangesPx,
       });
+      if (domSliceHeightPx <= 0) break;
+
+      // html2canvas ink can drift from DOM rects — snap to a blank row so we
+      // never bisect a glyph (the bug letters still hit on Add to Outward).
+      const sampleLine = lineRangesPx[0];
+      const lineWindow = sampleLine
+        ? Math.max(48, (sampleLine.bottom - sampleLine.top) * 3)
+        : 96;
+      const snappedEnd = snapCanvasCutToBlankRow({
+        canvas,
+        proposedCutY: renderedPx + domSliceHeightPx,
+        minCutY: renderedPx + Math.min(80, Math.floor(domSliceHeightPx * 0.4)),
+        searchWindowPx: lineWindow,
+      });
+      // Don't land inside a signature/closing avoid-range (e.g. the 75px gap
+      // between "Yours faithfully" and the name) — pull back to its top.
+      let cutEnd = snappedEnd;
+      for (const range of avoidRangesPx) {
+        if (
+          cutEnd > range.top + 1 &&
+          cutEnd < range.bottom - 1 &&
+          range.top > renderedPx + 1
+        ) {
+          cutEnd = range.top;
+        }
+      }
+      const sliceHeightPx = Math.max(
+        1,
+        Math.min(cutEnd - renderedPx, canvas.height - renderedPx),
+      );
       if (sliceHeightPx <= 0) break;
 
       const pageCanvas = document.createElement('canvas');

@@ -8,18 +8,62 @@ export type AvoidSplitRangePx = {
   bottom: number;
 };
 
-function toScaledBottom(
-  cssBottom: number,
+export type LineRangePx = {
+  top: number;
+  bottom: number;
+};
+
+function toScaledY(
+  cssY: number,
   rootTop: number,
   scale: number,
-): number | null {
-  // ceil so descenders of the current line stay on this page
-  const bottom = Math.ceil((cssBottom - rootTop) * scale);
-  return Number.isFinite(bottom) && bottom > 0 ? bottom : null;
+  round: 'floor' | 'ceil' = 'floor',
+): number {
+  const raw = (cssY - rootTop) * scale;
+  return round === 'ceil' ? Math.ceil(raw) : Math.floor(raw);
 }
 
-function toScaledY(cssY: number, rootTop: number, scale: number): number {
-  return Math.floor((cssY - rootTop) * scale);
+function collectLineRangesPx(
+  root: HTMLElement,
+  scale: number,
+): LineRangePx[] {
+  const rectRoot = root.getBoundingClientRect();
+  const rootTop = rectRoot.top;
+  const lines: LineRangePx[] = [];
+
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let node: Node | null = walker.nextNode();
+  while (node) {
+    // Skip non-rendered text (style/script) — getClientRects is empty/meaningless.
+    const parent = node.parentElement;
+    if (
+      parent &&
+      (parent.tagName === 'STYLE' ||
+        parent.tagName === 'SCRIPT' ||
+        parent.tagName === 'NOSCRIPT')
+    ) {
+      node = walker.nextNode();
+      continue;
+    }
+
+    const text = node.textContent;
+    if (text?.trim()) {
+      const range = document.createRange();
+      range.selectNodeContents(node);
+      for (const rect of Array.from(range.getClientRects())) {
+        if (rect.height <= 1) continue;
+        lines.push({
+          top: toScaledY(rect.top, rootTop, scale, 'floor'),
+          // ceil so descenders stay on the same page as the line
+          bottom: toScaledY(rect.bottom, rootTop, scale, 'ceil'),
+        });
+      }
+    }
+    node = walker.nextNode();
+  }
+
+  lines.sort((a, b) => a.top - b.top || a.bottom - b.bottom);
+  return lines;
 }
 
 /** Bottoms of table rows + text line boxes (safe places to end a page). */
@@ -32,8 +76,8 @@ export function getContentBreakpointsPx(
   const bottoms = new Set<number>();
 
   const addBottom = (cssBottom: number) => {
-    const bottom = toScaledBottom(cssBottom, rootTop, scale);
-    if (bottom != null) bottoms.add(bottom);
+    const bottom = toScaledY(cssBottom, rootTop, scale, 'ceil');
+    if (Number.isFinite(bottom) && bottom > 0) bottoms.add(bottom);
   };
 
   for (const row of Array.from(
@@ -42,19 +86,8 @@ export function getContentBreakpointsPx(
     addBottom(row.getBoundingClientRect().bottom);
   }
 
-  // Line boxes from text nodes — prevents mid-glyph cuts in prose letters.
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let node: Node | null = walker.nextNode();
-  while (node) {
-    const text = node.textContent;
-    if (text?.trim()) {
-      const range = document.createRange();
-      range.selectNodeContents(node);
-      for (const rect of Array.from(range.getClientRects())) {
-        if (rect.height > 0) addBottom(rect.bottom);
-      }
-    }
-    node = walker.nextNode();
+  for (const line of collectLineRangesPx(root, scale)) {
+    if (line.bottom > 0) bottoms.add(line.bottom);
   }
 
   // Block bottoms catch empty spacers / images without text.
@@ -70,8 +103,15 @@ export function getContentBreakpointsPx(
   return Array.from(bottoms).sort((a, b) => a - b);
 }
 
+export function getLineRangesPx(
+  root: HTMLElement,
+  scale = 1,
+): LineRangePx[] {
+  return collectLineRangesPx(root, scale);
+}
+
 /**
- * Regions that should stay on one page when possible (e.g. signature block).
+ * Regions that should stay on one page when possible (signature / closing).
  * Prefer breaking just above the region if a cut would split it.
  */
 export function getAvoidSplitRangesPx(
@@ -82,18 +122,81 @@ export function getAvoidSplitRangesPx(
   const rootTop = rectRoot.top;
   const ranges: AvoidSplitRangePx[] = [];
 
-  for (const el of Array.from(
-    root.querySelectorAll('.signature'),
-  ) as HTMLElement[]) {
+  const pushEl = (el: HTMLElement) => {
     const r = el.getBoundingClientRect();
-    if (r.height <= 0) continue;
+    if (r.height <= 0) return;
     ranges.push({
-      top: toScaledY(r.top, rootTop, scale),
-      bottom: toScaledY(r.bottom, rootTop, scale),
+      top: toScaledY(r.top, rootTop, scale, 'floor'),
+      bottom: toScaledY(r.bottom, rootTop, scale, 'ceil'),
     });
+  };
+
+  for (const el of Array.from(
+    root.querySelectorAll('.signature, .letter-closing'),
+  ) as HTMLElement[]) {
+    pushEl(el);
+  }
+
+  // Fees letters use .right-tab ("Yours faithfully") + .right-tab-sign (name).
+  // Keep them together as one avoid block — including the large margin between them.
+  const rightTabs = Array.from(
+    root.querySelectorAll('.right-tab'),
+  ) as HTMLElement[];
+  for (const tab of rightTabs) {
+    // Skip if already covered by a .letter-closing ancestor.
+    if (tab.closest('.letter-closing')) continue;
+    const sign = tab.nextElementSibling;
+    const r1 = tab.getBoundingClientRect();
+    if (r1.height <= 0) continue;
+    let top = toScaledY(r1.top, rootTop, scale, 'floor');
+    let bottom = toScaledY(r1.bottom, rootTop, scale, 'ceil');
+    if (
+      sign instanceof HTMLElement &&
+      sign.classList.contains('right-tab-sign')
+    ) {
+      const r2 = sign.getBoundingClientRect();
+      if (r2.height > 0) {
+        // Include margin gap between the two (r2.top is after margin-top).
+        bottom = toScaledY(r2.bottom, rootTop, scale, 'ceil');
+      }
+    }
+    ranges.push({ top, bottom });
+  }
+
+  // Orphan .right-tab-sign (no preceding .right-tab handled above).
+  for (const el of Array.from(
+    root.querySelectorAll('.right-tab-sign'),
+  ) as HTMLElement[]) {
+    const prev = el.previousElementSibling;
+    if (prev instanceof HTMLElement && prev.classList.contains('right-tab')) {
+      continue;
+    }
+    pushEl(el);
   }
 
   return ranges;
+}
+
+/**
+ * If cutY falls through the interior of a text line, snap to that line's top
+ * (previous page ends before the line) or bottom if the line starts this page.
+ */
+function snapCutOutOfLineInterior(
+  cutY: number,
+  renderedPx: number,
+  lineRangesPx: LineRangePx[],
+  /** Pull cut slightly above line.top to absorb DOM↔canvas drift. */
+  safetyPx = 2,
+): number {
+  for (const line of lineRangesPx) {
+    if (cutY <= line.top + 1 || cutY >= line.bottom - 1) continue;
+    // Mid-glyph cut — push the whole line to the next page when possible.
+    if (line.top > renderedPx + 1) {
+      return Math.max(renderedPx + 1, line.top - safetyPx);
+    }
+    return line.bottom;
+  }
+  return cutY;
 }
 
 export function pickSliceHeightPx(args: {
@@ -102,6 +205,7 @@ export function pickSliceHeightPx(args: {
   totalHeightPx: number;
   breakpointsPx: number[];
   avoidRangesPx?: AvoidSplitRangePx[];
+  lineRangesPx?: LineRangePx[];
 }): number {
   const {
     renderedPx,
@@ -109,24 +213,37 @@ export function pickSliceHeightPx(args: {
     totalHeightPx,
     breakpointsPx,
     avoidRangesPx = [],
+    lineRangesPx = [],
   } = args;
   const remaining = totalHeightPx - renderedPx;
   if (remaining <= 0) return 0;
   const defaultHeight = Math.min(maxSliceHeightPx, remaining);
   if (defaultHeight >= remaining) return remaining;
 
-  const minUsefulSlicePx = 120;
+  const minUsefulSlicePx = 80;
   const minBreakY = renderedPx + minUsefulSlicePx;
   let targetEnd = renderedPx + defaultHeight;
 
   // If the default cut would split an avoid-range, prefer ending at its top.
   for (const range of avoidRangesPx) {
     if (range.top >= targetEnd || range.bottom <= targetEnd) continue;
-    // Range straddles targetEnd.
     if (range.top > renderedPx) {
       targetEnd = range.top;
     }
   }
+
+  // Never end inside a glyph — snap out of any line interior.
+  // Safety grows with line height so DOM↔html2canvas drift doesn't re-cut glyphs.
+  const sampleLine = lineRangesPx[0];
+  const safetyPx = sampleLine
+    ? Math.max(4, Math.round((sampleLine.bottom - sampleLine.top) * 0.2))
+    : 4;
+  targetEnd = snapCutOutOfLineInterior(
+    targetEnd,
+    renderedPx,
+    lineRangesPx,
+    safetyPx,
+  );
 
   let best: number | null = null;
   for (const bp of breakpointsPx) {
@@ -135,14 +252,16 @@ export function pickSliceHeightPx(args: {
     best = bp;
   }
 
-  // If no line break fit, but we pulled targetEnd back for an avoid-range, use that.
-  if (best == null && targetEnd < renderedPx + defaultHeight && targetEnd > renderedPx) {
-    return Math.max(1, Math.min(targetEnd - renderedPx, remaining));
-  }
+  let cutY = best ?? targetEnd;
 
-  if (best == null) return defaultHeight;
-  const adjusted = best - renderedPx;
-  return Math.max(1, Math.min(adjusted, remaining));
+  // Final safety: if we still landed inside a line (e.g. no breakpoints), snap again.
+  cutY = snapCutOutOfLineInterior(cutY, renderedPx, lineRangesPx, safetyPx);
+
+  // Clamp: must advance, must not exceed remaining / default page window too wildly.
+  // Allow shorter-than-default pages when we snap back for avoid/line safety.
+  const slice = cutY - renderedPx;
+  if (slice <= 0) return defaultHeight;
+  return Math.min(slice, remaining);
 }
 
 /** Cumulative Y offsets where each page of content begins (CSS/canvas px). */
@@ -151,20 +270,30 @@ export function computePageStartOffsetsPx(args: {
   pageHeightPx: number;
   breakpointsPx: number[];
   avoidRangesPx?: AvoidSplitRangePx[];
+  lineRangesPx?: LineRangePx[];
 }): number[] {
-  const { totalHeightPx, pageHeightPx, breakpointsPx, avoidRangesPx } = args;
+  const {
+    totalHeightPx,
+    pageHeightPx,
+    breakpointsPx,
+    avoidRangesPx,
+    lineRangesPx,
+  } = args;
   if (totalHeightPx <= 0 || pageHeightPx <= 0) return [0];
 
   const starts = [0];
   let renderedPx = 0;
+  let guard = 0;
 
-  while (renderedPx < totalHeightPx) {
+  while (renderedPx < totalHeightPx && guard < 100) {
+    guard += 1;
     const slice = pickSliceHeightPx({
       renderedPx,
       maxSliceHeightPx: pageHeightPx,
       totalHeightPx,
       breakpointsPx,
       avoidRangesPx,
+      lineRangesPx,
     });
     if (slice <= 0) break;
     renderedPx += slice;
@@ -174,4 +303,64 @@ export function computePageStartOffsetsPx(args: {
   }
 
   return starts;
+}
+
+/**
+ * Final safety net for PDF slicing: walk up the canvas from proposedCutY until
+ * a blank (ink-free) row is found so glyphs are never split mid-line even when
+ * DOM getClientRects drift from html2canvas output.
+ */
+export function snapCanvasCutToBlankRow(args: {
+  canvas: HTMLCanvasElement;
+  proposedCutY: number;
+  minCutY: number;
+  /** How far upward to search (canvas px). */
+  searchWindowPx?: number;
+}): number {
+  const { canvas, proposedCutY, minCutY } = args;
+  const searchWindowPx = args.searchWindowPx ?? 120;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return proposedCutY;
+
+  const width = canvas.width;
+  const height = canvas.height;
+  const cut = Math.min(Math.max(Math.floor(proposedCutY), 0), height);
+  const limit = Math.max(Math.ceil(minCutY), cut - searchWindowPx);
+  if (cut <= limit) return cut;
+
+  const isBlankRow = (y: number): boolean => {
+    if (y < 0 || y >= height) return true;
+    const data = ctx.getImageData(0, y, width, 1).data;
+    // Sample every 4th pixel for speed.
+    for (let i = 0; i < data.length; i += 16) {
+      const a = data[i + 3] ?? 0;
+      if (a < 8) continue;
+      const r = data[i] ?? 255;
+      const g = data[i + 1] ?? 255;
+      const b = data[i + 2] ?? 255;
+      if (r < 248 || g < 248 || b < 248) return false;
+    }
+    return true;
+  };
+
+  // If the proposed cut is already in a gap, keep it.
+  if (isBlankRow(Math.max(0, cut - 1))) return cut;
+
+  // Walk up through ink until we hit a blank gap between lines.
+  let y = cut - 1;
+  while (y > limit && !isBlankRow(y)) {
+    y -= 1;
+  }
+  if (y <= limit && !isBlankRow(y)) {
+    // No blank gap found — keep DOM-based cut.
+    return cut;
+  }
+
+  // y is blank: move to the bottom edge of this blank band so we don't leave
+  // a hairline of the next glyph on the current page.
+  let blankBottom = y;
+  while (blankBottom + 1 < cut && isBlankRow(blankBottom + 1)) {
+    blankBottom += 1;
+  }
+  return Math.max(limit, blankBottom);
 }

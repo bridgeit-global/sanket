@@ -41,11 +41,13 @@ export const EN_TEMPLATE_HTML: Record<LetterType, string> = {
   <p class="paragraph">
     I hope you will consider this matter sympathetically and take a positive decision.
   </p>
+  <div class="letter-closing">
   <div class="right-tab">
     Yours faithfully,
   </div>
   <div class="right-tab-sign">
     (<span class="var">{{signatory}}</span>)
+  </div>
   </div>
 </div>`,
   'school-admission': `<div class="letter-content" style="white-space: normal; font-family: inherit; font-size: 15px; line-height: 1.75; color: #000; margin: 0;">  <style>    .var {      font-weight: bold;    }    .top-row {      display: flex;      justify-content: space-between;      margin-bottom: 18px;    }    .recipient {      margin-bottom: 14px;    }    .subject {      font-weight: bold;      margin-bottom: 14px;    }    .salutation {      margin-bottom: 6px;    }    .paragraph {      text-align: justify;      text-indent: 35px;      margin: 0;      padding: 0;    }    .signature {      text-align: right;      padding-right: 35px;      margin-top: 95px;    }  </style>  <div class="top-row">    <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>    <div>Date: <span class="var">{{date}}</span></div>  </div>  <div class="recipient">    To,<br>    Headmaster / Principal,<br>    <span style="font-weight: normal;">{{schoolName}}</span><br>    <span style="font-weight: normal;">{{schoolAddress}}</span>  </div>  <div class="subject">    <span style="font-weight: normal;">Subject:</span> Recommendation for admission of student <span class="var">{{studentName}}</span> to Standard <span class="var">{{standard}}</span>.  </div>  <div class="salutation">    Sir/Madam,  </div>  <p class="paragraph">    Through this letter, <span class="var">{{studentName}}</span>, child of <span class="var">{{parentName}}</span>, residing at <span style="font-weight: normal;">{{address}}</span>, is hereby recommended to you for admission to Standard <span class="var">{{standard}}</span> at your school.  </p>  <p class="paragraph">    The said student has an interest in education, and a proper academic environment is necessary for further studies. Admission to Standard <span class="var">{{standard}}</span> at your school will certainly help the student's education.  </p>  <p class="paragraph">    <span class="var">{{reasonText}}</span>  </p>  <p class="paragraph">    Kindly verify the availability of seats, admission rules, and required documents, and take necessary action as per rules to grant admission to Standard <span class="var">{{standard}}</span> at your school to the said student.  </p>  <div class="signature">    (<span class="var">{{signatory}}</span>)  </div></div>`,

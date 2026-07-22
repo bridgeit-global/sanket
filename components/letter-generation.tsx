@@ -91,6 +91,7 @@ import { getDefaultTemplateHtml } from '@/lib/letters/default-template-html';
 import {
   getDefaultLetterPaperSize,
   getLetterPaperContentWidthPx,
+  getLetterPageContentHeightCssPx,
   getLetterPaperLabel,
   getLetterPaperWidthPx,
   LETTER_PAPER_MARGIN_MM,
@@ -99,7 +100,7 @@ import {
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
 import { exportElementToPdf } from '@/lib/pdf/export-element-to-pdf';
-import { computePageStartOffsetsPx, getAvoidSplitRangesPx, getContentBreakpointsPx } from '@/lib/pdf/page-breaks';
+import { computePageStartOffsetsPx, getAvoidSplitRangesPx, getContentBreakpointsPx, getLineRangesPx } from '@/lib/pdf/page-breaks';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { ModulePageHeader } from '@/components/module-page-header';
 import {
@@ -577,21 +578,27 @@ function LetterPreview({
 
   useLayoutEffect(() => {
     const recomputePages = () => {
-      const clip = clipRef.current;
       const content = contentRef.current;
-      if (!clip || !content) return;
+      if (!content) return;
 
-      const available = clip.clientHeight;
+      // Same page-content height formula as PDF export so preview breaks match.
+      const available = getLetterPageContentHeightCssPx(
+        paperSize,
+        hasLetterhead,
+        getLetterheadContentPaddingMm(paperSize),
+      );
       if (available <= 0) return;
 
       const total = content.scrollHeight;
       const breakpointsPx = getContentBreakpointsPx(content, 1);
       const avoidRangesPx = getAvoidSplitRangesPx(content, 1);
+      const lineRangesPx = getLineRangesPx(content, 1);
       const starts = computePageStartOffsetsPx({
         totalHeightPx: total,
         pageHeightPx: available,
         breakpointsPx,
         avoidRangesPx,
+        lineRangesPx,
       });
 
       setPageStartOffsetsPx((prev) => {
@@ -609,14 +616,14 @@ function LetterPreview({
     recomputePages();
 
     const frame = pageFrameRef.current;
-    const clip = clipRef.current;
+    const content = contentRef.current;
     if (!frame || typeof ResizeObserver === 'undefined') {
       return;
     }
 
     const observer = new ResizeObserver(() => recomputePages());
     observer.observe(frame);
-    if (clip) observer.observe(clip);
+    if (content) observer.observe(content);
 
     let cancelled = false;
     void document.fonts?.ready.then(() => {
