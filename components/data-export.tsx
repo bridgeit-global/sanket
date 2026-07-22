@@ -279,24 +279,21 @@ export function DataExport() {
     }
   }, []);
 
-  // Poll for job updates when there are active jobs
-  useEffect(() => {
-    fetchJobs();
-
-    const hasActiveJobs = jobs.some(
-      job => job.status === 'pending' || job.status === 'processing'
-    );
-
-    if (hasActiveJobs) {
-      const interval = setInterval(fetchJobs, 2000);
-      return () => clearInterval(interval);
-    }
-  }, [fetchJobs, jobs]);
-
-  // Initial fetch
+  // Initial load only
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
+
+  // Poll only while a job is pending or processing — not on every jobs change
+  useEffect(() => {
+    const hasActiveJobs = jobs.some(
+      (job) => job.status === 'pending' || job.status === 'processing',
+    );
+    if (!hasActiveJobs) return;
+
+    const interval = setInterval(fetchJobs, 2000);
+    return () => clearInterval(interval);
+  }, [fetchJobs, jobs]);
 
   // Fetch all ward numbers
   useEffect(() => {
@@ -954,10 +951,10 @@ export function DataExport() {
                             <span className="ml-1">({job.progress}%)</span>
                           )}
                         </span>
-                        {job.totalRecords && (
+                        {job.totalRecords != null && (
                           <span>• {job.totalRecords.toLocaleString()} records</span>
                         )}
-                        {job.fileSizeKb && (
+                        {job.fileSizeKb != null && job.fileSizeKb > 0 && (
                           <span>• {job.fileSizeKb} KB</span>
                         )}
                         <span>• {formatDistanceToNow(new Date(job.createdAt), { addSuffix: true })}</span>

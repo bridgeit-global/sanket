@@ -18,6 +18,11 @@ import type {
   VoterWithPartNo,
   VoterTask,
 } from './schema';
+import {
+  getBoothToWardMap,
+  getBoothWardMap,
+} from '@/lib/ai/data/booth-ward-from-election';
+import { normalizePartNo } from '@/lib/ai/data/form20-172-2024';
 
 export type BasicVoterWithBooth = {
   epicNumber: string;
@@ -1354,7 +1359,7 @@ type ExportFilters = {
   isVoted2024?: boolean;
 };
 
-function buildExportFilterSql(
+async function buildExportFilterSql(
   filters: ExportFilters | undefined,
   currentElectionId: string,
 ) {
@@ -1369,16 +1374,46 @@ function buildExportFilterSql(
       : [String(filters.wardNo)]
     : null;
 
+  // Expand wards → booth/part nos via Form 20 ElectionMapping booth→ward map
+  let wardBoothNos: string[] | null = null;
+  if (wardNos && wardNos.length > 0) {
+    const map = await getBoothWardMap();
+    const boothSet = new Set<string>();
+    for (const ward of wardNos) {
+      const key = String(ward).trim().replace(/^0+(?=\d)/, '');
+      for (const booth of map.partsByWard.get(key) ?? []) {
+        boothSet.add(booth);
+      }
+    }
+
+    // Include raw BoothMaster / ElectionMapping booth strings that normalize to the same
+    if (boothSet.size > 0) {
+      const boothRows = await pgSql`
+        SELECT DISTINCT booth_no FROM "BoothMaster"
+        WHERE election_id = ${currentElectionId}
+          AND booth_no IS NOT NULL
+      `;
+      for (const row of boothRows) {
+        const raw = String(row.booth_no);
+        if (boothSet.has(normalizePartNo(raw))) boothSet.add(raw);
+      }
+    }
+
+    // Empty mapping must match nothing (not "all voters")
+    wardBoothNos = boothSet.size > 0 ? Array.from(boothSet) : ['__no_booths__'];
+  }
+
   return {
     currentElectionId,
     partNos,
-    wardNos,
+    wardBoothNos,
     acNo: filters?.acNo ?? null,
     gender: filters?.gender ?? null,
     minAge: filters?.minAge ?? null,
     maxAge: filters?.maxAge ?? null,
     hasPhone: filters?.hasPhone ?? null,
     religion: filters?.religion ?? null,
+    // Voted flag comes from ElectionMapping.has_voted for current election
     isVoted2024: filters?.isVoted2024 ?? null,
   };
 }
@@ -1388,7 +1423,8 @@ export async function getVotersForExport(
 ): Promise<VoterWithPartNo[]> {
   try {
     const currentElectionId = await getCurrentElectionId();
-    const f = buildExportFilterSql(filters, currentElectionId);
+    const f = await buildExportFilterSql(filters, currentElectionId);
+    const boothToWard = await getBoothToWardMap();
 
     const rows = await pgSql`
       SELECT
@@ -1427,7 +1463,6 @@ export async function getVotersForExport(
         em.has_voted,
         em2.constituency_type,
         em2.constituency_id,
-        csa.ward_no,
         bm.booth_name,
         bm.booth_address AS english_booth_address
       FROM "VoterMaster" vm
@@ -1439,11 +1474,9 @@ export async function getVotersForExport(
       LEFT JOIN "BoothMaster" bm
         ON em.election_id = bm.election_id
         AND em.booth_no::text = bm.booth_no::text
-      LEFT JOIN "CommunityServiceArea" csa
-        ON em.booth_no::text = csa.booth_no::text
       WHERE
         (${f.partNos}::text[] IS NULL OR em.booth_no::text = ANY(${f.partNos}))
-        AND (${f.wardNos}::text[] IS NULL OR csa.ward_no::text = ANY(${f.wardNos}))
+        AND (${f.wardBoothNos}::text[] IS NULL OR em.booth_no::text = ANY(${f.wardBoothNos}))
         AND (${f.acNo}::text IS NULL OR (em2.constituency_type = 'assembly' AND em2.constituency_id::text = ${f.acNo}))
         AND (${f.gender}::text IS NULL OR vm.gender = ${f.gender})
         AND (${f.minAge}::int IS NULL OR vm.age >= ${f.minAge})
@@ -1472,49 +1505,56 @@ export async function getVotersForExport(
       ORDER BY vm.full_name ASC
     `;
 
-    return rows.map((row) => ({
-      epicNumber: String(row.epic_number),
-      fullName: String(row.full_name),
-      relationType:
-        row.relation_type != null ? String(row.relation_type) : null,
-      relationName:
-        row.relation_name != null ? String(row.relation_name) : null,
-      familyGrouping:
-        row.family_grouping != null ? String(row.family_grouping) : null,
-      houseNumber: row.house_number != null ? String(row.house_number) : null,
-      religion: row.religion != null ? String(row.religion) : null,
-      age: row.age != null ? Number(row.age) : null,
-      dob: row.dob != null ? String(row.dob) : null,
-      gender: row.gender != null ? String(row.gender) : null,
-      address: row.address != null ? String(row.address) : null,
-      pincode: row.pincode != null ? String(row.pincode) : null,
-      acNo:
-        row.constituency_type === 'assembly' && row.constituency_id != null
-          ? String(row.constituency_id)
-          : null,
-      partNo: row.booth_no != null ? String(row.booth_no) : null,
-      boothNo: row.booth_no != null ? String(row.booth_no) : null,
-      srNo: row.sr_no != null ? String(row.sr_no) : null,
-      isVoted2024: row.has_voted != null ? Boolean(row.has_voted) : false,
-      mobileNoPrimary:
-        row.mobile_no_primary != null ? String(row.mobile_no_primary) : null,
-      mobileNoSecondary:
-        row.mobile_no_secondary != null
-          ? String(row.mobile_no_secondary)
-          : null,
-      createdAt: row.created_at as Date,
-      updatedAt: row.updated_at as Date,
-      wardNo: row.ward_no != null ? String(row.ward_no) : null,
-      boothName: row.booth_name != null ? String(row.booth_name) : null,
-      englishBoothAddress:
-        row.english_booth_address != null
-          ? String(row.english_booth_address)
-          : null,
-      caste: null,
-      localityStreet:
-        row.locality_street != null ? String(row.locality_street) : null,
-      townVillage: row.town_village != null ? String(row.town_village) : null,
-    }));
+    return rows.map((row) => {
+      const boothNo = row.booth_no != null ? String(row.booth_no) : null;
+      const wardNo = boothNo
+        ? boothToWard.get(normalizePartNo(boothNo)) ?? null
+        : null;
+
+      return {
+        epicNumber: String(row.epic_number),
+        fullName: String(row.full_name),
+        relationType:
+          row.relation_type != null ? String(row.relation_type) : null,
+        relationName:
+          row.relation_name != null ? String(row.relation_name) : null,
+        familyGrouping:
+          row.family_grouping != null ? String(row.family_grouping) : null,
+        houseNumber: row.house_number != null ? String(row.house_number) : null,
+        religion: row.religion != null ? String(row.religion) : null,
+        age: row.age != null ? Number(row.age) : null,
+        dob: row.dob != null ? String(row.dob) : null,
+        gender: row.gender != null ? String(row.gender) : null,
+        address: row.address != null ? String(row.address) : null,
+        pincode: row.pincode != null ? String(row.pincode) : null,
+        acNo:
+          row.constituency_type === 'assembly' && row.constituency_id != null
+            ? String(row.constituency_id)
+            : null,
+        partNo: boothNo,
+        boothNo,
+        srNo: row.sr_no != null ? String(row.sr_no) : null,
+        isVoted2024: row.has_voted != null ? Boolean(row.has_voted) : false,
+        mobileNoPrimary:
+          row.mobile_no_primary != null ? String(row.mobile_no_primary) : null,
+        mobileNoSecondary:
+          row.mobile_no_secondary != null
+            ? String(row.mobile_no_secondary)
+            : null,
+        createdAt: row.created_at as Date,
+        updatedAt: row.updated_at as Date,
+        wardNo,
+        boothName: row.booth_name != null ? String(row.booth_name) : null,
+        englishBoothAddress:
+          row.english_booth_address != null
+            ? String(row.english_booth_address)
+            : null,
+        caste: null,
+        localityStreet:
+          row.locality_street != null ? String(row.locality_street) : null,
+        townVillage: row.town_village != null ? String(row.town_village) : null,
+      };
+    });
   } catch (error) {
     const cause = error instanceof Error ? error.message : String(error);
     console.error('getVotersForExport failed:', error);
@@ -1530,7 +1570,7 @@ export async function getVotersCountForExport(
 ): Promise<number> {
   try {
     const currentElectionId = await getCurrentElectionId();
-    const f = buildExportFilterSql(filters, currentElectionId);
+    const f = await buildExportFilterSql(filters, currentElectionId);
 
     const [row] = await pgSql`
       SELECT COUNT(*)::int AS count
@@ -1540,11 +1580,9 @@ export async function getVotersCountForExport(
         AND em.election_id::text = ${f.currentElectionId}
       LEFT JOIN "ElectionMaster" em2
         ON em.election_id::text = em2.election_id::text
-      LEFT JOIN "CommunityServiceArea" csa
-        ON em.booth_no::text = csa.booth_no::text
       WHERE
         (${f.partNos}::text[] IS NULL OR em.booth_no::text = ANY(${f.partNos}))
-        AND (${f.wardNos}::text[] IS NULL OR csa.ward_no::text = ANY(${f.wardNos}))
+        AND (${f.wardBoothNos}::text[] IS NULL OR em.booth_no::text = ANY(${f.wardBoothNos}))
         AND (${f.acNo}::text IS NULL OR (em2.constituency_type = 'assembly' AND em2.constituency_id::text = ${f.acNo}))
         AND (${f.gender}::text IS NULL OR vm.gender = ${f.gender})
         AND (${f.minAge}::int IS NULL OR vm.age >= ${f.minAge})

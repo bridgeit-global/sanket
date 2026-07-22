@@ -747,10 +747,28 @@ export function mapExportJobRow(row: Row): ExportJob {
     filters: row.filters ?? null,
     errorMessage: toStringOrNull(row.error_message ?? row.errorMessage),
     createdBy: String(row.created_by ?? row.createdBy),
-    createdAt: toDate(row.created_at ?? row.createdAt),
-    updatedAt: toDate(row.updated_at ?? row.updatedAt),
-    completedAt: toDateOrNull(row.completed_at ?? row.completedAt),
+    // ExportJob.created_at is timestamp without time zone (UTC wall clock from DB now())
+    createdAt: parseUtcTimestamp(row.created_at ?? row.createdAt),
+    updatedAt: parseUtcTimestamp(row.updated_at ?? row.updatedAt),
+    completedAt: (() => {
+      const value = row.completed_at ?? row.completedAt;
+      return value == null ? null : parseUtcTimestamp(value);
+    })(),
   };
+}
+
+/** Parse Postgres `timestamp without time zone` values as UTC. */
+function parseUtcTimestamp(value: unknown): Date {
+  if (value instanceof Date) return value;
+  if (typeof value === 'number') return new Date(value);
+  if (typeof value === 'string') {
+    const s = value.trim();
+    if (!s) return new Date();
+    if (/[zZ]|[+-]\d{2}:?\d{2}$/.test(s)) return new Date(s);
+    const normalized = s.includes('T') ? s : s.replace(' ', 'T');
+    return new Date(`${normalized}Z`);
+  }
+  return new Date();
 }
 
 export function mapPhoneUpdateHistoryRow(row: Row): PhoneUpdateHistory {

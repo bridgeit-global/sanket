@@ -94,6 +94,11 @@ import type {
 } from './schema';
 import { getCurrentElectionId } from './election';
 import { supportsVoterMasterCasteColumn } from './raw-queries';
+import {
+  getBoothWardMap,
+  getWardForPart,
+} from '@/lib/ai/data/booth-ward-from-election';
+import { normalizePartNo } from '@/lib/ai/data/form20-172-2024';
 
 export type ElectionMasterOption = Pick<
   ElectionMaster,
@@ -4839,56 +4844,59 @@ export async function getFieldVisitorAssignments({
 // Ward / religion / voting-participation / dashboard helpers
 // ---------------------------------------------------------------------------
 
-export async function getDistinctWards(boothNo?: string | null): Promise<string[]> {
-  const wardFromServiceAreas = boothNo
-    ? await pgSql`
-        SELECT ward_no FROM "CommunityServiceArea"
-        WHERE ward_no IS NOT NULL AND booth_no = ${boothNo}
-        GROUP BY ward_no
-        ORDER BY ward_no ASC
-      `
-    : await pgSql`
-        SELECT ward_no FROM "CommunityServiceArea"
-        WHERE ward_no IS NOT NULL
-        GROUP BY ward_no
-        ORDER BY ward_no ASC
-      `;
-
-  const wardFromElections = await pgSql`
-    SELECT constituency_id AS ward_no FROM "ElectionMaster"
-    WHERE constituency_type = 'ward' AND constituency_id IS NOT NULL
-    GROUP BY constituency_id
-    ORDER BY constituency_id ASC
-  `;
-
-  const wardSet = new Set<string>();
-  for (const row of [...wardFromServiceAreas, ...wardFromElections]) {
-    if (row.ward_no) wardSet.add(String(row.ward_no));
-  }
-
-  return Array.from(wardSet).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+function normalizeWardKey(wardNo: string): string {
+  return String(wardNo).trim().replace(/^0+(?=\d)/, '');
 }
 
+/**
+ * Distinct BMC wards from the ElectionMapping-derived booth→ward map
+ * (same source as Form 20), optionally filtered to the ward for one booth/part.
+ */
+export async function getDistinctWards(boothNo?: string | null): Promise<string[]> {
+  if (boothNo) {
+    const ward = await getWardForPart(boothNo);
+    return ward ? [ward] : [];
+  }
+
+  const map = await getBoothWardMap();
+  return Array.from(map.partsByWard.keys()).sort((a, b) =>
+    a.localeCompare(b, undefined, { numeric: true }),
+  );
+}
+
+/**
+ * Ward→part mapping from ElectionMapping (Form 20 booth→ward map).
+ * When wardNos is empty, returns the full mapping so UI can nest parts under wards.
+ * `electionId` is kept for API compatibility; BoothMaster supplements allParts.
+ */
 export async function getPartsByWards(
   wardNos: string[],
   electionId: string,
 ): Promise<{ partsByWard: Record<string, string[]>; allParts: string[] }> {
+  const map = await getBoothWardMap();
   const partsByWard: Record<string, string[]> = {};
   const allPartsSet = new Set<string>();
 
-  if (wardNos.length > 0) {
-    const csaParts = await pgSql`
-      SELECT booth_no, ward_no FROM "CommunityServiceArea"
-      WHERE booth_no IS NOT NULL AND ward_no = ANY(${wardNos})
-      ORDER BY ward_no ASC, booth_no ASC
-    `;
-    for (const part of csaParts) {
-      if (!part.ward_no || !part.booth_no) continue;
-      const ward = String(part.ward_no);
-      const booth = String(part.booth_no);
-      if (!partsByWard[ward]) partsByWard[ward] = [];
-      partsByWard[ward].push(booth);
-      allPartsSet.add(booth);
+  for (const booth of map.boothToWard.keys()) {
+    allPartsSet.add(booth);
+  }
+
+  const targetWards =
+    wardNos.length > 0
+      ? wardNos.map(normalizeWardKey)
+      : Array.from(map.partsByWard.keys());
+
+  for (const ward of targetWards) {
+    const parts = map.partsByWard.get(ward) ?? [];
+    partsByWard[ward] = [...parts];
+    for (const part of parts) allPartsSet.add(part);
+  }
+
+  // Preserve original request keys when callers pass un-normalized ward nos
+  for (const raw of wardNos) {
+    const key = normalizeWardKey(raw);
+    if (raw !== key && partsByWard[key] && !partsByWard[raw]) {
+      partsByWard[raw] = partsByWard[key];
     }
   }
 
@@ -4898,7 +4906,11 @@ export async function getPartsByWards(
     ORDER BY booth_no ASC
   `;
   for (const row of boothRows) {
-    if (row.booth_no) allPartsSet.add(String(row.booth_no));
+    if (!row.booth_no) continue;
+    const raw = String(row.booth_no);
+    allPartsSet.add(raw);
+    const normalized = normalizePartNo(raw);
+    if (normalized && normalized !== raw) allPartsSet.add(normalized);
   }
 
   const allParts = Array.from(allPartsSet).sort((a, b) =>
