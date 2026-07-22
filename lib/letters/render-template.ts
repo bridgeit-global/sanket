@@ -117,7 +117,7 @@ function formatSignatureBlock(signatureParagraphs: string): string {
       const isLast = index === lines.length - 1;
       const marginTop =
         index === 0 ? 'margin-top: 18px' : isLast ? 'margin-top: 75px' : 'margin-top: 6px';
-      return `<div class="signature-line" style="text-align: right; padding-right: 35px; ${marginTop}; font-weight: normal;">${escapeHtmlText(text)}</div>`;
+      return `<div class="signature-line" style="text-align: right; padding-right: 35px; ${marginTop}; font-weight: ${isLast ? 'bold' : 'normal'};">${escapeHtmlText(text)}</div>`;
     })
     .join('');
 }

@@ -1135,11 +1135,6 @@ export function LetterGeneration({
   const [paragraphRows, setParagraphRows] = useState<string[]>(() => ['']);
   const paragraphRowsRef = useRef(paragraphRows);
   paragraphRowsRef.current = paragraphRows;
-  const [signatureParagraphRows, setSignatureParagraphRows] = useState<string[]>(() =>
-    defaultSignatureParagraphRows(locale),
-  );
-  const signatureParagraphRowsRef = useRef(signatureParagraphRows);
-  signatureParagraphRowsRef.current = signatureParagraphRows;
   const [schoolAdmissionFields, setSchoolAdmissionFields] =
     useState<SchoolAdmissionLetterFields>(() => schoolAdmissionDefaults(locale));
   const [schoolTransferFields, setSchoolTransferFields] =
@@ -1389,21 +1384,6 @@ export function LetterGeneration({
     [],
   );
 
-  const updateSignatureParagraphRows = useCallback(
-    (rows: string[]) => {
-      const nextRows = rows.length > 0 ? rows : [''];
-      setSignatureParagraphRows(nextRows);
-      setGeneralFields((prev) => ({
-        ...prev,
-        signatureParagraphs: formatTextRows(nextRows),
-      }));
-      setFieldErrors((prev) =>
-        prev.signatureParagraphs ? { ...prev, signatureParagraphs: undefined } : prev,
-      );
-    },
-    [],
-  );
-
   const syncReferenceFields = useCallback((prefix: string, number: string) => {
     const patch = {
       referencePrefix: prefix,
@@ -1561,15 +1541,6 @@ export function LetterGeneration({
     }));
     const nextParagraphRows = paragraphRowsRef.current.map((row) => filterText(row));
     setParagraphRows(nextParagraphRows.length > 0 ? nextParagraphRows : ['']);
-    const prevSignatureDefaults = defaultSignatureParagraphRows(prevLocale);
-    const nextSignatureDefaults = defaultSignatureParagraphRows(letterLocale);
-    const currentSignatureRows = signatureParagraphRowsRef.current;
-    const signatureMatchesDefaults =
-      formatTextRows(currentSignatureRows) === formatTextRows(prevSignatureDefaults);
-    const nextSignatureRows = signatureMatchesDefaults
-      ? nextSignatureDefaults
-      : currentSignatureRows.map((row) => filterText(row));
-    setSignatureParagraphRows(nextSignatureRows.length > 0 ? nextSignatureRows : ['']);
     setGeneralFields((prev) => ({
       ...prev,
       referencePrefix: nextPrefix(prev.referencePrefix),
@@ -1579,7 +1550,7 @@ export function LetterGeneration({
       to: filterText(prev.to),
       subject: filterText(prev.subject),
       paragraphs: formatTextRows(nextParagraphRows),
-      signatureParagraphs: formatTextRows(nextSignatureRows),
+      signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(letterLocale)),
     }));
 
     applyMasterAddressToFields(addresses, addressSelections, letterLocale, {
@@ -2298,12 +2269,6 @@ export function LetterGeneration({
       requireField(errors, 'to', generalFields.to, requiredMsg);
       requireField(errors, 'subject', generalFields.subject, requiredMsg);
       requireField(errors, 'paragraphs', generalFields.paragraphs, requiredMsg);
-      requireField(
-        errors,
-        'signatureParagraphs',
-        generalFields.signatureParagraphs,
-        requiredMsg,
-      );
     } else if (activeTab === 'fees') {
       requireField(errors, 'schoolName', feesFields.schoolName, requiredMsg);
       requireField(errors, 'standard', feesFields.standard, requiredMsg);
@@ -3358,65 +3323,6 @@ export function LetterGeneration({
                           >
                             <Plus className="mr-1.5 size-4" />
                             {lt('letterGeneration.fields.addParagraph')}
-                          </Button>
-                        </div>
-                      </FieldGroup>
-                      <FieldGroup
-                        label={lt('letterGeneration.fields.signatureParagraph')}
-                        required
-                        error={fieldErrors.signatureParagraphs}
-                      >
-                        <div className="space-y-2">
-                          {signatureParagraphRows.map((signatureLine, index) => (
-                            <div
-                              key={`signature-paragraph-${index}`}
-                              className="flex flex-col gap-2 sm:flex-row sm:items-start"
-                            >
-                              <div className="flex-1">
-                                <LocaleTextInput
-                                  locale={letterLocale}
-                                  value={signatureLine}
-                                  onValueChange={(value) => {
-                                    const next = signatureParagraphRows.map((row, i) =>
-                                      i === index ? value : row,
-                                    );
-                                    updateSignatureParagraphRows(next);
-                                  }}
-                                  aria-label={lt(
-                                    'letterGeneration.fields.signatureParagraph',
-                                  )}
-                                  required={index === 0}
-                                />
-                              </div>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="shrink-0 text-muted-foreground hover:text-destructive"
-                                disabled={signatureParagraphRows.length === 1}
-                                onClick={() => {
-                                  updateSignatureParagraphRows(
-                                    signatureParagraphRows.filter((_, i) => i !== index),
-                                  );
-                                }}
-                                aria-label={lt(
-                                  'letterGeneration.fields.removeSignatureParagraph',
-                                )}
-                              >
-                                <Trash2 className="size-4" />
-                              </Button>
-                            </div>
-                          ))}
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              updateSignatureParagraphRows([...signatureParagraphRows, '']);
-                            }}
-                          >
-                            <Plus className="mr-1.5 size-4" />
-                            {lt('letterGeneration.fields.addSignatureParagraph')}
                           </Button>
                         </div>
                       </FieldGroup>
