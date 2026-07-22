@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RegisterModule } from '@/components/register-module';
 import { useTranslations } from '@/hooks/use-translations';
 
-export function IoRegister() {
+export function IoRegister({ isAdmin = false }: { isAdmin?: boolean }) {
   const { t } = useTranslations();
   const searchParams = useSearchParams();
   const initialTab =
@@ -27,7 +27,7 @@ export function IoRegister() {
         <RegisterModule type="inward" />
       </TabsContent>
       <TabsContent value="outward" className="mt-6">
-        <RegisterModule type="outward" />
+        <RegisterModule type="outward" canDeleteAttachments={isAdmin} />
       </TabsContent>
     </Tabs>
   );
