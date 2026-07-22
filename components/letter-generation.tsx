@@ -2849,26 +2849,7 @@ export function LetterGeneration({
         <Eye className="mr-2 size-4" />
         {t('letterGeneration.savedLetters.actions.preview')}
       </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
-        onClick={() => void handleAddLetterToOutward(letter)}
-        disabled={
-          addingToOutwardLetterId === letter.id ||
-          outwardAddedReferenceNos.has(letter.referenceNo)
-        }
-      >
-        {addingToOutwardLetterId === letter.id ? (
-          <Loader2 className="mr-2 size-4 animate-spin" />
-        ) : (
-          <Send className="mr-2 size-4" />
-        )}
-        {outwardAddedReferenceNos.has(letter.referenceNo)
-          ? t('letterGeneration.savedLetters.actions.addedToOutward')
-          : t('letterGeneration.savedLetters.actions.addToOutward')}
-      </Button>
-      {outwardAddedReferenceNos.has(letter.referenceNo) && (
+      {outwardAddedReferenceNos.has(letter.referenceNo) ? (
         <Button
           asChild
           size="sm"
@@ -2877,8 +2858,23 @@ export function LetterGeneration({
         >
           <Link href={buildOutwardEntryHref(letter)}>
             <ExternalLink className="mr-2 size-4" />
-            {t('letterGeneration.savedLetters.actions.viewInOutward')}
+            {t('letterGeneration.savedLetters.actions.addedToOutward')}
           </Link>
+        </Button>
+      ) : (
+        <Button
+          size="sm"
+          variant="outline"
+          className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+          onClick={() => void handleAddLetterToOutward(letter)}
+          disabled={addingToOutwardLetterId === letter.id}
+        >
+          {addingToOutwardLetterId === letter.id ? (
+            <Loader2 className="mr-2 size-4 animate-spin" />
+          ) : (
+            <Send className="mr-2 size-4" />
+          )}
+          {t('letterGeneration.savedLetters.actions.addToOutward')}
         </Button>
       )}
       {/* <Button
@@ -4854,34 +4850,9 @@ export function LetterGeneration({
                                 </DialogDescription>
                               </div>
                               <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row sm:items-center">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="w-full sm:w-auto"
-                                  onClick={() =>
-                                    void handleAddLetterToOutward(selectedSavedLetter)
-                                  }
-                                  disabled={
-                                    addingToOutwardLetterId === selectedSavedLetter.id ||
-                                    outwardAddedReferenceNos.has(
-                                      selectedSavedLetter.referenceNo,
-                                    )
-                                  }
-                                >
-                                  {addingToOutwardLetterId === selectedSavedLetter.id ? (
-                                    <Loader2 className="mr-2 size-4 animate-spin" />
-                                  ) : (
-                                    <Send className="mr-2 size-4" />
-                                  )}
-                                  {outwardAddedReferenceNos.has(
-                                    selectedSavedLetter.referenceNo,
-                                  )
-                                    ? t('letterGeneration.savedLetters.actions.addedToOutward')
-                                    : t('letterGeneration.savedLetters.actions.addToOutward')}
-                                </Button>
                                 {outwardAddedReferenceNos.has(
                                   selectedSavedLetter.referenceNo,
-                                ) && (
+                                ) ? (
                                   <Button
                                     asChild
                                     size="sm"
@@ -4892,8 +4863,29 @@ export function LetterGeneration({
                                       href={buildOutwardEntryHref(selectedSavedLetter)}
                                     >
                                       <ExternalLink className="mr-2 size-4" />
-                                      {t('letterGeneration.savedLetters.actions.viewInOutward')}
+                                      {t(
+                                        'letterGeneration.savedLetters.actions.addedToOutward',
+                                      )}
                                     </Link>
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full sm:w-auto"
+                                    onClick={() =>
+                                      void handleAddLetterToOutward(selectedSavedLetter)
+                                    }
+                                    disabled={
+                                      addingToOutwardLetterId === selectedSavedLetter.id
+                                    }
+                                  >
+                                    {addingToOutwardLetterId === selectedSavedLetter.id ? (
+                                      <Loader2 className="mr-2 size-4 animate-spin" />
+                                    ) : (
+                                      <Send className="mr-2 size-4" />
+                                    )}
+                                    {t('letterGeneration.savedLetters.actions.addToOutward')}
                                   </Button>
                                 )}
                               </div>

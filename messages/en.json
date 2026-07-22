@@ -865,8 +865,7 @@
         "regenerate": "Regenerate",
         "closePreview": "Close preview",
         "addToOutward": "Add to Outward Register",
-        "addedToOutward": "Added to Outward",
-        "viewInOutward": "View in Outward"
+        "addedToOutward": "Added to Outward"
       },
       "addToOutwardSuccess": "Letter added to the outward register.",
       "addToOutwardError": "Failed to add the letter to the outward register.",
