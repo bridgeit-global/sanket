@@ -883,6 +883,7 @@
       "ration-transfer": "शिधापत्रिका — हस्तांतरण",
       "income": "उत्पन्न प्रमाणपत्र",
       "domicile": "अधिवास प्रमाणपत्र",
+      "general": "सामान्य पत्र",
       "ration": "शिधापत्रिका (सर्व)"
     },
     "fields": {
@@ -922,7 +923,15 @@
       "annualIncome": "वार्षिक उत्पन्न (₹)",
       "letterType": "पत्राचा प्रकार",
       "letterLanguage": "पत्राची भाषा",
-      "paperSize": "कागदाचा आकार"
+      "paperSize": "कागदाचा आकार",
+      "to": "प्रति",
+      "subject": "विषय",
+      "paragraph": "परिच्छेद",
+      "signatureParagraph": "स्वाक्षरी ओळ",
+      "addParagraph": "परिच्छेद जोडा",
+      "removeParagraph": "परिच्छेद काढा",
+      "addSignatureParagraph": "स्वाक्षरी ओळ जोडा",
+      "removeSignatureParagraph": "स्वाक्षरी ओळ काढा"
     },
     "placeholders": {
       "referencePrefix": "दस्तऐवज प्रकार निवडा",

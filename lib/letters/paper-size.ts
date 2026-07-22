@@ -36,6 +36,8 @@ export function getDefaultLetterPaperSize(
     case 'ration-transfer':
     case 'ration':
       return 'b5';
+    case 'general':
+      return 'a4';
     case 'fees':
     case 'school-admission':
     case 'school-transfer':

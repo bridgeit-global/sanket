@@ -72,6 +72,7 @@ import {
   type CommonLetterFields,
   type DomicileLetterFields,
   type FeesLetterFields,
+  type GeneralLetterFields,
   type IncomeLetterFields,
   type LetterLocale,
   type LetterType,
@@ -179,6 +180,26 @@ function formatFamilyMembersString(
     .join('\n');
 }
 
+function parseTextRows(value: string): string[] {
+  const rows = value.split('\n');
+  return rows.length > 0 ? rows : [''];
+}
+
+function formatTextRows(rows: string[]): string {
+  return rows
+    .map((row) => row.trim())
+    .filter(Boolean)
+    .join('\n');
+}
+
+function defaultSignatureParagraphRows(locale: LetterLocale): string[] {
+  const signatory = DEFAULT_SIGNATORY[locale];
+  if (locale === 'mr') {
+    return ['आपली विश्वासू,', `(${signatory})`];
+  }
+  return ['Yours faithfully,', `(${signatory})`];
+}
+
 function isRationLetterType(type: LetterType): boolean {
   return type.startsWith('ration-');
 }
@@ -197,6 +218,7 @@ function matchesSavedLetterTypeFilter(
 function getFieldsForLetterType(
   type: LetterType,
   fields: {
+    generalFields: GeneralLetterFields;
     feesFields: FeesLetterFields;
     schoolAdmissionFields: SchoolAdmissionLetterFields;
     schoolTransferFields: SchoolTransferLetterFields;
@@ -206,6 +228,8 @@ function getFieldsForLetterType(
   },
 ) {
   switch (type) {
+    case 'general':
+      return fields.generalFields;
     case 'fees':
       return fields.feesFields;
     case 'school-admission':
@@ -450,6 +474,16 @@ function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
     officeName: '',
     officeAddress: '',
     aadhaarNo: '',
+  };
+}
+
+function generalDefaults(locale: LetterLocale): GeneralLetterFields {
+  return {
+    ...commonDefaults(locale),
+    to: '',
+    subject: '',
+    paragraphs: '',
+    signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(locale)),
   };
 }
 
@@ -1095,6 +1129,17 @@ export function LetterGeneration({
   const [feesFields, setFeesFields] = useState<FeesLetterFields>(() =>
     feesDefaults(locale),
   );
+  const [generalFields, setGeneralFields] = useState<GeneralLetterFields>(() =>
+    generalDefaults(locale),
+  );
+  const [paragraphRows, setParagraphRows] = useState<string[]>(() => ['']);
+  const paragraphRowsRef = useRef(paragraphRows);
+  paragraphRowsRef.current = paragraphRows;
+  const [signatureParagraphRows, setSignatureParagraphRows] = useState<string[]>(() =>
+    defaultSignatureParagraphRows(locale),
+  );
+  const signatureParagraphRowsRef = useRef(signatureParagraphRows);
+  signatureParagraphRowsRef.current = signatureParagraphRows;
   const [schoolAdmissionFields, setSchoolAdmissionFields] =
     useState<SchoolAdmissionLetterFields>(() => schoolAdmissionDefaults(locale));
   const [schoolTransferFields, setSchoolTransferFields] =
@@ -1329,12 +1374,43 @@ export function LetterGeneration({
     [letterLocale],
   );
 
+  const updateParagraphRows = useCallback(
+    (rows: string[]) => {
+      const nextRows = rows.length > 0 ? rows : [''];
+      setParagraphRows(nextRows);
+      setGeneralFields((prev) => ({
+        ...prev,
+        paragraphs: formatTextRows(nextRows),
+      }));
+      setFieldErrors((prev) =>
+        prev.paragraphs ? { ...prev, paragraphs: undefined } : prev,
+      );
+    },
+    [],
+  );
+
+  const updateSignatureParagraphRows = useCallback(
+    (rows: string[]) => {
+      const nextRows = rows.length > 0 ? rows : [''];
+      setSignatureParagraphRows(nextRows);
+      setGeneralFields((prev) => ({
+        ...prev,
+        signatureParagraphs: formatTextRows(nextRows),
+      }));
+      setFieldErrors((prev) =>
+        prev.signatureParagraphs ? { ...prev, signatureParagraphs: undefined } : prev,
+      );
+    },
+    [],
+  );
+
   const syncReferenceFields = useCallback((prefix: string, number: string) => {
     const patch = {
       referencePrefix: prefix,
       referenceNo: number,
     };
     setFeesFields((prev) => ({ ...prev, ...patch }));
+    setGeneralFields((prev) => ({ ...prev, ...patch }));
     setSchoolAdmissionFields((prev) => ({ ...prev, ...patch }));
     setSchoolTransferFields((prev) => ({ ...prev, ...patch }));
     setRationFields((prev) => ({ ...prev, ...patch }));
@@ -1482,6 +1558,28 @@ export function LetterGeneration({
       salutation: resolveSalutation(letterLocale, prev.gender),
       fullName: filterText(prev.fullName),
       aadhaarNo: normalizeAadhaarNo(prev.aadhaarNo),
+    }));
+    const nextParagraphRows = paragraphRowsRef.current.map((row) => filterText(row));
+    setParagraphRows(nextParagraphRows.length > 0 ? nextParagraphRows : ['']);
+    const prevSignatureDefaults = defaultSignatureParagraphRows(prevLocale);
+    const nextSignatureDefaults = defaultSignatureParagraphRows(letterLocale);
+    const currentSignatureRows = signatureParagraphRowsRef.current;
+    const signatureMatchesDefaults =
+      formatTextRows(currentSignatureRows) === formatTextRows(prevSignatureDefaults);
+    const nextSignatureRows = signatureMatchesDefaults
+      ? nextSignatureDefaults
+      : currentSignatureRows.map((row) => filterText(row));
+    setSignatureParagraphRows(nextSignatureRows.length > 0 ? nextSignatureRows : ['']);
+    setGeneralFields((prev) => ({
+      ...prev,
+      referencePrefix: nextPrefix(prev.referencePrefix),
+      referenceNo: nextReferenceNo(prev.referenceNo),
+      signatory: nextSignatory(prev.signatory),
+      date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+      to: filterText(prev.to),
+      subject: filterText(prev.subject),
+      paragraphs: formatTextRows(nextParagraphRows),
+      signatureParagraphs: formatTextRows(nextSignatureRows),
     }));
 
     applyMasterAddressToFields(addresses, addressSelections, letterLocale, {
@@ -2061,6 +2159,7 @@ export function LetterGeneration({
 
   const activeBody = useMemo(() => {
     const fields = getFieldsForLetterType(activeTab, {
+      generalFields,
       feesFields,
       schoolAdmissionFields,
       schoolTransferFields,
@@ -2085,6 +2184,7 @@ export function LetterGeneration({
   }, [
     activeTab,
     letterLocale,
+    generalFields,
     feesFields,
     schoolAdmissionFields,
     schoolTransferFields,
@@ -2103,6 +2203,7 @@ export function LetterGeneration({
   const activeFields = useMemo(
     () =>
       getFieldsForLetterType(activeTab, {
+        generalFields,
         feesFields,
         schoolAdmissionFields,
         schoolTransferFields,
@@ -2113,6 +2214,7 @@ export function LetterGeneration({
     [
       activeTab,
       domicileFields,
+      generalFields,
       feesFields,
       incomeFields,
       rationFields,
@@ -2138,6 +2240,7 @@ export function LetterGeneration({
       return { ...prev, referencePrefix: next };
     };
     setFeesFields(coercePrefix);
+    setGeneralFields(coercePrefix);
     setSchoolAdmissionFields(coercePrefix);
     setSchoolTransferFields(coercePrefix);
     setRationFields(coercePrefix);
@@ -2191,7 +2294,17 @@ export function LetterGeneration({
       errors[`${key}Address`] = lt('letterGeneration.addresses.fieldsRequired');
     };
 
-    if (activeTab === 'fees') {
+    if (activeTab === 'general') {
+      requireField(errors, 'to', generalFields.to, requiredMsg);
+      requireField(errors, 'subject', generalFields.subject, requiredMsg);
+      requireField(errors, 'paragraphs', generalFields.paragraphs, requiredMsg);
+      requireField(
+        errors,
+        'signatureParagraphs',
+        generalFields.signatureParagraphs,
+        requiredMsg,
+      );
+    } else if (activeTab === 'fees') {
       requireField(errors, 'schoolName', feesFields.schoolName, requiredMsg);
       requireField(errors, 'standard', feesFields.standard, requiredMsg);
       requireField(errors, 'studentName', feesFields.studentName, requiredMsg);
@@ -3155,6 +3268,160 @@ export function LetterGeneration({
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                    <TabsContent value="general" className="mt-0 space-y-4">
+                      {renderCommonFields(generalFields, setGeneralFields)}
+                      <FieldGroup
+                        label={lt('letterGeneration.fields.to')}
+                        required
+                        error={fieldErrors.to}
+                      >
+                        <LocaleTextarea
+                          locale={letterLocale}
+                          value={generalFields.to}
+                          onValueChange={(to) => {
+                            setGeneralFields({ ...generalFields, to });
+                            if (fieldErrors.to) {
+                              setFieldErrors((prev) => ({ ...prev, to: undefined }));
+                            }
+                          }}
+                          rows={4}
+                          required
+                        />
+                      </FieldGroup>
+                      <FieldGroup
+                        label={lt('letterGeneration.fields.subject')}
+                        required
+                        error={fieldErrors.subject}
+                      >
+                        <LocaleTextInput
+                          locale={letterLocale}
+                          value={generalFields.subject}
+                          onValueChange={(subject) => {
+                            setGeneralFields({ ...generalFields, subject });
+                            if (fieldErrors.subject) {
+                              setFieldErrors((prev) => ({ ...prev, subject: undefined }));
+                            }
+                          }}
+                          required
+                        />
+                      </FieldGroup>
+                      <FieldGroup
+                        label={lt('letterGeneration.fields.paragraph')}
+                        required
+                        error={fieldErrors.paragraphs}
+                      >
+                        <div className="space-y-2">
+                          {paragraphRows.map((paragraph, index) => (
+                            <div
+                              key={`paragraph-${index}`}
+                              className="flex flex-col gap-2 sm:flex-row sm:items-start"
+                            >
+                              <div className="flex-1">
+                                <LocaleTextarea
+                                  locale={letterLocale}
+                                  value={paragraph}
+                                  onValueChange={(value) => {
+                                    const next = paragraphRows.map((row, i) =>
+                                      i === index ? value : row,
+                                    );
+                                    updateParagraphRows(next);
+                                  }}
+                                  rows={3}
+                                  aria-label={lt('letterGeneration.fields.paragraph')}
+                                  required={index === 0}
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="shrink-0 text-muted-foreground hover:text-destructive"
+                                disabled={paragraphRows.length === 1}
+                                onClick={() => {
+                                  updateParagraphRows(
+                                    paragraphRows.filter((_, i) => i !== index),
+                                  );
+                                }}
+                                aria-label={lt('letterGeneration.fields.removeParagraph')}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              updateParagraphRows([...paragraphRows, '']);
+                            }}
+                          >
+                            <Plus className="mr-1.5 size-4" />
+                            {lt('letterGeneration.fields.addParagraph')}
+                          </Button>
+                        </div>
+                      </FieldGroup>
+                      <FieldGroup
+                        label={lt('letterGeneration.fields.signatureParagraph')}
+                        required
+                        error={fieldErrors.signatureParagraphs}
+                      >
+                        <div className="space-y-2">
+                          {signatureParagraphRows.map((signatureLine, index) => (
+                            <div
+                              key={`signature-paragraph-${index}`}
+                              className="flex flex-col gap-2 sm:flex-row sm:items-start"
+                            >
+                              <div className="flex-1">
+                                <LocaleTextInput
+                                  locale={letterLocale}
+                                  value={signatureLine}
+                                  onValueChange={(value) => {
+                                    const next = signatureParagraphRows.map((row, i) =>
+                                      i === index ? value : row,
+                                    );
+                                    updateSignatureParagraphRows(next);
+                                  }}
+                                  aria-label={lt(
+                                    'letterGeneration.fields.signatureParagraph',
+                                  )}
+                                  required={index === 0}
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="shrink-0 text-muted-foreground hover:text-destructive"
+                                disabled={signatureParagraphRows.length === 1}
+                                onClick={() => {
+                                  updateSignatureParagraphRows(
+                                    signatureParagraphRows.filter((_, i) => i !== index),
+                                  );
+                                }}
+                                aria-label={lt(
+                                  'letterGeneration.fields.removeSignatureParagraph',
+                                )}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              updateSignatureParagraphRows([...signatureParagraphRows, '']);
+                            }}
+                          >
+                            <Plus className="mr-1.5 size-4" />
+                            {lt('letterGeneration.fields.addSignatureParagraph')}
+                          </Button>
+                        </div>
+                      </FieldGroup>
+                    </TabsContent>
+
                     <TabsContent value="fees" className="mt-0 space-y-4">
                       {renderCommonFields(feesFields, setFeesFields)}
                       <LetterAddressField

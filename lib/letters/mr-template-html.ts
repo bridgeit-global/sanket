@@ -1,6 +1,24 @@
 import type { LetterType } from '@/lib/letters/templates';
 
 export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
+  'general': `<div class="letter-content" style="white-space: normal; font-family: inherit; font-size: 15px; line-height: 1.75; color: #000; margin: 0;">
+  <style>
+    .var { font-weight: bold; }
+    .top-row { display: flex; justify-content: space-between; margin-bottom: 18px; }
+    .recipient { margin-bottom: 14px; font-weight: normal; }
+    .subject { font-weight: bold; margin-bottom: 14px; }
+    .paragraph { text-align: justify; text-indent: 35px; margin: 0 0 8px 0; padding: 0; font-weight: normal; }
+    .paragraph:last-of-type { margin-bottom: 0; }
+  </style>
+  <div class="top-row">
+    <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>दि. <span class="var">{{date}}</span></div>
+  </div>
+  <div class="recipient">{{toBlock}}</div>
+  <div class="subject"><span style="font-weight: normal;">विषय:</span> <span class="var">{{subject}}</span></div>
+  {{paragraphsBlock}}
+  <div class="letter-closing">{{signatureBlock}}</div>
+</div>`,
   'fees': `<div class="letter-content" style="white-space: normal; font-family: inherit; font-size: 13px; line-height: 1.55; color: #000; margin: 0; font-weight: normal;">
   <style>
     .var { font-weight: bold; }

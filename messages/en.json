@@ -883,6 +883,7 @@
       "ration-transfer": "Ration Card — Transfer",
       "income": "Income Certificate",
       "domicile": "Domicile Certificate",
+      "general": "General Letter",
       "ration": "Ration Card (All)"
     },
     "fields": {
@@ -922,7 +923,15 @@
       "annualIncome": "Annual Income (₹)",
       "letterType": "Letter Type",
       "letterLanguage": "Letter Language",
-      "paperSize": "Paper Size"
+      "paperSize": "Paper Size",
+      "to": "To",
+      "subject": "Subject",
+      "paragraph": "Paragraph",
+      "signatureParagraph": "Signature Line",
+      "addParagraph": "Add paragraph",
+      "removeParagraph": "Remove paragraph",
+      "addSignatureParagraph": "Add signature line",
+      "removeSignatureParagraph": "Remove signature line"
     },
     "placeholders": {
       "referencePrefix": "Select document type",

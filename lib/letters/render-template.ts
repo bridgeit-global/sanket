@@ -11,6 +11,7 @@ import {
 import type {
   DomicileLetterFields,
   FeesLetterFields,
+  GeneralLetterFields,
   IncomeLetterFields,
   LetterFields,
   LetterLocale,
@@ -85,6 +86,42 @@ function formatFamilyMembersBlock(familyMembers: string): string {
     .join('<br>');
 }
 
+function formatMultilineHtmlBlock(text: string): string {
+  return text
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => escapeHtmlText(line))
+    .join('<br>');
+}
+
+function formatParagraphsBlock(paragraphs: string): string {
+  return paragraphs
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((text) => `<p class="paragraph">${escapeHtmlText(text)}</p>`)
+    .join('');
+}
+
+function formatSignatureBlock(signatureParagraphs: string): string {
+  const lines = signatureParagraphs
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return '';
+
+  return lines
+    .map((text, index) => {
+      const isLast = index === lines.length - 1;
+      const marginTop =
+        index === 0 ? 'margin-top: 18px' : isLast ? 'margin-top: 75px' : 'margin-top: 6px';
+      return `<div class="signature-line" style="text-align: right; padding-right: 35px; ${marginTop}; font-weight: normal;">${escapeHtmlText(text)}</div>`;
+    })
+    .join('');
+}
+
 function resolveGenderTokens(gender: PersonGender | undefined, locale: LetterLocale) {
   const resolvedGender: PersonGender = gender ?? 'other';
   if (locale === 'mr') {
@@ -126,7 +163,17 @@ export function buildRenderFields(
   const base = toFieldRecord(fields);
   let renderFields: Record<string, string>;
 
-  if (type.startsWith('ration-')) {
+  if (type === 'general') {
+    const generalFields = fields as GeneralLetterFields;
+    renderFields = {
+      ...base,
+      to: generalFields.to,
+      subject: generalFields.subject,
+      toBlock: formatMultilineHtmlBlock(generalFields.to),
+      paragraphsBlock: formatParagraphsBlock(generalFields.paragraphs),
+      signatureBlock: formatSignatureBlock(generalFields.signatureParagraphs),
+    };
+  } else if (type.startsWith('ration-')) {
     const rationFields = fields as RationLetterFields;
     const familyMembersBlock = formatFamilyMembersBlock(rationFields.familyMembers);
     renderFields = {

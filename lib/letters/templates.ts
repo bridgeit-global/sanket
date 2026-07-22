@@ -1,4 +1,5 @@
 export const LETTER_TYPES = [
+  'general',
   'fees',
   'school-admission',
   'school-transfer',
@@ -88,7 +89,17 @@ export type DomicileLetterFields = CommonLetterFields & {
   aadhaarNo: string;
 };
 
+export type GeneralLetterFields = CommonLetterFields & {
+  to: string;
+  subject: string;
+  /** One paragraph per line. */
+  paragraphs: string;
+  /** One signature line per line. */
+  signatureParagraphs: string;
+};
+
 export type LetterFields =
+  | GeneralLetterFields
   | FeesLetterFields
   | SchoolAdmissionLetterFields
   | SchoolTransferLetterFields
