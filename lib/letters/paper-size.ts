@@ -74,6 +74,12 @@ export function getLetterPaperWidthPx(paperSize: LetterPaperSize): number {
   return Math.round((widthMm * 96) / 25.4);
 }
 
+/** Full page height at 96dpi. */
+export function getLetterPaperHeightPx(paperSize: LetterPaperSize): number {
+  const { heightMm } = LETTER_PAPER_DIMENSIONS_MM[paperSize];
+  return Math.round((heightMm * 96) / 25.4);
+}
+
 /** Printable content width (page width minus side margins) at 96dpi. */
 export function getLetterPaperContentWidthPx(paperSize: LetterPaperSize): number {
   const { widthMm } = LETTER_PAPER_DIMENSIONS_MM[paperSize];

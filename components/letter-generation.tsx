@@ -82,7 +82,6 @@ import {
 } from '@/lib/letters/templates';
 import {
   getLetterheadContentPaddingMm,
-  LETTER_PAPER_ASPECT_RATIO,
   resolveLetterheadUrl,
   stripLetterheadFromHtml,
 } from '@/lib/letters/letterhead';
@@ -92,6 +91,7 @@ import {
   getDefaultLetterPaperSize,
   getLetterPaperContentWidthPx,
   getLetterPageContentHeightCssPx,
+  getLetterPaperHeightPx,
   getLetterPaperLabel,
   getLetterPaperWidthPx,
   LETTER_PAPER_MARGIN_MM,
@@ -547,12 +547,6 @@ function createLetterExportElement(
   return host;
 }
 
-const LETTER_PREVIEW_MAX_WIDTH_CLASS: Record<LetterPaperSize, string> = {
-  a4: 'max-w-[794px]',
-  a5: 'max-w-[559px]',
-  b5: 'max-w-[665px]',
-};
-
 function LetterPreview({
   html,
   paperSize = 'a4',
@@ -578,15 +572,20 @@ function LetterPreview({
 
   useLayoutEffect(() => {
     const recomputePages = () => {
+      const clip = clipRef.current;
       const content = contentRef.current;
-      if (!content) return;
+      if (!clip || !content) return;
 
-      // Same page-content height formula as PDF export so preview breaks match.
-      const available = getLetterPageContentHeightCssPx(
-        paperSize,
-        hasLetterhead,
-        getLetterheadContentPaddingMm(paperSize),
-      );
+      // Measure the live clip at canonical page width so inline preview and
+      // modal preview paginate identically (responsive shrink was reflowing text).
+      let available = clip.clientHeight;
+      if (available <= 0) {
+        available = getLetterPageContentHeightCssPx(
+          paperSize,
+          hasLetterhead,
+          getLetterheadContentPaddingMm(paperSize),
+        );
+      }
       if (available <= 0) return;
 
       const total = content.scrollHeight;
@@ -616,6 +615,7 @@ function LetterPreview({
     recomputePages();
 
     const frame = pageFrameRef.current;
+    const clip = clipRef.current;
     const content = contentRef.current;
     if (!frame || typeof ResizeObserver === 'undefined') {
       return;
@@ -623,6 +623,7 @@ function LetterPreview({
 
     const observer = new ResizeObserver(() => recomputePages());
     observer.observe(frame);
+    if (clip) observer.observe(clip);
     if (content) observer.observe(content);
 
     let cancelled = false;
@@ -636,17 +637,19 @@ function LetterPreview({
     };
   }, [contentHtml, paperSize, letterLocale, hasLetterhead, bodyPadding]);
 
+  const paperWidthPx = getLetterPaperWidthPx(paperSize);
+  const paperHeightPx = getLetterPaperHeightPx(paperSize);
   const pageShellStyle = {
-    aspectRatio: LETTER_PAPER_ASPECT_RATIO[paperSize],
-    width: '100%',
-    maxWidth: getLetterPaperWidthPx(paperSize),
+    width: `${paperWidthPx}px`,
+    height: `${paperHeightPx}px`,
     fontFamily: LETTER_FONT_STACK[letterLocale],
     fontSize: `${getLetterPrintFontSizePx(paperSize)}px`,
     lineHeight: LETTER_PRINT_LINE_HEIGHT,
   } as const;
 
   return (
-    <div className="space-y-4">
+    <div className="overflow-x-auto">
+      <div className="mx-auto w-max space-y-4">
       {pageStartOffsetsPx.map((startOffsetPx, pageIndex) => {
         const nextStartPx = pageStartOffsetsPx[pageIndex + 1];
         const sliceHeightPx =
@@ -658,10 +661,7 @@ function LetterPreview({
           <div
             key={pageIndex}
             ref={pageIndex === 0 ? pageFrameRef : undefined}
-            className={cn(
-              'relative mx-auto w-full overflow-hidden rounded-lg border bg-white text-black',
-              LETTER_PREVIEW_MAX_WIDTH_CLASS[paperSize],
-            )}
+            className="relative shrink-0 overflow-hidden rounded-lg border bg-white text-black"
             style={pageShellStyle}
           >
             {resolvedLetterhead && pageIndex === 0 ? (
@@ -704,6 +704,7 @@ function LetterPreview({
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
