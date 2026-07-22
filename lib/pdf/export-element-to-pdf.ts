@@ -5,6 +5,11 @@ import {
   getLetterPaperContentWidthPx,
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
+import {
+  getAvoidSplitRangesPx,
+  getContentBreakpointsPx,
+  pickSliceHeightPx,
+} from '@/lib/pdf/page-breaks';
 
 type PdfPageFormat = LetterPaperSize;
 
@@ -111,52 +116,6 @@ function clampScale(scale: number, element: HTMLElement): number {
   if (approxPixels > 6_000_000) return Math.min(1.5, safe);
   if (approxPixels > 12_000_000) return Math.min(1.25, safe);
   return Math.max(1, Math.min(3, safe));
-}
-
-function getRowBottomBreakpointsPx(root: HTMLElement, scale: number): number[] {
-  const rectRoot = root.getBoundingClientRect();
-  const rows = Array.from(root.querySelectorAll('tbody tr')) as HTMLElement[];
-  const bottoms: number[] = [];
-  for (const row of rows) {
-    const r = row.getBoundingClientRect();
-    const bottomCssPx = r.bottom - rectRoot.top;
-    const bottom = Math.floor(bottomCssPx * scale);
-    if (Number.isFinite(bottom) && bottom > 0) bottoms.push(bottom);
-  }
-  // Unique + sorted
-  return Array.from(new Set(bottoms)).sort((a, b) => a - b);
-}
-
-function pickSliceHeightPx(args: {
-  renderedPx: number;
-  maxSliceHeightPx: number;
-  totalHeightPx: number;
-  breakpointsPx: number[];
-}): number {
-  const { renderedPx, maxSliceHeightPx, totalHeightPx, breakpointsPx } = args;
-  const remaining = totalHeightPx - renderedPx;
-  if (remaining <= 0) return 0;
-  const defaultHeight = Math.min(maxSliceHeightPx, remaining);
-  // If this is the last page, just take the rest.
-  if (defaultHeight >= remaining) return remaining;
-
-  // Avoid tiny slices: don't break if we'd render less than ~120px.
-  const minUsefulSlicePx = 120;
-  const minBreakY = renderedPx + minUsefulSlicePx;
-  const targetEnd = renderedPx + defaultHeight;
-
-  // Choose the last breakpoint within (minBreakY, targetEnd].
-  // Breakpoints are row-bottom positions relative to element top.
-  let best: number | null = null;
-  for (const bp of breakpointsPx) {
-    if (bp <= minBreakY) continue;
-    if (bp > targetEnd) break;
-    best = bp;
-  }
-  if (best == null) return defaultHeight;
-  const adjusted = best - renderedPx;
-  // Safety: never return 0/negative
-  return Math.max(minUsefulSlicePx, Math.min(adjusted, remaining));
 }
 
 async function waitForFontsReady(): Promise<void> {
@@ -391,13 +350,19 @@ export async function exportElementToPdf(
     const pxPerMm = canvas.width / contentWidthMm;
     const pageHeightPx = Math.floor(contentHeightMm * pxPerMm);
 
-    // Compute breakpoints so we don't cut table rows across pages.
-    // This relies on the DOM layout (before html2canvas) and works well for table-based PDFs.
+    // Break on text-line / table-row bottoms so glyphs are never sliced mid-line.
     const domToCanvasScale =
       captureElement.scrollWidth > 0
         ? canvas.width / captureElement.scrollWidth
         : scale;
-    const rowBreakpointsPx = getRowBottomBreakpointsPx(captureElement, domToCanvasScale);
+    const breakpointsPx = getContentBreakpointsPx(
+      captureElement,
+      domToCanvasScale,
+    );
+    const avoidRangesPx = getAvoidSplitRangesPx(
+      captureElement,
+      domToCanvasScale,
+    );
 
     let renderedPx = 0;
     let pageIndex = 0;
@@ -409,7 +374,8 @@ export async function exportElementToPdf(
         renderedPx,
         maxSliceHeightPx: pageHeightPx,
         totalHeightPx: canvas.height,
-        breakpointsPx: rowBreakpointsPx,
+        breakpointsPx,
+        avoidRangesPx,
       });
       if (sliceHeightPx <= 0) break;
 

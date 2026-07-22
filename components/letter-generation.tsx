@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState, useCallback, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback, type Dispatch, type SetStateAction } from 'react';
 import {
   ArrowLeft,
   ChevronDown,
@@ -99,6 +99,7 @@ import {
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
 import { exportElementToPdf } from '@/lib/pdf/export-element-to-pdf';
+import { computePageStartOffsetsPx, getAvoidSplitRangesPx, getContentBreakpointsPx } from '@/lib/pdf/page-breaks';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { ModulePageHeader } from '@/components/module-page-header';
 import {
@@ -564,45 +565,138 @@ function LetterPreview({
 }) {
   const resolvedLetterhead = resolveLetterheadUrl(paperSize, letterheadUrl);
   const contentHtml = stripLetterheadFromHtml(html);
+  const hasLetterhead = Boolean(resolvedLetterhead);
+  const bodyPadding = getLetterBodyPaddingCss(paperSize, hasLetterhead);
+
+  const pageFrameRef = useRef<HTMLDivElement>(null);
+  const clipRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  // Y offsets where each preview page begins — aligned to text-line bottoms
+  // so glyphs are never clipped mid-line (same logic as PDF export).
+  const [pageStartOffsetsPx, setPageStartOffsetsPx] = useState<number[]>([0]);
+
+  useLayoutEffect(() => {
+    const recomputePages = () => {
+      const clip = clipRef.current;
+      const content = contentRef.current;
+      if (!clip || !content) return;
+
+      const available = clip.clientHeight;
+      if (available <= 0) return;
+
+      const total = content.scrollHeight;
+      const breakpointsPx = getContentBreakpointsPx(content, 1);
+      const avoidRangesPx = getAvoidSplitRangesPx(content, 1);
+      const starts = computePageStartOffsetsPx({
+        totalHeightPx: total,
+        pageHeightPx: available,
+        breakpointsPx,
+        avoidRangesPx,
+      });
+
+      setPageStartOffsetsPx((prev) => {
+        const next = starts.length > 0 ? starts : [0];
+        if (
+          prev.length === next.length &&
+          prev.every((value, index) => value === next[index])
+        ) {
+          return prev;
+        }
+        return next;
+      });
+    };
+
+    recomputePages();
+
+    const frame = pageFrameRef.current;
+    const clip = clipRef.current;
+    if (!frame || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => recomputePages());
+    observer.observe(frame);
+    if (clip) observer.observe(clip);
+
+    let cancelled = false;
+    void document.fonts?.ready.then(() => {
+      if (!cancelled) recomputePages();
+    });
+
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
+  }, [contentHtml, paperSize, letterLocale, hasLetterhead, bodyPadding]);
+
+  const pageShellStyle = {
+    aspectRatio: LETTER_PAPER_ASPECT_RATIO[paperSize],
+    width: '100%',
+    maxWidth: getLetterPaperWidthPx(paperSize),
+    fontFamily: LETTER_FONT_STACK[letterLocale],
+    fontSize: `${getLetterPrintFontSizePx(paperSize)}px`,
+    lineHeight: LETTER_PRINT_LINE_HEIGHT,
+  } as const;
 
   return (
-    <div
-      className={cn(
-        // overflow-x only — overflow-hidden was clipping the last line's descenders.
-        'relative mx-auto w-full overflow-x-hidden rounded-lg border bg-white text-black',
-        LETTER_PREVIEW_MAX_WIDTH_CLASS[paperSize],
-      )}
-      style={{
-        aspectRatio: LETTER_PAPER_ASPECT_RATIO[paperSize],
-        width: '100%',
-        maxWidth: getLetterPaperWidthPx(paperSize),
-        fontFamily: LETTER_FONT_STACK[letterLocale],
-        fontSize: `${getLetterPrintFontSizePx(paperSize)}px`,
-        lineHeight: LETTER_PRINT_LINE_HEIGHT,
-      }}
-    >
-      {resolvedLetterhead ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-no-repeat"
-          style={{
-            backgroundImage: `url("${resolvedLetterhead}")`,
-            backgroundSize: '100% 100%',
-          }}
-        />
-      ) : null}
-      <div
-        className={cn(
-          'absolute inset-0 overflow-y-auto',
-          LETTER_PREVIEW_CONTENT_CLASSES,
-        )}
-        style={{
-          // Same mm padding as print / PDF so preview is WYSIWYG.
-          padding: getLetterBodyPaddingCss(paperSize, Boolean(resolvedLetterhead)),
-        }}
-        // Letter HTML is generated from admin-editable templates stored in our database.
-        dangerouslySetInnerHTML={{ __html: contentHtml }}
-      />
+    <div className="space-y-4">
+      {pageStartOffsetsPx.map((startOffsetPx, pageIndex) => {
+        const nextStartPx = pageStartOffsetsPx[pageIndex + 1];
+        const sliceHeightPx =
+          nextStartPx != null
+            ? Math.max(0, nextStartPx - startOffsetPx)
+            : undefined;
+
+        return (
+          <div
+            key={pageIndex}
+            ref={pageIndex === 0 ? pageFrameRef : undefined}
+            className={cn(
+              'relative mx-auto w-full overflow-hidden rounded-lg border bg-white text-black',
+              LETTER_PREVIEW_MAX_WIDTH_CLASS[paperSize],
+            )}
+            style={pageShellStyle}
+          >
+            {resolvedLetterhead && pageIndex === 0 ? (
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-0 bg-no-repeat"
+                style={{
+                  backgroundImage: `url("${resolvedLetterhead}")`,
+                  backgroundSize: '100% 100%',
+                }}
+              />
+            ) : null}
+            <div className="absolute inset-0" style={{ padding: bodyPadding }}>
+              <div
+                ref={pageIndex === 0 ? clipRef : undefined}
+                className="h-full overflow-hidden"
+              >
+                {/* Cap visible height at the next safe break so lines aren't clipped mid-glyph. */}
+                <div
+                  className="overflow-hidden"
+                  style={
+                    sliceHeightPx != null ? { height: sliceHeightPx } : undefined
+                  }
+                >
+                  <div
+                    ref={pageIndex === 0 ? contentRef : undefined}
+                    className={LETTER_PREVIEW_CONTENT_CLASSES}
+                    style={{
+                      transform:
+                        startOffsetPx > 0
+                          ? `translateY(-${startOffsetPx}px)`
+                          : undefined,
+                    }}
+                    // Letter HTML is generated from admin-editable templates stored in our database.
+                    dangerouslySetInnerHTML={{ __html: contentHtml }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
