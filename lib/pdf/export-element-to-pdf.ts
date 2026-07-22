@@ -5,6 +5,13 @@ import {
   getLetterPaperContentWidthPx,
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
+import {
+  computePageStartOffsetsPx,
+  getAvoidSplitRangesPx,
+  getContentBreakpointsPx,
+  getLineRangesPx,
+  snapCanvasCutToBlankRow,
+} from '@/lib/pdf/page-breaks';
 
 type PdfPageFormat = LetterPaperSize;
 
@@ -111,52 +118,6 @@ function clampScale(scale: number, element: HTMLElement): number {
   if (approxPixels > 6_000_000) return Math.min(1.5, safe);
   if (approxPixels > 12_000_000) return Math.min(1.25, safe);
   return Math.max(1, Math.min(3, safe));
-}
-
-function getRowBottomBreakpointsPx(root: HTMLElement, scale: number): number[] {
-  const rectRoot = root.getBoundingClientRect();
-  const rows = Array.from(root.querySelectorAll('tbody tr')) as HTMLElement[];
-  const bottoms: number[] = [];
-  for (const row of rows) {
-    const r = row.getBoundingClientRect();
-    const bottomCssPx = r.bottom - rectRoot.top;
-    const bottom = Math.floor(bottomCssPx * scale);
-    if (Number.isFinite(bottom) && bottom > 0) bottoms.push(bottom);
-  }
-  // Unique + sorted
-  return Array.from(new Set(bottoms)).sort((a, b) => a - b);
-}
-
-function pickSliceHeightPx(args: {
-  renderedPx: number;
-  maxSliceHeightPx: number;
-  totalHeightPx: number;
-  breakpointsPx: number[];
-}): number {
-  const { renderedPx, maxSliceHeightPx, totalHeightPx, breakpointsPx } = args;
-  const remaining = totalHeightPx - renderedPx;
-  if (remaining <= 0) return 0;
-  const defaultHeight = Math.min(maxSliceHeightPx, remaining);
-  // If this is the last page, just take the rest.
-  if (defaultHeight >= remaining) return remaining;
-
-  // Avoid tiny slices: don't break if we'd render less than ~120px.
-  const minUsefulSlicePx = 120;
-  const minBreakY = renderedPx + minUsefulSlicePx;
-  const targetEnd = renderedPx + defaultHeight;
-
-  // Choose the last breakpoint within (minBreakY, targetEnd].
-  // Breakpoints are row-bottom positions relative to element top.
-  let best: number | null = null;
-  for (const bp of breakpointsPx) {
-    if (bp <= minBreakY) continue;
-    if (bp > targetEnd) break;
-    best = bp;
-  }
-  if (best == null) return defaultHeight;
-  const adjusted = best - renderedPx;
-  // Safety: never return 0/negative
-  return Math.max(minUsefulSlicePx, Math.min(adjusted, remaining));
 }
 
 async function waitForFontsReady(): Promise<void> {
@@ -391,26 +352,78 @@ export async function exportElementToPdf(
     const pxPerMm = canvas.width / contentWidthMm;
     const pageHeightPx = Math.floor(contentHeightMm * pxPerMm);
 
-    // Compute breakpoints so we don't cut table rows across pages.
-    // This relies on the DOM layout (before html2canvas) and works well for table-based PDFs.
-    const domToCanvasScale =
+    // Break on text-line / table-row bottoms so glyphs are never sliced mid-line.
+    // Prefer height scale for Y — width/height canvas ratios can differ slightly.
+    const domToCanvasScaleX =
       captureElement.scrollWidth > 0
         ? canvas.width / captureElement.scrollWidth
         : scale;
-    const rowBreakpointsPx = getRowBottomBreakpointsPx(captureElement, domToCanvasScale);
+    const domToCanvasScaleY =
+      captureElement.scrollHeight > 0
+        ? canvas.height / captureElement.scrollHeight
+        : domToCanvasScaleX;
+    // Paginate in DOM px (same as LetterPreview) then map cuts to canvas px so
+    // PDF page breaks match the inline/modal preview (WYSIWYG).
+    const contentRoot =
+      (captureElement.querySelector('.letter-content') as HTMLElement | null) ??
+      captureElement;
+    const domPageHeightPx = pageHeightPx / domToCanvasScaleY;
+    const domBreakpointsPx = getContentBreakpointsPx(contentRoot, 1);
+    const domAvoidRangesPx = getAvoidSplitRangesPx(contentRoot, 1);
+    const domLineRangesPx = getLineRangesPx(contentRoot, 1);
+    const totalDomHeightPx = contentRoot.scrollHeight;
+    const pageStartsDomPx = computePageStartOffsetsPx({
+      totalHeightPx: totalDomHeightPx,
+      pageHeightPx: domPageHeightPx,
+      breakpointsPx: domBreakpointsPx,
+      avoidRangesPx: domAvoidRangesPx,
+      lineRangesPx: domLineRangesPx,
+    });
+    const canvasAvoidRangesPx = domAvoidRangesPx.map((range) => ({
+      top: Math.floor(range.top * domToCanvasScaleY),
+      bottom: Math.ceil(range.bottom * domToCanvasScaleY),
+    }));
+    const sampleLine = domLineRangesPx[0];
+    const lineWindow = sampleLine
+      ? Math.max(48, (sampleLine.bottom - sampleLine.top) * 3 * domToCanvasScaleY)
+      : 96;
 
-    let renderedPx = 0;
+    const pageCutCanvasPx: number[] = [0];
+    for (let i = 1; i < pageStartsDomPx.length; i++) {
+      const prevCut = pageCutCanvasPx[pageCutCanvasPx.length - 1] ?? 0;
+      let cutEnd = Math.round(pageStartsDomPx[i]! * domToCanvasScaleY);
+      cutEnd = snapCanvasCutToBlankRow({
+        canvas,
+        proposedCutY: cutEnd,
+        minCutY: prevCut + Math.min(80, Math.floor((cutEnd - prevCut) * 0.4)),
+        searchWindowPx: lineWindow,
+        avoidRangesPx: canvasAvoidRangesPx,
+      });
+      for (const range of canvasAvoidRangesPx) {
+        if (
+          cutEnd > range.top + 1 &&
+          cutEnd < range.bottom - 1 &&
+          range.top > prevCut + 1
+        ) {
+          cutEnd = range.top;
+        }
+      }
+      cutEnd = Math.max(prevCut + 1, Math.min(cutEnd, canvas.height));
+      pageCutCanvasPx.push(cutEnd);
+    }
+    pageCutCanvasPx.push(canvas.height);
+
     let pageIndex = 0;
     // We'll estimate total pages more accurately once we apply breakpoints.
-    let totalPages = Math.max(1, Math.ceil(canvas.height / pageHeightPx));
+    let totalPages = Math.max(1, pageCutCanvasPx.length - 1);
 
-    while (renderedPx < canvas.height) {
-      const sliceHeightPx = pickSliceHeightPx({
-        renderedPx,
-        maxSliceHeightPx: pageHeightPx,
-        totalHeightPx: canvas.height,
-        breakpointsPx: rowBreakpointsPx,
-      });
+    for (let cutIndex = 0; cutIndex < pageCutCanvasPx.length - 1; cutIndex++) {
+      const renderedPx = pageCutCanvasPx[cutIndex] ?? 0;
+      const cutEnd = pageCutCanvasPx[cutIndex + 1] ?? canvas.height;
+      const sliceHeightPx = Math.max(
+        1,
+        Math.min(cutEnd - renderedPx, canvas.height - renderedPx),
+      );
       if (sliceHeightPx <= 0) break;
 
       const pageCanvas = document.createElement('canvas');
@@ -522,7 +535,6 @@ export async function exportElementToPdf(
         doc.text(footerText, pageWidthMm / 2, footerY, { align: 'center' });
       }
 
-      renderedPx += sliceHeightPx;
       pageIndex += 1;
     }
 

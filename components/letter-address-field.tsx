@@ -3,9 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Combobox } from '@/components/ui/combobox';
-import { StructuredAddressFields } from '@/components/structured-address-fields';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { BilingualAddressFields } from '@/components/bilingual-address-fields';
 import type { AddressType } from '@/lib/letters/address-types';
 import { letterMessage } from '@/lib/letters/letter-messages';
+import { filterLocaleText } from '@/lib/letters/locale-text';
 import {
   EMPTY_ADDRESS_PARTS,
   enrichAddressPartsWithPincodeLookup,
@@ -26,6 +29,8 @@ export type AddressMasterRow = {
   line1Mr: string;
   line2En: string;
   line2Mr: string;
+  line3En: string;
+  line3Mr: string;
   cityEn: string;
   cityMr: string;
   stateEn: string;
@@ -49,6 +54,13 @@ type LetterAddressFieldProps = {
   pincodeError?: string;
   required?: boolean;
   error?: string;
+  /** When provided, a name input is shown above the manual address lines. */
+  nameLabel?: string;
+  namePlaceholder?: string;
+  nameValue?: string;
+  onNameChange?: (value: string) => void;
+  nameRequired?: boolean;
+  nameError?: string;
 };
 
 export function LetterAddressField({
@@ -63,6 +75,12 @@ export function LetterAddressField({
   pincodeError,
   required,
   error,
+  nameLabel,
+  namePlaceholder,
+  nameValue,
+  onNameChange,
+  nameRequired,
+  nameError,
 }: LetterAddressFieldProps) {
   const at = (key: string) => letterMessage(locale, key);
   const addressPartsRef = useRef(addressParts);
@@ -161,6 +179,8 @@ export function LetterAddressField({
       line1Mr: selected.line1Mr,
       line2En: selected.line2En,
       line2Mr: selected.line2Mr,
+      line3En: selected.line3En,
+      line3Mr: selected.line3Mr,
       cityEn: selected.cityEn,
       cityMr: selected.cityMr,
       stateEn: selected.stateEn,
@@ -210,13 +230,39 @@ export function LetterAddressField({
           {formatAddressMaster(selectedAddress, locale)}
         </div>
       ) : showManualFields ? (
-        <StructuredAddressFields
-          locale={locale}
-          parts={addressParts}
-          onPartsChange={updateAddressParts}
-          previewText={formatAddressMaster(addressParts, locale)}
-          pincodeError={pincodeError}
-        />
+        <div className="space-y-3">
+          {onNameChange ? (
+            <div className="space-y-1.5">
+              {nameLabel ? (
+                <Label className="text-xs">
+                  {nameLabel}
+                  {nameRequired ? ' *' : null}
+                </Label>
+              ) : null}
+              <Input
+                value={nameValue ?? ''}
+                onChange={(event) =>
+                  onNameChange(filterLocaleText(event.target.value, locale))
+                }
+                placeholder={namePlaceholder}
+                lang={locale === 'mr' ? 'mr' : 'en'}
+                autoComplete="off"
+                className="h-9"
+                required={nameRequired}
+                aria-required={nameRequired}
+                aria-invalid={Boolean(nameError)}
+              />
+              {nameError ? (
+                <p className="text-xs text-destructive">{nameError}</p>
+              ) : null}
+            </div>
+          ) : null}
+          <BilingualAddressFields
+            parts={addressParts}
+            onPartsChange={updateAddressParts}
+            pincodeError={pincodeError}
+          />
+        </div>
       ) : null}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>

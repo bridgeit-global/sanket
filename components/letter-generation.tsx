@@ -1,11 +1,13 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState, useCallback, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback, type Dispatch, type SetStateAction } from 'react';
 import {
+  ArrowLeft,
   ChevronDown,
   ChevronUp,
   Eye,
+  ExternalLink,
   FileType,
   Calendar,
   ImageIcon,
@@ -24,7 +26,6 @@ import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Combobox } from '@/components/ui/combobox';
 import {
   Card,
   CardContent,
@@ -71,6 +72,7 @@ import {
   type CommonLetterFields,
   type DomicileLetterFields,
   type FeesLetterFields,
+  type GeneralLetterFields,
   type IncomeLetterFields,
   type LetterLocale,
   type LetterType,
@@ -81,7 +83,6 @@ import {
 } from '@/lib/letters/templates';
 import {
   getLetterheadContentPaddingMm,
-  LETTER_PAPER_ASPECT_RATIO,
   resolveLetterheadUrl,
   stripLetterheadFromHtml,
 } from '@/lib/letters/letterhead';
@@ -90,6 +91,8 @@ import { getDefaultTemplateHtml } from '@/lib/letters/default-template-html';
 import {
   getDefaultLetterPaperSize,
   getLetterPaperContentWidthPx,
+  getLetterPageContentHeightCssPx,
+  getLetterPaperHeightPx,
   getLetterPaperLabel,
   getLetterPaperWidthPx,
   LETTER_PAPER_MARGIN_MM,
@@ -98,6 +101,7 @@ import {
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
 import { exportElementToPdf } from '@/lib/pdf/export-element-to-pdf';
+import { computePageStartOffsetsPx, getAvoidSplitRangesPx, getContentBreakpointsPx, getLineRangesPx } from '@/lib/pdf/page-breaks';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { ModulePageHeader } from '@/components/module-page-header';
 import {
@@ -111,12 +115,8 @@ import {
 } from '@/lib/letters/letter-address-fields';
 import type { LetterAddressTypeLinkRow } from '@/components/letter-address-link-manager';
 import {
-  AddressTranslationReviewDialog,
-  type AddressTranslationReviewResult,
-} from '@/components/address-translation-review-dialog';
-import {
-  EMPTY_ADDRESS_PARTS,
   formatAddressMaster,
+  formatAddressMasterMultiline,
   hasAddressContent,
   hasRequiredAddressFields,
   localizeAddressPartsDigits,
@@ -180,6 +180,26 @@ function formatFamilyMembersString(
     .join('\n');
 }
 
+function parseTextRows(value: string): string[] {
+  const rows = value.split('\n');
+  return rows.length > 0 ? rows : [''];
+}
+
+function formatTextRows(rows: string[]): string {
+  return rows
+    .map((row) => row.trim())
+    .filter(Boolean)
+    .join('\n');
+}
+
+function defaultSignatureParagraphRows(locale: LetterLocale): string[] {
+  const signatory = DEFAULT_SIGNATORY[locale];
+  if (locale === 'mr') {
+    return ['आपली विश्वासू,', `(${signatory})`];
+  }
+  return ['Yours faithfully,', `(${signatory})`];
+}
+
 function isRationLetterType(type: LetterType): boolean {
   return type.startsWith('ration-');
 }
@@ -198,6 +218,7 @@ function matchesSavedLetterTypeFilter(
 function getFieldsForLetterType(
   type: LetterType,
   fields: {
+    generalFields: GeneralLetterFields;
     feesFields: FeesLetterFields;
     schoolAdmissionFields: SchoolAdmissionLetterFields;
     schoolTransferFields: SchoolTransferLetterFields;
@@ -207,6 +228,8 @@ function getFieldsForLetterType(
   },
 ) {
   switch (type) {
+    case 'general':
+      return fields.generalFields;
     case 'fees':
       return fields.feesFields;
     case 'school-admission':
@@ -434,6 +457,7 @@ function incomeDefaults(locale: LetterLocale): IncomeLetterFields {
     salutation: resolveSalutation(locale, 'male'),
     fullName: '',
     address: '',
+    officeName: '',
     officeAddress: '',
     aadhaarNo: '',
     annualIncome: '',
@@ -447,8 +471,19 @@ function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
     salutation: resolveSalutation(locale, 'male'),
     fullName: '',
     address: '',
+    officeName: '',
     officeAddress: '',
     aadhaarNo: '',
+  };
+}
+
+function generalDefaults(locale: LetterLocale): GeneralLetterFields {
+  return {
+    ...commonDefaults(locale),
+    to: '',
+    subject: '',
+    paragraphs: '',
+    signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(locale)),
   };
 }
 
@@ -475,11 +510,62 @@ const LETTER_FONT_STACK: Record<LetterLocale, string> = {
 
 /**
  * Shared typography for preview / print / PDF so all three stay WYSIWYG.
- * Font size is fixed across A4 / A5 / B5 — paper size only changes page geometry.
+ * Font size scales with paper size: A4 (big) → B5 (medium) → A5 (small).
  */
-const LETTER_PRINT_FONT_SIZE_PX = 15;
+const LETTER_PRINT_FONT_SIZE_PX: Record<LetterPaperSize, number> = {
+  a4: 16,
+  b5: 15,
+  a5: 14,
+};
+
+function getLetterPrintFontSizePx(paperSize: LetterPaperSize): number {
+  return LETTER_PRINT_FONT_SIZE_PX[paperSize];
+}
 
 const LETTER_PRINT_LINE_HEIGHT = 1.75;
+
+const LETTER_PREVIEW_PAGE_GAP_PX = 16;
+
+/** Max dialog width so modal preview can use the full paper width at 96dpi. */
+function getLetterPreviewDialogMaxWidthClass(paperSize: LetterPaperSize): string {
+  switch (paperSize) {
+    case 'a4':
+      return 'max-w-[min(100%,940px)]';
+    case 'b5':
+      return 'max-w-[min(100%,820px)]';
+    case 'a5':
+      return 'max-w-[min(100%,700px)]';
+    default:
+      return 'max-w-3xl';
+  }
+}
+
+/**
+ * Visual scale for on-screen preview only — canonical page dimensions stay at
+ * 96dpi so pagination matches PDF/print; transform scale adjusts visibility.
+ */
+function computeLetterPreviewDisplayScale(
+  containerWidthPx: number,
+  paperSize: LetterPaperSize,
+  variant: 'inline' | 'modal',
+): number {
+  const paperWidthPx = getLetterPaperWidthPx(paperSize);
+  const availableWidthPx = Math.max(0, containerWidthPx - 8);
+  if (availableWidthPx <= 0 || paperWidthPx <= 0) return 1;
+
+  const fitScale = availableWidthPx / paperWidthPx;
+  const maxScale =
+    variant === 'modal'
+      ? paperSize === 'a5'
+        ? 1.2
+        : paperSize === 'b5'
+          ? 1.1
+          : 1
+      : 1;
+  const minScale = variant === 'modal' ? 0.7 : 0.55;
+
+  return Math.min(maxScale, Math.max(minScale, fitScale));
+}
 
 function getLetterBodyPaddingCss(
   paperSize: LetterPaperSize,
@@ -500,101 +586,248 @@ function createLetterExportElement(
     paperSize?: LetterPaperSize;
     letterLocale?: LetterLocale;
   },
-): HTMLDivElement {
+): HTMLElement {
   const host = document.createElement('div');
   const contentHtml = stripLetterheadFromHtml(html);
   const paperSize = options?.paperSize ?? 'a4';
   const fontFamily = LETTER_FONT_STACK[options?.letterLocale ?? 'mr'];
+  const fallbackFontSizePx = getLetterPrintFontSizePx(paperSize);
 
-  // Letterhead is drawn per-page by the PDF exporter — capture text only so
-  // margins/header clearance stay aligned with print/preview.
-  host.style.position = 'relative';
-  host.style.background = 'transparent';
-  host.style.color = '#000';
-  host.style.boxSizing = 'border-box';
-  host.style.width = `${getLetterPaperContentWidthPx(paperSize)}px`;
-  host.style.fontFamily = fontFamily;
-  host.style.fontSize = `${LETTER_PRINT_FONT_SIZE_PX}px`;
-  host.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
   host.innerHTML = contentHtml;
-
   const letterContent = host.querySelector('.letter-content');
-  if (letterContent instanceof HTMLElement) {
-    letterContent.style.margin = '0';
-    // Collapse template source whitespace (newlines/indent). Line breaks come
-    // from <br> / block elements — pre-wrap was blowing A5 letters onto 3 pages.
-    letterContent.style.whiteSpace = 'normal';
-    letterContent.style.fontSize = `${LETTER_PRINT_FONT_SIZE_PX}px`;
-    // Keep template line-height when set (fees is tuned to 1.55). Forcing
-    // 1.75 here made the last line sit on the page edge and get clipped in PDF.
-    if (!letterContent.style.lineHeight) {
-      letterContent.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
-    }
-    letterContent.style.fontFamily = fontFamily;
-    letterContent.style.color = '#000';
+  if (!(letterContent instanceof HTMLElement)) {
+    host.style.position = 'relative';
+    host.style.background = 'transparent';
+    host.style.color = '#000';
+    host.style.boxSizing = 'border-box';
+    host.style.width = `${getLetterPaperContentWidthPx(paperSize)}px`;
+    host.style.fontFamily = fontFamily;
+    host.style.fontSize = `${fallbackFontSizePx}px`;
+    host.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
+    return host;
   }
 
-  return host;
-}
+  // Capture `.letter-content` directly (same node shape as LetterPreview) so
+  // PDF typography and pagination match the inline/modal preview.
+  letterContent.style.position = 'relative';
+  letterContent.style.background = 'transparent';
+  letterContent.style.color = '#000';
+  letterContent.style.boxSizing = 'border-box';
+  letterContent.style.width = `${getLetterPaperContentWidthPx(paperSize)}px`;
+  letterContent.style.margin = '0';
+  letterContent.style.whiteSpace = 'normal';
+  letterContent.style.fontFamily = fontFamily;
+  // Preserve template font-size / line-height (fees uses 13px / 1.55 on A5).
+  if (!letterContent.style.fontSize) {
+    letterContent.style.fontSize = `${fallbackFontSizePx}px`;
+  }
+  if (!letterContent.style.lineHeight) {
+    letterContent.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
+  }
 
-const LETTER_PREVIEW_MAX_WIDTH_CLASS: Record<LetterPaperSize, string> = {
-  a4: 'max-w-[794px]',
-  a5: 'max-w-[559px]',
-  b5: 'max-w-[665px]',
-};
+  return letterContent;
+}
 
 function LetterPreview({
   html,
   paperSize = 'a4',
   letterheadUrl,
   letterLocale,
+  variant = 'inline',
 }: {
   html: string;
   paperSize?: LetterPaperSize;
   letterheadUrl?: string | null;
   letterLocale: LetterLocale;
+  variant?: 'inline' | 'modal';
 }) {
   const resolvedLetterhead = resolveLetterheadUrl(paperSize, letterheadUrl);
   const contentHtml = stripLetterheadFromHtml(html);
+  const hasLetterhead = Boolean(resolvedLetterhead);
+  const bodyPadding = getLetterBodyPaddingCss(paperSize, hasLetterhead);
+
+  const rootRef = useRef<HTMLDivElement>(null);
+  const pageFrameRef = useRef<HTMLDivElement>(null);
+  const clipRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [displayScale, setDisplayScale] = useState(1);
+  // Y offsets where each preview page begins — aligned to text-line bottoms
+  // so glyphs are never clipped mid-line (same logic as PDF export).
+  const [pageStartOffsetsPx, setPageStartOffsetsPx] = useState<number[]>([0]);
+
+  useLayoutEffect(() => {
+    const recomputePages = () => {
+      const clip = clipRef.current;
+      const content = contentRef.current;
+      if (!clip || !content) return;
+
+      // Measure the live clip at canonical page width so inline preview and
+      // modal preview paginate identically (responsive shrink was reflowing text).
+      let available = clip.clientHeight;
+      if (available <= 0) {
+        available = getLetterPageContentHeightCssPx(
+          paperSize,
+          hasLetterhead,
+          getLetterheadContentPaddingMm(paperSize),
+        );
+      }
+      if (available <= 0) return;
+
+      const total = content.scrollHeight;
+      const breakpointsPx = getContentBreakpointsPx(content, 1);
+      const avoidRangesPx = getAvoidSplitRangesPx(content, 1);
+      const lineRangesPx = getLineRangesPx(content, 1);
+      const starts = computePageStartOffsetsPx({
+        totalHeightPx: total,
+        pageHeightPx: available,
+        breakpointsPx,
+        avoidRangesPx,
+        lineRangesPx,
+      });
+
+      setPageStartOffsetsPx((prev) => {
+        const next = starts.length > 0 ? starts : [0];
+        if (
+          prev.length === next.length &&
+          prev.every((value, index) => value === next[index])
+        ) {
+          return prev;
+        }
+        return next;
+      });
+    };
+
+    recomputePages();
+
+    const frame = pageFrameRef.current;
+    const clip = clipRef.current;
+    const content = contentRef.current;
+    if (!frame || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => recomputePages());
+    observer.observe(frame);
+    if (clip) observer.observe(clip);
+    if (content) observer.observe(content);
+
+    let cancelled = false;
+    void document.fonts?.ready.then(() => {
+      if (!cancelled) recomputePages();
+    });
+
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
+  }, [contentHtml, paperSize, letterLocale, hasLetterhead, bodyPadding]);
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    const updateDisplayScale = () => {
+      const width = root.clientWidth;
+      if (width <= 0) return;
+      const next = computeLetterPreviewDisplayScale(width, paperSize, variant);
+      setDisplayScale((prev) => (Math.abs(prev - next) < 0.001 ? prev : next));
+    };
+
+    updateDisplayScale();
+
+    if (typeof ResizeObserver === 'undefined') {
+      return;
+    }
+
+    const observer = new ResizeObserver(() => updateDisplayScale());
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, [paperSize, variant]);
+
+  const paperWidthPx = getLetterPaperWidthPx(paperSize);
+  const paperHeightPx = getLetterPaperHeightPx(paperSize);
+  const scaledPaperWidthPx = paperWidthPx * displayScale;
+  const scaledPaperHeightPx = paperHeightPx * displayScale;
+  const pageShellStyle = {
+    width: `${paperWidthPx}px`,
+    height: `${paperHeightPx}px`,
+    fontFamily: LETTER_FONT_STACK[letterLocale],
+    fontSize: `${getLetterPrintFontSizePx(paperSize)}px`,
+    lineHeight: LETTER_PRINT_LINE_HEIGHT,
+    transform: `scale(${displayScale})`,
+    transformOrigin: 'top left',
+  } as const;
 
   return (
-    <div
-      className={cn(
-        // overflow-x only — overflow-hidden was clipping the last line's descenders.
-        'relative mx-auto w-full overflow-x-hidden rounded-lg border bg-white text-black',
-        LETTER_PREVIEW_MAX_WIDTH_CLASS[paperSize],
-      )}
-      style={{
-        aspectRatio: LETTER_PAPER_ASPECT_RATIO[paperSize],
-        width: '100%',
-        maxWidth: getLetterPaperWidthPx(paperSize),
-        fontFamily: LETTER_FONT_STACK[letterLocale],
-        fontSize: `${LETTER_PRINT_FONT_SIZE_PX}px`,
-        lineHeight: LETTER_PRINT_LINE_HEIGHT,
-      }}
-    >
-      {resolvedLetterhead ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 bg-no-repeat"
-          style={{
-            backgroundImage: `url("${resolvedLetterhead}")`,
-            backgroundSize: '100% 100%',
-          }}
-        />
-      ) : null}
-      <div
-        className={cn(
-          'absolute inset-0 overflow-y-auto',
-          LETTER_PREVIEW_CONTENT_CLASSES,
-        )}
-        style={{
-          // Same mm padding as print / PDF so preview is WYSIWYG.
-          padding: getLetterBodyPaddingCss(paperSize, Boolean(resolvedLetterhead)),
-        }}
-        // Letter HTML is generated from admin-editable templates stored in our database.
-        dangerouslySetInnerHTML={{ __html: contentHtml }}
-      />
+    <div ref={rootRef} className="w-full">
+      <div className="mx-auto" style={{ width: scaledPaperWidthPx }}>
+      {pageStartOffsetsPx.map((startOffsetPx, pageIndex) => {
+        const nextStartPx = pageStartOffsetsPx[pageIndex + 1];
+        const sliceHeightPx =
+          nextStartPx != null
+            ? Math.max(0, nextStartPx - startOffsetPx)
+            : undefined;
+
+        return (
+          <div
+            key={pageIndex}
+            className="shrink-0"
+            style={{
+              width: scaledPaperWidthPx,
+              height: scaledPaperHeightPx,
+              marginBottom:
+                pageIndex < pageStartOffsetsPx.length - 1
+                  ? LETTER_PREVIEW_PAGE_GAP_PX
+                  : undefined,
+            }}
+          >
+            <div
+              ref={pageIndex === 0 ? pageFrameRef : undefined}
+              className="relative overflow-hidden rounded-lg border bg-white text-black"
+              style={pageShellStyle}
+            >
+              {resolvedLetterhead && pageIndex === 0 ? (
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute inset-0 bg-no-repeat"
+                  style={{
+                    backgroundImage: `url("${resolvedLetterhead}")`,
+                    backgroundSize: '100% 100%',
+                  }}
+                />
+              ) : null}
+              <div className="absolute inset-0" style={{ padding: bodyPadding }}>
+                <div
+                  ref={pageIndex === 0 ? clipRef : undefined}
+                  className="h-full overflow-hidden"
+                >
+                  {/* Cap visible height at the next safe break so lines aren't clipped mid-glyph. */}
+                  <div
+                    className="overflow-hidden"
+                    style={
+                      sliceHeightPx != null ? { height: sliceHeightPx } : undefined
+                    }
+                  >
+                    <div
+                      ref={pageIndex === 0 ? contentRef : undefined}
+                      className={LETTER_PREVIEW_CONTENT_CLASSES}
+                      style={{
+                        transform:
+                          startOffsetPx > 0
+                            ? `translateY(-${startOffsetPx}px)`
+                            : undefined,
+                      }}
+                      // Letter HTML is generated from admin-editable templates stored in our database.
+                      dangerouslySetInnerHTML={{ __html: contentHtml }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      </div>
     </div>
   );
 }
@@ -732,6 +965,34 @@ type AddressSelectionState = {
 type ManualAddressKey = keyof AddressSelectionState;
 type ManualAddressParts = Record<ManualAddressKey, AddressMasterAddressParts>;
 
+// Recipient blocks that render the address stacked line-by-line in the letter
+// template. Inline placeholders (applicant `address`, from/to ration office)
+// stay comma-joined on a single line so sentence flow isn't broken.
+const MULTILINE_ADDRESS_KEYS: ReadonlySet<ManualAddressKey> = new Set([
+  'school',
+  'rationOffice',
+  'office',
+]);
+
+function formatAddressForManualKey(
+  parts: AddressMasterAddressParts,
+  locale: LetterLocale,
+  key: ManualAddressKey,
+): string {
+  return MULTILINE_ADDRESS_KEYS.has(key)
+    ? formatAddressMasterMultiline(parts, locale)
+    : formatAddressMaster(parts, locale);
+}
+
+/** Collapse HTML/newline breaks back to a single comma-separated line. */
+function addressToSingleLine(value: string): string {
+  return value
+    .split(/\r?\n|<br\s*\/?>/i)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
 function getPincodeValidationError(
   parts: AddressMasterAddressParts,
   t: (key: string) => string,
@@ -759,11 +1020,14 @@ function getAddressTextFromMaster(
   addresses: AddressMasterRow[],
   masterId: string | null,
   locale: LetterLocale,
+  multiline = false,
 ): string | null {
   if (!masterId) return null;
   const address = addresses.find((item) => item.id === masterId);
   if (!address) return null;
-  return formatAddressMaster(address, locale);
+  return multiline
+    ? formatAddressMasterMultiline(address, locale)
+    : formatAddressMaster(address, locale);
 }
 
 function getAddressMasterName(
@@ -776,14 +1040,24 @@ function getAddressMasterName(
   return address.name;
 }
 
+function combineNameAndAddress(
+  name: string,
+  addressText: string,
+  separator = ', ',
+): string {
+  const trimmedName = name.trim();
+  const trimmedAddress = addressText.trim();
+  if (trimmedName && trimmedAddress) return `${trimmedName}${separator}${trimmedAddress}`;
+  return trimmedName || trimmedAddress;
+}
+
 function formatRationOfficeWithAddress(
   address: Pick<AddressMasterRow, 'name' | 'nameMr'> & AddressMasterAddressParts,
   locale: LetterLocale,
 ): string {
-  const name = getAddressMasterName(address, locale).trim();
-  const addressText = formatAddressMaster(address, locale).trim();
-  if (name && addressText) return `${name}, ${addressText}`;
-  return name || addressText;
+  const name = getAddressMasterName(address, locale);
+  const addressText = formatAddressMaster(address, locale);
+  return combineNameAndAddress(name, addressText);
 }
 
 function getRationOfficeLabelById(
@@ -811,7 +1085,7 @@ function applyMasterAddressToFields(
     setDomicileFields: Dispatch<SetStateAction<DomicileLetterFields>>;
   },
 ) {
-  const schoolText = getAddressTextFromMaster(addresses, selections.school, locale);
+  const schoolText = getAddressTextFromMaster(addresses, selections.school, locale, true);
   const applicantText = getAddressTextFromMaster(
     addresses,
     selections.applicant,
@@ -821,8 +1095,9 @@ function applyMasterAddressToFields(
     addresses,
     selections.rationOffice,
     locale,
+    true,
   );
-  const officeText = getAddressTextFromMaster(addresses, selections.office, locale);
+  const officeText = getAddressTextFromMaster(addresses, selections.office, locale, true);
 
   if (schoolText) {
     setters.setFeesFields((prev) => ({ ...prev, schoolAddress: schoolText }));
@@ -852,8 +1127,20 @@ function applyMasterAddressToFields(
   }
 
   if (officeText) {
-    setters.setIncomeFields((prev) => ({ ...prev, officeAddress: officeText }));
-    setters.setDomicileFields((prev) => ({ ...prev, officeAddress: officeText }));
+    const officeMaster = addresses.find((item) => item.id === selections.office);
+    const officeName = officeMaster
+      ? getAddressMasterName(officeMaster, locale)
+      : '';
+    setters.setIncomeFields((prev) => ({
+      ...prev,
+      officeName: officeName || prev.officeName,
+      officeAddress: officeText,
+    }));
+    setters.setDomicileFields((prev) => ({
+      ...prev,
+      officeName: officeName || prev.officeName,
+      officeAddress: officeText,
+    }));
   }
 }
 
@@ -882,16 +1169,29 @@ type LetterMasterRow = {
   updatedAt: string | Date;
 };
 
+export type BeneficiaryServiceInfo = {
+  id: string;
+  serviceName: string;
+  serviceType: 'individual' | 'community';
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  token: string;
+  description: string | null;
+  createdAt: string;
+};
+
 export function LetterGeneration({
   isAdmin = false,
   beneficiaryServiceId,
   prefillName,
   prefillAddress,
+  service,
 }: {
   isAdmin?: boolean;
   beneficiaryServiceId?: string;
   prefillName?: string;
   prefillAddress?: string;
+  service?: BeneficiaryServiceInfo;
 }) {
   const { t, locale } = useTranslations();
   const [letterLocale, setLetterLocale] = useState<LetterLocale>(locale);
@@ -914,6 +1214,12 @@ export function LetterGeneration({
   const [feesFields, setFeesFields] = useState<FeesLetterFields>(() =>
     feesDefaults(locale),
   );
+  const [generalFields, setGeneralFields] = useState<GeneralLetterFields>(() =>
+    generalDefaults(locale),
+  );
+  const [paragraphRows, setParagraphRows] = useState<string[]>(() => ['']);
+  const paragraphRowsRef = useRef(paragraphRows);
+  paragraphRowsRef.current = paragraphRows;
   const [schoolAdmissionFields, setSchoolAdmissionFields] =
     useState<SchoolAdmissionLetterFields>(() => schoolAdmissionDefaults(locale));
   const [schoolTransferFields, setSchoolTransferFields] =
@@ -968,6 +1274,15 @@ export function LetterGeneration({
   const [addressPincodeErrors, setAddressPincodeErrors] = useState<
     Partial<Record<ManualAddressKey, string>>
   >({});
+  // Manual entry names for ration office recipients (institute/office reuse
+  // their dedicated schoolName/officeName fields instead).
+  const [rationOfficeNames, setRationOfficeNames] = useState<{
+    rationOffice: string;
+    fromRationOffice: string;
+    toRationOffice: string;
+  }>({ rationOffice: '', fromRationOffice: '', toRationOffice: '' });
+  const rationOfficeNamesRef = useRef(rationOfficeNames);
+  rationOfficeNamesRef.current = rationOfficeNames;
   const translateTimersRef = useRef<Partial<Record<ManualAddressKey, number>>>({});
   const translateReqIdRef = useRef<Partial<Record<ManualAddressKey, number>>>({});
   const [templateDraft, setTemplateDraft] = useState('');
@@ -993,39 +1308,10 @@ export function LetterGeneration({
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
   const [fieldErrors, setFieldErrors] = useState<LetterFieldErrors>({});
-  const [addressReview, setAddressReview] = useState<{
-    targetLocale: LetterLocale;
-    initialName: string;
-    initialParts: AddressMasterAddressParts;
-  } | null>(null);
-  const [isConfirmingAddressReview, setIsConfirmingAddressReview] = useState(false);
-  const addressReviewResolverRef = useRef<
-    ((result: AddressTranslationReviewResult | null) => void) | null
-  >(null);
-
-  const requestAddressTranslationReview = (request: {
-    targetLocale: LetterLocale;
-    initialName: string;
-    initialParts: AddressMasterAddressParts;
-  }): Promise<AddressTranslationReviewResult | null> => {
-    return new Promise((resolve) => {
-      addressReviewResolverRef.current = resolve;
-      setAddressReview(request);
-    });
-  };
-
-  const resolveAddressReview = (result: AddressTranslationReviewResult | null) => {
-    const resolver = addressReviewResolverRef.current;
-    addressReviewResolverRef.current = null;
-    setAddressReview(null);
-    setIsConfirmingAddressReview(false);
-    resolver?.(result);
-  };
-
   const deriveAddressMasterName = (rawAddress: string, fallback: string) => {
     const firstLine =
       rawAddress
-        .split(/\r?\n/)
+        .split(/\r?\n|<br\s*\/?>/i)
         .map((l) => l.trim())
         .find(Boolean) ?? '';
     const trimmed = firstLine.slice(0, 60);
@@ -1063,18 +1349,20 @@ export function LetterGeneration({
       console.error('Failed to translate address name for auto-save', error);
     }
 
-    let reviewParts = { ...parts };
+    let translatedParts = { ...parts };
     const hasTargetContent =
       targetLocale === 'mr'
         ? Boolean(
             parts.line1Mr.trim() ||
               parts.line2Mr.trim() ||
+              parts.line3Mr.trim() ||
               parts.cityMr.trim() ||
               parts.stateMr.trim(),
           )
         : Boolean(
             parts.line1En.trim() ||
               parts.line2En.trim() ||
+              parts.line3En.trim() ||
               parts.cityEn.trim() ||
               parts.stateEn.trim(),
           );
@@ -1092,7 +1380,7 @@ export function LetterGeneration({
           if (res.ok) {
             const translated = String(json?.translated ?? '').trim();
             if (translated) {
-              reviewParts = sanitizeAddressPartsLocations(
+              translatedParts = sanitizeAddressPartsLocations(
                 localizeAddressPartsDigits(
                   mergeAddressParts(
                     parts,
@@ -1104,28 +1392,23 @@ export function LetterGeneration({
             }
           }
         } catch (error) {
-          console.error('Failed to translate address for auto-save review', error);
+          console.error('Failed to translate address for auto-save', error);
         }
       }
     }
 
-    const reviewed = await requestAddressTranslationReview({
-      targetLocale,
-      initialName: translatedName,
-      initialParts: reviewParts,
-    });
-    if (!reviewed) return null;
-
-    const reviewedName = filterLocaleText(reviewed.name, targetLocale).trim();
+    // Translate directly on save — no review modal.
+    const otherLocaleName = filterLocaleText(translatedName, targetLocale).trim();
     if (letterLocale === 'en') {
-      nameMr = reviewedName;
+      nameMr = otherLocaleName;
     } else {
-      nameEn = reviewedName;
+      nameEn = otherLocaleName;
     }
     if (!nameEn) nameEn = trimmedName;
+    if (!nameMr) nameMr = trimmedName;
 
     const mergedParts = sanitizeAddressPartsLocations(
-      localizeAddressPartsDigits(mergeAddressParts(parts, reviewed.parts), 'mr'),
+      localizeAddressPartsDigits(mergeAddressParts(parts, translatedParts), 'mr'),
     );
 
     try {
@@ -1171,12 +1454,28 @@ export function LetterGeneration({
     [letterLocale],
   );
 
+  const updateParagraphRows = useCallback(
+    (rows: string[]) => {
+      const nextRows = rows.length > 0 ? rows : [''];
+      setParagraphRows(nextRows);
+      setGeneralFields((prev) => ({
+        ...prev,
+        paragraphs: formatTextRows(nextRows),
+      }));
+      setFieldErrors((prev) =>
+        prev.paragraphs ? { ...prev, paragraphs: undefined } : prev,
+      );
+    },
+    [],
+  );
+
   const syncReferenceFields = useCallback((prefix: string, number: string) => {
     const patch = {
       referencePrefix: prefix,
       referenceNo: number,
     };
     setFeesFields((prev) => ({ ...prev, ...patch }));
+    setGeneralFields((prev) => ({ ...prev, ...patch }));
     setSchoolAdmissionFields((prev) => ({ ...prev, ...patch }));
     setSchoolTransferFields((prev) => ({ ...prev, ...patch }));
     setRationFields((prev) => ({ ...prev, ...patch }));
@@ -1325,6 +1624,19 @@ export function LetterGeneration({
       fullName: filterText(prev.fullName),
       aadhaarNo: normalizeAadhaarNo(prev.aadhaarNo),
     }));
+    const nextParagraphRows = paragraphRowsRef.current.map((row) => filterText(row));
+    setParagraphRows(nextParagraphRows.length > 0 ? nextParagraphRows : ['']);
+    setGeneralFields((prev) => ({
+      ...prev,
+      referencePrefix: nextPrefix(prev.referencePrefix),
+      referenceNo: nextReferenceNo(prev.referenceNo),
+      signatory: nextSignatory(prev.signatory),
+      date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+      to: filterText(prev.to),
+      subject: filterText(prev.subject),
+      paragraphs: formatTextRows(nextParagraphRows),
+      signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(letterLocale)),
+    }));
 
     applyMasterAddressToFields(addresses, addressSelections, letterLocale, {
       setFeesFields,
@@ -1384,8 +1696,8 @@ export function LetterGeneration({
     // Pincode-only updates don't need translation and can be mis-parsed.
     const hasAddressLines =
       sourceLocale === 'mr'
-        ? Boolean(parts.line1Mr.trim() || parts.line2Mr.trim() || parts.cityMr.trim() || parts.stateMr.trim())
-        : Boolean(parts.line1En.trim() || parts.line2En.trim() || parts.cityEn.trim() || parts.stateEn.trim());
+        ? Boolean(parts.line1Mr.trim() || parts.line2Mr.trim() || parts.line3Mr.trim() || parts.cityMr.trim() || parts.stateMr.trim())
+        : Boolean(parts.line1En.trim() || parts.line2En.trim() || parts.line3En.trim() || parts.cityEn.trim() || parts.stateEn.trim());
     if (!hasAddressLines) return;
 
     const nextReqId = (translateReqIdRef.current[key] ?? 0) + 1;
@@ -1480,14 +1792,42 @@ export function LetterGeneration({
       return;
     }
 
-    const formatted = formatAddressMaster(parts, letterLocale);
-    applyManualAddressToLetterFields(key, formatted);
-    triggerAutoTranslateManualAddressParts(key, parts);
+    const formatted = formatAddressForManualKey(parts, letterLocale, key);
+    const value =
+      key === 'rationOffice' ||
+      key === 'fromRationOffice' ||
+      key === 'toRationOffice'
+        ? combineNameAndAddress(
+            rationOfficeNamesRef.current[key],
+            formatted,
+            key === 'rationOffice' ? '<br>' : ', ',
+          )
+        : formatted;
+    applyManualAddressToLetterFields(key, value);
+    // The beneficiary's (applicant's) address is not translated.
+    if (key !== 'applicant') {
+      triggerAutoTranslateManualAddressParts(key, parts);
+    }
   };
 
-  const seedManualAddressPartsFromText = (key: ManualAddressKey, text: string) => {
-    const parsed = parseFreeTextAddressForLocale(text, letterLocale);
-    handleManualAddressPartsChange(key, mergeAddressParts(manualAddressParts[key], parsed));
+  const handleRationOfficeNameChange = (
+    key: 'rationOffice' | 'fromRationOffice' | 'toRationOffice',
+    name: string,
+  ) => {
+    setRationOfficeNames((prev) => ({ ...prev, [key]: name }));
+    rationOfficeNamesRef.current = { ...rationOfficeNamesRef.current, [key]: name };
+    const addressText = formatAddressForManualKey(manualAddressParts[key], letterLocale, key);
+    applyManualAddressToLetterFields(
+      key,
+      combineNameAndAddress(name, addressText, key === 'rationOffice' ? '<br>' : ', '),
+    );
+    setFieldErrors((prev) => ({ ...prev, [`${key}Address`]: undefined }));
+  };
+
+  // Manual entry always starts blank — don't prefill from the previously
+  // selected master address text.
+  const seedManualAddressPartsFromText = (key: ManualAddressKey, _text: string) => {
+    handleManualAddressPartsChange(key, createEmptyAddressParts());
   };
 
   const addressRowToParts = (address: AddressMasterRow): AddressMasterAddressParts => ({
@@ -1495,6 +1835,8 @@ export function LetterGeneration({
     line1Mr: address.line1Mr,
     line2En: address.line2En,
     line2Mr: address.line2Mr,
+    line3En: address.line3En,
+    line3Mr: address.line3Mr,
     cityEn: address.cityEn,
     cityMr: address.cityMr,
     stateEn: address.stateEn,
@@ -1529,54 +1871,17 @@ export function LetterGeneration({
           setSchoolTransferFields((prev) => ({ ...prev, schoolName }));
         }
       }
-      const text = getAddressTextFromMaster(addresses, id, letterLocale);
+      const text = getAddressTextFromMaster(addresses, id, letterLocale, true);
       if (text) applySchoolAddressText(text);
       if (selected) {
         setManualAddressParts((prev) => ({ ...prev, school: addressRowToParts(selected) }));
       }
     } else {
+      // Manual entry starts blank — don't carry over the previous name.
+      setFeesFields((prev) => ({ ...prev, schoolName: '' }));
+      setSchoolAdmissionFields((prev) => ({ ...prev, schoolName: '' }));
+      setSchoolTransferFields((prev) => ({ ...prev, schoolName: '' }));
       seedManualAddressPartsFromText('school', seedText);
-    }
-  };
-
-  const schoolAddressType = addressTypeForField('school');
-
-  const schoolNameOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const opts: { value: string; label: string }[] = [];
-    for (const a of addresses) {
-      if (!a.isActive || a.addressType !== schoolAddressType) continue;
-      const name = getAddressMasterName(a, letterLocale).trim();
-      if (!name || seen.has(name)) continue;
-      seen.add(name);
-      opts.push({ value: name, label: name });
-    }
-    return opts;
-  }, [addresses, letterLocale, schoolAddressType]);
-
-  // Selecting a saved institute name autofills its address; typed custom
-  // names are kept as-is without touching the address selection.
-  const handleSchoolNameSelect = (
-    letterType: 'fees' | 'school-admission' | 'school-transfer',
-    value: string,
-  ) => {
-    const master = addresses.find(
-      (a) =>
-        a.isActive &&
-        a.addressType === schoolAddressType &&
-        getAddressMasterName(a, letterLocale) === value,
-    );
-    if (master) {
-      handleSchoolAddressSelect(master.id);
-    } else if (letterType === 'fees') {
-      setFeesFields((prev) => ({ ...prev, schoolName: value }));
-    } else if (letterType === 'school-admission') {
-      setSchoolAdmissionFields((prev) => ({ ...prev, schoolName: value }));
-    } else {
-      setSchoolTransferFields((prev) => ({ ...prev, schoolName: value }));
-    }
-    if (fieldErrors.schoolName) {
-      setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
     }
   };
 
@@ -1603,7 +1908,7 @@ export function LetterGeneration({
     });
     setFieldErrors((prev) => ({ ...prev, rationOfficeAddress: undefined }));
     if (id) {
-      const text = getAddressTextFromMaster(addresses, id, letterLocale);
+      const text = getAddressTextFromMaster(addresses, id, letterLocale, true);
       if (text) {
         setRationFields((prev) => ({ ...prev, rationOfficeAddress: text }));
       }
@@ -1615,6 +1920,12 @@ export function LetterGeneration({
         }));
       }
     } else {
+      // Manual entry starts blank — don't carry over the previous name.
+      setRationOfficeNames((prev) => ({ ...prev, rationOffice: '' }));
+      rationOfficeNamesRef.current = {
+        ...rationOfficeNamesRef.current,
+        rationOffice: '',
+      };
       seedManualAddressPartsFromText('rationOffice', seedText);
     }
   };
@@ -1643,6 +1954,12 @@ export function LetterGeneration({
         }));
       }
     } else {
+      // Manual entry starts blank — don't carry over the previous name.
+      setRationOfficeNames((prev) => ({ ...prev, fromRationOffice: '' }));
+      rationOfficeNamesRef.current = {
+        ...rationOfficeNamesRef.current,
+        fromRationOffice: '',
+      };
       seedManualAddressPartsFromText('fromRationOffice', seedText);
     }
   };
@@ -1671,6 +1988,12 @@ export function LetterGeneration({
         }));
       }
     } else {
+      // Manual entry starts blank — don't carry over the previous name.
+      setRationOfficeNames((prev) => ({ ...prev, toRationOffice: '' }));
+      rationOfficeNamesRef.current = {
+        ...rationOfficeNamesRef.current,
+        toRationOffice: '',
+      };
       seedManualAddressPartsFromText('toRationOffice', seedText);
     }
   };
@@ -1679,16 +2002,25 @@ export function LetterGeneration({
     setAddressSelections((prev) => ({ ...prev, office: id }));
     setFieldErrors((prev) => ({ ...prev, officeAddress: undefined }));
     if (id) {
-      const text = getAddressTextFromMaster(addresses, id, letterLocale);
+      const text = getAddressTextFromMaster(addresses, id, letterLocale, true);
       if (text) {
         setIncomeFields((prev) => ({ ...prev, officeAddress: text }));
         setDomicileFields((prev) => ({ ...prev, officeAddress: text }));
       }
       const selected = addresses.find((a) => a.id === id);
       if (selected) {
+        const officeName = getAddressMasterName(selected, letterLocale);
+        if (officeName) {
+          setIncomeFields((prev) => ({ ...prev, officeName }));
+          setDomicileFields((prev) => ({ ...prev, officeName }));
+          setFieldErrors((prev) => ({ ...prev, officeName: undefined }));
+        }
         setManualAddressParts((prev) => ({ ...prev, office: addressRowToParts(selected) }));
       }
     } else {
+      // Manual entry starts blank — don't carry over the previous name.
+      setIncomeFields((prev) => ({ ...prev, officeName: '' }));
+      setDomicileFields((prev) => ({ ...prev, officeName: '' }));
       seedManualAddressPartsFromText('office', seedText);
     }
   };
@@ -1798,15 +2130,6 @@ export function LetterGeneration({
     if (!name && !address) return;
     prefillAppliedRef.current = true;
     if (name) {
-      setFeesFields((p) => ({ ...p, studentName: p.studentName || name }));
-      setSchoolAdmissionFields((p) => ({
-        ...p,
-        studentName: p.studentName || name,
-      }));
-      setSchoolTransferFields((p) => ({
-        ...p,
-        studentName: p.studentName || name,
-      }));
       setRationFields((p) => ({ ...p, fullName: p.fullName || name }));
       setIncomeFields((p) => ({ ...p, fullName: p.fullName || name }));
       setDomicileFields((p) => ({ ...p, fullName: p.fullName || name }));
@@ -1838,6 +2161,21 @@ export function LetterGeneration({
       prev.schoolName?.trim() ? prev : { ...prev, schoolName },
     );
   }, [addressSelections.school, addresses, letterLocale]);
+
+  useEffect(() => {
+    if (!addressSelections.office) return;
+    if (addresses.length === 0) return;
+
+    const selected = addresses.find((a) => a.id === addressSelections.office);
+    if (!selected) return;
+    const officeName = getAddressMasterName(selected, letterLocale);
+    if (!officeName.trim()) return;
+
+    setIncomeFields((prev) => (prev.officeName?.trim() ? prev : { ...prev, officeName }));
+    setDomicileFields((prev) =>
+      prev.officeName?.trim() ? prev : { ...prev, officeName },
+    );
+  }, [addressSelections.office, addresses, letterLocale]);
 
   const activeLetterMaster = useMemo(() => {
     return (
@@ -1877,6 +2215,7 @@ export function LetterGeneration({
 
   const activeBody = useMemo(() => {
     const fields = getFieldsForLetterType(activeTab, {
+      generalFields,
       feesFields,
       schoolAdmissionFields,
       schoolTransferFields,
@@ -1901,6 +2240,7 @@ export function LetterGeneration({
   }, [
     activeTab,
     letterLocale,
+    generalFields,
     feesFields,
     schoolAdmissionFields,
     schoolTransferFields,
@@ -1919,6 +2259,7 @@ export function LetterGeneration({
   const activeFields = useMemo(
     () =>
       getFieldsForLetterType(activeTab, {
+        generalFields,
         feesFields,
         schoolAdmissionFields,
         schoolTransferFields,
@@ -1929,6 +2270,7 @@ export function LetterGeneration({
     [
       activeTab,
       domicileFields,
+      generalFields,
       feesFields,
       incomeFields,
       rationFields,
@@ -1954,6 +2296,7 @@ export function LetterGeneration({
       return { ...prev, referencePrefix: next };
     };
     setFeesFields(coercePrefix);
+    setGeneralFields(coercePrefix);
     setSchoolAdmissionFields(coercePrefix);
     setSchoolTransferFields(coercePrefix);
     setRationFields(coercePrefix);
@@ -2007,7 +2350,11 @@ export function LetterGeneration({
       errors[`${key}Address`] = lt('letterGeneration.addresses.fieldsRequired');
     };
 
-    if (activeTab === 'fees') {
+    if (activeTab === 'general') {
+      requireField(errors, 'to', generalFields.to, requiredMsg);
+      requireField(errors, 'subject', generalFields.subject, requiredMsg);
+      requireField(errors, 'paragraphs', generalFields.paragraphs, requiredMsg);
+    } else if (activeTab === 'fees') {
       requireField(errors, 'schoolName', feesFields.schoolName, requiredMsg);
       requireField(errors, 'standard', feesFields.standard, requiredMsg);
       requireField(errors, 'studentName', feesFields.studentName, requiredMsg);
@@ -2062,12 +2409,14 @@ export function LetterGeneration({
       requireField(errors, 'fullName', incomeFields.fullName, requiredMsg);
       requireField(errors, 'aadhaarNo', incomeFields.aadhaarNo, requiredMsg);
       requireField(errors, 'annualIncome', incomeFields.annualIncome, requiredMsg);
+      requireField(errors, 'officeName', incomeFields.officeName, requiredMsg);
       requireAddress('applicant', incomeFields.address);
       requireAddress('office', incomeFields.officeAddress);
     } else if (activeTab === 'domicile') {
       requireField(errors, 'salutation', domicileFields.salutation, requiredMsg);
       requireField(errors, 'fullName', domicileFields.fullName, requiredMsg);
       requireField(errors, 'aadhaarNo', domicileFields.aadhaarNo, requiredMsg);
+      requireField(errors, 'officeName', domicileFields.officeName, requiredMsg);
       requireAddress('applicant', domicileFields.address);
       requireAddress('office', domicileFields.officeAddress);
     }
@@ -2216,34 +2565,8 @@ export function LetterGeneration({
         }
       }
 
-      if (!addressSelections.applicant) {
-        const applicantAddressText =
-          (activeTab === 'school-admission'
-            ? schoolAdmissionFields.address
-            : activeTab === 'school-transfer'
-              ? schoolTransferFields.address
-              : isRationLetterType(activeTab)
-                ? rationFields.address
-                : activeTab === 'income'
-                  ? incomeFields.address
-                  : activeTab === 'domicile'
-                    ? domicileFields.address
-                    : '') ?? '';
-
-        if (applicantAddressText.trim()) {
-          const created = await createAddressMasterFromManualEntry({
-            addressType: addressTypeForField('applicant'),
-            name: deriveAddressMasterName(applicantAddressText, 'Applicant Address'),
-            parts: manualAddressParts.applicant,
-          });
-          if (created?.id) {
-            setAddresses((prev) =>
-              prev.some((a) => a.id === created.id) ? prev : [created, ...prev],
-            );
-            setAddressSelections((prev) => ({ ...prev, applicant: created.id }));
-          }
-        }
-      }
+      // The beneficiary's (applicant's) address is intentionally not auto-saved
+      // to Address Master or translated during letter generation.
 
       if (!addressSelections.rationOffice && isRationLetterType(activeTab)) {
         const rationOfficeText = rationFields.rationOfficeAddress ?? '';
@@ -2436,10 +2759,18 @@ export function LetterGeneration({
     ];
     for (const candidate of candidates) {
       if (typeof candidate === 'string' && candidate.trim()) {
-        return candidate.trim();
+        return addressToSingleLine(candidate);
       }
     }
     return letter.title;
+  };
+
+  // Deep-link into the outward register, pre-filtered to this letter's
+  // reference number so the user lands on the matching entry.
+  const buildOutwardEntryHref = (letter: SavedLetterRow): string => {
+    const params = new URLSearchParams({ tab: 'outward' });
+    if (letter.referenceNo) params.set('search', letter.referenceNo);
+    return `/modules/io-register?${params.toString()}`;
   };
 
   // Push a saved letter into the outward register, reusing its reference number
@@ -2447,7 +2778,7 @@ export function LetterGeneration({
   const handleAddLetterToOutward = async (letter: SavedLetterRow) => {
     if (outwardAddedReferenceNos.has(letter.referenceNo)) return;
     setAddingToOutwardLetterId(letter.id);
-    let exportHost: HTMLDivElement | null = null;
+    let exportHost: HTMLElement | null = null;
     try {
       const parsed = parseReference(letter.referenceNo || '');
       const entryDate = new Date(letter.createdAt);
@@ -2476,6 +2807,10 @@ export function LetterGeneration({
       const entryId = json?.id;
       if (entryId) {
         const paperSize = resolveSavedLetterPaperSize(letter);
+        const savedLetterheadUrl = resolveLetterheadUrl(
+          paperSize,
+          letterMasters.find((m) => m.id === letter.letterMasterId)?.letterheadUrl,
+        );
         exportHost = createLetterExportElement(letter.renderedHtml, {
           paperSize,
           letterLocale: letter.letterLocale,
@@ -2491,6 +2826,7 @@ export function LetterGeneration({
           captureWidthPx: getLetterPaperContentWidthPx(paperSize),
           destination: 'blob',
           pageBackground: {
+            imageUrl: savedLetterheadUrl ?? undefined,
             headerHeightMm: getLetterheadContentPaddingMm(paperSize),
           },
         });
@@ -2598,25 +2934,34 @@ export function LetterGeneration({
         <Eye className="mr-2 size-4" />
         {t('letterGeneration.savedLetters.actions.preview')}
       </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
-        onClick={() => void handleAddLetterToOutward(letter)}
-        disabled={
-          addingToOutwardLetterId === letter.id ||
-          outwardAddedReferenceNos.has(letter.referenceNo)
-        }
-      >
-        {addingToOutwardLetterId === letter.id ? (
-          <Loader2 className="mr-2 size-4 animate-spin" />
-        ) : (
-          <Send className="mr-2 size-4" />
-        )}
-        {outwardAddedReferenceNos.has(letter.referenceNo)
-          ? t('letterGeneration.savedLetters.actions.addedToOutward')
-          : t('letterGeneration.savedLetters.actions.addToOutward')}
-      </Button>
+      {outwardAddedReferenceNos.has(letter.referenceNo) ? (
+        <Button
+          asChild
+          size="sm"
+          variant="outline"
+          className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+        >
+          <Link href={buildOutwardEntryHref(letter)}>
+            <ExternalLink className="mr-2 size-4" />
+            {t('letterGeneration.savedLetters.actions.addedToOutward')}
+          </Link>
+        </Button>
+      ) : (
+        <Button
+          size="sm"
+          variant="outline"
+          className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+          onClick={() => void handleAddLetterToOutward(letter)}
+          disabled={addingToOutwardLetterId === letter.id}
+        >
+          {addingToOutwardLetterId === letter.id ? (
+            <Loader2 className="mr-2 size-4 animate-spin" />
+          ) : (
+            <Send className="mr-2 size-4" />
+          )}
+          {t('letterGeneration.savedLetters.actions.addToOutward')}
+        </Button>
+      )}
       {/* <Button
         size="sm"
         variant="outline"
@@ -2773,6 +3118,96 @@ export function LetterGeneration({
         }
       />
 
+      {service ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="p-4 sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1.5">
+                <CardTitle className="text-base">
+                  {t('letterGeneration.serviceInfo.title')}
+                </CardTitle>
+                <CardDescription>
+                  {t('letterGeneration.serviceInfo.description')}
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" asChild className="shrink-0">
+                <Link href="/modules/operator?tab=manage">
+                  <ArrowLeft className="mr-2 size-4" />
+                  {t('letterGeneration.backToBeneficiary')}
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+              {prefillName ? (
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('letterGeneration.serviceInfo.beneficiaryName')}
+                  </dt>
+                  <dd className="text-sm font-medium">{prefillName}</dd>
+                </div>
+              ) : null}
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('letterGeneration.serviceInfo.serviceName')}
+                </dt>
+                <dd className="text-sm font-medium">{service.serviceName}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('letterGeneration.serviceInfo.serviceType')}
+                </dt>
+                <dd className="text-sm font-medium">
+                  {t(`letterGeneration.serviceInfo.types.${service.serviceType}`)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('letterGeneration.serviceInfo.token')}
+                </dt>
+                <dd className="text-sm font-medium">{service.token}</dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('letterGeneration.serviceInfo.status')}
+                </dt>
+                <dd className="text-sm font-medium">
+                  {t(`letterGeneration.serviceInfo.statuses.${service.status}`)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('letterGeneration.serviceInfo.priority')}
+                </dt>
+                <dd className="text-sm font-medium">
+                  {t(`letterGeneration.serviceInfo.priorities.${service.priority}`)}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('letterGeneration.serviceInfo.createdAt')}
+                </dt>
+                <dd className="text-sm font-medium">
+                  {new Date(service.createdAt).toLocaleDateString(
+                    locale === 'mr' ? 'mr-IN' : 'en-IN',
+                    { year: 'numeric', month: 'short', day: 'numeric' },
+                  )}
+                </dd>
+              </div>
+              {service.description ? (
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('letterGeneration.serviceInfo.notes')}
+                  </dt>
+                  <dd className="text-sm">{service.description}</dd>
+                </div>
+              ) : null}
+            </dl>
+          </CardContent>
+        </Card>
+      ) : null}
+
       <Card>
         <CardHeader
           className="cursor-pointer select-none p-4 transition-colors hover:bg-muted/50 sm:p-6 rounded-t-lg"
@@ -2818,7 +3253,7 @@ export function LetterGeneration({
                     value={activeTab}
                     onValueChange={(value: LetterType) => setActiveTab(value)}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="[&>span]:text-left">
                       <SelectValue
                         placeholder={lt('letterGeneration.placeholders.letterType')}
                       />
@@ -2879,32 +3314,103 @@ export function LetterGeneration({
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-                    <TabsContent value="fees" className="mt-0 space-y-4">
-                      {renderCommonFields(feesFields, setFeesFields)}
+                    <TabsContent value="general" className="mt-0 space-y-4">
+                      {renderCommonFields(generalFields, setGeneralFields)}
                       <FieldGroup
-                        label={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}
+                        label={lt('letterGeneration.fields.to')}
                         required
-                        error={fieldErrors.schoolName}
+                        error={fieldErrors.to}
                       >
-                        <Combobox
-                          options={schoolNameOptions}
-                          value={feesFields.schoolName}
-                          onValueChange={(value) =>
-                            handleSchoolNameSelect('fees', value)
-                          }
-                          allowCustom
-                          placeholder={
-                            letterLocale === 'mr'
-                              ? 'संस्था निवडा किंवा टाइप करा'
-                              : 'Select or type institute name'
-                          }
-                          emptyMessage={
-                            letterLocale === 'mr'
-                              ? 'जतन केलेली संस्था नाही'
-                              : 'No saved institutes'
-                          }
+                        <LocaleTextarea
+                          locale={letterLocale}
+                          value={generalFields.to}
+                          onValueChange={(to) => {
+                            setGeneralFields({ ...generalFields, to });
+                            if (fieldErrors.to) {
+                              setFieldErrors((prev) => ({ ...prev, to: undefined }));
+                            }
+                          }}
+                          rows={4}
+                          required
                         />
                       </FieldGroup>
+                      <FieldGroup
+                        label={lt('letterGeneration.fields.subject')}
+                        required
+                        error={fieldErrors.subject}
+                      >
+                        <LocaleTextInput
+                          locale={letterLocale}
+                          value={generalFields.subject}
+                          onValueChange={(subject) => {
+                            setGeneralFields({ ...generalFields, subject });
+                            if (fieldErrors.subject) {
+                              setFieldErrors((prev) => ({ ...prev, subject: undefined }));
+                            }
+                          }}
+                          required
+                        />
+                      </FieldGroup>
+                      <FieldGroup
+                        label={lt('letterGeneration.fields.paragraph')}
+                        required
+                        error={fieldErrors.paragraphs}
+                      >
+                        <div className="space-y-2">
+                          {paragraphRows.map((paragraph, index) => (
+                            <div
+                              key={`paragraph-${index}`}
+                              className="flex flex-col gap-2 sm:flex-row sm:items-start"
+                            >
+                              <div className="flex-1">
+                                <LocaleTextarea
+                                  locale={letterLocale}
+                                  value={paragraph}
+                                  onValueChange={(value) => {
+                                    const next = paragraphRows.map((row, i) =>
+                                      i === index ? value : row,
+                                    );
+                                    updateParagraphRows(next);
+                                  }}
+                                  rows={3}
+                                  aria-label={lt('letterGeneration.fields.paragraph')}
+                                  required={index === 0}
+                                />
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="shrink-0 text-muted-foreground hover:text-destructive"
+                                disabled={paragraphRows.length === 1}
+                                onClick={() => {
+                                  updateParagraphRows(
+                                    paragraphRows.filter((_, i) => i !== index),
+                                  );
+                                }}
+                                aria-label={lt('letterGeneration.fields.removeParagraph')}
+                              >
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </div>
+                          ))}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              updateParagraphRows([...paragraphRows, '']);
+                            }}
+                          >
+                            <Plus className="mr-1.5 size-4" />
+                            {lt('letterGeneration.fields.addParagraph')}
+                          </Button>
+                        </div>
+                      </FieldGroup>
+                    </TabsContent>
+
+                    <TabsContent value="fees" className="mt-0 space-y-4">
+                      {renderCommonFields(feesFields, setFeesFields)}
                       <LetterAddressField
                         label={letterLocale === 'mr' ? 'संस्था पत्ता' : 'Institute Address'}
                         addressType={addressTypeForField('school')}
@@ -2918,6 +3424,21 @@ export function LetterGeneration({
                         pincodeError={addressPincodeErrors.school}
                         error={fieldErrors.schoolAddress}
                         required
+                        nameLabel={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}
+                        namePlaceholder={
+                          letterLocale === 'mr'
+                            ? 'संस्था नाव टाइप करा'
+                            : 'Type institute name'
+                        }
+                        nameValue={feesFields.schoolName}
+                        nameRequired
+                        nameError={fieldErrors.schoolName}
+                        onNameChange={(value) => {
+                          setFeesFields((prev) => ({ ...prev, schoolName: value }));
+                          if (fieldErrors.schoolName) {
+                            setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
+                          }
+                        }}
                         onSelectedAddressIdChange={(id) =>
                           handleSchoolAddressSelect(id, feesFields.schoolAddress)
                         }
@@ -2966,30 +3487,6 @@ export function LetterGeneration({
 
                     <TabsContent value="school-admission" className="mt-0 space-y-4">
                       {renderCommonFields(schoolAdmissionFields, setSchoolAdmissionFields)}
-                      <FieldGroup
-                        label={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}
-                        required
-                        error={fieldErrors.schoolName}
-                      >
-                        <Combobox
-                          options={schoolNameOptions}
-                          value={schoolAdmissionFields.schoolName}
-                          onValueChange={(value) =>
-                            handleSchoolNameSelect('school-admission', value)
-                          }
-                          allowCustom
-                          placeholder={
-                            letterLocale === 'mr'
-                              ? 'संस्था निवडा किंवा टाइप करा'
-                              : 'Select or type institute name'
-                          }
-                          emptyMessage={
-                            letterLocale === 'mr'
-                              ? 'जतन केलेली संस्था नाही'
-                              : 'No saved institutes'
-                          }
-                        />
-                      </FieldGroup>
                       <LetterAddressField
                         label={letterLocale === 'mr' ? 'संस्था पत्ता' : 'Institute Address'}
                         addressType={addressTypeForField('school')}
@@ -3003,6 +3500,24 @@ export function LetterGeneration({
                         pincodeError={addressPincodeErrors.school}
                         error={fieldErrors.schoolAddress}
                         required
+                        nameLabel={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}
+                        namePlaceholder={
+                          letterLocale === 'mr'
+                            ? 'संस्था नाव टाइप करा'
+                            : 'Type institute name'
+                        }
+                        nameValue={schoolAdmissionFields.schoolName}
+                        nameRequired
+                        nameError={fieldErrors.schoolName}
+                        onNameChange={(value) => {
+                          setSchoolAdmissionFields((prev) => ({
+                            ...prev,
+                            schoolName: value,
+                          }));
+                          if (fieldErrors.schoolName) {
+                            setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
+                          }
+                        }}
                         onSelectedAddressIdChange={(id) =>
                           handleSchoolAddressSelect(id, schoolAdmissionFields.schoolAddress)
                         }
@@ -3112,30 +3627,6 @@ export function LetterGeneration({
 
                     <TabsContent value="school-transfer" className="mt-0 space-y-4">
                       {renderCommonFields(schoolTransferFields, setSchoolTransferFields)}
-                      <FieldGroup
-                        label={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}
-                        required
-                        error={fieldErrors.schoolName}
-                      >
-                        <Combobox
-                          options={schoolNameOptions}
-                          value={schoolTransferFields.schoolName}
-                          onValueChange={(value) =>
-                            handleSchoolNameSelect('school-transfer', value)
-                          }
-                          allowCustom
-                          placeholder={
-                            letterLocale === 'mr'
-                              ? 'संस्था निवडा किंवा टाइप करा'
-                              : 'Select or type institute name'
-                          }
-                          emptyMessage={
-                            letterLocale === 'mr'
-                              ? 'जतन केलेली संस्था नाही'
-                              : 'No saved institutes'
-                          }
-                        />
-                      </FieldGroup>
                       <LetterAddressField
                         label={letterLocale === 'mr' ? 'संस्था पत्ता' : 'Institute Address'}
                         addressType={addressTypeForField('school')}
@@ -3149,6 +3640,24 @@ export function LetterGeneration({
                         pincodeError={addressPincodeErrors.school}
                         error={fieldErrors.schoolAddress}
                         required
+                        nameLabel={letterLocale === 'mr' ? 'संस्था नाव' : 'Institute Name'}
+                        namePlaceholder={
+                          letterLocale === 'mr'
+                            ? 'संस्था नाव टाइप करा'
+                            : 'Type institute name'
+                        }
+                        nameValue={schoolTransferFields.schoolName}
+                        nameRequired
+                        nameError={fieldErrors.schoolName}
+                        onNameChange={(value) => {
+                          setSchoolTransferFields((prev) => ({
+                            ...prev,
+                            schoolName: value,
+                          }));
+                          if (fieldErrors.schoolName) {
+                            setFieldErrors((prev) => ({ ...prev, schoolName: undefined }));
+                          }
+                        }}
                         onSelectedAddressIdChange={(id) =>
                           handleSchoolAddressSelect(id, schoolTransferFields.schoolAddress)
                         }
@@ -3429,7 +3938,7 @@ export function LetterGeneration({
                           </FieldGroup>
                         ) : null}
                         {rationType === 'ration-transfer' ? (
-                          <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="flex flex-col gap-4">
                             <LetterAddressField
                               label={lt('letterGeneration.fields.fromRationOffice')}
                               addressType={addressTypeForField('fromRationOffice')}
@@ -3446,6 +3955,20 @@ export function LetterGeneration({
                                 fieldErrors.fromRationOffice
                               }
                               required
+                              nameLabel={
+                                letterLocale === 'mr'
+                                  ? 'शिधावाटप कार्यालयाचे नाव'
+                                  : 'Ration Office Name'
+                              }
+                              namePlaceholder={
+                                letterLocale === 'mr'
+                                  ? 'शिधावाटप कार्यालयाचे नाव टाइप करा'
+                                  : 'Type ration office name'
+                              }
+                              nameValue={rationOfficeNames.fromRationOffice}
+                              onNameChange={(value) =>
+                                handleRationOfficeNameChange('fromRationOffice', value)
+                              }
                               onSelectedAddressIdChange={(id) =>
                                 handleFromRationOfficeAddressSelect(
                                   id,
@@ -3469,6 +3992,20 @@ export function LetterGeneration({
                                 fieldErrors.toRationOffice
                               }
                               required
+                              nameLabel={
+                                letterLocale === 'mr'
+                                  ? 'शिधावाटप कार्यालयाचे नाव'
+                                  : 'Ration Office Name'
+                              }
+                              namePlaceholder={
+                                letterLocale === 'mr'
+                                  ? 'शिधावाटप कार्यालयाचे नाव टाइप करा'
+                                  : 'Type ration office name'
+                              }
+                              nameValue={rationOfficeNames.toRationOffice}
+                              onNameChange={(value) =>
+                                handleRationOfficeNameChange('toRationOffice', value)
+                              }
                               onSelectedAddressIdChange={(id) =>
                                 handleToRationOfficeAddressSelect(
                                   id,
@@ -3578,6 +4115,20 @@ export function LetterGeneration({
                           pincodeError={addressPincodeErrors.rationOffice}
                           error={fieldErrors.rationOfficeAddress}
                           required
+                          nameLabel={
+                            letterLocale === 'mr'
+                              ? 'शिधावाटप कार्यालयाचे नाव'
+                              : 'Ration Office Name'
+                          }
+                          namePlaceholder={
+                            letterLocale === 'mr'
+                              ? 'शिधावाटप कार्यालयाचे नाव टाइप करा'
+                              : 'Type ration office name'
+                          }
+                          nameValue={rationOfficeNames.rationOffice}
+                          onNameChange={(value) =>
+                            handleRationOfficeNameChange('rationOffice', value)
+                          }
                           onSelectedAddressIdChange={(id) =>
                             handleRationOfficeAddressSelect(id, rationFields.rationOfficeAddress)
                           }
@@ -3686,6 +4237,21 @@ export function LetterGeneration({
                         pincodeError={addressPincodeErrors.office}
                         error={fieldErrors.officeAddress}
                         required
+                        nameLabel={letterLocale === 'mr' ? 'कार्यालय नाव' : 'Office Name'}
+                        namePlaceholder={
+                          letterLocale === 'mr'
+                            ? 'कार्यालय नाव टाइप करा'
+                            : 'Type office name'
+                        }
+                        nameValue={incomeFields.officeName}
+                        nameRequired
+                        nameError={fieldErrors.officeName}
+                        onNameChange={(value) => {
+                          setIncomeFields((prev) => ({ ...prev, officeName: value }));
+                          if (fieldErrors.officeName) {
+                            setFieldErrors((prev) => ({ ...prev, officeName: undefined }));
+                          }
+                        }}
                         onSelectedAddressIdChange={(id) =>
                           handleOfficeAddressSelect(id, incomeFields.officeAddress)
                         }
@@ -3847,6 +4413,21 @@ export function LetterGeneration({
                         pincodeError={addressPincodeErrors.office}
                         error={fieldErrors.officeAddress}
                         required
+                        nameLabel={letterLocale === 'mr' ? 'कार्यालय नाव' : 'Office Name'}
+                        namePlaceholder={
+                          letterLocale === 'mr'
+                            ? 'कार्यालय नाव टाइप करा'
+                            : 'Type office name'
+                        }
+                        nameValue={domicileFields.officeName}
+                        nameRequired
+                        nameError={fieldErrors.officeName}
+                        onNameChange={(value) => {
+                          setDomicileFields((prev) => ({ ...prev, officeName: value }));
+                          if (fieldErrors.officeName) {
+                            setFieldErrors((prev) => ({ ...prev, officeName: undefined }));
+                          }
+                        }}
                         onSelectedAddressIdChange={(id) =>
                           handleOfficeAddressSelect(id, domicileFields.officeAddress)
                         }
@@ -3917,6 +4498,7 @@ export function LetterGeneration({
                     paperSize={activePaperSize}
                     letterheadUrl={activeLetterheadUrl}
                     letterLocale={letterLocale}
+                    variant="inline"
                   />
                 </div>
               </div>
@@ -4328,7 +4910,16 @@ export function LetterGeneration({
                       if (!open) setSelectedSavedLetterId(null);
                     }}
                   >
-                    <DialogContent className="max-h-[90vh] w-[calc(100%-2rem)] max-w-3xl overflow-y-auto p-4 sm:w-full sm:p-6">
+                    <DialogContent
+                      className={cn(
+                        'max-h-[90vh] w-[calc(100%-2rem)] overflow-y-auto p-4 sm:w-full sm:p-6',
+                        selectedSavedLetter
+                          ? getLetterPreviewDialogMaxWidthClass(
+                              resolveSavedLetterPaperSize(selectedSavedLetter),
+                            )
+                          : 'max-w-3xl',
+                      )}
+                    >
                       {selectedSavedLetter ? (
                         <>
                           <DialogHeader className="space-y-4">
@@ -4354,35 +4945,48 @@ export function LetterGeneration({
                                 </DialogDescription>
                               </div>
                               <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row sm:items-center">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="w-full sm:w-auto"
-                                  onClick={() =>
-                                    void handleAddLetterToOutward(selectedSavedLetter)
-                                  }
-                                  disabled={
-                                    addingToOutwardLetterId === selectedSavedLetter.id ||
-                                    outwardAddedReferenceNos.has(
-                                      selectedSavedLetter.referenceNo,
-                                    )
-                                  }
-                                >
-                                  {addingToOutwardLetterId === selectedSavedLetter.id ? (
-                                    <Loader2 className="mr-2 size-4 animate-spin" />
-                                  ) : (
-                                    <Send className="mr-2 size-4" />
-                                  )}
-                                  {outwardAddedReferenceNos.has(
-                                    selectedSavedLetter.referenceNo,
-                                  )
-                                    ? t('letterGeneration.savedLetters.actions.addedToOutward')
-                                    : t('letterGeneration.savedLetters.actions.addToOutward')}
-                                </Button>
+                                {outwardAddedReferenceNos.has(
+                                  selectedSavedLetter.referenceNo,
+                                ) ? (
+                                  <Button
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full sm:w-auto"
+                                  >
+                                    <Link
+                                      href={buildOutwardEntryHref(selectedSavedLetter)}
+                                    >
+                                      <ExternalLink className="mr-2 size-4" />
+                                      {t(
+                                        'letterGeneration.savedLetters.actions.addedToOutward',
+                                      )}
+                                    </Link>
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full sm:w-auto"
+                                    onClick={() =>
+                                      void handleAddLetterToOutward(selectedSavedLetter)
+                                    }
+                                    disabled={
+                                      addingToOutwardLetterId === selectedSavedLetter.id
+                                    }
+                                  >
+                                    {addingToOutwardLetterId === selectedSavedLetter.id ? (
+                                      <Loader2 className="mr-2 size-4 animate-spin" />
+                                    ) : (
+                                      <Send className="mr-2 size-4" />
+                                    )}
+                                    {t('letterGeneration.savedLetters.actions.addToOutward')}
+                                  </Button>
+                                )}
                               </div>
                             </div>
                           </DialogHeader>
-                          <div className="min-h-[60vh]">
+                          <div className="w-full">
                             <LetterPreview
                               html={selectedSavedLetter.renderedHtml}
                               paperSize={resolveSavedLetterPaperSize(selectedSavedLetter)}
@@ -4393,6 +4997,7 @@ export function LetterGeneration({
                                 )?.letterheadUrl,
                               )}
                               letterLocale={selectedSavedLetter.letterLocale}
+                              variant="modal"
                             />
                           </div>
                         </>
@@ -4405,19 +5010,6 @@ export function LetterGeneration({
           )}
         </CardContent>
       </Card>
-
-      <AddressTranslationReviewDialog
-        open={Boolean(addressReview)}
-        targetLocale={addressReview?.targetLocale ?? 'mr'}
-        initialName={addressReview?.initialName ?? ''}
-        initialParts={addressReview?.initialParts ?? EMPTY_ADDRESS_PARTS}
-        isConfirming={isConfirmingAddressReview}
-        onConfirm={(result) => {
-          setIsConfirmingAddressReview(true);
-          resolveAddressReview(result);
-        }}
-        onCancel={() => resolveAddressReview(null)}
-      />
 
       <ConfirmDialog
         open={deleteDialogOpen}

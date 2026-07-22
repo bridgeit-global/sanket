@@ -1,7 +1,4 @@
-import {
-  LETTER_PAPER_DIMENSIONS_MM,
-  type LetterPaperSize,
-} from '@/lib/letters/paper-size';
+import type { LetterPaperSize } from '@/lib/letters/paper-size';
 
 /** Built-in letterhead images by paper size. */
 export const DEFAULT_LETTERHEAD_URLS: Record<LetterPaperSize, string> = {
@@ -10,8 +7,16 @@ export const DEFAULT_LETTERHEAD_URLS: Record<LetterPaperSize, string> = {
   b5: '/images/letterheads/sana-malik-b5.jpg',
 };
 
-/** Fraction of page height reserved for the letterhead header area. */
-export const LETTERHEAD_HEADER_HEIGHT_RATIO = 0.18;
+/**
+ * Top body inset (mm) below built-in letterhead artwork.
+ * Tuned per size from letterhead JPG header height + clearance gap.
+ * Must use mm (not %) — CSS percentage padding is relative to page width.
+ */
+export const LETTERHEAD_CONTENT_PADDING_MM: Record<LetterPaperSize, number> = {
+  a4: 60,
+  a5: 40,
+  b5: 50,
+};
 
 const LETTERHEAD_STRIP_PATTERN =
   /<div[^>]*class="[^"]*letter-letterhead[^"]*"[^>]*>[\s\S]*?<\/div>/i;
@@ -30,9 +35,7 @@ export function stripLetterheadFromHtml(html: string): string {
 }
 
 export function getLetterheadContentPaddingMm(paperSize: LetterPaperSize): number {
-  if (paperSize === 'a5') return 41;
-  const { heightMm } = LETTER_PAPER_DIMENSIONS_MM[paperSize];
-  return Math.round(heightMm * LETTERHEAD_HEADER_HEIGHT_RATIO);
+  return LETTERHEAD_CONTENT_PADDING_MM[paperSize];
 }
 
 export const LETTER_PAPER_ASPECT_RATIO: Record<LetterPaperSize, string> = {

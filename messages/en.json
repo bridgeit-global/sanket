@@ -617,6 +617,35 @@
   "letterGeneration": {
     "title": "Letter Generation",
     "description": "Fill in the details manually and generate official letters as PDF.",
+    "backToBeneficiary": "Back to Beneficiary",
+    "serviceInfo": {
+      "title": "Beneficiary Service",
+      "description": "This letter is being generated for the following recorded service.",
+      "beneficiaryName": "Beneficiary",
+      "serviceName": "Service",
+      "serviceType": "Type",
+      "status": "Status",
+      "priority": "Priority",
+      "token": "Token",
+      "createdAt": "Created",
+      "notes": "Description",
+      "types": {
+        "individual": "Individual",
+        "community": "Community"
+      },
+      "statuses": {
+        "pending": "Pending",
+        "in_progress": "In Progress",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "priorities": {
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "urgent": "Urgent"
+      }
+    },
     "generator": {
       "actions": {
         "collapse": "Collapse",
@@ -630,9 +659,9 @@
       "label": "Paper size: {size}",
       "hint": "Change size above to customize",
       "options": {
-        "a4": "A4",
-        "a5": "A5",
-        "b5": "B5"
+        "a4": "A4 (big)",
+        "b5": "B5 (medium)",
+        "a5": "A5 (small)"
       }
     },
     "generatePdf": "Generate PDF",
@@ -683,7 +712,12 @@
       "add": "Add Address",
       "addTitle": "Add Address",
       "editTitle": "Edit Address",
-      "formDescription": "Enter the address in your selected language. On save you can review and edit the other language version.",
+      "formDescription": "Enter the address in English and Marathi. Leave one side blank and use Auto-translate, or it will be filled automatically on save.",
+      "autoTranslate": "Auto-translate",
+      "english": "English",
+      "marathi": "Marathi",
+      "nothingToTranslate": "Nothing to translate — both languages are filled.",
+      "translateError": "Failed to translate. Please try again.",
       "save": "Save Address",
       "create": "Create Address",
       "createSuccess": "Address created",
@@ -719,6 +753,7 @@
       "fields": {
         "line1": "Line 1",
         "line2": "Line 2",
+        "line3": "Line 3",
         "city": "City",
         "state": "State",
         "pincode": "Pincode"
@@ -847,6 +882,7 @@
       "ration-transfer": "Ration Card — Transfer",
       "income": "Income Certificate",
       "domicile": "Domicile Certificate",
+      "general": "General Letter",
       "ration": "Ration Card (All)"
     },
     "fields": {
@@ -886,7 +922,15 @@
       "annualIncome": "Annual Income (₹)",
       "letterType": "Letter Type",
       "letterLanguage": "Letter Language",
-      "paperSize": "Paper Size"
+      "paperSize": "Paper Size",
+      "to": "To",
+      "subject": "Subject",
+      "paragraph": "Paragraph",
+      "signatureParagraph": "Signature Line",
+      "addParagraph": "Add paragraph",
+      "removeParagraph": "Remove paragraph",
+      "addSignatureParagraph": "Add signature line",
+      "removeSignatureParagraph": "Remove signature line"
     },
     "placeholders": {
       "referencePrefix": "Select document type",

@@ -36,6 +36,8 @@ export function getDefaultLetterPaperSize(
     case 'ration-transfer':
     case 'ration':
       return 'b5';
+    case 'general':
+      return 'a4';
     case 'fees':
     case 'school-admission':
     case 'school-transfer':
@@ -74,12 +76,36 @@ export function getLetterPaperWidthPx(paperSize: LetterPaperSize): number {
   return Math.round((widthMm * 96) / 25.4);
 }
 
+/** Full page height at 96dpi. */
+export function getLetterPaperHeightPx(paperSize: LetterPaperSize): number {
+  const { heightMm } = LETTER_PAPER_DIMENSIONS_MM[paperSize];
+  return Math.round((heightMm * 96) / 25.4);
+}
+
 /** Printable content width (page width minus side margins) at 96dpi. */
 export function getLetterPaperContentWidthPx(paperSize: LetterPaperSize): number {
   const { widthMm } = LETTER_PAPER_DIMENSIONS_MM[paperSize];
   const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
   const contentWidthMm = widthMm - marginMm * 2;
   return Math.round((contentWidthMm * 96) / 25.4);
+}
+
+/**
+ * CSS-px height of the text area on one PDF/preview page (below letterhead /
+ * top inset, above bottom margin). Preview + PDF must share this so breaks match.
+ */
+export function getLetterPageContentHeightCssPx(
+  paperSize: LetterPaperSize,
+  hasLetterhead: boolean,
+  headerPaddingMm: number,
+): number {
+  const { widthMm, heightMm } = LETTER_PAPER_DIMENSIONS_MM[paperSize];
+  const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
+  const topInsetMm = hasLetterhead ? headerPaddingMm : marginMm;
+  const contentHeightMm = Math.max(1, heightMm - topInsetMm - marginMm);
+  const contentWidthMm = Math.max(1, widthMm - marginMm * 2);
+  const contentWidthPx = getLetterPaperContentWidthPx(paperSize);
+  return contentHeightMm * (contentWidthPx / contentWidthMm);
 }
 
 export function getLetterPaperLabel(paperSize: LetterPaperSize): string {

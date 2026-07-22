@@ -7,6 +7,7 @@ import {
 } from '@/lib/letters/templates';
 
 const DEFAULT_TEMPLATE_NAMES: Record<LetterType, Record<LetterLocale, string>> = {
+  general: { en: 'General Letter', mr: 'सामान्य पत्र' },
   fees: { en: 'Fee Concession Recommendation', mr: 'शुल्क सवलत शिफारस' },
   'school-admission': {
     en: 'School New Admission',

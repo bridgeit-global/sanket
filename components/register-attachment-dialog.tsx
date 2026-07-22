@@ -37,6 +37,7 @@ interface RegisterAttachmentDialogProps {
   entrySubject: string;
   attachments: Attachment[];
   onAttachmentsChange: () => void;
+  canDeleteAttachments?: boolean;
 }
 
 export function RegisterAttachmentDialog({
@@ -46,6 +47,7 @@ export function RegisterAttachmentDialog({
   entrySubject,
   attachments,
   onAttachmentsChange,
+  canDeleteAttachments = true,
 }: RegisterAttachmentDialogProps) {
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -414,20 +416,22 @@ export function RegisterAttachmentDialog({
                     >
                       <Printer className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      onClick={() => handleDelete(attachment.id)}
-                      disabled={deleting === attachment.id}
-                      title="Delete"
-                    >
-                      {deleting === attachment.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="h-4 w-4" />
-                      )}
-                    </Button>
+                    {canDeleteAttachments && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        onClick={() => handleDelete(attachment.id)}
+                        disabled={deleting === attachment.id}
+                        title="Delete"
+                      >
+                        {deleting === attachment.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}

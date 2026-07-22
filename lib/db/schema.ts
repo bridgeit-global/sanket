@@ -178,6 +178,8 @@ export type AddressMaster = {
   line1Mr: string;
   line2En: string;
   line2Mr: string;
+  line3En: string;
+  line3Mr: string;
   cityEn: string;
   cityMr: string;
   stateEn: string;

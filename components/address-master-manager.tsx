@@ -1,13 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Languages, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import {
-  AddressTranslationReviewDialog,
-  type AddressTranslationReviewResult,
-} from '@/components/address-translation-review-dialog';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -37,7 +33,7 @@ import {
 import { useTranslations } from '@/hooks/use-translations';
 import { ADDRESS_TYPES, type AddressType } from '@/lib/letters/address-types';
 import type { AddressMasterRow } from '@/components/letter-address-field';
-import { StructuredAddressFields } from '@/components/structured-address-fields';
+import { BilingualAddressFields } from '@/components/bilingual-address-fields';
 import {
   EMPTY_ADDRESS_PARTS,
   enrichAddressPartsWithPincodeLookup,
@@ -45,7 +41,6 @@ import {
   hasRequiredAddressFields,
   localizeAddressPartsDigits,
   mergeAddressParts,
-  parseFreeTextAddressForLocale,
   sanitizeAddressPartsLocations,
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
@@ -80,30 +75,6 @@ const EMPTY_FORM: AddressFormState = {
   sortOrder: '0',
 };
 
-const LOCALE_PART_KEYS = [
-  'line1En',
-  'line1Mr',
-  'line2En',
-  'line2Mr',
-  'cityEn',
-  'cityMr',
-  'stateEn',
-  'stateMr',
-] as const;
-
-function extractLocaleParts(
-  form: AddressFormState,
-  locale: LetterLocale,
-): AddressMasterAddressParts {
-  const parts = { ...EMPTY_ADDRESS_PARTS, pincode: form.pincode.trim() };
-  for (const key of LOCALE_PART_KEYS) {
-    if (locale === 'mr' ? key.endsWith('Mr') : key.endsWith('En')) {
-      parts[key] = form[key].trim();
-    }
-  }
-  return parts;
-}
-
 async function translateAddressText(
   text: string,
   targetLocale: LetterLocale,
@@ -116,39 +87,6 @@ async function translateAddressText(
   const json = await res.json();
   if (!res.ok) throw new Error(json?.error || 'Failed to translate');
   return String(json?.translated ?? '').trim();
-}
-
-function streetLinesForLocale(
-  parts: AddressMasterAddressParts,
-  locale: LetterLocale,
-): { line1: string; line2: string } {
-  if (locale === 'mr') {
-    return { line1: parts.line1Mr.trim(), line2: parts.line2Mr.trim() };
-  }
-  return { line1: parts.line1En.trim(), line2: parts.line2En.trim() };
-}
-
-async function translateStreetLines(
-  parts: AddressMasterAddressParts,
-  sourceLocale: LetterLocale,
-  targetLocale: LetterLocale,
-): Promise<Partial<AddressMasterAddressParts>> {
-  const { line1, line2 } = streetLinesForLocale(parts, sourceLocale);
-  const result: Partial<AddressMasterAddressParts> = {};
-
-  if (line1) {
-    const translated = await translateAddressText(line1, targetLocale);
-    if (targetLocale === 'mr') result.line1Mr = translated;
-    else result.line1En = translated;
-  }
-
-  if (line2) {
-    const translated = await translateAddressText(line2, targetLocale);
-    if (targetLocale === 'mr') result.line2Mr = translated;
-    else result.line2En = translated;
-  }
-
-  return result;
 }
 
 type AddressMasterManagerProps = {
@@ -169,14 +107,6 @@ export function AddressMasterManager({
   const [isSaving, setIsSaving] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [reviewOpen, setReviewOpen] = useState(false);
-  const [reviewTargetLocale, setReviewTargetLocale] = useState<LetterLocale>('mr');
-  const [reviewName, setReviewName] = useState('');
-  const [reviewParts, setReviewParts] = useState<AddressMasterAddressParts>(EMPTY_ADDRESS_PARTS);
-  const [pendingPrimary, setPendingPrimary] = useState<{
-    name: string;
-    parts: AddressMasterAddressParts;
-  } | null>(null);
 
   const sortedAddresses = useMemo(
     () =>
@@ -208,6 +138,8 @@ export function AddressMasterManager({
       line1Mr: address.line1Mr,
       line2En: address.line2En,
       line2Mr: address.line2Mr,
+      line3En: address.line3En,
+      line3Mr: address.line3Mr,
       cityEn: address.cityEn,
       cityMr: address.cityMr,
       stateEn: address.stateEn,
@@ -292,123 +224,128 @@ export function AddressMasterManager({
     if (!res.ok) throw new Error(json?.error || 'Failed to save address');
   };
 
-  const handleSave = async () => {
-    const primaryParts = extractLocaleParts(form, locale);
-    const primaryName = filterLocaleText(
-      (locale === 'mr' ? form.nameMr : form.name).trim(),
-      locale,
-    );
+  /** Translate `text` into `target`, applying locale text/digit rules. */
+  const translateInto = async (
+    text: string,
+    target: LetterLocale,
+  ): Promise<string> => {
+    const source = text.trim();
+    if (!source) return '';
+    const translated = filterLocaleText(await translateAddressText(source, target), target);
+    return target === 'mr' ? toLocaleDigits(translated, 'mr') : translated;
+  };
 
-    if (!primaryName || !hasRequiredAddressFields(primaryParts, locale)) {
-      toast.error(t('letterGeneration.addresses.validationRequired'));
-      return;
-    }
-
-    const targetLocale: LetterLocale = locale === 'en' ? 'mr' : 'en';
+  /** Fill any empty language column from its filled counterpart. */
+  const handleAutoTranslate = async () => {
     setIsTranslating(true);
     try {
-      let translatedParts: AddressMasterAddressParts = sanitizeAddressPartsLocations(
-        localizeAddressPartsDigits(
-          {
-            ...EMPTY_ADDRESS_PARTS,
-            pincode: primaryParts.pincode,
-            ...localizedStateParts(primaryParts.stateEn || primaryParts.stateMr),
-            ...localizedCityParts(primaryParts.cityEn || primaryParts.cityMr),
-          },
-          targetLocale,
-        ),
-      );
-      let translatedName = '';
+      const patch: Partial<AddressFormState> = {};
 
-      try {
-        const streetParts = await translateStreetLines(primaryParts, locale, targetLocale);
-        translatedParts = sanitizeAddressPartsLocations(
-          localizeAddressPartsDigits(
-            mergeAddressParts(translatedParts, streetParts),
-            targetLocale,
-          ),
-        );
-      } catch (error) {
-        console.error('Failed to translate address on save', error);
-        // Fallback: translate full formatted address, then parse structured fields.
-        const sourceText = formatAddressMaster(primaryParts, locale);
-        if (sourceText.trim()) {
-          try {
-            const translated = await translateAddressText(sourceText, targetLocale);
-            if (translated) {
-              translatedParts = sanitizeAddressPartsLocations(
-                localizeAddressPartsDigits(
-                  mergeAddressParts(
-                    translatedParts,
-                    parseFreeTextAddressForLocale(translated, targetLocale),
-                  ),
-                  targetLocale,
-                ),
-              );
-            }
-          } catch (fallbackError) {
-            console.error('Failed to translate full address on save', fallbackError);
-          }
-        }
+      const nameEn = form.name.trim();
+      const nameMr = form.nameMr.trim();
+      if (nameEn && !nameMr) patch.nameMr = await translateInto(nameEn, 'mr');
+      else if (nameMr && !nameEn) patch.name = await translateInto(nameMr, 'en');
+
+      const linePairs = [
+        ['line1En', 'line1Mr'],
+        ['line2En', 'line2Mr'],
+        ['line3En', 'line3Mr'],
+      ] as const;
+      for (const [enKey, mrKey] of linePairs) {
+        const enVal = form[enKey].trim();
+        const mrVal = form[mrKey].trim();
+        if (enVal && !mrVal) patch[mrKey] = await translateInto(enVal, 'mr');
+        else if (mrVal && !enVal) patch[enKey] = await translateInto(mrVal, 'en');
       }
 
-      try {
-        translatedName = await translateAddressText(primaryName, targetLocale);
-      } catch (error) {
-        console.error('Failed to translate address name on save', error);
+      if (Object.keys(patch).length === 0) {
+        toast.info(t('letterGeneration.addresses.nothingToTranslate'));
+        return;
       }
-
-      setPendingPrimary({
-        name: primaryName,
-        parts: sanitizeAddressPartsLocations(mergeAddressParts(primaryParts)),
-      });
-      setReviewTargetLocale(targetLocale);
-      setReviewName(filterLocaleText(translatedName, targetLocale));
-      setReviewParts(translatedParts);
-      setReviewOpen(true);
+      setForm((prev) => ({ ...prev, ...patch }));
+    } catch (error) {
+      console.error('Failed to auto-translate address', error);
+      toast.error(t('letterGeneration.addresses.translateError'));
     } finally {
       setIsTranslating(false);
     }
   };
 
-  const handleReviewCancel = () => {
-    if (isSaving) return;
-    setReviewOpen(false);
-    setPendingPrimary(null);
-  };
+  const handleSave = async () => {
+    const nameEnInput = filterLocaleText(form.name.trim(), 'en');
+    const nameMrInput = filterLocaleText(form.nameMr.trim(), 'mr');
 
-  const handleReviewConfirm = async (result: AddressTranslationReviewResult) => {
-    if (!pendingPrimary) return;
+    const rawParts: AddressMasterAddressParts = {
+      line1En: form.line1En.trim(),
+      line1Mr: form.line1Mr.trim(),
+      line2En: form.line2En.trim(),
+      line2Mr: form.line2Mr.trim(),
+      line3En: form.line3En.trim(),
+      line3Mr: form.line3Mr.trim(),
+      cityEn: form.cityEn.trim(),
+      cityMr: form.cityMr.trim(),
+      stateEn: form.stateEn.trim(),
+      stateMr: form.stateMr.trim(),
+      pincode: form.pincode.trim(),
+    };
+
+    const hasName = Boolean(nameEnInput || nameMrInput);
+    const hasEn = hasRequiredAddressFields(rawParts, 'en');
+    const hasMr = hasRequiredAddressFields(rawParts, 'mr');
+    if (!hasName || (!hasEn && !hasMr)) {
+      toast.error(t('letterGeneration.addresses.validationRequired'));
+      return;
+    }
 
     setIsSaving(true);
     try {
-      const primaryName = pendingPrimary.name;
-      const reviewedName = filterLocaleText(result.name, reviewTargetLocale).trim();
-      const reviewedParts = extractLocaleParts(
-        { ...EMPTY_FORM, ...result.parts },
-        reviewTargetLocale,
-      );
+      const parts = { ...rawParts };
 
-      let nameEn = locale === 'en' ? primaryName : reviewedName;
-      let nameMr = locale === 'mr' ? primaryName : reviewedName;
+      // Auto-fill the missing language for each street line directly on save.
+      const linePairs = [
+        ['line1En', 'line1Mr'],
+        ['line2En', 'line2Mr'],
+        ['line3En', 'line3Mr'],
+      ] as const;
+      for (const [enKey, mrKey] of linePairs) {
+        try {
+          if (parts[enKey] && !parts[mrKey]) parts[mrKey] = await translateInto(parts[enKey], 'mr');
+          else if (parts[mrKey] && !parts[enKey]) parts[enKey] = await translateInto(parts[mrKey], 'en');
+        } catch (error) {
+          console.error(`Failed to translate ${enKey}/${mrKey} on save`, error);
+        }
+      }
+
+      // Keep city/state in sync across both locales.
+      if (parts.stateEn || parts.stateMr) {
+        Object.assign(parts, localizedStateParts(parts.stateEn || parts.stateMr));
+      }
+      if (parts.cityEn || parts.cityMr) {
+        Object.assign(parts, localizedCityParts(parts.cityEn || parts.cityMr));
+      }
+
+      let nameEn = nameEnInput;
+      let nameMr = nameMrInput;
+      try {
+        if (nameEn && !nameMr) nameMr = await translateInto(nameEn, 'mr');
+        else if (nameMr && !nameEn) nameEn = await translateInto(nameMr, 'en');
+      } catch (error) {
+        console.error('Failed to translate address name on save', error);
+      }
       if (!nameEn) nameEn = nameMr;
+      if (!nameMr) nameMr = nameEn;
 
-      const parts = sanitizeAddressPartsLocations(
-        localizeAddressPartsDigits(
-          mergeAddressParts(pendingPrimary.parts, reviewedParts),
-          'mr',
-        ),
+      const finalParts = sanitizeAddressPartsLocations(
+        localizeAddressPartsDigits(mergeAddressParts(parts), 'mr'),
       );
 
-      await persistAddress({ nameEn, nameMr, parts });
+      await persistAddress({ nameEn, nameMr, parts: finalParts });
 
       toast.success(
         editingId
           ? t('letterGeneration.addresses.updateSuccess')
           : t('letterGeneration.addresses.createSuccess'),
       );
-      setReviewOpen(false);
-      setPendingPrimary(null);
       handleCancelEdit();
       await onRefresh();
     } catch (error) {
@@ -501,24 +438,57 @@ export function AddressMasterManager({
             aria-labelledby="address-form-header"
             className="space-y-4 p-4 sm:p-6"
           >
-            <div className="space-y-2">
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => void handleAutoTranslate()}
+                disabled={isSaving || isTranslating}
+              >
+                {isTranslating ? (
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                ) : (
+                  <Languages className="mr-2 size-4" />
+                )}
+                {t('letterGeneration.addresses.autoTranslate')}
+              </Button>
+            </div>
+
+            <div className="space-y-1.5">
               <Label>
                 {t('letterGeneration.addresses.columns.name')} *
               </Label>
-              <Input
-                value={locale === 'mr' ? form.nameMr : form.name}
-                lang={locale === 'mr' ? 'mr' : 'en'}
-                autoComplete="off"
-                required
-                aria-required
-                onChange={(event) => {
-                  const value = filterLocaleText(event.target.value, locale);
-                  setForm({
-                    ...form,
-                    ...(locale === 'mr' ? { nameMr: value } : { name: value }),
-                  });
-                }}
-              />
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Input
+                  value={form.name}
+                  lang="en"
+                  autoComplete="off"
+                  required
+                  aria-required
+                  aria-label={`${t('letterGeneration.addresses.columns.name')} (${t('letterGeneration.addresses.english')})`}
+                  placeholder={t('letterGeneration.addresses.english')}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      name: filterLocaleText(event.target.value, 'en'),
+                    })
+                  }
+                />
+                <Input
+                  value={form.nameMr}
+                  lang="mr"
+                  autoComplete="off"
+                  aria-label={`${t('letterGeneration.addresses.columns.name')} (${t('letterGeneration.addresses.marathi')})`}
+                  placeholder={t('letterGeneration.addresses.marathi')}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      nameMr: filterLocaleText(event.target.value, 'mr'),
+                    })
+                  }
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
@@ -542,11 +512,9 @@ export function AddressMasterManager({
               </Select>
             </div>
 
-            <StructuredAddressFields
-              locale={locale}
+            <BilingualAddressFields
               parts={form}
               onPartsChange={updateAddressParts}
-              previewText={formatAddressMaster(form, locale)}
             />
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -597,16 +565,6 @@ export function AddressMasterManager({
           </CardContent>
         ) : null}
       </Card>
-
-      <AddressTranslationReviewDialog
-        open={reviewOpen}
-        targetLocale={reviewTargetLocale}
-        initialName={reviewName}
-        initialParts={reviewParts}
-        isConfirming={isSaving}
-        onConfirm={(result) => void handleReviewConfirm(result)}
-        onCancel={handleReviewCancel}
-      />
 
       <Card>
         <CardHeader className="p-4 sm:p-6">

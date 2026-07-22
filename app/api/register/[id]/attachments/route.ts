@@ -9,6 +9,7 @@ import {
   deleteRegisterAttachment,
 } from '@/lib/db/queries';
 import { hasModuleAccess } from '@/lib/db/queries';
+import { isUserAdmin } from '@/lib/db/cadre-queries';
 import { canAccessInwardRegister } from '@/lib/register/access';
 
 async function canAccessEntry(
@@ -164,6 +165,16 @@ export async function DELETE(
     const hasAccess = await canAccessEntry(session.user.id, entry.type);
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    if (entry.type === 'outward') {
+      const admin = await isUserAdmin(session.user.id);
+      if (!admin) {
+        return NextResponse.json(
+          { error: 'Only admins can delete outward attachments' },
+          { status: 403 },
+        );
+      }
     }
 
     // Get attachment ID from query params

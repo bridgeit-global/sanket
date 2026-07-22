@@ -126,7 +126,13 @@ function createEmptyRegisterForm(
   };
 }
 
-export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
+export function RegisterModule({
+  type,
+  canDeleteAttachments = true,
+}: {
+  type: 'inward' | 'outward';
+  canDeleteAttachments?: boolean;
+}) {
   const { t, locale } = useTranslations();
   const letterLocale: LetterLocale = locale === 'mr' ? 'mr' : 'en';
   const router = useRouter();
@@ -1435,6 +1441,7 @@ export function RegisterModule({ type }: { type: 'inward' | 'outward' }) {
           entrySubject={selectedEntry.subject}
           attachments={selectedEntry.attachments || []}
           onAttachmentsChange={handleAttachmentsChange}
+          canDeleteAttachments={canDeleteAttachments}
         />
       )}
     </div>

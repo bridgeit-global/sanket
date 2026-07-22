@@ -7,6 +7,8 @@ export type AddressMasterAddressParts = {
   line1Mr: string;
   line2En: string;
   line2Mr: string;
+  line3En: string;
+  line3Mr: string;
   cityEn: string;
   cityMr: string;
   stateEn: string;
@@ -19,6 +21,8 @@ export const EMPTY_ADDRESS_PARTS: AddressMasterAddressParts = {
   line1Mr: '',
   line2En: '',
   line2Mr: '',
+  line3En: '',
+  line3Mr: '',
   cityEn: '',
   cityMr: '',
   stateEn: '',
@@ -29,16 +33,18 @@ export const EMPTY_ADDRESS_PARTS: AddressMasterAddressParts = {
 function pickLocaleField(
   parts: AddressMasterAddressParts,
   locale: LetterLocale,
-  field: 'line1' | 'line2' | 'city' | 'state',
+  field: 'line1' | 'line2' | 'line3' | 'city' | 'state',
 ): string {
   if (locale === 'mr') {
     if (field === 'line1') return parts.line1Mr;
     if (field === 'line2') return parts.line2Mr;
+    if (field === 'line3') return parts.line3Mr;
     if (field === 'city') return parts.cityMr;
     return parts.stateMr;
   }
   if (field === 'line1') return parts.line1En;
   if (field === 'line2') return parts.line2En;
+  if (field === 'line3') return parts.line3En;
   if (field === 'city') return parts.cityEn;
   return parts.stateEn;
 }
@@ -92,6 +98,7 @@ export function formatAddressMaster(
   const segments = [
     stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line1'), city, state),
     stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line2'), city, state),
+    stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line3'), city, state),
     city,
     state,
   ]
@@ -105,6 +112,40 @@ export function formatAddressMaster(
   if (!pincode) return base;
   if (!base) return pincode;
   return `${base} - ${pincode}`;
+}
+
+/**
+ * Format an address with each street line on its own line and the
+ * city/state/pincode grouped on a final line. Intended for recipient address
+ * blocks in letter templates, so the separator defaults to an HTML `<br>`.
+ */
+export function formatAddressMasterMultiline(
+  parts: AddressMasterAddressParts,
+  locale: LetterLocale,
+  separator = '<br>',
+): string {
+  const city = pickLocaleField(parts, locale, 'city').trim();
+  const state = pickLocaleField(parts, locale, 'state').trim();
+
+  const streetLines = [
+    stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line1'), city, state),
+    stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line2'), city, state),
+    stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line3'), city, state),
+  ]
+    .map((value) => localizeAddressText(value, locale))
+    .filter(Boolean);
+
+  const locationSegments = [
+    localizeAddressText(city, locale),
+    localizeAddressText(state, locale),
+  ].filter(Boolean);
+  let locationLine = locationSegments.join(', ');
+  const pincode = toLocaleDigits(parts.pincode.trim(), locale);
+  if (pincode) {
+    locationLine = locationLine ? `${locationLine} - ${pincode}` : pincode;
+  }
+
+  return [...streetLines, locationLine].filter(Boolean).join(separator);
 }
 
 export function hasAddressContent(parts: AddressMasterAddressParts): boolean {
@@ -128,17 +169,25 @@ export function hasRequiredAddressFields(
 function assignLocaleFields(
   result: Partial<AddressMasterAddressParts>,
   locale: LetterLocale,
-  values: { line1?: string; line2?: string; city?: string; state?: string },
+  values: {
+    line1?: string;
+    line2?: string;
+    line3?: string;
+    city?: string;
+    state?: string;
+  },
 ): void {
   const localize = (value: string) => localizeAddressText(value, locale);
   if (locale === 'mr') {
     if (values.line1 !== undefined) result.line1Mr = localize(values.line1);
     if (values.line2 !== undefined) result.line2Mr = localize(values.line2);
+    if (values.line3 !== undefined) result.line3Mr = localize(values.line3);
     if (values.city !== undefined) result.cityMr = localize(values.city);
     if (values.state !== undefined) result.stateMr = localize(values.state);
   } else {
     if (values.line1 !== undefined) result.line1En = localize(values.line1);
     if (values.line2 !== undefined) result.line2En = localize(values.line2);
+    if (values.line3 !== undefined) result.line3En = localize(values.line3);
     if (values.city !== undefined) result.cityEn = localize(values.city);
     if (values.state !== undefined) result.stateEn = localize(values.state);
   }
@@ -176,6 +225,7 @@ export function parseFreeTextAddressForLocale(
     assignLocaleFields(result, locale, {
       line1: lines[0],
       line2: lines[1],
+      line3: lines.slice(2, lines.length - 2).join(', '),
       city: lines[lines.length - 2],
       state: lines[lines.length - 1],
     });
@@ -199,12 +249,13 @@ export function parseFreeTextAddressForLocale(
     return result;
   }
 
-  // Single-line / comma-separated: "line1[, line2...], city, state"
+  // Single-line / comma-separated: "line1[, line2[, line3...]], city, state"
   if (parts.length >= 3) {
     const lineParts = parts.slice(0, -2);
     assignLocaleFields(result, locale, {
       line1: lineParts[0] ?? '',
-      line2: lineParts.length > 1 ? lineParts.slice(1).join(', ') : '',
+      line2: lineParts[1] ?? '',
+      line3: lineParts.length > 2 ? lineParts.slice(2).join(', ') : '',
       city: parts[parts.length - 2],
       state: parts[parts.length - 1],
     });
@@ -232,10 +283,12 @@ export function localizeAddressPartsDigits(
   return {
     line1En: parts.line1En,
     line2En: parts.line2En,
+    line3En: parts.line3En,
     cityEn: parts.cityEn,
     stateEn: parts.stateEn,
     line1Mr: toLocaleDigits(parts.line1Mr, 'mr'),
     line2Mr: toLocaleDigits(parts.line2Mr, 'mr'),
+    line3Mr: toLocaleDigits(parts.line3Mr, 'mr'),
     cityMr: toLocaleDigits(parts.cityMr, 'mr'),
     stateMr: toLocaleDigits(parts.stateMr, 'mr'),
     pincode: toWesternDigits(parts.pincode).replace(/\D/g, '') || parts.pincode,
@@ -250,8 +303,10 @@ export function sanitizeAddressPartsLocations(
     ...parts,
     line1En: stripTrailingLocationFromLine(parts.line1En, parts.cityEn, parts.stateEn),
     line2En: stripTrailingLocationFromLine(parts.line2En, parts.cityEn, parts.stateEn),
+    line3En: stripTrailingLocationFromLine(parts.line3En, parts.cityEn, parts.stateEn),
     line1Mr: stripTrailingLocationFromLine(parts.line1Mr, parts.cityMr, parts.stateMr),
     line2Mr: stripTrailingLocationFromLine(parts.line2Mr, parts.cityMr, parts.stateMr),
+    line3Mr: stripTrailingLocationFromLine(parts.line3Mr, parts.cityMr, parts.stateMr),
   };
 }
 
@@ -264,6 +319,8 @@ export function mergeAddressParts(
       line1Mr: partial.line1Mr?.trim() || acc.line1Mr,
       line2En: partial.line2En?.trim() || acc.line2En,
       line2Mr: partial.line2Mr?.trim() || acc.line2Mr,
+      line3En: partial.line3En?.trim() || acc.line3En,
+      line3Mr: partial.line3Mr?.trim() || acc.line3Mr,
       cityEn: partial.cityEn?.trim() || acc.cityEn,
       cityMr: partial.cityMr?.trim() || acc.cityMr,
       stateEn: partial.stateEn?.trim() || acc.stateEn,

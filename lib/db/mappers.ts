@@ -278,6 +278,8 @@ export function mapAddressMasterRow(row: Row): AddressMaster {
     line1Mr: String(row.line1_mr ?? row.line1Mr ?? ''),
     line2En: String(row.line2_en ?? row.line2En ?? ''),
     line2Mr: String(row.line2_mr ?? row.line2Mr ?? ''),
+    line3En: String(row.line3_en ?? row.line3En ?? ''),
+    line3Mr: String(row.line3_mr ?? row.line3Mr ?? ''),
     cityEn: String(row.city_en ?? row.cityEn ?? ''),
     cityMr: String(row.city_mr ?? row.cityMr ?? ''),
     stateEn: String(row.state_en ?? row.stateEn ?? ''),

@@ -2595,6 +2595,8 @@ export async function ensureAddressMasterDefaults(): Promise<void> {
           line1Mr: item.line1Mr,
           line2En: item.line2En,
           line2Mr: item.line2Mr,
+          line3En: item.line3En,
+          line3Mr: item.line3Mr,
           cityEn: item.cityEn,
           cityMr: item.cityMr,
           stateEn: item.stateEn,
@@ -2668,6 +2670,8 @@ export async function createAddressMaster({
   line1Mr,
   line2En,
   line2Mr,
+  line3En,
+  line3Mr,
   cityEn,
   cityMr,
   stateEn,
@@ -2684,6 +2688,8 @@ export async function createAddressMaster({
   line1Mr?: string;
   line2En?: string;
   line2Mr?: string;
+  line3En?: string;
+  line3Mr?: string;
   cityEn?: string;
   cityMr?: string;
   stateEn?: string;
@@ -2706,6 +2712,8 @@ export async function createAddressMaster({
           line1Mr: line1Mr ?? '',
           line2En: line2En ?? '',
           line2Mr: line2Mr ?? '',
+          line3En: line3En ?? '',
+          line3Mr: line3Mr ?? '',
           cityEn: cityEn ?? '',
           cityMr: cityMr ?? '',
           stateEn: stateEn ?? '',
@@ -2738,6 +2746,8 @@ export async function updateAddressMaster({
   line1Mr,
   line2En,
   line2Mr,
+  line3En,
+  line3Mr,
   cityEn,
   cityMr,
   stateEn,
@@ -2755,6 +2765,8 @@ export async function updateAddressMaster({
   line1Mr?: string;
   line2En?: string;
   line2Mr?: string;
+  line3En?: string;
+  line3Mr?: string;
   cityEn?: string;
   cityMr?: string;
   stateEn?: string;
@@ -2777,6 +2789,8 @@ export async function updateAddressMaster({
           line1Mr: line1Mr ?? '',
           line2En: line2En ?? '',
           line2Mr: line2Mr ?? '',
+          line3En: line3En ?? '',
+          line3Mr: line3Mr ?? '',
           cityEn: cityEn ?? '',
           cityMr: cityMr ?? '',
           stateEn: stateEn ?? '',
