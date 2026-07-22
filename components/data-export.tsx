@@ -88,6 +88,7 @@ const AVAILABLE_COLUMNS = [
   { key: 'acNo', label: 'AC No' },
   { key: 'wardNo', label: 'Ward No' },
   { key: 'partNo', label: 'Part No' },
+  { key: 'srNo', label: 'Serial No' },
   { key: 'boothName', label: 'Booth Name' },
   { key: 'religion', label: 'Religion' },
   { key: 'isVoted2024', label: 'Voted 2024' },

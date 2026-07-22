@@ -279,6 +279,7 @@ const COLUMN_MAP: Record<string, { header: string; getValue: (voter: any) => str
   acNo: { header: 'AC No', getValue: (v) => v.acNo || '' },
   wardNo: { header: 'Ward No', getValue: (v) => v.wardNo || '' },
   partNo: { header: 'Part No', getValue: (v) => v.partNo || '' },
+  srNo: { header: 'Serial No', getValue: (v) => v.srNo || '' },
   boothName: { header: 'Booth Name', getValue: (v) => v.boothName || '' },
   religion: { header: 'Religion', getValue: (v) => v.religion || '' },
   isVoted2024: { header: 'Voted 2024', getValue: (v) => v.isVoted2024 ? 'Yes' : 'No' },
