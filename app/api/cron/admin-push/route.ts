@@ -33,14 +33,19 @@ export async function GET(request: NextRequest) {
   }
 
   const now = new Date();
-  const slot = formatSlotLabel(now);
+  const dateKey = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
 
   try {
     const userIds = await sendPushToSubscribedAdmins({
-      title: 'Push test',
-      body: `Test notification · ${slot} IST`,
-      url: '/modules/profile',
-      tag: `admin-cron-${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}${String(now.getUTCDate()).padStart(2, '0')}-${String(now.getUTCHours()).padStart(2, '0')}${String(Math.floor(now.getUTCMinutes() / 15) * 15).padStart(2, '0')}`,
+      title: 'Cadre birthday reminder',
+      body: "Check today's cadre hierarchy birthdays and wish your members.",
+      url: '/modules/dashboard',
+      tag: `cadre-birthday-${dateKey}`,
     });
 
     return NextResponse.json({
@@ -48,7 +53,7 @@ export async function GET(request: NextRequest) {
       target: 'user_id=admin',
       sentTo: userIds.length,
       userIds,
-      slot,
+      slot: formatSlotLabel(now),
     });
   } catch (error) {
     console.error('Admin push cron failed:', error);
