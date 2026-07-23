@@ -14,7 +14,7 @@ export const DEFAULT_LETTERHEAD_URLS: Record<LetterPaperSize, string> = {
  */
 export const LETTERHEAD_CONTENT_PADDING_MM: Record<LetterPaperSize, number> = {
   a4: 60,
-  a5: 40,
+  a5: 43,
   b5: 50,
 };
 
