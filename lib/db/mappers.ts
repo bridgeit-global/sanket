@@ -853,12 +853,14 @@ export function mapCadreVerticalCategoryRow(row: Row): CadreVerticalCategory {
 }
 
 export function mapCadreVerticalRow(row: Row): CadreVertical {
+  const maxGeoLevelRaw = String(row.max_geo_level ?? row.maxGeoLevel ?? 'ward');
   return {
     id: String(row.id),
     categoryId: String(row.category_id ?? row.categoryId),
     name: String(row.name),
     sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
     isActive: Boolean(row.is_active ?? row.isActive ?? true),
+    maxGeoLevel: maxGeoLevelRaw === 'booth' ? 'booth' : 'ward',
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),
   };
@@ -927,6 +929,7 @@ export function mapCadreMemberPostRow(row: Row): CadreMemberPost {
     id: String(row.id),
     memberId: String(row.member_id ?? row.memberId),
     positionId: String(row.position_id ?? row.positionId),
+    verticalId: String(row.vertical_id ?? row.verticalId),
     talukaId: toStringOrNull(row.taluka_id ?? row.talukaId),
     wardGeoId: toStringOrNull(row.ward_geo_id ?? row.wardGeoId),
     electionId: toStringOrNull(row.election_id ?? row.electionId),

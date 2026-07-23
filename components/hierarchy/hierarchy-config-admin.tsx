@@ -474,6 +474,7 @@ export function HierarchyConfigAdmin({
                   <TableRow>
                     <TableHead>Name</TableHead>
                     <TableHead>Category</TableHead>
+                    <TableHead>Depth</TableHead>
                     <TableHead>Order</TableHead>
                     <TableHead>Active</TableHead>
                     <TableHead className="w-24">Actions</TableHead>
@@ -484,6 +485,9 @@ export function HierarchyConfigAdmin({
                     <TableRow key={vertical.id}>
                       <TableCell>{vertical.name}</TableCell>
                       <TableCell>{vertical.categoryName}</TableCell>
+                      <TableCell>
+                        {vertical.maxGeoLevel === 'booth' ? 'To Booth' : 'To Ward'}
+                      </TableCell>
                       <TableCell>{vertical.sortOrder}</TableCell>
                       <TableCell>{vertical.isActive ? 'Yes' : 'No'}</TableCell>
                       <TableCell>

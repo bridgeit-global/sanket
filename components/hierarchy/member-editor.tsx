@@ -36,6 +36,11 @@ import {
   positionNeedsWard,
 } from '@/lib/hierarchy/member-list';
 import {
+  positionsForVertical,
+  type CadreMaxGeoLevel,
+} from '@/lib/hierarchy/wing-depth';
+import { isChartCommitteeRole } from '@/lib/hierarchy/chart-roles';
+import {
   SELECT_NONE_VALUE,
   fromOptionalSelectValue,
   isValidSelectItemValue,
@@ -50,6 +55,7 @@ export type MemberEditorTarget =
 type PostDraft = {
   key: string;
   positionId: string;
+  verticalId: string;
   talukaId: string;
   wardGeoId: string;
   boothNo: string;
@@ -78,10 +84,11 @@ function newPostKey(): string {
   return `post-${postKeySeq}`;
 }
 
-function emptyPost(positionId = ''): PostDraft {
+function emptyPost(positionId = '', verticalId = ''): PostDraft {
   return {
     key: newPostKey(),
     positionId,
+    verticalId,
     talukaId: '',
     wardGeoId: '',
     boothNo: '',
@@ -93,6 +100,8 @@ function emptyPost(positionId = ''): PostDraft {
 function draftFromTarget(target: MemberEditorTarget): Draft {
   if (target.mode === 'edit') {
     const m = target.member;
+    const primaryVerticalId =
+      m.verticals.find((v) => v.isPrimary)?.id ?? m.verticals[0]?.id ?? null;
     return {
       memberId: m.id,
       personName: m.personName ?? '',
@@ -104,19 +113,20 @@ function draftFromTarget(target: MemberEditorTarget): Draft {
       epicNumber: m.epicNumber,
       notes: m.notes ?? '',
       verticalIds: m.verticals.map((v) => v.id),
-      primaryVerticalId: m.verticals.find((v) => v.isPrimary)?.id ?? m.verticals[0]?.id ?? null,
+      primaryVerticalId,
       posts:
         m.posts.length > 0
           ? m.posts.map((p) => ({
             key: newPostKey(),
             positionId: p.positionId,
+            verticalId: p.verticalId || primaryVerticalId || '',
             talukaId: p.talukaId ?? '',
             wardGeoId: p.wardGeoId ?? '',
             boothNo: p.boothNo ?? '',
             label: p.label ?? '',
             isPrimary: p.isPrimary,
           }))
-          : [emptyPost()],
+          : [emptyPost('', primaryVerticalId ?? '')],
     };
   }
   return {
@@ -169,8 +179,8 @@ export function MemberEditor({
   const isCreateWizard = target.mode === 'create';
   const showPartyStep = isCreateWizard ? enrollStep === 1 : true;
   const showPostStep = isCreateWizard ? enrollStep === 2 : true;
-  const positions = config.positions.filter(
-    (p) => p.isActive && isValidSelectItemValue(p.id),
+  const selectedVerticals = config.verticals.filter(
+    (v) => draft.verticalIds.includes(v.id) && v.isActive,
   );
   const wardUnits = config.geoUnits.filter(
     (g) => g.type === 'ward' && g.isActive && isValidSelectItemValue(g.id),
@@ -181,6 +191,23 @@ export function MemberEditor({
 
   const levelKeyFor = (positionId: string) =>
     config.positions.find((p) => p.id === positionId)?.levelKey ?? null;
+
+  const maxGeoLevelForVertical = (verticalId: string): CadreMaxGeoLevel =>
+    config.verticals.find((v) => v.id === verticalId)?.maxGeoLevel ?? 'ward';
+
+  const positionsForPost = (verticalId: string) =>
+    positionsForVertical(config.positions, maxGeoLevelForVertical(verticalId))
+      .filter((p) => isValidSelectItemValue(p.id))
+      .filter((p) => {
+        if (
+          p.levelKey === 'taluka_committee' ||
+          p.levelKey === 'ward_committee' ||
+          p.levelKey === 'booth_committee'
+        ) {
+          return isChartCommitteeRole(p.levelKey, p.name);
+        }
+        return true;
+      });
 
   const boothOptionsForPost = (post: PostDraft) => {
     if (!post.wardGeoId) return [];
@@ -211,7 +238,15 @@ export function MemberEditor({
       if (!primaryVerticalId || !set.has(primaryVerticalId)) {
         primaryVerticalId = verticalIds[0] ?? null;
       }
-      return { ...prev, verticalIds, primaryVerticalId };
+      const posts = prev.posts.map((post) => {
+        if (post.verticalId && set.has(post.verticalId)) return post;
+        return {
+          ...post,
+          verticalId: primaryVerticalId ?? '',
+          positionId: '',
+        };
+      });
+      return { ...prev, verticalIds, primaryVerticalId, posts };
     });
   };
 
@@ -230,7 +265,13 @@ export function MemberEditor({
   };
 
   const addPost = () => {
-    setDraft((prev) => ({ ...prev, posts: [...prev.posts, emptyPost()] }));
+    setDraft((prev) => ({
+      ...prev,
+      posts: [
+        ...prev.posts,
+        emptyPost('', prev.primaryVerticalId ?? prev.verticalIds[0] ?? ''),
+      ],
+    }));
   };
 
   const removePost = (key: string) => {
@@ -246,7 +287,7 @@ export function MemberEditor({
   const hasPerson = Boolean(
     draft.personName.trim() || draft.userId || draft.epicNumber,
   );
-  const validPosts = draft.posts.filter((p) => p.positionId);
+  const validPosts = draft.posts.filter((p) => p.positionId && p.verticalId);
   const canEnrollPartyMember =
     hasPerson && draft.verticalIds.length > 0 && !saving;
   const canAssignPost = validPosts.length > 0 && !saving;
@@ -273,6 +314,7 @@ export function MemberEditor({
         const needsTaluka = positionNeedsTaluka(levelKey);
         return {
           positionId: p.positionId,
+          verticalId: p.verticalId,
           talukaId: needsTaluka && p.talukaId ? p.talukaId : null,
           wardGeoId: needsWard && p.wardGeoId ? p.wardGeoId : null,
           boothNo: needsBooth && p.boothNo.trim() ? p.boothNo.trim() : null,
@@ -303,7 +345,15 @@ export function MemberEditor({
         posts:
           prev.posts.length > 0
             ? prev.posts
-            : [{ ...emptyPost(), isPrimary: true }],
+            : [
+              {
+                ...emptyPost(
+                  '',
+                  prev.primaryVerticalId ?? prev.verticalIds[0] ?? '',
+                ),
+                isPrimary: true,
+              },
+            ],
       }));
       toast({ type: 'success', description: t('hierarchyModule.memberCreated') });
       onSaved();
@@ -601,7 +651,15 @@ export function MemberEditor({
                       onClick={() =>
                         setDraft((prev) => ({
                           ...prev,
-                          posts: [{ ...emptyPost(), isPrimary: true }],
+                          posts: [
+                            {
+                              ...emptyPost(
+                                '',
+                                prev.primaryVerticalId ?? prev.verticalIds[0] ?? '',
+                              ),
+                              isPrimary: true,
+                            },
+                          ],
                         }))
                       }
                     >
@@ -613,6 +671,7 @@ export function MemberEditor({
                     const needsWard = positionNeedsWard(levelKey);
                     const needsBooth = positionNeedsBooth(levelKey);
                     const needsTaluka = positionNeedsTaluka(levelKey);
+                    const postPositions = positionsForPost(post.verticalId);
                     return (
                       <div key={post.key} className="space-y-2 rounded-md border p-2">
                         <div className="flex items-center justify-between">
@@ -637,14 +696,42 @@ export function MemberEditor({
                           )}
                         </div>
                         <Select
-                          value={toControlledSelectValue(post.positionId)}
-                          onValueChange={(v) => updatePost(post.key, { positionId: v })}
+                          value={toControlledSelectValue(post.verticalId)}
+                          onValueChange={(v) =>
+                            updatePost(post.key, {
+                              verticalId: v,
+                              positionId: '',
+                            })
+                          }
                         >
                           <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Select position" />
+                            <SelectValue placeholder="Select wing" />
                           </SelectTrigger>
                           <SelectContent>
-                            {positions.map((p) => (
+                            {selectedVerticals.map((v) => (
+                              <SelectItem key={v.id} value={v.id}>
+                                {v.name}
+                                {v.maxGeoLevel === 'booth' ? '' : ' (to Ward)'}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={toControlledSelectValue(post.positionId)}
+                          onValueChange={(v) => updatePost(post.key, { positionId: v })}
+                          disabled={!post.verticalId}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue
+                              placeholder={
+                                post.verticalId
+                                  ? 'Select position'
+                                  : 'Select wing first'
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {postPositions.map((p) => (
                               <SelectItem key={p.id} value={p.id}>
                                 {p.name} ({p.levelName})
                               </SelectItem>

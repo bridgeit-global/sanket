@@ -3,7 +3,7 @@ import type { CadreMemberCard, CadreMemberPostDetail } from './types';
 
 const TALUKA_LEVELS = new Set(['taluka', 'taluka_committee']);
 const WARD_LEVELS = new Set(['ward', 'ward_committee']);
-const BOOTH_LEVELS = new Set(['booth', 'booth_committee']);
+const BOOTH_LEVELS = new Set(['booth', 'booth_committee', 'booth_bla']);
 
 /** Short geo chip for a post, e.g. "Main Taluka", "Ward 140", "Booth 12". */
 export function getPostGeoChip(post: CadreMemberPostDetail): string | null {

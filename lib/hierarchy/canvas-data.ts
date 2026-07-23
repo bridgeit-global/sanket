@@ -1,10 +1,15 @@
 import { getBoothGeoUnits, extractBoothNumber } from './booth-geo-units';
-import { findSeniorMemberForGeo } from './geo-navigation';
 import {
   filterBoothCommitteeMembers,
   filterTalukaCommitteeMembers,
   filterWardCommitteeMembers,
 } from './member-list';
+import {
+  findBoothBlaForVertical,
+  findBoothHeadForVertical,
+  findTalukaHeadForVertical,
+  findWardHeadForVertical,
+} from './vertical-leaders';
 import type { CadreConfig, CadreMemberCard } from './types';
 
 export const CANVAS_COMMITTEE_PREVIEW_LIMIT = 4;
@@ -12,6 +17,7 @@ export const CANVAS_COMMITTEE_PREVIEW_LIMIT = 4;
 export type HierarchyCanvasBooth = {
   boothNo: string;
   adhyaksh: CadreMemberCard | null;
+  bla: CadreMemberCard | null;
   committeeMembers: CadreMemberCard[];
   committeeTotal: number;
 };
@@ -54,21 +60,27 @@ export function resolveHierarchyCanvasData(
   wardGeoIds: string[],
   geoUnits: CadreConfig['geoUnits'],
   constituencyId: string,
+  options?: { includeBooths?: boolean },
 ): HierarchyCanvasData {
-  const talukaAdhyaksh = findSeniorMemberForGeo(members, { scope: 'constituency' });
+  const includeBooths = options?.includeBooths ?? true;
+  const talukaAdhyaksh = findTalukaHeadForVertical(members, verticalId);
   const talukaCommitteeAll = filterTalukaCommitteeMembers(members, verticalId);
 
   const wards = wardGeoIds.map((wardGeoId) => {
-    const adhyaksh = findSeniorMemberForGeo(members, { scope: 'ward', wardGeoId });
+    const adhyaksh = findWardHeadForVertical(members, wardGeoId, verticalId);
     const wardCommitteeAll = filterWardCommitteeMembers(members, wardGeoId, verticalId);
-    const boothNumbers = boothNumbersForWard(geoUnits, constituencyId, wardGeoId);
+    const boothNumbers = includeBooths
+      ? boothNumbersForWard(geoUnits, constituencyId, wardGeoId)
+      : [];
 
     const booths = boothNumbers.map((boothNo) => {
-      const boothAdhyaksh = findSeniorMemberForGeo(members, {
-        scope: 'booth',
+      const boothAdhyaksh = findBoothHeadForVertical(
+        members,
         wardGeoId,
         boothNo,
-      });
+        verticalId,
+      );
+      const bla = findBoothBlaForVertical(members, wardGeoId, boothNo, verticalId);
       const boothCommitteeAll = filterBoothCommitteeMembers(
         members,
         wardGeoId,
@@ -78,7 +90,8 @@ export function resolveHierarchyCanvasData(
       return {
         boothNo,
         adhyaksh: boothAdhyaksh,
-        committeeMembers: boothCommitteeAll.slice(0, CANVAS_COMMITTEE_PREVIEW_LIMIT),
+        bla,
+        committeeMembers: boothCommitteeAll,
         committeeTotal: boothCommitteeAll.length,
       };
     });
@@ -86,7 +99,7 @@ export function resolveHierarchyCanvasData(
     return {
       wardGeoId,
       adhyaksh,
-      committeeMembers: wardCommitteeAll.slice(0, CANVAS_COMMITTEE_PREVIEW_LIMIT),
+      committeeMembers: wardCommitteeAll,
       committeeTotal: wardCommitteeAll.length,
       booths,
     };
@@ -116,6 +129,7 @@ export function collectCanvasMemberIds(data: HierarchyCanvasData): Set<string> {
     addMany(ward.committeeMembers);
     for (const booth of ward.booths) {
       add(booth.adhyaksh);
+      add(booth.bla);
       addMany(booth.committeeMembers);
     }
   }
@@ -143,6 +157,7 @@ export function hydrateCanvasData(
       booths: ward.booths.map((booth) => ({
         boothNo: booth.boothNo,
         adhyaksh: hydrate(booth.adhyaksh),
+        bla: hydrate(booth.bla),
         committeeMembers: hydrateMany(booth.committeeMembers),
         committeeTotal: booth.committeeTotal,
       })),

@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HierarchyCanvasView } from './hierarchy-canvas-view';
+import type { CanvasCommitteeRoles } from './hierarchy-canvas-view';
+import { resolveChartCommitteeRoles } from '@/lib/hierarchy/chart-roles';
 import { LeadershipSection } from './leadership-section';
 import { WardAccessSection } from './ward-access-section';
 import { MemberList } from './member-list';
@@ -474,8 +476,24 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
 
   const committeeVerticalId = verticalId.trim();
   const canvasVerticalId = committeeVerticalId || activeVerticals[0]?.id || '';
-  const canvasVerticalName =
-    activeVerticals.find((v) => v.id === canvasVerticalId)?.name ?? 'Basic';
+  const canvasVertical = activeVerticals.find((v) => v.id === canvasVerticalId);
+  const canvasVerticalName = canvasVertical?.name ?? 'Basic';
+  const canvasMaxGeoLevel = canvasVertical?.maxGeoLevel ?? 'ward';
+
+  const canvasCommitteeRoles = useMemo((): CanvasCommitteeRoles => {
+    const byLevel = (levelKey: 'taluka_committee' | 'ward_committee' | 'booth_committee') => {
+      const dbNames = (config?.positions ?? [])
+        .filter((p) => p.isActive && p.levelKey === levelKey)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((p) => p.name);
+      return resolveChartCommitteeRoles(levelKey, dbNames);
+    };
+    return {
+      taluka: byLevel('taluka_committee'),
+      ward: byLevel('ward_committee'),
+      booth: byLevel('booth_committee'),
+    };
+  }, [config?.positions]);
 
   const loadCanvasData = useCallback(
     async (nextVerticalId: string, signal?: AbortSignal) => {
@@ -1212,8 +1230,9 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             <HierarchyCanvasView
               canvasData={canvasData}
               verticalName={canvasVerticalName}
-              verticalId={canvasVerticalId}
+              maxGeoLevel={canvasMaxGeoLevel}
               wardOptions={wardOptions}
+              committeeRoles={canvasCommitteeRoles}
             />
           </>
         ) : isGlobalSearch ? (

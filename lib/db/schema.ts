@@ -613,12 +613,16 @@ export type CadreVerticalCategory = {
   updatedAt: Date;
 };
 
+export type CadreMaxGeoLevel = 'ward' | 'booth';
+
 export type CadreVertical = {
   id: string;
   categoryId: string;
   name: string;
   sortOrder: number;
   isActive: boolean;
+  /** Deepest geo level this wing may assign posts for. */
+  maxGeoLevel: CadreMaxGeoLevel;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -684,6 +688,8 @@ export type CadreMemberPost = {
   id: string;
   memberId: string;
   positionId: string;
+  /** Wing this post belongs to. */
+  verticalId: string;
   talukaId: string | null;
   wardGeoId: string | null;
   electionId: string | null;

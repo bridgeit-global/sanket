@@ -47,6 +47,9 @@ export type CadreMemberPostDetail = {
   positionSortOrder: number;
   /** Lower values rank higher among siblings (from CadrePositionLevel.sort_order). */
   positionLevelSortOrder: number;
+  /** Wing this post is assigned under. */
+  verticalId: string;
+  verticalName: string | null;
   talukaId: string | null;
   talukaName: string | null;
   wardGeoId: string | null;
@@ -105,6 +108,8 @@ export type CadreConfig = {
     sortOrder: number;
     isActive: boolean;
     categoryName: string;
+    /** Deepest geo level this wing may assign (`ward` or `booth`). */
+    maxGeoLevel: 'ward' | 'booth';
   }>;
   levels: Array<{ id: string; key: string; name: string; sortOrder: number }>;
   positions: Array<{

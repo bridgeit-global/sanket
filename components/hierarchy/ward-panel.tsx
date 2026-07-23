@@ -8,9 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { getMemberDisplayName } from '@/lib/hierarchy/geo-attribution';
 import {
+  findBoothBlaForVertical,
   findBoothHeadForVertical,
   findWardHeadForVertical,
 } from '@/lib/hierarchy/vertical-leaders';
+import { verticalAllowsBooth } from '@/lib/hierarchy/wing-depth';
 import type { CadreMemberCard } from '@/lib/hierarchy/types';
 import { useTranslations } from '@/hooks/use-translations';
 
@@ -18,6 +20,7 @@ type WardVertical = {
   id: string;
   name: string;
   sortOrder: number;
+  maxGeoLevel: 'ward' | 'booth';
 };
 
 interface WardPanelProps {
@@ -117,6 +120,11 @@ export function WardPanel({
     [activeVerticals],
   );
 
+  const boothVerticals = useMemo(
+    () => sortedVerticals.filter((vertical) => verticalAllowsBooth(vertical.maxGeoLevel)),
+    [sortedVerticals],
+  );
+
   const wardLeadershipEntries = useMemo(
     () =>
       sortedVerticals.map((vertical) => ({
@@ -167,11 +175,38 @@ export function WardPanel({
           ) : (
             boothNumbers.map((boothNo) => {
               const isExpanded = expandedBooths.has(boothNo);
-              const boothLeadershipEntries = sortedVerticals.map((vertical) => ({
-                verticalId: vertical.id,
-                verticalName: vertical.name,
-                head: findBoothHeadForVertical(members, wardGeoId, boothNo, vertical.id),
-              }));
+              const boothLeadershipEntries = boothVerticals.flatMap((vertical) => {
+                const adhyaksh = findBoothHeadForVertical(
+                  members,
+                  wardGeoId,
+                  boothNo,
+                  vertical.id,
+                );
+                const bla = findBoothBlaForVertical(
+                  members,
+                  wardGeoId,
+                  boothNo,
+                  vertical.id,
+                );
+                return [
+                  {
+                    key: `${vertical.id}-adhyaksh`,
+                    verticalId: vertical.id,
+                    roleLabel: t('hierarchyModule.verticalHeadLabel', {
+                      vertical: vertical.name,
+                    }),
+                    head: adhyaksh,
+                    showCommittee: true,
+                  },
+                  {
+                    key: `${vertical.id}-bla`,
+                    verticalId: vertical.id,
+                    roleLabel: 'BLA (Booth Level Agent)',
+                    head: bla,
+                    showCommittee: false,
+                  },
+                ];
+              });
 
               return (
                 <div
@@ -197,47 +232,57 @@ export function WardPanel({
                       <Label className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
                         {t('hierarchyModule.boothLeadershipTitle')}
                       </Label>
-                      <div className="divide-y overflow-hidden rounded-xl border border-border bg-background">
-                        {boothLeadershipEntries.map((entry) => (
-                          <div
-                            key={entry.verticalId}
-                            className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-                          >
-                            <div className="min-w-0 flex-1 space-y-1.5">
-                              <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                                {t('hierarchyModule.verticalHeadLabel', {
-                                  vertical: entry.verticalName,
-                                })}
-                              </p>
-                              <p
-                                className={
-                                  entry.head
-                                    ? 'text-sm font-medium'
-                                    : 'text-sm italic text-muted-foreground'
-                                }
-                              >
-                                {entry.head ? getMemberDisplayName(entry.head) : vacantLabel}
-                              </p>
-                              {entry.head ? (
-                                <MemberVoterIdField
-                                  member={entry.head}
-                                  canEdit={canEdit}
-                                  onUpdated={onVoterIdUpdated}
-                                  compact
-                                />
+                      {boothVerticals.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          No booth-level wings configured.
+                        </p>
+                      ) : (
+                        <div className="divide-y overflow-hidden rounded-xl border border-border bg-background">
+                          {boothLeadershipEntries.map((entry) => (
+                            <div
+                              key={entry.key}
+                              className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                            >
+                              <div className="min-w-0 flex-1 space-y-1.5">
+                                <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
+                                  {entry.roleLabel}
+                                </p>
+                                <p
+                                  className={
+                                    entry.head
+                                      ? 'text-sm font-medium'
+                                      : 'text-sm italic text-muted-foreground'
+                                  }
+                                >
+                                  {entry.head
+                                    ? getMemberDisplayName(entry.head)
+                                    : vacantLabel}
+                                </p>
+                                {entry.head ? (
+                                  <MemberVoterIdField
+                                    member={entry.head}
+                                    canEdit={canEdit}
+                                    onUpdated={onVoterIdUpdated}
+                                    compact
+                                  />
+                                ) : null}
+                              </div>
+                              {entry.showCommittee ? (
+                                <PanelActionLink
+                                  onClick={() =>
+                                    onViewBoothCommittee(boothNo, entry.verticalId)
+                                  }
+                                  disabled={!entry.head}
+                                >
+                                  {viewCommitteeLabel}
+                                </PanelActionLink>
                               ) : null}
                             </div>
-                            <PanelActionLink
-                              onClick={() => onViewBoothCommittee(boothNo, entry.verticalId)}
-                              disabled={!entry.head}
-                            >
-                              {viewCommitteeLabel}
-                            </PanelActionLink>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      )}
 
-                      {canEdit && (
+                      {canEdit && boothVerticals.length > 0 && (
                         <Button
                           type="button"
                           variant="outline"
