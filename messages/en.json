@@ -674,6 +674,13 @@
     "templates": {
       "title": "Letter Templates",
       "description": "Edit the HTML template stored in the database. Use {{fieldName}} placeholders for dynamic values.",
+      "manageLink": "Edit Templates",
+      "backToLetterGeneration": "Back to Letter Generation",
+      "editorTitle": "Edit template HTML",
+      "editorDescription": "Choose a letter type and language, edit the HTML on the left, and preview the rendered page on the right.",
+      "livePreview": "Live preview",
+      "previewEmpty": "Enter template HTML to see a live preview.",
+      "previewHint": "Placeholders like {{fullName}} appear as-is until a letter is generated with real field values.",
       "name": "Template name",
       "namePlaceholder": "e.g. Fees Concession Letter",
       "activeTemplate": "Current letter type",

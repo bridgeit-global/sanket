@@ -1,16 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback, type Dispatch, type SetStateAction } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback, type Dispatch, type SetStateAction } from 'react';
 import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
   Eye,
   ExternalLink,
+  FileCode2,
   FileType,
   Calendar,
-  ImageIcon,
   Loader2,
   MapPin,
   Plus,
@@ -18,12 +18,15 @@ import {
   Save,
   Send,
   Trash2,
-  Upload,
-  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import {
+  createLetterExportElement,
+  getLetterPreviewDialogMaxWidthClass,
+  LetterPreview,
+} from '@/components/letter-preview';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -84,24 +87,19 @@ import {
 import {
   getLetterheadContentPaddingMm,
   resolveLetterheadUrl,
-  stripLetterheadFromHtml,
 } from '@/lib/letters/letterhead';
 import { buildRenderedLetterHtml, type LetterheadMode } from '@/lib/letters/render-template';
 import { getDefaultTemplateHtml } from '@/lib/letters/default-template-html';
 import {
   getDefaultLetterPaperSize,
   getLetterPaperContentWidthPx,
-  getLetterPageContentHeightCssPx,
-  getLetterPaperHeightPx,
   getLetterPaperLabel,
-  getLetterPaperWidthPx,
   LETTER_PAPER_MARGIN_MM,
   LETTER_PAPER_SIZES,
   resolveLetterPaperSize,
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
 import { exportElementToPdf } from '@/lib/pdf/export-element-to-pdf';
-import { computePageStartOffsetsPx, getAvoidSplitRangesPx, getContentBreakpointsPx, getLineRangesPx } from '@/lib/pdf/page-breaks';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { ModulePageHeader } from '@/components/module-page-header';
 import {
@@ -496,340 +494,6 @@ function resolveSalutation(locale: LetterLocale, gender: PersonGender): string {
   if (gender === 'female') return 'श्रीमती';
   if (gender === 'male') return 'श्री';
   return 'श्री/श्रीमती';
-}
-
-const LETTER_PREVIEW_CONTENT_CLASSES =
-  // Templates use block margins / <br> for structure — do not use pre-wrap or
-  // pretty-printed HTML indentation becomes huge blank lines in PDF/print.
-  '[&_.letter-content]:whitespace-normal [&_.letter-content]:font-[inherit] [&_.letter-content]:text-[length:inherit] [&_.letter-content]:leading-[inherit] [&_.letter-content]:text-black';
-
-const LETTER_FONT_STACK: Record<LetterLocale, string> = {
-  en: `system-ui, -apple-system, sans-serif`,
-  mr: `"Noto Sans Devanagari", "Nirmala UI", system-ui, -apple-system, sans-serif`,
-};
-
-/**
- * Shared typography for preview / print / PDF so all three stay WYSIWYG.
- * Font size scales with paper size: A4 (big) → B5 (medium) → A5 (small).
- */
-const LETTER_PRINT_FONT_SIZE_PX: Record<LetterPaperSize, number> = {
-  a4: 16,
-  b5: 15,
-  a5: 14,
-};
-
-function getLetterPrintFontSizePx(paperSize: LetterPaperSize): number {
-  return LETTER_PRINT_FONT_SIZE_PX[paperSize];
-}
-
-const LETTER_PRINT_LINE_HEIGHT = 1.75;
-
-const LETTER_PREVIEW_PAGE_GAP_PX = 16;
-
-/** Max dialog width so modal preview can use the full paper width at 96dpi. */
-function getLetterPreviewDialogMaxWidthClass(paperSize: LetterPaperSize): string {
-  switch (paperSize) {
-    case 'a4':
-      return 'max-w-[min(100%,940px)]';
-    case 'b5':
-      return 'max-w-[min(100%,820px)]';
-    case 'a5':
-      return 'max-w-[min(100%,700px)]';
-    default:
-      return 'max-w-3xl';
-  }
-}
-
-/**
- * Visual scale for on-screen preview only — canonical page dimensions stay at
- * 96dpi so pagination matches PDF/print; transform scale adjusts visibility.
- */
-function computeLetterPreviewDisplayScale(
-  containerWidthPx: number,
-  paperSize: LetterPaperSize,
-  variant: 'inline' | 'modal',
-): number {
-  const paperWidthPx = getLetterPaperWidthPx(paperSize);
-  const availableWidthPx = Math.max(0, containerWidthPx - 8);
-  if (availableWidthPx <= 0 || paperWidthPx <= 0) return 1;
-
-  const fitScale = availableWidthPx / paperWidthPx;
-  const maxScale =
-    variant === 'modal'
-      ? paperSize === 'a5'
-        ? 1.2
-        : paperSize === 'b5'
-          ? 1.1
-          : 1
-      : 1;
-  const minScale = variant === 'modal' ? 0.7 : 0.55;
-
-  return Math.min(maxScale, Math.max(minScale, fitScale));
-}
-
-function getLetterBodyPaddingCss(
-  paperSize: LetterPaperSize,
-  hasLetterhead: boolean,
-): string {
-  if (hasLetterhead) {
-    const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
-    const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);
-    return `${headerPaddingMm}mm ${marginMm}mm ${marginMm}mm ${marginMm}mm`;
-  }
-  const paddingPx = paperSize === 'a4' ? 24 : 18;
-  return `${paddingPx}px`;
-}
-
-function createLetterExportElement(
-  html: string,
-  options?: {
-    paperSize?: LetterPaperSize;
-    letterLocale?: LetterLocale;
-  },
-): HTMLElement {
-  const host = document.createElement('div');
-  const contentHtml = stripLetterheadFromHtml(html);
-  const paperSize = options?.paperSize ?? 'a4';
-  const fontFamily = LETTER_FONT_STACK[options?.letterLocale ?? 'mr'];
-  const fallbackFontSizePx = getLetterPrintFontSizePx(paperSize);
-
-  host.innerHTML = contentHtml;
-  const letterContent = host.querySelector('.letter-content');
-  if (!(letterContent instanceof HTMLElement)) {
-    host.style.position = 'relative';
-    host.style.background = 'transparent';
-    host.style.color = '#000';
-    host.style.boxSizing = 'border-box';
-    host.style.width = `${getLetterPaperContentWidthPx(paperSize)}px`;
-    host.style.fontFamily = fontFamily;
-    host.style.fontSize = `${fallbackFontSizePx}px`;
-    host.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
-    return host;
-  }
-
-  // Capture `.letter-content` directly (same node shape as LetterPreview) so
-  // PDF typography and pagination match the inline/modal preview.
-  letterContent.style.position = 'relative';
-  letterContent.style.background = 'transparent';
-  letterContent.style.color = '#000';
-  letterContent.style.boxSizing = 'border-box';
-  letterContent.style.width = `${getLetterPaperContentWidthPx(paperSize)}px`;
-  letterContent.style.margin = '0';
-  letterContent.style.whiteSpace = 'normal';
-  letterContent.style.fontFamily = fontFamily;
-  // Preserve template font-size / line-height (fees uses 13px / 1.55 on A5).
-  if (!letterContent.style.fontSize) {
-    letterContent.style.fontSize = `${fallbackFontSizePx}px`;
-  }
-  if (!letterContent.style.lineHeight) {
-    letterContent.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
-  }
-
-  return letterContent;
-}
-
-function LetterPreview({
-  html,
-  paperSize = 'a4',
-  letterheadUrl,
-  letterLocale,
-  variant = 'inline',
-}: {
-  html: string;
-  paperSize?: LetterPaperSize;
-  letterheadUrl?: string | null;
-  letterLocale: LetterLocale;
-  variant?: 'inline' | 'modal';
-}) {
-  const resolvedLetterhead = resolveLetterheadUrl(paperSize, letterheadUrl);
-  const contentHtml = stripLetterheadFromHtml(html);
-  const hasLetterhead = Boolean(resolvedLetterhead);
-  const bodyPadding = getLetterBodyPaddingCss(paperSize, hasLetterhead);
-
-  const rootRef = useRef<HTMLDivElement>(null);
-  const pageFrameRef = useRef<HTMLDivElement>(null);
-  const clipRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [displayScale, setDisplayScale] = useState(1);
-  // Y offsets where each preview page begins — aligned to text-line bottoms
-  // so glyphs are never clipped mid-line (same logic as PDF export).
-  const [pageStartOffsetsPx, setPageStartOffsetsPx] = useState<number[]>([0]);
-
-  useLayoutEffect(() => {
-    const recomputePages = () => {
-      const clip = clipRef.current;
-      const content = contentRef.current;
-      if (!clip || !content) return;
-
-      // Measure the live clip at canonical page width so inline preview and
-      // modal preview paginate identically (responsive shrink was reflowing text).
-      let available = clip.clientHeight;
-      if (available <= 0) {
-        available = getLetterPageContentHeightCssPx(
-          paperSize,
-          hasLetterhead,
-          getLetterheadContentPaddingMm(paperSize),
-        );
-      }
-      if (available <= 0) return;
-
-      const total = content.scrollHeight;
-      const breakpointsPx = getContentBreakpointsPx(content, 1);
-      const avoidRangesPx = getAvoidSplitRangesPx(content, 1);
-      const lineRangesPx = getLineRangesPx(content, 1);
-      const starts = computePageStartOffsetsPx({
-        totalHeightPx: total,
-        pageHeightPx: available,
-        breakpointsPx,
-        avoidRangesPx,
-        lineRangesPx,
-      });
-
-      setPageStartOffsetsPx((prev) => {
-        const next = starts.length > 0 ? starts : [0];
-        if (
-          prev.length === next.length &&
-          prev.every((value, index) => value === next[index])
-        ) {
-          return prev;
-        }
-        return next;
-      });
-    };
-
-    recomputePages();
-
-    const frame = pageFrameRef.current;
-    const clip = clipRef.current;
-    const content = contentRef.current;
-    if (!frame || typeof ResizeObserver === 'undefined') {
-      return;
-    }
-
-    const observer = new ResizeObserver(() => recomputePages());
-    observer.observe(frame);
-    if (clip) observer.observe(clip);
-    if (content) observer.observe(content);
-
-    let cancelled = false;
-    void document.fonts?.ready.then(() => {
-      if (!cancelled) recomputePages();
-    });
-
-    return () => {
-      cancelled = true;
-      observer.disconnect();
-    };
-  }, [contentHtml, paperSize, letterLocale, hasLetterhead, bodyPadding]);
-
-  useLayoutEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-
-    const updateDisplayScale = () => {
-      const width = root.clientWidth;
-      if (width <= 0) return;
-      const next = computeLetterPreviewDisplayScale(width, paperSize, variant);
-      setDisplayScale((prev) => (Math.abs(prev - next) < 0.001 ? prev : next));
-    };
-
-    updateDisplayScale();
-
-    if (typeof ResizeObserver === 'undefined') {
-      return;
-    }
-
-    const observer = new ResizeObserver(() => updateDisplayScale());
-    observer.observe(root);
-    return () => observer.disconnect();
-  }, [paperSize, variant]);
-
-  const paperWidthPx = getLetterPaperWidthPx(paperSize);
-  const paperHeightPx = getLetterPaperHeightPx(paperSize);
-  const scaledPaperWidthPx = paperWidthPx * displayScale;
-  const scaledPaperHeightPx = paperHeightPx * displayScale;
-  const pageShellStyle = {
-    width: `${paperWidthPx}px`,
-    height: `${paperHeightPx}px`,
-    fontFamily: LETTER_FONT_STACK[letterLocale],
-    fontSize: `${getLetterPrintFontSizePx(paperSize)}px`,
-    lineHeight: LETTER_PRINT_LINE_HEIGHT,
-    transform: `scale(${displayScale})`,
-    transformOrigin: 'top left',
-  } as const;
-
-  return (
-    <div ref={rootRef} className="w-full">
-      <div className="mx-auto" style={{ width: scaledPaperWidthPx }}>
-      {pageStartOffsetsPx.map((startOffsetPx, pageIndex) => {
-        const nextStartPx = pageStartOffsetsPx[pageIndex + 1];
-        const sliceHeightPx =
-          nextStartPx != null
-            ? Math.max(0, nextStartPx - startOffsetPx)
-            : undefined;
-
-        return (
-          <div
-            key={pageIndex}
-            className="shrink-0"
-            style={{
-              width: scaledPaperWidthPx,
-              height: scaledPaperHeightPx,
-              marginBottom:
-                pageIndex < pageStartOffsetsPx.length - 1
-                  ? LETTER_PREVIEW_PAGE_GAP_PX
-                  : undefined,
-            }}
-          >
-            <div
-              ref={pageIndex === 0 ? pageFrameRef : undefined}
-              className="relative overflow-hidden rounded-lg border bg-white text-black"
-              style={pageShellStyle}
-            >
-              {resolvedLetterhead && pageIndex === 0 ? (
-                <div
-                  aria-hidden
-                  className="pointer-events-none absolute inset-0 bg-no-repeat"
-                  style={{
-                    backgroundImage: `url("${resolvedLetterhead}")`,
-                    backgroundSize: '100% 100%',
-                  }}
-                />
-              ) : null}
-              <div className="absolute inset-0" style={{ padding: bodyPadding }}>
-                <div
-                  ref={pageIndex === 0 ? clipRef : undefined}
-                  className="h-full overflow-hidden"
-                >
-                  {/* Cap visible height at the next safe break so lines aren't clipped mid-glyph. */}
-                  <div
-                    className="overflow-hidden"
-                    style={
-                      sliceHeightPx != null ? { height: sliceHeightPx } : undefined
-                    }
-                  >
-                    <div
-                      ref={pageIndex === 0 ? contentRef : undefined}
-                      className={LETTER_PREVIEW_CONTENT_CLASSES}
-                      style={{
-                        transform:
-                          startOffsetPx > 0
-                            ? `translateY(-${startOffsetPx}px)`
-                            : undefined,
-                      }}
-                      // Letter HTML is generated from admin-editable templates stored in our database.
-                      dangerouslySetInnerHTML={{ __html: contentHtml }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })}
-      </div>
-    </div>
-  );
 }
 
 function FieldGroup({
@@ -1285,17 +949,9 @@ export function LetterGeneration({
   rationOfficeNamesRef.current = rationOfficeNames;
   const translateTimersRef = useRef<Partial<Record<ManualAddressKey, number>>>({});
   const translateReqIdRef = useRef<Partial<Record<ManualAddressKey, number>>>({});
-  const [templateDraft, setTemplateDraft] = useState('');
-  const [templateNameDraft, setTemplateNameDraft] = useState('');
-  const [letterheadDraft, setLetterheadDraft] = useState<string | null>(null);
-  const [letterheadModeDraft, setLetterheadModeDraft] = useState<LetterheadMode>('full');
   const [paperSizeDraft, setPaperSizeDraft] = useState<LetterPaperSize>(() =>
     getDefaultLetterPaperSize('fees'),
   );
-  const [isUploadingLetterhead, setIsUploadingLetterhead] = useState(false);
-  const letterheadInputRef = useRef<HTMLInputElement>(null);
-  const [isTemplateEditorOpen, setIsTemplateEditorOpen] = useState(false);
-  const [isSavingTemplate, setIsSavingTemplate] = useState(false);
   const [regeneratingLetterId, setRegeneratingLetterId] = useState<string | null>(null);
   const [selectedSavedLetterId, setSelectedSavedLetterId] = useState<string | null>(
     null,
@@ -2188,25 +1844,17 @@ export function LetterGeneration({
 
   useEffect(() => {
     if (activeLetterMaster) {
-      setTemplateDraft(activeLetterMaster.templateHtml);
-      setTemplateNameDraft(activeLetterMaster.name);
-      setLetterheadDraft(activeLetterMaster.letterheadUrl);
-      setLetterheadModeDraft(activeLetterMaster.letterheadMode);
       setPaperSizeDraft(
         resolveLetterPaperSize(activeLetterMaster.paperSize, activeTab),
       );
       return;
     }
-    setTemplateDraft(getDefaultTemplateHtml(activeTab, letterLocale));
-    setTemplateNameDraft(t(`letterGeneration.tabs.${activeTab}`));
-    setLetterheadDraft(null);
-    setLetterheadModeDraft('full');
     setPaperSizeDraft(getDefaultLetterPaperSize(activeTab));
-    // Only reset draft when letter type/locale/master changes — not when `t` is recreated.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeLetterMaster, activeTab, letterLocale]);
+  }, [activeLetterMaster, activeTab]);
 
-  const activeTemplateHtml = templateDraft;
+  const activeTemplateHtml =
+    activeLetterMaster?.templateHtml?.trim() ||
+    getDefaultTemplateHtml(activeTab, letterLocale);
 
   const existingReferenceNos = useMemo(
     () => savedLetters.map((letter) => letter.referenceNo),
@@ -2254,7 +1902,10 @@ export function LetterGeneration({
   const activeTitle = t(`letterGeneration.tabs.${activeTab}`);
   const activePaperSize = paperSizeDraft;
   const activePaperLabel = getLetterPaperLabel(activePaperSize);
-  const activeLetterheadUrl = resolveLetterheadUrl(activePaperSize, letterheadDraft);
+  const activeLetterheadUrl = resolveLetterheadUrl(
+    activePaperSize,
+    activeLetterMaster?.letterheadUrl,
+  );
 
   const activeFields = useMemo(
     () =>
@@ -2431,98 +2082,6 @@ export function LetterGeneration({
       return false;
     }
     return true;
-  };
-
-  const handleUploadLetterhead = async (file: File) => {
-    if (!['image/jpeg', 'image/png'].includes(file.type)) {
-      toast.error(t('letterGeneration.templates.letterheadInvalidType'));
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error(t('letterGeneration.templates.letterheadTooLarge'));
-      return;
-    }
-
-    setIsUploadingLetterhead(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await fetch('/api/files/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || 'Upload failed');
-      setLetterheadDraft(json.url ?? null);
-      toast.success(t('letterGeneration.templates.letterheadUploadSuccess'));
-    } catch (error) {
-      console.error('Failed to upload letterhead', error);
-      toast.error(t('letterGeneration.templates.letterheadUploadError'));
-    } finally {
-      setIsUploadingLetterhead(false);
-      if (letterheadInputRef.current) {
-        letterheadInputRef.current.value = '';
-      }
-    }
-  };
-
-  const handleSaveTemplate = async () => {
-    if (!templateNameDraft.trim() || !templateDraft.trim()) {
-      toast.error(t('letterGeneration.templates.validationRequired'));
-      return;
-    }
-
-    setIsSavingTemplate(true);
-    try {
-      const payload = {
-        name: templateNameDraft.trim(),
-        templateHtml: templateDraft,
-        letterheadUrl: letterheadDraft,
-        letterheadMode: letterheadModeDraft,
-        paperSize: paperSizeDraft,
-      };
-
-      const res = activeLetterMaster
-        ? await fetch(
-          `/api/letter-masters/${encodeURIComponent(activeLetterMaster.id)}`,
-          {
-            method: 'PUT',
-            headers: { 'content-type': 'application/json' },
-            body: JSON.stringify(payload),
-          },
-        )
-        : await fetch('/api/letter-masters', {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({
-            ...payload,
-            letterType: activeTab,
-            letterLocale,
-          }),
-        });
-
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || 'Failed to save template');
-      toast.success(
-        t(
-          activeLetterMaster
-            ? 'letterGeneration.templates.saveSuccess'
-            : 'letterGeneration.templates.createSuccess',
-        ),
-      );
-      await refreshLetterMasters();
-    } catch (error) {
-      console.error('Failed to save letter template', error);
-      toast.error(
-        t(
-          activeLetterMaster
-            ? 'letterGeneration.templates.saveError'
-            : 'letterGeneration.templates.createError',
-        ),
-      );
-    } finally {
-      setIsSavingTemplate(false);
-    }
   };
 
   const handleSaveLetter = async () => {
@@ -3114,6 +2673,20 @@ export function LetterGeneration({
                 {t('letterGeneration.addresses.manageLink')}
               </Link>
             </Button>
+            {isAdmin ? (
+              <Button variant="outline" asChild>
+                <Link
+                  href={
+                    beneficiaryServiceId
+                      ? `/modules/letter-generation/templates?beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}&letterType=${encodeURIComponent(activeTab)}&letterLocale=${encodeURIComponent(letterLocale)}`
+                      : `/modules/letter-generation/templates?letterType=${encodeURIComponent(activeTab)}&letterLocale=${encodeURIComponent(letterLocale)}`
+                  }
+                >
+                  <FileCode2 className="mr-2 size-4" />
+                  {t('letterGeneration.templates.manageLink')}
+                </Link>
+              </Button>
+            ) : null}
           </div>
         }
       />
@@ -4507,226 +4080,6 @@ export function LetterGeneration({
         )}
       </Card>
 
-      {isAdmin ? (
-      <Card>
-        <CardHeader
-          className="cursor-pointer select-none p-4 transition-colors hover:bg-muted/50 sm:p-6 rounded-t-lg"
-          onClick={() => setIsTemplateEditorOpen((value) => !value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setIsTemplateEditorOpen((value) => !value);
-            }
-          }}
-          role="button"
-          tabIndex={0}
-          aria-expanded={isTemplateEditorOpen}
-        >
-          <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1">
-              <CardTitle className="text-lg">
-                {t('letterGeneration.templates.title')}
-              </CardTitle>
-              <CardDescription>
-                {t('letterGeneration.templates.description')}
-              </CardDescription>
-            </div>
-            {isTemplateEditorOpen ? (
-              <ChevronUp className="mt-1 size-5 shrink-0 text-muted-foreground" aria-hidden />
-            ) : (
-              <ChevronDown className="mt-1 size-5 shrink-0 text-muted-foreground" aria-hidden />
-            )}
-          </div>
-        </CardHeader>
-        {isTemplateEditorOpen ? (
-          <CardContent className="space-y-4 p-4 sm:p-6">
-            {!activeLetterMaster ? (
-              <p className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
-                {t('letterGeneration.templates.noTemplateHint')}
-              </p>
-            ) : null}
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <FieldGroup label={t('letterGeneration.templates.name')}>
-                <Input
-                  value={templateNameDraft}
-                  onChange={(e) => setTemplateNameDraft(e.target.value)}
-                  placeholder={t('letterGeneration.templates.namePlaceholder')}
-                />
-              </FieldGroup>
-              <FieldGroup label={t('letterGeneration.templates.activeTemplate')}>
-                <Input
-                  value={t(`letterGeneration.tabs.${activeTab}`)}
-                  disabled
-                />
-              </FieldGroup>
-              <FieldGroup label={t('letterGeneration.fields.paperSize')}>
-                <Select
-                  value={paperSizeDraft}
-                  onValueChange={(value: LetterPaperSize) => setPaperSizeDraft(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LETTER_PAPER_SIZES.map((size) => (
-                      <SelectItem key={size} value={size}>
-                        {t(`letterGeneration.paperSize.options.${size}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FieldGroup>
-            </div>
-            <FieldGroup label={t('letterGeneration.templates.letterhead')}>
-              <div className="space-y-3">
-                {letterheadDraft ? (
-                  <div className="overflow-hidden rounded-lg border bg-white p-2">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={letterheadDraft}
-                      alt={t('letterGeneration.templates.letterheadPreviewAlt')}
-                      className={cn(
-                        'mx-auto block object-contain',
-                        letterheadModeDraft === 'full'
-                          ? 'w-full'
-                          : 'w-1/2',
-                      )}
-                    />
-                  </div>
-                ) : (
-                  <div className="flex min-h-24 items-center justify-center rounded-lg border border-dashed bg-muted/30 px-4 text-center text-sm text-muted-foreground">
-                    <ImageIcon className="mr-2 size-4 shrink-0" aria-hidden />
-                    {t('letterGeneration.templates.letterheadEmpty')}
-                  </div>
-                )}
-                {letterheadDraft ? (
-                  <FieldGroup label={t('letterGeneration.templates.letterheadMode')}>
-                    <Select
-                      value={letterheadModeDraft}
-                      onValueChange={(value: LetterheadMode) =>
-                        setLetterheadModeDraft(value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="full">
-                          {t('letterGeneration.templates.letterheadModeFull')}
-                        </SelectItem>
-                        <SelectItem value="half">
-                          {t('letterGeneration.templates.letterheadModeHalf')}
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FieldGroup>
-                ) : null}
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <input
-                    ref={letterheadInputRef}
-                    type="file"
-                    accept="image/jpeg,image/png"
-                    className="hidden"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) void handleUploadLetterhead(file);
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                    onClick={() => letterheadInputRef.current?.click()}
-                    disabled={isUploadingLetterhead}
-                  >
-                    {isUploadingLetterhead ? (
-                      <Loader2 className="mr-2 size-4 animate-spin" />
-                    ) : (
-                      <Upload className="mr-2 size-4" />
-                    )}
-                    {letterheadDraft
-                      ? t('letterGeneration.templates.letterheadReplace')
-                      : t('letterGeneration.templates.letterheadUpload')}
-                  </Button>
-                  {letterheadDraft ? (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full sm:w-auto"
-                      onClick={() => {
-                        setLetterheadDraft(null);
-                        setLetterheadModeDraft('full');
-                      }}
-                      disabled={isUploadingLetterhead}
-                    >
-                      <X className="mr-2 size-4" />
-                      {t('letterGeneration.templates.letterheadRemove')}
-                    </Button>
-                  ) : null}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {t('letterGeneration.templates.letterheadHint')}
-                </p>
-              </div>
-            </FieldGroup>
-            <FieldGroup label={t('letterGeneration.templates.html')}>
-              <Textarea
-                value={templateDraft}
-                onChange={(e) => setTemplateDraft(e.target.value)}
-                rows={16}
-                className="font-mono text-xs sm:text-sm"
-                placeholder={t('letterGeneration.templates.htmlPlaceholder')}
-              />
-            </FieldGroup>
-            <p className="text-xs text-muted-foreground">
-              {t('letterGeneration.templates.placeholderHint')}
-            </p>
-            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto"
-                onClick={() => {
-                  setTemplateDraft(getDefaultTemplateHtml(activeTab, letterLocale));
-                  setTemplateNameDraft(
-                    activeLetterMaster?.name?.trim() ||
-                      t(`letterGeneration.tabs.${activeTab}`),
-                  );
-                  toast.success(t('letterGeneration.templates.restoreDefaultSuccess'));
-                }}
-              >
-                {t('letterGeneration.templates.restoreDefault')}
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto"
-                onClick={() => void refreshLetterMasters()}
-                disabled={letterMastersLoading}
-              >
-                {t('letterGeneration.savedLetters.refresh')}
-              </Button>
-              <Button
-                className="w-full sm:w-auto"
-                onClick={() => void handleSaveTemplate()}
-                disabled={
-                  isSavingTemplate ||
-                  !templateNameDraft.trim() ||
-                  !templateDraft.trim()
-                }
-              >
-                {isSavingTemplate ? (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
-                ) : (
-                  <Save className="mr-2 size-4" />
-                )}
-                {activeLetterMaster
-                  ? t('letterGeneration.templates.save')
-                  : t('letterGeneration.templates.create')}
-              </Button>
-            </div>
-          </CardContent>
-        ) : null}
-      </Card>
-      ) : null}
       <Card>
         <CardHeader className="p-4 sm:p-6">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
