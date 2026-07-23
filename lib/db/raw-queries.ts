@@ -2024,6 +2024,8 @@ export async function getTasksWithFilters({
   assignedTo,
   serviceType,
   serviceName,
+  createdFrom,
+  createdTo,
 }: {
   status?: string;
   priority?: string;
@@ -2035,6 +2037,8 @@ export async function getTasksWithFilters({
   assignedTo?: string;
   serviceType?: 'individual' | 'community';
   serviceName?: string;
+  createdFrom?: string;
+  createdTo?: string;
 }): Promise<{
   tasks: Array<
     VoterTask & {
@@ -2077,6 +2081,8 @@ export async function getTasksWithFilters({
     const tokenPattern = token ? `%${token}%` : '';
     const mobilePattern = mobileNo ? `%${mobileNo}%` : '';
     const serviceNameVal = serviceName ?? '';
+    const createdFromVal = createdFrom ?? '';
+    const createdToVal = createdTo ?? '';
 
     if (serviceType === 'individual' || !serviceType) {
       const [countRow] = await pgSql`
@@ -2089,6 +2095,14 @@ export async function getTasksWithFilters({
           AND (${voterIdVal} = '' OR bs.voter_id = ${voterIdVal})
           AND (${tokenPattern} = '' OR bs.token ILIKE ${tokenPattern})
           AND (${serviceNameVal} = '' OR bs.service_name = ${serviceNameVal})
+          AND (
+            ${createdFromVal} = ''
+            OR (bs.created_at AT TIME ZONE 'Asia/Kolkata')::date >= ${createdFromVal}::date
+          )
+          AND (
+            ${createdToVal} = ''
+            OR (bs.created_at AT TIME ZONE 'Asia/Kolkata')::date <= ${createdToVal}::date
+          )
           AND (
             ${mobilePattern} = ''
             OR EXISTS (
@@ -2139,6 +2153,14 @@ export async function getTasksWithFilters({
           AND (${voterIdVal} = '' OR bs.voter_id = ${voterIdVal})
           AND (${tokenPattern} = '' OR bs.token ILIKE ${tokenPattern})
           AND (${serviceNameVal} = '' OR bs.service_name = ${serviceNameVal})
+          AND (
+            ${createdFromVal} = ''
+            OR (bs.created_at AT TIME ZONE 'Asia/Kolkata')::date >= ${createdFromVal}::date
+          )
+          AND (
+            ${createdToVal} = ''
+            OR (bs.created_at AT TIME ZONE 'Asia/Kolkata')::date <= ${createdToVal}::date
+          )
           AND (
             ${mobilePattern} = ''
             OR EXISTS (
@@ -2229,6 +2251,14 @@ export async function getTasksWithFilters({
         AND (${tokenPattern} = '' OR bs.token ILIKE ${tokenPattern})
         AND (${serviceTypeVal} = '' OR bs.service_type = ${serviceTypeVal})
         AND (
+          ${createdFromVal} = ''
+          OR (COALESCE(bs.created_at, vt.created_at) AT TIME ZONE 'Asia/Kolkata')::date >= ${createdFromVal}::date
+        )
+        AND (
+          ${createdToVal} = ''
+          OR (COALESCE(bs.created_at, vt.created_at) AT TIME ZONE 'Asia/Kolkata')::date <= ${createdToVal}::date
+        )
+        AND (
           ${mobilePattern} = ''
           OR EXISTS (
             SELECT 1 FROM "VoterMobileNumber" vmn
@@ -2276,6 +2306,14 @@ export async function getTasksWithFilters({
         AND (${voterIdVal} = '' OR vt.voter_id = ${voterIdVal})
         AND (${tokenPattern} = '' OR bs.token ILIKE ${tokenPattern})
         AND (${serviceTypeVal} = '' OR bs.service_type = ${serviceTypeVal})
+        AND (
+          ${createdFromVal} = ''
+          OR (COALESCE(bs.created_at, vt.created_at) AT TIME ZONE 'Asia/Kolkata')::date >= ${createdFromVal}::date
+        )
+        AND (
+          ${createdToVal} = ''
+          OR (COALESCE(bs.created_at, vt.created_at) AT TIME ZONE 'Asia/Kolkata')::date <= ${createdToVal}::date
+        )
         AND (
           ${mobilePattern} = ''
           OR EXISTS (

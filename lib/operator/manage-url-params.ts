@@ -6,6 +6,8 @@ export const OPERATOR_MANAGE_URL_PARAMS = {
   token: 'token',
   mobile: 'mobile',
   voterId: 'voterId',
+  createdFrom: 'createdFrom',
+  createdTo: 'createdTo',
   page: 'page',
   limit: 'limit',
   taskId: 'taskId',
@@ -21,10 +23,19 @@ export type ManageFilterState = {
   token: string;
   mobile: string;
   voterId: string;
+  createdFrom: string;
+  createdTo: string;
   page: number;
   limit: number;
   taskId: string;
 };
+
+const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function parseManageDateParam(value: string | null): string {
+  const trimmed = (value ?? '').trim();
+  return YMD_RE.test(trimmed) ? trimmed : '';
+}
 
 export function parseManagePageParam(value: string | null): number {
   const parsed = Number.parseInt(value ?? '1', 10);
@@ -54,6 +65,8 @@ export function parseManageFiltersFromSearchParams(
     token: get(OPERATOR_MANAGE_URL_PARAMS.token) || '',
     mobile: get(OPERATOR_MANAGE_URL_PARAMS.mobile) || '',
     voterId: get(OPERATOR_MANAGE_URL_PARAMS.voterId) || '',
+    createdFrom: parseManageDateParam(get(OPERATOR_MANAGE_URL_PARAMS.createdFrom)),
+    createdTo: parseManageDateParam(get(OPERATOR_MANAGE_URL_PARAMS.createdTo)),
     page: parseManagePageParam(get(OPERATOR_MANAGE_URL_PARAMS.page)),
     limit: parseManageLimitParam(get(OPERATOR_MANAGE_URL_PARAMS.limit)),
     taskId: get(OPERATOR_MANAGE_URL_PARAMS.taskId) || '',
@@ -84,6 +97,8 @@ export function buildManageSearchParams(
   setOrDelete(OPERATOR_MANAGE_URL_PARAMS.token, state.token);
   setOrDelete(OPERATOR_MANAGE_URL_PARAMS.mobile, state.mobile);
   setOrDelete(OPERATOR_MANAGE_URL_PARAMS.voterId, state.voterId);
+  setOrDelete(OPERATOR_MANAGE_URL_PARAMS.createdFrom, state.createdFrom);
+  setOrDelete(OPERATOR_MANAGE_URL_PARAMS.createdTo, state.createdTo);
   setOrDelete(OPERATOR_MANAGE_URL_PARAMS.taskId, state.taskId);
 
   if (state.page !== undefined) {

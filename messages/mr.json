@@ -583,7 +583,7 @@
     "configurationAria": "कॉन्फिगरेशन",
     "backToWardPanel": "प्रभाग पॅनेलकडे परत",
     "backToAllWards": "सर्व प्रभागांकडे परत",
-    "backToConstituency": "मतदारसंघाकडे परत",
+    "backToConstituency": "परत",
     "noWardsMatch": "सध्याच्या शोधाशी जुळणारे प्रभाग नाहीत.",
     "wardNumber": "प्रभाग क्र. {ward}",
     "openWardControlPanel": "प्रभाग {ward} नियंत्रण पॅनेल उघडा",
@@ -1785,6 +1785,8 @@
       "allServices": "सर्व सेवा",
       "allTasks": "सर्व कार्ये",
       "allPriorities": "सर्व प्राधान्ये",
+      "createdFrom": "निर्मिती पासून",
+      "createdTo": "निर्मिती पर्यंत",
       "itemsPerPage": "प्रति पृष्ठ आयटम",
       "showing": "{count} पैकी {total} कार्ये दर्शवत आहे"
     },

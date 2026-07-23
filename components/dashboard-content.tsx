@@ -32,6 +32,7 @@ function hierarchyMemberHref(memberId: string): string {
   const params = new URLSearchParams({
     [HIERARCHY_URL_PARAMS.view]: HIERARCHY_VIEWS.allMembers,
     [HIERARCHY_URL_PARAMS.member]: memberId,
+    [HIERARCHY_URL_PARAMS.returnTo]: '/modules/dashboard',
   });
   return `/modules/hierarchy?${params.toString()}`;
 }

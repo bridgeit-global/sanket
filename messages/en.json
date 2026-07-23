@@ -583,7 +583,7 @@
     "configurationAria": "Configuration",
     "backToWardPanel": "Back to ward panel",
     "backToAllWards": "Back to all wards",
-    "backToConstituency": "Back to constituency",
+    "backToConstituency": "Back",
     "noWardsMatch": "No wards match the current search.",
     "wardNumber": "Ward No. {ward}",
     "openWardControlPanel": "Open Ward {ward} Control Panel",
@@ -1783,6 +1783,8 @@
       "allServices": "All Services",
       "allTasks": "All Tasks",
       "allPriorities": "All Priorities",
+      "createdFrom": "Created From",
+      "createdTo": "Created To",
       "itemsPerPage": "Items per page",
       "showing": "Showing {count} of {total} tasks"
     },

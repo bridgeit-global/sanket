@@ -14,6 +14,7 @@ export const HIERARCHY_URL_PARAMS = {
   pageSize: 'pageSize',
   view: 'view',
   voterId: 'voterId',
+  returnTo: 'returnTo',
 } as const;
 
 export const VOTER_ID_FILTERS = {

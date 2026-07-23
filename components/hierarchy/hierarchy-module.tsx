@@ -134,6 +134,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const pageFromUrl = parseMemberPageParam(searchParams.get(HIERARCHY_URL_PARAMS.page));
   const pageSize = parseMemberPageSizeParam(searchParams.get(HIERARCHY_URL_PARAMS.pageSize));
   const viewMode = searchParams.get(HIERARCHY_URL_PARAMS.view) ?? '';
+  const returnToParam = searchParams.get(HIERARCHY_URL_PARAMS.returnTo) ?? '';
 
   useEffect(() => {
     setSearchDraft(searchQuery);
@@ -201,6 +202,9 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       if (nextPageSize !== parseMemberPageSizeParam(null)) {
         params.set(HIERARCHY_URL_PARAMS.pageSize, String(nextPageSize));
       }
+      if (returnToParam.trim()) {
+        params.set(HIERARCHY_URL_PARAMS.returnTo, returnToParam.trim());
+      }
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
@@ -214,9 +218,10 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       boothNo,
       focusMemberId,
       voterIdFilter,
+      viewMode,
       pageFromUrl,
       pageSize,
-      viewMode,
+      returnToParam,
     ],
   );
 
@@ -879,6 +884,19 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     scrollToTop();
   };
 
+  const backToConstituency = () => {
+    const returnTo = returnToParam.trim();
+    const isSafeInternalPath =
+      returnTo.startsWith('/') &&
+      !returnTo.startsWith('//') &&
+      !returnTo.startsWith('/modules/hierarchy');
+    if (isSafeInternalPath) {
+      router.push(returnTo);
+      return;
+    }
+    backToOverview();
+  };
+
   const backToWardPanel = () => {
     setUrlParams({
       booth: '',
@@ -1153,7 +1171,9 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
           onClick={
             showWardPanel && (showWardCommittee || showBoothCommittee)
               ? backToWardPanel
-              : backToOverview
+              : showWardPanel
+                ? backToOverview
+                : backToConstituency
           }
         >
           <ArrowLeft className="size-4" />

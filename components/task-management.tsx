@@ -333,6 +333,8 @@ export function TaskManagement({
         token: initialManageState?.token ?? urlFilters.token,
         mobile: initialManageState?.mobile ?? urlFilters.mobile,
         voterId: initialManageState?.voterId ?? urlFilters.voterId,
+        createdFrom: initialManageState?.createdFrom ?? urlFilters.createdFrom,
+        createdTo: initialManageState?.createdTo ?? urlFilters.createdTo,
         page: initialManageState?.page ?? urlFilters.page,
         limit: initialManageState?.limit ?? urlFilters.limit,
         taskId: initialManageState?.taskId ?? urlFilters.taskId,
@@ -357,6 +359,12 @@ export function TaskManagement({
     const [filterToken, setFilterToken] = useState<string>(mergedInitial.token);
     const [filterMobile, setFilterMobile] = useState<string>(mergedInitial.mobile);
     const [filterVoterId, setFilterVoterId] = useState<string>(mergedInitial.voterId);
+    const [filterCreatedFrom, setFilterCreatedFrom] = useState<string>(
+        mergedInitial.createdFrom,
+    );
+    const [filterCreatedTo, setFilterCreatedTo] = useState<string>(
+        mergedInitial.createdTo,
+    );
     const [filterTokenInput, setFilterTokenInput] = useState<string>(mergedInitial.token);
     const [filterMobileInput, setFilterMobileInput] = useState<string>(mergedInitial.mobile);
     const [filterVoterIdInput, setFilterVoterIdInput] = useState<string>(mergedInitial.voterId);
@@ -442,6 +450,8 @@ export function TaskManagement({
                 token: updates.token ?? filterToken,
                 mobile: updates.mobile ?? filterMobile,
                 voterId: updates.voterId ?? filterVoterId,
+                createdFrom: updates.createdFrom ?? filterCreatedFrom,
+                createdTo: updates.createdTo ?? filterCreatedTo,
                 page: resetPage ? 1 : (updates.page ?? currentPage),
                 limit: updates.limit ?? pageSize,
                 taskId: updates.taskId ?? (searchParams.get('taskId') ?? ''),
@@ -461,6 +471,8 @@ export function TaskManagement({
             filterToken,
             filterMobile,
             filterVoterId,
+            filterCreatedFrom,
+            filterCreatedTo,
             currentPage,
             pageSize,
         ],
@@ -501,6 +513,8 @@ export function TaskManagement({
             if (filterServiceName && filterServiceName !== 'all') {
                 params.append('serviceName', filterServiceName);
             }
+            if (filterCreatedFrom) params.append('createdFrom', filterCreatedFrom);
+            if (filterCreatedTo) params.append('createdTo', filterCreatedTo);
             params.append('serviceType', 'individual');
             params.append('page', currentPage.toString());
             params.append('limit', pageSize.toString());
@@ -527,12 +541,12 @@ export function TaskManagement({
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, t]);
+    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, filterCreatedFrom, filterCreatedTo, t]);
 
     useEffect(() => {
         fetchTasks();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName]);
+    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, filterCreatedFrom, filterCreatedTo]);
 
     useEffect(() => {
         if (!pendingAutoFocusToken) return;
@@ -656,6 +670,8 @@ export function TaskManagement({
         setFilterToken('');
         setFilterMobile('');
         setFilterVoterId('');
+        setFilterCreatedFrom('');
+        setFilterCreatedTo('');
         setFilterTokenInput('');
         setFilterMobileInput('');
         setFilterVoterIdInput('');
@@ -669,6 +685,8 @@ export function TaskManagement({
             token: '',
             mobile: '',
             voterId: '',
+            createdFrom: '',
+            createdTo: '',
             page: 1,
             limit: 10,
         });
@@ -1012,6 +1030,42 @@ export function TaskManagement({
                                     placeholder={t('taskManagement.filters.enterVoterId')}
                                     value={filterVoterIdInput}
                                     onChange={(e) => setFilterVoterIdInput(e.target.value)}
+                                />
+                            </div>
+
+                            <div>
+                                <Label htmlFor="created-from-filter">
+                                    {t('taskManagement.filters.createdFrom')}
+                                </Label>
+                                <Input
+                                    id="created-from-filter"
+                                    type="date"
+                                    value={filterCreatedFrom}
+                                    max={filterCreatedTo || undefined}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        setFilterCreatedFrom(value);
+                                        setCurrentPage(1);
+                                        syncManageUrl({ createdFrom: value, page: 1 }, true);
+                                    }}
+                                />
+                            </div>
+
+                            <div>
+                                <Label htmlFor="created-to-filter">
+                                    {t('taskManagement.filters.createdTo')}
+                                </Label>
+                                <Input
+                                    id="created-to-filter"
+                                    type="date"
+                                    value={filterCreatedTo}
+                                    min={filterCreatedFrom || undefined}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        setFilterCreatedTo(value);
+                                        setCurrentPage(1);
+                                        syncManageUrl({ createdTo: value, page: 1 }, true);
+                                    }}
                                 />
                             </div>
                         </div>
