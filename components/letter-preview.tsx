@@ -27,7 +27,9 @@ import {
 const LETTER_PREVIEW_CONTENT_CLASSES =
   // Templates use block margins / <br> for structure — do not use pre-wrap or
   // pretty-printed HTML indentation becomes huge blank lines in PDF/print.
-  '[&_.letter-content]:whitespace-normal [&_.letter-content]:font-[inherit] [&_.letter-content]:text-[length:inherit] [&_.letter-content]:leading-[inherit] [&_.letter-content]:text-black ' +
+  // Do NOT force font-size / line-height inherit — templates set their own
+  // (e.g. fees A5 uses 13px / 1.55) and must match PDF capture.
+  '[&_.letter-content]:whitespace-normal [&_.letter-content]:text-black ' +
   // Closing / signature always right-aligned across every letter type.
   '[&_.letter-closing]:text-right [&_.right-tab]:text-right [&_.right-tab-sign]:text-right [&_.signature]:text-right [&_.signature-line]:text-right';
 
@@ -97,6 +99,7 @@ function computeLetterPreviewDisplayScale(
   return Math.min(maxScale, Math.max(minScale, fitScale));
 }
 
+/** Same px/mm ratio as getLetterPageContentHeightCssPx — keeps padding aligned. */
 function getLetterLayoutPxPerMm(paperSize: LetterPaperSize): number {
   const { widthMm } = LETTER_PAPER_DIMENSIONS_MM[paperSize];
   const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
@@ -227,38 +230,40 @@ export function LetterPreview({
   );
   const firstPageBodyPadding = paddingPxToCss(firstPagePaddingPx);
   const continuationBodyPadding = paddingPxToCss(continuationPaddingPx);
+  const contentWidthPx = getLetterPaperContentWidthPx(paperSize);
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const pageFrameRef = useRef<HTMLDivElement>(null);
-  const clipRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
   const [displayScale, setDisplayScale] = useState(1);
   // Y offsets where each preview page begins — aligned to text-line bottoms
   // so glyphs are never clipped mid-line (same logic as PDF export).
   const [pageStartOffsetsPx, setPageStartOffsetsPx] = useState<number[]>([0]);
 
   useLayoutEffect(() => {
-    const recomputePages = () => {
-      const content = contentRef.current;
-      const frame = pageFrameRef.current;
-      if (!content || firstPageContentHeightPx <= 0) return;
+    let cancelled = false;
 
-      // Measure without CSS transform so getClientRects match layout px
-      // (same coordinate space as PDF capture / page-height helpers).
-      const prevTransform = frame?.style.transform ?? '';
-      if (frame) frame.style.transform = 'none';
-      // Force layout after clearing transform.
-      void content.offsetHeight;
+    const recomputePages = () => {
+      if (firstPageContentHeightPx <= 0) return;
+
+      // Measure on an off-screen element identical to PDF capture so preview
+      // page breaks cannot drift from CSS transform / inherit / padding.
+      const measureHost = createLetterExportElement(contentHtml, {
+        paperSize,
+        letterLocale,
+      });
+      measureHost.style.position = 'fixed';
+      measureHost.style.left = '-10000px';
+      measureHost.style.top = '0';
+      measureHost.style.visibility = 'hidden';
+      measureHost.style.pointerEvents = 'none';
+      // Match PDF capture bottom padding so scrollHeight / breaks stay identical.
+      measureHost.style.paddingBottom = '6px';
+      document.body.appendChild(measureHost);
 
       try {
-        const measureRoot =
-          (content.querySelector('.letter-content') as HTMLElement | null) ??
-          content;
-
-        const total = measureRoot.scrollHeight;
-        const breakpointsPx = getContentBreakpointsPx(measureRoot, 1);
-        const avoidRangesPx = getAvoidSplitRangesPx(measureRoot, 1);
-        const lineRangesPx = getLineRangesPx(measureRoot, 1);
+        const total = measureHost.scrollHeight;
+        const breakpointsPx = getContentBreakpointsPx(measureHost, 1);
+        const avoidRangesPx = getAvoidSplitRangesPx(measureHost, 1);
+        const lineRangesPx = getLineRangesPx(measureHost, 1);
         const starts = computePageStartOffsetsPx({
           totalHeightPx: total,
           pageHeightPx: firstPageContentHeightPx,
@@ -273,6 +278,8 @@ export function LetterPreview({
           lineRangesPx,
         });
 
+        if (cancelled) return;
+
         setPageStartOffsetsPx((prev) => {
           const next = starts.length > 0 ? starts : [0];
           if (
@@ -284,32 +291,20 @@ export function LetterPreview({
           return next;
         });
       } finally {
-        if (frame) frame.style.transform = prevTransform;
+        measureHost.remove();
       }
     };
 
     recomputePages();
 
-    const frame = pageFrameRef.current;
-    const clip = clipRef.current;
-    const content = contentRef.current;
-    if (!frame || typeof ResizeObserver === 'undefined') {
-      return;
-    }
-
-    const observer = new ResizeObserver(() => recomputePages());
-    observer.observe(frame);
-    if (clip) observer.observe(clip);
-    if (content) observer.observe(content);
-
-    let cancelled = false;
+    let fontCancelled = false;
     void document.fonts?.ready.then(() => {
-      if (!cancelled) recomputePages();
+      if (!cancelled && !fontCancelled) recomputePages();
     });
 
     return () => {
       cancelled = true;
-      observer.disconnect();
+      fontCancelled = true;
     };
   }, [
     contentHtml,
@@ -318,9 +313,6 @@ export function LetterPreview({
     hasLetterhead,
     firstPageContentHeightPx,
     subsequentPageContentHeightPx,
-    firstPageBodyPadding,
-    continuationBodyPadding,
-    displayScale,
   ]);
 
   useLayoutEffect(() => {
@@ -353,8 +345,6 @@ export function LetterPreview({
     width: `${paperWidthPx}px`,
     height: `${paperHeightPx}px`,
     fontFamily: LETTER_FONT_STACK[letterLocale],
-    fontSize: `${getLetterPrintFontSizePx(paperSize)}px`,
-    lineHeight: LETTER_PRINT_LINE_HEIGHT,
     transform: `scale(${displayScale})`,
     transformOrigin: 'top left',
   } as const;
@@ -368,20 +358,17 @@ export function LetterPreview({
             pageIndex === 0
               ? firstPageContentHeightPx
               : subsequentPageContentHeightPx;
-          // Ceil so subpixel cuts don't leave a 1px glyph strip on the next page.
+          // Integer cuts — subpixel translateY leaves hairline glyph remnants.
           const renderStartPx =
-            pageIndex === 0 ? 0 : Math.ceil(startOffsetPx);
+            pageIndex === 0 ? 0 : Math.round(startOffsetPx);
           const renderEndPx =
-            nextStartPx != null
-              ? Math.min(
-                  Math.ceil(nextStartPx),
-                  renderStartPx + pageContentHeightPx,
-                )
-              : undefined;
+            nextStartPx != null ? Math.round(nextStartPx) : undefined;
+          // Clip ONLY to the safe break — never to the full page content height,
+          // or a mid-line cut at the page bottom will slice glyphs.
           const sliceHeightPx =
             renderEndPx != null
               ? Math.max(0, renderEndPx - renderStartPx)
-              : undefined;
+              : pageContentHeightPx;
 
           return (
             <div
@@ -397,7 +384,6 @@ export function LetterPreview({
               }}
             >
               <div
-                ref={pageIndex === 0 ? pageFrameRef : undefined}
                 className="relative overflow-hidden rounded-lg bg-white text-black shadow-sm ring-1 ring-black/10"
                 style={pageShellStyle}
               >
@@ -421,39 +407,25 @@ export function LetterPreview({
                   }}
                 >
                   <div
-                    ref={pageIndex === 0 ? clipRef : undefined}
                     className="overflow-hidden"
                     style={{
-                      // Must match pagination pageHeightPx exactly — h-full + mm
-                      // padding drifted by border/subpixels and mid-clipped lines.
-                      height:
-                        pageIndex === 0
-                          ? firstPageContentHeightPx
-                          : subsequentPageContentHeightPx,
+                      height: sliceHeightPx,
+                      maxHeight: pageContentHeightPx,
                     }}
                   >
-                    {/* Cap visible height at the next safe break so lines aren't clipped mid-glyph. */}
                     <div
-                      className="overflow-hidden"
-                      style={
-                        sliceHeightPx != null
-                          ? { height: sliceHeightPx }
-                          : undefined
-                      }
-                    >
-                      <div
-                        ref={pageIndex === 0 ? contentRef : undefined}
-                        className={LETTER_PREVIEW_CONTENT_CLASSES}
-                        style={{
-                          transform:
-                            renderStartPx > 0
-                              ? `translateY(-${renderStartPx}px)`
-                              : undefined,
-                        }}
-                        // Letter HTML is generated from admin-editable templates stored in our database.
-                        dangerouslySetInnerHTML={{ __html: contentHtml }}
-                      />
-                    </div>
+                      className={LETTER_PREVIEW_CONTENT_CLASSES}
+                      style={{
+                        width: contentWidthPx,
+                        maxWidth: '100%',
+                        transform:
+                          renderStartPx > 0
+                            ? `translateY(-${renderStartPx}px)`
+                            : undefined,
+                      }}
+                      // Letter HTML is generated from admin-editable templates stored in our database.
+                      dangerouslySetInnerHTML={{ __html: contentHtml }}
+                    />
                   </div>
                 </div>
               </div>

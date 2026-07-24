@@ -166,7 +166,8 @@ function prepareCaptureElement(
   host.style.fontFamily = sourceFontFamily;
 
   const clone = source.cloneNode(true) as HTMLElement;
-  clone.className = '';
+  // Keep class names (e.g. letter-content) so pagination selectors / template
+  // CSS match the live preview measure host.
   clone.style.width = '100%';
   clone.style.maxWidth = '100%';
   clone.style.boxSizing = 'border-box';

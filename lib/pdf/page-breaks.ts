@@ -233,36 +233,97 @@ function snapCutOutOfLineInterior(
 }
 
 /**
- * Final pass: never leave a page break that splits a line box (including the
- * anti-alias band just below the DOM line box). Prefer keeping the line on
- * this page when it fits; otherwise move the whole line to the next page.
+ * Force a cut Y into a blank gap between line boxes (never inside glyph ink).
+ * If the cut falls inside a line that can move to the next page, snap to its top.
  */
-function resolveLineAwareCutY(
+export function snapCutToNearestLineGap(
   cutY: number,
   renderedPx: number,
   lineRangesPx: LineRangePx[],
   maxCutY: number,
   clearancePx = 2,
 ): number {
-  let y = cutY;
-  for (const line of lineRangesPx) {
-    // Strict interior, or inside the anti-alias band below the line box.
-    const splitsLine = y > line.top && y < line.bottom;
-    const inInkBleed = y >= line.bottom && y < line.bottom + clearancePx;
-    if (!splitsLine && !inInkBleed) continue;
+  if (lineRangesPx.length === 0) return cutY;
 
-    const pastInk = line.bottom + clearancePx;
-    if (pastInk <= maxCutY) {
-      y = Math.max(y, pastInk);
-      continue;
+  let y = Math.min(Math.max(cutY, renderedPx), maxCutY);
+
+  for (let i = 0; i < lineRangesPx.length; i++) {
+    const line = lineRangesPx[i]!;
+    const next = lineRangesPx[i + 1];
+    // Never bleed clearance into the following line box (getClientRects often
+    // overlap slightly — uncapped clearance was pulling cuts up line-by-line
+    // and spawning an extra preview page).
+    const gapLimit = next ? next.top : Number.POSITIVE_INFINITY;
+    const inkBottom = Math.min(line.bottom + clearancePx, gapLimit);
+
+    // Strict mid-glyph — move whole line to next page when possible.
+    if (y > line.top && y < line.bottom) {
+      if (line.top > renderedPx + 1) {
+        y = line.top;
+      } else if (inkBottom <= maxCutY && inkBottom > line.bottom) {
+        y = inkBottom;
+      } else if (line.bottom <= maxCutY) {
+        y = line.bottom;
+      }
+      break;
     }
-    if (line.top > renderedPx + 1) {
-      y = Math.min(y, line.top);
-      continue;
+
+    // Anti-alias band just below the DOM line box (still above next line).
+    if (y >= line.bottom && y < inkBottom) {
+      if (inkBottom <= maxCutY) {
+        y = Math.max(y, Math.min(inkBottom, gapLimit));
+      } else if (line.top > renderedPx + 1) {
+        y = line.top;
+      } else {
+        y = Math.min(maxCutY, line.bottom);
+      }
+      break;
     }
-    y = Math.min(maxCutY, pastInk);
   }
-  return y;
+
+  return Math.min(Math.max(y, renderedPx), maxCutY);
+}
+
+/** Ensure every page-start offset sits in a line gap (not mid-glyph). */
+export function sanitizePageStartOffsetsPx(
+  starts: number[],
+  lineRangesPx: LineRangePx[],
+  totalHeightPx: number,
+  clearancePx = 2,
+): number[] {
+  if (starts.length === 0) return [0];
+  const next = starts.map((start, index) => {
+    if (index === 0) return 0;
+    const prev = starts[index - 1] ?? 0;
+    return snapCutToNearestLineGap(
+      start,
+      prev,
+      lineRangesPx,
+      totalHeightPx,
+      clearancePx,
+    );
+  });
+  // Drop duplicates / non-advancing cuts.
+  const deduped: number[] = [0];
+  for (let i = 1; i < next.length; i++) {
+    const y = next[i]!;
+    if (y > deduped[deduped.length - 1]! + 1 && y < totalHeightPx) {
+      deduped.push(y);
+    }
+  }
+
+  // Drop a trailing page start that only leaves an empty/descender sliver.
+  const sampleLine = lineRangesPx[0];
+  const minTailPx = sampleLine
+    ? Math.max(12, sampleLine.bottom - sampleLine.top)
+    : 12;
+  while (deduped.length > 1) {
+    const last = deduped[deduped.length - 1]!;
+    if (totalHeightPx - last >= minTailPx) break;
+    deduped.pop();
+  }
+
+  return deduped;
 }
 
 export function pickSliceHeightPx(args: {
@@ -306,7 +367,7 @@ export function pickSliceHeightPx(args: {
     ? Math.max(4, Math.round((sampleLine.bottom - sampleLine.top) * 0.2))
     : 4;
   const clearancePx = sampleLine
-    ? Math.max(2, Math.round((sampleLine.bottom - sampleLine.top) * 0.08))
+    ? Math.max(2, Math.round((sampleLine.bottom - sampleLine.top) * 0.12))
     : 2;
   const pageEndLimit = renderedPx + defaultHeight;
 
@@ -333,13 +394,14 @@ export function pickSliceHeightPx(args: {
     lineRangesPx,
     safetyPx,
   );
-  cutY = resolveLineAwareCutY(
+  cutY = snapCutToNearestLineGap(
     cutY,
     renderedPx,
     lineRangesPx,
     pageEndLimit,
     clearancePx,
   );
+
   // Never start the next page inside an avoid-range (e.g. signature gap).
   for (const range of avoidRangesPx) {
     if (cutY > range.top + 1 && cutY < range.bottom - 1 && range.top > renderedPx) {
@@ -348,7 +410,7 @@ export function pickSliceHeightPx(args: {
   }
 
   // Re-check lines after avoid snap (signature top may land mid-body-line).
-  cutY = resolveLineAwareCutY(
+  cutY = snapCutToNearestLineGap(
     cutY,
     renderedPx,
     lineRangesPx,
@@ -387,6 +449,11 @@ export function computePageStartOffsetsPx(args: {
   } = args;
   if (totalHeightPx <= 0 || pageHeightPx <= 0) return [0];
 
+  const sampleLine = lineRangesPx?.[0];
+  const sampleClearancePx = sampleLine
+    ? Math.max(2, Math.round((sampleLine.bottom - sampleLine.top) * 0.12))
+    : 2;
+
   const starts = [0];
   let renderedPx = 0;
   let guard = 0;
@@ -409,12 +476,19 @@ export function computePageStartOffsetsPx(args: {
     });
     if (slice <= 0) break;
     renderedPx += slice;
+    // pickSliceHeightPx already line-snapped — don't snap again here or
+    // clearance can cascade into following line boxes and add extra pages.
     if (renderedPx < totalHeightPx) {
       starts.push(renderedPx);
     }
   }
 
-  return starts;
+  return sanitizePageStartOffsetsPx(
+    starts,
+    lineRangesPx ?? [],
+    totalHeightPx,
+    sampleClearancePx,
+  );
 }
 
 /**
