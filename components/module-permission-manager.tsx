@@ -35,7 +35,7 @@ import {
 import { ALL_MODULES } from '@/lib/module-constants';
 import { Trash2, Plus, User as UserIcon, Shield } from 'lucide-react';
 import type { User, Role } from '@/lib/db/schema';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { TableSkeleton } from '@/components/module-skeleton';
 import { useTranslations } from '@/hooks/use-translations';

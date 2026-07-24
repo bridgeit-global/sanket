@@ -656,6 +656,10 @@
     },
     "formTitle": "Letter Details",
     "formDescription": "Enter all required information for the selected letter type.",
+    "clearAll": "Clear All",
+    "clearAllConfirmTitle": "Clear all fields?",
+    "clearAllConfirmDescription": "This will reset all letter form fields for every letter type. This cannot be undone.",
+    "clearAllSuccess": "Form cleared",
     "previewTitle": "Preview",
     "paperSize": {
       "label": "Paper size: {size}",

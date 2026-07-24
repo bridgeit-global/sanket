@@ -13,7 +13,7 @@ import {
 } from './ui/tooltip';
 import { memo } from 'react';
 import equal from 'fast-deep-equal';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 import type { ChatMessage } from '@/lib/types';
 
 export function PureMessageActions({

@@ -656,6 +656,10 @@
     },
     "formTitle": "पत्राचा तपशील",
     "formDescription": "निवडलेल्या पत्रासाठी सर्व आवश्यक माहिती भरा.",
+    "clearAll": "सर्व साफ करा",
+    "clearAllConfirmTitle": "सर्व फील्ड साफ करायची?",
+    "clearAllConfirmDescription": "यामुळे सर्व पत्र प्रकारांच्या फॉर्म फील्ड रीसेट होतील. हे पूर्ववत करता येणार नाही.",
+    "clearAllSuccess": "फॉर्म साफ झाला",
     "previewTitle": "पूर्वावलोकन",
     "paperSize": {
       "label": "कागदाचा आकार: {size}",

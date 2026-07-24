@@ -11,7 +11,7 @@ import {
   UndoIcon,
 } from '@/components/icons';
 import type { Suggestion } from '@/lib/db/schema';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 import { getSuggestions } from '../actions';
 
 interface TextArtifactMetadata {

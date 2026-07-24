@@ -4,7 +4,7 @@ import { artifactDefinitions, type UIArtifact } from './artifact';
 import { type Dispatch, memo, type SetStateAction, useState } from 'react';
 import type { ArtifactActionContext } from './create-artifact';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 
 interface ArtifactActionsProps {
   artifact: UIArtifact;

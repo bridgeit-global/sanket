@@ -12,7 +12,7 @@ import {
   Upload,
   X,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 
 import { LetterPreview } from '@/components/letter-preview';
 import { ModulePageHeader } from '@/components/module-page-header';

@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   ChevronDown,
   ChevronUp,
+  Eraser,
   Eye,
   FileCode2,
   FileDown,
@@ -20,7 +21,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import {
@@ -984,6 +985,7 @@ export function LetterGeneration({
   );
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [letterToDelete, setLetterToDelete] = useState<string | null>(null);
+  const [clearAllDialogOpen, setClearAllDialogOpen] = useState(false);
   const [filterLetterType, setFilterLetterType] =
     useState<SavedLetterTypeFilter>(ALL_LETTER_TYPES);
   const [filterReference, setFilterReference] = useState('');
@@ -2309,6 +2311,47 @@ export function LetterGeneration({
       setLetterToDelete(null);
       setDeleteDialogOpen(false);
     }
+  };
+
+  const confirmClearAll = () => {
+    setFeesFields(feesDefaults(letterLocale));
+    setGeneralFields(generalDefaults(letterLocale));
+    setSchoolAdmissionFields(schoolAdmissionDefaults(letterLocale));
+    setSchoolTransferFields(schoolTransferDefaults(letterLocale));
+    setRationFields(rationDefaults(letterLocale));
+    setIncomeFields(incomeDefaults(letterLocale));
+    setDomicileFields(domicileDefaults(letterLocale));
+    setParagraphRows(['']);
+    setFamilyMemberRows([emptyFamilyMemberRow()]);
+    setAddressSelections({
+      school: null,
+      applicant: null,
+      rationOffice: null,
+      office: null,
+      fromRationOffice: null,
+      toRationOffice: null,
+    });
+    setManualAddressParts({
+      school: createEmptyAddressParts(),
+      applicant: createEmptyAddressParts(),
+      rationOffice: createEmptyAddressParts(),
+      office: createEmptyAddressParts(),
+      fromRationOffice: createEmptyAddressParts(),
+      toRationOffice: createEmptyAddressParts(),
+    });
+    setAddressPincodeErrors({});
+    setRationOfficeNames({
+      rationOffice: '',
+      fromRationOffice: '',
+      toRationOffice: '',
+    });
+    setFieldErrors({});
+    referenceNumberAutoRef.current = true;
+    void refreshReferenceSequence(defaultReferencePrefix(letterLocale), {
+      force: true,
+    });
+    setClearAllDialogOpen(false);
+    toast.success(t('letterGeneration.clearAllSuccess'));
   };
 
   const resolveSavedLetterPaperSize = (letter: SavedLetterRow): LetterPaperSize =>
@@ -4010,6 +4053,14 @@ export function LetterGeneration({
                       <Button
                         variant="outline"
                         className="w-full sm:w-auto"
+                        onClick={() => setClearAllDialogOpen(true)}
+                      >
+                        <Eraser className="mr-2 size-4" />
+                        {t('letterGeneration.clearAll')}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full sm:w-auto"
                         onClick={handleSaveLetter}
                         disabled={isSaving}
                       >
@@ -4317,6 +4368,17 @@ export function LetterGeneration({
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={clearAllDialogOpen}
+        onOpenChange={setClearAllDialogOpen}
+        title={t('letterGeneration.clearAllConfirmTitle')}
+        description={t('letterGeneration.clearAllConfirmDescription')}
+        confirmText={t('letterGeneration.clearAll')}
+        cancelText={t('common.cancel')}
+        variant="destructive"
+        onConfirm={confirmClearAll}
+      />
 
       <ConfirmDialog
         open={deleteDialogOpen}

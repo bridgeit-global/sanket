@@ -1,5 +1,5 @@
 import localFont from 'next/font/local';
-import { Toaster } from 'sonner';
+import { Toaster } from '@/components/toast';
 import type { Metadata } from 'next';
 import { ThemeProvider } from '@/components/theme-provider';
 import { LanguageProvider } from '@/components/language-provider';
@@ -113,7 +113,7 @@ export default async function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <Toaster position="top-center" />
+            <Toaster />
             <SessionProvider>
               <PwaProvider>{children}</PwaProvider>
             </SessionProvider>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Languages, Loader2, Pencil, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 
 import { Button } from '@/components/ui/button';
 import {
