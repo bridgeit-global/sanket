@@ -42,7 +42,7 @@ echo "Pushing migrations to linked project: $PROJECT_REF"
 if [[ -n "${SUPABASE_DB_PASSWORD:-}" ]]; then
   supabase db push --password "$SUPABASE_DB_PASSWORD"
 else
-  supabase db push
+  supabase db push --include-all
 fi
 
 echo "Done."

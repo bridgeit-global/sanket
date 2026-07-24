@@ -2081,8 +2081,10 @@ export async function getTasksWithFilters({
     const tokenPattern = token ? `%${token}%` : '';
     const mobilePattern = mobileNo ? `%${mobileNo}%` : '';
     const serviceNameVal = serviceName ?? '';
-    const createdFromVal = createdFrom ?? '';
-    const createdToVal = createdTo ?? '';
+    // Use null (not '') for unset dates — postgres.js serializes ::date via
+    // Date#toISOString, which throws on empty string (Invalid Date).
+    const createdFromVal = createdFrom || null;
+    const createdToVal = createdTo || null;
 
     if (serviceType === 'individual' || !serviceType) {
       const [countRow] = await pgSql`
@@ -2096,11 +2098,11 @@ export async function getTasksWithFilters({
           AND (${tokenPattern} = '' OR bs.token ILIKE ${tokenPattern})
           AND (${serviceNameVal} = '' OR bs.service_name = ${serviceNameVal})
           AND (
-            ${createdFromVal} = ''
+            ${createdFromVal}::date IS NULL
             OR (bs.created_at AT TIME ZONE 'Asia/Kolkata')::date >= ${createdFromVal}::date
           )
           AND (
-            ${createdToVal} = ''
+            ${createdToVal}::date IS NULL
             OR (bs.created_at AT TIME ZONE 'Asia/Kolkata')::date <= ${createdToVal}::date
           )
           AND (
@@ -2154,11 +2156,11 @@ export async function getTasksWithFilters({
           AND (${tokenPattern} = '' OR bs.token ILIKE ${tokenPattern})
           AND (${serviceNameVal} = '' OR bs.service_name = ${serviceNameVal})
           AND (
-            ${createdFromVal} = ''
+            ${createdFromVal}::date IS NULL
             OR (bs.created_at AT TIME ZONE 'Asia/Kolkata')::date >= ${createdFromVal}::date
           )
           AND (
-            ${createdToVal} = ''
+            ${createdToVal}::date IS NULL
             OR (bs.created_at AT TIME ZONE 'Asia/Kolkata')::date <= ${createdToVal}::date
           )
           AND (
@@ -2251,11 +2253,11 @@ export async function getTasksWithFilters({
         AND (${tokenPattern} = '' OR bs.token ILIKE ${tokenPattern})
         AND (${serviceTypeVal} = '' OR bs.service_type = ${serviceTypeVal})
         AND (
-          ${createdFromVal} = ''
+          ${createdFromVal}::date IS NULL
           OR (COALESCE(bs.created_at, vt.created_at) AT TIME ZONE 'Asia/Kolkata')::date >= ${createdFromVal}::date
         )
         AND (
-          ${createdToVal} = ''
+          ${createdToVal}::date IS NULL
           OR (COALESCE(bs.created_at, vt.created_at) AT TIME ZONE 'Asia/Kolkata')::date <= ${createdToVal}::date
         )
         AND (
@@ -2307,11 +2309,11 @@ export async function getTasksWithFilters({
         AND (${tokenPattern} = '' OR bs.token ILIKE ${tokenPattern})
         AND (${serviceTypeVal} = '' OR bs.service_type = ${serviceTypeVal})
         AND (
-          ${createdFromVal} = ''
+          ${createdFromVal}::date IS NULL
           OR (COALESCE(bs.created_at, vt.created_at) AT TIME ZONE 'Asia/Kolkata')::date >= ${createdFromVal}::date
         )
         AND (
-          ${createdToVal} = ''
+          ${createdToVal}::date IS NULL
           OR (COALESCE(bs.created_at, vt.created_at) AT TIME ZONE 'Asia/Kolkata')::date <= ${createdToVal}::date
         )
         AND (
