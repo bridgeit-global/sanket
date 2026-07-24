@@ -840,7 +840,7 @@
     },
     "savedLetters": {
       "title": "Saved Letters",
-      "description": "Save generated letters to the database and reuse them later.",
+      "description": "Save generated letters to the database and reuse them later. A PDF copy is stored in Storage.",
       "sectionTitle": "Letter history",
       "save": "Save Letter",
       "refresh": "Refresh",
@@ -856,6 +856,7 @@
       "empty": "No saved letters yet. Click \"Save Letter\" to store the current letter.",
       "saveSuccess": "Letter saved",
       "saveError": "Failed to save letter. Please try again.",
+      "pdfStorageError": "Letter saved, but uploading the PDF to storage failed.",
       "fetchError": "Failed to load saved letters.",
       "loaded": "Letter loaded",
       "deleteSuccess": "Letter deleted",

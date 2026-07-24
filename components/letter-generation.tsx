@@ -848,6 +848,7 @@ type SavedLetterRow = {
   fields: unknown;
   renderedHtml: string;
   paperSize: LetterPaperSize;
+  pdfStoragePath?: string | null;
   createdAt: string | Date;
 };
 
@@ -2097,6 +2098,94 @@ export function LetterGeneration({
     return true;
   };
 
+  const resolveSavedLetterPaperSize = (letter: SavedLetterRow): LetterPaperSize =>
+    resolveLetterPaperSize(letter.paperSize, letter.letterType);
+
+  const deriveLetterSubject = (letter: SavedLetterRow): string => {
+    const fields = (letter.fields ?? {}) as Record<string, unknown>;
+    if (typeof fields.subject === 'string' && fields.subject.trim()) {
+      return fields.subject.trim();
+    }
+    return letter.title;
+  };
+
+  const buildLetterPdfDocumentInfo = (letter: SavedLetterRow, pdfFileName: string) => ({
+    title: pdfFileName,
+    author: DEFAULT_SIGNATORY.en,
+    subject: deriveLetterSubject(letter),
+    keywords: 'eoffice, sana malik shaikh',
+    creator: session?.user?.userId ?? 'eOffice',
+    producer: DEFAULT_SIGNATORY.en,
+  });
+
+  const generateLetterPdfBlob = async (letter: SavedLetterRow): Promise<Blob> => {
+    const paperSize = resolveSavedLetterPaperSize(letter);
+    const exportHost = createLetterExportElement(letter.renderedHtml, {
+      paperSize,
+      letterLocale: letter.letterLocale,
+    });
+    document.body.appendChild(exportHost);
+    try {
+      const pdfFileName = `${letter.title}-${letter.referenceNo || 'letter'}`;
+      return await exportElementToPdf({
+        element: exportHost,
+        fileName: pdfFileName,
+        format: paperSize,
+        orientation: 'portrait',
+        marginMm: LETTER_PAPER_MARGIN_MM[paperSize],
+        scale: 2,
+        captureWidthPx: getLetterPaperContentWidthPx(paperSize),
+        destination: 'blob',
+        documentInfo: buildLetterPdfDocumentInfo(letter, pdfFileName),
+        pageBackground: {
+          headerHeightMm: getLetterheadContentPaddingMm(paperSize),
+        },
+      });
+    } finally {
+      exportHost.remove();
+    }
+  };
+
+  const uploadLetterPdfToStorage = async (
+    letter: SavedLetterRow,
+    blob: Blob,
+  ): Promise<SavedLetterRow | null> => {
+    const pdfFileName = `${letter.title}-${letter.referenceNo || 'letter'}.pdf`;
+    const formData = new FormData();
+    formData.append('file', blob, pdfFileName);
+    const res = await fetch(`/api/letters/${encodeURIComponent(letter.id)}/pdf`, {
+      method: 'POST',
+      body: formData,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(json?.error || 'Failed to upload letter PDF');
+    }
+    const updated = json?.letter as SavedLetterRow | undefined;
+    if (updated?.id) {
+      setSavedLetters((prev) =>
+        prev.map((item) =>
+          item.id === letter.id ? { ...item, ...updated } : item,
+        ),
+      );
+      return { ...letter, ...updated };
+    }
+    return {
+      ...letter,
+      pdfStoragePath: json?.letter?.pdfStoragePath ?? letter.pdfStoragePath,
+    };
+  };
+
+  const persistLetterPdf = async (letter: SavedLetterRow): Promise<void> => {
+    try {
+      const blob = await generateLetterPdfBlob(letter);
+      await uploadLetterPdfToStorage(letter, blob);
+    } catch (error) {
+      console.error('Failed to store letter PDF', error);
+      toast.error(t('letterGeneration.savedLetters.pdfStorageError'));
+    }
+  };
+
   const handleSaveLetter = async () => {
     if (!validateActiveLetterFields()) return;
 
@@ -2246,7 +2335,11 @@ export function LetterGeneration({
       }
       toast.success(t('letterGeneration.savedLetters.saveSuccess'));
       await refreshSavedLetters();
-      setSelectedSavedLetterId(json?.letter?.id ?? null);
+      const savedLetter = json?.letter as SavedLetterRow | undefined;
+      setSelectedSavedLetterId(savedLetter?.id ?? null);
+      if (savedLetter?.id && savedLetter.renderedHtml) {
+        void persistLetterPdf(savedLetter);
+      }
       const savedRef = parseReference(String(json?.letter?.referenceNo ?? ''));
       if (savedRef.prefix && savedRef.number) {
         syncReferenceFields(
@@ -2281,6 +2374,9 @@ export function LetterGeneration({
       setSavedLetters((prev) =>
         prev.map((item) => (item.id === letter.id ? { ...item, ...updated } : item)),
       );
+      if (updated?.id && updated.renderedHtml) {
+        void persistLetterPdf(updated);
+      }
     } catch (error) {
       console.error('Failed to regenerate letter', error);
       toast.error(t('letterGeneration.savedLetters.regenerateError'));
@@ -2356,54 +2452,11 @@ export function LetterGeneration({
     toast.success(t('letterGeneration.clearAllSuccess'));
   };
 
-  const resolveSavedLetterPaperSize = (letter: SavedLetterRow): LetterPaperSize =>
-    resolveLetterPaperSize(letter.paperSize, letter.letterType);
-
-  const deriveLetterSubject = (letter: SavedLetterRow): string => {
-    const fields = (letter.fields ?? {}) as Record<string, unknown>;
-    if (typeof fields.subject === 'string' && fields.subject.trim()) {
-      return fields.subject.trim();
-    }
-    return letter.title;
-  };
-
-  const buildLetterPdfDocumentInfo = (letter: SavedLetterRow, pdfFileName: string) => ({
-    title: pdfFileName,
-    author: DEFAULT_SIGNATORY.en,
-    subject: deriveLetterSubject(letter),
-    keywords: 'eoffice, sana malik shaikh',
-    creator: session?.user?.userId ?? 'eOffice',
-    producer: DEFAULT_SIGNATORY.en,
-  });
-
   const handlePrintSavedLetter = async (letter: SavedLetterRow) => {
     setPrintingLetterId(letter.id);
-    let exportHost: HTMLElement | null = null;
     try {
-      const paperSize = resolveSavedLetterPaperSize(letter);
-      exportHost = createLetterExportElement(letter.renderedHtml, {
-        paperSize,
-        letterLocale: letter.letterLocale,
-      });
-      document.body.appendChild(exportHost);
       // Print via PDF so Chrome cannot stamp URL/date headers (HTML @page cannot suppress them).
-      const pdfFileName = `${letter.title}-${letter.referenceNo || 'letter'}`;
-      const blob = await exportElementToPdf({
-        element: exportHost,
-        fileName: pdfFileName,
-        format: paperSize,
-        orientation: 'portrait',
-        marginMm: LETTER_PAPER_MARGIN_MM[paperSize],
-        scale: 2,
-        captureWidthPx: getLetterPaperContentWidthPx(paperSize),
-        destination: 'blob',
-        documentInfo: buildLetterPdfDocumentInfo(letter, pdfFileName),
-        pageBackground: {
-          headerHeightMm: getLetterheadContentPaddingMm(paperSize),
-        },
-      });
-      exportHost.remove();
-      exportHost = null;
+      const blob = await generateLetterPdfBlob(letter);
       // Stop loader as soon as the print dialog can open — cancel does not always fire afterprint.
       setPrintingLetterId(null);
       await printPdfBlob(blob);
@@ -2411,42 +2464,48 @@ export function LetterGeneration({
       console.error('Saved letter print failed', error);
       toast.error(t('letterGeneration.printPopupBlocked'));
     } finally {
-      exportHost?.remove();
       setPrintingLetterId(null);
     }
   };
 
   const handleDownloadSavedLetter = async (letter: SavedLetterRow) => {
     setDownloadingLetterId(letter.id);
-    let exportHost: HTMLElement | null = null;
     try {
-      const paperSize = resolveSavedLetterPaperSize(letter);
-      exportHost = createLetterExportElement(letter.renderedHtml, {
-        paperSize,
-        letterLocale: letter.letterLocale,
-      });
-      document.body.appendChild(exportHost);
+      if (letter.pdfStoragePath) {
+        const res = await fetch(
+          `/api/letters/${encodeURIComponent(letter.id)}/pdf`,
+        );
+        const json = await res.json().catch(() => ({}));
+        if (res.ok && typeof json?.url === 'string') {
+          const anchor = document.createElement('a');
+          anchor.href = json.url;
+          anchor.rel = 'noopener';
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          toast.success(t('letterGeneration.pdfSuccess'));
+          return;
+        }
+      }
+
       const pdfFileName = `${letter.title}-${letter.referenceNo || 'letter'}`;
-      await exportElementToPdf({
-        element: exportHost,
-        fileName: pdfFileName,
-        format: paperSize,
-        orientation: 'portrait',
-        marginMm: LETTER_PAPER_MARGIN_MM[paperSize],
-        scale: 2,
-        captureWidthPx: getLetterPaperContentWidthPx(paperSize),
-        documentInfo: buildLetterPdfDocumentInfo(letter, pdfFileName),
-        // Header clearance only — no letterhead background image.
-        pageBackground: {
-          headerHeightMm: getLetterheadContentPaddingMm(paperSize),
-        },
-      });
+      const blob = await generateLetterPdfBlob(letter);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `${pdfFileName}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
       toast.success(t('letterGeneration.pdfSuccess'));
+      void uploadLetterPdfToStorage(letter, blob).catch((error) => {
+        console.error('Failed to store letter PDF after download', error);
+      });
     } catch (error) {
       console.error('Saved letter PDF export failed', error);
       toast.error(t('letterGeneration.pdfError'));
     } finally {
-      exportHost?.remove();
       setDownloadingLetterId(null);
     }
   };
