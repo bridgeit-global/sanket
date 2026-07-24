@@ -2373,7 +2373,7 @@ export function LetterGeneration({
     subject: deriveLetterSubject(letter),
     keywords: 'eoffice, sana malik shaikh',
     creator: session?.user?.userId ?? 'eOffice',
-    producer: 'Sana Malik Shaikh (eOffice)',
+    producer: DEFAULT_SIGNATORY.en,
   });
 
   const handlePrintSavedLetter = async (letter: SavedLetterRow) => {
