@@ -91,6 +91,7 @@ export {
   getLetters,
   deleteLetter,
   updateLetterRenderedHtml,
+  updateLetterPdfStoragePath,
   ensureLetterMasterDefaults,
   getLetterMasters,
   getLetterMasterByTypeAndLocale,

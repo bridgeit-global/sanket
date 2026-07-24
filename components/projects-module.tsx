@@ -22,7 +22,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Edit, Trash2, Eye, Search } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ProjectsSkeleton } from '@/components/module-skeleton';
 import { TablePagination, usePagination } from '@/components/table-pagination';

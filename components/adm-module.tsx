@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 import { Input } from '@/components/ui/input';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { AdmSkeleton } from '@/components/module-skeleton';

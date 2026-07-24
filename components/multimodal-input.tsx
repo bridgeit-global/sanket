@@ -13,7 +13,7 @@ import {
   type ChangeEvent,
   memo,
 } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 import { useLocalStorage, useWindowSize } from 'usehooks-ts';
 
 import { ArrowUpIcon, PaperclipIcon, StopIcon } from './icons';

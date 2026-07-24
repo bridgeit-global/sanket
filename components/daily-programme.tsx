@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/select';
 import { TimePicker } from '@/components/ui/time-picker';
 
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { DateRangePicker } from '@/components/date-range-picker';

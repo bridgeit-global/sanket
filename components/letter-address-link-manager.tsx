@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 
 import { Button } from '@/components/ui/button';
 import {

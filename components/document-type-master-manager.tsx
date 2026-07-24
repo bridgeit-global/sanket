@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ChevronDown, ChevronUp, Loader2, Pencil, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 
 import type { DocumentTypeMasterRow } from '@/components/document-type-master-page';
 import { Button } from '@/components/ui/button';

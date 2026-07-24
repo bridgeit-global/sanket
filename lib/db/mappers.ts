@@ -336,6 +336,9 @@ export function mapLetterRow(row: Row): Letter {
       row.rendered_html ?? row.renderedHtml ?? row.body ?? '',
     ),
     paperSize: mapLetterPaperSize(row.paper_size ?? row.paperSize, letterType),
+    pdfStoragePath: toStringOrNull(
+      row.pdf_storage_path ?? row.pdfStoragePath,
+    ),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),
     beneficiaryServiceId: toStringOrNull(
       row.beneficiary_service_id ?? row.beneficiaryServiceId,
