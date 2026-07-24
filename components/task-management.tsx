@@ -15,7 +15,7 @@ import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
 import { useTranslations } from '@/hooks/use-translations';
 import type { VoterTask, BeneficiaryService } from '@/lib/db/schema';
 import { TablePagination } from '@/components/table-pagination';
-import { QrCode, Share2, FileText, Paperclip } from 'lucide-react';
+import { QrCode, Share2, FileText, FileDown, Loader2, Paperclip } from 'lucide-react';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
 import {
@@ -343,8 +343,15 @@ export function TaskManagement({
     const [selectedTask, setSelectedTask] = useState<TaskWithService | null>(null);
     const [showTaskDialog, setShowTaskDialog] = useState(false);
     const [linkedLetters, setLinkedLetters] = useState<
-        Array<{ id: string; title: string; referenceNo: string; letterType: string }>
+        Array<{
+            id: string;
+            title: string;
+            referenceNo: string;
+            letterType: string;
+            pdfStoragePath?: string | null;
+        }>
     >([]);
+    const [downloadingLetterId, setDownloadingLetterId] = useState<string | null>(null);
     const [serviceAttachments, setServiceAttachments] = useState<
         Array<{ id: string; fileName: string; fileUrl: string | null }>
     >([]);
@@ -758,6 +765,42 @@ export function TaskManagement({
                 type: 'error',
                 description: t('taskManagement.messages.escalationFailed'),
             });
+        }
+    };
+
+    const handleDownloadLetter = async (letter: {
+        id: string;
+        title: string;
+        referenceNo: string;
+        pdfStoragePath?: string | null;
+    }) => {
+        setDownloadingLetterId(letter.id);
+        try {
+            const res = await fetch(`/api/letters/${encodeURIComponent(letter.id)}/pdf`);
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || typeof json?.url !== 'string') {
+                throw new Error(
+                    typeof json?.error === 'string' ? json.error : 'Failed to download letter PDF',
+                );
+            }
+            const anchor = document.createElement('a');
+            anchor.href = json.url;
+            anchor.rel = 'noopener';
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            toast({
+                type: 'success',
+                description: t('taskManagement.dialog.downloadLetterSuccess'),
+            });
+        } catch (error) {
+            console.error('Error downloading letter PDF:', error);
+            toast({
+                type: 'error',
+                description: t('taskManagement.dialog.downloadLetterFailed'),
+            });
+        } finally {
+            setDownloadingLetterId(null);
         }
     };
 
@@ -1248,7 +1291,7 @@ export function TaskManagement({
 
             {/* Task Management Dialog */}
             <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
-                <DialogContent className="max-w-[95vw] sm:max-w-lg">
+                <DialogContent className="max-h-[90vh] max-w-[95vw] overflow-y-auto sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>{t('taskManagement.dialog.manageTitle')}</DialogTitle>
                         <DialogDescription>
@@ -1273,6 +1316,7 @@ export function TaskManagement({
                                             type="button"
                                             variant="outline"
                                             size="sm"
+                                            className="w-full sm:w-auto"
                                             onClick={() =>
                                                 router.push(
                                                     `/modules/letter-generation?beneficiaryServiceId=${encodeURIComponent(
@@ -1286,19 +1330,48 @@ export function TaskManagement({
                                         </Button>
                                     </div>
                                     {linkedLetters.length > 0 ? (
-                                        <ul className="space-y-1">
+                                        <ul className="max-h-56 space-y-2 overflow-y-auto sm:max-h-72">
                                             {linkedLetters.map((letter) => (
                                                 <li
                                                     key={letter.id}
-                                                    className="flex items-center gap-2 text-sm"
+                                                    className="flex flex-col gap-2 rounded-md border border-border/60 p-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
                                                 >
-                                                    <FileText className="size-3.5 text-muted-foreground" />
-                                                    <span className="truncate">{letter.title}</span>
-                                                    {letter.referenceNo && (
-                                                        <span className="text-muted-foreground">
-                                                            · {letter.referenceNo}
-                                                        </span>
-                                                    )}
+                                                    <div className="flex min-w-0 flex-1 items-start gap-2 text-sm">
+                                                        <FileText className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="break-words font-medium leading-snug">
+                                                                {letter.title}
+                                                            </p>
+                                                            {letter.referenceNo ? (
+                                                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                                                    {letter.referenceNo}
+                                                                </p>
+                                                            ) : null}
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="w-full shrink-0 sm:w-auto"
+                                                        disabled={
+                                                            downloadingLetterId === letter.id ||
+                                                            !letter.pdfStoragePath
+                                                        }
+                                                        title={
+                                                            letter.pdfStoragePath
+                                                                ? t('taskManagement.dialog.downloadLetter')
+                                                                : t('taskManagement.dialog.downloadLetterUnavailable')
+                                                        }
+                                                        onClick={() => void handleDownloadLetter(letter)}
+                                                    >
+                                                        {downloadingLetterId === letter.id ? (
+                                                            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                                                        ) : (
+                                                            <FileDown className="mr-1.5 size-3.5" />
+                                                        )}
+                                                        {t('taskManagement.dialog.downloadLetter')}
+                                                    </Button>
                                                 </li>
                                             ))}
                                         </ul>
@@ -1322,12 +1395,12 @@ export function TaskManagement({
                                                                 rel="noopener noreferrer"
                                                                 className="flex items-center gap-2 text-primary hover:underline"
                                                             >
-                                                                <Paperclip className="size-3.5" />
+                                                                <Paperclip className="size-3.5 shrink-0" />
                                                                 <span className="truncate">{att.fileName}</span>
                                                             </a>
                                                         ) : (
                                                             <span className="flex items-center gap-2">
-                                                                <Paperclip className="size-3.5" />
+                                                                <Paperclip className="size-3.5 shrink-0" />
                                                                 <span className="truncate">{att.fileName}</span>
                                                             </span>
                                                         )}
