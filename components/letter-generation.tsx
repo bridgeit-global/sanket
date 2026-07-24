@@ -7,16 +7,16 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
-  ExternalLink,
   FileCode2,
+  FileDown,
   FileType,
   Calendar,
   Loader2,
   MapPin,
   Plus,
+  Printer,
   RefreshCw,
   Save,
-  Send,
   Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -99,7 +99,7 @@ import {
   resolveLetterPaperSize,
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
-import { exportElementToPdf } from '@/lib/pdf/export-element-to-pdf';
+import { exportElementToPdf, printPdfBlob } from '@/lib/pdf/export-element-to-pdf';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { ModulePageHeader } from '@/components/module-page-header';
 import {
@@ -648,15 +648,6 @@ function formatAddressForManualKey(
     : formatAddressMaster(parts, locale);
 }
 
-/** Collapse HTML/newline breaks back to a single comma-separated line. */
-function addressToSingleLine(value: string): string {
-  return value
-    .split(/\r?\n|<br\s*\/?>/i)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .join(', ');
-}
-
 function getPincodeValidationError(
   parts: AddressMasterAddressParts,
   t: (key: string) => string,
@@ -867,12 +858,10 @@ export function LetterGeneration({
   const prevLetterLocaleRef = useRef<LetterLocale>(locale);
   const [activeTab, setActiveTab] = useState<LetterType>('fees');
   const [isSaving, setIsSaving] = useState(false);
-  const [addingToOutwardLetterId, setAddingToOutwardLetterId] = useState<
-    string | null
-  >(null);
-  const [outwardAddedReferenceNos, setOutwardAddedReferenceNos] = useState<
-    Set<string>
-  >(() => new Set());
+  const [downloadingLetterId, setDownloadingLetterId] = useState<string | null>(
+    null,
+  );
+  const [printingLetterId, setPrintingLetterId] = useState<string | null>(null);
   const [isGeneratorCollapsed, setIsGeneratorCollapsed] = useState(false);
 
   const [feesFields, setFeesFields] = useState<FeesLetterFields>(() =>
@@ -1756,23 +1745,6 @@ export function LetterGeneration({
     void refreshAddresses();
     void refreshDocumentTypes();
     void refreshAddressTypeLinks();
-    // Preload reference numbers already present in the outward register so the
-    // "Add to Outward Register" action stays disabled across reloads.
-    void (async () => {
-      try {
-        const res = await fetch('/api/register?type=outward');
-        if (!res.ok) return;
-        const entries = (await res.json()) as Array<{ refNo?: string | null }>;
-        const refs = new Set(
-          entries
-            .map((entry) => entry.refNo)
-            .filter((ref): ref is string => Boolean(ref)),
-        );
-        if (refs.size > 0) setOutwardAddedReferenceNos(refs);
-      } catch {
-        // best-effort; in-session guard still applies
-      }
-    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -2305,120 +2277,74 @@ export function LetterGeneration({
   const resolveSavedLetterPaperSize = (letter: SavedLetterRow): LetterPaperSize =>
     resolveLetterPaperSize(letter.paperSize, letter.letterType);
 
-  const deriveOutwardRecipient = (letter: SavedLetterRow): string => {
-    const fields = (letter.fields ?? {}) as Record<string, unknown>;
-    const candidates = [
-      fields.schoolName,
-      fields.officeAddress,
-      fields.rationOfficeAddress,
-      fields.toRationOffice,
-      fields.fullName,
-      fields.parentName,
-      fields.studentName,
-    ];
-    for (const candidate of candidates) {
-      if (typeof candidate === 'string' && candidate.trim()) {
-        return addressToSingleLine(candidate);
-      }
-    }
-    return letter.title;
-  };
-
-  // Deep-link into the outward register, pre-filtered to this letter's
-  // reference number so the user lands on the matching entry.
-  const buildOutwardEntryHref = (letter: SavedLetterRow): string => {
-    const params = new URLSearchParams({ tab: 'outward' });
-    if (letter.referenceNo) params.set('search', letter.referenceNo);
-    return `/modules/io-register?${params.toString()}`;
-  };
-
-  // Push a saved letter into the outward register, reusing its reference number
-  // and attaching the generated PDF so the letter travels with the entry.
-  const handleAddLetterToOutward = async (letter: SavedLetterRow) => {
-    if (outwardAddedReferenceNos.has(letter.referenceNo)) return;
-    setAddingToOutwardLetterId(letter.id);
+  const handlePrintSavedLetter = async (letter: SavedLetterRow) => {
+    setPrintingLetterId(letter.id);
     let exportHost: HTMLElement | null = null;
     try {
-      const parsed = parseReference(letter.referenceNo || '');
-      const entryDate = new Date(letter.createdAt);
-      const dateString = Number.isNaN(entryDate.getTime())
-        ? new Date().toISOString().slice(0, 10)
-        : entryDate.toISOString().slice(0, 10);
-
-      const res = await fetch('/api/register', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          type: 'outward',
-          documentType: parsed.prefix || undefined,
-          date: dateString,
-          fromTo: deriveOutwardRecipient(letter),
-          subject: letter.title,
-          refNo: letter.referenceNo,
-          autoSequence: false,
-        }),
+      const paperSize = resolveSavedLetterPaperSize(letter);
+      exportHost = createLetterExportElement(letter.renderedHtml, {
+        paperSize,
+        letterLocale: letter.letterLocale,
       });
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json?.error || 'Failed to add letter to outward register');
-      }
-
-      const entryId = json?.id;
-      if (entryId) {
-        const paperSize = resolveSavedLetterPaperSize(letter);
-        const savedLetterheadUrl = resolveLetterheadUrl(
-          paperSize,
-          letterMasters.find((m) => m.id === letter.letterMasterId)?.letterheadUrl,
-        );
-        exportHost = createLetterExportElement(letter.renderedHtml, {
-          paperSize,
-          letterLocale: letter.letterLocale,
-        });
-        document.body.appendChild(exportHost);
-        const blob = await exportElementToPdf({
-          element: exportHost,
-          fileName: `${letter.title}-${letter.referenceNo || 'letter'}`,
-          format: paperSize,
-          orientation: 'portrait',
-          marginMm: LETTER_PAPER_MARGIN_MM[paperSize],
-          scale: 2,
-          captureWidthPx: getLetterPaperContentWidthPx(paperSize),
-          destination: 'blob',
-          pageBackground: {
-            imageUrl: savedLetterheadUrl ?? undefined,
-            headerHeightMm: getLetterheadContentPaddingMm(paperSize),
-          },
-        });
-        exportHost.remove();
-        exportHost = null;
-
-        const safeName = `${letter.referenceNo || letter.title || 'letter'}`
-          .replace(/[^\w.-]+/g, '_')
-          .slice(0, 80);
-        const formData = new FormData();
-        formData.append(
-          'file',
-          new File([blob], `${safeName}.pdf`, { type: 'application/pdf' }),
-        );
-        // Best-effort attachment; the register entry is already created.
-        await fetch(`/api/register/${entryId}/attachments`, {
-          method: 'POST',
-          body: formData,
-        });
-      }
-
-      setOutwardAddedReferenceNos((prev) => {
-        const next = new Set(prev);
-        next.add(letter.referenceNo);
-        return next;
+      document.body.appendChild(exportHost);
+      // Print via PDF so Chrome cannot stamp URL/date headers (HTML @page cannot suppress them).
+      const blob = await exportElementToPdf({
+        element: exportHost,
+        fileName: `${letter.title}-${letter.referenceNo || 'letter'}`,
+        format: paperSize,
+        orientation: 'portrait',
+        marginMm: LETTER_PAPER_MARGIN_MM[paperSize],
+        scale: 2,
+        captureWidthPx: getLetterPaperContentWidthPx(paperSize),
+        destination: 'blob',
+        pageBackground: {
+          headerHeightMm: getLetterheadContentPaddingMm(paperSize),
+        },
       });
-      toast.success(t('letterGeneration.savedLetters.addToOutwardSuccess'));
+      exportHost.remove();
+      exportHost = null;
+      // Stop loader as soon as the print dialog can open — cancel does not always fire afterprint.
+      setPrintingLetterId(null);
+      await printPdfBlob(blob);
     } catch (error) {
-      console.error('Add letter to outward failed', error);
-      toast.error(t('letterGeneration.savedLetters.addToOutwardError'));
+      console.error('Saved letter print failed', error);
+      toast.error(t('letterGeneration.printPopupBlocked'));
     } finally {
       exportHost?.remove();
-      setAddingToOutwardLetterId(null);
+      setPrintingLetterId(null);
+    }
+  };
+
+  const handleDownloadSavedLetter = async (letter: SavedLetterRow) => {
+    setDownloadingLetterId(letter.id);
+    let exportHost: HTMLElement | null = null;
+    try {
+      const paperSize = resolveSavedLetterPaperSize(letter);
+      exportHost = createLetterExportElement(letter.renderedHtml, {
+        paperSize,
+        letterLocale: letter.letterLocale,
+      });
+      document.body.appendChild(exportHost);
+      await exportElementToPdf({
+        element: exportHost,
+        fileName: `${letter.title}-${letter.referenceNo || 'letter'}`,
+        format: paperSize,
+        orientation: 'portrait',
+        marginMm: LETTER_PAPER_MARGIN_MM[paperSize],
+        scale: 2,
+        captureWidthPx: getLetterPaperContentWidthPx(paperSize),
+        // Header clearance only — no letterhead background image.
+        pageBackground: {
+          headerHeightMm: getLetterheadContentPaddingMm(paperSize),
+        },
+      });
+      toast.success(t('letterGeneration.pdfSuccess'));
+    } catch (error) {
+      console.error('Saved letter PDF export failed', error);
+      toast.error(t('letterGeneration.pdfError'));
+    } finally {
+      exportHost?.remove();
+      setDownloadingLetterId(null);
     }
   };
 
@@ -2488,39 +2414,25 @@ export function LetterGeneration({
         size="sm"
         variant="outline"
         className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+        onClick={() => void handleDownloadSavedLetter(letter)}
+        disabled={downloadingLetterId === letter.id}
+      >
+        {downloadingLetterId === letter.id ? (
+          <Loader2 className="mr-2 size-4 animate-spin" />
+        ) : (
+          <FileDown className="mr-2 size-4" />
+        )}
+        {t('letterGeneration.savedLetters.actions.download')}
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
         onClick={() => setSelectedSavedLetterId(letter.id)}
       >
         <Eye className="mr-2 size-4" />
         {t('letterGeneration.savedLetters.actions.preview')}
       </Button>
-      {outwardAddedReferenceNos.has(letter.referenceNo) ? (
-        <Button
-          asChild
-          size="sm"
-          variant="outline"
-          className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
-        >
-          <Link href={buildOutwardEntryHref(letter)}>
-            <ExternalLink className="mr-2 size-4" />
-            {t('letterGeneration.savedLetters.actions.addedToOutward')}
-          </Link>
-        </Button>
-      ) : (
-        <Button
-          size="sm"
-          variant="outline"
-          className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
-          onClick={() => void handleAddLetterToOutward(letter)}
-          disabled={addingToOutwardLetterId === letter.id}
-        >
-          {addingToOutwardLetterId === letter.id ? (
-            <Loader2 className="mr-2 size-4 animate-spin" />
-          ) : (
-            <Send className="mr-2 size-4" />
-          )}
-          {t('letterGeneration.savedLetters.actions.addToOutward')}
-        </Button>
-      )}
       {/* <Button
         size="sm"
         variant="outline"
@@ -4298,44 +4210,42 @@ export function LetterGeneration({
                                 </DialogDescription>
                               </div>
                               <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row sm:items-center">
-                                {outwardAddedReferenceNos.has(
-                                  selectedSavedLetter.referenceNo,
-                                ) ? (
-                                  <Button
-                                    asChild
-                                    size="sm"
-                                    variant="outline"
-                                    className="w-full sm:w-auto"
-                                  >
-                                    <Link
-                                      href={buildOutwardEntryHref(selectedSavedLetter)}
-                                    >
-                                      <ExternalLink className="mr-2 size-4" />
-                                      {t(
-                                        'letterGeneration.savedLetters.actions.addedToOutward',
-                                      )}
-                                    </Link>
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="w-full sm:w-auto"
-                                    onClick={() =>
-                                      void handleAddLetterToOutward(selectedSavedLetter)
-                                    }
-                                    disabled={
-                                      addingToOutwardLetterId === selectedSavedLetter.id
-                                    }
-                                  >
-                                    {addingToOutwardLetterId === selectedSavedLetter.id ? (
-                                      <Loader2 className="mr-2 size-4 animate-spin" />
-                                    ) : (
-                                      <Send className="mr-2 size-4" />
-                                    )}
-                                    {t('letterGeneration.savedLetters.actions.addToOutward')}
-                                  </Button>
-                                )}
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full sm:w-auto"
+                                  onClick={() =>
+                                    void handlePrintSavedLetter(selectedSavedLetter)
+                                  }
+                                  disabled={
+                                    printingLetterId === selectedSavedLetter.id
+                                  }
+                                >
+                                  {printingLetterId === selectedSavedLetter.id ? (
+                                    <Loader2 className="mr-2 size-4 animate-spin" />
+                                  ) : (
+                                    <Printer className="mr-2 size-4" />
+                                  )}
+                                  {t('letterGeneration.savedLetters.actions.print')}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full sm:w-auto"
+                                  onClick={() =>
+                                    void handleDownloadSavedLetter(selectedSavedLetter)
+                                  }
+                                  disabled={
+                                    downloadingLetterId === selectedSavedLetter.id
+                                  }
+                                >
+                                  {downloadingLetterId === selectedSavedLetter.id ? (
+                                    <Loader2 className="mr-2 size-4 animate-spin" />
+                                  ) : (
+                                    <FileDown className="mr-2 size-4" />
+                                  )}
+                                  {t('letterGeneration.savedLetters.actions.download')}
+                                </Button>
                               </div>
                             </div>
                           </DialogHeader>
