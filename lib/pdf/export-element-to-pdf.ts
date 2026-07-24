@@ -60,15 +60,19 @@ export type ExportElementToPdfOptions = {
    */
   drawContinuationRule?: boolean;
   /**
-   * Reserves `headerHeightMm` at the top of every page (e.g. letterhead clearance).
+   * Reserves `headerHeightMm` at the top of the first page (letterhead clearance).
    * Optionally draws a full-page stationery image underneath.
+   * When `firstPageOnly` is true (default), page 2+ use normal margins only.
    */
   pageBackground?: {
     /** Full-page background image URL. Omit to keep only header clearance. */
     imageUrl?: string;
-    /** Top inset reserved for letterhead header on every page (mm). */
+    /** Top inset reserved for letterhead header on the first page (mm). */
     headerHeightMm: number;
-    /** When true (default), letterhead image is only drawn on the first page. */
+    /**
+     * When true (default), letterhead image and clearance apply only on page 1;
+     * continuation pages use normal top margin.
+     */
     firstPageOnly?: boolean;
   };
   /**
@@ -329,9 +333,21 @@ export async function exportElementToPdf(
 
     const topInsetMm =
       pageBackgroundHeaderMm > 0 ? pageBackgroundHeaderMm : marginMm;
+    const continuationTopInsetMm =
+      letterheadFirstPageOnly && pageBackgroundHeaderMm > 0
+        ? marginMm
+        : topInsetMm;
     const contentHeightMm = Math.max(
       1,
       pageHeightMm - topInsetMm - marginMm - headerHeightMm - footerHeightMm,
+    );
+    const subsequentContentHeightMm = Math.max(
+      1,
+      pageHeightMm -
+        continuationTopInsetMm -
+        marginMm -
+        headerHeightMm -
+        footerHeightMm,
     );
 
     // Render DOM -> canvas
@@ -351,6 +367,9 @@ export async function exportElementToPdf(
     // Convert pixels -> mm at the chosen width.
     const pxPerMm = canvas.width / contentWidthMm;
     const pageHeightPx = Math.floor(contentHeightMm * pxPerMm);
+    const subsequentPageHeightPx = Math.floor(
+      subsequentContentHeightMm * pxPerMm,
+    );
 
     // Break on text-line / table-row bottoms so glyphs are never sliced mid-line.
     // Prefer height scale for Y — width/height canvas ratios can differ slightly.
@@ -368,6 +387,8 @@ export async function exportElementToPdf(
       (captureElement.querySelector('.letter-content') as HTMLElement | null) ??
       captureElement;
     const domPageHeightPx = pageHeightPx / domToCanvasScaleY;
+    const domSubsequentPageHeightPx =
+      subsequentPageHeightPx / domToCanvasScaleY;
     const domBreakpointsPx = getContentBreakpointsPx(contentRoot, 1);
     const domAvoidRangesPx = getAvoidSplitRangesPx(contentRoot, 1);
     const domLineRangesPx = getLineRangesPx(contentRoot, 1);
@@ -375,6 +396,12 @@ export async function exportElementToPdf(
     const pageStartsDomPx = computePageStartOffsetsPx({
       totalHeightPx: totalDomHeightPx,
       pageHeightPx: domPageHeightPx,
+      subsequentPageHeightPx:
+        letterheadFirstPageOnly &&
+        pageBackgroundHeaderMm > 0 &&
+        Math.abs(domSubsequentPageHeightPx - domPageHeightPx) > 0.5
+          ? domSubsequentPageHeightPx
+          : undefined,
       breakpointsPx: domBreakpointsPx,
       avoidRangesPx: domAvoidRangesPx,
       lineRangesPx: domLineRangesPx,
@@ -489,7 +516,11 @@ export async function exportElementToPdf(
         );
       }
 
-      const contentY = topInsetMm + headerHeightMm;
+      const pageTopInsetMm =
+        pageIndex === 0 || !letterheadFirstPageOnly
+          ? topInsetMm
+          : continuationTopInsetMm;
+      const contentY = pageTopInsetMm + headerHeightMm;
       doc.addImage(
         imgData,
         'PNG',

@@ -26,7 +26,9 @@ import {
 const LETTER_PREVIEW_CONTENT_CLASSES =
   // Templates use block margins / <br> for structure — do not use pre-wrap or
   // pretty-printed HTML indentation becomes huge blank lines in PDF/print.
-  '[&_.letter-content]:whitespace-normal [&_.letter-content]:font-[inherit] [&_.letter-content]:text-[length:inherit] [&_.letter-content]:leading-[inherit] [&_.letter-content]:text-black';
+  '[&_.letter-content]:whitespace-normal [&_.letter-content]:font-[inherit] [&_.letter-content]:text-[length:inherit] [&_.letter-content]:leading-[inherit] [&_.letter-content]:text-black ' +
+  // Closing / signature always right-aligned across every letter type.
+  '[&_.letter-closing]:text-right [&_.right-tab]:text-right [&_.right-tab-sign]:text-right [&_.signature]:text-right [&_.signature-line]:text-right';
 
 const LETTER_FONT_STACK: Record<LetterLocale, string> = {
   en: `system-ui, -apple-system, sans-serif`,
@@ -97,11 +99,16 @@ function computeLetterPreviewDisplayScale(
 function getLetterBodyPaddingCss(
   paperSize: LetterPaperSize,
   hasLetterhead: boolean,
+  isFirstPage: boolean,
 ): string {
-  if (hasLetterhead) {
-    const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
+  const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
+  if (hasLetterhead && isFirstPage) {
     const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);
     return `${headerPaddingMm}mm ${marginMm}mm ${marginMm}mm ${marginMm}mm`;
+  }
+  if (hasLetterhead) {
+    // Continuation pages: normal paper margins (no letterhead clearance).
+    return `${marginMm}mm`;
   }
   const paddingPx = paperSize === 'a4' ? 24 : 18;
   return `${paddingPx}px`;
@@ -171,7 +178,16 @@ export function LetterPreview({
   const resolvedLetterhead = resolveLetterheadUrl(paperSize, letterheadUrl);
   const contentHtml = stripLetterheadFromHtml(html);
   const hasLetterhead = Boolean(resolvedLetterhead);
-  const bodyPadding = getLetterBodyPaddingCss(paperSize, hasLetterhead);
+  const firstPageBodyPadding = getLetterBodyPaddingCss(
+    paperSize,
+    hasLetterhead,
+    true,
+  );
+  const continuationBodyPadding = getLetterBodyPaddingCss(
+    paperSize,
+    hasLetterhead,
+    false,
+  );
 
   const rootRef = useRef<HTMLDivElement>(null);
   const pageFrameRef = useRef<HTMLDivElement>(null);
@@ -190,15 +206,21 @@ export function LetterPreview({
 
       // Measure the live clip at canonical page width so inline preview and
       // modal preview paginate identically (responsive shrink was reflowing text).
-      let available = clip.clientHeight;
-      if (available <= 0) {
-        available = getLetterPageContentHeightCssPx(
+      const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);
+      let firstPageAvailable = clip.clientHeight;
+      if (firstPageAvailable <= 0) {
+        firstPageAvailable = getLetterPageContentHeightCssPx(
           paperSize,
           hasLetterhead,
-          getLetterheadContentPaddingMm(paperSize),
+          headerPaddingMm,
         );
       }
-      if (available <= 0) return;
+      if (firstPageAvailable <= 0) return;
+
+      // Page 2+ omit letterhead clearance so more of the sheet is usable.
+      const subsequentAvailable = hasLetterhead
+        ? getLetterPageContentHeightCssPx(paperSize, false, 0)
+        : firstPageAvailable;
 
       const total = content.scrollHeight;
       const breakpointsPx = getContentBreakpointsPx(content, 1);
@@ -206,7 +228,12 @@ export function LetterPreview({
       const lineRangesPx = getLineRangesPx(content, 1);
       const starts = computePageStartOffsetsPx({
         totalHeightPx: total,
-        pageHeightPx: available,
+        pageHeightPx: firstPageAvailable,
+        subsequentPageHeightPx:
+          hasLetterhead &&
+          Math.abs(subsequentAvailable - firstPageAvailable) > 0.5
+            ? subsequentAvailable
+            : undefined,
         breakpointsPx,
         avoidRangesPx,
         lineRangesPx,
@@ -247,7 +274,14 @@ export function LetterPreview({
       cancelled = true;
       observer.disconnect();
     };
-  }, [contentHtml, paperSize, letterLocale, hasLetterhead, bodyPadding]);
+  }, [
+    contentHtml,
+    paperSize,
+    letterLocale,
+    hasLetterhead,
+    firstPageBodyPadding,
+    continuationBodyPadding,
+  ]);
 
   useLayoutEffect(() => {
     const root = rootRef.current;
@@ -323,7 +357,15 @@ export function LetterPreview({
                     }}
                   />
                 ) : null}
-                <div className="absolute inset-0" style={{ padding: bodyPadding }}>
+                <div
+                  className="absolute inset-0"
+                  style={{
+                    padding:
+                      pageIndex === 0
+                        ? firstPageBodyPadding
+                        : continuationBodyPadding,
+                  }}
+                >
                   <div
                     ref={pageIndex === 0 ? clipRef : undefined}
                     className="h-full overflow-hidden"

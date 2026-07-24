@@ -267,7 +267,13 @@ export function pickSliceHeightPx(args: {
 /** Cumulative Y offsets where each page of content begins (CSS/canvas px). */
 export function computePageStartOffsetsPx(args: {
   totalHeightPx: number;
+  /** Content-area height for the first page (e.g. below letterhead). */
   pageHeightPx: number;
+  /**
+   * Content-area height for page 2+ when taller than the first page
+   * (e.g. no letterhead clearance on continuation pages).
+   */
+  subsequentPageHeightPx?: number;
   breakpointsPx: number[];
   avoidRangesPx?: AvoidSplitRangePx[];
   lineRangesPx?: LineRangePx[];
@@ -275,6 +281,7 @@ export function computePageStartOffsetsPx(args: {
   const {
     totalHeightPx,
     pageHeightPx,
+    subsequentPageHeightPx,
     breakpointsPx,
     avoidRangesPx,
     lineRangesPx,
@@ -287,9 +294,15 @@ export function computePageStartOffsetsPx(args: {
 
   while (renderedPx < totalHeightPx && guard < 100) {
     guard += 1;
+    const pageIndex = starts.length - 1;
+    const maxSliceHeightPx =
+      pageIndex === 0
+        ? pageHeightPx
+        : (subsequentPageHeightPx ?? pageHeightPx);
+    if (maxSliceHeightPx <= 0) break;
     const slice = pickSliceHeightPx({
       renderedPx,
-      maxSliceHeightPx: pageHeightPx,
+      maxSliceHeightPx,
       totalHeightPx,
       breakpointsPx,
       avoidRangesPx,

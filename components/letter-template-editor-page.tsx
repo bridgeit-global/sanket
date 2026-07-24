@@ -220,22 +220,22 @@ export function LetterTemplateEditorPage() {
 
       const res = activeLetterMaster
         ? await fetch(
-            `/api/letter-masters/${encodeURIComponent(activeLetterMaster.id)}`,
-            {
-              method: 'PUT',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify(payload),
-            },
-          )
-        : await fetch('/api/letter-masters', {
-            method: 'POST',
+          `/api/letter-masters/${encodeURIComponent(activeLetterMaster.id)}`,
+          {
+            method: 'PUT',
             headers: { 'content-type': 'application/json' },
-            body: JSON.stringify({
-              ...payload,
-              letterType,
-              letterLocale,
-            }),
-          });
+            body: JSON.stringify(payload),
+          },
+        )
+        : await fetch('/api/letter-masters', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            ...payload,
+            letterType,
+            letterLocale,
+          }),
+        });
 
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to save template');
@@ -362,24 +362,6 @@ export function LetterTemplateEditorPage() {
           <FieldGroup label={t('letterGeneration.templates.letterhead')}>
             <div className="space-y-3">
               {letterheadDraft ? (
-                <div className="overflow-hidden rounded-lg border bg-white p-2 max-w-md">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={letterheadDraft}
-                    alt={t('letterGeneration.templates.letterheadPreviewAlt')}
-                    className={cn(
-                      'mx-auto block object-contain',
-                      letterheadModeDraft === 'full' ? 'w-full' : 'w-1/2',
-                    )}
-                  />
-                </div>
-              ) : (
-                <div className="flex min-h-20 max-w-md items-center justify-center rounded-lg border border-dashed bg-muted/30 px-4 text-center text-sm text-muted-foreground">
-                  <ImageIcon className="mr-2 size-4 shrink-0" aria-hidden />
-                  {t('letterGeneration.templates.letterheadEmpty')}
-                </div>
-              )}
-              {letterheadDraft ? (
                 <FieldGroup
                   label={t('letterGeneration.templates.letterheadMode')}
                   className="max-w-xs"
@@ -503,7 +485,7 @@ export function LetterTemplateEditorPage() {
                 setTemplateDraft(getDefaultTemplateHtml(letterType, letterLocale));
                 setTemplateNameDraft(
                   activeLetterMaster?.name?.trim() ||
-                    getDefaultTemplateName(letterType, letterLocale),
+                  getDefaultTemplateName(letterType, letterLocale),
                 );
                 toast.success(t('letterGeneration.templates.restoreDefaultSuccess'));
               }}
