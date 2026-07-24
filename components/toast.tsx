@@ -63,6 +63,7 @@ export const toast = Object.assign(toastFunction, {
     toastFunction({ type: 'success', description }),
   info: (description: string) => toastFunction({ type: 'info', description }),
   promise: toastPromise,
+  dismiss: sonnerToast.dismiss,
 });
 
 export function Toaster() {
