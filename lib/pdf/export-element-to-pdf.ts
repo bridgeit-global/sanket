@@ -18,6 +18,111 @@ type PdfPageFormat = LetterPaperSize;
 /** Printable content width for A4 portrait with 15mm side margins at 96dpi. */
 export const A4_PORTRAIT_CONTENT_WIDTH_PX = getLetterPaperContentWidthPx('a4');
 
+/** PDF Info dictionary fields shown in reader Document Properties. */
+export type PdfDocumentInfo = {
+  title?: string;
+  subject?: string;
+  author?: string;
+  keywords?: string;
+  creator?: string;
+  /**
+   * Overrides jsPDF's hardcoded Producer (e.g. "jsPDF 4.2.1").
+   * Applied by rewriting the finished PDF bytes.
+   */
+  producer?: string;
+};
+
+function escapePdfLiteralString(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+}
+
+/**
+ * jsPDF hardcodes `/Producer (jsPDF <version>)` with no public override.
+ * Replace it and bump classic xref / startxref offsets that follow the Info dict.
+ */
+export function rewritePdfProducer(
+  pdfBinaryString: string,
+  producer: string,
+): string {
+  const trimmed = producer.trim();
+  if (!trimmed) return pdfBinaryString;
+
+  const producerRe = /\/Producer \((?:\\.|[^\\)])*\)/;
+  const match = producerRe.exec(pdfBinaryString);
+  if (!match || match.index === undefined) return pdfBinaryString;
+
+  const replacement = `/Producer (${escapePdfLiteralString(trimmed)})`;
+  const delta = replacement.length - match[0].length;
+  const changeAt = match.index;
+  let next =
+    pdfBinaryString.slice(0, changeAt) +
+    replacement +
+    pdfBinaryString.slice(changeAt + match[0].length);
+
+  if (delta === 0) return next;
+
+  const xrefHeaderRe = /\nxref\n0 (\d+)\n/;
+  const xrefHeader = xrefHeaderRe.exec(next);
+  if (!xrefHeader || xrefHeader.index === undefined) return next;
+
+  const objectCount = Number(xrefHeader[1]);
+  const entriesStart = xrefHeader.index + xrefHeader[0].length;
+  const trailerIdx = next.indexOf('\ntrailer\n', entriesStart);
+  if (trailerIdx < 0) return next;
+
+  const entriesBlock = next.slice(entriesStart, trailerIdx);
+  const entryLines = entriesBlock.split('\n');
+  if (entryLines.length < objectCount) return next;
+
+  const patchedEntries = entryLines.map((line, index) => {
+    // Object 0 is the free entry; leave it alone.
+    if (index === 0) return line;
+    const entryMatch = /^(\d{10}) (\d{5}) ([nf]) ?$/.exec(line);
+    if (!entryMatch) return line;
+    const offset = Number(entryMatch[1]);
+    if (offset < changeAt) return line;
+    const nextOffset = String(offset + delta).padStart(10, '0');
+    return `${nextOffset} ${entryMatch[2]} ${entryMatch[3]} `;
+  });
+
+  next =
+    next.slice(0, entriesStart) +
+    patchedEntries.join('\n') +
+    next.slice(trailerIdx);
+
+  next = next.replace(
+    /(startxref\n)(\d+)(\n%%EOF)\s*$/,
+    (_full, prefix: string, offsetText: string, suffix: string) => {
+      const offset = Number(offsetText);
+      // startxref points at the xref table, which sits after Info/Catalog.
+      const nextOffset = offset >= changeAt ? offset + delta : offset;
+      return `${prefix}${nextOffset}${suffix}`;
+    },
+  );
+
+  return next;
+}
+
+function pdfBinaryStringToBlob(pdfBinaryString: string): Blob {
+  const len = pdfBinaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i += 1) {
+    bytes[i] = pdfBinaryString.charCodeAt(i) & 0xff;
+  }
+  return new Blob([bytes], { type: 'application/pdf' });
+}
+
+function downloadPdfBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
 export type ExportElementToPdfOptions = {
   element: HTMLElement;
   fileName: string;
@@ -80,6 +185,8 @@ export type ExportElementToPdfOptions = {
    * without triggering a download.
    */
   destination?: 'download' | 'blob';
+  /** Optional PDF Document Information (Title, Author, Subject, …). */
+  documentInfo?: PdfDocumentInfo;
 };
 
 async function loadImageAsDataUrl(
@@ -224,6 +331,7 @@ export async function exportElementToPdf(
     drawContinuationRule = false,
     pageBackground,
     destination = 'download',
+    documentInfo,
   } = options;
 
   const marginMm = Math.max(0, Math.min(25, rawMarginMm));
@@ -260,6 +368,16 @@ export async function exportElementToPdf(
       format,
       compress: true,
     });
+
+    if (documentInfo) {
+      doc.setProperties({
+        title: documentInfo.title,
+        subject: documentInfo.subject,
+        author: documentInfo.author,
+        keywords: documentInfo.keywords,
+        creator: documentInfo.creator,
+      });
+    }
 
     const pageWidthMm = doc.internal.pageSize.getWidth();
     const pageHeightMm = doc.internal.pageSize.getHeight();
@@ -555,11 +673,17 @@ export async function exportElementToPdf(
       pageIndex += 1;
     }
 
+    let pdfBinary = doc.output() as string;
+    if (documentInfo?.producer) {
+      pdfBinary = rewritePdfProducer(pdfBinary, documentInfo.producer);
+    }
+    const blob = pdfBinaryStringToBlob(pdfBinary);
+
     if (destination === 'blob') {
-      return doc.output('blob');
+      return blob;
     }
 
-    doc.save(fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`);
+    downloadPdfBlob(blob, fileName);
   } finally {
     cleanupCapture();
     root.classList.remove('pdf-export');

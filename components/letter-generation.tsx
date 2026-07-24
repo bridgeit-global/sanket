@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { useEffect, useMemo, useRef, useState, useCallback, type Dispatch, type SetStateAction } from 'react';
 import {
   ArrowLeft,
@@ -886,6 +887,7 @@ export function LetterGeneration({
   prefillAddress?: string;
   service?: BeneficiaryServiceInfo;
 }) {
+  const { data: session } = useSession();
   const { t, locale } = useTranslations();
   const [letterLocale, setLetterLocale] = useState<LetterLocale>(locale);
   /** Field labels / options follow letter language, not UI locale. */
@@ -1037,19 +1039,19 @@ export function LetterGeneration({
     const hasTargetContent =
       targetLocale === 'mr'
         ? Boolean(
-            parts.line1Mr.trim() ||
-              parts.line2Mr.trim() ||
-              parts.line3Mr.trim() ||
-              parts.cityMr.trim() ||
-              parts.stateMr.trim(),
-          )
+          parts.line1Mr.trim() ||
+          parts.line2Mr.trim() ||
+          parts.line3Mr.trim() ||
+          parts.cityMr.trim() ||
+          parts.stateMr.trim(),
+        )
         : Boolean(
-            parts.line1En.trim() ||
-              parts.line2En.trim() ||
-              parts.line3En.trim() ||
-              parts.cityEn.trim() ||
-              parts.stateEn.trim(),
-          );
+          parts.line1En.trim() ||
+          parts.line2En.trim() ||
+          parts.line3En.trim() ||
+          parts.cityEn.trim() ||
+          parts.stateEn.trim(),
+        );
 
     if (!hasTargetContent) {
       const sourceText = formatAddressMaster(parts, letterLocale);
@@ -1274,7 +1276,7 @@ export function LetterGeneration({
         ) ??
         (!addressSelections.fromRationOffice
           ? formatAddressMaster(manualAddressParts.fromRationOffice, letterLocale) ||
-            (prev.fromRationOffice ? filterText(prev.fromRationOffice) : prev.fromRationOffice)
+          (prev.fromRationOffice ? filterText(prev.fromRationOffice) : prev.fromRationOffice)
           : prev.fromRationOffice),
       toRationOffice:
         getRationOfficeLabelById(
@@ -1284,7 +1286,7 @@ export function LetterGeneration({
         ) ??
         (!addressSelections.toRationOffice
           ? formatAddressMaster(manualAddressParts.toRationOffice, letterLocale) ||
-            (prev.toRationOffice ? filterText(prev.toRationOffice) : prev.toRationOffice)
+          (prev.toRationOffice ? filterText(prev.toRationOffice) : prev.toRationOffice)
           : prev.toRationOffice),
     }));
     setIncomeFields((prev) => ({
@@ -1479,13 +1481,13 @@ export function LetterGeneration({
     const formatted = formatAddressForManualKey(parts, letterLocale, key);
     const value =
       key === 'rationOffice' ||
-      key === 'fromRationOffice' ||
-      key === 'toRationOffice'
+        key === 'fromRationOffice' ||
+        key === 'toRationOffice'
         ? combineNameAndAddress(
-            rationOfficeNamesRef.current[key],
-            formatted,
-            key === 'rationOffice' ? '<br>' : ', ',
-          )
+          rationOfficeNamesRef.current[key],
+          formatted,
+          key === 'rationOffice' ? '<br>' : ', ',
+        )
         : formatted;
     applyManualAddressToLetterFields(key, value);
     // The beneficiary's (applicant's) address is not translated.
@@ -2357,6 +2359,23 @@ export function LetterGeneration({
   const resolveSavedLetterPaperSize = (letter: SavedLetterRow): LetterPaperSize =>
     resolveLetterPaperSize(letter.paperSize, letter.letterType);
 
+  const deriveLetterSubject = (letter: SavedLetterRow): string => {
+    const fields = (letter.fields ?? {}) as Record<string, unknown>;
+    if (typeof fields.subject === 'string' && fields.subject.trim()) {
+      return fields.subject.trim();
+    }
+    return letter.title;
+  };
+
+  const buildLetterPdfDocumentInfo = (letter: SavedLetterRow, pdfFileName: string) => ({
+    title: pdfFileName,
+    author: DEFAULT_SIGNATORY.en,
+    subject: deriveLetterSubject(letter),
+    keywords: 'eoffice, sana malik shaikh',
+    creator: session?.user?.userId ?? 'eOffice',
+    producer: 'Sana Malik Shaikh (eOffice)',
+  });
+
   const handlePrintSavedLetter = async (letter: SavedLetterRow) => {
     setPrintingLetterId(letter.id);
     let exportHost: HTMLElement | null = null;
@@ -2368,15 +2387,17 @@ export function LetterGeneration({
       });
       document.body.appendChild(exportHost);
       // Print via PDF so Chrome cannot stamp URL/date headers (HTML @page cannot suppress them).
+      const pdfFileName = `${letter.title}-${letter.referenceNo || 'letter'}`;
       const blob = await exportElementToPdf({
         element: exportHost,
-        fileName: `${letter.title}-${letter.referenceNo || 'letter'}`,
+        fileName: pdfFileName,
         format: paperSize,
         orientation: 'portrait',
         marginMm: LETTER_PAPER_MARGIN_MM[paperSize],
         scale: 2,
         captureWidthPx: getLetterPaperContentWidthPx(paperSize),
         destination: 'blob',
+        documentInfo: buildLetterPdfDocumentInfo(letter, pdfFileName),
         pageBackground: {
           headerHeightMm: getLetterheadContentPaddingMm(paperSize),
         },
@@ -2405,14 +2426,16 @@ export function LetterGeneration({
         letterLocale: letter.letterLocale,
       });
       document.body.appendChild(exportHost);
+      const pdfFileName = `${letter.title}-${letter.referenceNo || 'letter'}`;
       await exportElementToPdf({
         element: exportHost,
-        fileName: `${letter.title}-${letter.referenceNo || 'letter'}`,
+        fileName: pdfFileName,
         format: paperSize,
         orientation: 'portrait',
         marginMm: LETTER_PAPER_MARGIN_MM[paperSize],
         scale: 2,
         captureWidthPx: getLetterPaperContentWidthPx(paperSize),
+        documentInfo: buildLetterPdfDocumentInfo(letter, pdfFileName),
         // Header clearance only — no letterhead background image.
         pageBackground: {
           headerHeightMm: getLetterheadContentPaddingMm(paperSize),
@@ -4275,8 +4298,8 @@ export function LetterGeneration({
                         'max-h-[90vh] w-[calc(100%-2rem)] overflow-y-auto p-4 sm:w-full sm:p-6',
                         selectedSavedLetter
                           ? getLetterPreviewDialogMaxWidthClass(
-                              resolveSavedLetterPaperSize(selectedSavedLetter),
-                            )
+                            resolveSavedLetterPaperSize(selectedSavedLetter),
+                          )
                           : 'max-w-3xl',
                       )}
                     >
