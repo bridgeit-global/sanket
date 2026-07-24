@@ -1244,6 +1244,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               entries={talukaLeadership}
               vacantLabel={vacantLabel}
               viewCommitteeLabel={viewCommitteeLabel}
+              geoLevel="taluka"
               onViewCommittee={openTalukaCommittee}
               canEdit={canEdit}
               onVoterIdUpdated={canEdit ? () => { void refresh(); } : undefined}

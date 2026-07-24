@@ -160,6 +160,7 @@ export function WardPanel({
         entries={wardLeadershipEntries}
         vacantLabel={vacantLabel}
         viewCommitteeLabel={viewCommitteeLabel}
+        geoLevel="ward"
         onViewCommittee={onViewWardCommittee}
         canEdit={canEdit}
         onVoterIdUpdated={onVoterIdUpdated}
@@ -192,7 +193,7 @@ export function WardPanel({
                   {
                     key: `${vertical.id}-adhyaksh`,
                     verticalId: vertical.id,
-                    roleLabel: t('hierarchyModule.verticalHeadLabel', {
+                    roleLabel: t('hierarchyModule.verticalBoothAdhyakshLabel', {
                       vertical: vertical.name,
                     }),
                     head: adhyaksh,
