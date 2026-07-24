@@ -233,8 +233,9 @@ function snapCutOutOfLineInterior(
 }
 
 /**
- * Force a cut Y into a blank gap between line boxes (never inside glyph ink).
- * If the cut falls inside a line that can move to the next page, snap to its top.
+ * Place a cut in the safe middle of a line gap (away from anti-aliased ink on
+ * both sides). If the cut is mid-glyph, move the whole line to the next page
+ * when it fits; otherwise end after its ink inside the following gap.
  */
 export function snapCutToNearestLineGap(
   cutY: number,
@@ -247,37 +248,39 @@ export function snapCutToNearestLineGap(
 
   let y = Math.min(Math.max(cutY, renderedPx), maxCutY);
 
+  const gapCutAfter = (lineIndex: number): number => {
+    const line = lineRangesPx[lineIndex]!;
+    const next = lineRangesPx[lineIndex + 1];
+    const gapStart = line.bottom;
+    const gapEnd = next ? next.top : maxCutY;
+    if (gapEnd > gapStart + 1) {
+      // Mid-gap — maximum distance from both glyph edges (DOM + canvas).
+      return Math.min(maxCutY, (gapStart + Math.min(gapEnd, maxCutY)) / 2);
+    }
+    return Math.min(maxCutY, gapStart + Math.min(clearancePx, 1));
+  };
+
   for (let i = 0; i < lineRangesPx.length; i++) {
     const line = lineRangesPx[i]!;
     const next = lineRangesPx[i + 1];
-    // Never bleed clearance into the following line box (getClientRects often
-    // overlap slightly — uncapped clearance was pulling cuts up line-by-line
-    // and spawning an extra preview page).
-    const gapLimit = next ? next.top : Number.POSITIVE_INFINITY;
-    const inkBottom = Math.min(line.bottom + clearancePx, gapLimit);
+    const gapStart = line.bottom;
+    const gapEnd = next ? next.top : maxCutY;
 
-    // Strict mid-glyph — move whole line to next page when possible.
+    // Mid-glyph → prefer pushing the line to the next page.
     if (y > line.top && y < line.bottom) {
       if (line.top > renderedPx + 1) {
-        y = line.top;
-      } else if (inkBottom <= maxCutY && inkBottom > line.bottom) {
-        y = inkBottom;
-      } else if (line.bottom <= maxCutY) {
-        y = line.bottom;
+        // End in the gap *before* this line (after previous line).
+        return i > 0
+          ? gapCutAfter(i - 1)
+          : Math.min(line.top, maxCutY);
       }
-      break;
+      // Line started on this page — keep it and cut in the following gap.
+      return gapCutAfter(i);
     }
 
-    // Anti-alias band just below the DOM line box (still above next line).
-    if (y >= line.bottom && y < inkBottom) {
-      if (inkBottom <= maxCutY) {
-        y = Math.max(y, Math.min(inkBottom, gapLimit));
-      } else if (line.top > renderedPx + 1) {
-        y = line.top;
-      } else {
-        y = Math.min(maxCutY, line.bottom);
-      }
-      break;
+    // Already in the gap after this line — park at mid-gap.
+    if (y >= gapStart && y <= gapEnd) {
+      return gapCutAfter(i);
     }
   }
 
@@ -425,6 +428,25 @@ export function pickSliceHeightPx(args: {
   return Math.min(slice, remaining);
 }
 
+/**
+ * Shared preview + PDF pagination from a laid-out letter content root.
+ * Both callers must pass an identically styled measure host for WYSIWYG breaks.
+ */
+export function paginateLetterContentRoot(
+  root: HTMLElement,
+  pageHeightPx: number,
+  subsequentPageHeightPx?: number,
+): number[] {
+  return computePageStartOffsetsPx({
+    totalHeightPx: root.scrollHeight,
+    pageHeightPx,
+    subsequentPageHeightPx,
+    breakpointsPx: getContentBreakpointsPx(root, 1),
+    avoidRangesPx: getAvoidSplitRangesPx(root, 1),
+    lineRangesPx: getLineRangesPx(root, 1),
+  });
+}
+
 /** Cumulative Y offsets where each page of content begins (CSS/canvas px). */
 export function computePageStartOffsetsPx(args: {
   totalHeightPx: number;
@@ -511,30 +533,30 @@ export function snapCanvasCutToBlankRow(args: {
   proposedCutY: number;
   minCutY: number;
   /**
-   * How far upward to search (canvas px). Keep small — this is only for
-   * anti-alias / descender rescue when DOM↔canvas drift cuts mid-glyph.
-   * Large windows pull whole lines onto the next page and break WYSIWYG.
+   * How far to search for a blank gap (canvas px). Prefer downward so we clear
+   * descender anti-alias without pulling the previous line onto the next page.
    */
   searchWindowPx?: number;
   /** Do not snap into interior blank gaps (e.g. signature spacing). */
   avoidRangesPx?: AvoidSplitRangePx[];
 }): number {
   const { canvas, proposedCutY, minCutY } = args;
-  const searchWindowPx = args.searchWindowPx ?? 12;
+  const searchWindowPx = args.searchWindowPx ?? 16;
   const avoidRangesPx = args.avoidRangesPx ?? [];
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return proposedCutY;
 
   const width = canvas.width;
   const height = canvas.height;
-  const cut = Math.min(Math.max(Math.floor(proposedCutY), 0), height);
-  const limit = Math.max(Math.ceil(minCutY), cut - searchWindowPx);
-  if (cut <= limit) return cut;
+  // Bias past DOM cut so subpixel / anti-alias ink stays on the previous page.
+  const cut = Math.min(Math.max(Math.ceil(proposedCutY), 0), height);
+  const downLimit = Math.min(height - 1, cut + searchWindowPx);
+  // Upward rescue only for true mid-glyph drift — never a whole line.
+  const upLimit = Math.max(Math.ceil(minCutY), cut - Math.min(3, searchWindowPx));
 
   const isBlankRow = (y: number): boolean => {
     if (y < 0 || y >= height) return true;
     const data = ctx.getImageData(0, y, width, 1).data;
-    // Sample every 4th pixel for speed.
     for (let i = 0; i < data.length; i += 16) {
       const a = data[i + 3] ?? 0;
       if (a < 8) continue;
@@ -549,32 +571,37 @@ export function snapCanvasCutToBlankRow(args: {
   const isValidBlankCut = (y: number): boolean =>
     isBlankRow(y) && !isInsideAvoidRangeInterior(y, avoidRangesPx);
 
-  // Prefer a blank row at/just below the DOM cut (descender hairline) before
-  // walking upward — walking up through a full ink line moves that line to
-  // the next page and desyncs print from preview.
-  for (const y of [cut, cut - 1, cut + 1, cut + 2]) {
-    if (y < limit || y >= height) continue;
-    if (isValidBlankCut(y)) {
-      return Math.max(limit, Math.min(y + 1, height));
+  /** First ink row after a blank band starting at blankY (exclusive end cut). */
+  const cutAfterBlankBand = (blankY: number): number => {
+    let y = blankY;
+    while (y + 1 <= downLimit && isValidBlankCut(y + 1)) {
+      y += 1;
+    }
+    // Next page starts on the first non-blank row after the gap.
+    return Math.min(height, y + 1);
+  };
+
+  // Already in a gap (or one px into descender hairline) — consume the whole gap.
+  for (const start of [cut, cut - 1, cut + 1]) {
+    if (start < upLimit || start >= height) continue;
+    if (isValidBlankCut(start)) {
+      return Math.max(minCutY + 1, cutAfterBlankBand(start));
     }
   }
 
-  // Mid-glyph only: walk up a short distance through ink to the nearest gap.
-  let y = cut - 1;
-  while (y > limit && !isValidBlankCut(y)) {
-    y -= 1;
-  }
-  if (y <= limit && !isValidBlankCut(y)) {
-    return cut;
+  // In ink: search downward for the next gap (keep current line on this page).
+  for (let y = cut + 1; y <= downLimit; y++) {
+    if (isValidBlankCut(y)) {
+      return Math.max(minCutY + 1, cutAfterBlankBand(y));
+    }
   }
 
-  let blankBottom = y;
-  while (
-    blankBottom + 1 < cut &&
-    isBlankRow(blankBottom + 1) &&
-    !isInsideAvoidRangeInterior(blankBottom + 1, avoidRangesPx)
-  ) {
-    blankBottom += 1;
+  // Last resort: tiny upward step only (DOM↔canvas drift of a couple px).
+  for (let y = cut - 1; y >= upLimit; y--) {
+    if (isValidBlankCut(y)) {
+      return Math.max(minCutY + 1, y + 1);
+    }
   }
-  return Math.max(limit, blankBottom);
+
+  return cut;
 }

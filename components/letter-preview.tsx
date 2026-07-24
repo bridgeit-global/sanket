@@ -18,10 +18,7 @@ import {
 } from '@/lib/letters/paper-size';
 import type { LetterLocale } from '@/lib/letters/templates';
 import {
-  computePageStartOffsetsPx,
-  getAvoidSplitRangesPx,
-  getContentBreakpointsPx,
-  getLineRangesPx,
+  paginateLetterContentRoot,
 } from '@/lib/pdf/page-breaks';
 
 const LETTER_PREVIEW_CONTENT_CLASSES =
@@ -260,23 +257,15 @@ export function LetterPreview({
       document.body.appendChild(measureHost);
 
       try {
-        const total = measureHost.scrollHeight;
-        const breakpointsPx = getContentBreakpointsPx(measureHost, 1);
-        const avoidRangesPx = getAvoidSplitRangesPx(measureHost, 1);
-        const lineRangesPx = getLineRangesPx(measureHost, 1);
-        const starts = computePageStartOffsetsPx({
-          totalHeightPx: total,
-          pageHeightPx: firstPageContentHeightPx,
-          subsequentPageHeightPx:
-            hasLetterhead &&
+        const starts = paginateLetterContentRoot(
+          measureHost,
+          firstPageContentHeightPx,
+          hasLetterhead &&
             Math.abs(subsequentPageContentHeightPx - firstPageContentHeightPx) >
               0.5
-              ? subsequentPageContentHeightPx
-              : undefined,
-          breakpointsPx,
-          avoidRangesPx,
-          lineRangesPx,
-        });
+            ? subsequentPageContentHeightPx
+            : undefined,
+        );
 
         if (cancelled) return;
 

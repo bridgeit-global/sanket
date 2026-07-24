@@ -7,10 +7,9 @@ import {
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
 import {
-  computePageStartOffsetsPx,
   getAvoidSplitRangesPx,
-  getContentBreakpointsPx,
   getLineRangesPx,
+  paginateLetterContentRoot,
   snapCanvasCutToBlankRow,
 } from '@/lib/pdf/page-breaks';
 
@@ -377,40 +376,35 @@ export async function exportElementToPdf(
       false,
       0,
     );
-    const domBreakpointsPx = getContentBreakpointsPx(contentRoot, 1);
-    const domAvoidRangesPx = getAvoidSplitRangesPx(contentRoot, 1);
-    const domLineRangesPx = getLineRangesPx(contentRoot, 1);
-    const totalDomHeightPx = contentRoot.scrollHeight;
-    const pageStartsDomPx = computePageStartOffsetsPx({
-      totalHeightPx: totalDomHeightPx,
-      pageHeightPx: domPageHeightPx,
-      subsequentPageHeightPx:
-        letterheadFirstPageOnly &&
+    const pageStartsDomPx = paginateLetterContentRoot(
+      contentRoot,
+      domPageHeightPx,
+      letterheadFirstPageOnly &&
         pageBackgroundHeaderMm > 0 &&
         Math.abs(domSubsequentPageHeightPx - domPageHeightPx) > 0.5
-          ? domSubsequentPageHeightPx
-          : undefined,
-      breakpointsPx: domBreakpointsPx,
-      avoidRangesPx: domAvoidRangesPx,
-      lineRangesPx: domLineRangesPx,
-    });
+        ? domSubsequentPageHeightPx
+        : undefined,
+    );
+    const domAvoidRangesPx = getAvoidSplitRangesPx(contentRoot, 1);
+    const domLineRangesPx = getLineRangesPx(contentRoot, 1);
     const canvasAvoidRangesPx = domAvoidRangesPx.map((range) => ({
       top: Math.floor(range.top * domToCanvasScaleY),
       bottom: Math.ceil(range.bottom * domToCanvasScaleY),
     }));
-    // Only rescue mid-glyph anti-alias drift — not whole prior lines.
+    // Search mostly downward through the inter-line gap (not up through glyphs).
     const sampleLine = domLineRangesPx[0];
     const lineWindow = sampleLine
       ? Math.max(
-          8,
-          Math.ceil((sampleLine.bottom - sampleLine.top) * 0.35 * domToCanvasScaleY),
+          12,
+          Math.ceil((sampleLine.bottom - sampleLine.top) * 0.6 * domToCanvasScaleY),
         )
-      : 12;
+      : 16;
 
     const pageCutCanvasPx: number[] = [0];
     for (let i = 1; i < pageStartsDomPx.length; i++) {
       const prevCut = pageCutCanvasPx[pageCutCanvasPx.length - 1] ?? 0;
-      let cutEnd = Math.round(pageStartsDomPx[i]! * domToCanvasScaleY);
+      // ceil so anti-aliased ink just below the DOM cut stays on the previous page.
+      let cutEnd = Math.ceil(pageStartsDomPx[i]! * domToCanvasScaleY);
       cutEnd = snapCanvasCutToBlankRow({
         canvas,
         proposedCutY: cutEnd,
@@ -424,7 +418,7 @@ export async function exportElementToPdf(
           cutEnd < range.bottom - 1 &&
           range.top > prevCut + 1
         ) {
-          cutEnd = range.top;
+          cutEnd = Math.ceil(range.top);
         }
       }
       cutEnd = Math.max(prevCut + 1, Math.min(cutEnd, canvas.height));
