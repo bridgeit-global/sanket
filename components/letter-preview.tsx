@@ -12,6 +12,7 @@ import {
   getLetterPaperContentWidthPx,
   getLetterPaperHeightPx,
   getLetterPaperWidthPx,
+  LETTER_PAPER_DIMENSIONS_MM,
   LETTER_PAPER_MARGIN_MM,
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
@@ -96,22 +97,49 @@ function computeLetterPreviewDisplayScale(
   return Math.min(maxScale, Math.max(minScale, fitScale));
 }
 
-function getLetterBodyPaddingCss(
+function getLetterLayoutPxPerMm(paperSize: LetterPaperSize): number {
+  const { widthMm } = LETTER_PAPER_DIMENSIONS_MM[paperSize];
+  const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
+  const contentWidthMm = Math.max(1, widthMm - marginMm * 2);
+  return getLetterPaperContentWidthPx(paperSize) / contentWidthMm;
+}
+
+function getLetterBodyPaddingPx(
   paperSize: LetterPaperSize,
   hasLetterhead: boolean,
   isFirstPage: boolean,
-): string {
+): { top: number; right: number; bottom: number; left: number } {
+  const pxPerMm = getLetterLayoutPxPerMm(paperSize);
   const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
+  const side = marginMm * pxPerMm;
   if (hasLetterhead && isFirstPage) {
     const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);
-    return `${headerPaddingMm}mm ${marginMm}mm ${marginMm}mm ${marginMm}mm`;
+    return {
+      top: headerPaddingMm * pxPerMm,
+      right: side,
+      bottom: side,
+      left: side,
+    };
   }
   if (hasLetterhead) {
-    // Continuation pages: normal paper margins (no letterhead clearance).
-    return `${marginMm}mm`;
+    return { top: side, right: side, bottom: side, left: side };
   }
   const paddingPx = paperSize === 'a4' ? 24 : 18;
-  return `${paddingPx}px`;
+  return {
+    top: paddingPx,
+    right: paddingPx,
+    bottom: paddingPx,
+    left: paddingPx,
+  };
+}
+
+function paddingPxToCss(padding: {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}): string {
+  return `${padding.top}px ${padding.right}px ${padding.bottom}px ${padding.left}px`;
 }
 
 export function createLetterExportElement(
@@ -178,16 +206,27 @@ export function LetterPreview({
   const resolvedLetterhead = resolveLetterheadUrl(paperSize, letterheadUrl);
   const contentHtml = stripLetterheadFromHtml(html);
   const hasLetterhead = Boolean(resolvedLetterhead);
-  const firstPageBodyPadding = getLetterBodyPaddingCss(
+  const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);
+  const firstPageContentHeightPx = getLetterPageContentHeightCssPx(
+    paperSize,
+    hasLetterhead,
+    headerPaddingMm,
+  );
+  const subsequentPageContentHeightPx = hasLetterhead
+    ? getLetterPageContentHeightCssPx(paperSize, false, 0)
+    : firstPageContentHeightPx;
+  const firstPagePaddingPx = getLetterBodyPaddingPx(
     paperSize,
     hasLetterhead,
     true,
   );
-  const continuationBodyPadding = getLetterBodyPaddingCss(
+  const continuationPaddingPx = getLetterBodyPaddingPx(
     paperSize,
     hasLetterhead,
     false,
   );
+  const firstPageBodyPadding = paddingPxToCss(firstPagePaddingPx);
+  const continuationBodyPadding = paddingPxToCss(continuationPaddingPx);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const pageFrameRef = useRef<HTMLDivElement>(null);
@@ -200,74 +239,53 @@ export function LetterPreview({
 
   useLayoutEffect(() => {
     const recomputePages = () => {
-      const clip = clipRef.current;
       const content = contentRef.current;
       const frame = pageFrameRef.current;
-      if (!clip || !content) return;
+      if (!content || firstPageContentHeightPx <= 0) return;
 
-      // Preview + PDF must share the same content-area height so page breaks match.
-      const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);
-      const firstPageAvailable = getLetterPageContentHeightCssPx(
-        paperSize,
-        hasLetterhead,
-        headerPaddingMm,
-      );
-      if (firstPageAvailable <= 0) return;
+      // Measure without CSS transform so getClientRects match layout px
+      // (same coordinate space as PDF capture / page-height helpers).
+      const prevTransform = frame?.style.transform ?? '';
+      if (frame) frame.style.transform = 'none';
+      // Force layout after clearing transform.
+      void content.offsetHeight;
 
-      // Page 2+ omit letterhead clearance so more of the sheet is usable.
-      const subsequentAvailable = hasLetterhead
-        ? getLetterPageContentHeightCssPx(paperSize, false, 0)
-        : firstPageAvailable;
+      try {
+        const measureRoot =
+          (content.querySelector('.letter-content') as HTMLElement | null) ??
+          content;
 
-      // Measure `.letter-content` when present — same root the PDF exporter uses —
-      // so preview and print share identical break geometry.
-      const measureRoot =
-        (content.querySelector('.letter-content') as HTMLElement | null) ??
-        content;
+        const total = measureRoot.scrollHeight;
+        const breakpointsPx = getContentBreakpointsPx(measureRoot, 1);
+        const avoidRangesPx = getAvoidSplitRangesPx(measureRoot, 1);
+        const lineRangesPx = getLineRangesPx(measureRoot, 1);
+        const starts = computePageStartOffsetsPx({
+          totalHeightPx: total,
+          pageHeightPx: firstPageContentHeightPx,
+          subsequentPageHeightPx:
+            hasLetterhead &&
+            Math.abs(subsequentPageContentHeightPx - firstPageContentHeightPx) >
+              0.5
+              ? subsequentPageContentHeightPx
+              : undefined,
+          breakpointsPx,
+          avoidRangesPx,
+          lineRangesPx,
+        });
 
-      // getBoundingClientRect is affected by the page frame's CSS transform
-      // scale; scrollHeight / clientHeight are not. Convert rect deltas back
-      // to layout px so pagination matches the unscaled PDF capture.
-      const visualScale =
-        frame && frame.offsetWidth > 0
-          ? frame.getBoundingClientRect().width / frame.offsetWidth
-          : 1;
-      const layoutFromVisualScale =
-        visualScale > 0.01 ? 1 / visualScale : 1;
-
-      const total = measureRoot.scrollHeight;
-      const breakpointsPx = getContentBreakpointsPx(
-        measureRoot,
-        layoutFromVisualScale,
-      );
-      const avoidRangesPx = getAvoidSplitRangesPx(
-        measureRoot,
-        layoutFromVisualScale,
-      );
-      const lineRangesPx = getLineRangesPx(measureRoot, layoutFromVisualScale);
-      const starts = computePageStartOffsetsPx({
-        totalHeightPx: total,
-        pageHeightPx: firstPageAvailable,
-        subsequentPageHeightPx:
-          hasLetterhead &&
-          Math.abs(subsequentAvailable - firstPageAvailable) > 0.5
-            ? subsequentAvailable
-            : undefined,
-        breakpointsPx,
-        avoidRangesPx,
-        lineRangesPx,
-      });
-
-      setPageStartOffsetsPx((prev) => {
-        const next = starts.length > 0 ? starts : [0];
-        if (
-          prev.length === next.length &&
-          prev.every((value, index) => value === next[index])
-        ) {
-          return prev;
-        }
-        return next;
-      });
+        setPageStartOffsetsPx((prev) => {
+          const next = starts.length > 0 ? starts : [0];
+          if (
+            prev.length === next.length &&
+            prev.every((value, index) => value === next[index])
+          ) {
+            return prev;
+          }
+          return next;
+        });
+      } finally {
+        if (frame) frame.style.transform = prevTransform;
+      }
     };
 
     recomputePages();
@@ -298,6 +316,8 @@ export function LetterPreview({
     paperSize,
     letterLocale,
     hasLetterhead,
+    firstPageContentHeightPx,
+    subsequentPageContentHeightPx,
     firstPageBodyPadding,
     continuationBodyPadding,
     displayScale,
@@ -344,9 +364,23 @@ export function LetterPreview({
       <div className="mx-auto" style={{ width: scaledPaperWidthPx }}>
         {pageStartOffsetsPx.map((startOffsetPx, pageIndex) => {
           const nextStartPx = pageStartOffsetsPx[pageIndex + 1];
-          const sliceHeightPx =
+          const pageContentHeightPx =
+            pageIndex === 0
+              ? firstPageContentHeightPx
+              : subsequentPageContentHeightPx;
+          // Ceil so subpixel cuts don't leave a 1px glyph strip on the next page.
+          const renderStartPx =
+            pageIndex === 0 ? 0 : Math.ceil(startOffsetPx);
+          const renderEndPx =
             nextStartPx != null
-              ? Math.max(0, nextStartPx - startOffsetPx)
+              ? Math.min(
+                  Math.ceil(nextStartPx),
+                  renderStartPx + pageContentHeightPx,
+                )
+              : undefined;
+          const sliceHeightPx =
+            renderEndPx != null
+              ? Math.max(0, renderEndPx - renderStartPx)
               : undefined;
 
           return (
@@ -364,7 +398,7 @@ export function LetterPreview({
             >
               <div
                 ref={pageIndex === 0 ? pageFrameRef : undefined}
-                className="relative overflow-hidden rounded-lg border bg-white text-black"
+                className="relative overflow-hidden rounded-lg bg-white text-black shadow-sm ring-1 ring-black/10"
                 style={pageShellStyle}
               >
                 {resolvedLetterhead && pageIndex === 0 ? (
@@ -388,13 +422,23 @@ export function LetterPreview({
                 >
                   <div
                     ref={pageIndex === 0 ? clipRef : undefined}
-                    className="h-full overflow-hidden"
+                    className="overflow-hidden"
+                    style={{
+                      // Must match pagination pageHeightPx exactly — h-full + mm
+                      // padding drifted by border/subpixels and mid-clipped lines.
+                      height:
+                        pageIndex === 0
+                          ? firstPageContentHeightPx
+                          : subsequentPageContentHeightPx,
+                    }}
                   >
                     {/* Cap visible height at the next safe break so lines aren't clipped mid-glyph. */}
                     <div
                       className="overflow-hidden"
                       style={
-                        sliceHeightPx != null ? { height: sliceHeightPx } : undefined
+                        sliceHeightPx != null
+                          ? { height: sliceHeightPx }
+                          : undefined
                       }
                     >
                       <div
@@ -402,8 +446,8 @@ export function LetterPreview({
                         className={LETTER_PREVIEW_CONTENT_CLASSES}
                         style={{
                           transform:
-                            startOffsetPx > 0
-                              ? `translateY(-${startOffsetPx}px)`
+                            renderStartPx > 0
+                              ? `translateY(-${renderStartPx}px)`
                               : undefined,
                         }}
                         // Letter HTML is generated from admin-editable templates stored in our database.

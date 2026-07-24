@@ -222,7 +222,7 @@ function snapCutOutOfLineInterior(
   safetyPx = 2,
 ): number {
   for (const line of lineRangesPx) {
-    if (cutY <= line.top + 1 || cutY >= line.bottom - 1) continue;
+    if (cutY <= line.top || cutY >= line.bottom) continue;
     // Mid-glyph cut — push the whole line to the next page when possible.
     if (line.top > renderedPx + 1) {
       return Math.max(renderedPx + 1, line.top - safetyPx);
@@ -230,6 +230,39 @@ function snapCutOutOfLineInterior(
     return line.bottom;
   }
   return cutY;
+}
+
+/**
+ * Final pass: never leave a page break that splits a line box (including the
+ * anti-alias band just below the DOM line box). Prefer keeping the line on
+ * this page when it fits; otherwise move the whole line to the next page.
+ */
+function resolveLineAwareCutY(
+  cutY: number,
+  renderedPx: number,
+  lineRangesPx: LineRangePx[],
+  maxCutY: number,
+  clearancePx = 2,
+): number {
+  let y = cutY;
+  for (const line of lineRangesPx) {
+    // Strict interior, or inside the anti-alias band below the line box.
+    const splitsLine = y > line.top && y < line.bottom;
+    const inInkBleed = y >= line.bottom && y < line.bottom + clearancePx;
+    if (!splitsLine && !inInkBleed) continue;
+
+    const pastInk = line.bottom + clearancePx;
+    if (pastInk <= maxCutY) {
+      y = Math.max(y, pastInk);
+      continue;
+    }
+    if (line.top > renderedPx + 1) {
+      y = Math.min(y, line.top);
+      continue;
+    }
+    y = Math.min(maxCutY, pastInk);
+  }
+  return y;
 }
 
 export function pickSliceHeightPx(args: {
@@ -272,6 +305,11 @@ export function pickSliceHeightPx(args: {
   const safetyPx = sampleLine
     ? Math.max(4, Math.round((sampleLine.bottom - sampleLine.top) * 0.2))
     : 4;
+  const clearancePx = sampleLine
+    ? Math.max(2, Math.round((sampleLine.bottom - sampleLine.top) * 0.08))
+    : 2;
+  const pageEndLimit = renderedPx + defaultHeight;
+
   targetEnd = snapCutOutOfLineInterior(
     targetEnd,
     renderedPx,
@@ -289,7 +327,34 @@ export function pickSliceHeightPx(args: {
   let cutY = best ?? targetEnd;
 
   // Final safety: if we still landed inside a line (e.g. no breakpoints), snap again.
-  cutY = snapCutOutOfLineInterior(cutY, renderedPx, lineRangesPx, safetyPx);
+  cutY = snapCutOutOfLineInterior(
+    cutY,
+    renderedPx,
+    lineRangesPx,
+    safetyPx,
+  );
+  cutY = resolveLineAwareCutY(
+    cutY,
+    renderedPx,
+    lineRangesPx,
+    pageEndLimit,
+    clearancePx,
+  );
+  // Never start the next page inside an avoid-range (e.g. signature gap).
+  for (const range of avoidRangesPx) {
+    if (cutY > range.top + 1 && cutY < range.bottom - 1 && range.top > renderedPx) {
+      cutY = range.top;
+    }
+  }
+
+  // Re-check lines after avoid snap (signature top may land mid-body-line).
+  cutY = resolveLineAwareCutY(
+    cutY,
+    renderedPx,
+    lineRangesPx,
+    pageEndLimit,
+    clearancePx,
+  );
 
   // Clamp: must advance, must not exceed remaining / default page window too wildly.
   // Allow shorter-than-default pages when we snap back for avoid/line safety.
