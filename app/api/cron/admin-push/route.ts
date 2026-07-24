@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { getUpcomingCadreBirthdays } from '@/lib/db/dashboard-queries';
 import { sendPushToSubscribedAdmins } from '@/lib/push/send';
 import { isPushConfigured } from '@/lib/push/vapid';
 
@@ -18,6 +19,13 @@ function formatSlotLabel(date: Date): string {
     minute: '2-digit',
     hour12: true,
   }).format(date);
+}
+
+function birthdayReminderBody(count: number): string {
+  if (count === 1) {
+    return '1 cadre member has a birthday today. Open the dashboard to wish them.';
+  }
+  return `${count} cadre members have birthdays today. Open the dashboard to wish them.`;
 }
 
 export async function GET(request: NextRequest) {
@@ -41,9 +49,25 @@ export async function GET(request: NextRequest) {
   }).format(now);
 
   try {
+    // daysAhead=0 → only today; high limit so the count is not capped at the dashboard list size
+    const todaysBirthdays = await getUpcomingCadreBirthdays(0, 10_000);
+    const birthdayCount = todaysBirthdays.length;
+
+    if (birthdayCount === 0) {
+      return NextResponse.json({
+        ok: true,
+        target: 'user_id=admin',
+        sentTo: 0,
+        userIds: [],
+        birthdayCount: 0,
+        skipped: 'no_birthdays_today',
+        slot: formatSlotLabel(now),
+      });
+    }
+
     const userIds = await sendPushToSubscribedAdmins({
       title: 'Cadre birthday reminder',
-      body: "Check today's cadre hierarchy birthdays and wish your members.",
+      body: birthdayReminderBody(birthdayCount),
       url: '/modules/dashboard',
       tag: `cadre-birthday-${dateKey}`,
     });
@@ -53,6 +77,7 @@ export async function GET(request: NextRequest) {
       target: 'user_id=admin',
       sentTo: userIds.length,
       userIds,
+      birthdayCount,
       slot: formatSlotLabel(now),
     });
   } catch (error) {
