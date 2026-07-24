@@ -93,6 +93,11 @@ export async function PATCH(
             );
         }
 
+        const nextAssignedTo =
+            typeof assignedTo === 'string' && assignedTo.trim()
+                ? assignedTo.trim()
+                : undefined;
+
         const { taskId } = await params;
         
         // Try service first (for individual services)
@@ -102,7 +107,7 @@ export async function PATCH(
                 id: taskId,
                 status: status as 'pending' | 'in_progress' | 'completed' | 'cancelled',
                 notes,
-                assignedTo: assignedTo || session.user.id,
+                assignedTo: nextAssignedTo,
             });
 
             if (!updatedService) {
@@ -136,7 +141,7 @@ export async function PATCH(
             id: taskId,
             status: status as 'pending' | 'in_progress' | 'completed' | 'cancelled',
             notes,
-            assignedTo: assignedTo || session.user.id,
+            assignedTo: nextAssignedTo,
             performedBy: session.user.id,
             updatedBy: session.user.id,
         });

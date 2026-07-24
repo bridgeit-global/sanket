@@ -54,6 +54,12 @@ interface ServiceCatalogOption {
     category: string | null;
 }
 
+interface AssignableUser {
+    id: string;
+    userId: string;
+    roleName: string | null;
+}
+
 function extractTokenFromQrPayload(payload: string): string | null {
     const raw = (payload ?? '').trim();
     if (!raw) return null;
@@ -333,6 +339,7 @@ export function TaskManagement({
         token: initialManageState?.token ?? urlFilters.token,
         mobile: initialManageState?.mobile ?? urlFilters.mobile,
         voterId: initialManageState?.voterId ?? urlFilters.voterId,
+        assignedTo: initialManageState?.assignedTo ?? urlFilters.assignedTo,
         page: initialManageState?.page ?? urlFilters.page,
         limit: initialManageState?.limit ?? urlFilters.limit,
         taskId: initialManageState?.taskId ?? urlFilters.taskId,
@@ -361,6 +368,7 @@ export function TaskManagement({
     const [filterStatus, setFilterStatus] = useState<string>(mergedInitial.status);
     const [filterPriority, setFilterPriority] = useState<string>(mergedInitial.priority);
     const [filterServiceName, setFilterServiceName] = useState<string>(mergedInitial.serviceName || 'all');
+    const [filterAssignedTo, setFilterAssignedTo] = useState<string>(mergedInitial.assignedTo || 'all');
     const [filterToken, setFilterToken] = useState<string>(mergedInitial.token);
     const [filterMobile, setFilterMobile] = useState<string>(mergedInitial.mobile);
     const [filterVoterId, setFilterVoterId] = useState<string>(mergedInitial.voterId);
@@ -418,6 +426,37 @@ export function TaskManagement({
     const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
     const [newNote, setNewNote] = useState('');
     const [newStatus, setNewStatus] = useState<string>('');
+    const [assignedTo, setAssignedTo] = useState<string>('');
+    const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([]);
+    const [loadingAssignableUsers, setLoadingAssignableUsers] = useState(false);
+    const assignableUsersLoadedRef = useRef(false);
+
+    // Load assignable staff once (filter + manage dialog share this list).
+    useEffect(() => {
+        if (assignableUsersLoadedRef.current) return;
+
+        let cancelled = false;
+        (async () => {
+            try {
+                setLoadingAssignableUsers(true);
+                const response = await fetch('/operator/api/users');
+                if (!response.ok) throw new Error('Failed to load users');
+                const data = await response.json();
+                if (cancelled) return;
+                setAssignableUsers(Array.isArray(data?.users) ? data.users : []);
+                assignableUsersLoadedRef.current = true;
+            } catch (error) {
+                console.error('Error loading assignable users:', error);
+                if (!cancelled) setAssignableUsers([]);
+            } finally {
+                if (!cancelled) setLoadingAssignableUsers(false);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const itemRefs = useRef<Map<string, HTMLElement>>(new Map());
     const highlightTimeoutRef = useRef<number | null>(null);
@@ -449,6 +488,12 @@ export function TaskManagement({
                 token: updates.token ?? filterToken,
                 mobile: updates.mobile ?? filterMobile,
                 voterId: updates.voterId ?? filterVoterId,
+                assignedTo:
+                    updates.assignedTo !== undefined
+                        ? updates.assignedTo
+                        : filterAssignedTo === 'all'
+                          ? 'all'
+                          : filterAssignedTo,
                 page: resetPage ? 1 : (updates.page ?? currentPage),
                 limit: updates.limit ?? pageSize,
                 taskId: updates.taskId ?? (searchParams.get('taskId') ?? ''),
@@ -468,6 +513,7 @@ export function TaskManagement({
             filterToken,
             filterMobile,
             filterVoterId,
+            filterAssignedTo,
             currentPage,
             pageSize,
         ],
@@ -508,6 +554,9 @@ export function TaskManagement({
             if (filterServiceName && filterServiceName !== 'all') {
                 params.append('serviceName', filterServiceName);
             }
+            if (filterAssignedTo && filterAssignedTo !== 'all') {
+                params.append('assignedTo', filterAssignedTo);
+            }
             params.append('serviceType', 'individual');
             params.append('page', currentPage.toString());
             params.append('limit', pageSize.toString());
@@ -534,12 +583,12 @@ export function TaskManagement({
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, t]);
+    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, filterAssignedTo, t]);
 
     useEffect(() => {
         fetchTasks();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName]);
+    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, filterAssignedTo]);
 
     useEffect(() => {
         if (!pendingAutoFocusToken) return;
@@ -592,6 +641,7 @@ export function TaskManagement({
                 setSelectedTask(task);
                 setNewStatus(task.status);
                 setNewNote('');
+                setAssignedTo(task.assignedTo || '');
                 setShowTaskDialog(true);
                 setHighlightedItemId(task.id);
             } catch (error) {
@@ -660,6 +710,7 @@ export function TaskManagement({
         setFilterStatus('all');
         setFilterPriority('all');
         setFilterServiceName('all');
+        setFilterAssignedTo('all');
         setFilterToken('');
         setFilterMobile('');
         setFilterVoterId('');
@@ -673,6 +724,7 @@ export function TaskManagement({
             status: 'all',
             priority: 'all',
             serviceName: '',
+            assignedTo: 'all',
             token: '',
             mobile: '',
             voterId: '',
@@ -681,7 +733,7 @@ export function TaskManagement({
         });
     };
 
-    const handleStatusUpdate = async (taskId: string, status: string, notes?: string) => {
+    const handleStatusUpdate = async (taskId: string, status: string, notes?: string, nextAssignedTo?: string) => {
         try {
             const response = await fetch(`/operator/api/tasks/${taskId}`, {
                 method: 'PATCH',
@@ -691,6 +743,7 @@ export function TaskManagement({
                 body: JSON.stringify({
                     status,
                     notes: notes || undefined,
+                    assignedTo: nextAssignedTo || undefined,
                 }),
             });
 
@@ -707,6 +760,7 @@ export function TaskManagement({
             setShowTaskDialog(false);
             setNewNote('');
             setNewStatus('');
+            setAssignedTo('');
         } catch (error) {
             console.error('Error updating task status:', error);
             toast({
@@ -994,6 +1048,47 @@ export function TaskManagement({
                             </div>
 
                             <div>
+                                <Label htmlFor="assigned-to-filter">{t('taskManagement.filters.assignedTo')}</Label>
+                                <Select
+                                    value={filterAssignedTo}
+                                    onValueChange={(value) => {
+                                        setFilterAssignedTo(value);
+                                        setCurrentPage(1);
+                                        syncManageUrl({ assignedTo: value, page: 1 }, true);
+                                    }}
+                                    disabled={loadingAssignableUsers}
+                                >
+                                    <SelectTrigger id="assigned-to-filter">
+                                        <SelectValue placeholder={t('taskManagement.filters.selectAssignee')} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">{t('taskManagement.filters.allAssignees')}</SelectItem>
+                                        {(() => {
+                                            const options = [...assignableUsers];
+                                            if (
+                                                filterAssignedTo &&
+                                                filterAssignedTo !== 'all' &&
+                                                !options.some((u) => u.id === filterAssignedTo)
+                                            ) {
+                                                options.unshift({
+                                                    id: filterAssignedTo,
+                                                    userId: filterAssignedTo,
+                                                    roleName: null,
+                                                });
+                                            }
+                                            return options.map((user) => (
+                                                <SelectItem key={user.id} value={user.id}>
+                                                    {user.roleName
+                                                        ? `${user.userId} (${user.roleName})`
+                                                        : user.userId}
+                                                </SelectItem>
+                                            ));
+                                        })()}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div>
                                 <Label htmlFor="token-filter">{t('taskManagement.filters.serviceToken')}</Label>
                                 <div className="flex gap-2">
                                     <Input
@@ -1193,6 +1288,12 @@ export function TaskManagement({
                                                                 {(task.createdByName || task.createdBy) && (
                                                                     <span><strong>Created by:</strong> {task.createdByName || task.createdBy}</span>
                                                                 )}
+                                                                <span>
+                                                                    <strong>{t('taskManagement.assignedTo')}</strong>{' '}
+                                                                    {assignableUsers.find((u) => u.id === task.assignedTo)?.userId
+                                                                        || task.assignedTo
+                                                                        || t('taskManagement.noAssignee')}
+                                                                </span>
                                                                 {task.updatedAt !== task.createdAt && (
                                                                     <span><strong>{t('taskManagement.updated')}</strong> {new Date(task.updatedAt).toLocaleDateString()}</span>
                                                                 )}
@@ -1240,6 +1341,7 @@ export function TaskManagement({
                                                                     setSelectedTask(task);
                                                                     setNewStatus(task.status);
                                                                     setNewNote('');
+                                                                    setAssignedTo(task.assignedTo || '');
                                                                     setShowTaskDialog(true);
                                                                 }}
                                                                 className="w-full sm:w-auto"
@@ -1428,6 +1530,41 @@ export function TaskManagement({
                             </div>
 
                             <div>
+                                <Label htmlFor="assign-to">{t('taskManagement.dialog.assignTo')}</Label>
+                                <Select
+                                    value={assignedTo || undefined}
+                                    onValueChange={setAssignedTo}
+                                    disabled={loadingAssignableUsers}
+                                >
+                                    <SelectTrigger id="assign-to">
+                                        <SelectValue placeholder={t('taskManagement.dialog.selectAssignee')} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {(() => {
+                                            const options = [...assignableUsers];
+                                            if (
+                                                selectedTask.assignedTo &&
+                                                !options.some((u) => u.id === selectedTask.assignedTo)
+                                            ) {
+                                                options.unshift({
+                                                    id: selectedTask.assignedTo,
+                                                    userId: selectedTask.assignedTo,
+                                                    roleName: null,
+                                                });
+                                            }
+                                            return options.map((user) => (
+                                                <SelectItem key={user.id} value={user.id}>
+                                                    {user.roleName
+                                                        ? `${user.userId} (${user.roleName})`
+                                                        : user.userId}
+                                                </SelectItem>
+                                            ));
+                                        })()}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div>
                                 <Label htmlFor="new-note">{t('taskManagement.dialog.addNote')}</Label>
                                 <Textarea
                                     id="new-note"
@@ -1442,10 +1579,19 @@ export function TaskManagement({
                                 <Button
                                     onClick={() => {
                                         if (selectedTask) {
-                                            handleStatusUpdate(selectedTask.id, newStatus || selectedTask.status, newNote);
+                                            handleStatusUpdate(
+                                                selectedTask.id,
+                                                newStatus || selectedTask.status,
+                                                newNote,
+                                                assignedTo,
+                                            );
                                         }
                                     }}
-                                    disabled={!newStatus && !newNote.trim()}
+                                    disabled={
+                                        (newStatus || selectedTask.status) === selectedTask.status &&
+                                        !newNote.trim() &&
+                                        assignedTo === (selectedTask.assignedTo || '')
+                                    }
                                     className="w-full"
                                 >
                                     {t('taskManagement.dialog.updateTask')}
@@ -1453,6 +1599,7 @@ export function TaskManagement({
                                 <Button variant="outline" onClick={() => {
                                     setShowTaskDialog(false);
                                     setSelectedTask(null);
+                                    setAssignedTo('');
                                 }} className="w-full sm:w-auto">
                                     {t('common.cancel')}
                                 </Button>
