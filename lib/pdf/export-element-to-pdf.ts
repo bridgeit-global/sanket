@@ -2,6 +2,7 @@ import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
 
 import {
+  getLetterPageContentHeightCssPx,
   getLetterPaperContentWidthPx,
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
@@ -337,18 +338,6 @@ export async function exportElementToPdf(
       letterheadFirstPageOnly && pageBackgroundHeaderMm > 0
         ? marginMm
         : topInsetMm;
-    const contentHeightMm = Math.max(
-      1,
-      pageHeightMm - topInsetMm - marginMm - headerHeightMm - footerHeightMm,
-    );
-    const subsequentContentHeightMm = Math.max(
-      1,
-      pageHeightMm -
-        continuationTopInsetMm -
-        marginMm -
-        headerHeightMm -
-        footerHeightMm,
-    );
 
     // Render DOM -> canvas
     await waitForFontsReady();
@@ -366,29 +355,27 @@ export async function exportElementToPdf(
 
     // Convert pixels -> mm at the chosen width.
     const pxPerMm = canvas.width / contentWidthMm;
-    const pageHeightPx = Math.floor(contentHeightMm * pxPerMm);
-    const subsequentPageHeightPx = Math.floor(
-      subsequentContentHeightMm * pxPerMm,
-    );
 
     // Break on text-line / table-row bottoms so glyphs are never sliced mid-line.
     // Prefer height scale for Y — width/height canvas ratios can differ slightly.
-    const domToCanvasScaleX =
-      captureElement.scrollWidth > 0
-        ? canvas.width / captureElement.scrollWidth
-        : scale;
     const domToCanvasScaleY =
       captureElement.scrollHeight > 0
         ? canvas.height / captureElement.scrollHeight
-        : domToCanvasScaleX;
-    // Paginate in DOM px (same as LetterPreview) then map cuts to canvas px so
-    // PDF page breaks match the inline/modal preview (WYSIWYG).
+        : scale;
+    // Paginate in the same CSS-px page heights as LetterPreview (WYSIWYG).
     const contentRoot =
       (captureElement.querySelector('.letter-content') as HTMLElement | null) ??
       captureElement;
-    const domPageHeightPx = pageHeightPx / domToCanvasScaleY;
-    const domSubsequentPageHeightPx =
-      subsequentPageHeightPx / domToCanvasScaleY;
+    const domPageHeightPx = getLetterPageContentHeightCssPx(
+      format,
+      pageBackgroundHeaderMm > 0,
+      pageBackgroundHeaderMm,
+    );
+    const domSubsequentPageHeightPx = getLetterPageContentHeightCssPx(
+      format,
+      false,
+      0,
+    );
     const domBreakpointsPx = getContentBreakpointsPx(contentRoot, 1);
     const domAvoidRangesPx = getAvoidSplitRangesPx(contentRoot, 1);
     const domLineRangesPx = getLineRangesPx(contentRoot, 1);
@@ -410,10 +397,14 @@ export async function exportElementToPdf(
       top: Math.floor(range.top * domToCanvasScaleY),
       bottom: Math.ceil(range.bottom * domToCanvasScaleY),
     }));
+    // Only rescue mid-glyph anti-alias drift — not whole prior lines.
     const sampleLine = domLineRangesPx[0];
     const lineWindow = sampleLine
-      ? Math.max(48, (sampleLine.bottom - sampleLine.top) * 3 * domToCanvasScaleY)
-      : 96;
+      ? Math.max(
+          8,
+          Math.ceil((sampleLine.bottom - sampleLine.top) * 0.35 * domToCanvasScaleY),
+        )
+      : 12;
 
     const pageCutCanvasPx: number[] = [0];
     for (let i = 1; i < pageStartsDomPx.length; i++) {
@@ -422,7 +413,7 @@ export async function exportElementToPdf(
       cutEnd = snapCanvasCutToBlankRow({
         canvas,
         proposedCutY: cutEnd,
-        minCutY: prevCut + Math.min(80, Math.floor((cutEnd - prevCut) * 0.4)),
+        minCutY: prevCut + Math.min(40, Math.floor((cutEnd - prevCut) * 0.5)),
         searchWindowPx: lineWindow,
         avoidRangesPx: canvasAvoidRangesPx,
       });

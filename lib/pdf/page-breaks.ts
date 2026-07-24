@@ -137,30 +137,44 @@ export function getAvoidSplitRangesPx(
     pushEl(el);
   }
 
-  // Fees letters use .right-tab ("Yours faithfully") + .right-tab-sign (name).
-  // Keep them together as one avoid block — including the large margin between them.
-  const rightTabs = Array.from(
-    root.querySelectorAll('.right-tab'),
-  ) as HTMLElement[];
-  for (const tab of rightTabs) {
-    // Skip if already covered by a .letter-closing ancestor.
-    if (tab.closest('.letter-closing')) continue;
-    const sign = tab.nextElementSibling;
-    const r1 = tab.getBoundingClientRect();
-    if (r1.height <= 0) continue;
+  /**
+   * Merge a run of sibling closing/signature rows into one avoid block
+   * (includes the large margin between "Yours faithfully," and the name).
+   */
+  const pushSiblingRun = (
+    start: HTMLElement,
+    isContinuation: (el: HTMLElement) => boolean,
+  ) => {
+    if (start.closest('.letter-closing, .signature')) return;
+    const r1 = start.getBoundingClientRect();
+    if (r1.height <= 0) return;
     let top = toScaledY(r1.top, rootTop, scale, 'floor');
     let bottom = toScaledY(r1.bottom, rootTop, scale, 'ceil');
-    if (
-      sign instanceof HTMLElement &&
-      sign.classList.contains('right-tab-sign')
-    ) {
-      const r2 = sign.getBoundingClientRect();
+    let sibling = start.nextElementSibling;
+    while (sibling instanceof HTMLElement && isContinuation(sibling)) {
+      const r2 = sibling.getBoundingClientRect();
       if (r2.height > 0) {
-        // Include margin gap between the two (r2.top is after margin-top).
         bottom = toScaledY(r2.bottom, rootTop, scale, 'ceil');
       }
+      sibling = sibling.nextElementSibling;
     }
     ranges.push({ top, bottom });
+  };
+
+  // Fees / school letters: .right-tab + .right-tab-sign
+  for (const tab of Array.from(
+    root.querySelectorAll('.right-tab'),
+  ) as HTMLElement[]) {
+    const prev = tab.previousElementSibling;
+    if (prev instanceof HTMLElement && prev.classList.contains('right-tab')) {
+      continue;
+    }
+    pushSiblingRun(
+      tab,
+      (el) =>
+        el.classList.contains('right-tab') ||
+        el.classList.contains('right-tab-sign'),
+    );
   }
 
   // Orphan .right-tab-sign (no preceding .right-tab handled above).
@@ -168,10 +182,29 @@ export function getAvoidSplitRangesPx(
     root.querySelectorAll('.right-tab-sign'),
   ) as HTMLElement[]) {
     const prev = el.previousElementSibling;
-    if (prev instanceof HTMLElement && prev.classList.contains('right-tab')) {
+    if (
+      prev instanceof HTMLElement &&
+      (prev.classList.contains('right-tab') ||
+        prev.classList.contains('right-tab-sign'))
+    ) {
       continue;
     }
+    if (el.closest('.letter-closing, .signature')) continue;
     pushEl(el);
+  }
+
+  // General letters: consecutive .signature-line rows ("Yours faithfully," + name).
+  for (const line of Array.from(
+    root.querySelectorAll('.signature-line'),
+  ) as HTMLElement[]) {
+    const prev = line.previousElementSibling;
+    if (
+      prev instanceof HTMLElement &&
+      prev.classList.contains('signature-line')
+    ) {
+      continue;
+    }
+    pushSiblingRun(line, (el) => el.classList.contains('signature-line'));
   }
 
   return ranges;
@@ -225,10 +258,11 @@ export function pickSliceHeightPx(args: {
   let targetEnd = renderedPx + defaultHeight;
 
   // If the default cut would split an avoid-range, prefer ending at its top.
+  // Take the earliest such top so nested/overlapping ranges stay intact.
   for (const range of avoidRangesPx) {
     if (range.top >= targetEnd || range.bottom <= targetEnd) continue;
     if (range.top > renderedPx) {
-      targetEnd = range.top;
+      targetEnd = Math.min(targetEnd, range.top);
     }
   }
 
@@ -337,13 +371,17 @@ export function snapCanvasCutToBlankRow(args: {
   canvas: HTMLCanvasElement;
   proposedCutY: number;
   minCutY: number;
-  /** How far upward to search (canvas px). */
+  /**
+   * How far upward to search (canvas px). Keep small — this is only for
+   * anti-alias / descender rescue when DOM↔canvas drift cuts mid-glyph.
+   * Large windows pull whole lines onto the next page and break WYSIWYG.
+   */
   searchWindowPx?: number;
   /** Do not snap into interior blank gaps (e.g. signature spacing). */
   avoidRangesPx?: AvoidSplitRangePx[];
 }): number {
   const { canvas, proposedCutY, minCutY } = args;
-  const searchWindowPx = args.searchWindowPx ?? 120;
+  const searchWindowPx = args.searchWindowPx ?? 12;
   const avoidRangesPx = args.avoidRangesPx ?? [];
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   if (!ctx) return proposedCutY;
@@ -372,21 +410,25 @@ export function snapCanvasCutToBlankRow(args: {
   const isValidBlankCut = (y: number): boolean =>
     isBlankRow(y) && !isInsideAvoidRangeInterior(y, avoidRangesPx);
 
-  // If the proposed cut is already in a gap, keep it.
-  if (isValidBlankCut(Math.max(0, cut - 1))) return cut;
+  // Prefer a blank row at/just below the DOM cut (descender hairline) before
+  // walking upward — walking up through a full ink line moves that line to
+  // the next page and desyncs print from preview.
+  for (const y of [cut, cut - 1, cut + 1, cut + 2]) {
+    if (y < limit || y >= height) continue;
+    if (isValidBlankCut(y)) {
+      return Math.max(limit, Math.min(y + 1, height));
+    }
+  }
 
-  // Walk up through ink until we hit a blank gap between lines.
+  // Mid-glyph only: walk up a short distance through ink to the nearest gap.
   let y = cut - 1;
   while (y > limit && !isValidBlankCut(y)) {
     y -= 1;
   }
   if (y <= limit && !isValidBlankCut(y)) {
-    // No blank gap found — keep DOM-based cut.
     return cut;
   }
 
-  // y is blank: move to the bottom edge of this blank band so we don't leave
-  // a hairline of the next glyph on the current page.
   let blankBottom = y;
   while (
     blankBottom + 1 < cut &&

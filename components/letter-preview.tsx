@@ -202,19 +202,16 @@ export function LetterPreview({
     const recomputePages = () => {
       const clip = clipRef.current;
       const content = contentRef.current;
+      const frame = pageFrameRef.current;
       if (!clip || !content) return;
 
-      // Measure the live clip at canonical page width so inline preview and
-      // modal preview paginate identically (responsive shrink was reflowing text).
+      // Preview + PDF must share the same content-area height so page breaks match.
       const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);
-      let firstPageAvailable = clip.clientHeight;
-      if (firstPageAvailable <= 0) {
-        firstPageAvailable = getLetterPageContentHeightCssPx(
-          paperSize,
-          hasLetterhead,
-          headerPaddingMm,
-        );
-      }
+      const firstPageAvailable = getLetterPageContentHeightCssPx(
+        paperSize,
+        hasLetterhead,
+        headerPaddingMm,
+      );
       if (firstPageAvailable <= 0) return;
 
       // Page 2+ omit letterhead clearance so more of the sheet is usable.
@@ -222,10 +219,32 @@ export function LetterPreview({
         ? getLetterPageContentHeightCssPx(paperSize, false, 0)
         : firstPageAvailable;
 
-      const total = content.scrollHeight;
-      const breakpointsPx = getContentBreakpointsPx(content, 1);
-      const avoidRangesPx = getAvoidSplitRangesPx(content, 1);
-      const lineRangesPx = getLineRangesPx(content, 1);
+      // Measure `.letter-content` when present — same root the PDF exporter uses —
+      // so preview and print share identical break geometry.
+      const measureRoot =
+        (content.querySelector('.letter-content') as HTMLElement | null) ??
+        content;
+
+      // getBoundingClientRect is affected by the page frame's CSS transform
+      // scale; scrollHeight / clientHeight are not. Convert rect deltas back
+      // to layout px so pagination matches the unscaled PDF capture.
+      const visualScale =
+        frame && frame.offsetWidth > 0
+          ? frame.getBoundingClientRect().width / frame.offsetWidth
+          : 1;
+      const layoutFromVisualScale =
+        visualScale > 0.01 ? 1 / visualScale : 1;
+
+      const total = measureRoot.scrollHeight;
+      const breakpointsPx = getContentBreakpointsPx(
+        measureRoot,
+        layoutFromVisualScale,
+      );
+      const avoidRangesPx = getAvoidSplitRangesPx(
+        measureRoot,
+        layoutFromVisualScale,
+      );
+      const lineRangesPx = getLineRangesPx(measureRoot, layoutFromVisualScale);
       const starts = computePageStartOffsetsPx({
         totalHeightPx: total,
         pageHeightPx: firstPageAvailable,
@@ -281,6 +300,7 @@ export function LetterPreview({
     hasLetterhead,
     firstPageBodyPadding,
     continuationBodyPadding,
+    displayScale,
   ]);
 
   useLayoutEffect(() => {
