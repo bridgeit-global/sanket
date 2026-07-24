@@ -18,6 +18,7 @@ import {
   RefreshCw,
   Save,
   Trash2,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -521,6 +522,41 @@ function FieldGroup({
   );
 }
 
+/** Input with an inline clear (X) button when it has a value. */
+function ClearableInput({
+  value,
+  onClear,
+  className,
+  disabled,
+  ...props
+}: {
+  value: string;
+  onClear: () => void;
+} & Omit<React.ComponentProps<typeof Input>, 'value'>) {
+  const showClear = Boolean(value) && !disabled;
+  return (
+    <div className="relative">
+      <Input
+        {...props}
+        value={value}
+        disabled={disabled}
+        className={cn(showClear && 'pr-10', className)}
+      />
+      {showClear ? (
+        <button
+          type="button"
+          onClick={onClear}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+          aria-label="Clear"
+          tabIndex={-1}
+        >
+          <X className="size-4" />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 /** Text input that only accepts characters for the selected letter language. */
 function LocaleTextInput({
   locale,
@@ -533,11 +569,12 @@ function LocaleTextInput({
   onValueChange: (value: string) => void;
 } & Omit<React.ComponentProps<typeof Input>, 'value' | 'onChange'>) {
   return (
-    <Input
+    <ClearableInput
       {...props}
       value={value}
       lang={locale === 'mr' ? 'mr' : 'en'}
       onChange={(e) => onValueChange(filterLocaleText(e.target.value, locale))}
+      onClear={() => onValueChange('')}
     />
   );
 }
@@ -2513,7 +2550,7 @@ export function LetterGeneration({
           required
           error={fieldErrors.referenceNo}
         >
-          <Input
+          <ClearableInput
             value={fields.referenceNo}
             onChange={(e) => {
               const nextNumber = formatReferenceNumberForLocale(
@@ -2522,6 +2559,13 @@ export function LetterGeneration({
               );
               referenceNumberAutoRef.current = false;
               syncReferenceFields(fields.referencePrefix, nextNumber);
+              if (fieldErrors.referenceNo) {
+                setFieldErrors((prev) => ({ ...prev, referenceNo: undefined }));
+              }
+            }}
+            onClear={() => {
+              referenceNumberAutoRef.current = false;
+              syncReferenceFields(fields.referencePrefix, '');
               if (fieldErrors.referenceNo) {
                 setFieldErrors((prev) => ({ ...prev, referenceNo: undefined }));
               }
