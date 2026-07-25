@@ -22,6 +22,8 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { HierarchyCanvasView } from './hierarchy-canvas-view';
+import type { CanvasCommitteeRoles } from './hierarchy-canvas-view';
+import { resolveChartCommitteeRoles } from '@/lib/hierarchy/chart-roles';
 import { LeadershipSection } from './leadership-section';
 import { WardAccessSection } from './ward-access-section';
 import { MemberList } from './member-list';
@@ -134,6 +136,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const pageFromUrl = parseMemberPageParam(searchParams.get(HIERARCHY_URL_PARAMS.page));
   const pageSize = parseMemberPageSizeParam(searchParams.get(HIERARCHY_URL_PARAMS.pageSize));
   const viewMode = searchParams.get(HIERARCHY_URL_PARAMS.view) ?? '';
+  const returnToParam = searchParams.get(HIERARCHY_URL_PARAMS.returnTo) ?? '';
 
   useEffect(() => {
     setSearchDraft(searchQuery);
@@ -201,6 +204,9 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       if (nextPageSize !== parseMemberPageSizeParam(null)) {
         params.set(HIERARCHY_URL_PARAMS.pageSize, String(nextPageSize));
       }
+      if (returnToParam.trim()) {
+        params.set(HIERARCHY_URL_PARAMS.returnTo, returnToParam.trim());
+      }
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
@@ -214,9 +220,10 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       boothNo,
       focusMemberId,
       voterIdFilter,
+      viewMode,
       pageFromUrl,
       pageSize,
-      viewMode,
+      returnToParam,
     ],
   );
 
@@ -469,8 +476,24 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
 
   const committeeVerticalId = verticalId.trim();
   const canvasVerticalId = committeeVerticalId || activeVerticals[0]?.id || '';
-  const canvasVerticalName =
-    activeVerticals.find((v) => v.id === canvasVerticalId)?.name ?? 'Basic';
+  const canvasVertical = activeVerticals.find((v) => v.id === canvasVerticalId);
+  const canvasVerticalName = canvasVertical?.name ?? 'Basic';
+  const canvasMaxGeoLevel = canvasVertical?.maxGeoLevel ?? 'ward';
+
+  const canvasCommitteeRoles = useMemo((): CanvasCommitteeRoles => {
+    const byLevel = (levelKey: 'taluka_committee' | 'ward_committee' | 'booth_committee') => {
+      const dbNames = (config?.positions ?? [])
+        .filter((p) => p.isActive && p.levelKey === levelKey)
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((p) => p.name);
+      return resolveChartCommitteeRoles(levelKey, dbNames);
+    };
+    return {
+      taluka: byLevel('taluka_committee'),
+      ward: byLevel('ward_committee'),
+      booth: byLevel('booth_committee'),
+    };
+  }, [config?.positions]);
 
   const loadCanvasData = useCallback(
     async (nextVerticalId: string, signal?: AbortSignal) => {
@@ -879,6 +902,19 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     scrollToTop();
   };
 
+  const backToConstituency = () => {
+    const returnTo = returnToParam.trim();
+    const isSafeInternalPath =
+      returnTo.startsWith('/') &&
+      !returnTo.startsWith('//') &&
+      !returnTo.startsWith('/modules/hierarchy');
+    if (isSafeInternalPath) {
+      router.push(returnTo);
+      return;
+    }
+    backToOverview();
+  };
+
   const backToWardPanel = () => {
     setUrlParams({
       booth: '',
@@ -1153,7 +1189,9 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
           onClick={
             showWardPanel && (showWardCommittee || showBoothCommittee)
               ? backToWardPanel
-              : backToOverview
+              : showWardPanel
+                ? backToOverview
+                : backToConstituency
           }
         >
           <ArrowLeft className="size-4" />
@@ -1192,8 +1230,9 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             <HierarchyCanvasView
               canvasData={canvasData}
               verticalName={canvasVerticalName}
-              verticalId={canvasVerticalId}
+              maxGeoLevel={canvasMaxGeoLevel}
               wardOptions={wardOptions}
+              committeeRoles={canvasCommitteeRoles}
             />
           </>
         ) : isGlobalSearch ? (
@@ -1205,6 +1244,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               entries={talukaLeadership}
               vacantLabel={vacantLabel}
               viewCommitteeLabel={viewCommitteeLabel}
+              geoLevel="taluka"
               onViewCommittee={openTalukaCommittee}
               canEdit={canEdit}
               onVoterIdUpdated={canEdit ? () => { void refresh(); } : undefined}

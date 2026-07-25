@@ -29,6 +29,10 @@ import type {
   WardSummary,
 } from '@/lib/hierarchy/types';
 import {
+  verticalAllowsLevel,
+  type CadreMaxGeoLevel,
+} from '@/lib/hierarchy/wing-depth';
+import {
   collectCanvasMemberIds,
   hydrateCanvasData,
   resolveHierarchyCanvasData,
@@ -64,7 +68,7 @@ export async function getCadreConfig() {
     ORDER BY sort_order ASC
   `;
   const verticalsRes = await pgSql`
-    SELECT v.id, v.category_id, v.name, v.sort_order, v.is_active, c.name AS category_name
+    SELECT v.id, v.category_id, v.name, v.sort_order, v.is_active, v.max_geo_level, c.name AS category_name
     FROM "CadreVertical" v
     INNER JOIN "CadreVerticalCategory" c ON v.category_id = c.id
     ORDER BY v.sort_order ASC
@@ -95,6 +99,7 @@ export async function getCadreConfig() {
       sortOrder: Number(row.sort_order),
       isActive: Boolean(row.is_active),
       categoryName: String(row.category_name),
+      maxGeoLevel: String(row.max_geo_level) === 'booth' ? 'booth' as const : 'ward' as const,
     })),
     levels: levelsRes.map(mapCadrePositionLevelRow),
     positions: positionsRes.map((row) => ({
@@ -159,7 +164,9 @@ export async function upsertCadreVertical(data: {
   name: string;
   sortOrder?: number;
   isActive?: boolean;
+  maxGeoLevel?: 'ward' | 'booth';
 }): Promise<CadreVertical> {
+  const maxGeoLevel = data.maxGeoLevel === 'booth' ? 'booth' : 'ward';
   return upsertCadreRow(
     TABLES.cadreVertical,
     data.id,
@@ -168,6 +175,7 @@ export async function upsertCadreVertical(data: {
       name: data.name,
       sort_order: data.sortOrder ?? 0,
       is_active: data.isActive ?? true,
+      max_geo_level: maxGeoLevel,
     },
     mapCadreVerticalRow,
   );
@@ -333,17 +341,33 @@ export async function deleteCadreVerticalCategory(id: string): Promise<void> {
 }
 
 export async function deleteCadreVertical(id: string): Promise<void> {
-  const [usage] = await pgSql`
+  const [memberUsage] = await pgSql`
     SELECT COUNT(*)::int AS total
     FROM "CadreMemberVertical"
     WHERE vertical_id = ${id}
   `;
-  const nodeCount = Number(usage?.total ?? 0);
-  if (nodeCount > 0) {
-    throw new CadreConfigDeleteError(
-      `Cannot delete — ${nodeCount} member${nodeCount === 1 ? '' : 's'} ${nodeCount === 1 ? 'is' : 'are'} assigned to this vertical`,
-      { nodeCount },
-    );
+  const [postUsage] = await pgSql`
+    SELECT COUNT(*)::int AS total
+    FROM "CadreMemberPost"
+    WHERE vertical_id = ${id}
+  `;
+  const nodeCount = Number(memberUsage?.total ?? 0);
+  const postCount = Number(postUsage?.total ?? 0);
+  if (nodeCount > 0 || postCount > 0) {
+    const parts: string[] = [];
+    if (nodeCount > 0) {
+      parts.push(
+        `${nodeCount} member${nodeCount === 1 ? '' : 's'} ${nodeCount === 1 ? 'is' : 'are'} assigned to this vertical`,
+      );
+    }
+    if (postCount > 0) {
+      parts.push(
+        `${postCount} post${postCount === 1 ? '' : 's'} ${postCount === 1 ? 'is' : 'are'} scoped to this vertical`,
+      );
+    }
+    throw new CadreConfigDeleteError(`Cannot delete — ${parts.join('; ')}`, {
+      nodeCount: nodeCount + postCount,
+    });
   }
   const { error } = await supabase.from(TABLES.cadreVertical).delete().eq('id', id);
   throwOnSupabaseError(error, 'Failed to delete cadre vertical');
@@ -516,7 +540,14 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
 
   const verticalLinks = verticalLinksRes.data ?? [];
   const postRows = postRowsRes.data ?? [];
-  const verticalIds = [...new Set(verticalLinks.map((row) => String(row.vertical_id)))];
+  const verticalIds = [
+    ...new Set([
+      ...verticalLinks.map((row) => String(row.vertical_id)),
+      ...postRows
+        .map((row) => (row.vertical_id ? String(row.vertical_id) : null))
+        .filter((id): id is string => Boolean(id)),
+    ]),
+  ];
   const positionIds = [...new Set(postRows.map((row) => String(row.position_id)))];
   const geoIds = [
     ...new Set(
@@ -618,7 +649,7 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
     const position = positionById.get(String(row.position_id));
     const list = postsByMember.get(String(row.member_id)) ?? [];
     list.push(
-      mapPostRowToDetail(row, position, geoMeta),
+      mapPostRowToDetail(row, position, geoMeta, verticalById),
     );
     postsByMember.set(String(row.member_id), list);
   }
@@ -1183,6 +1214,8 @@ export async function getCadreMemberById(
 
 export type CadreMemberPostInput = {
   positionId: string;
+  /** Wing this post is assigned under (must be one of the member's verticals). */
+  verticalId: string;
   talukaId?: string | null;
   wardGeoId?: string | null;
   electionId?: string | null;
@@ -1281,6 +1314,7 @@ function buildPostRows(memberId: string, input: CadreMemberInput) {
     return {
       member_id: memberId,
       position_id: post.positionId,
+      vertical_id: post.verticalId,
       taluka_id: post.talukaId ?? null,
       ward_geo_id: post.wardGeoId ?? null,
       election_id: post.electionId ?? null,
@@ -1290,6 +1324,83 @@ function buildPostRows(memberId: string, input: CadreMemberInput) {
       sort_order: post.sortOrder ?? index,
     };
   });
+}
+
+async function assertValidMemberPosts(
+  verticalIds: string[],
+  posts: CadreMemberPostInput[],
+): Promise<void> {
+  if (posts.length === 0) return;
+  const verticalIdSet = new Set(verticalIds);
+  for (const post of posts) {
+    if (!post.verticalId) {
+      throw new Error('Each post must specify a vertical');
+    }
+    if (!verticalIdSet.has(post.verticalId)) {
+      throw new Error('Post vertical must be one of the member verticals');
+    }
+  }
+
+  const uniqueVerticalIds = [...new Set(posts.map((p) => p.verticalId))];
+  const uniquePositionIds = [...new Set(posts.map((p) => p.positionId))];
+
+  const [verticalsRes, positionsRes] = await Promise.all([
+    supabase
+      .from(TABLES.cadreVertical)
+      .select('id, max_geo_level')
+      .in('id', uniqueVerticalIds),
+    supabase
+      .from(TABLES.cadrePosition)
+      .select('id, level_id')
+      .in('id', uniquePositionIds),
+  ]);
+  throwOnSupabaseError(verticalsRes.error, 'Failed to validate post verticals');
+  throwOnSupabaseError(positionsRes.error, 'Failed to validate post positions');
+
+  const maxByVertical = new Map(
+    (verticalsRes.data ?? []).map((row) => [
+      String(row.id),
+      (String(row.max_geo_level) === 'booth' ? 'booth' : 'ward') as CadreMaxGeoLevel,
+    ]),
+  );
+
+  const levelIds = [
+    ...new Set((positionsRes.data ?? []).map((row) => String(row.level_id))),
+  ];
+  const levelsRes =
+    levelIds.length > 0
+      ? await supabase
+          .from(TABLES.cadrePositionLevel)
+          .select('id, key')
+          .in('id', levelIds)
+      : { data: [], error: null };
+  throwOnSupabaseError(levelsRes.error, 'Failed to validate position levels');
+
+  const levelKeyById = new Map(
+    (levelsRes.data ?? []).map((row) => [String(row.id), String(row.key)]),
+  );
+  const levelKeyByPosition = new Map(
+    (positionsRes.data ?? []).map((row) => [
+      String(row.id),
+      levelKeyById.get(String(row.level_id)) ?? '',
+    ]),
+  );
+
+  for (const post of posts) {
+    const maxGeoLevel = maxByVertical.get(post.verticalId);
+    if (!maxGeoLevel) {
+      throw new Error('Unknown post vertical');
+    }
+    const levelKey = levelKeyByPosition.get(post.positionId);
+    if (!levelKey) {
+      throw new Error('Unknown post position');
+    }
+    if (!verticalAllowsLevel(maxGeoLevel, levelKey)) {
+      throw new Error(
+        `Position level "${levelKey}" is not allowed for this wing (max depth: ${maxGeoLevel})`,
+      );
+    }
+  }
 }
 
 async function syncCadreMemberWhatsApp(
@@ -1360,6 +1471,8 @@ export async function createCadreMember(
     throwOnSupabaseError(vErr, 'Failed to assign verticals');
   }
 
+  const posts = input.posts ?? [];
+  await assertValidMemberPosts(input.verticalIds, posts);
   const postRows = buildPostRows(member.id, input);
   if (postRows.length > 0) {
     const { error: pErr } = await supabase
@@ -1446,6 +1559,17 @@ export async function updateCadreMember(
 
   // Replace posts when provided.
   if (input.posts !== undefined) {
+    let verticalIds = input.verticalIds;
+    if (verticalIds === undefined) {
+      const { data: existingVerticals, error: existingVErr } = await supabase
+        .from(TABLES.cadreMemberVertical)
+        .select('vertical_id')
+        .eq('member_id', id);
+      throwOnSupabaseError(existingVErr, 'Failed to load member verticals');
+      verticalIds = (existingVerticals ?? []).map((row) => String(row.vertical_id));
+    }
+    await assertValidMemberPosts(verticalIds, input.posts);
+
     const { error: delP } = await supabase
       .from(TABLES.cadreMemberPost)
       .delete()
@@ -1661,6 +1785,7 @@ function mapPostRowToDetail(
   row: {
     id: string | number;
     position_id: string | number;
+    vertical_id?: string | number | null;
     taluka_id?: string | number | null;
     ward_geo_id?: string | number | null;
     election_id?: string | number | null;
@@ -1671,9 +1796,12 @@ function mapPostRowToDetail(
   },
   position: PositionMeta | undefined,
   geoMeta: Map<string, GeoUnitMeta>,
+  verticalById?: Map<string, { id: string; name: string; sortOrder: number }>,
 ): CadreMemberPostDetail {
   const wardGeoId = row.ward_geo_id ? String(row.ward_geo_id) : null;
   const wardGeo = wardGeoId ? geoMeta.get(wardGeoId) : null;
+  const verticalId = row.vertical_id ? String(row.vertical_id) : '';
+  const vertical = verticalId && verticalById ? verticalById.get(verticalId) : null;
   const post: CadreMemberPostDetail = {
     id: String(row.id),
     positionId: String(row.position_id),
@@ -1682,6 +1810,8 @@ function mapPostRowToDetail(
     positionLevelName: position?.levelName ?? '',
     positionSortOrder: position?.sortOrder ?? 0,
     positionLevelSortOrder: position?.levelSortOrder ?? 0,
+    verticalId,
+    verticalName: vertical?.name ?? null,
     talukaId: row.taluka_id ? String(row.taluka_id) : null,
     talukaName: row.taluka_id ? geoMeta.get(String(row.taluka_id))?.name ?? null : null,
     wardGeoId,
@@ -1714,6 +1844,13 @@ async function mapPostRowsToDetails(
   const positionIds = [
     ...new Set(postRows.map((row) => String(row.position_id))),
   ];
+  const verticalIds = [
+    ...new Set(
+      postRows
+        .map((row) => (row.vertical_id ? String(row.vertical_id) : null))
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
   const geoIds = [
     ...new Set(
       postRows
@@ -1725,16 +1862,34 @@ async function mapPostRowsToDetails(
     ),
   ];
 
-  const [positionsRes, geoMeta] = await Promise.all([
+  const [positionsRes, verticalsRes, geoMeta] = await Promise.all([
     positionIds.length > 0
       ? supabase
           .from(TABLES.cadrePosition)
           .select('id, name, sort_order, level_id')
           .in('id', positionIds)
       : Promise.resolve({ data: [], error: null }),
+    verticalIds.length > 0
+      ? supabase
+          .from(TABLES.cadreVertical)
+          .select('id, name, sort_order')
+          .in('id', verticalIds)
+      : Promise.resolve({ data: [], error: null }),
     loadGeoMetaForIds(geoIds),
   ]);
   throwOnSupabaseError(positionsRes.error, 'Failed to load positions');
+  throwOnSupabaseError(verticalsRes.error, 'Failed to load verticals');
+
+  const verticalById = new Map(
+    (verticalsRes.data ?? []).map((row) => [
+      String(row.id),
+      {
+        id: String(row.id),
+        name: String(row.name),
+        sortOrder: Number(row.sort_order ?? 0),
+      },
+    ]),
+  );
 
   const levelIds = [
     ...new Set((positionsRes.data ?? []).map((row) => String(row.level_id))),
@@ -1778,6 +1933,7 @@ async function mapPostRowsToDetails(
         row as Parameters<typeof mapPostRowToDetail>[0],
         position,
         geoMeta,
+        verticalById,
       ),
     );
     postsByMember.set(String(row.member_id), list);
@@ -1942,6 +2098,7 @@ export async function getCadreCommitteeMembers(filters: {
 
   for (const [memberId, posts] of postsByMember) {
     const matches = posts.some((post) => {
+      if (post.verticalId !== filters.verticalId) return false;
       if (post.positionLevelKey !== filters.committeeLevel) return false;
       if (filters.committeeLevel === 'ward_committee') {
         return post.wardGeoId === filters.wardGeoId;
@@ -2041,6 +2198,14 @@ export async function getCadreHierarchyCanvasData(filters: {
     booths: [],
   }));
 
+  const { data: verticalRow, error: verticalError } = await supabase
+    .from(TABLES.cadreVertical)
+    .select('max_geo_level')
+    .eq('id', filters.verticalId)
+    .maybeSingle();
+  throwOnSupabaseError(verticalError, 'Failed to load vertical depth');
+  const includeBooths = String(verticalRow?.max_geo_level ?? 'ward') === 'booth';
+
   const memberIds = await resolveCadreMemberIdsForVertical(filters.verticalId);
   if (!memberIds) {
     return {
@@ -2060,6 +2225,7 @@ export async function getCadreHierarchyCanvasData(filters: {
     filters.wardGeoIds,
     filters.geoUnits,
     filters.constituencyId,
+    { includeBooths },
   );
 
   const hydrateIds = collectCanvasMemberIds(resolved);

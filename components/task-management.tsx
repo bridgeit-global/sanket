@@ -372,6 +372,12 @@ export function TaskManagement({
     const [filterToken, setFilterToken] = useState<string>(mergedInitial.token);
     const [filterMobile, setFilterMobile] = useState<string>(mergedInitial.mobile);
     const [filterVoterId, setFilterVoterId] = useState<string>(mergedInitial.voterId);
+    const [filterCreatedFrom, setFilterCreatedFrom] = useState<string>(
+        mergedInitial.createdFrom,
+    );
+    const [filterCreatedTo, setFilterCreatedTo] = useState<string>(
+        mergedInitial.createdTo,
+    );
     const [filterTokenInput, setFilterTokenInput] = useState<string>(mergedInitial.token);
     const [filterMobileInput, setFilterMobileInput] = useState<string>(mergedInitial.mobile);
     const [filterVoterIdInput, setFilterVoterIdInput] = useState<string>(mergedInitial.voterId);
@@ -714,6 +720,8 @@ export function TaskManagement({
         setFilterToken('');
         setFilterMobile('');
         setFilterVoterId('');
+        setFilterCreatedFrom('');
+        setFilterCreatedTo('');
         setFilterTokenInput('');
         setFilterMobileInput('');
         setFilterVoterIdInput('');
@@ -728,6 +736,8 @@ export function TaskManagement({
             token: '',
             mobile: '',
             voterId: '',
+            createdFrom: '',
+            createdTo: '',
             page: 1,
             limit: 10,
         });
@@ -1150,6 +1160,42 @@ export function TaskManagement({
                                     placeholder={t('taskManagement.filters.enterVoterId')}
                                     value={filterVoterIdInput}
                                     onChange={(e) => setFilterVoterIdInput(e.target.value)}
+                                />
+                            </div>
+
+                            <div>
+                                <Label htmlFor="created-from-filter">
+                                    {t('taskManagement.filters.createdFrom')}
+                                </Label>
+                                <Input
+                                    id="created-from-filter"
+                                    type="date"
+                                    value={filterCreatedFrom}
+                                    max={filterCreatedTo || undefined}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        setFilterCreatedFrom(value);
+                                        setCurrentPage(1);
+                                        syncManageUrl({ createdFrom: value, page: 1 }, true);
+                                    }}
+                                />
+                            </div>
+
+                            <div>
+                                <Label htmlFor="created-to-filter">
+                                    {t('taskManagement.filters.createdTo')}
+                                </Label>
+                                <Input
+                                    id="created-to-filter"
+                                    type="date"
+                                    value={filterCreatedTo}
+                                    min={filterCreatedFrom || undefined}
+                                    onChange={(e) => {
+                                        const value = e.target.value;
+                                        setFilterCreatedTo(value);
+                                        setCurrentPage(1);
+                                        syncManageUrl({ createdTo: value, page: 1 }, true);
+                                    }}
                                 />
                             </div>
                         </div>

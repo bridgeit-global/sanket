@@ -8,18 +8,26 @@ export type VerticalRef = {
   sortOrder: number;
 };
 
-function memberBelongsToVertical(member: CadreMemberCard, verticalId: string): boolean {
-  return member.verticals.some((vertical) => vertical.id === verticalId);
+function memberHasPostForVertical(
+  member: CadreMemberCard,
+  verticalId: string,
+  predicate: (post: CadreMemberCard['posts'][number]) => boolean,
+): boolean {
+  return member.posts.some(
+    (post) => post.verticalId === verticalId && predicate(post),
+  );
 }
 
 export function findTalukaHeadForVertical(
   members: CadreMemberCard[],
   verticalId: string,
 ): CadreMemberCard | null {
-  const verticalMembers = members.filter(
-    (member) =>
-      memberBelongsToVertical(member, verticalId) &&
-      member.posts.some((post) => post.positionLevelKey === 'taluka'),
+  const verticalMembers = members.filter((member) =>
+    memberHasPostForVertical(
+      member,
+      verticalId,
+      (post) => post.positionLevelKey === 'taluka',
+    ),
   );
   return findSeniorMemberForGeo(verticalMembers, { scope: 'constituency' });
 }
@@ -29,12 +37,12 @@ export function findWardHeadForVertical(
   wardGeoId: string,
   verticalId: string,
 ): CadreMemberCard | null {
-  const verticalMembers = members.filter(
-    (member) =>
-      memberBelongsToVertical(member, verticalId) &&
-      member.posts.some(
-        (post) => post.positionLevelKey === 'ward' && post.wardGeoId === wardGeoId,
-      ),
+  const verticalMembers = members.filter((member) =>
+    memberHasPostForVertical(
+      member,
+      verticalId,
+      (post) => post.positionLevelKey === 'ward' && post.wardGeoId === wardGeoId,
+    ),
   );
   return findSeniorMemberForGeo(verticalMembers, { scope: 'ward', wardGeoId });
 }
@@ -45,14 +53,36 @@ export function findBoothHeadForVertical(
   boothNo: string,
   verticalId: string,
 ): CadreMemberCard | null {
-  const verticalMembers = members.filter(
-    (member) =>
-      memberBelongsToVertical(member, verticalId) &&
-      member.posts.some(
-        (post) =>
-          post.positionLevelKey === 'booth' &&
-          postMatchesBoothScope(post, wardGeoId, boothNo),
-      ),
+  const verticalMembers = members.filter((member) =>
+    memberHasPostForVertical(
+      member,
+      verticalId,
+      (post) =>
+        post.positionLevelKey === 'booth' &&
+        postMatchesBoothScope(post, wardGeoId, boothNo),
+    ),
+  );
+  return findSeniorMemberForGeo(verticalMembers, {
+    scope: 'booth',
+    wardGeoId,
+    boothNo,
+  });
+}
+
+export function findBoothBlaForVertical(
+  members: CadreMemberCard[],
+  wardGeoId: string,
+  boothNo: string,
+  verticalId: string,
+): CadreMemberCard | null {
+  const verticalMembers = members.filter((member) =>
+    memberHasPostForVertical(
+      member,
+      verticalId,
+      (post) =>
+        post.positionLevelKey === 'booth_bla' &&
+        postMatchesBoothScope(post, wardGeoId, boothNo),
+    ),
   );
   return findSeniorMemberForGeo(verticalMembers, {
     scope: 'booth',

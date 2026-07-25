@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { getUpcomingCadreBirthdays } from '@/lib/db/dashboard-queries';
 import { sendPushToSubscribedAdmins } from '@/lib/push/send';
 import { isPushConfigured } from '@/lib/push/vapid';
 
@@ -20,6 +21,13 @@ function formatSlotLabel(date: Date): string {
   }).format(date);
 }
 
+function birthdayReminderBody(count: number): string {
+  if (count === 1) {
+    return '1 cadre member has a birthday today. Open the dashboard to wish them.';
+  }
+  return `${count} cadre members have birthdays today. Open the dashboard to wish them.`;
+}
+
 export async function GET(request: NextRequest) {
   if (!isAuthorizedCron(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -33,14 +41,35 @@ export async function GET(request: NextRequest) {
   }
 
   const now = new Date();
-  const slot = formatSlotLabel(now);
+  const dateKey = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
 
   try {
+    // daysAhead=0 → only today; high limit so the count is not capped at the dashboard list size
+    const todaysBirthdays = await getUpcomingCadreBirthdays(0, 10_000);
+    const birthdayCount = todaysBirthdays.length;
+
+    if (birthdayCount === 0) {
+      return NextResponse.json({
+        ok: true,
+        target: 'user_id=admin',
+        sentTo: 0,
+        userIds: [],
+        birthdayCount: 0,
+        skipped: 'no_birthdays_today',
+        slot: formatSlotLabel(now),
+      });
+    }
+
     const userIds = await sendPushToSubscribedAdmins({
-      title: 'Push test',
-      body: `Test notification · ${slot} IST`,
-      url: '/modules/profile',
-      tag: `admin-cron-${now.getUTCFullYear()}${String(now.getUTCMonth() + 1).padStart(2, '0')}${String(now.getUTCDate()).padStart(2, '0')}-${String(now.getUTCHours()).padStart(2, '0')}${String(Math.floor(now.getUTCMinutes() / 15) * 15).padStart(2, '0')}`,
+      title: 'Cadre birthday reminder',
+      body: birthdayReminderBody(birthdayCount),
+      url: '/modules/dashboard',
+      tag: `cadre-birthday-${dateKey}`,
     });
 
     return NextResponse.json({
@@ -48,7 +77,8 @@ export async function GET(request: NextRequest) {
       target: 'user_id=admin',
       sentTo: userIds.length,
       userIds,
-      slot,
+      birthdayCount,
+      slot: formatSlotLabel(now),
     });
   } catch (error) {
     console.error('Admin push cron failed:', error);

@@ -28,6 +28,8 @@ export async function GET(request: NextRequest) {
         const assignedTo = searchParams.get('assignedTo');
         const serviceType = searchParams.get('serviceType') as 'individual' | 'community' | undefined;
         const serviceName = searchParams.get('serviceName');
+        const createdFrom = searchParams.get('createdFrom');
+        const createdTo = searchParams.get('createdTo');
 
         // Validate pagination parameters
         if (page < 1) {
@@ -36,6 +38,12 @@ export async function GET(request: NextRequest) {
         if (limit < 1 || limit > 100) {
             return NextResponse.json({ error: 'Limit must be between 1 and 100' }, { status: 400 });
         }
+
+        const ymdRe = /^\d{4}-\d{2}-\d{2}$/;
+        const createdFromVal =
+            createdFrom && ymdRe.test(createdFrom.trim()) ? createdFrom.trim() : undefined;
+        const createdToVal =
+            createdTo && ymdRe.test(createdTo.trim()) ? createdTo.trim() : undefined;
 
         const result = await getTasksWithFilters({
             status: status || undefined,
@@ -48,6 +56,8 @@ export async function GET(request: NextRequest) {
             assignedTo: assignedTo || undefined,
             serviceType: serviceType || 'individual',
             serviceName: serviceName || undefined,
+            createdFrom: createdFromVal,
+            createdTo: createdToVal,
         });
 
         return NextResponse.json(result);

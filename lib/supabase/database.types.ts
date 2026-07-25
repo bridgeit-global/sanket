@@ -405,6 +405,7 @@ export type Database = {
           sort_order: number
           taluka_id: string | null
           updated_at: string
+          vertical_id: string
           ward_geo_id: string | null
         }
         Insert: {
@@ -419,6 +420,7 @@ export type Database = {
           sort_order?: number
           taluka_id?: string | null
           updated_at?: string
+          vertical_id: string
           ward_geo_id?: string | null
         }
         Update: {
@@ -433,6 +435,7 @@ export type Database = {
           sort_order?: number
           taluka_id?: string | null
           updated_at?: string
+          vertical_id?: string
           ward_geo_id?: string | null
         }
         Relationships: [
@@ -462,6 +465,13 @@ export type Database = {
             columns: ["taluka_id"]
             isOneToOne: false
             referencedRelation: "CadreGeographicUnit"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "CadreMemberPost_vertical_id_fkey"
+            columns: ["vertical_id"]
+            isOneToOne: false
+            referencedRelation: "CadreVertical"
             referencedColumns: ["id"]
           },
           {
@@ -616,6 +626,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          max_geo_level: string
           name: string
           sort_order: number
           updated_at: string
@@ -625,6 +636,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          max_geo_level?: string
           name: string
           sort_order?: number
           updated_at?: string
@@ -634,6 +646,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          max_geo_level?: string
           name?: string
           sort_order?: number
           updated_at?: string

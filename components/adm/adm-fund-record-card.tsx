@@ -383,6 +383,79 @@ export function AdmFundRecordCard({
       </div>
 
       <div className="space-y-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t('adm.admDocuments')}
+          </p>
+          <div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) void handleUpload(file);
+              }}
+            />
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="min-h-11 w-full sm:min-h-9 sm:w-auto"
+              disabled={uploading}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="mr-1 h-3.5 w-3.5" />
+              {uploading ? t('adm.uploading') : t('adm.uploadDocument')}
+            </Button>
+          </div>
+        </div>
+        {fund.documents.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{t('adm.noDocuments')}</p>
+        ) : (
+          <ul className="space-y-2">
+            {fund.documents.map((doc) => (
+              <li
+                key={doc.id}
+                className="flex flex-col gap-2 rounded-md border border-border px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex min-w-0 items-start gap-2 sm:items-center">
+                  <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground sm:mt-0" />
+                  <div className="min-w-0 flex-1">
+                    {doc.fileUrl ? (
+                      <a
+                        href={doc.fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="break-words text-primary hover:underline"
+                      >
+                        {doc.label || doc.fileName}
+                      </a>
+                    ) : (
+                      <span className="break-words">
+                        {doc.label || doc.fileName}
+                      </span>
+                    )}
+                    <p className="text-xs text-muted-foreground">{doc.kind}</p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="min-h-11 w-full sm:min-h-9 sm:w-auto"
+                  onClick={() => onDeleteDocument(fund.id, doc)}
+                >
+                  <X className="mr-1 h-3.5 w-3.5 sm:mr-0" />
+                  <span className="sm:hidden">{t('adm.delete')}</span>
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="space-y-2">
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t('adm.associatedProjects')}
@@ -611,79 +684,6 @@ export function AdmFundRecordCard({
             {t('adm.addAllocation')}
           </Button>
         </div>
-      </div>
-
-      <div className="space-y-2">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            {t('adm.admDocuments')}
-          </p>
-          <div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleUpload(file);
-              }}
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="min-h-11 w-full sm:min-h-9 sm:w-auto"
-              disabled={uploading}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="mr-1 h-3.5 w-3.5" />
-              {uploading ? t('adm.uploading') : t('adm.uploadDocument')}
-            </Button>
-          </div>
-        </div>
-        {fund.documents.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t('adm.noDocuments')}</p>
-        ) : (
-          <ul className="space-y-2">
-            {fund.documents.map((doc) => (
-              <li
-                key={doc.id}
-                className="flex flex-col gap-2 rounded-md border border-border px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="flex min-w-0 items-start gap-2 sm:items-center">
-                  <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground sm:mt-0" />
-                  <div className="min-w-0 flex-1">
-                    {doc.fileUrl ? (
-                      <a
-                        href={doc.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="break-words text-primary hover:underline"
-                      >
-                        {doc.label || doc.fileName}
-                      </a>
-                    ) : (
-                      <span className="break-words">
-                        {doc.label || doc.fileName}
-                      </span>
-                    )}
-                    <p className="text-xs text-muted-foreground">{doc.kind}</p>
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="min-h-11 w-full sm:min-h-9 sm:w-auto"
-                  onClick={() => onDeleteDocument(fund.id, doc)}
-                >
-                  <X className="mr-1 h-3.5 w-3.5 sm:mr-0" />
-                  <span className="sm:hidden">{t('adm.delete')}</span>
-                </Button>
-              </li>
-            ))}
-          </ul>
-        )}
       </div>
 
       <Dialog open={createProjectOpen} onOpenChange={setCreateProjectOpen}>

@@ -58,11 +58,19 @@ export function PanelActionLink({
   );
 }
 
+const VERTICAL_ADHYAKSH_LABEL_KEYS = {
+  taluka: 'hierarchyModule.verticalTalukaAdhyakshLabel',
+  ward: 'hierarchyModule.verticalWardAdhyakshLabel',
+  booth: 'hierarchyModule.verticalBoothAdhyakshLabel',
+} as const;
+
 interface LeadershipSectionProps {
   title: string;
   entries: LeadershipEntry[];
   vacantLabel: string;
   viewCommitteeLabel: string;
+  /** Geo level for the role label (e.g. "Basic Taluka Adhyaksh"). */
+  geoLevel: keyof typeof VERTICAL_ADHYAKSH_LABEL_KEYS;
   onViewCommittee?: (verticalId: string) => void;
   canEdit?: boolean;
   onVoterIdUpdated?: () => void;
@@ -73,11 +81,13 @@ export function LeadershipSection({
   entries,
   vacantLabel,
   viewCommitteeLabel,
+  geoLevel,
   onViewCommittee,
   canEdit,
   onVoterIdUpdated,
 }: LeadershipSectionProps) {
   const { t } = useTranslations();
+  const roleLabelKey = VERTICAL_ADHYAKSH_LABEL_KEYS[geoLevel];
 
   return (
     <div className="overflow-hidden rounded-xl border border-primary/20 dark:border-primary/50">
@@ -96,7 +106,7 @@ export function LeadershipSection({
             >
               <div className="min-w-0 space-y-1.5">
                 <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                  {t('hierarchyModule.verticalHeadLabel', { vertical: entry.verticalName })}
+                  {t(roleLabelKey, { vertical: entry.verticalName })}
                 </p>
                 <p
                   className={cn(

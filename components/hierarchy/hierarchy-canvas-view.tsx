@@ -1,16 +1,25 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PropsWithChildren,
+  type ReactNode,
+} from 'react';
 import {
   ArrowLeft,
+  ChevronDown,
   ChevronRight,
   Maximize2,
   Minus,
   Plus,
   RotateCcw,
+  UserRound,
 } from 'lucide-react';
 import { ContactWithCall } from './contact-with-call';
-import { CommitteeMembersDialog } from './committee-members-dialog';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -24,11 +33,10 @@ import {
   getMemberPhone,
 } from '@/lib/hierarchy/geo-attribution';
 import type { HierarchyCanvasData } from '@/lib/hierarchy/canvas-data';
-import { CANVAS_COMMITTEE_PREVIEW_LIMIT } from '@/lib/hierarchy/canvas-data';
-import {
-  extractWardNumber,
-} from '@/lib/hierarchy/member-list';
-import type { CadreConfig, CadreMemberCard } from '@/lib/hierarchy/types';
+import { extractWardNumber } from '@/lib/hierarchy/member-list';
+import type { CadreConfig } from '@/lib/hierarchy/types';
+import type { CadreMaxGeoLevel } from '@/lib/hierarchy/wing-depth';
+import { buildRoleSlots, type RoleSlot } from '@/lib/hierarchy/role-slots';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 
@@ -41,6 +49,73 @@ type CanvasFocus =
   | { level: 'ward'; wardGeoId: string }
   | { level: 'booth'; wardGeoId: string; boothNo: string };
 
+export type CanvasCommitteeRoles = {
+  taluka: string[];
+  ward: string[];
+  booth: string[];
+};
+
+type ChartTone = 'basic' | 'wing';
+
+type TonePalette = {
+  root: string;
+  leader: string;
+  leaderBorder: string;
+  committee: string;
+  committeeHeader: string;
+  strip: string;
+  stripHeader: string;
+  connector: string;
+  accentText: string;
+};
+
+const TONES: Record<ChartTone, TonePalette> = {
+  basic: {
+    root: 'bg-slate-800 text-white border-slate-800',
+    leader: 'bg-amber-50 dark:bg-amber-950/40',
+    leaderBorder: 'border-amber-500/70',
+    committee: 'bg-amber-50/80 dark:bg-amber-950/30',
+    committeeHeader: 'bg-amber-600 text-white',
+    strip: 'bg-sky-50/90 dark:bg-sky-950/30',
+    stripHeader: 'bg-sky-700 text-white',
+    connector: 'bg-slate-400 dark:bg-slate-500',
+    accentText: 'text-amber-800 dark:text-amber-200',
+  },
+  wing: {
+    root: 'bg-violet-900 text-white border-violet-900',
+    leader: 'bg-fuchsia-50 dark:bg-fuchsia-950/40',
+    leaderBorder: 'border-fuchsia-500/70',
+    committee: 'bg-fuchsia-50/80 dark:bg-fuchsia-950/30',
+    committeeHeader: 'bg-fuchsia-700 text-white',
+    strip: 'bg-violet-50/90 dark:bg-violet-950/30',
+    stripHeader: 'bg-violet-800 text-white',
+    connector: 'bg-violet-400 dark:bg-violet-500',
+    accentText: 'text-fuchsia-800 dark:text-fuchsia-200',
+  },
+};
+
+const WARD_TONE = {
+  leader: 'bg-emerald-50 dark:bg-emerald-950/40',
+  leaderBorder: 'border-emerald-500/70',
+  committee: 'bg-emerald-50/80 dark:bg-emerald-950/30',
+  committeeHeader: 'bg-emerald-700 text-white',
+  strip: 'bg-emerald-50/90 dark:bg-emerald-950/30',
+  stripHeader: 'bg-emerald-800 text-white',
+  connector: 'bg-emerald-400 dark:bg-emerald-600',
+  accentText: 'text-emerald-800 dark:text-emerald-200',
+};
+
+const BOOTH_TONE = {
+  leader: 'bg-yellow-50 dark:bg-yellow-950/40',
+  leaderBorder: 'border-yellow-500/70',
+  committee: 'bg-yellow-50/80 dark:bg-yellow-950/30',
+  committeeHeader: 'bg-yellow-600 text-yellow-950',
+  bla: 'bg-amber-100/90 dark:bg-amber-950/50',
+  blaBorder: 'border-amber-500/60',
+  connector: 'bg-yellow-500/70',
+  accentText: 'text-yellow-900 dark:text-yellow-100',
+};
+
 function formatWardLabel(wardName: string): string {
   const wardNumber = extractWardNumber(wardName);
   return wardNumber !== Number.MAX_SAFE_INTEGER ? String(wardNumber) : wardName;
@@ -51,118 +126,327 @@ function formatBoothLabel(boothNo: string): string {
   return Number.isFinite(numeric) ? String(numeric).padStart(2, '0') : boothNo;
 }
 
-function LeaderCard({
+function VLine({ className, tone }: { className?: string; tone: string }) {
+  return <div className={cn('h-5 w-px', tone, className)} aria-hidden />;
+}
+
+/** Vertical trunk on small screens; horizontal T-fork from lg up. */
+function BranchConnector({ tone }: { tone: string }) {
+  return (
+    <>
+      <div className="flex flex-col items-center lg:hidden" aria-hidden>
+        <div className={cn('h-4 w-px', tone)} />
+      </div>
+      <div
+        className="hidden w-full max-w-[720px] flex-col items-center lg:flex"
+        aria-hidden
+      >
+        <div className={cn('h-4 w-px', tone)} />
+        <div className={cn('h-px w-full max-w-[560px]', tone)} />
+        <div className="flex w-full max-w-[560px] justify-between px-8">
+          <div className={cn('h-4 w-px', tone)} />
+          <div className={cn('h-4 w-px', tone)} />
+        </div>
+      </div>
+    </>
+  );
+}
+
+function WingRootBadge({
+  label,
+  className,
+}: {
+  label: string;
+  className: string;
+}) {
+  return (
+    <div
+      className={cn(
+        'inline-flex items-center gap-2 rounded-xl border px-4 py-2.5 shadow-sm',
+        className,
+      )}
+    >
+      <UserRound className="size-4 shrink-0 opacity-90" aria-hidden />
+      <span className="text-xs font-semibold tracking-[0.14em] uppercase">{label}</span>
+    </div>
+  );
+}
+
+function OrgLeaderCard({
+  roleLabel,
   name,
   phone,
-  roleLabel,
   className,
+  borderClass,
+  accentClass,
   onClick,
   isActive,
 }: {
+  roleLabel: string;
   name: string;
   phone: string | null;
-  roleLabel: string;
-  className?: string;
+  className: string;
+  borderClass: string;
+  accentClass: string;
   onClick?: () => void;
   isActive?: boolean;
 }) {
   const Tag = onClick ? 'button' : 'div';
   return (
-    <div className={cn('flex flex-col items-center gap-2', className)}>
-      <Tag
-        type={onClick ? 'button' : undefined}
-        onClick={onClick}
-        className={cn(
-          'min-w-[180px] max-w-[220px] rounded-xl border border-primary/20 bg-card px-3 py-2.5 text-left shadow-sm dark:border-primary/50',
-          onClick &&
-            'cursor-pointer transition-colors hover:border-primary/50 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-          isActive && 'border-primary bg-primary/10 ring-2 ring-primary/30',
-        )}
-      >
-        <p className="text-[10px] font-semibold tracking-[0.12em] text-primary uppercase">
+    <Tag
+      type={onClick ? 'button' : undefined}
+      onClick={onClick}
+      className={cn(
+        'min-w-[200px] max-w-[260px] rounded-xl border-2 px-3 py-2.5 text-left shadow-sm',
+        className,
+        borderClass,
+        onClick &&
+        'cursor-pointer transition-transform hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+        isActive && 'ring-2 ring-offset-2 ring-primary/40',
+      )}
+    >
+      <div className="mb-1.5 flex items-center gap-1.5">
+        <UserRound className={cn('size-3.5 shrink-0', accentClass)} aria-hidden />
+        <p className={cn('text-[10px] font-semibold tracking-[0.12em] uppercase', accentClass)}>
           {roleLabel}
         </p>
-        <p className="mt-1 text-sm font-medium leading-snug">{name}</p>
-        <div className="mt-1.5">
-          <ContactWithCall phone={phone} />
-        </div>
-      </Tag>
-    </div>
+      </div>
+      <p className="text-sm font-semibold leading-snug">{name}</p>
+      <div className="mt-1.5">
+        <ContactWithCall phone={phone} />
+      </div>
+    </Tag>
   );
 }
 
-function CommitteePanel({
+function RoleStructurePanel({
   title,
-  members,
-  total,
-  moreLabel,
-  onViewAll,
+  slots,
+  panelClass,
+  headerClass,
+  compact,
 }: {
   title: string;
-  members: CadreMemberCard[];
-  total: number;
-  moreLabel: string;
-  onViewAll?: () => void;
+  slots: RoleSlot[];
+  panelClass: string;
+  headerClass: string;
+  /** Tighter layout for side-by-side / mobile. */
+  compact?: boolean;
 }) {
-  if (total === 0) {
-    return (
-      <div className="min-w-[200px] max-w-[260px] rounded-xl border border-dashed border-border bg-muted/20 px-3 py-2.5">
-        <p className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-          {title}
-        </p>
-        <p className="mt-2 text-sm text-muted-foreground">—</p>
-      </div>
-    );
-  }
+  const [openRoles, setOpenRoles] = useState<Set<string>>(
+    () => new Set(slots.filter((slot) => slot.assignees.length > 0).map((slot) => slot.role)),
+  );
+
+  const toggleRole = (role: string) => {
+    setOpenRoles((prev) => {
+      const next = new Set(prev);
+      if (next.has(role)) next.delete(role);
+      else next.add(role);
+      return next;
+    });
+  };
 
   return (
-    <div className="min-w-[200px] max-w-[260px] rounded-xl border border-border/70 bg-card/80 px-3 py-2.5 shadow-sm">
-      <p className="text-[10px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-        {title}
-      </p>
-      <ul className="mt-2 space-y-1.5">
-        {members.map((member) => (
-          <li key={member.id} className="text-sm leading-snug">
-            <span className="font-medium">{getMemberDisplayName(member)}</span>
-            <div className="mt-0.5">
-              <ContactWithCall phone={getMemberPhone(member)} />
-            </div>
-          </li>
-        ))}
-      </ul>
-      {total > members.length ? (
-        onViewAll ? (
-          <button
-            type="button"
-            onClick={onViewAll}
-            className="mt-2 text-[11px] font-medium text-primary hover:underline"
-          >
-            {moreLabel}
-          </button>
-        ) : (
-          <p className="mt-2 text-[11px] font-medium text-primary">{moreLabel}</p>
-        )
-      ) : null}
+    <div
+      className={cn(
+        'w-full min-w-0 overflow-hidden rounded-xl border border-black/10 shadow-sm dark:border-white/10',
+        compact ? 'max-w-none' : 'max-w-[420px]',
+        panelClass,
+      )}
+    >
+      <div className={cn('px-2.5 py-2 text-center sm:px-3', headerClass)}>
+        <p className="text-[10px] font-semibold tracking-[0.14em] uppercase">{title}</p>
+      </div>
+      {slots.length === 0 ? (
+        <p className="px-3 py-3 text-center text-[11px] text-muted-foreground">—</p>
+      ) : (
+        <ul
+          className={cn(
+            'divide-y divide-black/5 dark:divide-white/10',
+            compact
+              ? 'max-h-[280px] overflow-y-auto sm:max-h-[360px]'
+              : 'max-h-[420px] overflow-y-auto',
+          )}
+        >
+          {slots.map((slot) => {
+            const isOpen = openRoles.has(slot.role);
+            const count = slot.assignees.length;
+            return (
+              <li key={slot.role}>
+                <button
+                  type="button"
+                  onClick={() => toggleRole(slot.role)}
+                  aria-expanded={isOpen}
+                  className="flex w-full items-center gap-1.5 px-2.5 py-1.5 text-left transition-colors hover:bg-black/5 dark:hover:bg-white/5 sm:px-3"
+                >
+                  <ChevronDown
+                    className={cn(
+                      'size-3.5 shrink-0 text-muted-foreground transition-transform duration-200',
+                      !isOpen && '-rotate-90',
+                    )}
+                    aria-hidden
+                  />
+                  <span className="min-w-0 flex-1 truncate text-[11px] font-semibold leading-snug">
+                    {slot.role}
+                  </span>
+                  <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+                    {count > 0 ? count : '—'}
+                  </span>
+                </button>
+                {isOpen ? (
+                  <div className="px-2.5 pb-2 pl-7 sm:px-3 sm:pl-8">
+                    {count === 0 ? (
+                      <p className="text-[11px] italic text-muted-foreground">—</p>
+                    ) : (
+                      <ul className="space-y-1.5">
+                        {slot.assignees.map((person) => (
+                          <li key={`${slot.role}-${person.id}`} className="min-w-0">
+                            <p className="truncate text-[11px] font-medium leading-snug">
+                              {person.name}
+                            </p>
+                            {person.phone ? (
+                              <div className="mt-0.5">
+                                <ContactWithCall phone={person.phone} />
+                              </div>
+                            ) : null}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
 
-const DEFAULT_CONSTITUENCY_ID = '172';
+function ChildStrip({
+  title,
+  headerClass,
+  panelClass,
+  children,
+}: PropsWithChildren<{
+  title: string;
+  headerClass: string;
+  panelClass: string;
+}>) {
+  return (
+    <div
+      className={cn(
+        'w-full min-w-0 overflow-hidden rounded-xl border border-black/10 shadow-sm dark:border-white/10',
+        panelClass,
+      )}
+    >
+      <div className={cn('px-2.5 py-2 text-center sm:px-3', headerClass)}>
+        <p className="text-[10px] font-semibold tracking-[0.14em] uppercase">{title}</p>
+      </div>
+      <div className="flex max-h-[280px] flex-wrap justify-center gap-1.5 overflow-y-auto p-2 sm:max-h-[360px] sm:gap-2 sm:p-3">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Stacked on mobile; side-by-side from lg. */
+function ParallelBranch({
+  left,
+  right,
+}: {
+  left: ReactNode;
+  right: ReactNode;
+}) {
+  return (
+    <div className="flex w-full max-w-[920px] flex-col items-stretch gap-6 px-2 lg:flex-row lg:items-start lg:justify-between lg:gap-4">
+      <div className="min-w-0 lg:flex-1">{left}</div>
+      <div className="min-w-0 lg:flex-1">{right}</div>
+    </div>
+  );
+}
+
+function MiniWardCard({
+  label,
+  name,
+  onClick,
+  tone,
+}: {
+  label: string;
+  name: string;
+  onClick: () => void;
+  tone: ChartTone;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'w-[calc(50%-0.25rem)] min-w-[72px] max-w-[110px] rounded-lg border bg-white px-1.5 py-1.5 text-center shadow-sm transition-transform hover:-translate-y-0.5 sm:w-auto sm:min-w-[96px] sm:max-w-[120px] sm:px-2 sm:py-2 dark:bg-background',
+        tone === 'basic' ? 'border-sky-300' : 'border-violet-300',
+      )}
+    >
+      <p
+        className={cn(
+          'text-[8px] font-semibold tracking-[0.08em] uppercase sm:text-[9px] sm:tracking-[0.1em]',
+          tone === 'basic' ? 'text-sky-700' : 'text-violet-700',
+        )}
+      >
+        {label}
+      </p>
+      <p className="mt-0.5 line-clamp-2 text-[10px] font-medium leading-snug sm:mt-1 sm:text-[11px]">
+        {name}
+      </p>
+    </button>
+  );
+}
+
+function MiniBoothCard({
+  label,
+  name,
+  onClick,
+}: {
+  label: string;
+  name: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-[calc(50%-0.25rem)] min-w-[72px] max-w-[110px] rounded-lg border border-yellow-400/80 bg-white px-1.5 py-1.5 text-center shadow-sm transition-transform hover:-translate-y-0.5 sm:w-auto sm:min-w-[96px] sm:max-w-[120px] sm:px-2 sm:py-2 dark:bg-background"
+    >
+      <p className="text-[8px] font-semibold tracking-[0.08em] text-yellow-800 uppercase sm:text-[9px] sm:tracking-[0.1em]">
+        {label}
+      </p>
+      <p className="mt-0.5 line-clamp-2 text-[10px] font-medium leading-snug sm:mt-1 sm:text-[11px]">
+        {name}
+      </p>
+    </button>
+  );
+}
 
 interface HierarchyCanvasViewProps {
   canvasData: HierarchyCanvasData;
   verticalName: string;
-  verticalId: string;
+  maxGeoLevel: CadreMaxGeoLevel;
   wardOptions: CadreConfig['geoUnits'];
+  committeeRoles: CanvasCommitteeRoles;
 }
 
 export function HierarchyCanvasView({
   canvasData,
   verticalName,
-  verticalId,
+  maxGeoLevel,
   wardOptions,
+  committeeRoles,
 }: HierarchyCanvasViewProps) {
   const { t } = useTranslations();
+  const includeBooths = maxGeoLevel === 'booth';
+  const tone: ChartTone = includeBooths ? 'basic' : 'wing';
+  const palette = TONES[tone];
+
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -170,20 +454,12 @@ export function HierarchyCanvasView({
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [focus, setFocus] = useState<CanvasFocus>({ level: 'taluka' });
-  const [talukaCommitteeOpen, setTalukaCommitteeOpen] = useState(false);
-  const [wardCommitteeOpen, setWardCommitteeOpen] = useState(false);
-  const [boothCommitteeOpen, setBoothCommitteeOpen] = useState(false);
-  const [fullWardCommitteeMembers, setFullWardCommitteeMembers] = useState<CadreMemberCard[]>([]);
-  const [fullBoothCommitteeMembers, setFullBoothCommitteeMembers] = useState<CadreMemberCard[]>([]);
   const panStartRef = useRef({ x: 0, y: 0, panX: 0, panY: 0 });
   const zoomRef = useRef(zoom);
   zoomRef.current = zoom;
 
   const wardLabelById = useMemo(
-    () =>
-      new Map(
-        wardOptions.map((ward) => [ward.id, formatWardLabel(ward.name)]),
-      ),
+    () => new Map(wardOptions.map((ward) => [ward.id, formatWardLabel(ward.name)])),
     [wardOptions],
   );
 
@@ -216,7 +492,7 @@ export function HierarchyCanvasView({
     });
   }, [focusedWard]);
 
-  const boothSelectDisabled = focus.level === 'taluka' || boothOptions.length === 0;
+  const boothSelectDisabled = !includeBooths || focus.level === 'taluka' || boothOptions.length === 0;
   const activeWardGeoId = focus.level !== 'taluka' ? focus.wardGeoId : null;
 
   const resetView = useCallback(() => {
@@ -308,98 +584,9 @@ export function HierarchyCanvasView({
     });
   }, []);
 
-  const talukaCommitteePreview = useMemo(
-    () => canvasData.talukaCommitteeMembers.slice(0, CANVAS_COMMITTEE_PREVIEW_LIMIT),
-    [canvasData.talukaCommitteeMembers],
-  );
-
-  const openTalukaCommittee = useCallback(() => {
-    setTalukaCommitteeOpen(true);
-  }, []);
-
-  useEffect(() => {
-    if (!wardCommitteeOpen || !focusedWard) return;
-
-    const controller = new AbortController();
-    setFullWardCommitteeMembers([]);
-
-    (async () => {
-      try {
-        const params = new URLSearchParams({
-          constituencyId: DEFAULT_CONSTITUENCY_ID,
-          scope: 'ward_committee',
-          verticalId,
-          wardGeoId: focusedWard.wardGeoId,
-        });
-        const res = await fetch(`/api/hierarchy/scoped-members?${params}`, {
-          signal: controller.signal,
-        });
-        if (controller.signal.aborted) return;
-        if (!res.ok) {
-          setFullWardCommitteeMembers([]);
-          return;
-        }
-        const data = (await res.json()) as { members?: CadreMemberCard[] };
-        if (controller.signal.aborted) return;
-        setFullWardCommitteeMembers(data.members ?? []);
-      } catch {
-        if (!controller.signal.aborted) {
-          setFullWardCommitteeMembers([]);
-        }
-      }
-    })();
-
-    return () => controller.abort();
-  }, [wardCommitteeOpen, focusedWard, verticalId]);
-
-  useEffect(() => {
-    if (!boothCommitteeOpen || !focusedWard || !focusedBooth) return;
-
-    const controller = new AbortController();
-    setFullBoothCommitteeMembers([]);
-
-    (async () => {
-      try {
-        const params = new URLSearchParams({
-          constituencyId: DEFAULT_CONSTITUENCY_ID,
-          scope: 'booth_committee',
-          verticalId,
-          wardGeoId: focusedWard.wardGeoId,
-          boothNo: focusedBooth.boothNo,
-        });
-        const res = await fetch(`/api/hierarchy/scoped-members?${params}`, {
-          signal: controller.signal,
-        });
-        if (controller.signal.aborted) return;
-        if (!res.ok) {
-          setFullBoothCommitteeMembers([]);
-          return;
-        }
-        const data = (await res.json()) as { members?: CadreMemberCard[] };
-        if (controller.signal.aborted) return;
-        setFullBoothCommitteeMembers(data.members ?? []);
-      } catch {
-        if (!controller.signal.aborted) {
-          setFullBoothCommitteeMembers([]);
-        }
-      }
-    })();
-
-    return () => controller.abort();
-  }, [boothCommitteeOpen, focusedWard, focusedBooth, verticalId]);
-
-  const committeeMoreLabel = useCallback(
-    (shown: number, total: number) =>
-      t('hierarchyModule.canvasCommitteeMore', {
-        remaining: String(Math.max(0, total - shown)),
-        total: String(total),
-      }),
-    [t],
-  );
-
   useEffect(() => {
     setFocus({ level: 'taluka' });
-  }, [verticalName]);
+  }, [verticalName, maxGeoLevel]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => fitToView(), 100);
@@ -450,8 +637,10 @@ export function HierarchyCanvasView({
   );
 
   const renderTalukaView = () => (
-    <div className="flex flex-col items-center gap-4">
-      <LeaderCard
+    <div className="flex flex-col items-center gap-0">
+      <WingRootBadge label={verticalName} className={palette.root} />
+      <VLine tone={palette.connector} />
+      <OrgLeaderCard
         roleLabel={t('hierarchyModule.canvasTalukaAdhyaksh', { vertical: verticalName })}
         name={
           canvasData.talukaAdhyaksh
@@ -461,108 +650,184 @@ export function HierarchyCanvasView({
         phone={
           canvasData.talukaAdhyaksh ? getMemberPhone(canvasData.talukaAdhyaksh) : null
         }
+        className={palette.leader}
+        borderClass={palette.leaderBorder}
+        accentClass={palette.accentText}
       />
 
-      <div className="h-4 w-px bg-border" aria-hidden />
+      <BranchConnector tone={palette.connector} />
 
-      <CommitteePanel
-        title={t('hierarchyModule.canvasTalukaCommittee')}
-        members={talukaCommitteePreview}
-        total={canvasData.talukaCommitteeTotal}
-        moreLabel={committeeMoreLabel(
-          talukaCommitteePreview.length,
-          canvasData.talukaCommitteeTotal,
-        )}
-        onViewAll={openTalukaCommittee}
+      <ParallelBranch
+        left={
+          <RoleStructurePanel
+            key={`taluka-committee-${verticalName}`}
+            compact
+            title={
+              includeBooths
+                ? t('hierarchyModule.canvasTalukaExecutiveCommittee', {
+                  vertical: verticalName,
+                })
+                : t('hierarchyModule.canvasTalukaCommitteeNamed', {
+                  vertical: verticalName,
+                })
+            }
+            slots={buildRoleSlots(
+              committeeRoles.taluka,
+              canvasData.talukaCommitteeMembers,
+              'taluka_committee',
+            )}
+            panelClass={palette.committee}
+            headerClass={palette.committeeHeader}
+          />
+        }
+        right={
+          <ChildStrip
+            title={
+              includeBooths
+                ? t('hierarchyModule.canvasWardPresidentsStrip', {
+                  vertical: verticalName,
+                })
+                : t('hierarchyModule.canvasAllWardAdhyaksh', { vertical: verticalName })
+            }
+            headerClass={palette.stripHeader}
+            panelClass={palette.strip}
+          >
+            {wardEntries.length === 0 ? (
+              <p className="px-2 text-center text-xs text-muted-foreground">
+                {t('hierarchyModule.noWardsMatch')}
+              </p>
+            ) : (
+              wardEntries.map((entry) => (
+                <MiniWardCard
+                  key={entry.wardGeoId}
+                  tone={tone}
+                  label={t('hierarchyModule.canvasWard', { ward: entry.wardLabel })}
+                  name={
+                    entry.adhyaksh ? getMemberDisplayName(entry.adhyaksh) : '—'
+                  }
+                  onClick={() => goToWard(entry.wardGeoId)}
+                />
+              ))
+            )}
+          </ChildStrip>
+        }
       />
 
-      <div className="h-4 w-px bg-border" aria-hidden />
-
-      <div className="flex flex-col items-center gap-2">
-        <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-          {t('hierarchyModule.canvasWardsSection')}
+      {!includeBooths ? (
+        <p className="mt-4 max-w-md rounded-lg border border-fuchsia-200 bg-fuchsia-50 px-3 py-2 text-center text-[11px] text-fuchsia-900 dark:border-fuchsia-900 dark:bg-fuchsia-950/40 dark:text-fuchsia-100">
+          {t('hierarchyModule.canvasWingDepthNote', { vertical: verticalName })}
         </p>
-        <div className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:justify-center">
-          {wardEntries.map((entry) => (
-            <div
-              key={entry.wardGeoId}
-              className="flex flex-col items-center gap-2 rounded-xl border border-border/60 bg-card/50 p-3"
-            >
-              <span className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                {t('hierarchyModule.canvasWard', { ward: entry.wardLabel })}
-              </span>
-              <LeaderCard
-                roleLabel={t('hierarchyModule.canvasWardAdhyaksh')}
-                name={entry.adhyaksh ? getMemberDisplayName(entry.adhyaksh) : '—'}
-                phone={entry.adhyaksh ? getMemberPhone(entry.adhyaksh) : null}
-                onClick={() => goToWard(entry.wardGeoId)}
-              />
-              {entry.committeeTotal > 0 ? (
-                <p className="text-[10px] text-muted-foreground">
-                  {t('hierarchyModule.canvasCommitteeCount', {
-                    count: String(entry.committeeTotal),
-                  })}
-                </p>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      </div>
+      ) : null}
     </div>
   );
 
   const renderWardView = () => {
     if (!focusedWard) return null;
 
+    const wardLeaderTone = includeBooths
+      ? {
+        leader: WARD_TONE.leader,
+        border: WARD_TONE.leaderBorder,
+        accent: WARD_TONE.accentText,
+        committee: WARD_TONE.committee,
+        committeeHeader: WARD_TONE.committeeHeader,
+        strip: WARD_TONE.strip,
+        stripHeader: WARD_TONE.stripHeader,
+        connector: WARD_TONE.connector,
+      }
+      : {
+        leader: palette.leader,
+        border: palette.leaderBorder,
+        accent: palette.accentText,
+        committee: palette.committee,
+        committeeHeader: palette.committeeHeader,
+        strip: palette.strip,
+        stripHeader: palette.stripHeader,
+        connector: palette.connector,
+      };
+
     return (
-      <div className="flex flex-col items-center gap-4">
-        <LeaderCard
-          roleLabel={t('hierarchyModule.canvasWardAdhyaksh')}
+      <div className="flex flex-col items-center gap-0">
+        <OrgLeaderCard
+          roleLabel={t('hierarchyModule.canvasWardAdhyakshNamed', {
+            ward: focusedWard.wardLabel,
+            vertical: verticalName,
+          })}
           name={
             focusedWard.adhyaksh ? getMemberDisplayName(focusedWard.adhyaksh) : '—'
           }
           phone={focusedWard.adhyaksh ? getMemberPhone(focusedWard.adhyaksh) : null}
+          className={wardLeaderTone.leader}
+          borderClass={wardLeaderTone.border}
+          accentClass={wardLeaderTone.accent}
         />
 
-        <div className="h-4 w-px bg-border" aria-hidden />
-
-        <CommitteePanel
-          title={t('hierarchyModule.canvasWardCommittee')}
-          members={focusedWard.committeeMembers}
-          total={focusedWard.committeeTotal}
-          moreLabel={committeeMoreLabel(
-            focusedWard.committeeMembers.length,
-            focusedWard.committeeTotal,
-          )}
-          onViewAll={() => setWardCommitteeOpen(true)}
-        />
-
-        <div className="h-4 w-px bg-border" aria-hidden />
-
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-            {t('hierarchyModule.canvasBoothsSection', { ward: focusedWard.wardLabel })}
-          </p>
-          {focusedWard.booths.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {t('hierarchyModule.canvasNoBooths')}
-            </p>
-          ) : (
-            <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
-              {focusedWard.booths.map((booth) => (
-                <LeaderCard
-                  key={booth.boothNo}
-                  roleLabel={t('hierarchyModule.canvasBoothAdhyaksh', {
-                    booth: formatBoothLabel(booth.boothNo),
+        {includeBooths && focusedWard.booths.length > 0 ? (
+          <>
+            <BranchConnector tone={wardLeaderTone.connector} />
+            <ParallelBranch
+              left={
+                <RoleStructurePanel
+                  key={`ward-exec-${focusedWard.wardGeoId}`}
+                  compact
+                  title={t('hierarchyModule.canvasWardExecutiveCommittee', {
+                    ward: focusedWard.wardLabel,
+                    vertical: verticalName,
                   })}
-                  name={booth.adhyaksh ? getMemberDisplayName(booth.adhyaksh) : '—'}
-                  phone={booth.adhyaksh ? getMemberPhone(booth.adhyaksh) : null}
-                  onClick={() => goToBooth(focusedWard.wardGeoId, booth.boothNo)}
+                  slots={buildRoleSlots(
+                    committeeRoles.ward,
+                    focusedWard.committeeMembers,
+                    'ward_committee',
+                  )}
+                  panelClass={wardLeaderTone.committee}
+                  headerClass={wardLeaderTone.committeeHeader}
                 />
-              ))}
+              }
+              right={
+                <ChildStrip
+                  title={t('hierarchyModule.canvasBoothPresidentsStrip', {
+                    ward: focusedWard.wardLabel,
+                  })}
+                  headerClass={wardLeaderTone.stripHeader}
+                  panelClass={wardLeaderTone.strip}
+                >
+                  {focusedWard.booths.map((booth) => (
+                    <MiniBoothCard
+                      key={booth.boothNo}
+                      label={t('hierarchyModule.canvasBoothNav', {
+                        booth: formatBoothLabel(booth.boothNo),
+                      })}
+                      name={
+                        booth.adhyaksh ? getMemberDisplayName(booth.adhyaksh) : '—'
+                      }
+                      onClick={() => goToBooth(focusedWard.wardGeoId, booth.boothNo)}
+                    />
+                  ))}
+                </ChildStrip>
+              }
+            />
+          </>
+        ) : (
+          <>
+            <VLine tone={wardLeaderTone.connector} />
+            <div className="w-full max-w-[420px] px-1">
+              <RoleStructurePanel
+                key={`ward-committee-${focusedWard.wardGeoId}`}
+                title={t('hierarchyModule.canvasWardCommitteeNamed', {
+                  ward: focusedWard.wardLabel,
+                  vertical: verticalName,
+                })}
+                slots={buildRoleSlots(
+                  committeeRoles.ward,
+                  focusedWard.committeeMembers,
+                  'ward_committee',
+                )}
+                panelClass={wardLeaderTone.committee}
+                headerClass={wardLeaderTone.committeeHeader}
+              />
             </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     );
   };
@@ -571,28 +836,69 @@ export function HierarchyCanvasView({
     if (!focusedWard || !focusedBooth) return null;
 
     return (
-      <div className="flex flex-col items-center gap-4">
-        <LeaderCard
+      <div className="flex flex-col items-center gap-0">
+        <OrgLeaderCard
           roleLabel={t('hierarchyModule.canvasBoothAdhyaksh', {
             booth: formatBoothLabel(focusedBooth.boothNo),
           })}
           name={
-            focusedBooth.adhyaksh ? getMemberDisplayName(focusedBooth.adhyaksh) : '—'
+            focusedBooth.adhyaksh
+              ? getMemberDisplayName(focusedBooth.adhyaksh)
+              : '—'
           }
-          phone={focusedBooth.adhyaksh ? getMemberPhone(focusedBooth.adhyaksh) : null}
+          phone={
+            focusedBooth.adhyaksh ? getMemberPhone(focusedBooth.adhyaksh) : null
+          }
+          className={BOOTH_TONE.leader}
+          borderClass={BOOTH_TONE.leaderBorder}
+          accentClass={BOOTH_TONE.accentText}
         />
 
-        <div className="h-4 w-px bg-border" aria-hidden />
+        <BranchConnector tone={BOOTH_TONE.connector} />
 
-        <CommitteePanel
-          title={t('hierarchyModule.canvasBoothCommittee')}
-          members={focusedBooth.committeeMembers}
-          total={focusedBooth.committeeTotal}
-          moreLabel={committeeMoreLabel(
-            focusedBooth.committeeMembers.length,
-            focusedBooth.committeeTotal,
-          )}
-          onViewAll={() => setBoothCommitteeOpen(true)}
+        <ParallelBranch
+          left={
+            <div
+              className={cn(
+                'w-full rounded-xl border-2 px-3 py-2.5 shadow-sm',
+                BOOTH_TONE.bla,
+                BOOTH_TONE.blaBorder,
+              )}
+            >
+              <p className="text-[10px] font-semibold tracking-[0.12em] text-amber-800 uppercase dark:text-amber-200">
+                {t('hierarchyModule.canvasBlaLabel')}
+              </p>
+              <p className="mt-1 text-sm font-semibold">
+                {focusedBooth.bla
+                  ? getMemberDisplayName(focusedBooth.bla)
+                  : '—'}
+              </p>
+              <div className="mt-1.5">
+                <ContactWithCall
+                  phone={
+                    focusedBooth.bla ? getMemberPhone(focusedBooth.bla) : null
+                  }
+                />
+              </div>
+            </div>
+          }
+          right={
+            <RoleStructurePanel
+              key={`booth-committee-${focusedWard.wardGeoId}-${focusedBooth.boothNo}`}
+              compact
+              title={t('hierarchyModule.canvasBoothCommitteeNamed', {
+                booth: formatBoothLabel(focusedBooth.boothNo),
+                vertical: verticalName,
+              })}
+              slots={buildRoleSlots(
+                committeeRoles.booth,
+                focusedBooth.committeeMembers,
+                'booth_committee',
+              )}
+              panelClass={BOOTH_TONE.committee}
+              headerClass={BOOTH_TONE.committeeHeader}
+            />
+          }
         />
       </div>
     );
@@ -605,7 +911,7 @@ export function HierarchyCanvasView({
       case 'ward':
         return renderWardView();
       case 'booth':
-        return renderBoothView();
+        return includeBooths ? renderBoothView() : renderWardView();
       default:
         return renderTalukaView();
     }
@@ -674,6 +980,9 @@ export function HierarchyCanvasView({
           </div>
           <span className="ml-auto text-xs text-muted-foreground">
             {Math.round(zoom * 100)}% · {verticalName}
+            {!includeBooths
+              ? ` · ${t('hierarchyModule.canvasDepthWardOnly')}`
+              : ` · ${t('hierarchyModule.canvasDepthToBooth')}`}
           </span>
         </div>
 
@@ -697,33 +1006,35 @@ export function HierarchyCanvasView({
                   ))}
                 </SelectContent>
               </Select>
-              <Select
-                key={`${verticalName}-${activeWardGeoId ?? 'none'}`}
-                value={focus.level === 'booth' ? focus.boothNo : undefined}
-                onValueChange={(boothNo) => {
-                  if (activeWardGeoId) goToBooth(activeWardGeoId, boothNo);
-                }}
-                disabled={boothSelectDisabled}
-              >
-                <SelectTrigger className="h-8 w-full rounded-lg text-xs sm:w-[180px]">
-                  <SelectValue
-                    placeholder={
-                      boothSelectDisabled && focus.level === 'taluka'
-                        ? t('hierarchyModule.canvasSelectWardFirst')
-                        : t('hierarchyModule.canvasJumpToBooth')
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {boothOptions.map((booth) => (
-                    <SelectItem key={booth.boothNo} value={booth.boothNo}>
-                      {t('hierarchyModule.canvasBoothNav', {
-                        booth: formatBoothLabel(booth.boothNo),
-                      })}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {includeBooths ? (
+                <Select
+                  key={`${verticalName}-${activeWardGeoId ?? 'none'}`}
+                  value={focus.level === 'booth' ? focus.boothNo : undefined}
+                  onValueChange={(boothNo) => {
+                    if (activeWardGeoId) goToBooth(activeWardGeoId, boothNo);
+                  }}
+                  disabled={boothSelectDisabled}
+                >
+                  <SelectTrigger className="h-8 w-full rounded-lg text-xs sm:w-[180px]">
+                    <SelectValue
+                      placeholder={
+                        boothSelectDisabled && focus.level === 'taluka'
+                          ? t('hierarchyModule.canvasSelectWardFirst')
+                          : t('hierarchyModule.canvasJumpToBooth')
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {boothOptions.map((booth) => (
+                      <SelectItem key={booth.boothNo} value={booth.boothNo}>
+                        {t('hierarchyModule.canvasBoothNav', {
+                          booth: formatBoothLabel(booth.boothNo),
+                        })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : null}
             </div>
           ) : null}
         </div>
@@ -732,7 +1043,11 @@ export function HierarchyCanvasView({
       <div
         ref={containerRef}
         className={cn(
-          'relative min-h-[min(70vh,640px)] overflow-hidden rounded-xl border border-border bg-muted/10 touch-none',
+          'relative min-h-[min(70vh,720px)] overflow-hidden rounded-xl border border-border touch-none',
+          'min-h-[min(65dvh,720px)]',
+          tone === 'basic'
+            ? 'bg-gradient-to-b from-amber-50/40 via-background to-sky-50/30 dark:from-amber-950/20 dark:to-sky-950/20'
+            : 'bg-gradient-to-b from-fuchsia-50/50 via-background to-violet-50/40 dark:from-fuchsia-950/20 dark:to-violet-950/20',
           isPanning ? 'cursor-grabbing' : 'cursor-grab',
         )}
         onWheel={handleWheel}
@@ -748,7 +1063,7 @@ export function HierarchyCanvasView({
             transformOrigin: 'center top',
           }}
         >
-          <div ref={contentRef} className="flex flex-col items-center">
+          <div ref={contentRef} className="flex flex-col items-center py-2">
             {renderContent()}
           </div>
         </div>
@@ -757,30 +1072,6 @@ export function HierarchyCanvasView({
       <p className="text-center text-xs text-muted-foreground">
         {t('hierarchyModule.canvasPanHint')}
       </p>
-
-      <CommitteeMembersDialog
-        open={talukaCommitteeOpen}
-        onOpenChange={setTalukaCommitteeOpen}
-        title={t('hierarchyModule.canvasTalukaCommittee')}
-        members={canvasData.talukaCommitteeMembers}
-        emptyLabel={t('hierarchyModule.talukaCommitteeEmpty')}
-      />
-
-      <CommitteeMembersDialog
-        open={wardCommitteeOpen}
-        onOpenChange={setWardCommitteeOpen}
-        title={t('hierarchyModule.canvasWardCommittee')}
-        members={fullWardCommitteeMembers}
-        emptyLabel={t('hierarchyModule.talukaCommitteeEmpty')}
-      />
-
-      <CommitteeMembersDialog
-        open={boothCommitteeOpen}
-        onOpenChange={setBoothCommitteeOpen}
-        title={t('hierarchyModule.canvasBoothCommittee')}
-        members={fullBoothCommitteeMembers}
-        emptyLabel={t('hierarchyModule.talukaCommitteeEmpty')}
-      />
     </div>
   );
 }

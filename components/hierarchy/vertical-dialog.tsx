@@ -50,6 +50,7 @@ export function VerticalDialog({
   const [name, setName] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [maxGeoLevel, setMaxGeoLevel] = useState<'ward' | 'booth'>('ward');
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -58,6 +59,7 @@ export function VerticalDialog({
     setName(vertical?.name ?? '');
     setCategoryId(vertical?.categoryId ?? config.categories[0]?.id ?? '');
     setNewCategoryName('');
+    setMaxGeoLevel(vertical?.maxGeoLevel === 'booth' ? 'booth' : 'ward');
   }, [open, vertical, config.categories]);
 
   const isEdit = Boolean(vertical);
@@ -96,6 +98,7 @@ export function VerticalDialog({
         categoryId: finalCategoryId,
         sortOrder: vertical?.sortOrder ?? 99,
         isActive: true,
+        maxGeoLevel,
       };
       if (vertical) body.id = vertical.id;
 
@@ -179,6 +182,24 @@ export function VerticalDialog({
                 <SelectItem value={NEW_CATEGORY_VALUE}>+ New category…</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div>
+            <Label>Max hierarchy depth</Label>
+            <Select
+              value={maxGeoLevel}
+              onValueChange={(v) => setMaxGeoLevel(v === 'booth' ? 'booth' : 'ward')}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ward">Taluka → Ward</SelectItem>
+                <SelectItem value="booth">Taluka → Ward → Booth</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Only Basic typically includes booth-level positions.
+            </p>
           </div>
           {creatingCategory && (
             <div>

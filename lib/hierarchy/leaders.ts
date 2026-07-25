@@ -33,21 +33,25 @@ export function buildStubMembersFromPosts(
     ? [{ id: verticalId, name: '', isPrimary: true, sortOrder: 0 }]
     : [];
 
-  return [...postsByMemberId.entries()].map(([id, posts]) => ({
-    id,
-    constituencyId: null,
-    personName: null,
-    personPhone: null,
-    personEmail: null,
-    photoUrl: null,
-    userId: null,
-    epicNumber: null,
-    notes: null,
-    isActive: true,
-    verticals,
-    posts,
-    linkedUser: null,
-    linkedVoter: null,
-    whatsappPhone: null,
-  }));
+  return [...postsByMemberId.entries()]
+    .map(([id, posts]) => ({
+      id,
+      constituencyId: null,
+      personName: null,
+      personPhone: null,
+      personEmail: null,
+      photoUrl: null,
+      userId: null,
+      epicNumber: null,
+      notes: null,
+      isActive: true,
+      verticals,
+      posts: verticalId
+        ? posts.filter((post) => post.verticalId === verticalId)
+        : posts,
+      linkedUser: null,
+      linkedVoter: null,
+      whatsappPhone: null,
+    }))
+    .filter((member) => member.posts.length > 0);
 }

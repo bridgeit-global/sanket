@@ -14,6 +14,7 @@ export const HIERARCHY_URL_PARAMS = {
   pageSize: 'pageSize',
   view: 'view',
   voterId: 'voterId',
+  returnTo: 'returnTo',
 } as const;
 
 export const VOTER_ID_FILTERS = {
@@ -45,10 +46,11 @@ export function filterTalukaCommitteeMembers(
   verticalId: string,
 ): CadreMemberCard[] {
   if (!verticalId) return [];
-  return members.filter(
-    (member) =>
-      memberHasVertical(member, verticalId) &&
-      member.posts.some((post) => post.positionLevelKey === 'taluka_committee'),
+  return members.filter((member) =>
+    member.posts.some(
+      (post) =>
+        post.verticalId === verticalId && post.positionLevelKey === 'taluka_committee',
+    ),
   );
 }
 
@@ -62,13 +64,13 @@ export function filterWardCommitteeMembers(
   verticalId: string,
 ): CadreMemberCard[] {
   if (!wardGeoId || !verticalId) return [];
-  return members.filter(
-    (member) =>
-      memberHasVertical(member, verticalId) &&
-      member.posts.some(
-        (post) =>
-          post.positionLevelKey === 'ward_committee' && post.wardGeoId === wardGeoId,
-      ),
+  return members.filter((member) =>
+    member.posts.some(
+      (post) =>
+        post.verticalId === verticalId &&
+        post.positionLevelKey === 'ward_committee' &&
+        post.wardGeoId === wardGeoId,
+    ),
   );
 }
 
@@ -79,14 +81,15 @@ export function filterBoothCommitteeMembers(
   verticalId?: string,
 ): CadreMemberCard[] {
   if (!wardGeoId || !boothNo) return [];
-  return members.filter((member) => {
-    if (verticalId && !memberHasVertical(member, verticalId)) return false;
-    return member.posts.some(
-      (post) =>
+  return members.filter((member) =>
+    member.posts.some((post) => {
+      if (verticalId && post.verticalId !== verticalId) return false;
+      return (
         post.positionLevelKey === 'booth_committee' &&
-        postMatchesBoothScope(post, wardGeoId, boothNo),
-    );
-  });
+        postMatchesBoothScope(post, wardGeoId, boothNo)
+      );
+    }),
+  );
 }
 
 export const DEFAULT_MEMBER_PAGE_SIZE = 30;
@@ -240,12 +243,21 @@ export function sortMembers(members: CadreMemberCard[]): CadreMemberCard[] {
 export function positionNeedsWard(levelKey: string | null): boolean {
   return (
     levelKey != null &&
-    ['ward', 'booth', 'booth_committee', 'ward_committee'].includes(levelKey)
+    [
+      'ward',
+      'booth',
+      'booth_committee',
+      'booth_bla',
+      'ward_committee',
+    ].includes(levelKey)
   );
 }
 
 export function positionNeedsBooth(levelKey: string | null): boolean {
-  return levelKey != null && ['booth', 'booth_committee'].includes(levelKey);
+  return (
+    levelKey != null &&
+    ['booth', 'booth_committee', 'booth_bla'].includes(levelKey)
+  );
 }
 
 export function positionNeedsTaluka(levelKey: string | null): boolean {

@@ -28,6 +28,13 @@ export type ManageFilterState = {
   taskId: string;
 };
 
+const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function parseManageDateParam(value: string | null): string {
+  const trimmed = (value ?? '').trim();
+  return YMD_RE.test(trimmed) ? trimmed : '';
+}
+
 export function parseManagePageParam(value: string | null): number {
   const parsed = Number.parseInt(value ?? '1', 10);
   return Number.isFinite(parsed) && parsed >= 1 ? parsed : 1;
