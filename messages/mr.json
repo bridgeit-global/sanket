@@ -1817,6 +1817,8 @@
       "allAssignees": "सर्व नियुक्त",
       "selectAssignee": "नियुक्त निवडा",
       "itemsPerPage": "प्रति पृष्ठ आयटम",
+      "createdFrom": "तयार केले पासून",
+      "createdTo": "तयार केले पर्यंत",
       "showing": "{count} पैकी {total} कार्ये दर्शवत आहे"
     },
     "status": {

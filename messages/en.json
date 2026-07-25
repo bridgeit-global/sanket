@@ -1815,6 +1815,8 @@
       "allAssignees": "All Assignees",
       "selectAssignee": "Select assignee",
       "itemsPerPage": "Items per page",
+      "createdFrom": "Created From",
+      "createdTo": "Created To",
       "showing": "Showing {count} of {total} tasks"
     },
     "status": {
