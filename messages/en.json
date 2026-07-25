@@ -741,7 +741,7 @@
       "add": "Add Address",
       "addTitle": "Add Address",
       "editTitle": "Edit Address",
-      "formDescription": "Enter the address in English and Marathi. Leave one side blank and use Auto-translate, or it will be filled automatically on save.",
+      "formDescription": "Enter the address in English and Marathi. Leave one side blank — it fills on blur, via Auto-translate, or on save.",
       "autoTranslate": "Auto-translate",
       "english": "English",
       "marathi": "Marathi",

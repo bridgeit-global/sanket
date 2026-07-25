@@ -37,10 +37,20 @@ function resolveCity(parts: AddressMasterAddressParts): string {
   return normalizeCityName(parts.cityEn || parts.cityMr);
 }
 
+type AddressLineKey =
+  | 'line1En'
+  | 'line1Mr'
+  | 'line2En'
+  | 'line2Mr'
+  | 'line3En'
+  | 'line3Mr';
+
 type BilingualAddressFieldsProps = {
   parts: AddressMasterAddressParts;
   onPartsChange: (patch: Partial<AddressMasterAddressParts>) => void;
   pincodeError?: string;
+  /** Fired when a street-line input blurs; use to auto-fill the empty counterpart. */
+  onLineBlur?: (sourceKey: AddressLineKey, value: string) => void;
 };
 
 /**
@@ -52,6 +62,7 @@ export function BilingualAddressFields({
   parts,
   onPartsChange,
   pincodeError,
+  onLineBlur,
 }: BilingualAddressFieldsProps) {
   const { t } = useTranslations();
 
@@ -155,6 +166,7 @@ export function BilingualAddressFields({
                     [field.en]: filterLocaleText(event.target.value, 'en'),
                   })
                 }
+                onBlur={(event) => onLineBlur?.(field.en, event.target.value)}
                 lang="en"
                 autoComplete="off"
                 className="h-9"
@@ -169,6 +181,7 @@ export function BilingualAddressFields({
                     [field.mr]: filterLocaleText(event.target.value, 'mr'),
                   })
                 }
+                onBlur={(event) => onLineBlur?.(field.mr, event.target.value)}
                 lang="mr"
                 autoComplete="off"
                 className="h-9"

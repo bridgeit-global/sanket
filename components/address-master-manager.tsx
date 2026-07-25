@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronDown,
   ChevronUp,
@@ -100,6 +100,30 @@ async function translateAddressText(
   return String(json?.translated ?? '').trim();
 }
 
+type TranslatableField =
+  | 'name'
+  | 'nameMr'
+  | 'line1En'
+  | 'line1Mr'
+  | 'line2En'
+  | 'line2Mr'
+  | 'line3En'
+  | 'line3Mr';
+
+const FIELD_COUNTERPART: Record<
+  TranslatableField,
+  { targetKey: TranslatableField; targetLocale: LetterLocale }
+> = {
+  name: { targetKey: 'nameMr', targetLocale: 'mr' },
+  nameMr: { targetKey: 'name', targetLocale: 'en' },
+  line1En: { targetKey: 'line1Mr', targetLocale: 'mr' },
+  line1Mr: { targetKey: 'line1En', targetLocale: 'en' },
+  line2En: { targetKey: 'line2Mr', targetLocale: 'mr' },
+  line2Mr: { targetKey: 'line2En', targetLocale: 'en' },
+  line3En: { targetKey: 'line3Mr', targetLocale: 'mr' },
+  line3Mr: { targetKey: 'line3En', targetLocale: 'en' },
+};
+
 type AddressMasterManagerProps = {
   addresses: AddressMasterRow[];
   loading: boolean;
@@ -117,6 +141,9 @@ export function AddressMasterManager({
   const [form, setForm] = useState<AddressFormState>(EMPTY_FORM);
   const [isSaving, setIsSaving] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
+  const translatingCountRef = useRef(0);
+  const formRef = useRef(form);
+  formRef.current = form;
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | AddressType>('all');
@@ -301,6 +328,35 @@ export function AddressMasterManager({
     if (!source) return '';
     const translated = filterLocaleText(await translateAddressText(source, target), target);
     return target === 'mr' ? toLocaleDigits(translated, 'mr') : translated;
+  };
+
+  /** On blur: if the counterpart language is empty, fill it from this field. */
+  const fillCounterpartOnBlur = async (
+    sourceKey: TranslatableField,
+    value: string,
+  ) => {
+    const source = value.trim();
+    if (!source) return;
+
+    const { targetKey, targetLocale } = FIELD_COUNTERPART[sourceKey];
+    if (formRef.current[targetKey].trim()) return;
+
+    translatingCountRef.current += 1;
+    setIsTranslating(true);
+    try {
+      const translated = await translateInto(source, targetLocale);
+      if (!translated) return;
+      setForm((prev) => {
+        if (prev[targetKey].trim()) return prev;
+        return { ...prev, [targetKey]: translated };
+      });
+    } catch (error) {
+      console.error('Failed to auto-translate address field on blur', error);
+      toast.error(t('letterGeneration.addresses.translateError'));
+    } finally {
+      translatingCountRef.current -= 1;
+      if (translatingCountRef.current === 0) setIsTranslating(false);
+    }
   };
 
   /** Fill any empty language column from its filled counterpart. */
@@ -542,6 +598,9 @@ export function AddressMasterManager({
                       name: filterLocaleText(event.target.value, 'en'),
                     })
                   }
+                  onBlur={(event) =>
+                    void fillCounterpartOnBlur('name', event.target.value)
+                  }
                 />
                 <Input
                   value={form.nameMr}
@@ -554,6 +613,9 @@ export function AddressMasterManager({
                       ...form,
                       nameMr: filterLocaleText(event.target.value, 'mr'),
                     })
+                  }
+                  onBlur={(event) =>
+                    void fillCounterpartOnBlur('nameMr', event.target.value)
                   }
                 />
               </div>
@@ -583,6 +645,9 @@ export function AddressMasterManager({
             <BilingualAddressFields
               parts={form}
               onPartsChange={updateAddressParts}
+              onLineBlur={(sourceKey, value) =>
+                void fillCounterpartOnBlur(sourceKey, value)
+              }
             />
 
             <div className="grid gap-4 sm:grid-cols-2">
