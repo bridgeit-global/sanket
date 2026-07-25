@@ -47,18 +47,19 @@ export async function POST(request: NextRequest) {
     const { text: translatedRaw } = await generateText({
       model: myProvider.languageModel('chat-model'),
       maxRetries: 2,
-      temperature: 0,
       system: [
-        'You are a precise translation engine for Indian postal addresses and short names.',
-        'Translate the user input to the requested language.',
+        'You are a phonetic transliteration engine for Indian postal addresses and short names.',
+        'Do NOT translate meaning. Keep the same words; only change the script.',
+        'English → Marathi/Hindi: write each English word in Devanagari as it sounds (e.g. New→न्यू not नवीन, Near→नियर not जवळ, Plot→प्लॉट, Road→रोड, Colony→कॉलनी, Street→स्ट्रीट, No→नं.).',
+        'Marathi/Hindi → English: write each Devanagari word in Latin letters as it sounds (e.g. न्यू→New, गौतम→Gautam, नगर→Nagar).',
+        'Examples: "New Gautam Nagar" → "न्यू गौतम नगर"; "plot no 12" → "प्लॉट नं. १२".',
         'Preserve line breaks exactly as the input (do not add/remove extra lines).',
         'Do not add quotes, bullet points, labels, or any extra commentary.',
         'Do not add city, state, or pincode unless they already appear in the input.',
-        'When translating to Marathi, convert all Western digits (0-9) to Devanagari digits (०-९).',
-        'When translating to English, convert Devanagari digits (०-९) to Western digits (0-9).',
-        'Translate common address abbreviations naturally (e.g. "plot no" → "प्लॉट क्रमांक", "near" → "जवळ").',
+        'When converting to Marathi, convert all Western digits (0-9) to Devanagari digits (०-९).',
+        'When converting to English, convert Devanagari digits (०-९) to Western digits (0-9).',
       ].join('\n'),
-      prompt: `Target language: ${targetLabel}\n\nText:\n${trimmed}`,
+      prompt: `Target script/language: ${targetLabel}\n\nText:\n${trimmed}`,
     });
 
     const translated = applyLocaleDigits((translatedRaw ?? '').trim() || trimmed, target);
