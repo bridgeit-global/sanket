@@ -3564,8 +3564,50 @@ export async function updateLetterRenderedHtml({
   }
 }
 
+export async function updateLetterPdfStoragePath({
+  id,
+  pdfStoragePath,
+}: {
+  id: string;
+  pdfStoragePath: string;
+}): Promise<Letter> {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.letter)
+      .update(
+        toSnakeCaseKeys({
+          pdfStoragePath,
+          updatedAt: now,
+        }),
+      )
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to update letter PDF storage path');
+    return mapLetterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update letter PDF storage path',
+    );
+  }
+}
+
 export async function deleteLetter(id: string): Promise<void> {
   try {
+    const existing = await getLetterById(id);
+    if (existing?.pdfStoragePath) {
+      const { LETTER_PDF_BUCKET } = await import('@/lib/letters/pdf-storage');
+      const { error: storageError } = await supabase.storage
+        .from(LETTER_PDF_BUCKET)
+        .remove([existing.pdfStoragePath]);
+      if (storageError) {
+        console.error('Failed to delete letter PDF from storage', storageError);
+      }
+    }
+
     const { error } = await supabase.from(TABLES.letter).delete().eq('id', id);
     throwOnSupabaseError(error, 'Failed to delete letter');
   } catch (error) {

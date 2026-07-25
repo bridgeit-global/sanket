@@ -41,7 +41,7 @@ import { ALL_MODULES, } from '@/lib/module-constants';
 import { Trash2, Plus, Shield, Check } from 'lucide-react';
 import type { Role } from '@/lib/db/schema';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 import { TableSkeleton } from '@/components/module-skeleton';
 import { useTranslations } from '@/hooks/use-translations';
 import {

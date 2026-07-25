@@ -227,6 +227,7 @@ export type Letter = {
   fields: unknown;
   renderedHtml: string;
   paperSize: 'a4' | 'a5' | 'b5';
+  pdfStoragePath: string | null;
   createdBy: string | null;
   beneficiaryServiceId: string | null;
   createdAt: Date;

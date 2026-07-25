@@ -8,7 +8,7 @@ import {
 } from '@/components/icons';
 import { SpreadsheetEditor } from '@/components/sheet-editor';
 import { parse, unparse } from 'papaparse';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 
 type Metadata = any;
 

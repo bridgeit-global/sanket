@@ -46,7 +46,7 @@ import type {
   AdmDocument,
 } from '@/lib/db/schema';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 import { AdmCroreAmountInput } from './adm-crore-amount-input';
 import { ProjectHierarchyGeoPickers } from '@/components/projects/project-hierarchy-geo-pickers';
 import { formatProjectHierarchyLocation } from '@/lib/projects/hierarchy-geo';

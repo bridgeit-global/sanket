@@ -2,7 +2,7 @@ import { memo } from 'react';
 
 import type { ArtifactKind } from './artifact';
 import { FileIcon, LoaderIcon, MessageIcon, PencilEditIcon } from './icons';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 import { useArtifact } from '@/hooks/use-artifact';
 
 const getActionText = (

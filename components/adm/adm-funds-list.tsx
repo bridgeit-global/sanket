@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Combobox } from '@/components/ui/combobox';

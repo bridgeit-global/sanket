@@ -6,6 +6,7 @@ export const OPERATOR_MANAGE_URL_PARAMS = {
   token: 'token',
   mobile: 'mobile',
   voterId: 'voterId',
+  assignedTo: 'assignedTo',
   createdFrom: 'createdFrom',
   createdTo: 'createdTo',
   page: 'page',
@@ -23,6 +24,7 @@ export type ManageFilterState = {
   token: string;
   mobile: string;
   voterId: string;
+  assignedTo: string;
   createdFrom: string;
   createdTo: string;
   page: number;
@@ -65,6 +67,7 @@ export function parseManageFiltersFromSearchParams(
     token: get(OPERATOR_MANAGE_URL_PARAMS.token) || '',
     mobile: get(OPERATOR_MANAGE_URL_PARAMS.mobile) || '',
     voterId: get(OPERATOR_MANAGE_URL_PARAMS.voterId) || '',
+    assignedTo: get(OPERATOR_MANAGE_URL_PARAMS.assignedTo) || 'all',
     createdFrom: parseManageDateParam(get(OPERATOR_MANAGE_URL_PARAMS.createdFrom)),
     createdTo: parseManageDateParam(get(OPERATOR_MANAGE_URL_PARAMS.createdTo)),
     page: parseManagePageParam(get(OPERATOR_MANAGE_URL_PARAMS.page)),
@@ -97,6 +100,11 @@ export function buildManageSearchParams(
   setOrDelete(OPERATOR_MANAGE_URL_PARAMS.token, state.token);
   setOrDelete(OPERATOR_MANAGE_URL_PARAMS.mobile, state.mobile);
   setOrDelete(OPERATOR_MANAGE_URL_PARAMS.voterId, state.voterId);
+  setOrDelete(
+    OPERATOR_MANAGE_URL_PARAMS.assignedTo,
+    state.assignedTo,
+    state.assignedTo === 'all',
+  );
   setOrDelete(OPERATOR_MANAGE_URL_PARAMS.createdFrom, state.createdFrom);
   setOrDelete(OPERATOR_MANAGE_URL_PARAMS.createdTo, state.createdTo);
   setOrDelete(OPERATOR_MANAGE_URL_PARAMS.taskId, state.taskId);

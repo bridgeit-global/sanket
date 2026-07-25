@@ -4,7 +4,7 @@ import { isToday, isYesterday, subMonths, subWeeks } from 'date-fns';
 import { useParams, useRouter } from 'next/navigation';
 import type { User } from 'next-auth';
 import { useState } from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 import { motion } from 'framer-motion';
 import {
   AlertDialog,

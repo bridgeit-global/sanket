@@ -1175,6 +1175,7 @@ export type Database = {
           letter_master_id: string | null
           letter_type: string
           paper_size: string
+          pdf_storage_path: string | null
           reference_no: string
           rendered_html: string
           title: string
@@ -1189,6 +1190,7 @@ export type Database = {
           letter_master_id?: string | null
           letter_type: string
           paper_size?: string
+          pdf_storage_path?: string | null
           reference_no: string
           rendered_html: string
           title: string
@@ -1203,6 +1205,7 @@ export type Database = {
           letter_master_id?: string | null
           letter_type?: string
           paper_size?: string
+          pdf_storage_path?: string | null
           reference_no?: string
           rendered_html?: string
           title?: string

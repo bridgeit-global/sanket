@@ -48,7 +48,7 @@ import {
 } from '@/lib/letters/reference-sequence';
 import type { LetterLocale } from '@/lib/letters/templates';
 import type { DocumentTypeMasterRow } from '@/components/document-type-master-page';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 import Link from 'next/link';
 import {
   Dialog,

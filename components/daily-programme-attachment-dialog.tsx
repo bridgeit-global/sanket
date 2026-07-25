@@ -20,7 +20,7 @@ import {
   Eye,
   Loader2,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 
 export type DailyProgrammeAttachment = {
   id: string;

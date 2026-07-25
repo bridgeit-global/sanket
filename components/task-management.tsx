@@ -15,7 +15,7 @@ import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
 import { useTranslations } from '@/hooks/use-translations';
 import type { VoterTask, BeneficiaryService } from '@/lib/db/schema';
 import { TablePagination } from '@/components/table-pagination';
-import { QrCode, Share2, FileText, Paperclip } from 'lucide-react';
+import { QrCode, Share2, FileText, FileDown, Loader2, Paperclip } from 'lucide-react';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
 import {
@@ -52,6 +52,12 @@ interface ServiceCatalogOption {
     id: string;
     name: string;
     category: string | null;
+}
+
+interface AssignableUser {
+    id: string;
+    userId: string;
+    roleName: string | null;
 }
 
 function extractTokenFromQrPayload(payload: string): string | null {
@@ -333,6 +339,7 @@ export function TaskManagement({
         token: initialManageState?.token ?? urlFilters.token,
         mobile: initialManageState?.mobile ?? urlFilters.mobile,
         voterId: initialManageState?.voterId ?? urlFilters.voterId,
+        assignedTo: initialManageState?.assignedTo ?? urlFilters.assignedTo,
         createdFrom: initialManageState?.createdFrom ?? urlFilters.createdFrom,
         createdTo: initialManageState?.createdTo ?? urlFilters.createdTo,
         page: initialManageState?.page ?? urlFilters.page,
@@ -345,8 +352,15 @@ export function TaskManagement({
     const [selectedTask, setSelectedTask] = useState<TaskWithService | null>(null);
     const [showTaskDialog, setShowTaskDialog] = useState(false);
     const [linkedLetters, setLinkedLetters] = useState<
-        Array<{ id: string; title: string; referenceNo: string; letterType: string }>
+        Array<{
+            id: string;
+            title: string;
+            referenceNo: string;
+            letterType: string;
+            pdfStoragePath?: string | null;
+        }>
     >([]);
+    const [downloadingLetterId, setDownloadingLetterId] = useState<string | null>(null);
     const [serviceAttachments, setServiceAttachments] = useState<
         Array<{ id: string; fileName: string; fileUrl: string | null }>
     >([]);
@@ -356,6 +370,7 @@ export function TaskManagement({
     const [filterStatus, setFilterStatus] = useState<string>(mergedInitial.status);
     const [filterPriority, setFilterPriority] = useState<string>(mergedInitial.priority);
     const [filterServiceName, setFilterServiceName] = useState<string>(mergedInitial.serviceName || 'all');
+    const [filterAssignedTo, setFilterAssignedTo] = useState<string>(mergedInitial.assignedTo || 'all');
     const [filterToken, setFilterToken] = useState<string>(mergedInitial.token);
     const [filterMobile, setFilterMobile] = useState<string>(mergedInitial.mobile);
     const [filterVoterId, setFilterVoterId] = useState<string>(mergedInitial.voterId);
@@ -419,6 +434,37 @@ export function TaskManagement({
     const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
     const [newNote, setNewNote] = useState('');
     const [newStatus, setNewStatus] = useState<string>('');
+    const [assignedTo, setAssignedTo] = useState<string>('');
+    const [assignableUsers, setAssignableUsers] = useState<AssignableUser[]>([]);
+    const [loadingAssignableUsers, setLoadingAssignableUsers] = useState(false);
+    const assignableUsersLoadedRef = useRef(false);
+
+    // Load assignable staff once (filter + manage dialog share this list).
+    useEffect(() => {
+        if (assignableUsersLoadedRef.current) return;
+
+        let cancelled = false;
+        (async () => {
+            try {
+                setLoadingAssignableUsers(true);
+                const response = await fetch('/operator/api/users');
+                if (!response.ok) throw new Error('Failed to load users');
+                const data = await response.json();
+                if (cancelled) return;
+                setAssignableUsers(Array.isArray(data?.users) ? data.users : []);
+                assignableUsersLoadedRef.current = true;
+            } catch (error) {
+                console.error('Error loading assignable users:', error);
+                if (!cancelled) setAssignableUsers([]);
+            } finally {
+                if (!cancelled) setLoadingAssignableUsers(false);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
 
     const itemRefs = useRef<Map<string, HTMLElement>>(new Map());
     const highlightTimeoutRef = useRef<number | null>(null);
@@ -450,6 +496,12 @@ export function TaskManagement({
                 token: updates.token ?? filterToken,
                 mobile: updates.mobile ?? filterMobile,
                 voterId: updates.voterId ?? filterVoterId,
+                assignedTo:
+                    updates.assignedTo !== undefined
+                        ? updates.assignedTo
+                        : filterAssignedTo === 'all'
+                          ? 'all'
+                          : filterAssignedTo,
                 createdFrom: updates.createdFrom ?? filterCreatedFrom,
                 createdTo: updates.createdTo ?? filterCreatedTo,
                 page: resetPage ? 1 : (updates.page ?? currentPage),
@@ -471,6 +523,7 @@ export function TaskManagement({
             filterToken,
             filterMobile,
             filterVoterId,
+            filterAssignedTo,
             filterCreatedFrom,
             filterCreatedTo,
             currentPage,
@@ -513,6 +566,9 @@ export function TaskManagement({
             if (filterServiceName && filterServiceName !== 'all') {
                 params.append('serviceName', filterServiceName);
             }
+            if (filterAssignedTo && filterAssignedTo !== 'all') {
+                params.append('assignedTo', filterAssignedTo);
+            }
             if (filterCreatedFrom) params.append('createdFrom', filterCreatedFrom);
             if (filterCreatedTo) params.append('createdTo', filterCreatedTo);
             params.append('serviceType', 'individual');
@@ -541,12 +597,12 @@ export function TaskManagement({
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, filterCreatedFrom, filterCreatedTo, t]);
+    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, filterAssignedTo, filterCreatedFrom, filterCreatedTo, t]);
 
     useEffect(() => {
         fetchTasks();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, filterCreatedFrom, filterCreatedTo]);
+    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, filterAssignedTo, filterCreatedFrom, filterCreatedTo]);
 
     useEffect(() => {
         if (!pendingAutoFocusToken) return;
@@ -599,6 +655,7 @@ export function TaskManagement({
                 setSelectedTask(task);
                 setNewStatus(task.status);
                 setNewNote('');
+                setAssignedTo(task.assignedTo || '');
                 setShowTaskDialog(true);
                 setHighlightedItemId(task.id);
             } catch (error) {
@@ -667,6 +724,7 @@ export function TaskManagement({
         setFilterStatus('all');
         setFilterPriority('all');
         setFilterServiceName('all');
+        setFilterAssignedTo('all');
         setFilterToken('');
         setFilterMobile('');
         setFilterVoterId('');
@@ -682,6 +740,7 @@ export function TaskManagement({
             status: 'all',
             priority: 'all',
             serviceName: '',
+            assignedTo: 'all',
             token: '',
             mobile: '',
             voterId: '',
@@ -692,7 +751,7 @@ export function TaskManagement({
         });
     };
 
-    const handleStatusUpdate = async (taskId: string, status: string, notes?: string) => {
+    const handleStatusUpdate = async (taskId: string, status: string, notes?: string, nextAssignedTo?: string) => {
         try {
             const response = await fetch(`/operator/api/tasks/${taskId}`, {
                 method: 'PATCH',
@@ -702,6 +761,7 @@ export function TaskManagement({
                 body: JSON.stringify({
                     status,
                     notes: notes || undefined,
+                    assignedTo: nextAssignedTo || undefined,
                 }),
             });
 
@@ -718,6 +778,7 @@ export function TaskManagement({
             setShowTaskDialog(false);
             setNewNote('');
             setNewStatus('');
+            setAssignedTo('');
         } catch (error) {
             console.error('Error updating task status:', error);
             toast({
@@ -776,6 +837,42 @@ export function TaskManagement({
                 type: 'error',
                 description: t('taskManagement.messages.escalationFailed'),
             });
+        }
+    };
+
+    const handleDownloadLetter = async (letter: {
+        id: string;
+        title: string;
+        referenceNo: string;
+        pdfStoragePath?: string | null;
+    }) => {
+        setDownloadingLetterId(letter.id);
+        try {
+            const res = await fetch(`/api/letters/${encodeURIComponent(letter.id)}/pdf`);
+            const json = await res.json().catch(() => ({}));
+            if (!res.ok || typeof json?.url !== 'string') {
+                throw new Error(
+                    typeof json?.error === 'string' ? json.error : 'Failed to download letter PDF',
+                );
+            }
+            const anchor = document.createElement('a');
+            anchor.href = json.url;
+            anchor.rel = 'noopener';
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            toast({
+                type: 'success',
+                description: t('taskManagement.dialog.downloadLetterSuccess'),
+            });
+        } catch (error) {
+            console.error('Error downloading letter PDF:', error);
+            toast({
+                type: 'error',
+                description: t('taskManagement.dialog.downloadLetterFailed'),
+            });
+        } finally {
+            setDownloadingLetterId(null);
         }
     };
 
@@ -964,6 +1061,47 @@ export function TaskManagement({
                                         <SelectItem value="medium">{t('taskManagement.priority.medium')}</SelectItem>
                                         <SelectItem value="high">{t('taskManagement.priority.high')}</SelectItem>
                                         <SelectItem value="urgent">{t('taskManagement.priority.urgent')}</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div>
+                                <Label htmlFor="assigned-to-filter">{t('taskManagement.filters.assignedTo')}</Label>
+                                <Select
+                                    value={filterAssignedTo}
+                                    onValueChange={(value) => {
+                                        setFilterAssignedTo(value);
+                                        setCurrentPage(1);
+                                        syncManageUrl({ assignedTo: value, page: 1 }, true);
+                                    }}
+                                    disabled={loadingAssignableUsers}
+                                >
+                                    <SelectTrigger id="assigned-to-filter">
+                                        <SelectValue placeholder={t('taskManagement.filters.selectAssignee')} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">{t('taskManagement.filters.allAssignees')}</SelectItem>
+                                        {(() => {
+                                            const options = [...assignableUsers];
+                                            if (
+                                                filterAssignedTo &&
+                                                filterAssignedTo !== 'all' &&
+                                                !options.some((u) => u.id === filterAssignedTo)
+                                            ) {
+                                                options.unshift({
+                                                    id: filterAssignedTo,
+                                                    userId: filterAssignedTo,
+                                                    roleName: null,
+                                                });
+                                            }
+                                            return options.map((user) => (
+                                                <SelectItem key={user.id} value={user.id}>
+                                                    {user.roleName
+                                                        ? `${user.userId} (${user.roleName})`
+                                                        : user.userId}
+                                                </SelectItem>
+                                            ));
+                                        })()}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -1204,6 +1342,12 @@ export function TaskManagement({
                                                                 {(task.createdByName || task.createdBy) && (
                                                                     <span><strong>Created by:</strong> {task.createdByName || task.createdBy}</span>
                                                                 )}
+                                                                <span>
+                                                                    <strong>{t('taskManagement.assignedTo')}</strong>{' '}
+                                                                    {assignableUsers.find((u) => u.id === task.assignedTo)?.userId
+                                                                        || task.assignedTo
+                                                                        || t('taskManagement.noAssignee')}
+                                                                </span>
                                                                 {task.updatedAt !== task.createdAt && (
                                                                     <span><strong>{t('taskManagement.updated')}</strong> {new Date(task.updatedAt).toLocaleDateString()}</span>
                                                                 )}
@@ -1251,6 +1395,7 @@ export function TaskManagement({
                                                                     setSelectedTask(task);
                                                                     setNewStatus(task.status);
                                                                     setNewNote('');
+                                                                    setAssignedTo(task.assignedTo || '');
                                                                     setShowTaskDialog(true);
                                                                 }}
                                                                 className="w-full sm:w-auto"
@@ -1302,7 +1447,7 @@ export function TaskManagement({
 
             {/* Task Management Dialog */}
             <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
-                <DialogContent className="max-w-[95vw] sm:max-w-lg">
+                <DialogContent className="max-h-[90vh] max-w-[95vw] overflow-y-auto sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>{t('taskManagement.dialog.manageTitle')}</DialogTitle>
                         <DialogDescription>
@@ -1327,6 +1472,7 @@ export function TaskManagement({
                                             type="button"
                                             variant="outline"
                                             size="sm"
+                                            className="w-full sm:w-auto"
                                             onClick={() =>
                                                 router.push(
                                                     `/modules/letter-generation?beneficiaryServiceId=${encodeURIComponent(
@@ -1340,19 +1486,48 @@ export function TaskManagement({
                                         </Button>
                                     </div>
                                     {linkedLetters.length > 0 ? (
-                                        <ul className="space-y-1">
+                                        <ul className="max-h-56 space-y-2 overflow-y-auto sm:max-h-72">
                                             {linkedLetters.map((letter) => (
                                                 <li
                                                     key={letter.id}
-                                                    className="flex items-center gap-2 text-sm"
+                                                    className="flex flex-col gap-2 rounded-md border border-border/60 p-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
                                                 >
-                                                    <FileText className="size-3.5 text-muted-foreground" />
-                                                    <span className="truncate">{letter.title}</span>
-                                                    {letter.referenceNo && (
-                                                        <span className="text-muted-foreground">
-                                                            · {letter.referenceNo}
-                                                        </span>
-                                                    )}
+                                                    <div className="flex min-w-0 flex-1 items-start gap-2 text-sm">
+                                                        <FileText className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="break-words font-medium leading-snug">
+                                                                {letter.title}
+                                                            </p>
+                                                            {letter.referenceNo ? (
+                                                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                                                    {letter.referenceNo}
+                                                                </p>
+                                                            ) : null}
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        className="w-full shrink-0 sm:w-auto"
+                                                        disabled={
+                                                            downloadingLetterId === letter.id ||
+                                                            !letter.pdfStoragePath
+                                                        }
+                                                        title={
+                                                            letter.pdfStoragePath
+                                                                ? t('taskManagement.dialog.downloadLetter')
+                                                                : t('taskManagement.dialog.downloadLetterUnavailable')
+                                                        }
+                                                        onClick={() => void handleDownloadLetter(letter)}
+                                                    >
+                                                        {downloadingLetterId === letter.id ? (
+                                                            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                                                        ) : (
+                                                            <FileDown className="mr-1.5 size-3.5" />
+                                                        )}
+                                                        {t('taskManagement.dialog.downloadLetter')}
+                                                    </Button>
                                                 </li>
                                             ))}
                                         </ul>
@@ -1376,12 +1551,12 @@ export function TaskManagement({
                                                                 rel="noopener noreferrer"
                                                                 className="flex items-center gap-2 text-primary hover:underline"
                                                             >
-                                                                <Paperclip className="size-3.5" />
+                                                                <Paperclip className="size-3.5 shrink-0" />
                                                                 <span className="truncate">{att.fileName}</span>
                                                             </a>
                                                         ) : (
                                                             <span className="flex items-center gap-2">
-                                                                <Paperclip className="size-3.5" />
+                                                                <Paperclip className="size-3.5 shrink-0" />
                                                                 <span className="truncate">{att.fileName}</span>
                                                             </span>
                                                         )}
@@ -1409,6 +1584,41 @@ export function TaskManagement({
                             </div>
 
                             <div>
+                                <Label htmlFor="assign-to">{t('taskManagement.dialog.assignTo')}</Label>
+                                <Select
+                                    value={assignedTo || undefined}
+                                    onValueChange={setAssignedTo}
+                                    disabled={loadingAssignableUsers}
+                                >
+                                    <SelectTrigger id="assign-to">
+                                        <SelectValue placeholder={t('taskManagement.dialog.selectAssignee')} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {(() => {
+                                            const options = [...assignableUsers];
+                                            if (
+                                                selectedTask.assignedTo &&
+                                                !options.some((u) => u.id === selectedTask.assignedTo)
+                                            ) {
+                                                options.unshift({
+                                                    id: selectedTask.assignedTo,
+                                                    userId: selectedTask.assignedTo,
+                                                    roleName: null,
+                                                });
+                                            }
+                                            return options.map((user) => (
+                                                <SelectItem key={user.id} value={user.id}>
+                                                    {user.roleName
+                                                        ? `${user.userId} (${user.roleName})`
+                                                        : user.userId}
+                                                </SelectItem>
+                                            ));
+                                        })()}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div>
                                 <Label htmlFor="new-note">{t('taskManagement.dialog.addNote')}</Label>
                                 <Textarea
                                     id="new-note"
@@ -1423,10 +1633,19 @@ export function TaskManagement({
                                 <Button
                                     onClick={() => {
                                         if (selectedTask) {
-                                            handleStatusUpdate(selectedTask.id, newStatus || selectedTask.status, newNote);
+                                            handleStatusUpdate(
+                                                selectedTask.id,
+                                                newStatus || selectedTask.status,
+                                                newNote,
+                                                assignedTo,
+                                            );
                                         }
                                     }}
-                                    disabled={!newStatus && !newNote.trim()}
+                                    disabled={
+                                        (newStatus || selectedTask.status) === selectedTask.status &&
+                                        !newNote.trim() &&
+                                        assignedTo === (selectedTask.assignedTo || '')
+                                    }
                                     className="w-full"
                                 >
                                     {t('taskManagement.dialog.updateTask')}
@@ -1434,6 +1653,7 @@ export function TaskManagement({
                                 <Button variant="outline" onClick={() => {
                                     setShowTaskDialog(false);
                                     setSelectedTask(null);
+                                    setAssignedTo('');
                                 }} className="w-full sm:w-auto">
                                     {t('common.cancel')}
                                 </Button>

@@ -38,7 +38,7 @@ import {
 import { ArrowLeft, Edit, Trash2, Plus, FileText, Inbox, Send, Paperclip, Printer, Upload, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { SidebarToggle } from '@/components/sidebar-toggle';
-import { toast } from 'sonner';
+import { toast } from '@/components/toast';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ProjectsSkeleton } from '@/components/module-skeleton';
 import { RegisterAttachmentDialog } from '@/components/register-attachment-dialog';

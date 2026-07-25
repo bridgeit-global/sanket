@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { X } from 'lucide-react';
 
 import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
@@ -19,6 +20,7 @@ import { getCityLabel, getStateLabel } from '@/lib/letters/indian-locations';
 import type { PincodeLookupResult } from '@/lib/letters/pincode-lookup';
 import { usePincodeLookup } from '@/lib/letters/use-pincode-lookup';
 import type { LetterLocale } from '@/lib/letters/templates';
+import { cn } from '@/lib/utils';
 
 export type AddressMasterRow = {
   id: string;
@@ -239,19 +241,32 @@ export function LetterAddressField({
                   {nameRequired ? ' *' : null}
                 </Label>
               ) : null}
-              <Input
-                value={nameValue ?? ''}
-                onChange={(event) =>
-                  onNameChange(filterLocaleText(event.target.value, locale))
-                }
-                placeholder={namePlaceholder}
-                lang={locale === 'mr' ? 'mr' : 'en'}
-                autoComplete="off"
-                className="h-9"
-                required={nameRequired}
-                aria-required={nameRequired}
-                aria-invalid={Boolean(nameError)}
-              />
+              <div className="relative">
+                <Input
+                  value={nameValue ?? ''}
+                  onChange={(event) =>
+                    onNameChange(filterLocaleText(event.target.value, locale))
+                  }
+                  placeholder={namePlaceholder}
+                  lang={locale === 'mr' ? 'mr' : 'en'}
+                  autoComplete="off"
+                  className={cn('h-9', nameValue ? 'pr-10' : undefined)}
+                  required={nameRequired}
+                  aria-required={nameRequired}
+                  aria-invalid={Boolean(nameError)}
+                />
+                {nameValue ? (
+                  <button
+                    type="button"
+                    onClick={() => onNameChange('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                    aria-label="Clear"
+                    tabIndex={-1}
+                  >
+                    <X className="size-4" />
+                  </button>
+                ) : null}
+              </div>
               {nameError ? (
                 <p className="text-xs text-destructive">{nameError}</p>
               ) : null}

@@ -29,6 +29,9 @@ export default function Page() {
 
   const { update: updateSession } = useSession();
 
+  // Only react when the server action returns a new state object. Do not
+  // depend on `t` / other render-unstable values — those re-fired the previous
+  // error toast on the next submit while status was still "failed".
   useEffect(() => {
     if (state.status === 'failed') {
       toast({
@@ -48,9 +51,11 @@ export default function Page() {
         window.location.href = callbackUrl || '/home';
       });
     }
-  }, [state.status, isSuccessful, t, updateSession]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on action result only
+  }, [state]);
 
   const handleSubmit = (formData: FormData) => {
+    toast.dismiss();
     setUserId(formData.get('userId') as string);
     formAction(formData);
   };
