@@ -1869,6 +1869,7 @@
       "downloadLetterUnavailable": "PDF not available yet — open Generate Letter and download once.",
       "downloadLetterSuccess": "Letter PDF downloaded successfully",
       "downloadLetterFailed": "Failed to download letter PDF. Try Generate Letter first.",
+      "loadingLetters": "Loading letters…",
       "noLetters": "No letters generated for this service yet.",
       "documents": "Uploaded Documents",
       "updateStatus": "Update Status",

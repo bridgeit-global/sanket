@@ -360,6 +360,7 @@ export function TaskManagement({
             pdfStoragePath?: string | null;
         }>
     >([]);
+    const [linkedLettersLoading, setLinkedLettersLoading] = useState(false);
     const [downloadingLetterId, setDownloadingLetterId] = useState<string | null>(null);
     const [serviceAttachments, setServiceAttachments] = useState<
         Array<{ id: string; fileName: string; fileUrl: string | null }>
@@ -390,10 +391,12 @@ export function TaskManagement({
         const serviceId = selectedTask?.serviceId;
         if (!showTaskDialog || !serviceId) {
             setLinkedLetters([]);
+            setLinkedLettersLoading(false);
             setServiceAttachments([]);
             return;
         }
         let cancelled = false;
+        setLinkedLettersLoading(true);
         (async () => {
             try {
                 const [lettersRes, attachmentsRes] = await Promise.all([
@@ -421,6 +424,10 @@ export function TaskManagement({
                 if (!cancelled) {
                     setLinkedLetters([]);
                     setServiceAttachments([]);
+                }
+            } finally {
+                if (!cancelled) {
+                    setLinkedLettersLoading(false);
                 }
             }
         })();
@@ -1485,7 +1492,12 @@ export function TaskManagement({
                                             {t('taskManagement.dialog.generateLetter')}
                                         </Button>
                                     </div>
-                                    {linkedLetters.length > 0 ? (
+                                    {linkedLettersLoading ? (
+                                        <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
+                                            <Loader2 className="size-4 animate-spin" />
+                                            {t('taskManagement.dialog.loadingLetters')}
+                                        </div>
+                                    ) : linkedLetters.length > 0 ? (
                                         <ul className="max-h-56 space-y-2 overflow-y-auto sm:max-h-72">
                                             {linkedLetters.map((letter) => (
                                                 <li
