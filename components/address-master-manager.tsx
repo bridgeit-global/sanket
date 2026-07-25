@@ -1,7 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ChevronUp, Languages, Loader2, Pencil, Trash2 } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Languages,
+  Loader2,
+  Pencil,
+  Search,
+  Trash2,
+} from 'lucide-react';
 import { toast } from '@/components/toast';
 
 import { Button } from '@/components/ui/button';
@@ -30,6 +38,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { TablePagination, usePagination } from '@/components/table-pagination';
 import { useTranslations } from '@/hooks/use-translations';
 import { ADDRESS_TYPES, type AddressType } from '@/lib/letters/address-types';
 import type { AddressMasterRow } from '@/components/letter-address-field';
@@ -56,6 +65,8 @@ import { usePincodeLookup } from '@/lib/letters/use-pincode-lookup';
 import type { PincodeLookupResult } from '@/lib/letters/pincode-lookup';
 import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
 import type { LetterLocale } from '@/lib/letters/templates';
+
+const DEFAULT_PAGE_SIZE = 10;
 
 type AddressFormState = {
   name: string;
@@ -107,6 +118,13 @@ export function AddressMasterManager({
   const [isSaving, setIsSaving] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'all' | AddressType>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>(
+    'all',
+  );
+  const [listPage, setListPage] = useState(1);
+  const [listLimit, setListLimit] = useState(DEFAULT_PAGE_SIZE);
 
   const sortedAddresses = useMemo(
     () =>
@@ -117,6 +135,56 @@ export function AddressMasterManager({
       ),
     [addresses],
   );
+
+  const filteredAddresses = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+    return sortedAddresses.filter((address) => {
+      if (typeFilter !== 'all' && address.addressType !== typeFilter) {
+        return false;
+      }
+      if (statusFilter === 'active' && !address.isActive) return false;
+      if (statusFilter === 'inactive' && address.isActive) return false;
+      if (!query) return true;
+
+      const haystack = [
+        address.name,
+        address.nameMr,
+        address.addressType,
+        formatAddressMaster(address, 'en'),
+        formatAddressMaster(address, 'mr'),
+        address.cityEn,
+        address.cityMr,
+        address.stateEn,
+        address.stateMr,
+        address.pincode,
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      return haystack.includes(query);
+    });
+  }, [sortedAddresses, searchTerm, typeFilter, statusFilter]);
+
+  const {
+    paginatedItems: paginatedAddresses,
+    currentPage,
+    totalPages,
+    pageSize,
+    totalItems,
+    handlePageChange,
+    handlePageSizeChange,
+  } = usePagination(filteredAddresses, listLimit, {
+    page: listPage,
+    pageSize: listLimit,
+    onPageChange: setListPage,
+    onPageSizeChange: (size) => {
+      setListLimit(size);
+      setListPage(1);
+    },
+  });
+
+  const hasActiveFilters =
+    searchTerm.trim() !== '' || typeFilter !== 'all' || statusFilter !== 'all';
 
   useEffect(() => {
     if (editingId) setFormCardOpen(true);
@@ -583,78 +651,157 @@ export function AddressMasterManager({
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="p-4 sm:p-6">
+        <CardContent className="space-y-4 p-4 sm:p-6">
           {sortedAddresses.length === 0 ? (
             <div className="py-6 text-sm text-muted-foreground">
               {t('letterGeneration.addresses.empty')}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('letterGeneration.addresses.columns.nameEn')}</TableHead>
-                    <TableHead>{t('letterGeneration.addresses.columns.nameMr')}</TableHead>
-                    <TableHead>{t('letterGeneration.addresses.columns.type')}</TableHead>
-                    <TableHead>{t('letterGeneration.addresses.columns.english')}</TableHead>
-                    <TableHead>{t('letterGeneration.addresses.columns.marathi')}</TableHead>
-                    <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
-                    <TableHead className="text-right">
-                      {t('letterGeneration.savedLetters.columns.actions')}
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {sortedAddresses.map((address) => (
-                    <TableRow key={address.id}>
-                      <TableCell className="font-medium">{address.name}</TableCell>
-                      <TableCell className="font-medium" lang="mr">
-                        {address.nameMr.trim() || '—'}
-                      </TableCell>
-                      <TableCell>
-                        {t(`letterGeneration.addresses.types.${address.addressType}`)}
-                      </TableCell>
-                      <TableCell className="max-w-[220px] whitespace-pre-wrap text-sm">
-                        {formatAddressMaster(address, 'en')}
-                      </TableCell>
-                      <TableCell className="max-w-[220px] whitespace-pre-wrap text-sm">
-                        {formatAddressMaster(address, 'mr')}
-                      </TableCell>
-                      <TableCell>
-                        {address.isActive
-                          ? t('letterGeneration.addresses.activeYes')
-                          : t('letterGeneration.addresses.activeNo')}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={() => openEditForm(address)}
-                          >
-                            <Pencil className="size-4" />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            onClick={() => void handleDelete(address.id)}
-                            disabled={deletingId === address.id}
-                          >
-                            {deletingId === address.id ? (
-                              <Loader2 className="size-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="size-4" />
-                            )}
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <>
+              <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    value={searchTerm}
+                    onChange={(event) => {
+                      setSearchTerm(event.target.value);
+                      setListPage(1);
+                    }}
+                    placeholder={t('letterGeneration.addresses.searchPlaceholder')}
+                    className="pl-9"
+                    aria-label={t('common.search')}
+                  />
+                </div>
+                <Select
+                  value={typeFilter}
+                  onValueChange={(value: 'all' | AddressType) => {
+                    setTypeFilter(value);
+                    setListPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-full md:w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      {t('letterGeneration.addresses.filterAllTypes')}
+                    </SelectItem>
+                    {ADDRESS_TYPES.map((type) => (
+                      <SelectItem key={type} value={type}>
+                        {t(`letterGeneration.addresses.types.${type}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={statusFilter}
+                  onValueChange={(value: 'all' | 'active' | 'inactive') => {
+                    setStatusFilter(value);
+                    setListPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-full md:w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">
+                      {t('letterGeneration.addresses.filterAllStatuses')}
+                    </SelectItem>
+                    <SelectItem value="active">
+                      {t('letterGeneration.addresses.activeYes')}
+                    </SelectItem>
+                    <SelectItem value="inactive">
+                      {t('letterGeneration.addresses.activeNo')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {filteredAddresses.length === 0 ? (
+                <div className="py-6 text-sm text-muted-foreground">
+                  {hasActiveFilters
+                    ? t('letterGeneration.addresses.noFilterResults')
+                    : t('letterGeneration.addresses.empty')}
+                </div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>{t('letterGeneration.addresses.columns.nameEn')}</TableHead>
+                          <TableHead>{t('letterGeneration.addresses.columns.nameMr')}</TableHead>
+                          <TableHead>{t('letterGeneration.addresses.columns.type')}</TableHead>
+                          <TableHead>{t('letterGeneration.addresses.columns.english')}</TableHead>
+                          <TableHead>{t('letterGeneration.addresses.columns.marathi')}</TableHead>
+                          <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
+                          <TableHead className="text-right">
+                            {t('letterGeneration.savedLetters.columns.actions')}
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {paginatedAddresses.map((address) => (
+                          <TableRow key={address.id}>
+                            <TableCell className="font-medium">{address.name}</TableCell>
+                            <TableCell className="font-medium" lang="mr">
+                              {address.nameMr.trim() || '—'}
+                            </TableCell>
+                            <TableCell>
+                              {t(`letterGeneration.addresses.types.${address.addressType}`)}
+                            </TableCell>
+                            <TableCell className="max-w-[220px] whitespace-pre-wrap text-sm">
+                              {formatAddressMaster(address, 'en')}
+                            </TableCell>
+                            <TableCell className="max-w-[220px] whitespace-pre-wrap text-sm">
+                              {formatAddressMaster(address, 'mr')}
+                            </TableCell>
+                            <TableCell>
+                              {address.isActive
+                                ? t('letterGeneration.addresses.activeYes')
+                                : t('letterGeneration.addresses.activeNo')}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <div className="flex justify-end gap-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => openEditForm(address)}
+                                >
+                                  <Pencil className="size-4" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="icon"
+                                  onClick={() => void handleDelete(address.id)}
+                                  disabled={deletingId === address.id}
+                                >
+                                  {deletingId === address.id ? (
+                                    <Loader2 className="size-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="size-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <TablePagination
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    pageSize={pageSize}
+                    totalItems={totalItems}
+                    onPageChange={handlePageChange}
+                    onPageSizeChange={handlePageSizeChange}
+                  />
+                </>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
