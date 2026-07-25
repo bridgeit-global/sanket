@@ -13,6 +13,7 @@ import {
 import { toast } from '@/components/toast';
 
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import {
   Card,
   CardContent,
@@ -145,6 +146,8 @@ export function AddressMasterManager({
   const formRef = useRef(form);
   formRef.current = form;
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [addressToDelete, setAddressToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | AddressType>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>(
@@ -463,6 +466,18 @@ export function AddressMasterManager({
         localizeAddressPartsDigits(mergeAddressParts(parts), 'mr'),
       );
 
+      // Re-check after translate/sanitize — those steps can change required fields.
+      if (
+        !(nameEn || nameMr) ||
+        !(
+          hasRequiredAddressFields(finalParts, 'en') ||
+          hasRequiredAddressFields(finalParts, 'mr')
+        )
+      ) {
+        toast.error(t('letterGeneration.addresses.validationRequired'));
+        return;
+      }
+
       await persistAddress({ nameEn, nameMr, parts: finalParts });
 
       toast.success(
@@ -474,17 +489,27 @@ export function AddressMasterManager({
       await onRefresh();
     } catch (error) {
       console.error('Failed to save address', error);
+      const message = error instanceof Error ? error.message : '';
       toast.error(
-        editingId
-          ? t('letterGeneration.addresses.updateError')
-          : t('letterGeneration.addresses.createError'),
+        message.includes('required')
+          ? t('letterGeneration.addresses.validationRequired')
+          : editingId
+            ? t('letterGeneration.addresses.updateError')
+            : t('letterGeneration.addresses.createError'),
       );
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const requestDelete = (id: string) => {
+    setAddressToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!addressToDelete) return;
+    const id = addressToDelete;
     setDeletingId(id);
     try {
       const res = await fetch(`/api/addresses/${encodeURIComponent(id)}`, {
@@ -496,6 +521,8 @@ export function AddressMasterManager({
       if (editingId === id) {
         handleCancelEdit();
       }
+      setDeleteDialogOpen(false);
+      setAddressToDelete(null);
       await onRefresh();
     } catch (error) {
       console.error('Failed to delete address', error);
@@ -840,7 +867,7 @@ export function AddressMasterManager({
                                   type="button"
                                   variant="outline"
                                   size="icon"
-                                  onClick={() => void handleDelete(address.id)}
+                                  onClick={() => requestDelete(address.id)}
                                   disabled={deletingId === address.id}
                                 >
                                   {deletingId === address.id ? (
@@ -870,6 +897,20 @@ export function AddressMasterManager({
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          setDeleteDialogOpen(open);
+          if (!open) setAddressToDelete(null);
+        }}
+        title={t('letterGeneration.addresses.deleteConfirmTitle')}
+        description={t('letterGeneration.addresses.deleteConfirmDescription')}
+        confirmText={t('common.delete')}
+        cancelText={t('common.cancel')}
+        variant="destructive"
+        onConfirm={() => void confirmDelete()}
+      />
     </div>
   );
 }

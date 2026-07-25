@@ -295,18 +295,28 @@ export function localizeAddressPartsDigits(
   };
 }
 
-/** Drop city/state accidentally stored inside street lines for both locales. */
+/**
+ * Drop city/state accidentally stored inside street lines for both locales.
+ * Never wipe a line entirely — if the whole line was just city/state, keep it so
+ * required Line 1 content is not destroyed before save validation.
+ */
 export function sanitizeAddressPartsLocations(
   parts: AddressMasterAddressParts,
 ): AddressMasterAddressParts {
+  const stripPreservingContent = (line: string, city: string, state: string) => {
+    const original = line.trim();
+    if (!original) return '';
+    return stripTrailingLocationFromLine(original, city, state) || original;
+  };
+
   return {
     ...parts,
-    line1En: stripTrailingLocationFromLine(parts.line1En, parts.cityEn, parts.stateEn),
-    line2En: stripTrailingLocationFromLine(parts.line2En, parts.cityEn, parts.stateEn),
-    line3En: stripTrailingLocationFromLine(parts.line3En, parts.cityEn, parts.stateEn),
-    line1Mr: stripTrailingLocationFromLine(parts.line1Mr, parts.cityMr, parts.stateMr),
-    line2Mr: stripTrailingLocationFromLine(parts.line2Mr, parts.cityMr, parts.stateMr),
-    line3Mr: stripTrailingLocationFromLine(parts.line3Mr, parts.cityMr, parts.stateMr),
+    line1En: stripPreservingContent(parts.line1En, parts.cityEn, parts.stateEn),
+    line2En: stripPreservingContent(parts.line2En, parts.cityEn, parts.stateEn),
+    line3En: stripPreservingContent(parts.line3En, parts.cityEn, parts.stateEn),
+    line1Mr: stripPreservingContent(parts.line1Mr, parts.cityMr, parts.stateMr),
+    line2Mr: stripPreservingContent(parts.line2Mr, parts.cityMr, parts.stateMr),
+    line3Mr: stripPreservingContent(parts.line3Mr, parts.cityMr, parts.stateMr),
   };
 }
 
