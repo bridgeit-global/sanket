@@ -28,7 +28,62 @@ const LETTER_PREVIEW_CONTENT_CLASSES =
   // (e.g. fees A5 uses 13px / 1.55) and must match PDF capture.
   '[&_.letter-content]:whitespace-normal [&_.letter-content]:text-black ' +
   // Closing / signature always right-aligned across every letter type.
-  '[&_.letter-closing]:text-right [&_.right-tab]:text-right [&_.right-tab-sign]:text-right [&_.signature]:text-right [&_.signature-line]:text-right';
+  // !important so stored/editor HTML without inline styles still aligns.
+  '[&_.letter-closing]:!text-right [&_.right-tab]:!text-right [&_.right-tab-sign]:!text-right [&_.signature]:!text-right [&_.signature-line]:!text-right';
+
+const LETTER_CLOSING_ALIGN_SELECTOR =
+  '.letter-closing, .right-tab, .right-tab-sign, .signature, .signature-line';
+
+const LETTER_CLOSING_ALIGN_STYLE = `
+${LETTER_CLOSING_ALIGN_SELECTOR} {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  text-align: right !important;
+  padding-right: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+}
+`.trim();
+
+/** Ensure closing/signature sit flush on the paragraph's right edge. */
+function applyLetterClosingAlignment(root: ParentNode): void {
+  const doc = root instanceof Document ? root : root.ownerDocument;
+  if (doc) {
+    const styleHost =
+      root instanceof Element ? root : doc.body ?? doc.documentElement;
+    if (styleHost instanceof Element) {
+      let styleEl = styleHost.querySelector(
+        'style[data-letter-closing-align]',
+      ) as HTMLStyleElement | null;
+      if (!styleEl) {
+        styleEl = doc.createElement('style');
+        styleEl.setAttribute('data-letter-closing-align', 'true');
+        styleEl.textContent = LETTER_CLOSING_ALIGN_STYLE;
+        styleHost.insertBefore(styleEl, styleHost.firstChild);
+      }
+    }
+  }
+
+  root.querySelectorAll(LETTER_CLOSING_ALIGN_SELECTOR).forEach((node) => {
+    if (!(node instanceof HTMLElement)) return;
+    node.style.setProperty('display', 'block', 'important');
+    node.style.setProperty('width', '100%', 'important');
+    node.style.setProperty('max-width', '100%', 'important');
+    node.style.setProperty('box-sizing', 'border-box', 'important');
+    node.style.setProperty('text-align', 'right', 'important');
+    node.style.setProperty('padding-right', '0', 'important');
+    node.style.setProperty('margin-left', '0', 'important');
+    node.style.setProperty('margin-right', '0', 'important');
+  });
+}
+
+/** Prefix letter HTML so preview (dangerouslySetInnerHTML) also flush-aligns. */
+function withLetterClosingAlignStyle(html: string): string {
+  if (html.includes('data-letter-closing-align')) return html;
+  return `<style data-letter-closing-align="true">${LETTER_CLOSING_ALIGN_STYLE}</style>${html}`;
+}
 
 const LETTER_FONT_STACK: Record<LetterLocale, string> = {
   en: `system-ui, -apple-system, sans-serif`,
@@ -155,7 +210,7 @@ export function createLetterExportElement(
   const fontFamily = LETTER_FONT_STACK[options?.letterLocale ?? 'mr'];
   const fallbackFontSizePx = getLetterPrintFontSizePx(paperSize);
 
-  host.innerHTML = contentHtml;
+  host.innerHTML = withLetterClosingAlignStyle(contentHtml);
   const letterContent = host.querySelector('.letter-content');
   if (!(letterContent instanceof HTMLElement)) {
     host.style.position = 'relative';
@@ -166,6 +221,7 @@ export function createLetterExportElement(
     host.style.fontFamily = fontFamily;
     host.style.fontSize = `${fallbackFontSizePx}px`;
     host.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
+    applyLetterClosingAlignment(host);
     return host;
   }
 
@@ -186,6 +242,7 @@ export function createLetterExportElement(
   if (!letterContent.style.lineHeight) {
     letterContent.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
   }
+  applyLetterClosingAlignment(letterContent);
 
   return letterContent;
 }
@@ -204,7 +261,7 @@ export function LetterPreview({
   variant?: 'inline' | 'modal';
 }) {
   const resolvedLetterhead = resolveLetterheadUrl(paperSize, letterheadUrl);
-  const contentHtml = stripLetterheadFromHtml(html);
+  const contentHtml = withLetterClosingAlignStyle(stripLetterheadFromHtml(html));
   const hasLetterhead = Boolean(resolvedLetterhead);
   const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);
   const firstPageContentHeightPx = getLetterPageContentHeightCssPx(

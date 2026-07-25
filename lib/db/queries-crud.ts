@@ -2316,7 +2316,7 @@ export async function ensureLetterMasterDefaults(
 
     const { data: existingRows, error: existingError } = await supabase
       .from(TABLES.letterMaster)
-      .select('id, name, letter_type, letter_locale, template_html');
+      .select('id, name, letter_type, letter_locale, template_html, updated_by');
     throwOnSupabaseError(existingError, 'Failed to list letter masters');
 
     const legacyRationIds = (existingRows ?? [])
@@ -2377,7 +2377,11 @@ export async function ensureLetterMasterDefaults(
       if (forceSyncTemplates) {
         return row.template_html !== expectedHtml || row.name !== expectedName;
       }
-      // Normal seed: only refresh rows that still use the canonical default name.
+      // Never overwrite templates that were saved in the editor. Otherwise a
+      // successful save + refresh immediately reverts HTML back to code defaults
+      // whenever the row still uses the canonical default name.
+      if (row.updated_by) return false;
+      // Normal seed: only refresh untouched rows that still use the default name.
       return row.name === expectedName && row.template_html !== expectedHtml;
     });
 
