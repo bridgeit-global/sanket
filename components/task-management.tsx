@@ -340,6 +340,8 @@ export function TaskManagement({
         mobile: initialManageState?.mobile ?? urlFilters.mobile,
         voterId: initialManageState?.voterId ?? urlFilters.voterId,
         assignedTo: initialManageState?.assignedTo ?? urlFilters.assignedTo,
+        createdFrom: initialManageState?.createdFrom ?? urlFilters.createdFrom,
+        createdTo: initialManageState?.createdTo ?? urlFilters.createdTo,
         page: initialManageState?.page ?? urlFilters.page,
         limit: initialManageState?.limit ?? urlFilters.limit,
         taskId: initialManageState?.taskId ?? urlFilters.taskId,
@@ -500,6 +502,8 @@ export function TaskManagement({
                         : filterAssignedTo === 'all'
                           ? 'all'
                           : filterAssignedTo,
+                createdFrom: updates.createdFrom ?? filterCreatedFrom,
+                createdTo: updates.createdTo ?? filterCreatedTo,
                 page: resetPage ? 1 : (updates.page ?? currentPage),
                 limit: updates.limit ?? pageSize,
                 taskId: updates.taskId ?? (searchParams.get('taskId') ?? ''),
@@ -520,6 +524,8 @@ export function TaskManagement({
             filterMobile,
             filterVoterId,
             filterAssignedTo,
+            filterCreatedFrom,
+            filterCreatedTo,
             currentPage,
             pageSize,
         ],
@@ -563,6 +569,8 @@ export function TaskManagement({
             if (filterAssignedTo && filterAssignedTo !== 'all') {
                 params.append('assignedTo', filterAssignedTo);
             }
+            if (filterCreatedFrom) params.append('createdFrom', filterCreatedFrom);
+            if (filterCreatedTo) params.append('createdTo', filterCreatedTo);
             params.append('serviceType', 'individual');
             params.append('page', currentPage.toString());
             params.append('limit', pageSize.toString());
@@ -589,12 +597,12 @@ export function TaskManagement({
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, filterAssignedTo, t]);
+    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, filterAssignedTo, filterCreatedFrom, filterCreatedTo, t]);
 
     useEffect(() => {
         fetchTasks();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, filterAssignedTo]);
+    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, filterAssignedTo, filterCreatedFrom, filterCreatedTo]);
 
     useEffect(() => {
         if (!pendingAutoFocusToken) return;
