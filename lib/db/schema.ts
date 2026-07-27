@@ -15,6 +15,7 @@ export const TABLES = {
   stream: 'Stream',
   letter: 'Letter',
   letterMaster: 'LetterMaster',
+  letterTypeMaster: 'LetterTypeMaster',
   addressMaster: 'AddressMaster',
   letterAddressTypeLink: 'LetterAddressTypeLink',
   documentTypeMaster: 'DocumentTypeMaster',
@@ -163,6 +164,20 @@ export type LetterMaster = {
   letterheadUrl: string | null;
   letterheadMode: 'half' | 'full';
   paperSize: 'a4' | 'a5' | 'b5';
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type LetterTypeMaster = {
+  id: string;
+  code: string;
+  labelEn: string;
+  labelMr: string;
+  formBase: string;
+  isActive: boolean;
+  sortOrder: number;
   createdBy: string | null;
   updatedBy: string | null;
   createdAt: Date;

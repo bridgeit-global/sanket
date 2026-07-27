@@ -2,10 +2,22 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import { isUserAdmin } from '@/lib/db/cadre-queries';
-import { createLetterMaster, getLetterMasters } from '@/lib/db/queries';
+import {
+  createLetterMaster,
+  getLetterMasters,
+  getLetterTypeMasterByCode,
+} from '@/lib/db/queries';
+import {
+  isValidLetterTypeCode,
+  normalizeLetterTypeCode,
+} from '@/lib/letters/letter-type-options';
 import { resolveLetterPaperSize } from '@/lib/letters/paper-size';
 import { normalizeLetterheadMode } from '@/lib/letters/render-template';
-import { LETTER_TYPES, type LetterLocale, type LetterType } from '@/lib/letters/templates';
+import {
+  isLetterType,
+  type LetterLocale,
+} from '@/lib/letters/templates';
+
 const LETTER_LOCALES: LetterLocale[] = ['en', 'mr'];
 
 export async function GET(_request: NextRequest) {
@@ -58,8 +70,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!LETTER_TYPES.includes(letterType)) {
+    const normalizedType = normalizeLetterTypeCode(String(letterType));
+    if (!isValidLetterTypeCode(normalizedType)) {
       return NextResponse.json({ error: 'Invalid letter type' }, { status: 400 });
+    }
+
+    if (!isLetterType(normalizedType)) {
+      const custom = await getLetterTypeMasterByCode(normalizedType);
+      if (!custom || !custom.isActive) {
+        return NextResponse.json(
+          { error: 'Unknown letter type. Create the letter type first.' },
+          { status: 400 },
+        );
+      }
     }
 
     if (!LETTER_LOCALES.includes(letterLocale)) {
@@ -68,12 +91,12 @@ export async function POST(request: NextRequest) {
 
     const letterMaster = await createLetterMaster({
       name: String(name),
-      letterType: String(letterType),
+      letterType: normalizedType,
       letterLocale: String(letterLocale),
       templateHtml: String(templateHtml),
       letterheadUrl: letterheadUrl ? String(letterheadUrl) : null,
       letterheadMode: normalizeLetterheadMode(letterheadMode),
-      paperSize: resolveLetterPaperSize(paperSize, letterType),
+      paperSize: resolveLetterPaperSize(paperSize, normalizedType),
       createdBy: session.user.id,
     });
 

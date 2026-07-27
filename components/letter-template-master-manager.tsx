@@ -49,6 +49,11 @@ import {
 } from '@/lib/letters/default-template-html';
 import { resolveLetterheadUrl } from '@/lib/letters/letterhead';
 import {
+  letterTypeLabel,
+  normalizeLetterTypeCode,
+  type LetterTypeOption,
+} from '@/lib/letters/letter-type-options';
+import {
   getDefaultLetterPaperSize,
   LETTER_PAPER_SIZES,
   resolveLetterPaperSize,
@@ -59,17 +64,17 @@ import {
   type LetterheadMode,
 } from '@/lib/letters/render-template';
 import {
-  LETTER_TYPES,
+  isLetterType,
   type LetterLocale,
-  type LetterType,
 } from '@/lib/letters/templates';
 
 const LETTER_LOCALES: LetterLocale[] = ['en', 'mr'];
+const NEW_LETTER_TYPE_VALUE = '__new__';
 
 export type LetterMasterRow = {
   id: string;
   name: string;
-  letterType: LetterType;
+  letterType: string;
   letterLocale: LetterLocale;
   templateHtml: string;
   letterheadUrl: string | null;
@@ -80,7 +85,7 @@ export type LetterMasterRow = {
 
 type TemplateFormState = {
   name: string;
-  letterType: LetterType;
+  letterType: string;
   letterLocale: LetterLocale;
   templateHtml: string;
   letterheadUrl: string | null;
@@ -112,7 +117,7 @@ function formatUpdatedAt(value: string | Date): string {
 }
 
 function emptyFormFor(
-  letterType: LetterType,
+  letterType: string,
   letterLocale: LetterLocale,
 ): TemplateFormState {
   return {
@@ -130,7 +135,7 @@ type LetterTemplateMasterManagerProps = {
   letterMasters: LetterMasterRow[];
   loading: boolean;
   onRefresh: () => Promise<void>;
-  initialLetterType?: LetterType | null;
+  initialLetterType?: string | null;
   initialLetterLocale?: LetterLocale | null;
 };
 
@@ -141,12 +146,21 @@ export function LetterTemplateMasterManager({
   initialLetterType = null,
   initialLetterLocale = null,
 }: LetterTemplateMasterManagerProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
+  const uiLocale: LetterLocale = locale === 'mr' ? 'mr' : 'en';
   const [formCardOpen, setFormCardOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<TemplateFormState>(() =>
     emptyFormFor('fees', 'en'),
   );
+  const [creatingNewType, setCreatingNewType] = useState(false);
+  const [newTypeCode, setNewTypeCode] = useState('');
+  const [newTypeLabelEn, setNewTypeLabelEn] = useState('');
+  const [newTypeLabelMr, setNewTypeLabelMr] = useState('');
+  const [letterTypeOptions, setLetterTypeOptions] = useState<LetterTypeOption[]>(
+    [],
+  );
+  const [letterTypesLoading, setLetterTypesLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingLetterhead, setIsUploadingLetterhead] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -156,6 +170,40 @@ export function LetterTemplateMasterManager({
   const [filterLocale, setFilterLocale] = useState<string>('all');
   const letterheadInputRef = useRef<HTMLInputElement>(null);
   const initialOpenDoneRef = useRef(false);
+
+  const refreshLetterTypes = async () => {
+    setLetterTypesLoading(true);
+    try {
+      const res = await fetch('/api/letter-types?includeInactive=true');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch letter types');
+      setLetterTypeOptions((json?.letterTypes ?? []) as LetterTypeOption[]);
+    } catch (error) {
+      console.error('Failed to fetch letter types', error);
+      toast.error(t('letterGeneration.letterTypes.fetchError'));
+    } finally {
+      setLetterTypesLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void refreshLetterTypes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const activeLetterTypes = useMemo(
+    () => letterTypeOptions.filter((opt) => opt.isActive),
+    [letterTypeOptions],
+  );
+
+  const typeLabel = (code: string) => {
+    const option = letterTypeOptions.find((opt) => opt.code === code);
+    if (option) return letterTypeLabel(option, uiLocale, code);
+    if (isLetterType(code)) {
+      return t(`letterGeneration.tabs.${code}`);
+    }
+    return code;
+  };
 
   const sortedMasters = useMemo(() => {
     return [...letterMasters].sort((a, b) => {
@@ -177,18 +225,18 @@ export function LetterTemplateMasterManager({
         return false;
       }
       if (!q) return true;
-      const typeLabel = t(`letterGeneration.tabs.${item.letterType}`).toLowerCase();
+      const typeLbl = typeLabel(item.letterType).toLowerCase();
       const localeLabel = t(
         `letterGeneration.letterLanguage.${item.letterLocale}`,
       ).toLowerCase();
       return (
         item.name.toLowerCase().includes(q) ||
         item.letterType.toLowerCase().includes(q) ||
-        typeLabel.includes(q) ||
+        typeLbl.includes(q) ||
         localeLabel.includes(q)
       );
     });
-  }, [sortedMasters, searchTerm, filterType, filterLocale, t]);
+  }, [sortedMasters, searchTerm, filterType, filterLocale, t, letterTypeOptions, uiLocale]);
 
   useEffect(() => {
     if (editingId) setFormCardOpen(true);
@@ -220,11 +268,19 @@ export function LetterTemplateMasterManager({
     form.letterheadUrl,
   );
 
+  const resetNewTypeFields = () => {
+    setCreatingNewType(false);
+    setNewTypeCode('');
+    setNewTypeLabelEn('');
+    setNewTypeLabelMr('');
+  };
+
   const handleCancelEdit = () => {
     setEditingId(null);
+    resetNewTypeFields();
     setForm(
       emptyFormFor(
-        (filterType !== 'all' ? filterType : 'fees') as LetterType,
+        filterType !== 'all' ? filterType : 'fees',
         (filterLocale !== 'all' ? filterLocale : 'en') as LetterLocale,
       ),
     );
@@ -232,13 +288,13 @@ export function LetterTemplateMasterManager({
   };
 
   const openCreateForm = () => {
-    const letterType = (
-      filterType !== 'all' ? filterType : initialLetterType || 'fees'
-    ) as LetterType;
+    const letterType =
+      filterType !== 'all' ? filterType : initialLetterType || 'fees';
     const letterLocale = (
       filterLocale !== 'all' ? filterLocale : initialLetterLocale || 'en'
     ) as LetterLocale;
     setEditingId(null);
+    resetNewTypeFields();
     setForm(emptyFormFor(letterType, letterLocale));
     setFormCardOpen(true);
     requestAnimationFrame(() => {
@@ -250,6 +306,7 @@ export function LetterTemplateMasterManager({
 
   const openEditForm = (item: LetterMasterRow) => {
     setEditingId(item.id);
+    resetNewTypeFields();
     setForm({
       name: item.name,
       letterType: item.letterType,
@@ -268,10 +325,21 @@ export function LetterTemplateMasterManager({
   };
 
   const handleTypeOrLocaleChange = (
-    nextType: LetterType,
+    nextType: string,
     nextLocale: LetterLocale,
   ) => {
     if (editingId) return;
+    if (nextType === NEW_LETTER_TYPE_VALUE) {
+      setCreatingNewType(true);
+      setForm((prev) => ({
+        ...emptyFormFor('general', nextLocale),
+        letterheadUrl: prev.letterheadUrl,
+        letterheadMode: prev.letterheadMode,
+        name: prev.name.trim() || '',
+      }));
+      return;
+    }
+    setCreatingNewType(false);
     setForm((prev) => ({
       ...emptyFormFor(nextType, nextLocale),
       letterheadUrl: prev.letterheadUrl,
@@ -315,6 +383,33 @@ export function LetterTemplateMasterManager({
     }
   };
 
+  const ensureLetterTypeExists = async (): Promise<string | null> => {
+    if (!creatingNewType) return form.letterType;
+
+    const code = normalizeLetterTypeCode(newTypeCode);
+    const labelEn = newTypeLabelEn.trim();
+    const labelMr = newTypeLabelMr.trim();
+    if (!code || !labelEn || !labelMr) {
+      toast.error(t('letterGeneration.letterTypes.validationRequired'));
+      return null;
+    }
+
+    const res = await fetch('/api/letter-types', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ code, labelEn, labelMr }),
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(
+        json?.error || t('letterGeneration.letterTypes.createError'),
+      );
+    }
+    await refreshLetterTypes();
+    toast.success(t('letterGeneration.letterTypes.createSuccess'));
+    return code;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.templateHtml.trim()) {
@@ -324,6 +419,12 @@ export function LetterTemplateMasterManager({
 
     setIsSaving(true);
     try {
+      const letterType = await ensureLetterTypeExists();
+      if (!letterType) {
+        setIsSaving(false);
+        return;
+      }
+
       const payload = {
         name: form.name.trim(),
         templateHtml: form.templateHtml,
@@ -343,7 +444,7 @@ export function LetterTemplateMasterManager({
             headers: { 'content-type': 'application/json' },
             body: JSON.stringify({
               ...payload,
-              letterType: form.letterType,
+              letterType,
               letterLocale: form.letterLocale,
             }),
           });
@@ -448,9 +549,11 @@ export function LetterTemplateMasterManager({
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <FieldGroup label={t('letterGeneration.fields.letterType')}>
                   <Select
-                    value={form.letterType}
-                    disabled={Boolean(editingId)}
-                    onValueChange={(value: LetterType) =>
+                    value={
+                      creatingNewType ? NEW_LETTER_TYPE_VALUE : form.letterType
+                    }
+                    disabled={Boolean(editingId) || letterTypesLoading}
+                    onValueChange={(value: string) =>
                       handleTypeOrLocaleChange(value, form.letterLocale)
                     }
                   >
@@ -458,11 +561,16 @@ export function LetterTemplateMasterManager({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {LETTER_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {t(`letterGeneration.tabs.${type}`)}
+                      {activeLetterTypes.map((type) => (
+                        <SelectItem key={type.code} value={type.code}>
+                          {letterTypeLabel(type, uiLocale)}
                         </SelectItem>
                       ))}
+                      {!editingId ? (
+                        <SelectItem value={NEW_LETTER_TYPE_VALUE}>
+                          {t('letterGeneration.letterTypes.addNewOption')}
+                        </SelectItem>
+                      ) : null}
                     </SelectContent>
                   </Select>
                 </FieldGroup>
@@ -471,7 +579,12 @@ export function LetterTemplateMasterManager({
                     value={form.letterLocale}
                     disabled={Boolean(editingId)}
                     onValueChange={(value: LetterLocale) =>
-                      handleTypeOrLocaleChange(form.letterType, value)
+                      handleTypeOrLocaleChange(
+                        creatingNewType
+                          ? NEW_LETTER_TYPE_VALUE
+                          : form.letterType,
+                        value,
+                      )
                     }
                   >
                     <SelectTrigger>
@@ -516,6 +629,44 @@ export function LetterTemplateMasterManager({
                   </Select>
                 </FieldGroup>
               </div>
+
+              {creatingNewType && !editingId ? (
+                <div className="grid gap-4 rounded-md border border-dashed bg-muted/20 p-4 sm:grid-cols-3">
+                  <FieldGroup label={t('letterGeneration.letterTypes.code')}>
+                    <Input
+                      value={newTypeCode}
+                      onChange={(e) => setNewTypeCode(e.target.value)}
+                      placeholder={t(
+                        'letterGeneration.letterTypes.codePlaceholder',
+                      )}
+                      required
+                    />
+                  </FieldGroup>
+                  <FieldGroup label={t('letterGeneration.letterTypes.labelEn')}>
+                    <Input
+                      value={newTypeLabelEn}
+                      onChange={(e) => setNewTypeLabelEn(e.target.value)}
+                      placeholder={t(
+                        'letterGeneration.letterTypes.labelEnPlaceholder',
+                      )}
+                      required
+                    />
+                  </FieldGroup>
+                  <FieldGroup label={t('letterGeneration.letterTypes.labelMr')}>
+                    <Input
+                      value={newTypeLabelMr}
+                      onChange={(e) => setNewTypeLabelMr(e.target.value)}
+                      placeholder={t(
+                        'letterGeneration.letterTypes.labelMrPlaceholder',
+                      )}
+                      required
+                    />
+                  </FieldGroup>
+                  <p className="text-xs text-muted-foreground sm:col-span-3">
+                    {t('letterGeneration.letterTypes.newTypeHint')}
+                  </p>
+                </div>
+              ) : null}
 
               <FieldGroup label={t('letterGeneration.templates.letterhead')}>
                 <div className="space-y-3">
@@ -657,13 +808,13 @@ export function LetterTemplateMasterManager({
                     setForm((prev) => ({
                       ...prev,
                       templateHtml: getDefaultTemplateHtml(
-                        prev.letterType,
+                        creatingNewType ? 'general' : prev.letterType,
                         prev.letterLocale,
                       ),
                       name:
                         prev.name.trim() ||
                         getDefaultTemplateName(
-                          prev.letterType,
+                          creatingNewType ? 'general' : prev.letterType,
                           prev.letterLocale,
                         ),
                     }));
@@ -734,9 +885,9 @@ export function LetterTemplateMasterManager({
                 <SelectItem value="all">
                   {t('letterGeneration.templates.filterAllTypes')}
                 </SelectItem>
-                {LETTER_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {t(`letterGeneration.tabs.${type}`)}
+                {activeLetterTypes.map((type) => (
+                  <SelectItem key={type.code} value={type.code}>
+                    {letterTypeLabel(type, uiLocale)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -804,7 +955,7 @@ export function LetterTemplateMasterManager({
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.name}</TableCell>
                       <TableCell>
-                        {t(`letterGeneration.tabs.${item.letterType}`)}
+                        {typeLabel(item.letterType)}
                       </TableCell>
                       <TableCell>
                         {t(

@@ -13,11 +13,7 @@ import {
 import { ModulePageHeader } from '@/components/module-page-header';
 import { Button } from '@/components/ui/button';
 import { useTranslations } from '@/hooks/use-translations';
-import {
-  LETTER_TYPES,
-  type LetterLocale,
-  type LetterType,
-} from '@/lib/letters/templates';
+import type { LetterLocale } from '@/lib/letters/templates';
 
 export function LetterTemplateEditorPage() {
   const { t } = useTranslations();
@@ -49,10 +45,7 @@ export function LetterTemplateEditorPage() {
 
   const typeParam = searchParams.get('letterType');
   const localeParam = searchParams.get('letterLocale');
-  const initialLetterType =
-    typeParam && (LETTER_TYPES as readonly string[]).includes(typeParam)
-      ? (typeParam as LetterType)
-      : null;
+  const initialLetterType = typeParam?.trim() || null;
   const initialLetterLocale: LetterLocale | null =
     localeParam === 'en' || localeParam === 'mr' ? localeParam : null;
 

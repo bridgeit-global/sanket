@@ -25,6 +25,7 @@ import type {
   ExportJob,
   Letter,
   LetterMaster,
+  LetterTypeMaster,
   AddressMaster,
   DocumentTypeMaster,
   LetterAddressTypeLink,
@@ -257,6 +258,22 @@ export function mapLetterMasterRow(row: Row): LetterMaster {
     letterheadMode:
       (row.letterhead_mode ?? row.letterheadMode) === 'half' ? 'half' : 'full',
     paperSize: mapLetterPaperSize(row.paper_size ?? row.paperSize, letterType),
+    createdBy: toStringOrNull(row.created_by ?? row.createdBy),
+    updatedBy: toStringOrNull(row.updated_by ?? row.updatedBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapLetterTypeMasterRow(row: Row): LetterTypeMaster {
+  return {
+    id: String(row.id),
+    code: String(row.code),
+    labelEn: String(row.label_en ?? row.labelEn ?? ''),
+    labelMr: String(row.label_mr ?? row.labelMr ?? ''),
+    formBase: String(row.form_base ?? row.formBase ?? 'general'),
+    isActive: toBool(row.is_active ?? row.isActive, true),
+    sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),
     updatedBy: toStringOrNull(row.updated_by ?? row.updatedBy),
     createdAt: toDate(row.created_at ?? row.createdAt),

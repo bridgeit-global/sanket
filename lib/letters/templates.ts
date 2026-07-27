@@ -147,7 +147,7 @@ export function resolveLegacyRationLetterType(
 }
 
 export function buildLetterBody(
-  type: LetterType,
+  type: LetterType | string,
   fields: LetterFields,
   locale: LetterLocale = 'mr',
 ): string {

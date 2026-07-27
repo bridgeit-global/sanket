@@ -691,6 +691,20 @@
     "pdfError": "Failed to generate PDF. Please try again.",
     "printPopupBlocked": "Unable to print letter. Please try again.",
     "printWithLetterhead": "Include letterhead when printing / PDF",
+    "letterTypes": {
+      "addNewOption": "+ Add new letter type…",
+      "code": "Type code",
+      "codePlaceholder": "e.g. caste-certificate",
+      "labelEn": "Label (English)",
+      "labelEnPlaceholder": "Caste Certificate",
+      "labelMr": "Label (Marathi)",
+      "labelMrPlaceholder": "जात प्रमाणपत्र",
+      "newTypeHint": "Custom types use the General letter form. Code must be lowercase kebab-case (letters, numbers, hyphens).",
+      "validationRequired": "Type code, English label, and Marathi label are required",
+      "createSuccess": "Letter type created",
+      "createError": "Failed to create letter type",
+      "fetchError": "Failed to load letter types"
+    },
     "templates": {
       "title": "Letter Templates",
       "description": "Manage HTML letter templates by type and language. You can save multiple named templates per type and language. Use {{fieldName}} placeholders for dynamic values.",

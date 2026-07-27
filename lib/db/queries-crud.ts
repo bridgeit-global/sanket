@@ -19,6 +19,7 @@ import {
   mapAddressMasterRow,
   mapDocumentTypeMasterRow,
   mapLetterAddressTypeLinkRow,
+  mapLetterTypeMasterRow,
   mapLetterRow,
   mapMessageRow,
   mapMlaProjectRow,
@@ -66,6 +67,7 @@ import type {
   ExportJob,
   Letter,
   LetterMaster,
+  LetterTypeMaster,
   AddressMaster,
   DocumentTypeMaster,
   LetterAddressTypeLink,
@@ -2572,6 +2574,199 @@ export async function deleteLetterMaster(id: string): Promise<void> {
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to delete letter master');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Letter type masters (custom types)
+// ---------------------------------------------------------------------------
+
+export async function getLetterTypeMasters(options?: {
+  includeInactive?: boolean;
+}): Promise<Array<LetterTypeMaster>> {
+  try {
+    let query = supabase
+      .from(TABLES.letterTypeMaster)
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('code', { ascending: true });
+    if (!options?.includeInactive) {
+      query = query.eq('is_active', true);
+    }
+    const { data, error } = await query;
+    throwOnSupabaseError(error, 'Failed to get letter type masters');
+    return (data ?? []).map(mapLetterTypeMasterRow);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get letter type masters');
+  }
+}
+
+export async function getLetterTypeMasterByCode(
+  code: string,
+): Promise<LetterTypeMaster | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.letterTypeMaster)
+      .select('*')
+      .eq('code', code)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get letter type master by code');
+    return data ? mapLetterTypeMasterRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get letter type master by code',
+    );
+  }
+}
+
+export async function createLetterTypeMaster({
+  code,
+  labelEn,
+  labelMr,
+  formBase = 'general',
+  isActive = true,
+  sortOrder = 100,
+  createdBy,
+}: {
+  code: string;
+  labelEn: string;
+  labelMr: string;
+  formBase?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+  createdBy?: string | null;
+}): Promise<LetterTypeMaster> {
+  try {
+    const { isLetterType } = await import('@/lib/letters/templates');
+    const {
+      isValidLetterTypeCode,
+      normalizeLetterTypeCode,
+      resolveLetterFormBase,
+    } = await import('@/lib/letters/letter-type-options');
+
+    const normalized = normalizeLetterTypeCode(code);
+    if (!isValidLetterTypeCode(normalized)) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Invalid letter type code. Use lowercase letters, numbers, and hyphens.',
+      );
+    }
+    if (isLetterType(normalized)) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'This letter type code is reserved for a built-in type',
+      );
+    }
+
+    const existing = await getLetterTypeMasterByCode(normalized);
+    if (existing) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'A letter type with this code already exists',
+      );
+    }
+
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.letterTypeMaster)
+      .insert(
+        toSnakeCaseKeys({
+          code: normalized,
+          labelEn,
+          labelMr,
+          formBase: resolveLetterFormBase(formBase),
+          isActive,
+          sortOrder,
+          createdBy: createdBy || null,
+          updatedBy: createdBy || null,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create letter type master');
+    return mapLetterTypeMasterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to create letter type master');
+  }
+}
+
+export async function updateLetterTypeMaster({
+  id,
+  labelEn,
+  labelMr,
+  isActive,
+  sortOrder,
+  updatedBy,
+}: {
+  id: string;
+  labelEn: string;
+  labelMr: string;
+  isActive?: boolean;
+  sortOrder?: number;
+  updatedBy?: string | null;
+}): Promise<LetterTypeMaster> {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.letterTypeMaster)
+      .update(
+        toSnakeCaseKeys({
+          labelEn,
+          labelMr,
+          isActive: isActive ?? true,
+          sortOrder: sortOrder ?? 100,
+          updatedBy: updatedBy || null,
+          updatedAt: now,
+        }),
+      )
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to update letter type master');
+    return mapLetterTypeMasterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to update letter type master');
+  }
+}
+
+export async function deleteLetterTypeMaster(id: string): Promise<void> {
+  try {
+    const { data: existing, error: existingError } = await supabase
+      .from(TABLES.letterTypeMaster)
+      .select('code')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(existingError, 'Failed to load letter type master');
+    if (!existing) {
+      throw new ChatSDKError('bad_request:database', 'Letter type not found');
+    }
+
+    const code = String(existing.code);
+    const { data: templates, error: templatesError } = await supabase
+      .from(TABLES.letterMaster)
+      .select('id')
+      .eq('letter_type', code)
+      .limit(1);
+    throwOnSupabaseError(templatesError, 'Failed to check letter templates');
+    if ((templates ?? []).length > 0) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Cannot delete a letter type that still has templates',
+      );
+    }
+
+    const { error } = await supabase.from(TABLES.letterTypeMaster).delete().eq('id', id);
+    throwOnSupabaseError(error, 'Failed to delete letter type master');
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to delete letter type master');
   }
 }
 

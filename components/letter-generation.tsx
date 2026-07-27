@@ -74,6 +74,7 @@ import { useTranslations } from '@/hooks/use-translations';
 import {
   buildLetterBody,
   DEFAULT_SIGNATORY,
+  isLetterType,
   LETTER_TYPES,
   type CommonLetterFields,
   type DomicileLetterFields,
@@ -87,6 +88,11 @@ import {
   type SchoolAdmissionLetterFields,
   type SchoolTransferLetterFields,
 } from '@/lib/letters/templates';
+import {
+  letterTypeLabel,
+  resolveLetterFormBase,
+  type LetterTypeOption,
+} from '@/lib/letters/letter-type-options';
 import {
   getLetterheadContentPaddingMm,
   resolveLetterheadUrl,
@@ -147,8 +153,9 @@ import {
 } from '@/lib/locale-digits';
 import { cn } from '@/lib/utils';
 
+type SavedLetterTypeFilter = string;
+
 const ALL_LETTER_TYPES = 'all' as const;
-type SavedLetterTypeFilter = LetterType | typeof ALL_LETTER_TYPES | 'ration';
 const LETTER_LOCALES: LetterLocale[] = ['en', 'mr'];
 
 type FamilyMemberRow = { name: string; age: string };
@@ -200,8 +207,8 @@ function defaultSignatureParagraphRows(locale: LetterLocale): string[] {
   return ['Yours faithfully,', `(${signatory})`];
 }
 
-function isRationLetterType(type: LetterType): boolean {
-  return type.startsWith('ration-');
+function isRationLetterType(type: LetterType | string): boolean {
+  return typeof type === 'string' && type.startsWith('ration-');
 }
 
 function matchesSavedLetterTypeFilter(
@@ -216,7 +223,7 @@ function matchesSavedLetterTypeFilter(
 }
 
 function getFieldsForLetterType(
-  type: LetterType,
+  type: LetterType | string,
   fields: {
     generalFields: GeneralLetterFields;
     feesFields: FeesLetterFields;
@@ -227,7 +234,8 @@ function getFieldsForLetterType(
     domicileFields: DomicileLetterFields;
   },
 ) {
-  switch (type) {
+  const formBase = resolveLetterFormBase(type);
+  switch (formBase) {
     case 'general':
       return fields.generalFields;
     case 'fees':
@@ -241,8 +249,8 @@ function getFieldsForLetterType(
     case 'domicile':
       return fields.domicileFields;
     default:
-      if (isRationLetterType(type)) return fields.rationFields;
-      return fields.feesFields;
+      if (isRationLetterType(formBase)) return fields.rationFields;
+      return fields.generalFields;
   }
 }
 
@@ -862,7 +870,7 @@ type SavedLetterRow = {
 type LetterMasterRow = {
   id: string;
   name: string;
-  letterType: LetterType;
+  letterType: string;
   letterLocale: LetterLocale;
   templateHtml: string;
   letterheadUrl: string | null;
@@ -904,7 +912,10 @@ export function LetterGeneration({
     [letterLocale],
   );
   const prevLetterLocaleRef = useRef<LetterLocale>('mr');
-  const [activeTab, setActiveTab] = useState<LetterType>('fees');
+  const [activeTab, setActiveTab] = useState<string>('fees');
+  const [letterTypeOptions, setLetterTypeOptions] = useState<LetterTypeOption[]>(
+    [],
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [downloadingLetterId, setDownloadingLetterId] = useState<string | null>(
     null,
@@ -1779,6 +1790,17 @@ export function LetterGeneration({
     }
   };
 
+  const refreshLetterTypes = async () => {
+    try {
+      const res = await fetch('/api/letter-types');
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to fetch letter types');
+      setLetterTypeOptions((json?.letterTypes ?? []) as LetterTypeOption[]);
+    } catch (error) {
+      console.error('Failed to fetch letter types', error);
+    }
+  };
+
   const refreshAddresses = async () => {
     try {
       const res = await fetch('/api/addresses?includeInactive=true');
@@ -1836,11 +1858,40 @@ export function LetterGeneration({
   useEffect(() => {
     void refreshSavedLetters();
     void refreshLetterMasters();
+    void refreshLetterTypes();
     void refreshAddresses();
     void refreshDocumentTypes();
     void refreshAddressTypeLinks();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const formTab = resolveLetterFormBase(activeTab);
+
+  const letterTypeSelectOptions = useMemo(() => {
+    const active = letterTypeOptions.filter((opt) => opt.isActive);
+    if (active.length > 0) return active;
+    return LETTER_TYPES.map(
+      (code): LetterTypeOption => ({
+        code,
+        labelEn: code,
+        labelMr: code,
+        formBase: code,
+        isBuiltIn: true,
+        isActive: true,
+        sortOrder: 0,
+      }),
+    );
+  }, [letterTypeOptions]);
+
+  const resolveTypeLabel = useCallback(
+    (code: string) => {
+      const option = letterTypeOptions.find((opt) => opt.code === code);
+      if (option) return letterTypeLabel(option, letterLocale, code);
+      if (isLetterType(code)) return lt(`letterGeneration.tabs.${code}`);
+      return code;
+    },
+    [letterTypeOptions, letterLocale, lt],
+  );
 
   // Best-effort prefill from the linked beneficiary/voter. Only fills empty
   // fields, and only once on mount, so operator edits are never clobbered.
@@ -1988,7 +2039,7 @@ export function LetterGeneration({
     documentTypes,
   ]);
 
-  const activeTitle = t(`letterGeneration.tabs.${activeTab}`);
+  const activeTitle = resolveTypeLabel(activeTab);
   const activePaperSize = paperSizeDraft;
   const activePaperLabel = getLetterPaperLabel(activePaperSize);
   const activeLetterheadUrl = resolveLetterheadUrl(
@@ -2090,23 +2141,23 @@ export function LetterGeneration({
       errors[`${key}Address`] = lt('letterGeneration.addresses.fieldsRequired');
     };
 
-    if (activeTab === 'general') {
+    if (formTab === 'general') {
       requireField(errors, 'to', generalFields.to, requiredMsg);
       requireField(errors, 'subject', generalFields.subject, requiredMsg);
       requireField(errors, 'paragraphs', generalFields.paragraphs, requiredMsg);
-    } else if (activeTab === 'fees') {
+    } else if (formTab === 'fees') {
       requireField(errors, 'schoolName', feesFields.schoolName, requiredMsg);
       requireField(errors, 'standard', feesFields.standard, requiredMsg);
       requireField(errors, 'studentName', feesFields.studentName, requiredMsg);
       requireAddress('school', feesFields.schoolAddress);
-    } else if (activeTab === 'school-admission') {
+    } else if (formTab === 'school-admission') {
       requireField(errors, 'schoolName', schoolAdmissionFields.schoolName, requiredMsg);
       requireField(errors, 'standard', schoolAdmissionFields.standard, requiredMsg);
       requireField(errors, 'studentName', schoolAdmissionFields.studentName, requiredMsg);
       requireField(errors, 'parentName', schoolAdmissionFields.parentName, requiredMsg);
       requireAddress('school', schoolAdmissionFields.schoolAddress);
       requireAddress('applicant', schoolAdmissionFields.address);
-    } else if (activeTab === 'school-transfer') {
+    } else if (formTab === 'school-transfer') {
       requireField(errors, 'schoolName', schoolTransferFields.schoolName, requiredMsg);
       requireField(errors, 'standard', schoolTransferFields.standard, requiredMsg);
       requireField(errors, 'studentName', schoolTransferFields.studentName, requiredMsg);
@@ -2131,20 +2182,20 @@ export function LetterGeneration({
       );
       requireAddress('school', schoolTransferFields.schoolAddress);
       requireAddress('applicant', schoolTransferFields.address);
-    } else if (isRationLetterType(activeTab)) {
+    } else if (isRationLetterType(formTab)) {
       requireField(errors, 'salutation', rationFields.salutation, requiredMsg);
       requireField(errors, 'fullName', rationFields.fullName, requiredMsg);
       requireField(errors, 'familyMembers', rationFields.familyMembers, requiredMsg);
       requireAddress('applicant', rationFields.address);
       requireAddress('rationOffice', rationFields.rationOfficeAddress);
-      if (activeTab !== 'ration-new') {
+      if (formTab !== 'ration-new') {
         requireField(errors, 'rationCardNo', rationFields.rationCardNo, requiredMsg);
       }
-      if (activeTab === 'ration-transfer') {
+      if (formTab === 'ration-transfer') {
         requireAddress('fromRationOffice', rationFields.fromRationOffice ?? '');
         requireAddress('toRationOffice', rationFields.toRationOffice ?? '');
       }
-    } else if (activeTab === 'income') {
+    } else if (formTab === 'income') {
       requireField(errors, 'salutation', incomeFields.salutation, requiredMsg);
       requireField(errors, 'fullName', incomeFields.fullName, requiredMsg);
       requireField(errors, 'aadhaarNo', incomeFields.aadhaarNo, requiredMsg);
@@ -2152,7 +2203,7 @@ export function LetterGeneration({
       requireField(errors, 'officeName', incomeFields.officeName, requiredMsg);
       requireAddress('applicant', incomeFields.address);
       requireAddress('office', incomeFields.officeAddress);
-    } else if (activeTab === 'domicile') {
+    } else if (formTab === 'domicile') {
       requireField(errors, 'salutation', domicileFields.salutation, requiredMsg);
       requireField(errors, 'fullName', domicileFields.fullName, requiredMsg);
       requireField(errors, 'aadhaarNo', domicileFields.aadhaarNo, requiredMsg);
@@ -2270,19 +2321,19 @@ export function LetterGeneration({
       // This is intentionally done only on "Save Letter" to avoid creating rows on every edit.
       if (!addressSelections.school) {
         const schoolAddressText =
-          (activeTab === 'fees'
+          (formTab === 'fees'
             ? feesFields.schoolAddress
-            : activeTab === 'school-admission'
+            : formTab === 'school-admission'
               ? schoolAdmissionFields.schoolAddress
-              : activeTab === 'school-transfer'
+              : formTab === 'school-transfer'
                 ? schoolTransferFields.schoolAddress
                 : '') ?? '';
         const schoolNameValue =
-          (activeTab === 'fees'
+          (formTab === 'fees'
             ? feesFields.schoolName
-            : activeTab === 'school-admission'
+            : formTab === 'school-admission'
               ? schoolAdmissionFields.schoolName
-              : activeTab === 'school-transfer'
+              : formTab === 'school-transfer'
                 ? schoolTransferFields.schoolName
                 : '') ?? '';
 
@@ -2304,7 +2355,7 @@ export function LetterGeneration({
       // The beneficiary's (applicant's) address is intentionally not auto-saved
       // to Address Master or translated during letter generation.
 
-      if (!addressSelections.rationOffice && isRationLetterType(activeTab)) {
+      if (!addressSelections.rationOffice && isRationLetterType(formTab)) {
         const rationOfficeText = rationFields.rationOfficeAddress ?? '';
         if (rationOfficeText.trim()) {
           const created = await createAddressMasterFromManualEntry({
@@ -2321,7 +2372,7 @@ export function LetterGeneration({
         }
       }
 
-      if (activeTab === 'ration-transfer') {
+      if (formTab === 'ration-transfer') {
         if (!addressSelections.fromRationOffice) {
           const fromText = rationFields.fromRationOffice ?? '';
           if (fromText.trim() && hasAddressContent(manualAddressParts.fromRationOffice)) {
@@ -2357,9 +2408,9 @@ export function LetterGeneration({
         }
       }
 
-      if (!addressSelections.office && (activeTab === 'income' || activeTab === 'domicile')) {
+      if (!addressSelections.office && (formTab === 'income' || formTab === 'domicile')) {
         const officeText =
-          (activeTab === 'income' ? incomeFields.officeAddress : domicileFields.officeAddress) ??
+          (formTab === 'income' ? incomeFields.officeAddress : domicileFields.officeAddress) ??
           '';
         if (officeText.trim()) {
           const created = await createAddressMasterFromManualEntry({
@@ -2976,15 +3027,12 @@ export function LetterGeneration({
             aria-labelledby="letter-generator-header"
             className="p-4 sm:p-6"
           >
-            <Tabs
-              value={activeTab}
-              onValueChange={(value) => setActiveTab(value as LetterType)}
-            >
+            <Tabs value={formTab} onValueChange={(value) => setActiveTab(value)}>
               <div className="grid w-full max-w-3xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <FieldGroup label={lt('letterGeneration.fields.letterType')}>
                   <Select
                     value={activeTab}
-                    onValueChange={(value: LetterType) => setActiveTab(value)}
+                    onValueChange={(value: string) => setActiveTab(value)}
                   >
                     <SelectTrigger className="[&>span]:text-left">
                       <SelectValue
@@ -2992,9 +3040,9 @@ export function LetterGeneration({
                       />
                     </SelectTrigger>
                     <SelectContent>
-                      {LETTER_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {lt(`letterGeneration.tabs.${type}`)}
+                      {letterTypeSelectOptions.map((type) => (
+                        <SelectItem key={type.code} value={type.code}>
+                          {letterTypeLabel(type, letterLocale)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -4303,9 +4351,9 @@ export function LetterGeneration({
                       <SelectItem value={ALL_LETTER_TYPES}>
                         {t('letterGeneration.savedLetters.filters.allTypes')}
                       </SelectItem>
-                      {LETTER_TYPES.map((type) => (
-                        <SelectItem key={type} value={type}>
-                          {t(`letterGeneration.tabs.${type}`)}
+                      {letterTypeSelectOptions.map((type) => (
+                        <SelectItem key={type.code} value={type.code}>
+                          {letterTypeLabel(type, letterLocale)}
                         </SelectItem>
                       ))}
                       <SelectItem value="ration">
@@ -4369,7 +4417,7 @@ export function LetterGeneration({
                                 : '—'}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              {t(`letterGeneration.tabs.${letter.letterType}`)} ·{' '}
+                              {resolveTypeLabel(letter.letterType)} ·{' '}
                               {t(`letterGeneration.letterLanguage.${letter.letterLocale}`)}{' '}
                               ·{' '}
                               {getLetterPaperLabel(resolveSavedLetterPaperSize(letter))}
@@ -4412,7 +4460,7 @@ export function LetterGeneration({
                                 : '—'}
                             </TableCell>
                             <TableCell>
-                              {t(`letterGeneration.tabs.${letter.letterType}`)}{' '}
+                              {resolveTypeLabel(letter.letterType)}{' '}
                               <span className="text-muted-foreground">
                                 ({getLetterPaperLabel(resolveSavedLetterPaperSize(letter))})
                               </span>
@@ -4460,7 +4508,7 @@ export function LetterGeneration({
                                     : ''}
                                 </DialogTitle>
                                 <DialogDescription>
-                                  {t(`letterGeneration.tabs.${selectedSavedLetter.letterType}`)} ·{' '}
+                                  {resolveTypeLabel(selectedSavedLetter.letterType)} ·{' '}
                                   {t(
                                     `letterGeneration.letterLanguage.${selectedSavedLetter.letterLocale}`,
                                   )}{' '}

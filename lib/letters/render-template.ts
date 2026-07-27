@@ -21,6 +21,7 @@ import type {
   SchoolAdmissionLetterFields,
   SchoolTransferLetterFields,
 } from '@/lib/letters/templates';
+import { isLetterType } from '@/lib/letters/templates';
 
 const PLACEHOLDER_PATTERN = /\{\{(\w+)\}\}/g;
 
@@ -154,15 +155,16 @@ function withLocalizedReferenceFields(
 }
 
 export function buildRenderFields(
-  type: LetterType,
+  type: LetterType | string,
   fields: LetterFields,
   locale: LetterLocale,
   documentTypes?: DocumentTypeLabelSource[],
 ): Record<string, string> {
   const base = toFieldRecord(fields);
   let renderFields: Record<string, string>;
+  const formType = isLetterType(type) ? type : 'general';
 
-  if (type === 'general') {
+  if (formType === 'general') {
     const generalFields = fields as GeneralLetterFields;
     renderFields = {
       ...base,
@@ -172,7 +174,7 @@ export function buildRenderFields(
       paragraphsBlock: formatParagraphsBlock(generalFields.paragraphs),
       signatureBlock: formatSignatureBlock(generalFields.signatureParagraphs),
     };
-  } else if (type.startsWith('ration-')) {
+  } else if (formType.startsWith('ration-')) {
     const rationFields = fields as RationLetterFields;
     const familyMembersBlock = formatFamilyMembersBlock(rationFields.familyMembers);
     renderFields = {
@@ -183,7 +185,7 @@ export function buildRenderFields(
       fromRationOffice: rationFields.fromRationOffice ?? '',
       toRationOffice: rationFields.toRationOffice ?? '',
     };
-  } else if (type === 'income') {
+  } else if (formType === 'income') {
     const incomeFields = fields as IncomeLetterFields;
     renderFields = {
       ...base,
@@ -196,7 +198,7 @@ export function buildRenderFields(
       officeName: incomeFields.officeName,
       officeAddress: incomeFields.officeAddress,
     };
-  } else if (type === 'domicile') {
+  } else if (formType === 'domicile') {
     const domicileFields = fields as DomicileLetterFields;
     renderFields = {
       ...base,
@@ -208,11 +210,11 @@ export function buildRenderFields(
       officeName: domicileFields.officeName,
       officeAddress: domicileFields.officeAddress,
     };
-  } else if (type === 'school-admission') {
+  } else if (formType === 'school-admission') {
     renderFields = { ...base, ...(fields as SchoolAdmissionLetterFields) };
-  } else if (type === 'school-transfer') {
+  } else if (formType === 'school-transfer') {
     renderFields = { ...base, ...(fields as SchoolTransferLetterFields) };
-  } else if (type === 'fees') {
+  } else if (formType === 'fees') {
     renderFields = { ...base, ...(fields as FeesLetterFields) };
   } else {
     renderFields = base;
@@ -223,7 +225,7 @@ export function buildRenderFields(
 }
 
 export function buildRenderedLetterHtml(
-  type: LetterType,
+  type: LetterType | string,
   templateHtml: string,
   fields: LetterFields,
   locale: LetterLocale,

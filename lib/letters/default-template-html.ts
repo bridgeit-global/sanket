@@ -2,6 +2,7 @@ import { EN_TEMPLATE_HTML } from '@/lib/letters/en-template-html';
 import { MR_TEMPLATE_HTML } from '@/lib/letters/mr-template-html';
 import {
   LETTER_TYPES,
+  isLetterType,
   type LetterLocale,
   type LetterType,
 } from '@/lib/letters/templates';
@@ -46,17 +47,23 @@ const DEFAULT_TEMPLATE_HTML: Record<LetterType, Record<LetterLocale, string>> =
   ) as Record<LetterType, Record<LetterLocale, string>>;
 
 export function getDefaultTemplateHtml(
-  letterType: LetterType,
+  letterType: LetterType | string,
   letterLocale: LetterLocale,
 ): string {
-  return DEFAULT_TEMPLATE_HTML[letterType][letterLocale];
+  if (isLetterType(letterType)) {
+    return DEFAULT_TEMPLATE_HTML[letterType][letterLocale];
+  }
+  return DEFAULT_TEMPLATE_HTML.general[letterLocale];
 }
 
 export function getDefaultTemplateName(
-  letterType: LetterType,
+  letterType: LetterType | string,
   letterLocale: LetterLocale,
 ): string {
-  return DEFAULT_TEMPLATE_NAMES[letterType][letterLocale];
+  if (isLetterType(letterType)) {
+    return DEFAULT_TEMPLATE_NAMES[letterType][letterLocale];
+  }
+  return letterLocale === 'mr' ? 'सानुकूल पत्र' : 'Custom Letter';
 }
 
 export function getAllDefaultLetterMasters(): Array<{
