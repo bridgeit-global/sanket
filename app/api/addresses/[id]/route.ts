@@ -101,7 +101,7 @@ export async function PUT(
       return NextResponse.json(
         {
           error:
-            'name, addressType, Line 1, City, State, and a valid 6-digit Pincode are required (Line 2 is optional)',
+            'name, addressType, Line 1, City, and a valid 6-digit Pincode are required (Line 2 and State are optional)',
         },
         { status: 400 },
       );

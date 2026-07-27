@@ -202,7 +202,7 @@ export function StructuredAddressFields({
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1.5">
           <Label className="text-xs">
-            {at('letterGeneration.addresses.fields.state')} *
+            {at('letterGeneration.addresses.fields.state')}
           </Label>
           <Combobox
             options={stateOptions}

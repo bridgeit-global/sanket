@@ -95,12 +95,13 @@ export function formatAddressMaster(
 ): string {
   const city = pickLocaleField(parts, locale, 'city').trim();
   const state = pickLocaleField(parts, locale, 'state').trim();
+  // State is kept in structured data but omitted from letter/display text —
+  // local constituency letters do not need "Maharashtra" on every address.
   const segments = [
     stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line1'), city, state),
     stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line2'), city, state),
     stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line3'), city, state),
     city,
-    state,
   ]
     .map((value) => localizeAddressText(value, locale))
     .filter(Boolean);
@@ -116,8 +117,9 @@ export function formatAddressMaster(
 
 /**
  * Format an address with each street line on its own line and the
- * city/state/pincode grouped on a final line. Intended for recipient address
- * blocks in letter templates, so the separator defaults to an HTML `<br>`.
+ * city/pincode on a final line. Intended for recipient address blocks in
+ * letter templates, so the separator defaults to an HTML `<br>`.
+ * State is omitted from letter text (still stored on the address record).
  */
 export function formatAddressMasterMultiline(
   parts: AddressMasterAddressParts,
@@ -135,11 +137,7 @@ export function formatAddressMasterMultiline(
     .map((value) => localizeAddressText(value, locale))
     .filter(Boolean);
 
-  const locationSegments = [
-    localizeAddressText(city, locale),
-    localizeAddressText(state, locale),
-  ].filter(Boolean);
-  let locationLine = locationSegments.join(', ');
+  let locationLine = localizeAddressText(city, locale);
   const pincode = toLocaleDigits(parts.pincode.trim(), locale);
   if (pincode) {
     locationLine = locationLine ? `${locationLine} - ${pincode}` : pincode;
@@ -154,16 +152,15 @@ export function hasAddressContent(parts: AddressMasterAddressParts): boolean {
   );
 }
 
-/** Line 1, city, state, and a 6-digit pincode are required; line 2 is optional. */
+/** Line 1, city, and a 6-digit pincode are required; line 2/3 and state are optional. */
 export function hasRequiredAddressFields(
   parts: AddressMasterAddressParts,
   locale: LetterLocale,
 ): boolean {
   const line1 = pickLocaleField(parts, locale, 'line1').trim();
   const city = pickLocaleField(parts, locale, 'city').trim();
-  const state = pickLocaleField(parts, locale, 'state').trim();
   const pincode = toWesternDigits(parts.pincode).replace(/\D/g, '');
-  return Boolean(line1 && city && state && pincode.length === 6);
+  return Boolean(line1 && city && pincode.length === 6);
 }
 
 function assignLocaleFields(

@@ -734,24 +734,42 @@ function getAddressMasterName(
   return address.name;
 }
 
+function escapeHtmlText(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 function combineNameAndAddress(
   name: string,
   addressText: string,
   separator = ', ',
+  options?: { boldName?: boolean },
 ): string {
   const trimmedName = name.trim();
   const trimmedAddress = addressText.trim();
-  if (trimmedName && trimmedAddress) return `${trimmedName}${separator}${trimmedAddress}`;
-  return trimmedName || trimmedAddress;
+  const displayName =
+    options?.boldName && trimmedName
+      ? `<span class="var">${escapeHtmlText(trimmedName)}</span>`
+      : trimmedName;
+  if (displayName && trimmedAddress) return `${displayName}${separator}${trimmedAddress}`;
+  return displayName || trimmedAddress;
 }
 
 function formatRationOfficeWithAddress(
   address: Pick<AddressMasterRow, 'name' | 'nameMr'> & AddressMasterAddressParts,
   locale: LetterLocale,
+  multiline = false,
 ): string {
   const name = getAddressMasterName(address, locale);
-  const addressText = formatAddressMaster(address, locale);
-  return combineNameAndAddress(name, addressText);
+  const addressText = multiline
+    ? formatAddressMasterMultiline(address, locale)
+    : formatAddressMaster(address, locale);
+  return combineNameAndAddress(name, addressText, multiline ? '<br>' : ', ', {
+    boldName: multiline,
+  });
 }
 
 function getRationOfficeLabelById(
@@ -814,9 +832,13 @@ function applyMasterAddressToFields(
   }
 
   if (rationOfficeText) {
+    const rationMaster = addresses.find((item) => item.id === selections.rationOffice);
+    const rationOfficeAddress = rationMaster
+      ? formatRationOfficeWithAddress(rationMaster, locale, true)
+      : rationOfficeText;
     setters.setRationFields((prev) => ({
       ...prev,
-      rationOfficeAddress: rationOfficeText,
+      rationOfficeAddress,
     }));
   }
 
@@ -1336,7 +1358,7 @@ export function LetterGeneration({
 
     // For manual entry (no master selection), restore the per-locale formatted text when switching locale.
     if (!addressSelections.school) {
-      const text = formatAddressMaster(manualAddressParts.school, letterLocale);
+      const text = formatAddressForManualKey(manualAddressParts.school, letterLocale, 'school');
       if (text.trim()) {
         setFeesFields((prev) => ({ ...prev, schoolAddress: text }));
         setSchoolAdmissionFields((prev) => ({ ...prev, schoolAddress: text }));
@@ -1344,7 +1366,11 @@ export function LetterGeneration({
       }
     }
     if (!addressSelections.applicant) {
-      const text = formatAddressMaster(manualAddressParts.applicant, letterLocale);
+      const text = formatAddressForManualKey(
+        manualAddressParts.applicant,
+        letterLocale,
+        'applicant',
+      );
       if (text.trim()) {
         setSchoolAdmissionFields((prev) => ({ ...prev, address: text }));
         setSchoolTransferFields((prev) => ({ ...prev, address: text }));
@@ -1354,13 +1380,22 @@ export function LetterGeneration({
       }
     }
     if (!addressSelections.rationOffice) {
-      const text = formatAddressMaster(manualAddressParts.rationOffice, letterLocale);
+      const text = combineNameAndAddress(
+        rationOfficeNamesRef.current.rationOffice,
+        formatAddressForManualKey(
+          manualAddressParts.rationOffice,
+          letterLocale,
+          'rationOffice',
+        ),
+        '<br>',
+        { boldName: true },
+      );
       if (text.trim()) {
         setRationFields((prev) => ({ ...prev, rationOfficeAddress: text }));
       }
     }
     if (!addressSelections.office) {
-      const text = formatAddressMaster(manualAddressParts.office, letterLocale);
+      const text = formatAddressForManualKey(manualAddressParts.office, letterLocale, 'office');
       if (text.trim()) {
         setIncomeFields((prev) => ({ ...prev, officeAddress: text }));
         setDomicileFields((prev) => ({ ...prev, officeAddress: text }));
@@ -1488,6 +1523,7 @@ export function LetterGeneration({
           rationOfficeNamesRef.current[key],
           formatted,
           key === 'rationOffice' ? '<br>' : ', ',
+          key === 'rationOffice' ? { boldName: true } : undefined,
         )
         : formatted;
     applyManualAddressToLetterFields(key, value);
@@ -1506,7 +1542,12 @@ export function LetterGeneration({
     const addressText = formatAddressForManualKey(manualAddressParts[key], letterLocale, key);
     applyManualAddressToLetterFields(
       key,
-      combineNameAndAddress(name, addressText, key === 'rationOffice' ? '<br>' : ', '),
+      combineNameAndAddress(
+        name,
+        addressText,
+        key === 'rationOffice' ? '<br>' : ', ',
+        key === 'rationOffice' ? { boldName: true } : undefined,
+      ),
     );
     setFieldErrors((prev) => ({ ...prev, [`${key}Address`]: undefined }));
   };
@@ -1595,16 +1636,24 @@ export function LetterGeneration({
     });
     setFieldErrors((prev) => ({ ...prev, rationOfficeAddress: undefined }));
     if (id) {
-      const text = getAddressTextFromMaster(addresses, id, letterLocale, true);
+      const selected = addresses.find((a) => a.id === id);
+      const text = selected
+        ? formatRationOfficeWithAddress(selected, letterLocale, true)
+        : getAddressTextFromMaster(addresses, id, letterLocale, true);
       if (text) {
         setRationFields((prev) => ({ ...prev, rationOfficeAddress: text }));
       }
-      const selected = addresses.find((a) => a.id === id);
       if (selected) {
         setManualAddressParts((prev) => ({
           ...prev,
           rationOffice: addressRowToParts(selected),
         }));
+        const officeName = getAddressMasterName(selected, letterLocale);
+        setRationOfficeNames((prev) => ({ ...prev, rationOffice: officeName }));
+        rationOfficeNamesRef.current = {
+          ...rationOfficeNamesRef.current,
+          rationOffice: officeName,
+        };
       }
     } else {
       // Manual entry starts blank — don't carry over the previous name.

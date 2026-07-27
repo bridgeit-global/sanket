@@ -194,7 +194,7 @@ export function BilingualAddressFields({
 
       <div className="space-y-1.5">
         <Label className="text-xs">
-          {t('letterGeneration.addresses.fields.state')} *
+          {t('letterGeneration.addresses.fields.state')}
         </Label>
         <div className="grid gap-2 sm:grid-cols-2">
           <Combobox

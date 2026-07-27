@@ -113,13 +113,13 @@ export const DEFAULT_SIGNATORY: Record<LetterLocale, string> = {
 };
 
 export const DEFAULT_RATION_OFFICE_ADDRESS: Record<LetterLocale, string> = {
-  mr: 'पहिला मजला, सुप्रीम एलनॉर इमारत, गोवंडी स्टेशन रोड, देवनार, गोवंडी (पूर्व), मुंबई, महाराष्ट्र - ४०००८८',
-  en: '1st Floor, Supreme Elanor Building, Govandi Station Road, Deonar, Govandi (E), Mumbai, Maharashtra - 400088',
+  mr: 'पहिला मजला, सुप्रीम एलनॉर इमारत, गोवंडी स्टेशन रोड, देवनार, गोवंडी (पूर्व), मुंबई - ४०००८८',
+  en: '1st Floor, Supreme Elanor Building, Govandi Station Road, Deonar, Govandi (E), Mumbai - 400088',
 };
 
 export const DEFAULT_OFFICE_ADDRESS: Record<LetterLocale, string> = {
-  mr: 'तहसीलदार कार्यालय कुर्ला (मुलुंड), पहिला मजला, टोपिवाला कॉलेज इमारत, सरोजिनी नायडू रोड, मुलुंड (पश्चिम), मुंबई, महाराष्ट्र - ४०००८०',
-  en: 'Tahsildar Office Kurla (Mulund), 1st Floor, Topiwala College Building, Sarojini Naidu Road, Mulund (W), Mumbai, Maharashtra - 400080',
+  mr: 'तहसीलदार कार्यालय कुर्ला (मुलुंड), पहिला मजला, टोपिवाला कॉलेज इमारत, सरोजिनी नायडू रोड, मुलुंड (पश्चिम), मुंबई - ४०००८०',
+  en: 'Tahsildar Office Kurla (Mulund), 1st Floor, Topiwala College Building, Sarojini Naidu Road, Mulund (W), Mumbai - 400080',
 };
 
 export function isLetterType(value: unknown): value is LetterType {
