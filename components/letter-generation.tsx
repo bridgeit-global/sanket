@@ -98,7 +98,6 @@ import {
   getLetterPaperContentWidthPx,
   getLetterPaperLabel,
   LETTER_PAPER_MARGIN_MM,
-  LETTER_PAPER_SIZES,
   resolveLetterPaperSize,
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
@@ -2933,23 +2932,6 @@ export function LetterGeneration({
                       {LETTER_LOCALES.map((lang) => (
                         <SelectItem key={lang} value={lang}>
                           {lt(`letterGeneration.letterLanguage.${lang}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FieldGroup>
-                <FieldGroup label={lt('letterGeneration.fields.paperSize')}>
-                  <Select
-                    value={paperSizeDraft}
-                    onValueChange={(value: LetterPaperSize) => setPaperSizeDraft(value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LETTER_PAPER_SIZES.map((size) => (
-                        <SelectItem key={size} value={size}>
-                          {lt(`letterGeneration.paperSize.options.${size}`)}
                         </SelectItem>
                       ))}
                     </SelectContent>
