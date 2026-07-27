@@ -125,6 +125,7 @@ import {
   sanitizeAddressPartsLocations,
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
+import { findDefaultRationOfficeAddress } from '@/lib/letters/default-addresses';
 import { filterLocaleText } from '@/lib/letters/locale-text';
 import { letterMessage } from '@/lib/letters/letter-messages';
 import {
@@ -1616,6 +1617,21 @@ export function LetterGeneration({
     }
   };
 
+  // Prefill ration office with Anushakti Nagar (400088) once addresses load.
+  const defaultRationOfficeAppliedRef = useRef(false);
+  useEffect(() => {
+    if (defaultRationOfficeAppliedRef.current) return;
+    if (addressSelections.rationOffice) {
+      defaultRationOfficeAppliedRef.current = true;
+      return;
+    }
+    const preferred = findDefaultRationOfficeAddress(addresses);
+    if (!preferred) return;
+    defaultRationOfficeAppliedRef.current = true;
+    handleRationOfficeAddressSelect(preferred.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addresses]);
+
   const handleFromRationOfficeAddressSelect = (id: string | null, seedText = '') => {
     setAddressSelections((prev) => {
       const next = { ...prev, fromRationOffice: id };
@@ -2447,6 +2463,10 @@ export function LetterGeneration({
     void refreshReferenceSequence(defaultReferencePrefix(letterLocale), {
       force: true,
     });
+    const preferredRationOffice = findDefaultRationOfficeAddress(addresses);
+    if (preferredRationOffice) {
+      handleRationOfficeAddressSelect(preferredRationOffice.id);
+    }
     setClearAllDialogOpen(false);
     toast.success(t('letterGeneration.clearAllSuccess'));
   };

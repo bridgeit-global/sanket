@@ -33,24 +33,28 @@ export function getDefaultAddressSeeds(): DefaultAddressSeed[] {
       sortOrder: 11,
     },
     {
-      name: 'Rationing Office 44-E, Govandi',
-      nameMr: 'रेशनिंग कार्यालय ४४-ई, गोवंडी',
+      name: 'Rationing Office 49-E, Anushakti Nagar',
+      nameMr: 'रेशनिंग कार्यालय ४९-ई, अणुशक्ती नगर',
       addressType: 'ration_office',
-      line1En: 'Shivaji Nagar Bus Depot Baji Prabhu',
-      line1Mr: 'शिवाजी नगर बस डेपो बाजी प्रभु',
-      line2En: 'Deshpande Road, Govandi',
-      line2Mr: 'देशपांडे रोड, गोवंडी',
+      line1En: '1st Floor',
+      line1Mr: 'पहिला मजला',
+      line2En: 'Supreme Elanor Building, Govandi Station Road, Deonar, Govandi (E)',
+      line2Mr: 'सुप्रीम एलनॉर इमारत, गोवंडी स्टेशन रोड, देवनार, गोवंडी (पूर्व)',
       line3En: '',
       line3Mr: '',
       cityEn: 'Mumbai',
       cityMr: 'मुंबई',
       stateEn: 'Maharashtra',
       stateMr: 'महाराष्ट्र',
-      pincode: '400043',
-      sortOrder: 7,
+      pincode: '400088',
+      sortOrder: 9,
     },
   ];
 }
+
+/** Preferred default ration office for Anushakti Nagar constituency letters. */
+export const DEFAULT_RATION_OFFICE_PINCODE = '400088';
+export const DEFAULT_RATION_OFFICE_NAME = 'Rationing Office 49-E, Anushakti Nagar';
 
 export function getLegacyDefaultAddressText(
   addressType: 'office' | 'ration_office',
@@ -58,4 +62,23 @@ export function getLegacyDefaultAddressText(
 ): string {
   if (addressType === 'office') return DEFAULT_OFFICE_ADDRESS[locale];
   return DEFAULT_RATION_OFFICE_ADDRESS[locale];
+}
+
+/** Pick the constituency default ration office from address master rows. */
+export function findDefaultRationOfficeAddress<
+  T extends {
+    name: string;
+    addressType: string;
+    pincode: string;
+    isActive?: boolean;
+  },
+>(addresses: T[]): T | undefined {
+  const active = addresses.filter(
+    (row) =>
+      row.addressType === 'ration_office' && row.isActive !== false,
+  );
+  return (
+    active.find((row) => row.name === DEFAULT_RATION_OFFICE_NAME) ??
+    active.find((row) => row.pincode === DEFAULT_RATION_OFFICE_PINCODE)
+  );
 }

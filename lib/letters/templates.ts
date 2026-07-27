@@ -113,8 +113,8 @@ export const DEFAULT_SIGNATORY: Record<LetterLocale, string> = {
 };
 
 export const DEFAULT_RATION_OFFICE_ADDRESS: Record<LetterLocale, string> = {
-  mr: 'शिवाजी नगर बस डेपो बाजी प्रभु, देशपांडे रोड, गोवंडी, मुंबई, महाराष्ट्र - ४०००४३',
-  en: 'Shivaji Nagar Bus Depot Baji Prabhu, Deshpande Road, Govandi, Mumbai, Maharashtra - 400043',
+  mr: 'पहिला मजला, सुप्रीम एलनॉर इमारत, गोवंडी स्टेशन रोड, देवनार, गोवंडी (पूर्व), मुंबई, महाराष्ट्र - ४०००८८',
+  en: '1st Floor, Supreme Elanor Building, Govandi Station Road, Deonar, Govandi (E), Mumbai, Maharashtra - 400088',
 };
 
 export const DEFAULT_OFFICE_ADDRESS: Record<LetterLocale, string> = {
