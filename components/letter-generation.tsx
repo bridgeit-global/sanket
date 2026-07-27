@@ -946,6 +946,9 @@ export function LetterGeneration({
   const [savedLettersLoading, setSavedLettersLoading] = useState(false);
   const [letterMasters, setLetterMasters] = useState<LetterMasterRow[]>([]);
   const [letterMastersLoading, setLetterMastersLoading] = useState(false);
+  const [selectedLetterMasterId, setSelectedLetterMasterId] = useState<
+    string | null
+  >(null);
   const [addresses, setAddresses] = useState<AddressMasterRow[]>([]);
   const [addressTypeLinks, setAddressTypeLinks] = useState<LetterAddressTypeLinkRow[]>([]);
   const addressTypeForField = useCallback(
@@ -1896,14 +1899,37 @@ export function LetterGeneration({
     );
   }, [addressSelections.office, addresses, letterLocale]);
 
-  const activeLetterMaster = useMemo(() => {
-    return (
-      letterMasters.find(
+  const mastersForActive = useMemo(() => {
+    return letterMasters
+      .filter(
         (master) =>
           master.letterType === activeTab && master.letterLocale === letterLocale,
-      ) ?? null
-    );
+      )
+      .sort((a, b) => {
+        const aTime = new Date(a.updatedAt).getTime();
+        const bTime = new Date(b.updatedAt).getTime();
+        return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
+      });
   }, [letterMasters, activeTab, letterLocale]);
+
+  const activeLetterMaster = useMemo(() => {
+    if (selectedLetterMasterId) {
+      const selected = mastersForActive.find((m) => m.id === selectedLetterMasterId);
+      if (selected) return selected;
+    }
+    return mastersForActive[0] ?? null;
+  }, [mastersForActive, selectedLetterMasterId]);
+
+  useEffect(() => {
+    if (mastersForActive.length === 0) {
+      setSelectedLetterMasterId(null);
+      return;
+    }
+    setSelectedLetterMasterId((prev) => {
+      if (prev && mastersForActive.some((m) => m.id === prev)) return prev;
+      return mastersForActive[0]?.id ?? null;
+    });
+  }, [mastersForActive]);
 
   useEffect(() => {
     if (activeLetterMaster) {
@@ -2991,6 +3017,30 @@ export function LetterGeneration({
                     </SelectContent>
                   </Select>
                 </FieldGroup>
+                {mastersForActive.length > 1 ? (
+                  <FieldGroup label={t('letterGeneration.templates.selectTemplate')}>
+                    <Select
+                      value={activeLetterMaster?.id ?? undefined}
+                      onValueChange={setSelectedLetterMasterId}
+                      disabled={letterMastersLoading}
+                    >
+                      <SelectTrigger className="[&>span]:text-left">
+                        <SelectValue
+                          placeholder={t(
+                            'letterGeneration.templates.selectTemplatePlaceholder',
+                          )}
+                        />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {mastersForActive.map((master) => (
+                          <SelectItem key={master.id} value={master.id}>
+                            {master.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FieldGroup>
+                ) : null}
               </div>
 
               <div className="mt-6 grid gap-4 md:gap-6 md:grid-cols-2">

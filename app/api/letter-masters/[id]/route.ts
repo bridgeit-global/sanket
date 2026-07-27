@@ -2,7 +2,12 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import { isUserAdmin } from '@/lib/db/cadre-queries';
-import { getLetterMasterById, updateLetterMaster } from '@/lib/db/queries';
+import {
+  deleteLetterMaster,
+  ensureLetterMasterDefaults,
+  getLetterMasterById,
+  updateLetterMaster,
+} from '@/lib/db/queries';
 import { resolveLetterPaperSize } from '@/lib/letters/paper-size';
 import { normalizeLetterheadMode } from '@/lib/letters/render-template';
 
@@ -91,6 +96,42 @@ export async function PUT(
     console.error('Error updating letter master:', error);
     return NextResponse.json(
       { error: 'Failed to update letter master' },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  try {
+    const session = await auth();
+    const modules = (session?.user?.modules as string[]) || [];
+    if (!session?.user || !modules.includes('letter-generation')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const admin = await isUserAdmin(session.user.id);
+    if (!admin) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const existing = await getLetterMasterById(id);
+    if (!existing) {
+      return NextResponse.json({ error: 'Letter master not found' }, { status: 404 });
+    }
+
+    await deleteLetterMaster(id);
+    // Reseed a built-in default only if this was the last template for the slot.
+    await ensureLetterMasterDefaults();
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error('Error deleting letter master:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete letter master' },
       { status: 500 },
     );
   }

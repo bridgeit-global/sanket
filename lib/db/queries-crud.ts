@@ -2421,7 +2421,8 @@ export async function getLetterMasters(): Promise<Array<LetterMaster>> {
       .from(TABLES.letterMaster)
       .select('*')
       .order('letter_type', { ascending: true })
-      .order('letter_locale', { ascending: true });
+      .order('letter_locale', { ascending: true })
+      .order('updated_at', { ascending: false });
     throwOnSupabaseError(error, 'Failed to get letter masters');
     return (data ?? []).map(mapLetterMasterRow);
   } catch (error) {
@@ -2444,6 +2445,8 @@ export async function getLetterMasterByTypeAndLocale({
       .select('*')
       .eq('letter_type', letterType)
       .eq('letter_locale', letterLocale)
+      .order('updated_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
     throwOnSupabaseError(error, 'Failed to get letter master');
     return data ? mapLetterMasterRow(data) : null;
@@ -2488,14 +2491,6 @@ export async function createLetterMaster({
   createdBy?: string | null;
 }): Promise<LetterMaster> {
   try {
-    const existing = await getLetterMasterByTypeAndLocale({ letterType, letterLocale });
-    if (existing) {
-      throw new ChatSDKError(
-        'bad_request:database',
-        'A template already exists for this letter type and locale',
-      );
-    }
-
     const { resolveLetterPaperSize } = await import('@/lib/letters/paper-size');
     const now = new Date().toISOString();
     const { data, error } = await supabase
@@ -2567,6 +2562,16 @@ export async function updateLetterMaster({
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to update letter master');
+  }
+}
+
+export async function deleteLetterMaster(id: string): Promise<void> {
+  try {
+    const { error } = await supabase.from(TABLES.letterMaster).delete().eq('id', id);
+    throwOnSupabaseError(error, 'Failed to delete letter master');
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to delete letter master');
   }
 }
 

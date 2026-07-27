@@ -98,6 +98,7 @@ export {
   getLetterMasterById,
   createLetterMaster,
   updateLetterMaster,
+  deleteLetterMaster,
   ensureAddressMasterDefaults,
   getAddressMasters,
   getAddressMasterById,

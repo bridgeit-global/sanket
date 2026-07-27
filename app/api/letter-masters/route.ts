@@ -80,10 +80,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ letterMaster }, { status: 201 });
   } catch (error) {
     console.error('Error creating letter master:', error);
-    const message =
-      error instanceof Error && error.message.includes('already exists')
-        ? 'A template already exists for this letter type and locale'
-        : 'Failed to create letter master';
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to create letter master' },
+      { status: 500 },
+    );
   }
 }
