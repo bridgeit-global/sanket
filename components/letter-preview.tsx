@@ -48,6 +48,18 @@ ${LETTER_CLOSING_ALIGN_SELECTOR} {
 }
 `.trim();
 
+/** Keep To-address blocks within half the content width; long lines wrap at commas. */
+const LETTER_ADDRESS_WIDTH_SELECTOR = '.address, .recipient, .recipient-bottom';
+
+const LETTER_ADDRESS_WIDTH_STYLE = `
+${LETTER_ADDRESS_WIDTH_SELECTOR} {
+  max-width: 50% !important;
+  box-sizing: border-box !important;
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+}
+`.trim();
+
 /** Ensure closing/signature sit flush on the paragraph's right edge. */
 function applyLetterClosingAlignment(root: ParentNode): void {
   const doc = root instanceof Document ? root : root.ownerDocument;
@@ -80,10 +92,43 @@ function applyLetterClosingAlignment(root: ParentNode): void {
   });
 }
 
+/** Constrain To-address blocks to half page width (preview + PDF capture). */
+function applyLetterAddressWidth(root: ParentNode): void {
+  const doc = root instanceof Document ? root : root.ownerDocument;
+  if (doc) {
+    const styleHost =
+      root instanceof Element ? root : doc.body ?? doc.documentElement;
+    if (styleHost instanceof Element) {
+      let styleEl = styleHost.querySelector(
+        'style[data-letter-address-width]',
+      ) as HTMLStyleElement | null;
+      if (!styleEl) {
+        styleEl = doc.createElement('style');
+        styleEl.setAttribute('data-letter-address-width', 'true');
+        styleEl.textContent = LETTER_ADDRESS_WIDTH_STYLE;
+        styleHost.insertBefore(styleEl, styleHost.firstChild);
+      }
+    }
+  }
+
+  root.querySelectorAll(LETTER_ADDRESS_WIDTH_SELECTOR).forEach((node) => {
+    if (!(node instanceof HTMLElement)) return;
+    node.style.setProperty('max-width', '50%', 'important');
+    node.style.setProperty('box-sizing', 'border-box', 'important');
+    node.style.setProperty('overflow-wrap', 'break-word', 'important');
+    node.style.setProperty('word-wrap', 'break-word', 'important');
+  });
+}
+
 /** Prefix letter HTML so preview (dangerouslySetInnerHTML) also flush-aligns. */
 function withLetterClosingAlignStyle(html: string): string {
   if (html.includes('data-letter-closing-align')) return html;
   return `<style data-letter-closing-align="true">${LETTER_CLOSING_ALIGN_STYLE}</style>${html}`;
+}
+
+function withLetterAddressWidthStyle(html: string): string {
+  if (html.includes('data-letter-address-width')) return html;
+  return `<style data-letter-address-width="true">${LETTER_ADDRESS_WIDTH_STYLE}</style>${html}`;
 }
 
 const LETTER_FONT_STACK: Record<LetterLocale, string> = {
@@ -212,7 +257,7 @@ export function createLetterExportElement(
   const fontFamily = LETTER_FONT_STACK[options?.letterLocale ?? 'mr'];
   const fallbackFontSizePx = getLetterPrintFontSizePx(paperSize);
 
-  host.innerHTML = withLetterClosingAlignStyle(contentHtml);
+  host.innerHTML = withLetterAddressWidthStyle(withLetterClosingAlignStyle(contentHtml));
   const letterContent = host.querySelector('.letter-content');
   if (!(letterContent instanceof HTMLElement)) {
     host.style.position = 'relative';
@@ -224,6 +269,7 @@ export function createLetterExportElement(
     host.style.fontSize = `${fallbackFontSizePx}px`;
     host.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
     applyLetterClosingAlignment(host);
+    applyLetterAddressWidth(host);
     return host;
   }
 
@@ -245,6 +291,7 @@ export function createLetterExportElement(
     letterContent.style.lineHeight = String(LETTER_PRINT_LINE_HEIGHT);
   }
   applyLetterClosingAlignment(letterContent);
+  applyLetterAddressWidth(letterContent);
 
   return letterContent;
 }
@@ -263,7 +310,9 @@ export function LetterPreview({
   variant?: 'inline' | 'modal';
 }) {
   const resolvedLetterhead = resolveLetterheadUrl(paperSize, letterheadUrl);
-  const contentHtml = withLetterClosingAlignStyle(stripLetterheadFromHtml(html));
+  const contentHtml = withLetterAddressWidthStyle(
+    withLetterClosingAlignStyle(stripLetterheadFromHtml(html)),
+  );
   const hasLetterhead = Boolean(resolvedLetterhead);
   const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);
   const firstPageContentHeightPx = getLetterPageContentHeightCssPx(
