@@ -11,7 +11,7 @@ const LETTER_STYLE = `
     .paragraph { text-align: justify; text-indent: 28px; padding: 0; font-weight: normal; }
     .paragraph:last-of-type { margin-bottom: 0; }
     .right-tab { text-align: right; padding-right: 36px; font-weight: normal; }
-    .right-tab-sign { text-align: right; padding-right: 28px; margin-top: 30px; font-weight: normal; }
+    .right-tab-sign { text-align: right; padding-right: 28px; margin-top: 30px; font-weight: bold; }
     .letter-closing { text-align: right; }
     .letter-closing .signature-line { text-align: right; }
     .recipient-bottom { margin-top: 25px; font-weight: normal; }
