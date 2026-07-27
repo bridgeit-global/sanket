@@ -116,7 +116,6 @@ import {
 import type { LetterAddressTypeLinkRow } from '@/components/letter-address-link-manager';
 import {
   formatAddressMaster,
-  formatAddressMasterMultiline,
   hasAddressContent,
   hasRequiredAddressFields,
   localizeAddressPartsDigits,
@@ -668,23 +667,14 @@ type AddressSelectionState = {
 type ManualAddressKey = keyof AddressSelectionState;
 type ManualAddressParts = Record<ManualAddressKey, AddressMasterAddressParts>;
 
-// Recipient blocks that render the address stacked line-by-line in the letter
-// template. Inline placeholders (applicant `address`, from/to ration office)
-// stay comma-joined on a single line so sentence flow isn't broken.
-const MULTILINE_ADDRESS_KEYS: ReadonlySet<ManualAddressKey> = new Set([
-  'school',
-  'rationOffice',
-  'office',
-]);
-
+// Letter template addresses are always a single comma-joined line:
+// "line1, line2, line3, city pincode".
 function formatAddressForManualKey(
   parts: AddressMasterAddressParts,
   locale: LetterLocale,
-  key: ManualAddressKey,
+  _key?: ManualAddressKey,
 ): string {
-  return MULTILINE_ADDRESS_KEYS.has(key)
-    ? formatAddressMasterMultiline(parts, locale)
-    : formatAddressMaster(parts, locale);
+  return formatAddressMaster(parts, locale);
 }
 
 function getPincodeValidationError(
@@ -714,14 +704,11 @@ function getAddressTextFromMaster(
   addresses: AddressMasterRow[],
   masterId: string | null,
   locale: LetterLocale,
-  multiline = false,
 ): string | null {
   if (!masterId) return null;
   const address = addresses.find((item) => item.id === masterId);
   if (!address) return null;
-  return multiline
-    ? formatAddressMasterMultiline(address, locale)
-    : formatAddressMaster(address, locale);
+  return formatAddressMaster(address, locale);
 }
 
 function getAddressMasterName(
@@ -761,14 +748,13 @@ function combineNameAndAddress(
 function formatRationOfficeWithAddress(
   address: Pick<AddressMasterRow, 'name' | 'nameMr'> & AddressMasterAddressParts,
   locale: LetterLocale,
-  multiline = false,
+  /** When true, name sits on its own line above the single-line address (recipient block). */
+  nameOnOwnLine = false,
 ): string {
   const name = getAddressMasterName(address, locale);
-  const addressText = multiline
-    ? formatAddressMasterMultiline(address, locale)
-    : formatAddressMaster(address, locale);
-  return combineNameAndAddress(name, addressText, multiline ? '<br>' : ', ', {
-    boldName: multiline,
+  const addressText = formatAddressMaster(address, locale);
+  return combineNameAndAddress(name, addressText, nameOnOwnLine ? '<br>' : ', ', {
+    boldName: nameOnOwnLine,
   });
 }
 
@@ -797,7 +783,7 @@ function applyMasterAddressToFields(
     setDomicileFields: Dispatch<SetStateAction<DomicileLetterFields>>;
   },
 ) {
-  const schoolText = getAddressTextFromMaster(addresses, selections.school, locale, true);
+  const schoolText = getAddressTextFromMaster(addresses, selections.school, locale);
   const applicantText = getAddressTextFromMaster(
     addresses,
     selections.applicant,
@@ -807,9 +793,8 @@ function applyMasterAddressToFields(
     addresses,
     selections.rationOffice,
     locale,
-    true,
   );
-  const officeText = getAddressTextFromMaster(addresses, selections.office, locale, true);
+  const officeText = getAddressTextFromMaster(addresses, selections.office, locale);
 
   if (schoolText) {
     setters.setFeesFields((prev) => ({ ...prev, schoolAddress: schoolText }));
@@ -1599,7 +1584,7 @@ export function LetterGeneration({
           setSchoolTransferFields((prev) => ({ ...prev, schoolName }));
         }
       }
-      const text = getAddressTextFromMaster(addresses, id, letterLocale, true);
+      const text = getAddressTextFromMaster(addresses, id, letterLocale);
       if (text) applySchoolAddressText(text);
       if (selected) {
         setManualAddressParts((prev) => ({ ...prev, school: addressRowToParts(selected) }));
@@ -1639,7 +1624,7 @@ export function LetterGeneration({
       const selected = addresses.find((a) => a.id === id);
       const text = selected
         ? formatRationOfficeWithAddress(selected, letterLocale, true)
-        : getAddressTextFromMaster(addresses, id, letterLocale, true);
+        : getAddressTextFromMaster(addresses, id, letterLocale);
       if (text) {
         setRationFields((prev) => ({ ...prev, rationOfficeAddress: text }));
       }
@@ -1753,7 +1738,7 @@ export function LetterGeneration({
     setAddressSelections((prev) => ({ ...prev, office: id }));
     setFieldErrors((prev) => ({ ...prev, officeAddress: undefined }));
     if (id) {
-      const text = getAddressTextFromMaster(addresses, id, letterLocale, true);
+      const text = getAddressTextFromMaster(addresses, id, letterLocale);
       if (text) {
         setIncomeFields((prev) => ({ ...prev, officeAddress: text }));
         setDomicileFields((prev) => ({ ...prev, officeAddress: text }));

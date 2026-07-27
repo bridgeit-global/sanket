@@ -14,7 +14,6 @@ import {
   EMPTY_ADDRESS_PARTS,
   enrichAddressPartsWithPincodeLookup,
   formatAddressMaster,
-  formatAddressMasterMultiline,
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
 import { getCityLabel, getStateLabel } from '@/lib/letters/indian-locations';
@@ -229,8 +228,8 @@ export function LetterAddressField({
       ) : null}
 
       {selectedAddress ? (
-        <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm whitespace-pre-wrap">
-          {formatAddressMasterMultiline(selectedAddress, locale, '\n')}
+        <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+          {formatAddressMaster(selectedAddress, locale)}
         </div>
       ) : showManualFields ? (
         <div className="space-y-3">

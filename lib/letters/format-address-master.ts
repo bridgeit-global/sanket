@@ -112,13 +112,14 @@ export function formatAddressMaster(
   if (!base && !pincode) return '';
   if (!pincode) return base;
   if (!base) return pincode;
+  // Letter/display format: "line1, line2, line3, city - pincode"
   return `${base} - ${pincode}`;
 }
 
 /**
- * Format an address with each street line on its own line and the
- * city/pincode on a final line. Intended for recipient address blocks in
- * letter templates, so the separator defaults to an HTML `<br>`.
+ * Format an address for form previews: street lines joined on one line,
+ * then city and pincode on the next. Letter templates use the single-line
+ * `formatAddressMaster` instead. Separator defaults to HTML `<br>`.
  * State is omitted from letter text (still stored on the address record).
  */
 export function formatAddressMasterMultiline(
@@ -129,13 +130,14 @@ export function formatAddressMasterMultiline(
   const city = pickLocaleField(parts, locale, 'city').trim();
   const state = pickLocaleField(parts, locale, 'state').trim();
 
-  const streetLines = [
+  const streetLine = [
     stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line1'), city, state),
     stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line2'), city, state),
     stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line3'), city, state),
   ]
     .map((value) => localizeAddressText(value, locale))
-    .filter(Boolean);
+    .filter(Boolean)
+    .join(', ');
 
   let locationLine = localizeAddressText(city, locale);
   const pincode = toLocaleDigits(parts.pincode.trim(), locale);
@@ -143,7 +145,7 @@ export function formatAddressMasterMultiline(
     locationLine = locationLine ? `${locationLine} - ${pincode}` : pincode;
   }
 
-  return [...streetLines, locationLine].filter(Boolean).join(separator);
+  return [streetLine, locationLine].filter(Boolean).join(separator);
 }
 
 export function hasAddressContent(parts: AddressMasterAddressParts): boolean {
@@ -203,7 +205,9 @@ export function parseFreeTextAddressForLocale(
     return { pincode: barePincode };
   }
 
-  const pincodeMatch = trimmed.match(/\s*-\s*([\d०-९][\d०-९\s]{4,8}[\d०-९])\s*$/);
+  const pincodeMatch = trimmed.match(
+    /(?:\s*-\s*|\s+)([\d०-९][\d०-९\s]{4,8}[\d०-९])\s*$/,
+  );
   const pincode = pincodeMatch
     ? toWesternDigits(pincodeMatch[1].replace(/\s/g, ''))
     : '';
