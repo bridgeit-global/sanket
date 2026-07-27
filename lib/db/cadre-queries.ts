@@ -2,6 +2,7 @@ import 'server-only';
 
 import { supabase } from '@/lib/supabase/server';
 import { sql as pgSql } from '@/lib/db/postgres';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { throwOnSupabaseError } from '@/lib/db/errors';
 import { TABLES } from './schema';
 import {
@@ -484,6 +485,34 @@ type PositionMeta = {
   levelSortOrder: number;
 };
 
+const POST_FETCH_CHUNK = 100;
+
+function chunkIds(ids: string[], size: number): string[][] {
+  const chunks: string[][] = [];
+  for (let index = 0; index < ids.length; index += size) {
+    chunks.push(ids.slice(index, index + size));
+  }
+  return chunks;
+}
+
+/** Fetch rows with `.in()` in chunks to stay under Supabase/undici header limits (~16KB). */
+async function selectByIdsInChunks<T>(
+  ids: string[],
+  fetchChunk: (
+    chunk: string[],
+  ) => PromiseLike<{ data: T[] | null; error: PostgrestError | null }>,
+  errorMessage: string,
+): Promise<T[]> {
+  if (ids.length === 0) return [];
+  const rows: T[] = [];
+  for (const chunk of chunkIds(ids, POST_FETCH_CHUNK)) {
+    const { data, error } = await fetchChunk(chunk);
+    throwOnSupabaseError(error, errorMessage);
+    if (data?.length) rows.push(...data);
+  }
+  return rows;
+}
+
 async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard[]> {
   if (members.length === 0) return [];
 
@@ -491,55 +520,74 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
   const userIds = [...new Set(members.map((m) => m.userId).filter(Boolean))] as string[];
   const epicNumbers = [...new Set(members.map((m) => m.epicNumber).filter(Boolean))] as string[];
 
-  const [
-    verticalLinksRes,
-    postRowsRes,
-    usersRes,
-    votersRes,
-    mobilesRes,
-    whatsappRes,
-  ] = await Promise.all([
-    supabase
-      .from(TABLES.cadreMemberVertical)
-      .select('member_id, vertical_id, is_primary')
-      .in('member_id', memberIds),
-    supabase
-      .from(TABLES.cadreMemberPost)
-      .select('*')
-      .in('member_id', memberIds)
-      .order('is_primary', { ascending: false })
-      .order('sort_order', { ascending: true }),
-    userIds.length > 0
-      ? supabase.from(TABLES.user).select('id, user_id').in('id', userIds)
-      : Promise.resolve({ data: [], error: null }),
-    epicNumbers.length > 0
-      ? supabase
-          .from(TABLES.voterMaster)
-          .select('epic_number, full_name')
-          .in('epic_number', epicNumbers)
-      : Promise.resolve({ data: [], error: null }),
-    epicNumbers.length > 0
-      ? supabase
-          .from(TABLES.voterMobileNumber)
-          .select('epic_number, mobile_number')
-          .in('epic_number', epicNumbers)
-          .eq('sort_order', 1)
-      : Promise.resolve({ data: [], error: null }),
-    supabase
-      .from(TABLES.cadreMemberWhatsApp)
-      .select('member_id, whatsapp_phone')
-      .in('member_id', memberIds),
-  ]);
+  const [verticalLinks, postRows, users, voters, mobiles, whatsappRows] =
+    await Promise.all([
+      selectByIdsInChunks<{
+        member_id: string | number;
+        vertical_id: string | number;
+        is_primary: boolean | null;
+      }>(
+        memberIds,
+        (chunk) =>
+          supabase
+            .from(TABLES.cadreMemberVertical)
+            .select('member_id, vertical_id, is_primary')
+            .in('member_id', chunk),
+        'Failed to load member verticals',
+      ),
+      selectByIdsInChunks(
+        memberIds,
+        (chunk) =>
+          supabase
+            .from(TABLES.cadreMemberPost)
+            .select('*')
+            .in('member_id', chunk)
+            .order('is_primary', { ascending: false })
+            .order('sort_order', { ascending: true }),
+        'Failed to load member posts',
+      ),
+      selectByIdsInChunks<{ id: string | number; user_id: string }>(
+        userIds,
+        (chunk) =>
+          supabase.from(TABLES.user).select('id, user_id').in('id', chunk),
+        'Failed to load linked users',
+      ),
+      selectByIdsInChunks<{ epic_number: string; full_name: string }>(
+        epicNumbers,
+        (chunk) =>
+          supabase
+            .from(TABLES.voterMaster)
+            .select('epic_number, full_name')
+            .in('epic_number', chunk),
+        'Failed to load linked voters',
+      ),
+      selectByIdsInChunks<{
+        epic_number: string;
+        mobile_number: string | null;
+      }>(
+        epicNumbers,
+        (chunk) =>
+          supabase
+            .from(TABLES.voterMobileNumber)
+            .select('epic_number, mobile_number')
+            .in('epic_number', chunk)
+            .eq('sort_order', 1),
+        'Failed to load voter mobiles',
+      ),
+      selectByIdsInChunks<{
+        member_id: string | number;
+        whatsapp_phone: string | null;
+      }>(
+        memberIds,
+        (chunk) =>
+          supabase
+            .from(TABLES.cadreMemberWhatsApp)
+            .select('member_id, whatsapp_phone')
+            .in('member_id', chunk),
+        'Failed to load member WhatsApp numbers',
+      ),
+    ]);
 
-  throwOnSupabaseError(verticalLinksRes.error, 'Failed to load member verticals');
-  throwOnSupabaseError(postRowsRes.error, 'Failed to load member posts');
-  throwOnSupabaseError(usersRes.error, 'Failed to load linked users');
-  throwOnSupabaseError(votersRes.error, 'Failed to load linked voters');
-  throwOnSupabaseError(mobilesRes.error, 'Failed to load voter mobiles');
-  throwOnSupabaseError(whatsappRes.error, 'Failed to load member WhatsApp numbers');
-
-  const verticalLinks = verticalLinksRes.data ?? [];
-  const postRows = postRowsRes.data ?? [];
   const verticalIds = [
     ...new Set([
       ...verticalLinks.map((row) => String(row.vertical_id)),
@@ -560,26 +608,38 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
 
   const geoMeta = await loadGeoMetaForIds(geoIds);
 
-  const [verticalsRes, positionsRes] = await Promise.all([
-    verticalIds.length > 0
-      ? supabase
+  const [verticals, positions] = await Promise.all([
+    selectByIdsInChunks<{
+      id: string | number;
+      name: string;
+      sort_order: number | null;
+    }>(
+      verticalIds,
+      (chunk) =>
+        supabase
           .from(TABLES.cadreVertical)
           .select('id, name, sort_order')
-          .in('id', verticalIds)
-      : Promise.resolve({ data: [], error: null }),
-    positionIds.length > 0
-      ? supabase
+          .in('id', chunk),
+      'Failed to load verticals',
+    ),
+    selectByIdsInChunks<{
+      id: string | number;
+      name: string;
+      sort_order: number | null;
+      level_id: string | number;
+    }>(
+      positionIds,
+      (chunk) =>
+        supabase
           .from(TABLES.cadrePosition)
           .select('id, name, sort_order, level_id')
-          .in('id', positionIds)
-      : Promise.resolve({ data: [], error: null }),
+          .in('id', chunk),
+      'Failed to load positions',
+    ),
   ]);
 
-  throwOnSupabaseError(verticalsRes.error, 'Failed to load verticals');
-  throwOnSupabaseError(positionsRes.error, 'Failed to load positions');
-
   const verticalById = new Map(
-    (verticalsRes.data ?? []).map((row) => [
+    verticals.map((row) => [
       String(row.id),
       {
         id: String(row.id),
@@ -589,20 +649,24 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
     ]),
   );
 
-  const levelIds = [
-    ...new Set((positionsRes.data ?? []).map((row) => String(row.level_id))),
-  ];
-  const levelsRes =
-    levelIds.length > 0
-      ? await supabase
-          .from(TABLES.cadrePositionLevel)
-          .select('id, key, name, sort_order')
-          .in('id', levelIds)
-      : { data: [], error: null };
-  throwOnSupabaseError(levelsRes.error, 'Failed to load position levels');
+  const levelIds = [...new Set(positions.map((row) => String(row.level_id)))];
+  const levels = await selectByIdsInChunks<{
+    id: string | number;
+    key: string;
+    name: string;
+    sort_order: number | null;
+  }>(
+    levelIds,
+    (chunk) =>
+      supabase
+        .from(TABLES.cadrePositionLevel)
+        .select('id, key, name, sort_order')
+        .in('id', chunk),
+    'Failed to load position levels',
+  );
 
   const levelById = new Map(
-    (levelsRes.data ?? []).map((row) => [
+    levels.map((row) => [
       String(row.id),
       {
         key: String(row.key),
@@ -613,7 +677,7 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
   );
 
   const positionById = new Map<string, PositionMeta>();
-  for (const row of positionsRes.data ?? []) {
+  for (const row of positions) {
     const level = levelById.get(String(row.level_id));
     positionById.set(String(row.id), {
       name: String(row.name),
@@ -655,13 +719,13 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
   }
 
   const userById = new Map(
-    (usersRes.data ?? []).map((row) => [
+    users.map((row) => [
       String(row.id),
       { id: String(row.id), userId: String(row.user_id) },
     ]),
   );
   const voterByEpic = new Map(
-    (votersRes.data ?? []).map((row) => [
+    voters.map((row) => [
       String(row.epic_number),
       {
         epicNumber: String(row.epic_number),
@@ -670,7 +734,7 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
       },
     ]),
   );
-  for (const row of mobilesRes.data ?? []) {
+  for (const row of mobiles) {
     const voter = voterByEpic.get(String(row.epic_number));
     if (voter) {
       voter.mobile = row.mobile_number ? String(row.mobile_number) : null;
@@ -678,7 +742,7 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
   }
 
   const whatsappByMember = new Map(
-    (whatsappRes.data ?? []).map((row) => [
+    whatsappRows.map((row) => [
       String(row.member_id),
       row.whatsapp_phone ? String(row.whatsapp_phone) : null,
     ]),
@@ -799,16 +863,6 @@ export async function getCadreMembersPaginated(filters: {
   const members = await buildMemberCards((data ?? []).map(mapCadreMemberRow));
 
   return { members, total, page, pageSize, totalPages };
-}
-
-const POST_FETCH_CHUNK = 100;
-
-function chunkIds(ids: string[], size: number): string[][] {
-  const chunks: string[][] = [];
-  for (let index = 0; index < ids.length; index += size) {
-    chunks.push(ids.slice(index, index + size));
-  }
-  return chunks;
 }
 
 async function filterMemberIdsByEpicStatus(

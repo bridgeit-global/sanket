@@ -890,13 +890,13 @@ export function LetterGeneration({
 }) {
   const { data: session } = useSession();
   const { t, locale } = useTranslations();
-  const [letterLocale, setLetterLocale] = useState<LetterLocale>(locale);
+  const [letterLocale, setLetterLocale] = useState<LetterLocale>('mr');
   /** Field labels / options follow letter language, not UI locale. */
   const lt = useCallback(
     (key: string) => letterMessage(letterLocale, key),
     [letterLocale],
   );
-  const prevLetterLocaleRef = useRef<LetterLocale>(locale);
+  const prevLetterLocaleRef = useRef<LetterLocale>('mr');
   const [activeTab, setActiveTab] = useState<LetterType>('fees');
   const [isSaving, setIsSaving] = useState(false);
   const [downloadingLetterId, setDownloadingLetterId] = useState<string | null>(
@@ -906,20 +906,20 @@ export function LetterGeneration({
   const [isGeneratorCollapsed, setIsGeneratorCollapsed] = useState(false);
 
   const [feesFields, setFeesFields] = useState<FeesLetterFields>(() =>
-    feesDefaults(locale),
+    feesDefaults('mr'),
   );
   const [generalFields, setGeneralFields] = useState<GeneralLetterFields>(() =>
-    generalDefaults(locale),
+    generalDefaults('mr'),
   );
   const [paragraphRows, setParagraphRows] = useState<string[]>(() => ['']);
   const paragraphRowsRef = useRef(paragraphRows);
   paragraphRowsRef.current = paragraphRows;
   const [schoolAdmissionFields, setSchoolAdmissionFields] =
-    useState<SchoolAdmissionLetterFields>(() => schoolAdmissionDefaults(locale));
+    useState<SchoolAdmissionLetterFields>(() => schoolAdmissionDefaults('mr'));
   const [schoolTransferFields, setSchoolTransferFields] =
-    useState<SchoolTransferLetterFields>(() => schoolTransferDefaults(locale));
+    useState<SchoolTransferLetterFields>(() => schoolTransferDefaults('mr'));
   const [rationFields, setRationFields] = useState<RationLetterFields>(() =>
-    rationDefaults(locale),
+    rationDefaults('mr'),
   );
   const [familyMemberRows, setFamilyMemberRows] = useState<FamilyMemberRow[]>(() => [
     emptyFamilyMemberRow(),
@@ -927,10 +927,10 @@ export function LetterGeneration({
   const familyMemberRowsRef = useRef(familyMemberRows);
   familyMemberRowsRef.current = familyMemberRows;
   const [incomeFields, setIncomeFields] = useState<IncomeLetterFields>(() =>
-    incomeDefaults(locale),
+    incomeDefaults('mr'),
   );
   const [domicileFields, setDomicileFields] = useState<DomicileLetterFields>(
-    () => domicileDefaults(locale),
+    () => domicileDefaults('mr'),
   );
   const referenceNumberAutoRef = useRef(true);
   const referenceSequenceRequestId = useRef(0);

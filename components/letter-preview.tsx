@@ -12,6 +12,7 @@ import {
   getLetterPaperContentWidthPx,
   getLetterPaperHeightPx,
   getLetterPaperWidthPx,
+  LETTER_PAPER_BOTTOM_MARGIN_MM,
   LETTER_PAPER_DIMENSIONS_MM,
   LETTER_PAPER_MARGIN_MM,
   type LetterPaperSize,
@@ -167,23 +168,24 @@ function getLetterBodyPaddingPx(
   const pxPerMm = getLetterLayoutPxPerMm(paperSize);
   const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
   const side = marginMm * pxPerMm;
+  const bottom = LETTER_PAPER_BOTTOM_MARGIN_MM[paperSize] * pxPerMm;
   if (hasLetterhead && isFirstPage) {
     const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);
     return {
       top: headerPaddingMm * pxPerMm,
       right: side,
-      bottom: side,
+      bottom,
       left: side,
     };
   }
   if (hasLetterhead) {
-    return { top: side, right: side, bottom: side, left: side };
+    return { top: side, right: side, bottom, left: side };
   }
   const paddingPx = paperSize === 'a4' ? 24 : 18;
   return {
     top: paddingPx,
     right: paddingPx,
-    bottom: paddingPx,
+    bottom,
     left: paddingPx,
   };
 }

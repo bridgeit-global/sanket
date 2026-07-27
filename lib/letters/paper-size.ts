@@ -20,6 +20,13 @@ export const LETTER_PAPER_MARGIN_MM: Record<LetterPaperSize, number> = {
   b5: 12,
 };
 
+/** Bottom page inset (mm). 0 so letter content can use the full page height. */
+export const LETTER_PAPER_BOTTOM_MARGIN_MM: Record<LetterPaperSize, number> = {
+  a4: 0,
+  a5: 0,
+  b5: 0,
+};
+
 /**
  * Default paper size by letter type:
  * - Ration Card → B5
@@ -101,8 +108,9 @@ export function getLetterPageContentHeightCssPx(
 ): number {
   const { widthMm, heightMm } = LETTER_PAPER_DIMENSIONS_MM[paperSize];
   const marginMm = LETTER_PAPER_MARGIN_MM[paperSize];
+  const bottomMarginMm = LETTER_PAPER_BOTTOM_MARGIN_MM[paperSize];
   const topInsetMm = hasLetterhead ? headerPaddingMm : marginMm;
-  const contentHeightMm = Math.max(1, heightMm - topInsetMm - marginMm);
+  const contentHeightMm = Math.max(1, heightMm - topInsetMm - bottomMarginMm);
   const contentWidthMm = Math.max(1, widthMm - marginMm * 2);
   const contentWidthPx = getLetterPaperContentWidthPx(paperSize);
   return contentHeightMm * (contentWidthPx / contentWidthMm);
