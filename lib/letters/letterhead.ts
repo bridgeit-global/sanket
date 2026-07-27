@@ -13,9 +13,9 @@ export const DEFAULT_LETTERHEAD_URLS: Record<LetterPaperSize, string> = {
  * Must use mm (not %) — CSS percentage padding is relative to page width.
  */
 export const LETTERHEAD_CONTENT_PADDING_MM: Record<LetterPaperSize, number> = {
-  a4: 60,
+  a4: 52,
   a5: 40,
-  b5: 50,
+  b5: 48,
 };
 
 const LETTERHEAD_STRIP_PATTERN =
