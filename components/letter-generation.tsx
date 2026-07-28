@@ -2948,62 +2948,59 @@ export function LetterGeneration({
       <ModulePageHeader
         title={t('letterGeneration.title')}
         description={t('letterGeneration.description')}
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild>
-              <Link
-                href={
-                  beneficiaryServiceId
-                    ? `/modules/letter-generation/service-catalog?beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}`
-                    : '/modules/letter-generation/service-catalog'
-                }
-              >
-                <ListTree className="mr-2 size-4" />
-                {t('letterGeneration.serviceCatalogMaster.manageLink')}
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link
-                href={
-                  beneficiaryServiceId
-                    ? `/modules/letter-generation/document-types?beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}`
-                    : '/modules/letter-generation/document-types'
-                }
-              >
-                <FileType className="mr-2 size-4" />
-                {t('letterGeneration.documentTypesMaster.manageLink')}
-              </Link>
-            </Button>
-            <Button variant="outline" asChild>
-              <Link
-                href={
-                  beneficiaryServiceId
-                    ? `/modules/letter-generation/addresses?beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}`
-                    : '/modules/letter-generation/addresses'
-                }
-              >
-                <MapPin className="mr-2 size-4" />
-                {t('letterGeneration.addresses.manageLink')}
-              </Link>
-            </Button>
-            {isAdmin ? (
-              <Button variant="outline" asChild>
-                <Link
-                  href={
-                    beneficiaryServiceId
-                      ? `/modules/letter-generation/templates?beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}&letterType=${encodeURIComponent(activeTab)}&letterLocale=${encodeURIComponent(letterLocale)}`
-                      : `/modules/letter-generation/templates?letterType=${encodeURIComponent(activeTab)}&letterLocale=${encodeURIComponent(letterLocale)}`
-                  }
-                >
-                  <FileCode2 className="mr-2 size-4" />
-                  {t('letterGeneration.templates.manageLink')}
-                </Link>
-              </Button>
-            ) : null}
-          </div>
-        }
       />
-
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" asChild>
+          <Link
+            href={
+              beneficiaryServiceId
+                ? `/modules/letter-generation/service-catalog?beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}`
+                : '/modules/letter-generation/service-catalog'
+            }
+          >
+            <ListTree className="mr-2 size-4" />
+            {t('letterGeneration.serviceCatalogMaster.manageLink')}
+          </Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link
+            href={
+              beneficiaryServiceId
+                ? `/modules/letter-generation/document-types?beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}`
+                : '/modules/letter-generation/document-types'
+            }
+          >
+            <FileType className="mr-2 size-4" />
+            {t('letterGeneration.documentTypesMaster.manageLink')}
+          </Link>
+        </Button>
+        <Button variant="outline" asChild>
+          <Link
+            href={
+              beneficiaryServiceId
+                ? `/modules/letter-generation/addresses?beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}`
+                : '/modules/letter-generation/addresses'
+            }
+          >
+            <MapPin className="mr-2 size-4" />
+            {t('letterGeneration.addresses.manageLink')}
+          </Link>
+        </Button>
+        {isAdmin ? (
+          <Button variant="outline" asChild>
+            <Link
+              href={
+                beneficiaryServiceId
+                  ? `/modules/letter-generation/templates?beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}&letterType=${encodeURIComponent(activeTab)}&letterLocale=${encodeURIComponent(letterLocale)}`
+                  : `/modules/letter-generation/templates?letterType=${encodeURIComponent(activeTab)}&letterLocale=${encodeURIComponent(letterLocale)}`
+              }
+            >
+              <FileCode2 className="mr-2 size-4" />
+              {t('letterGeneration.templates.manageLink')}
+            </Link>
+          </Button>
+        ) : null}
+      </div>
       {service ? (
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader className="p-4 sm:p-6">
