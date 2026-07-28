@@ -683,9 +683,10 @@ type AddressSelectionState = {
 type ManualAddressKey = keyof AddressSelectionState;
 type ManualAddressParts = Record<ManualAddressKey, AddressMasterAddressParts>;
 
-// Recipient ("To") blocks stack each address part on its own line, using
-// commas as line-break markers. Inline placeholders (applicant address,
-// from/to ration office in body text) stay comma-joined on one line.
+// Recipient ("To") blocks stack street lines, using commas as line-break
+// markers; city + pincode stay on the last street line and wrap naturally.
+// Inline placeholders (applicant address, from/to ration office in body
+// text) stay comma-joined on one line.
 const MULTILINE_ADDRESS_KEYS: ReadonlySet<ManualAddressKey> = new Set([
   'school',
   'rationOffice',

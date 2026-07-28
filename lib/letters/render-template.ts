@@ -94,11 +94,19 @@ function formatMultilineHtmlBlock(text: string): string {
     .flatMap((line) => {
       const trimmedLine = line.trim();
       if (!trimmedLine) return [];
-      // Commas in address/"To" text mark the next line (keep trailing commas).
+      // Commas in address/"To" text mark the next line (keep trailing commas),
+      // but keep city/pincode on the last street line so they wrap naturally.
       const parts = trimmedLine.split(',').map((part) => part.trim()).filter(Boolean);
       if (parts.length <= 1) return [trimmedLine];
-      return parts.map((part, index) =>
-        index < parts.length - 1 ? `${part},` : part,
+      if (parts.length === 2) return [`${parts[0]}, ${parts[1]}`];
+      const streetParts = parts.slice(0, -1);
+      const cityPin = parts[parts.length - 1];
+      const merged = [
+        ...streetParts.slice(0, -1),
+        `${streetParts[streetParts.length - 1]}, ${cityPin}`,
+      ];
+      return merged.map((part, index) =>
+        index < merged.length - 1 ? `${part},` : part,
       );
     })
     .map(escapeHtmlText)

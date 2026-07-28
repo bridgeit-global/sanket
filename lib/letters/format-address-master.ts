@@ -117,10 +117,11 @@ export function formatAddressMaster(
 }
 
 /**
- * Format an address for letter recipient ("To") blocks: each street/city
- * segment on its own line, with commas marking line breaks
- * (`line1,<br>line2,<br>city - pincode`). Inline body placeholders still use
- * single-line `formatAddressMaster`. State is omitted from letter text.
+ * Format an address for letter recipient ("To") blocks: street lines are
+ * separated with commas marking line breaks, while city + pincode stay on
+ * the last street line so they wrap naturally
+ * (`line1,<br>line2,<br>line3, city - pincode`). Inline body placeholders
+ * still use single-line `formatAddressMaster`. State is omitted from letter text.
  */
 export function formatAddressMasterMultiline(
   parts: AddressMasterAddressParts,
@@ -138,13 +139,18 @@ export function formatAddressMasterMultiline(
     .map((value) => localizeAddressText(value, locale))
     .filter(Boolean);
 
-  let locationLine = localizeAddressText(city, locale);
+  let locationSuffix = localizeAddressText(city, locale);
   const pincode = toLocaleDigits(parts.pincode.trim(), locale);
   if (pincode) {
-    locationLine = locationLine ? `${locationLine} - ${pincode}` : pincode;
+    locationSuffix = locationSuffix ? `${locationSuffix} - ${pincode}` : pincode;
   }
 
-  return [...streetSegments, locationLine].filter(Boolean).join(separator);
+  if (!streetSegments.length) return locationSuffix;
+  if (!locationSuffix) return streetSegments.join(separator);
+
+  const lines = [...streetSegments];
+  lines[lines.length - 1] = `${lines[lines.length - 1]}, ${locationSuffix}`;
+  return lines.join(separator);
 }
 
 export function hasAddressContent(parts: AddressMasterAddressParts): boolean {
