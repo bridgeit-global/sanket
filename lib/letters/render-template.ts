@@ -91,7 +91,17 @@ function formatMultilineHtmlBlock(text: string): string {
   return text
     .replace(/\r\n?/g, '\n')
     .split('\n')
-    .map((line) => escapeHtmlText(line))
+    .flatMap((line) => {
+      const trimmedLine = line.trim();
+      if (!trimmedLine) return [];
+      // Commas in address/"To" text mark the next line (keep trailing commas).
+      const parts = trimmedLine.split(',').map((part) => part.trim()).filter(Boolean);
+      if (parts.length <= 1) return [trimmedLine];
+      return parts.map((part, index) =>
+        index < parts.length - 1 ? `${part},` : part,
+      );
+    })
+    .map(escapeHtmlText)
     .join('<br>');
 }
 

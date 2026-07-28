@@ -117,27 +117,26 @@ export function formatAddressMaster(
 }
 
 /**
- * Format an address for form previews: street lines joined on one line,
- * then city and pincode on the next. Letter templates use the single-line
- * `formatAddressMaster` instead. Separator defaults to HTML `<br>`.
- * State is omitted from letter text (still stored on the address record).
+ * Format an address for letter recipient ("To") blocks: each street/city
+ * segment on its own line, with commas marking line breaks
+ * (`line1,<br>line2,<br>city - pincode`). Inline body placeholders still use
+ * single-line `formatAddressMaster`. State is omitted from letter text.
  */
 export function formatAddressMasterMultiline(
   parts: AddressMasterAddressParts,
   locale: LetterLocale,
-  separator = '<br>',
+  separator = ',<br>',
 ): string {
   const city = pickLocaleField(parts, locale, 'city').trim();
   const state = pickLocaleField(parts, locale, 'state').trim();
 
-  const streetLine = [
+  const streetSegments = [
     stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line1'), city, state),
     stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line2'), city, state),
     stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line3'), city, state),
   ]
     .map((value) => localizeAddressText(value, locale))
-    .filter(Boolean)
-    .join(', ');
+    .filter(Boolean);
 
   let locationLine = localizeAddressText(city, locale);
   const pincode = toLocaleDigits(parts.pincode.trim(), locale);
@@ -145,7 +144,7 @@ export function formatAddressMasterMultiline(
     locationLine = locationLine ? `${locationLine} - ${pincode}` : pincode;
   }
 
-  return [streetLine, locationLine].filter(Boolean).join(separator);
+  return [...streetSegments, locationLine].filter(Boolean).join(separator);
 }
 
 export function hasAddressContent(parts: AddressMasterAddressParts): boolean {

@@ -48,7 +48,7 @@ ${LETTER_CLOSING_ALIGN_SELECTOR} {
 }
 `.trim();
 
-/** Keep To-address blocks within half the content width; long lines wrap at commas. */
+/** Keep To-address blocks within half the content width; commas become hard line breaks in address HTML. */
 const LETTER_ADDRESS_WIDTH_SELECTOR = '.address, .recipient, .recipient-bottom';
 
 const LETTER_ADDRESS_WIDTH_STYLE = `
