@@ -22,7 +22,7 @@ export function LetterTemplateEditorPage() {
   tRef.current = t;
 
   const [letterMasters, setLetterMasters] = useState<LetterMasterRow[]>([]);
-  const [letterMastersLoading, setLetterMastersLoading] = useState(false);
+  const [letterMastersLoading, setLetterMastersLoading] = useState(true);
 
   const refreshLetterMasters = useCallback(async () => {
     setLetterMastersLoading(true);

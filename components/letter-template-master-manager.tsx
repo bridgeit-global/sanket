@@ -149,10 +149,16 @@ export function LetterTemplateMasterManager({
 }: LetterTemplateMasterManagerProps) {
   const { t, locale } = useTranslations();
   const uiLocale: LetterLocale = locale === 'mr' ? 'mr' : 'en';
+  const resolvedInitialType = initialLetterType?.trim() || 'fees';
+  const resolvedInitialLocale: LetterLocale =
+    initialLetterLocale === 'en' || initialLetterLocale === 'mr'
+      ? initialLetterLocale
+      : 'en';
+
   const [formCardOpen, setFormCardOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<TemplateFormState>(() =>
-    emptyFormFor('fees', 'en'),
+    emptyFormFor(resolvedInitialType, resolvedInitialLocale),
   );
   const [creatingNewType, setCreatingNewType] = useState(false);
   const [newTypeCode, setNewTypeCode] = useState('');
@@ -167,8 +173,14 @@ export function LetterTemplateMasterManager({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LetterMasterRow | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<string>('all');
-  const [filterLocale, setFilterLocale] = useState<string>('all');
+  const [filterType, setFilterType] = useState<string>(() =>
+    initialLetterType?.trim() || 'all',
+  );
+  const [filterLocale, setFilterLocale] = useState<string>(() =>
+    initialLetterLocale === 'en' || initialLetterLocale === 'mr'
+      ? initialLetterLocale
+      : 'all',
+  );
   const letterheadInputRef = useRef<HTMLInputElement>(null);
   const initialOpenDoneRef = useRef(false);
 
@@ -275,7 +287,7 @@ export function LetterTemplateMasterManager({
   }, [editingId]);
 
   useEffect(() => {
-    if (initialOpenDoneRef.current || loading || letterMasters.length === 0) {
+    if (initialOpenDoneRef.current || loading) {
       return;
     }
     if (!initialLetterType && !initialLetterLocale) {
@@ -289,6 +301,10 @@ export function LetterTemplateMasterManager({
     );
     if (match) {
       openEditForm(match);
+    } else {
+      // Coming from letter generation with no matching template — open Add
+      // Template on "+ Add new letter type…" with blank type fields.
+      openCreateForm();
     }
     initialOpenDoneRef.current = true;
     // Only run once after first successful load with query params.
@@ -312,28 +328,47 @@ export function LetterTemplateMasterManager({
     resetNewTypeFields();
     setForm(
       emptyFormFor(
-        filterType !== 'all' ? filterType : 'fees',
-        (filterLocale !== 'all' ? filterLocale : 'en') as LetterLocale,
+        filterType !== 'all' ? filterType : initialLetterType || 'fees',
+        (filterLocale !== 'all'
+          ? filterLocale
+          : initialLetterLocale || 'en') as LetterLocale,
       ),
     );
     setFormCardOpen(false);
   };
 
   const openCreateForm = () => {
-    const letterType =
-      filterType !== 'all' ? filterType : initialLetterType || 'fees';
     const letterLocale = (
       filterLocale !== 'all' ? filterLocale : initialLetterLocale || 'en'
     ) as LetterLocale;
     setEditingId(null);
-    resetNewTypeFields();
-    setForm(emptyFormFor(letterType, letterLocale));
+    setCreatingNewType(true);
+    setNewTypeCode('');
+    setNewTypeLabelEn('');
+    setNewTypeLabelMr('');
+    setForm({
+      ...emptyFormFor('general', letterLocale),
+      name: '',
+    });
     setFormCardOpen(true);
     requestAnimationFrame(() => {
       document
         .getElementById('letter-template-form')
         ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
+  };
+
+  const toggleFormCard = () => {
+    if (formCardOpen) {
+      setFormCardOpen(false);
+      return;
+    }
+    if (editingId) {
+      setFormCardOpen(true);
+      return;
+    }
+    // Expanding Add Template — start on "+ Add new letter type…" with blank fields.
+    openCreateForm();
   };
 
   const openEditForm = (item: LetterMasterRow) => {
@@ -362,12 +397,18 @@ export function LetterTemplateMasterManager({
   ) => {
     if (editingId) return;
     if (nextType === NEW_LETTER_TYPE_VALUE) {
+      const switchingIntoNewType = !creatingNewType;
       setCreatingNewType(true);
+      if (switchingIntoNewType) {
+        setNewTypeCode('');
+        setNewTypeLabelEn('');
+        setNewTypeLabelMr('');
+      }
       setForm((prev) => ({
         ...emptyFormFor('general', nextLocale),
         letterheadUrl: prev.letterheadUrl,
         letterheadMode: prev.letterheadMode,
-        name: prev.name.trim() || '',
+        name: switchingIntoNewType ? '' : prev.name,
       }));
       return;
     }
@@ -547,13 +588,13 @@ export function LetterTemplateMasterManager({
       <Card id="letter-template-form">
         <CardHeader
           className="cursor-pointer select-none"
-          onClick={() => setFormCardOpen((v) => !v)}
+          onClick={toggleFormCard}
           role="button"
           tabIndex={0}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
               e.preventDefault();
-              setFormCardOpen((v) => !v);
+              toggleFormCard();
             }
           }}
         >
