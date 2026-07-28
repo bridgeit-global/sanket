@@ -14,6 +14,7 @@ import {
   FileType,
   Calendar,
   Loader2,
+  ListTree,
   MapPin,
   Plus,
   Printer,
@@ -46,6 +47,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -91,6 +93,7 @@ import {
 import {
   letterTypeLabel,
   resolveLetterFormBase,
+  resolveLetterTypeFromServiceName,
   type LetterTypeOption,
 } from '@/lib/letters/letter-type-options';
 import {
@@ -895,12 +898,15 @@ export function LetterGeneration({
   beneficiaryServiceId,
   prefillName,
   prefillAddress,
+  initialLetterType,
   service,
 }: {
   isAdmin?: boolean;
   beneficiaryServiceId?: string;
   prefillName?: string;
   prefillAddress?: string;
+  /** Preferred letter type from ServiceCatalog.letter_type (or name fallback). */
+  initialLetterType?: string;
   service?: BeneficiaryServiceInfo;
 }) {
   const { data: session } = useSession();
@@ -912,7 +918,10 @@ export function LetterGeneration({
     [letterLocale],
   );
   const prevLetterLocaleRef = useRef<LetterLocale>('mr');
-  const [activeTab, setActiveTab] = useState<string>('fees');
+  const [activeTab, setActiveTab] = useState<string>(() =>
+    initialLetterType?.trim() ||
+    resolveLetterTypeFromServiceName(service?.serviceName),
+  );
   const [letterTypeOptions, setLetterTypeOptions] = useState<LetterTypeOption[]>(
     [],
   );
@@ -1883,6 +1892,41 @@ export function LetterGeneration({
     );
   }, [letterTypeOptions]);
 
+  const letterTypeComboboxOptions = useMemo(
+    () =>
+      letterTypeSelectOptions.map((type) => ({
+        value: type.code,
+        label: letterTypeLabel(type, letterLocale),
+      })),
+    [letterTypeSelectOptions, letterLocale],
+  );
+
+  const savedLetterTypeFilterOptions = useMemo(
+    () => [
+      {
+        value: ALL_LETTER_TYPES,
+        label: t('letterGeneration.savedLetters.filters.allTypes'),
+      },
+      ...letterTypeComboboxOptions,
+      {
+        value: 'ration',
+        label: t('letterGeneration.tabs.ration'),
+      },
+    ],
+    [letterTypeComboboxOptions, t],
+  );
+
+  const documentTypeComboboxOptions = useMemo(() => {
+    const codes =
+      documentTypes.length > 0
+        ? documentTypes.map((docType) => docType.code)
+        : [...DOCUMENT_TYPES];
+    return codes.map((docType) => ({
+      value: docType,
+      label: documentTypeLabel(docType, letterLocale, documentTypes),
+    }));
+  }, [documentTypes, letterLocale]);
+
   const resolveTypeLabel = useCallback(
     (code: string) => {
       const option = letterTypeOptions.find((opt) => opt.code === code);
@@ -1962,6 +2006,15 @@ export function LetterGeneration({
         return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
       });
   }, [letterMasters, activeTab, letterLocale]);
+
+  const letterMasterComboboxOptions = useMemo(
+    () =>
+      mastersForActive.map((master) => ({
+        value: master.id,
+        label: master.name,
+      })),
+    [mastersForActive],
+  );
 
   const activeLetterMaster = useMemo(() => {
     if (selectedLetterMasterId) {
@@ -2762,7 +2815,7 @@ export function LetterGeneration({
           required
           error={fieldErrors.referencePrefix}
         >
-          <Select
+          <Combobox
             value={
               coerceDocumentType(fields.referencePrefix) ??
               (fields.referencePrefix || defaultReferencePrefix())
@@ -2779,26 +2832,11 @@ export function LetterGeneration({
                 }));
               }
             }}
-          >
-            <SelectTrigger
-              aria-invalid={!!fieldErrors.referencePrefix}
-              aria-required
-            >
-              <SelectValue
-                placeholder={lt('letterGeneration.placeholders.referencePrefix')}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              {(documentTypes.length > 0
-                ? documentTypes.map((docType) => docType.code)
-                : [...DOCUMENT_TYPES]
-              ).map((docType) => (
-                <SelectItem key={docType} value={docType}>
-                  {documentTypeLabel(docType, letterLocale, documentTypes)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            options={documentTypeComboboxOptions}
+            placeholder={lt('letterGeneration.placeholders.referencePrefix')}
+            aria-invalid={!!fieldErrors.referencePrefix}
+            aria-required
+          />
         </FieldGroup>
         <FieldGroup
           label={lt('letterGeneration.fields.referenceNo')}
@@ -2860,6 +2898,18 @@ export function LetterGeneration({
         description={t('letterGeneration.description')}
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button variant="outline" asChild>
+              <Link
+                href={
+                  beneficiaryServiceId
+                    ? `/modules/letter-generation/service-catalog?beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}`
+                    : '/modules/letter-generation/service-catalog'
+                }
+              >
+                <ListTree className="mr-2 size-4" />
+                {t('letterGeneration.serviceCatalogMaster.manageLink')}
+              </Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link
                 href={
@@ -3030,23 +3080,12 @@ export function LetterGeneration({
             <Tabs value={formTab} onValueChange={(value) => setActiveTab(value)}>
               <div className="grid w-full max-w-3xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <FieldGroup label={lt('letterGeneration.fields.letterType')}>
-                  <Select
+                  <Combobox
                     value={activeTab}
-                    onValueChange={(value: string) => setActiveTab(value)}
-                  >
-                    <SelectTrigger className="[&>span]:text-left">
-                      <SelectValue
-                        placeholder={lt('letterGeneration.placeholders.letterType')}
-                      />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {letterTypeSelectOptions.map((type) => (
-                        <SelectItem key={type.code} value={type.code}>
-                          {letterTypeLabel(type, letterLocale)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                    onValueChange={(value) => setActiveTab(value)}
+                    options={letterTypeComboboxOptions}
+                    placeholder={lt('letterGeneration.placeholders.letterType')}
+                  />
                 </FieldGroup>
                 <FieldGroup label={lt('letterGeneration.fields.letterLanguage')}>
                   <Select
@@ -3067,26 +3106,15 @@ export function LetterGeneration({
                 </FieldGroup>
                 {mastersForActive.length > 1 ? (
                   <FieldGroup label={t('letterGeneration.templates.selectTemplate')}>
-                    <Select
+                    <Combobox
                       value={activeLetterMaster?.id ?? undefined}
                       onValueChange={setSelectedLetterMasterId}
                       disabled={letterMastersLoading}
-                    >
-                      <SelectTrigger className="[&>span]:text-left">
-                        <SelectValue
-                          placeholder={t(
-                            'letterGeneration.templates.selectTemplatePlaceholder',
-                          )}
-                        />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {mastersForActive.map((master) => (
-                          <SelectItem key={master.id} value={master.id}>
-                            {master.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      options={letterMasterComboboxOptions}
+                      placeholder={t(
+                        'letterGeneration.templates.selectTemplatePlaceholder',
+                      )}
+                    />
                   </FieldGroup>
                 ) : null}
               </div>
@@ -4338,29 +4366,13 @@ export function LetterGeneration({
             <div className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <FieldGroup label={t('letterGeneration.fields.letterType')}>
-                  <Select
+                  <Combobox
                     value={filterLetterType}
                     onValueChange={(value: SavedLetterTypeFilter) =>
                       setFilterLetterType(value)
                     }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={ALL_LETTER_TYPES}>
-                        {t('letterGeneration.savedLetters.filters.allTypes')}
-                      </SelectItem>
-                      {letterTypeSelectOptions.map((type) => (
-                        <SelectItem key={type.code} value={type.code}>
-                          {letterTypeLabel(type, letterLocale)}
-                        </SelectItem>
-                      ))}
-                      <SelectItem value="ration">
-                        {t('letterGeneration.tabs.ration')}
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
+                    options={savedLetterTypeFilterOptions}
+                  />
                 </FieldGroup>
 
                 <FieldGroup label={t('letterGeneration.fields.referenceNo')}>

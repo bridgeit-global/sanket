@@ -60,3 +60,76 @@ export function letterTypeLabel(
   const label = locale === 'mr' ? option.labelMr : option.labelEn;
   return label.trim() || option.code;
 }
+
+/** Normalize a service / catalog name for fuzzy matching. */
+function normalizeServiceNameKey(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[–—]/g, '-')
+    .replace(/[^a-z0-9\s-]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Exact / near-exact catalog names → letter type codes.
+ * Order matters for first-match substring rules below.
+ */
+const SERVICE_NAME_TO_LETTER_TYPE: Array<{ match: string; letterType: string }> = [
+  { match: 'fees concession', letterType: 'fees' },
+  { match: 'fee concession', letterType: 'fees' },
+  { match: 'school admission', letterType: 'school-admission' },
+  { match: 'college admission', letterType: 'school-admission' },
+  { match: 'school leaving certificate', letterType: 'school-transfer' },
+  { match: 'college leaving certificate', letterType: 'school-transfer' },
+  { match: 'school-related general request', letterType: 'general' },
+  { match: 'ration card', letterType: 'ration-new' },
+  { match: 'ration donation', letterType: 'ration-new' },
+  { match: 'income certificate', letterType: 'income' },
+  { match: 'domicile certificate', letterType: 'domicile' },
+  { match: 'request letter', letterType: 'general' },
+  { match: 'handover letter request', letterType: 'general' },
+];
+
+/**
+ * Infer the letter type to open from a beneficiary service / catalog name.
+ * Falls back to `general` when nothing matches.
+ */
+export function resolveLetterTypeFromServiceName(
+  serviceName: string | null | undefined,
+): string {
+  const raw = (serviceName ?? '').trim();
+  if (!raw) return 'general';
+
+  const asCode = normalizeLetterTypeCode(raw);
+  if (isLetterType(asCode)) return asCode;
+  // Service name already stored as a letter-type code (e.g. custom types).
+  const rawLower = raw.toLowerCase();
+  if (isValidLetterTypeCode(rawLower) && asCode === rawLower) {
+    return asCode;
+  }
+
+  const key = normalizeServiceNameKey(raw);
+  if (!key) return 'general';
+
+  for (const { match, letterType } of SERVICE_NAME_TO_LETTER_TYPE) {
+    if (key === match || key.includes(match)) {
+      return letterType;
+    }
+  }
+
+  // Loose token heuristics for slight name variants.
+  if (/\bfees?\b/.test(key) && /\bconcession\b/.test(key)) return 'fees';
+  if (/\badmission\b/.test(key) && /\b(school|college)\b/.test(key)) {
+    return 'school-admission';
+  }
+  if (/\b(transfer|leaving)\b/.test(key) && /\b(school|college)\b/.test(key)) {
+    return 'school-transfer';
+  }
+  if (/\bration\b/.test(key)) return 'ration-new';
+  if (/\bincome\b/.test(key)) return 'income';
+  if (/\bdomicile\b/.test(key)) return 'domicile';
+
+  return 'general';
+}

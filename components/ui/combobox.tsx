@@ -5,7 +5,7 @@ import { Check, ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 
-interface ComboboxOption {
+export interface ComboboxOption {
     value: string;
     label: string;
     className?: string;
@@ -16,14 +16,19 @@ interface ComboboxOption {
     renderLabel?: (label: string) => React.ReactNode;
 }
 
-interface ComboboxProps {
+export interface ComboboxProps {
     options: ComboboxOption[];
     value?: string;
     onValueChange?: (value: string) => void;
     placeholder?: string;
     disabled?: boolean;
     className?: string;
+    inputClassName?: string;
     emptyMessage?: string;
+    id?: string;
+    /** Marks the trigger input as invalid for form validation styling. */
+    'aria-invalid'?: boolean;
+    'aria-required'?: boolean;
     /**
      * Allow committing arbitrary typed text that is not in `options`.
      * When enabled, a "create" row is shown for the current query and the
@@ -32,6 +37,7 @@ interface ComboboxProps {
     allowCustom?: boolean;
 }
 
+/** Searchable single-select dropdown (type-to-filter). */
 export function Combobox({
     options,
     value,
@@ -39,7 +45,11 @@ export function Combobox({
     placeholder = 'Select an option...',
     disabled = false,
     className,
+    inputClassName,
     emptyMessage = 'No options found',
+    id,
+    'aria-invalid': ariaInvalid,
+    'aria-required': ariaRequired,
     allowCustom = false,
 }: ComboboxProps) {
     const [open, setOpen] = React.useState(false);
@@ -48,6 +58,7 @@ export function Combobox({
     const inputRef = React.useRef<HTMLInputElement>(null);
     const containerRef = React.useRef<HTMLDivElement>(null);
     const optionRefs = React.useRef<(HTMLDivElement | null)[]>([]);
+    const listboxId = React.useId();
 
     const selectedOption = options.find((opt) => opt.value === value);
 
@@ -211,6 +222,7 @@ export function Combobox({
             <div className="relative">
                 <Input
                     ref={inputRef}
+                    id={id}
                     type="text"
                     value={open ? searchQuery : selectedOption?.label ?? value ?? ''}
                     onChange={handleInputChange}
@@ -218,13 +230,17 @@ export function Combobox({
                     onKeyDown={handleKeyDown}
                     placeholder={placeholder}
                     disabled={disabled}
+                    aria-invalid={ariaInvalid}
+                    aria-required={ariaRequired}
                     className={cn(
                         'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
-                        !selectedOption && open && 'text-muted-foreground'
+                        !selectedOption && open && 'text-muted-foreground',
+                        inputClassName,
                     )}
                     role="combobox"
                     aria-expanded={open}
-                    aria-controls="combobox-options"
+                    aria-controls={listboxId}
+                    autoComplete="off"
                 />
                 <ChevronDown
                     className={cn(
@@ -236,7 +252,7 @@ export function Combobox({
 
             {open && (
                 <div
-                    id="combobox-options"
+                    id={listboxId}
                     className="absolute z-[60] w-full mt-1 max-h-60 overflow-auto rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
                 >
                     {filteredOptions.length === 0 && !showCreate ? (

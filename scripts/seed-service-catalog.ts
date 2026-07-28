@@ -8,6 +8,7 @@ import { resolve } from 'node:path';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
 import { resolveServiceRoleKey, resolveSupabaseUrl } from '../lib/supabase/config';
+import { resolveLetterTypeFromServiceName } from '../lib/letters/letter-type-options';
 
 dotenv.config({ path: '.env.local.prod' });
 dotenv.config();
@@ -64,26 +65,37 @@ async function main() {
   let updated = 0;
 
   for (const item of seed) {
-    const payload = {
-      name: item.name,
-      category: item.category,
-      sort_order: item.sortOrder,
-      is_active: true,
-      updated_at: now,
-    };
-
+    const inferredLetterType = resolveLetterTypeFromServiceName(item.name);
     const existingId = existingByName.get(item.name);
     if (existingId) {
       const { error } = await supabase
         .from('ServiceCatalog')
-        .update(payload)
+        .update({
+          name: item.name,
+          category: item.category,
+          sort_order: item.sortOrder,
+          is_active: true,
+          updated_at: now,
+        })
         .eq('id', existingId);
       if (error) throw error;
+      // Only fill letter_type when missing so manual manage links are preserved.
+      const { error: letterTypeError } = await supabase
+        .from('ServiceCatalog')
+        .update({ letter_type: inferredLetterType, updated_at: now })
+        .eq('id', existingId)
+        .is('letter_type', null);
+      if (letterTypeError) throw letterTypeError;
       updated += 1;
     } else {
       const { error } = await supabase.from('ServiceCatalog').insert({
-        ...payload,
+        name: item.name,
+        category: item.category,
+        sort_order: item.sortOrder,
+        letter_type: inferredLetterType,
+        is_active: true,
         created_at: now,
+        updated_at: now,
       });
       if (error) throw error;
       inserted += 1;

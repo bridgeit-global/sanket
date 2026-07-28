@@ -15,6 +15,7 @@ export async function GET(_request: NextRequest) {
       id: row.id,
       name: row.name,
       category: row.category,
+      letterType: row.letterType,
       sortOrder: row.sortOrder,
     }));
 

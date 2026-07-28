@@ -24,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -194,6 +195,37 @@ export function LetterTemplateMasterManager({
   const activeLetterTypes = useMemo(
     () => letterTypeOptions.filter((opt) => opt.isActive),
     [letterTypeOptions],
+  );
+
+  const letterTypeComboboxOptions = useMemo(
+    () =>
+      activeLetterTypes.map((type) => ({
+        value: type.code,
+        label: letterTypeLabel(type, uiLocale),
+      })),
+    [activeLetterTypes, uiLocale],
+  );
+
+  const formLetterTypeComboboxOptions = useMemo(() => {
+    const options = [...letterTypeComboboxOptions];
+    if (!editingId) {
+      options.push({
+        value: NEW_LETTER_TYPE_VALUE,
+        label: t('letterGeneration.letterTypes.addNewOption'),
+      });
+    }
+    return options;
+  }, [letterTypeComboboxOptions, editingId, t]);
+
+  const filterLetterTypeComboboxOptions = useMemo(
+    () => [
+      {
+        value: 'all',
+        label: t('letterGeneration.templates.filterAllTypes'),
+      },
+      ...letterTypeComboboxOptions,
+    ],
+    [letterTypeComboboxOptions, t],
   );
 
   const typeLabel = (code: string) => {
@@ -548,31 +580,16 @@ export function LetterTemplateMasterManager({
             <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                 <FieldGroup label={t('letterGeneration.fields.letterType')}>
-                  <Select
+                  <Combobox
                     value={
                       creatingNewType ? NEW_LETTER_TYPE_VALUE : form.letterType
                     }
                     disabled={Boolean(editingId) || letterTypesLoading}
-                    onValueChange={(value: string) =>
+                    onValueChange={(value) =>
                       handleTypeOrLocaleChange(value, form.letterLocale)
                     }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activeLetterTypes.map((type) => (
-                        <SelectItem key={type.code} value={type.code}>
-                          {letterTypeLabel(type, uiLocale)}
-                        </SelectItem>
-                      ))}
-                      {!editingId ? (
-                        <SelectItem value={NEW_LETTER_TYPE_VALUE}>
-                          {t('letterGeneration.letterTypes.addNewOption')}
-                        </SelectItem>
-                      ) : null}
-                    </SelectContent>
-                  </Select>
+                    options={formLetterTypeComboboxOptions}
+                  />
                 </FieldGroup>
                 <FieldGroup label={t('letterGeneration.fields.letterLanguage')}>
                   <Select
@@ -875,23 +892,12 @@ export function LetterTemplateMasterManager({
                 placeholder={t('letterGeneration.templates.searchPlaceholder')}
               />
             </div>
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger>
-                <SelectValue
-                  placeholder={t('letterGeneration.templates.filterAllTypes')}
-                />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">
-                  {t('letterGeneration.templates.filterAllTypes')}
-                </SelectItem>
-                {activeLetterTypes.map((type) => (
-                  <SelectItem key={type.code} value={type.code}>
-                    {letterTypeLabel(type, uiLocale)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              value={filterType}
+              onValueChange={setFilterType}
+              options={filterLetterTypeComboboxOptions}
+              placeholder={t('letterGeneration.templates.filterAllTypes')}
+            />
             <Select value={filterLocale} onValueChange={setFilterLocale}>
               <SelectTrigger>
                 <SelectValue

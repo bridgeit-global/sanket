@@ -458,6 +458,7 @@ export function mapServiceCatalogRow(row: Row): ServiceCatalog {
     id: String(row.id),
     name: String(row.name),
     category: toStringOrNull(row.category),
+    letterType: toStringOrNull(row.letter_type ?? row.letterType),
     sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
     isActive: Boolean(row.is_active ?? row.isActive ?? true),
     createdAt: toDate(row.created_at ?? row.createdAt),

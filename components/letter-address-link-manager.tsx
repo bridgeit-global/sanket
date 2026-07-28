@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Combobox } from '@/components/ui/combobox';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -76,6 +77,15 @@ export function LetterAddressLinkManager({ links, loading, onRefresh }: Props) {
       return label === key ? value : label;
     },
     [t],
+  );
+
+  const letterTypeComboboxOptions = useMemo(
+    () =>
+      LETTER_TYPES.map((type) => ({
+        value: type,
+        label: letterTypeLabel(type),
+      })),
+    [letterTypeLabel],
   );
 
   const fieldLabel = useCallback(
@@ -180,21 +190,11 @@ export function LetterAddressLinkManager({ links, loading, onRefresh }: Props) {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-1.5">
             <Label>{t('letterGeneration.letterAddressLinks.columns.letterType')}</Label>
-            <Select
+            <Combobox
               value={letterType}
               onValueChange={(value) => setLetterType(value as LetterType)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {LETTER_TYPES.map((type) => (
-                  <SelectItem key={type} value={type}>
-                    {letterTypeLabel(type)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              options={letterTypeComboboxOptions}
+            />
           </div>
           <div className="space-y-1.5">
             <Label>{t('letterGeneration.letterAddressLinks.columns.addressField')}</Label>

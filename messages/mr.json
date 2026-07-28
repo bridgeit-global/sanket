@@ -902,6 +902,42 @@
         "sortOrder": "क्रम"
       }
     },
+    "serviceCatalogMaster": {
+      "title": "सेवा कॅटलॉग",
+      "description": "लाभार्थी सेवा व्यवस्थापित करा आणि प्रत्येक सेवेला पत्र प्रकाराशी जोडा.",
+      "manageLink": "सेवा व्यवस्थापित करा",
+      "backToLetterGeneration": "पत्र निर्मितीवर परत जा",
+      "addTitle": "सेवा जोडा",
+      "editTitle": "सेवा संपादित करा",
+      "formDescription": "पत्र प्रकार जोडा जेणेकरून पत्र निर्मिती या सेवेसाठी योग्य फॉर्म उघडेल.",
+      "listTitle": "सेवा",
+      "listDescription": "सक्रिय सेवा ऑपरेटर लाभार्थी सेवा फॉर्ममध्ये दिसतात.",
+      "save": "सेवा साठवा",
+      "create": "सेवा तयार करा",
+      "createSuccess": "सेवा तयार झाली",
+      "updateSuccess": "सेवा अद्यतनित झाली",
+      "createError": "सेवा तयार करण्यात अयशस्वी",
+      "updateError": "सेवा अद्यतनित करण्यात अयशस्वी",
+      "deleteSuccess": "सेवा हटवली",
+      "deleteError": "सेवा हटवण्यात अयशस्वी",
+      "fetchError": "सेवा कॅटलॉग लोड करण्यात अयशस्वी",
+      "validationRequired": "सेवा नाव आवश्यक आहे",
+      "empty": "कोणतीही सेवा सापडली नाही.",
+      "searchPlaceholder": "सेवा शोधा…",
+      "namePlaceholder": "उदा. शुल्क सवलत",
+      "categoryPlaceholder": "उदा. शिक्षण आणि विद्यार्थी सेवा",
+      "letterTypePlaceholder": "पत्र प्रकार निवडा",
+      "noLetterType": "पत्र प्रकार नाही (नाव जुळवणी वापरा)",
+      "activeYes": "सक्रिय",
+      "activeNo": "निष्क्रिय",
+      "columns": {
+        "name": "सेवा नाव",
+        "category": "श्रेणी",
+        "letterType": "पत्र प्रकार",
+        "active": "सक्रिय",
+        "sortOrder": "क्रम"
+      }
+    },
     "savedLetters": {
       "title": "साठवलेली पत्रे",
       "description": "तयार केलेली पत्रे डेटाबेसमध्ये साठवा आणि नंतर पुन्हा वापरा. PDF प्रत Storage मध्ये ठेवली जाते.",

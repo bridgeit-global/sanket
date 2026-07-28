@@ -5,8 +5,10 @@ import { isUserAdmin } from '@/lib/db/cadre-queries';
 import {
   hasModuleAccess,
   getBeneficiaryServiceById,
+  getServiceCatalogByName,
   getVoterByEpicNumber,
 } from '@/lib/db/queries';
+import { resolveLetterTypeFromServiceName } from '@/lib/letters/letter-type-options';
 
 export default async function LetterGenerationPage({
   searchParams,
@@ -51,6 +53,19 @@ export default async function LetterGenerationPage({
     }
   }
 
+  let initialLetterType: string | undefined;
+  try {
+    const catalog = await getServiceCatalogByName(service.serviceName);
+    if (catalog?.letterType) {
+      initialLetterType = catalog.letterType;
+    }
+  } catch {
+    // best-effort catalog lookup
+  }
+  if (!initialLetterType) {
+    initialLetterType = resolveLetterTypeFromServiceName(service.serviceName);
+  }
+
   const isAdmin = await isUserAdmin(session.user.id);
 
   return (
@@ -61,6 +76,7 @@ export default async function LetterGenerationPage({
           beneficiaryServiceId={beneficiaryServiceId}
           prefillName={prefillName}
           prefillAddress={prefillAddress}
+          initialLetterType={initialLetterType}
           service={{
             id: service.id,
             serviceName: service.serviceName,

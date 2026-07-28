@@ -902,6 +902,42 @@
         "sortOrder": "Sort Order"
       }
     },
+    "serviceCatalogMaster": {
+      "title": "Service Catalog",
+      "description": "Manage beneficiary services and link each service to a letter type for Letter Generation.",
+      "manageLink": "Manage Services",
+      "backToLetterGeneration": "Back to Letter Generation",
+      "addTitle": "Add Service",
+      "editTitle": "Edit Service",
+      "formDescription": "Link a letter type so Letter Generation opens on the correct form for this service.",
+      "listTitle": "Services",
+      "listDescription": "Active services appear in the operator beneficiary service form.",
+      "save": "Save Service",
+      "create": "Create Service",
+      "createSuccess": "Service created",
+      "updateSuccess": "Service updated",
+      "createError": "Failed to create service",
+      "updateError": "Failed to update service",
+      "deleteSuccess": "Service deleted",
+      "deleteError": "Failed to delete service",
+      "fetchError": "Failed to load service catalog",
+      "validationRequired": "Service name is required",
+      "empty": "No services found.",
+      "searchPlaceholder": "Search services…",
+      "namePlaceholder": "e.g. Fees Concession",
+      "categoryPlaceholder": "e.g. Education & Student Services",
+      "letterTypePlaceholder": "Select letter type",
+      "noLetterType": "No letter type (use name matching)",
+      "activeYes": "Active",
+      "activeNo": "Inactive",
+      "columns": {
+        "name": "Service Name",
+        "category": "Category",
+        "letterType": "Letter Type",
+        "active": "Active",
+        "sortOrder": "Sort Order"
+      }
+    },
     "savedLetters": {
       "title": "Saved Letters",
       "description": "Save generated letters to the database and reuse them later. A PDF copy is stored in Storage.",

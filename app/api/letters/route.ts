@@ -89,6 +89,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!beneficiaryServiceId || !String(beneficiaryServiceId).trim()) {
+      return NextResponse.json(
+        { error: 'beneficiaryServiceId is required' },
+        { status: 400 },
+      );
+    }
+
     const parsedClientRef = parseReference(
       referenceNo != null ? String(referenceNo).trim() : '',
     );
@@ -161,9 +168,7 @@ export async function POST(request: NextRequest) {
       renderedHtml: nextHtml,
       paperSize: resolveLetterPaperSize(paperSize, letterType),
       createdBy: session.user.id,
-      beneficiaryServiceId: beneficiaryServiceId
-        ? String(beneficiaryServiceId)
-        : null,
+      beneficiaryServiceId: String(beneficiaryServiceId),
     });
 
     return NextResponse.json({ letter }, { status: 201 });

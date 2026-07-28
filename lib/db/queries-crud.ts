@@ -1150,18 +1150,182 @@ export async function getBoothsForElection(electionId: string): Promise<
 // ---------------------------------------------------------------------------
 
 export async function getActiveServiceCatalog(): Promise<Array<ServiceCatalog>> {
+  return getServiceCatalog({ includeInactive: false });
+}
+
+export async function getServiceCatalog({
+  includeInactive = false,
+}: {
+  includeInactive?: boolean;
+} = {}): Promise<Array<ServiceCatalog>> {
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from(TABLES.serviceCatalog)
       .select('*')
-      .eq('is_active', true)
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true });
+    if (!includeInactive) {
+      query = query.eq('is_active', true);
+    }
+    const { data, error } = await query;
     throwOnSupabaseError(error, 'Failed to get service catalog');
     return (data ?? []).map(mapServiceCatalogRow);
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to get service catalog');
+  }
+}
+
+export async function getServiceCatalogById(
+  id: string,
+): Promise<ServiceCatalog | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.serviceCatalog)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get service catalog by id');
+    return data ? mapServiceCatalogRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get service catalog by id',
+    );
+  }
+}
+
+export async function getServiceCatalogByName(
+  name: string,
+): Promise<ServiceCatalog | null> {
+  const trimmed = name.trim();
+  if (!trimmed) return null;
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.serviceCatalog)
+      .select('*')
+      .eq('name', trimmed)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get service catalog by name');
+    return data ? mapServiceCatalogRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get service catalog by name',
+    );
+  }
+}
+
+export async function createServiceCatalogEntry({
+  name,
+  category,
+  letterType,
+  sortOrder,
+  isActive = true,
+}: {
+  name: string;
+  category?: string | null;
+  letterType?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+}): Promise<ServiceCatalog> {
+  const trimmed = name.trim();
+  if (!trimmed) {
+    throw new ChatSDKError('bad_request:database', 'Service name is required');
+  }
+  try {
+    let nextSort = sortOrder;
+    if (nextSort == null || !Number.isFinite(nextSort)) {
+      const { data: maxRows } = await supabase
+        .from(TABLES.serviceCatalog)
+        .select('sort_order')
+        .order('sort_order', { ascending: false })
+        .limit(1);
+      nextSort = Number(maxRows?.[0]?.sort_order ?? 0) + 1;
+    }
+    const { data, error } = await supabase
+      .from(TABLES.serviceCatalog)
+      .insert({
+        name: trimmed,
+        category: category?.trim() || null,
+        letter_type: letterType?.trim() || null,
+        sort_order: nextSort,
+        is_active: isActive,
+      })
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create service catalog entry');
+    return mapServiceCatalogRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create service catalog entry',
+    );
+  }
+}
+
+export async function updateServiceCatalogEntry({
+  id,
+  name,
+  category,
+  letterType,
+  sortOrder,
+  isActive,
+}: {
+  id: string;
+  name?: string;
+  category?: string | null;
+  letterType?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+}): Promise<ServiceCatalog> {
+  try {
+    const patch: Record<string, unknown> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (name !== undefined) patch.name = name.trim();
+    if (category !== undefined) patch.category = category?.trim() || null;
+    if (letterType !== undefined) {
+      patch.letter_type = letterType?.trim() || null;
+    }
+    if (sortOrder !== undefined && Number.isFinite(sortOrder)) {
+      patch.sort_order = sortOrder;
+    }
+    if (isActive !== undefined) patch.is_active = isActive;
+
+    const { data, error } = await supabase
+      .from(TABLES.serviceCatalog)
+      .update(patch)
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to update service catalog entry');
+    return mapServiceCatalogRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update service catalog entry',
+    );
+  }
+}
+
+export async function deleteServiceCatalogEntry(id: string): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from(TABLES.serviceCatalog)
+      .delete()
+      .eq('id', id);
+    throwOnSupabaseError(error, 'Failed to delete service catalog entry');
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete service catalog entry',
+    );
   }
 }
 

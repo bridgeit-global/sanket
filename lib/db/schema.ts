@@ -355,6 +355,8 @@ export type ServiceCatalog = {
   id: string;
   name: string;
   category: string | null;
+  /** Linked letter type code for letter generation (built-in or custom). */
+  letterType: string | null;
   sortOrder: number;
   isActive: boolean;
   createdAt: Date;
