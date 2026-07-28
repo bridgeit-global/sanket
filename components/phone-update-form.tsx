@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,20 +15,38 @@ export interface MobileNumberEntry {
     sortOrder: number;
 }
 
+export interface PhoneUpdatePayload {
+    mobileNoPrimary: string;
+    mobileNoSecondary?: string;
+    /** Only sent when the voter currently has no DOB. */
+    dob?: string;
+}
+
 interface PhoneUpdateFormProps {
     voter: VoterWithPartNo;
     mobileNumbers?: MobileNumberEntry[];
-    onPhoneUpdate: (phoneData: { mobileNoPrimary: string; mobileNoSecondary?: string }) => void;
+    onPhoneUpdate: (phoneData: PhoneUpdatePayload) => void;
     onSkip: () => void;
     onPrevious?: () => void;
     onCancel: () => void;
+}
+
+function getMaxDobDate(): string {
+    const d = new Date();
+    d.setFullYear(d.getFullYear() - 18);
+    return d.toISOString().split('T')[0];
 }
 
 export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, onPrevious, onCancel }: PhoneUpdateFormProps) {
     const { t } = useTranslations();
     const [mobileNoPrimary, setMobileNoPrimary] = useState('');
     const [mobileNoSecondary, setMobileNoSecondary] = useState('');
+    const [dob, setDob] = useState('');
+    const [dobError, setDobError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const hadDob = Boolean(voter.dob?.trim());
+    const maxDobDate = useMemo(() => getMaxDobDate(), []);
 
     useEffect(() => {
         const orderedNumbers = (mobileNumbers || [])
@@ -40,6 +58,11 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
         setMobileNoPrimary(orderedNumbers[0] || '');
         setMobileNoSecondary(orderedNumbers[1] || '');
     }, [mobileNumbers]);
+
+    useEffect(() => {
+        setDob(hadDob ? (voter.dob?.trim() ?? '') : '');
+        setDobError(null);
+    }, [hadDob, voter.dob, voter.epicNumber]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -64,6 +87,19 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
             return;
         }
 
+        if (!hadDob) {
+            const trimmedDob = dob.trim();
+            if (!trimmedDob) {
+                setDobError(t('phoneUpdate.dobRequired'));
+                return;
+            }
+            if (trimmedDob > maxDobDate) {
+                setDobError(t('phoneUpdate.dobMinAge'));
+                return;
+            }
+            setDobError(null);
+        }
+
         setIsSubmitting(true);
         try {
             onPhoneUpdate({
@@ -71,6 +107,7 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                 mobileNoSecondary: mobileNoSecondary.trim()
                     ? normalizeIndianMobileDigits(mobileNoSecondary)
                     : undefined,
+                ...(hadDob ? {} : { dob: dob.trim() }),
             });
         } finally {
             setIsSubmitting(false);
@@ -107,6 +144,12 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                                 <Label className="text-sm font-medium">{t('forms.gender')}</Label>
                                 <p className="text-sm">{voter.gender || 'N/A'}</p>
                             </div>
+                            {hadDob && (
+                                <div>
+                                    <Label className="text-sm font-medium">{t('phoneUpdate.dob')}</Label>
+                                    <p className="text-sm">{voter.dob}</p>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -154,6 +197,36 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                                 </p>
                             </div>
                         </div>
+
+                        {!hadDob && (
+                            <div className="space-y-2 max-w-md">
+                                <Label htmlFor="phone-update-dob">
+                                    {t('phoneUpdate.dob')} <span className="text-red-500">*</span>
+                                </Label>
+                                <Input
+                                    id="phone-update-dob"
+                                    type="date"
+                                    value={dob}
+                                    max={maxDobDate}
+                                    onChange={(e) => {
+                                        setDob(e.target.value);
+                                        setDobError(null);
+                                    }}
+                                    aria-invalid={Boolean(dobError)}
+                                    className={
+                                        dobError ? 'border-red-500 focus-visible:ring-red-500' : ''
+                                    }
+                                    required
+                                />
+                                {dobError ? (
+                                    <p className="text-xs text-red-500">{dobError}</p>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground">
+                                        {t('phoneUpdate.dobRequiredHelp')}
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Action Buttons */}

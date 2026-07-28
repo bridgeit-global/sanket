@@ -187,7 +187,11 @@ export function BackOfficeWorkflow() {
         router.push(`/modules/voter/${encodeURIComponent(voter.epicNumber)}`);
     };
 
-    const handlePhoneUpdate = async (phoneData: { mobileNoPrimary: string; mobileNoSecondary?: string }) => {
+    const handlePhoneUpdate = async (phoneData: {
+        mobileNoPrimary: string;
+        mobileNoSecondary?: string;
+        dob?: string;
+    }) => {
         if (!selectedVoter) return;
 
         try {

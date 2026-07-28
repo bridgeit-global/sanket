@@ -601,7 +601,11 @@ export function BeneficiaryManagement({
             });
     };
 
-    const handlePhoneUpdate = async (phoneData: { mobileNoPrimary: string; mobileNoSecondary?: string }) => {
+    const handlePhoneUpdate = async (phoneData: {
+        mobileNoPrimary: string;
+        mobileNoSecondary?: string;
+        dob?: string;
+    }) => {
         if (!selectedVoter) return;
 
         if (!isValidIndianMobile(phoneData.mobileNoPrimary)) {
@@ -624,6 +628,10 @@ export function BeneficiaryManagement({
         const primaryDigits = normalizeIndianMobileDigits(phoneData.mobileNoPrimary);
         const secondaryDigits =
             secondaryTrimmed !== '' ? normalizeIndianMobileDigits(secondaryTrimmed) : undefined;
+        const dobToSave =
+            !selectedVoter.dob?.trim() && phoneData.dob?.trim()
+                ? phoneData.dob.trim()
+                : undefined;
 
         try {
             const response = await fetch('/operator/api/update-voter-phone', {
@@ -635,11 +643,15 @@ export function BeneficiaryManagement({
                     epicNumber: selectedVoter.epicNumber,
                     mobileNoPrimary: primaryDigits,
                     mobileNoSecondary: secondaryDigits,
+                    ...(dobToSave ? { dob: dobToSave } : {}),
                 }),
             });
 
             if (!response.ok) {
-                throw new Error('Failed to update phone number');
+                const data = await response.json().catch(() => ({}));
+                throw new Error(
+                    typeof data?.error === 'string' ? data.error : 'Failed to update phone number',
+                );
             }
 
             const updatedVoter = await response.json();
@@ -668,7 +680,10 @@ export function BeneficiaryManagement({
             console.error('Error updating phone number:', error);
             toast({
                 type: 'error',
-                description: t('operator.messages.phoneUpdateFailed'),
+                description:
+                    error instanceof Error && error.message
+                        ? error.message
+                        : t('operator.messages.phoneUpdateFailed'),
             });
         }
     };
