@@ -4,8 +4,8 @@ import type { LetterType } from '@/lib/letters/templates';
 const LETTER_STYLE = `
     .var { font-weight: bold; }
     .top-row { display: flex; margin-bottom: 12px; justify-content: space-between; }
-    .address { margin-left: 28px; margin-bottom: 12px; font-weight: normal; max-width: 50%; }
-    .recipient { margin-left: 28px; margin-bottom: 12px; font-weight: normal; max-width: 50%; }
+    .address { margin-left: 28px; margin-bottom: 12px; font-weight: normal; max-width: 50%; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
+    .recipient { margin-left: 28px; margin-bottom: 12px; font-weight: normal; max-width: 50%; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
     .subject { font-weight: bold; margin-bottom: 12px; }
     .salutation { font-weight: normal; }
     .paragraph { text-align: justify; text-indent: 28px; padding: 0; font-weight: normal; }
@@ -14,7 +14,7 @@ const LETTER_STYLE = `
     .right-tab-sign { text-align: right; padding-right: 28px; margin-top: 30px; font-weight: bold; }
     .letter-closing { text-align: right; }
     .letter-closing .signature-line { text-align: right; }
-    .recipient-bottom { margin-top: 25px; font-weight: normal; max-width: 50%; }
+    .recipient-bottom { margin-top: 25px; font-weight: normal; max-width: 50%; white-space: normal; overflow-wrap: anywhere; word-break: break-word; }
 `;
 
 const ROOT =

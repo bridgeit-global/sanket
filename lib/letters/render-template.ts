@@ -91,25 +91,15 @@ function formatMultilineHtmlBlock(text: string): string {
   return text
     .replace(/\r\n?/g, '\n')
     .split('\n')
-    .flatMap((line) => {
-      const trimmedLine = line.trim();
-      if (!trimmedLine) return [];
-      // Commas in address/"To" text mark the next line (keep trailing commas),
-      // but keep city/pincode on the last street line so they wrap naturally.
-      const parts = trimmedLine.split(',').map((part) => part.trim()).filter(Boolean);
-      if (parts.length <= 1) return [trimmedLine];
-      if (parts.length === 2) return [`${parts[0]}, ${parts[1]}`];
-      const streetParts = parts.slice(0, -1);
-      const cityPin = parts[parts.length - 1];
-      const merged = [
-        ...streetParts.slice(0, -1),
-        `${streetParts[streetParts.length - 1]}, ${cityPin}`,
-      ];
-      return merged.map((part, index) =>
-        index < merged.length - 1 ? `${part},` : part,
-      );
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      // Explicit newlines stay hard breaks. Commas only soft-wrap inside the
+      // half-width To block so short addresses remain on one line (en + mr).
+      const parts = line.split(/[,，،]/).map((part) => part.trim()).filter(Boolean);
+      if (parts.length <= 1) return escapeHtmlText(line);
+      return parts.map(escapeHtmlText).join(',<wbr> ');
     })
-    .map(escapeHtmlText)
     .join('<br>');
 }
 

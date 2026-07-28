@@ -117,40 +117,22 @@ export function formatAddressMaster(
 }
 
 /**
- * Format an address for letter recipient ("To") blocks: street lines are
- * separated with commas marking line breaks, while city + pincode stay on
- * the last street line so they wrap naturally
- * (`line1,<br>line2,<br>line3, city - pincode`). Inline body placeholders
- * still use single-line `formatAddressMaster`. State is omitted from letter text.
+ * Format an address for letter recipient ("To") blocks: keep all parts together
+ * (`line1, line2, line3, city - pincode`) inside the half-width address box.
+ * Soft breaks after commas (`<wbr>`) wrap only when text overflows — short
+ * addresses stay on one line. Works for both English and Marathi (Devanagari
+ * digits). Inline body placeholders still use `formatAddressMaster`.
  */
 export function formatAddressMasterMultiline(
   parts: AddressMasterAddressParts,
   locale: LetterLocale,
-  separator = ',<br>',
+  separator = ',<wbr> ',
 ): string {
-  const city = pickLocaleField(parts, locale, 'city').trim();
-  const state = pickLocaleField(parts, locale, 'state').trim();
-
-  const streetSegments = [
-    stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line1'), city, state),
-    stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line2'), city, state),
-    stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line3'), city, state),
-  ]
-    .map((value) => localizeAddressText(value, locale))
-    .filter(Boolean);
-
-  let locationSuffix = localizeAddressText(city, locale);
-  const pincode = toLocaleDigits(parts.pincode.trim(), locale);
-  if (pincode) {
-    locationSuffix = locationSuffix ? `${locationSuffix} - ${pincode}` : pincode;
-  }
-
-  if (!streetSegments.length) return locationSuffix;
-  if (!locationSuffix) return streetSegments.join(separator);
-
-  const lines = [...streetSegments];
-  lines[lines.length - 1] = `${lines[lines.length - 1]}, ${locationSuffix}`;
-  return lines.join(separator);
+  const singleLine = formatAddressMaster(parts, locale);
+  if (!singleLine) return '';
+  if (separator === ', ') return singleLine;
+  // ASCII + common Unicode commas (Marathi/IME input sometimes varies).
+  return singleLine.replace(/[,，،]\s*/g, separator);
 }
 
 export function hasAddressContent(parts: AddressMasterAddressParts): boolean {
