@@ -78,13 +78,16 @@ function escapeHtmlText(value: string): string {
 
 /** One member per line from the form → HTML line breaks for letter body. */
 function formatFamilyMembersBlock(familyMembers: string): string {
-  return familyMembers
+  const lines = familyMembers
     .replace(/\r\n?/g, '\n')
     .split('\n')
     .map((line) => line.trim())
     .filter(Boolean)
     .map(escapeHtmlText)
     .join('<br>');
+  if (!lines) return '';
+  // Reset paragraph text-indent so the numbered member list stays flush left.
+  return `<span style="display:block;text-indent:0">${lines}</span>`;
 }
 
 function formatMultilineHtmlBlock(text: string): string {

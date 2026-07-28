@@ -10,6 +10,7 @@ const LETTER_STYLE = `
     .salutation { font-weight: normal; }
     .paragraph { text-align: justify; text-indent: 28px; padding: 0; font-weight: normal; }
     .paragraph:last-of-type { margin-bottom: 0; }
+    .member-list { text-align: left; text-indent: 0; padding: 0; font-weight: normal; }
     .right-tab { text-align: right; padding-right: 36px; font-weight: normal; }
     .right-tab-sign { text-align: right; padding-right: 28px; margin-top: 30px; font-weight: bold; }
     .letter-closing { text-align: right; }
@@ -154,7 +155,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   <p class="paragraph">
     अर्जदाराने नवीन शिधापत्रिका मिळण्यासाठी आवश्यक कागदपत्रांसह अर्ज सादर केला असून, खालील कुटुंबीयांची नावे सदर नवीन शिधापत्रिकेत समाविष्ट करण्याबाबत विनंती करण्यात येत आहे:
   </p>
-  <p class="paragraph">
+  <p class="member-list">
     <span class="var">{{familyMembersBlock}}</span>
   </p>
   <p class="paragraph">
@@ -183,7 +184,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   <p class="paragraph">
     अर्जदाराकडील शिधापत्रिका क्रमांक <span class="var">{{rationCardNo}}</span> असून, खालील सदस्यांची नावे सदर शिधापत्रिकेत समाविष्ट करण्याबाबत विनंती करण्यात येत आहे:
   </p>
-  <p class="paragraph">
+  <p class="member-list">
     <span class="var">{{familyMembersBlock}}</span>
   </p>
   <p class="paragraph">
@@ -212,7 +213,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   <p class="paragraph">
     अर्जदाराकडील शिधापत्रिका क्रमांक <span class="var">{{rationCardNo}}</span> असून, खालील सदस्यांची नावे सदर शिधापत्रिकेतून वगळण्याबाबत विनंती करण्यात येत आहे:
   </p>
-  <p class="paragraph">
+  <p class="member-list">
     <span class="var">{{familyMembersBlock}}</span>
   </p>
   <p class="paragraph">
@@ -244,7 +245,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   <p class="paragraph">
     अर्जदाराच्या निवासस्थानात बदल झाल्यामुळे / क्षेत्र बदल झाल्यामुळे सदर शिधापत्रिका संबंधित नवीन शिधावाटप कार्यालयाच्या कार्यक्षेत्रात वर्ग करणे आवश्यक आहे.
   </p>
-  <p class="paragraph">
+  <p class="member-list">
     <span class="var">{{familyMembersBlock}}</span>
   </p>
   <p class="paragraph">

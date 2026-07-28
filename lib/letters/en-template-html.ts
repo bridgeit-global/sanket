@@ -10,6 +10,7 @@ const LETTER_STYLE = `
     .salutation { font-weight: normal; }
     .paragraph { text-align: justify; text-indent: 28px; padding: 0; font-weight: normal; }
     .paragraph:last-of-type { margin-bottom: 0; }
+    .member-list { text-align: left; text-indent: 0; padding: 0; font-weight: normal; }
     .right-tab { text-align: right; padding-right: 36px; font-weight: normal; }
     .right-tab-sign { text-align: right; padding-right: 28px; margin-top: 30px; font-weight: bold; }
     .letter-closing { text-align: right; }
@@ -154,7 +155,7 @@ To,<br>
   <p class="paragraph">
     The applicant has submitted an application along with the required documents for a new ration card, and a request is being made to include the following family members in the new ration card:
   </p>
-  <p class="paragraph">
+  <p class="member-list">
     <span class="var">{{familyMembersBlock}}</span>
   </p>
   <p class="paragraph">
@@ -183,7 +184,7 @@ To,<br>
   <p class="paragraph">
     The applicant's ration card number is <span class="var">{{rationCardNo}}</span>, and a request is being made to include the following members' names in the said ration card:
   </p>
-  <p class="paragraph">
+  <p class="member-list">
     <span class="var">{{familyMembersBlock}}</span>
   </p>
   <p class="paragraph">
@@ -212,7 +213,7 @@ To,<br>
   <p class="paragraph">
     The applicant's ration card number is <span class="var">{{rationCardNo}}</span>, and a request is being made to delete the following members' names from the said ration card:
   </p>
-  <p class="paragraph">
+  <p class="member-list">
     <span class="var">{{familyMembersBlock}}</span>
   </p>
   <p class="paragraph">
@@ -244,7 +245,7 @@ To,<br>
   <p class="paragraph">
     Due to change in the applicant's place of residence / change in area, it is necessary to transfer the said ration card to the jurisdiction of the relevant new rationing office.
   </p>
-  <p class="paragraph">
+  <p class="member-list">
     <span class="var">{{familyMembersBlock}}</span>
   </p>
   <p class="paragraph">
