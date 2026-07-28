@@ -48,7 +48,7 @@ ${LETTER_CLOSING_ALIGN_SELECTOR} {
 }
 `.trim();
 
-/** Keep To-address blocks within half the content width; commas soft-wrap via <wbr>. */
+/** Keep To-address blocks within half the content width; commas soft-wrap as units. */
 const LETTER_ADDRESS_WIDTH_SELECTOR = '.address, .recipient, .recipient-bottom';
 
 const LETTER_ADDRESS_WIDTH_STYLE = `
@@ -56,9 +56,9 @@ ${LETTER_ADDRESS_WIDTH_SELECTOR} {
   max-width: 50% !important;
   box-sizing: border-box !important;
   white-space: normal !important;
-  overflow-wrap: anywhere !important;
+  overflow-wrap: break-word !important;
   word-wrap: break-word !important;
-  word-break: break-word !important;
+  word-break: normal !important;
 }
 `.trim();
 
@@ -118,9 +118,9 @@ function applyLetterAddressWidth(root: ParentNode): void {
     node.style.setProperty('max-width', '50%', 'important');
     node.style.setProperty('box-sizing', 'border-box', 'important');
     node.style.setProperty('white-space', 'normal', 'important');
-    node.style.setProperty('overflow-wrap', 'anywhere', 'important');
+    node.style.setProperty('overflow-wrap', 'break-word', 'important');
     node.style.setProperty('word-wrap', 'break-word', 'important');
-    node.style.setProperty('word-break', 'break-word', 'important');
+    node.style.setProperty('word-break', 'normal', 'important');
   });
 }
 

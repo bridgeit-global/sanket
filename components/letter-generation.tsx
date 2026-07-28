@@ -684,9 +684,10 @@ type AddressSelectionState = {
 type ManualAddressKey = keyof AddressSelectionState;
 type ManualAddressParts = Record<ManualAddressKey, AddressMasterAddressParts>;
 
-// Recipient ("To") blocks keep address parts comma-joined and soft-wrap at
-// half paper width (break after commas only when needed). Inline placeholders
-// (applicant address, from/to ration office in body text) stay single-line.
+// Recipient ("To") blocks keep address parts comma-joined; soft-wrap HTML
+// (visible commas between parts at half paper width) is applied at render.
+// Inline placeholders (applicant address, from/to ration office in body
+// text) stay single-line.
 const MULTILINE_ADDRESS_KEYS: ReadonlySet<ManualAddressKey> = new Set([
   'school',
   'rationOffice',

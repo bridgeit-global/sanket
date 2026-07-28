@@ -3,6 +3,7 @@ import {
   toLocaleDigits,
   toWesternDigits,
 } from '@/lib/locale-digits';
+import { formatAddressSoftWrapHtml } from '@/lib/letters/format-address-master';
 import {
   coerceDocumentType,
   documentTypeLabel,
@@ -91,19 +92,9 @@ function formatFamilyMembersBlock(familyMembers: string): string {
 }
 
 function formatMultilineHtmlBlock(text: string): string {
-  return text
-    .replace(/\r\n?/g, '\n')
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      // Explicit newlines stay hard breaks. Commas only soft-wrap inside the
-      // half-width To block so short addresses remain on one line (en + mr).
-      const parts = line.split(/[,，،]/).map((part) => part.trim()).filter(Boolean);
-      if (parts.length <= 1) return escapeHtmlText(line);
-      return parts.map(escapeHtmlText).join(',<wbr> ');
-    })
-    .join('<br>');
+  // Explicit newlines stay hard breaks. Comma-separated address/"To" parts
+  // soft-wrap as units so trailing commas stay visible (en + mr).
+  return formatAddressSoftWrapHtml(text);
 }
 
 function formatParagraphsBlock(paragraphs: string): string {
@@ -195,6 +186,9 @@ export function buildRenderFields(
       rationCardNo: rationFields.rationCardNo ?? '',
       fromRationOffice: rationFields.fromRationOffice ?? '',
       toRationOffice: rationFields.toRationOffice ?? '',
+      rationOfficeAddress: formatAddressSoftWrapHtml(
+        rationFields.rationOfficeAddress ?? '',
+      ),
     };
   } else if (formType === 'income') {
     const incomeFields = fields as IncomeLetterFields;
@@ -207,7 +201,7 @@ export function buildRenderFields(
       ),
       annualIncome: formatIndianAmount(incomeFields.annualIncome, locale),
       officeName: incomeFields.officeName,
-      officeAddress: incomeFields.officeAddress,
+      officeAddress: formatAddressSoftWrapHtml(incomeFields.officeAddress),
     };
   } else if (formType === 'domicile') {
     const domicileFields = fields as DomicileLetterFields;
@@ -219,14 +213,29 @@ export function buildRenderFields(
         locale,
       ),
       officeName: domicileFields.officeName,
-      officeAddress: domicileFields.officeAddress,
+      officeAddress: formatAddressSoftWrapHtml(domicileFields.officeAddress),
     };
   } else if (formType === 'school-admission') {
-    renderFields = { ...base, ...(fields as SchoolAdmissionLetterFields) };
+    const schoolFields = fields as SchoolAdmissionLetterFields;
+    renderFields = {
+      ...base,
+      ...schoolFields,
+      schoolAddress: formatAddressSoftWrapHtml(schoolFields.schoolAddress),
+    };
   } else if (formType === 'school-transfer') {
-    renderFields = { ...base, ...(fields as SchoolTransferLetterFields) };
+    const schoolFields = fields as SchoolTransferLetterFields;
+    renderFields = {
+      ...base,
+      ...schoolFields,
+      schoolAddress: formatAddressSoftWrapHtml(schoolFields.schoolAddress),
+    };
   } else if (formType === 'fees') {
-    renderFields = { ...base, ...(fields as FeesLetterFields) };
+    const fees = fields as FeesLetterFields;
+    renderFields = {
+      ...base,
+      ...fees,
+      schoolAddress: formatAddressSoftWrapHtml(fees.schoolAddress),
+    };
   } else {
     renderFields = base;
   }

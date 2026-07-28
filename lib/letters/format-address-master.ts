@@ -116,22 +116,80 @@ export function formatAddressMaster(
   return `${base} - ${pincode}`;
 }
 
+function escapeAddressHtmlText(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 /**
- * Format an address for letter recipient ("To") blocks: keep all parts together
- * (`line1, line2, line3, city - pincode`) inside the half-width address box.
- * Soft breaks after commas (`<wbr>`) wrap only when text overflows — short
- * addresses stay on one line. Works for both English and Marathi (Devanagari
- * digits). Inline body placeholders still use `formatAddressMaster`.
+ * Soft-wrap comma-separated address text for half-width "To" blocks.
+ * Each segment stays with its trailing comma (`line1,` / `line2,`) so wraps
+ * happen between parts — commas remain visible. Explicit newlines / `<br>`
+ * stay hard breaks. Idempotent over prior `<wbr>` / soft-wrap span markup.
+ */
+export function formatAddressSoftWrapHtml(text: string): string {
+  return text
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      // Keep intentional HTML (e.g. bold ration/school name on its own line).
+      if (/<span\b[^>]*class=["']var["']/i.test(line)) {
+        return line.replace(/<wbr\s*\/?>/gi, '');
+      }
+
+      const cleaned = line
+        .replace(
+          /<span\b[^>]*style=["'][^"']*display:\s*inline-block[^"']*["'][^>]*>([\s\S]*?)<\/span>/gi,
+          '$1',
+        )
+        .replace(/<wbr\s*\/?>/gi, '')
+        .replace(/&nbsp;/gi, ' ')
+        .trim();
+      if (!cleaned) return '';
+
+      const parts = cleaned
+        .split(/[,，،]/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+      if (parts.length <= 1) return escapeAddressHtmlText(cleaned);
+
+      return parts
+        .map((part, index) => {
+          const isLast = index === parts.length - 1;
+          const label = isLast ? part : `${part},`;
+          // inline-block wraps as a unit so the comma stays with the segment;
+          // max-width lets an oversized single segment still break inside.
+          return `<span style="display:inline-block;max-width:100%;vertical-align:top">${escapeAddressHtmlText(label)}</span>`;
+        })
+        .join(' ');
+    })
+    .filter(Boolean)
+    .join('<br>');
+}
+
+/**
+ * Format an address for letter recipient ("To") blocks as plain
+ * `line1, line2, line3, city - pincode` text. Soft-wrap HTML (visible commas
+ * between parts) is applied at render via `formatAddressSoftWrapHtml`.
+ * Inline body placeholders still use `formatAddressMaster`.
+ *
+ * @param separator Legacy join override. Omit for plain comma-separated text.
+ *   Pass `',<br>'` (etc.) only when a caller still needs hard breaks in state.
  */
 export function formatAddressMasterMultiline(
   parts: AddressMasterAddressParts,
   locale: LetterLocale,
-  separator = ',<wbr> ',
+  separator?: string,
 ): string {
   const singleLine = formatAddressMaster(parts, locale);
   if (!singleLine) return '';
-  if (separator === ', ') return singleLine;
-  // ASCII + common Unicode commas (Marathi/IME input sometimes varies).
+  if (!separator || separator === ', ') return singleLine;
   return singleLine.replace(/[,，،]\s*/g, separator);
 }
 
