@@ -999,6 +999,7 @@
       "ration-transfer": "Ration Card — Transfer",
       "income": "Income Certificate",
       "domicile": "Domicile Certificate",
+      "ward": "Ward Letter",
       "general": "General Letter",
       "ration": "Ration Card (All)"
     },
@@ -1047,7 +1048,12 @@
       "addParagraph": "Add paragraph",
       "removeParagraph": "Remove paragraph",
       "addSignatureParagraph": "Add signature line",
-      "removeSignatureParagraph": "Remove signature line"
+      "removeSignatureParagraph": "Remove signature line",
+      "issueType": "Issue Type",
+      "complainantName": "Complainant Name",
+      "contactNo": "Contact Number",
+      "location": "Location / Landmark",
+      "duration": "Duration"
     },
     "customFields": {
       "title": "Template fields",
@@ -1064,7 +1070,12 @@
       "familyMemberAge": "e.g. 34",
       "idType": "Aadhaar or Ration",
       "income": "e.g. 1,50,000",
-      "letterType": "Choose a letter type…"
+      "letterType": "Choose a letter type…",
+      "issueType": "Choose an issue type…",
+      "searchIssueType": "Search issue type…",
+      "noIssueType": "No issue type found",
+      "location": "e.g. near XYZ chowk",
+      "duration": "e.g. 3 days"
     },
     "gender": {
       "male": "Male",

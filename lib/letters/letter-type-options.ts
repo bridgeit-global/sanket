@@ -90,6 +90,8 @@ const SERVICE_NAME_TO_LETTER_TYPE: Array<{ match: string; letterType: string }> 
   { match: 'domicile certificate', letterType: 'domicile' },
   { match: 'request letter', letterType: 'general' },
   { match: 'handover letter request', letterType: 'general' },
+  { match: 'ward letter', letterType: 'ward' },
+  { match: 'ward complaint', letterType: 'ward' },
 ];
 
 /**
@@ -130,6 +132,7 @@ export function resolveLetterTypeFromServiceName(
   if (/\bration\b/.test(key)) return 'ration-new';
   if (/\bincome\b/.test(key)) return 'income';
   if (/\bdomicile\b/.test(key)) return 'domicile';
+  if (/\bward\b/.test(key)) return 'ward';
 
   return 'general';
 }

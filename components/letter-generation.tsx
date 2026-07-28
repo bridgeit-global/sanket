@@ -89,7 +89,15 @@ import {
   type RationLetterFields,
   type SchoolAdmissionLetterFields,
   type SchoolTransferLetterFields,
+  type WardLetterFields,
 } from '@/lib/letters/templates';
+import {
+  getDefaultWardIssueType,
+  getDefaultWardToAddress,
+  getWardIssueOptions,
+  resolveWardIssueType,
+  wardIssueRequiresDuration,
+} from '@/lib/letters/ward-issue-presets';
 import {
   letterTypeLabel,
   resolveLetterFormBase,
@@ -241,6 +249,7 @@ function getFieldsForLetterType(
     rationFields: RationLetterFields;
     incomeFields: IncomeLetterFields;
     domicileFields: DomicileLetterFields;
+    wardFields: WardLetterFields;
   },
 ) {
   const formBase = resolveLetterFormBase(type);
@@ -257,6 +266,8 @@ function getFieldsForLetterType(
       return fields.incomeFields;
     case 'domicile':
       return fields.domicileFields;
+    case 'ward':
+      return fields.wardFields;
     default:
       if (isRationLetterType(formBase)) return fields.rationFields;
       return fields.generalFields;
@@ -501,6 +512,19 @@ function generalDefaults(locale: LetterLocale): GeneralLetterFields {
     subject: '',
     paragraphs: '',
     signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(locale)),
+  };
+}
+
+function wardDefaults(locale: LetterLocale): WardLetterFields {
+  const issueType = getDefaultWardIssueType();
+  return {
+    ...commonDefaults(locale),
+    issueType,
+    to: getDefaultWardToAddress(issueType, locale),
+    complainantName: '',
+    contactNo: '',
+    location: '',
+    duration: '',
   };
 }
 
@@ -982,6 +1006,9 @@ export function LetterGeneration({
   const [domicileFields, setDomicileFields] = useState<DomicileLetterFields>(
     () => domicileDefaults('mr'),
   );
+  const [wardFields, setWardFields] = useState<WardLetterFields>(() =>
+    wardDefaults('mr'),
+  );
   /** Values for {{placeholders}} in the template that are not on the standard form. */
   const [customPlaceholderValues, setCustomPlaceholderValues] = useState<
     Record<string, string>
@@ -1225,6 +1252,7 @@ export function LetterGeneration({
     setRationFields((prev) => ({ ...prev, ...patch }));
     setIncomeFields((prev) => ({ ...prev, ...patch }));
     setDomicileFields((prev) => ({ ...prev, ...patch }));
+    setWardFields((prev) => ({ ...prev, ...patch }));
   }, []);
 
   const refreshReferenceSequence = useCallback(
@@ -1368,6 +1396,29 @@ export function LetterGeneration({
       fullName: filterText(prev.fullName),
       aadhaarNo: normalizeAadhaarNo(prev.aadhaarNo),
     }));
+    setWardFields((prev) => {
+      const issueType = resolveWardIssueType(prev.issueType);
+      const prevDefaultTo = getDefaultWardToAddress(issueType, prevLocale);
+      const nextDefaultTo = getDefaultWardToAddress(issueType, letterLocale);
+      const toTrimmed = prev.to.trim();
+      const nextTo =
+        !toTrimmed || toTrimmed === prevDefaultTo.trim()
+          ? nextDefaultTo
+          : filterText(prev.to);
+      return {
+        ...prev,
+        referencePrefix: nextPrefix(prev.referencePrefix),
+        referenceNo: nextReferenceNo(prev.referenceNo),
+        signatory: nextSignatory(prev.signatory),
+        date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+        issueType,
+        to: nextTo,
+        complainantName: filterText(prev.complainantName),
+        contactNo: filterText(prev.contactNo),
+        location: filterText(prev.location),
+        duration: filterText(prev.duration),
+      };
+    });
     const nextParagraphRows = paragraphRowsRef.current.map((row) => filterText(row));
     setParagraphRows(nextParagraphRows.length > 0 ? nextParagraphRows : ['']);
     setGeneralFields((prev) => ({
@@ -1903,6 +1954,15 @@ export function LetterGeneration({
 
   const formTab = resolveLetterFormBase(activeTab);
 
+  const wardIssueComboboxOptions = useMemo(
+    () =>
+      getWardIssueOptions(letterLocale).map((option) => ({
+        value: option.value,
+        label: option.label,
+      })),
+    [letterLocale],
+  );
+
   const letterTypeSelectOptions = useMemo(() => {
     const active = letterTypeOptions.filter((opt) => opt.isActive);
     if (active.length > 0) return active;
@@ -2063,13 +2123,19 @@ export function LetterGeneration({
   }, [mastersForActive]);
 
   useEffect(() => {
-    if (activeLetterMaster) {
-      setPaperSizeDraft(
-        resolveLetterPaperSize(activeLetterMaster.paperSize, activeTab),
-      );
+    const typeDefault = getDefaultLetterPaperSize(activeTab);
+    if (!activeLetterMaster) {
+      setPaperSizeDraft(typeDefault);
       return;
     }
-    setPaperSizeDraft(getDefaultLetterPaperSize(activeTab));
+    const masterSize = resolveLetterPaperSize(activeLetterMaster.paperSize, activeTab);
+    // Ward was seeded as A4 before the default moved to A5 — prefer type default
+    // until LetterMaster paper_size is synced.
+    if (activeTab === 'ward') {
+      setPaperSizeDraft(typeDefault);
+      return;
+    }
+    setPaperSizeDraft(masterSize);
   }, [activeLetterMaster, activeTab]);
 
   const activeTemplateHtml =
@@ -2108,6 +2174,7 @@ export function LetterGeneration({
         rationFields,
         incomeFields,
         domicileFields,
+        wardFields,
       }),
       ...customPlaceholderValues,
     };
@@ -2135,6 +2202,7 @@ export function LetterGeneration({
     rationFields,
     incomeFields,
     domicileFields,
+    wardFields,
     customPlaceholderValues,
     activeTemplateHtml,
     documentTypes,
@@ -2158,6 +2226,7 @@ export function LetterGeneration({
         rationFields,
         incomeFields,
         domicileFields,
+        wardFields,
       }),
       ...customPlaceholderValues,
     }),
@@ -2171,6 +2240,7 @@ export function LetterGeneration({
       rationFields,
       schoolAdmissionFields,
       schoolTransferFields,
+      wardFields,
     ],
   );
 
@@ -2197,6 +2267,7 @@ export function LetterGeneration({
     setRationFields(coercePrefix);
     setIncomeFields(coercePrefix);
     setDomicileFields(coercePrefix);
+    setWardFields(coercePrefix);
   }, []);
 
   useEffect(() => {
@@ -2314,6 +2385,14 @@ export function LetterGeneration({
       requireField(errors, 'officeName', domicileFields.officeName, requiredMsg);
       requireAddress('applicant', domicileFields.address);
       requireAddress('office', domicileFields.officeAddress);
+    } else if (formTab === 'ward') {
+      requireField(errors, 'to', wardFields.to, requiredMsg);
+      requireField(errors, 'complainantName', wardFields.complainantName, requiredMsg);
+      requireField(errors, 'contactNo', wardFields.contactNo, requiredMsg);
+      requireField(errors, 'location', wardFields.location, requiredMsg);
+      if (wardIssueRequiresDuration(resolveWardIssueType(wardFields.issueType))) {
+        requireField(errors, 'duration', wardFields.duration, requiredMsg);
+      }
     }
 
     setFieldErrors(errors);
@@ -2655,6 +2734,7 @@ export function LetterGeneration({
     setRationFields(rationDefaults(letterLocale));
     setIncomeFields(incomeDefaults(letterLocale));
     setDomicileFields(domicileDefaults(letterLocale));
+    setWardFields(wardDefaults(letterLocale));
     setCustomPlaceholderValues(
       Object.fromEntries(customPlaceholders.map((key) => [key, ''])),
     );
@@ -4335,6 +4415,154 @@ export function LetterGeneration({
                           required
                         />
                       </FieldGroup>
+                    </TabsContent>
+
+                    <TabsContent value="ward" className="mt-0 space-y-4">
+                      {renderCommonFields(wardFields, setWardFields)}
+                      <FieldGroup
+                        label={lt('letterGeneration.fields.issueType')}
+                        required
+                      >
+                        <Combobox
+                          value={wardFields.issueType}
+                          onValueChange={(value) => {
+                            const issueType = resolveWardIssueType(value);
+                            setWardFields((prev) => {
+                              const prevDefaultTo = getDefaultWardToAddress(
+                                resolveWardIssueType(prev.issueType),
+                                letterLocale,
+                              );
+                              const toTrimmed = prev.to.trim();
+                              const nextTo =
+                                !toTrimmed || toTrimmed === prevDefaultTo.trim()
+                                  ? getDefaultWardToAddress(issueType, letterLocale)
+                                  : prev.to;
+                              return {
+                                ...prev,
+                                issueType,
+                                to: nextTo,
+                                duration: wardIssueRequiresDuration(issueType)
+                                  ? prev.duration
+                                  : '',
+                              };
+                            });
+                            setFieldErrors((prev) => ({
+                              ...prev,
+                              duration: undefined,
+                            }));
+                          }}
+                          options={wardIssueComboboxOptions}
+                          placeholder={lt('letterGeneration.placeholders.issueType')}
+                        />
+                      </FieldGroup>
+                      <FieldGroup
+                        label={lt('letterGeneration.fields.to')}
+                        required
+                        error={fieldErrors.to}
+                      >
+                        <LocaleTextarea
+                          locale={letterLocale}
+                          value={wardFields.to}
+                          onValueChange={(to) => {
+                            setWardFields((prev) => ({ ...prev, to }));
+                            if (fieldErrors.to) {
+                              setFieldErrors((prev) => ({ ...prev, to: undefined }));
+                            }
+                          }}
+                          rows={5}
+                          required
+                        />
+                      </FieldGroup>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.complainantName')}
+                          required
+                          error={fieldErrors.complainantName}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
+                            value={wardFields.complainantName}
+                            onValueChange={(complainantName) => {
+                              setWardFields((prev) => ({ ...prev, complainantName }));
+                              if (fieldErrors.complainantName) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  complainantName: undefined,
+                                }));
+                              }
+                            }}
+                            required
+                          />
+                        </FieldGroup>
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.contactNo')}
+                          required
+                          error={fieldErrors.contactNo}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
+                            value={wardFields.contactNo}
+                            onValueChange={(contactNo) => {
+                              setWardFields((prev) => ({ ...prev, contactNo }));
+                              if (fieldErrors.contactNo) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  contactNo: undefined,
+                                }));
+                              }
+                            }}
+                            required
+                          />
+                        </FieldGroup>
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.location')}
+                          required
+                          error={fieldErrors.location}
+                          className="sm:col-span-2"
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
+                            value={wardFields.location}
+                            onValueChange={(location) => {
+                              setWardFields((prev) => ({ ...prev, location }));
+                              if (fieldErrors.location) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  location: undefined,
+                                }));
+                              }
+                            }}
+                            placeholder={lt('letterGeneration.placeholders.location')}
+                            required
+                          />
+                        </FieldGroup>
+                        {wardIssueRequiresDuration(
+                          resolveWardIssueType(wardFields.issueType),
+                        ) ? (
+                          <FieldGroup
+                            label={lt('letterGeneration.fields.duration')}
+                            required
+                            error={fieldErrors.duration}
+                            className="sm:col-span-2"
+                          >
+                            <LocaleTextInput
+                              locale={letterLocale}
+                              value={wardFields.duration}
+                              onValueChange={(duration) => {
+                                setWardFields((prev) => ({ ...prev, duration }));
+                                if (fieldErrors.duration) {
+                                  setFieldErrors((prev) => ({
+                                    ...prev,
+                                    duration: undefined,
+                                  }));
+                                }
+                              }}
+                              placeholder={lt('letterGeneration.placeholders.duration')}
+                              required
+                            />
+                          </FieldGroup>
+                        ) : null}
+                      </div>
                     </TabsContent>
 
                     {customPlaceholders.length > 0 ? (

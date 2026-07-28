@@ -2482,7 +2482,7 @@ export async function ensureLetterMasterDefaults(
 
     const { data: existingRows, error: existingError } = await supabase
       .from(TABLES.letterMaster)
-      .select('id, name, letter_type, letter_locale, template_html, updated_by');
+      .select('id, name, letter_type, letter_locale, template_html, paper_size, updated_by');
     throwOnSupabaseError(existingError, 'Failed to list letter masters');
 
     const legacyRationIds = (existingRows ?? [])
@@ -2540,15 +2540,24 @@ export async function ensureLetterMasterDefaults(
         letterType as import('@/lib/letters/templates').LetterType,
         letterLocale as import('@/lib/letters/templates').LetterLocale,
       );
+      const expectedPaperSize = getDefaultLetterPaperSize(letterType);
+      const paperSizeOutOfDate = row.paper_size !== expectedPaperSize;
       if (forceSyncTemplates) {
-        return row.template_html !== expectedHtml || row.name !== expectedName;
+        return (
+          row.template_html !== expectedHtml ||
+          row.name !== expectedName ||
+          paperSizeOutOfDate
+        );
       }
       // Never overwrite templates that were saved in the editor. Otherwise a
       // successful save + refresh immediately reverts HTML back to code defaults
       // whenever the row still uses the canonical default name.
       if (row.updated_by) return false;
-      // Normal seed: only refresh untouched rows that still use the default name.
-      return row.name === expectedName && row.template_html !== expectedHtml;
+      // Normal seed: refresh untouched rows when HTML or paper size drifted.
+      return (
+        (row.name === expectedName && row.template_html !== expectedHtml) ||
+        paperSizeOutOfDate
+      );
     });
 
     if (staleDefaults.length === 0) return;
@@ -2559,14 +2568,20 @@ export async function ensureLetterMasterDefaults(
         const letterLocale = String(
           row.letter_locale,
         ) as import('@/lib/letters/templates').LetterLocale;
+        const expectedName = getDefaultTemplateName(letterType, letterLocale);
+        const shouldRefreshHtml =
+          forceSyncTemplates ||
+          (row.name === expectedName &&
+            row.template_html !== getDefaultTemplateHtml(letterType, letterLocale));
         return supabase
           .from(TABLES.letterMaster)
           .update(
             toSnakeCaseKeys({
-              ...(forceSyncTemplates
-                ? { name: getDefaultTemplateName(letterType, letterLocale) }
+              ...(forceSyncTemplates ? { name: expectedName } : {}),
+              ...(shouldRefreshHtml
+                ? { templateHtml: getDefaultTemplateHtml(letterType, letterLocale) }
                 : {}),
-              templateHtml: getDefaultTemplateHtml(letterType, letterLocale),
+              paperSize: getDefaultLetterPaperSize(letterType),
               updatedAt: now,
             }),
           )

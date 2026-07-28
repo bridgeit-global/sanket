@@ -122,6 +122,18 @@ const KNOWN_PLACEHOLDERS_BY_FORM: Record<LetterType, readonly string[]> = {
     'aadhaarNo',
     'genderPronounSubject',
   ],
+  ward: [
+    ...COMMON_PLACEHOLDER_KEYS,
+    'issueType',
+    'to',
+    'complainantName',
+    'contactNo',
+    'location',
+    'duration',
+    'subject',
+    'toBlock',
+    'paragraphsBlock',
+  ],
 };
 
 /** Unique `{{token}}` names in template HTML, in first-seen order. */

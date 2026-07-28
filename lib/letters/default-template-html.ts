@@ -33,6 +33,7 @@ const DEFAULT_TEMPLATE_NAMES: Record<LetterType, Record<LetterLocale, string>> =
   },
   income: { en: 'Income Certificate', mr: 'उत्पन्न प्रमाणपत्र' },
   domicile: { en: 'Domicile Certificate', mr: 'अधिवास प्रमाणपत्र' },
+  ward: { en: 'Ward Letter', mr: 'प्रभाग पत्र' },
 };
 
 const DEFAULT_TEMPLATE_HTML: Record<LetterType, Record<LetterLocale, string>> =

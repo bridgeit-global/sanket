@@ -321,4 +321,20 @@ To,<br>
   </p>
   ${CLOSING}
 </div>`,
+
+  ward: `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>Date: <span class="var">{{date}}</span></div>
+  </div>
+To,<br>
+  <div class="address">{{toBlock}}</div>
+  <div class="subject"><span style="font-weight: normal;">Subject:</span> <span class="var">{{subject}}</span></div>
+  <div class="salutation">
+    Sir/Madam,
+  </div>
+  {{paragraphsBlock}}
+  ${CLOSING}
+</div>`,
 };

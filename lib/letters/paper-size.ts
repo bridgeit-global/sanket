@@ -50,6 +50,7 @@ export function getDefaultLetterPaperSize(
     case 'school-transfer':
     case 'income':
     case 'domicile':
+    case 'ward':
       return 'a5';
     default:
       return 'a4';

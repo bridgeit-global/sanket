@@ -321,4 +321,20 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   </p>
   ${CLOSING}
 </div>`,
+
+  ward: `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>दि. <span class="var">{{date}}</span></div>
+  </div>
+प्रति,<br>
+  <div class="address">{{toBlock}}</div>
+  <div class="subject"><span style="font-weight: normal;">विषय:</span> <span class="var">{{subject}}</span></div>
+  <div class="salutation">
+    महोदय,
+  </div>
+  {{paragraphsBlock}}
+  ${CLOSING}
+</div>`,
 };

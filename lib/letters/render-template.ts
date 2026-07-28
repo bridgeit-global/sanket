@@ -9,6 +9,11 @@ import {
   documentTypeLabel,
   type DocumentTypeLabelSource,
 } from '@/lib/letters/reference-sequence';
+import {
+  buildWardParagraphs,
+  buildWardSubject,
+  resolveWardIssueType,
+} from '@/lib/letters/ward-issue-presets';
 import type {
   DomicileLetterFields,
   FeesLetterFields,
@@ -21,6 +26,7 @@ import type {
   RationLetterFields,
   SchoolAdmissionLetterFields,
   SchoolTransferLetterFields,
+  WardLetterFields,
 } from '@/lib/letters/templates';
 import { isLetterType } from '@/lib/letters/templates';
 
@@ -235,6 +241,29 @@ export function buildRenderFields(
       ...base,
       ...fees,
       schoolAddress: formatAddressSoftWrapHtml(fees.schoolAddress),
+    };
+  } else if (formType === 'ward') {
+    const wardFields = fields as WardLetterFields;
+    const issueType = resolveWardIssueType(wardFields.issueType);
+    const values = {
+      location: wardFields.location ?? '',
+      complainantName: wardFields.complainantName ?? '',
+      contactNo: wardFields.contactNo ?? '',
+      duration: wardFields.duration ?? '',
+    };
+    const subject = buildWardSubject(issueType, locale, values);
+    const paragraphs = buildWardParagraphs(issueType, locale, values);
+    renderFields = {
+      ...base,
+      issueType,
+      to: wardFields.to,
+      complainantName: values.complainantName,
+      contactNo: values.contactNo,
+      location: values.location,
+      duration: values.duration,
+      subject,
+      toBlock: formatMultilineHtmlBlock(wardFields.to),
+      paragraphsBlock: formatParagraphsBlock(paragraphs),
     };
   } else {
     renderFields = base;

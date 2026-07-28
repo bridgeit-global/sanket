@@ -999,6 +999,7 @@
       "ration-transfer": "शिधापत्रिका — हस्तांतरण",
       "income": "उत्पन्न प्रमाणपत्र",
       "domicile": "अधिवास प्रमाणपत्र",
+      "ward": "प्रभाग पत्र",
       "general": "सामान्य पत्र",
       "ration": "शिधापत्रिका (सर्व)"
     },
@@ -1047,7 +1048,12 @@
       "addParagraph": "परिच्छेद जोडा",
       "removeParagraph": "परिच्छेद काढा",
       "addSignatureParagraph": "स्वाक्षरी ओळ जोडा",
-      "removeSignatureParagraph": "स्वाक्षरी ओळ काढा"
+      "removeSignatureParagraph": "स्वाक्षरी ओळ काढा",
+      "issueType": "तक्रारीचा प्रकार",
+      "complainantName": "तक्रारदाराचे नाव",
+      "contactNo": "संपर्क क्रमांक",
+      "location": "ठिकाण / खूण",
+      "duration": "कालावधी"
     },
     "customFields": {
       "title": "साच्याची फील्ड्स",
@@ -1064,7 +1070,12 @@
       "familyMemberAge": "उदा. ३४",
       "idType": "आधार किंवा रेशन",
       "income": "उदा. १,५०,०००",
-      "letterType": "पत्राचा प्रकार निवडा…"
+      "letterType": "पत्राचा प्रकार निवडा…",
+      "issueType": "तक्रारीचा प्रकार निवडा…",
+      "searchIssueType": "तक्रारीचा प्रकार शोधा…",
+      "noIssueType": "तक्रारीचा प्रकार सापडला नाही",
+      "location": "उदा. XYZ चौकाजवळ",
+      "duration": "उदा. ३ दिवस"
     },
     "gender": {
       "male": "पुरुष",

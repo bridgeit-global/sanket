@@ -9,9 +9,35 @@ export const LETTER_TYPES = [
   'ration-transfer',
   'income',
   'domicile',
+  'ward',
 ] as const;
 
 export type LetterType = (typeof LETTER_TYPES)[number];
+
+export const WARD_ISSUE_TYPES = [
+  'garbage',
+  'drain',
+  'tree-trim',
+  'tree-dead',
+  'tree-hazard',
+  'water-contaminated',
+  'water-low-pressure',
+  'water-none',
+  'water-tanker',
+  'road-repair',
+  'footpath-repair',
+  'street-lights',
+  'speed-breaker',
+] as const;
+
+export type WardIssueType = (typeof WARD_ISSUE_TYPES)[number];
+
+export function isWardIssueType(value: unknown): value is WardIssueType {
+  return (
+    typeof value === 'string' &&
+    (WARD_ISSUE_TYPES as readonly string[]).includes(value)
+  );
+}
 
 /** @deprecated Use specific ration-* letter types */
 export type RationLetterPurpose = 'new' | 'add-members' | 'delete-members' | 'transfer';
@@ -98,6 +124,15 @@ export type GeneralLetterFields = CommonLetterFields & {
   signatureParagraphs: string;
 };
 
+export type WardLetterFields = CommonLetterFields & {
+  issueType: WardIssueType;
+  to: string;
+  complainantName: string;
+  contactNo: string;
+  location: string;
+  duration: string;
+};
+
 export type LetterFields =
   | GeneralLetterFields
   | FeesLetterFields
@@ -105,7 +140,8 @@ export type LetterFields =
   | SchoolTransferLetterFields
   | RationLetterFields
   | IncomeLetterFields
-  | DomicileLetterFields;
+  | DomicileLetterFields
+  | WardLetterFields;
 
 export const DEFAULT_SIGNATORY: Record<LetterLocale, string> = {
   mr: 'सना मलिक शेख',
