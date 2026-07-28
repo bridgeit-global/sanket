@@ -49,7 +49,7 @@ export const EN_TEMPLATE_HTML: Record<LetterType, string> = {
 To,<br>
   <div class="address">
     Headmaster / Principal,<br>
-    <span class="var" style="font-weight: bold;">{{schoolName}}</span><br>
+    <span class="var" style="font-weight: bold;">{{schoolName}}</span>,<br>
     <span style="font-weight: normal;">{{schoolAddress}}</span>
   </div>
   <div class="subject">
@@ -82,7 +82,7 @@ To,<br>
 To,<br>
   <div class="address">
     Headmaster / Principal,<br>
-    <span class="var" style="font-weight: bold;">{{schoolName}}</span><br>
+    <span class="var" style="font-weight: bold;">{{schoolName}}</span>,<br>
     <span style="font-weight: normal;">{{schoolAddress}}</span>
   </div>
   <div class="subject">
@@ -115,7 +115,7 @@ To,<br>
 To,<br>
   <div class="address">
     Headmaster / Principal,<br>
-    <span class="var" style="font-weight: bold;">{{schoolName}}</span><br>
+    <span class="var" style="font-weight: bold;">{{schoolName}}</span>,<br>
     <span style="font-weight: normal;">{{schoolAddress}}</span>
   </div>
   <div class="subject">
@@ -267,7 +267,7 @@ To,<br>
 To,<br>
   <div class="address">
     Concerned Officer,<br>
-    <span class="var" style="font-weight: bold;">{{officeName}}</span><br>
+    <span class="var" style="font-weight: bold;">{{officeName}}</span>,<br>
     <span style="font-weight: normal;">{{officeAddress}}</span>
   </div>
   <div class="subject">
@@ -300,7 +300,7 @@ To,<br>
 To,<br>
   <div class="address">
     Concerned Officer,<br>
-    <span class="var" style="font-weight: bold;">{{officeName}}</span><br>
+    <span class="var" style="font-weight: bold;">{{officeName}}</span>,<br>
     <span style="font-weight: normal;">{{officeAddress}}</span>
   </div>
   <div class="subject">

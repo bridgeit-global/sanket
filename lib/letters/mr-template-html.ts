@@ -49,7 +49,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
 प्रति,<br>
   <div class="address">
     मुख्याध्यापक / प्राचार्य,<br>
-    <span class="var" style="font-weight: bold;">{{schoolName}}</span><br>
+    <span class="var" style="font-weight: bold;">{{schoolName}}</span>,<br>
     <span style="font-weight: normal;">{{schoolAddress}}</span>
   </div>
   <div class="subject">
@@ -82,7 +82,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
 प्रति,<br>
   <div class="address">
     मुख्याध्यापक / प्राचार्य,<br>
-    <span class="var" style="font-weight: bold;">{{schoolName}}</span><br>
+    <span class="var" style="font-weight: bold;">{{schoolName}}</span>,<br>
     <span style="font-weight: normal;">{{schoolAddress}}</span>
   </div>
   <div class="subject">
@@ -115,7 +115,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
 प्रति,<br>
   <div class="address">
     मुख्याध्यापक / प्राचार्य,<br>
-    <span class="var" style="font-weight: bold;">{{schoolName}}</span><br>
+    <span class="var" style="font-weight: bold;">{{schoolName}}</span>,<br>
     <span style="font-weight: normal;">{{schoolAddress}}</span>
   </div>
   <div class="subject">
@@ -267,7 +267,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
 प्रति,<br>
   <div class="address">
     संबंधित अधिकारी,<br>
-    <span class="var" style="font-weight: bold;">{{officeName}}</span><br>
+    <span class="var" style="font-weight: bold;">{{officeName}}</span>,<br>
     <span style="font-weight: normal;">{{officeAddress}}</span>
   </div>
   <div class="subject">
@@ -300,7 +300,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
 प्रति,<br>
   <div class="address">
     संबंधित अधिकारी,<br>
-    <span class="var" style="font-weight: bold;">{{officeName}}</span><br>
+    <span class="var" style="font-weight: bold;">{{officeName}}</span>,<br>
     <span style="font-weight: normal;">{{officeAddress}}</span>
   </div>
   <div class="subject">

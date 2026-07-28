@@ -784,7 +784,7 @@ function formatRationOfficeWithAddress(
   const addressText = nameOnOwnLine
     ? formatAddressMasterMultiline(address, locale)
     : formatAddressMaster(address, locale);
-  return combineNameAndAddress(name, addressText, nameOnOwnLine ? '<br>' : ', ', {
+  return combineNameAndAddress(name, addressText, nameOnOwnLine ? ',<br>' : ', ', {
     boldName: nameOnOwnLine,
   });
 }
@@ -1420,7 +1420,7 @@ export function LetterGeneration({
           letterLocale,
           'rationOffice',
         ),
-        '<br>',
+        ',<br>',
         { boldName: true },
       );
       if (text.trim()) {
@@ -1555,7 +1555,7 @@ export function LetterGeneration({
         ? combineNameAndAddress(
           rationOfficeNamesRef.current[key],
           formatted,
-          key === 'rationOffice' ? '<br>' : ', ',
+          key === 'rationOffice' ? ',<br>' : ', ',
           key === 'rationOffice' ? { boldName: true } : undefined,
         )
         : formatted;
@@ -1578,7 +1578,7 @@ export function LetterGeneration({
       combineNameAndAddress(
         name,
         addressText,
-        key === 'rationOffice' ? '<br>' : ', ',
+        key === 'rationOffice' ? ',<br>' : ', ',
         key === 'rationOffice' ? { boldName: true } : undefined,
       ),
     );
