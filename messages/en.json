@@ -870,6 +870,7 @@
         "applicant": "Applicant",
         "rationOffice": "Ration office",
         "office": "Government office",
+        "to": "Ward recipient (To)",
         "fromRationOffice": "From ration office",
         "toRationOffice": "To ration office"
       }
@@ -1053,7 +1054,8 @@
       "complainantName": "Complainant Name",
       "contactNo": "Contact Number",
       "location": "Location / Landmark",
-      "duration": "Duration"
+      "duration": "Duration",
+      "toName": "Officer / Office Name"
     },
     "customFields": {
       "title": "Template fields",
@@ -1075,7 +1077,9 @@
       "searchIssueType": "Search issue type…",
       "noIssueType": "No issue type found",
       "location": "e.g. near XYZ chowk",
-      "duration": "e.g. 3 days"
+      "duration": "e.g. 3 days",
+      "toName": "Type officer / office name",
+      "contactNo": "e.g. 9876543210"
     },
     "gender": {
       "male": "Male",
@@ -1095,7 +1099,8 @@
       "referenceNoRequired": "Reference No. is required",
       "referenceNoDuplicate": "Reference No. already exists",
       "dateRequired": "Date is required",
-      "fieldRequired": "This field is required"
+      "fieldRequired": "This field is required",
+      "contactNoInvalid": "Contact number must be exactly 10 digits"
     }
   },
   "dailyProgramme": {

@@ -870,6 +870,7 @@
         "applicant": "अर्जदार",
         "rationOffice": "शिधापत्रिका कार्यालय",
         "office": "सरकारी कार्यालय",
+        "to": "प्रभाग प्राप्तकर्ता (प्रति)",
         "fromRationOffice": "पासून शिधापत्रिका कार्यालय",
         "toRationOffice": "कडे शिधापत्रिका कार्यालय"
       }
@@ -1053,7 +1054,8 @@
       "complainantName": "तक्रारदाराचे नाव",
       "contactNo": "संपर्क क्रमांक",
       "location": "ठिकाण / खूण",
-      "duration": "कालावधी"
+      "duration": "कालावधी",
+      "toName": "अधिकारी / कार्यालय नाव"
     },
     "customFields": {
       "title": "साच्याची फील्ड्स",
@@ -1075,7 +1077,9 @@
       "searchIssueType": "तक्रारीचा प्रकार शोधा…",
       "noIssueType": "तक्रारीचा प्रकार सापडला नाही",
       "location": "उदा. XYZ चौकाजवळ",
-      "duration": "उदा. ३ दिवस"
+      "duration": "उदा. ३ दिवस",
+      "toName": "अधिकारी / कार्यालय नाव टाइप करा",
+      "contactNo": "उदा. ९८७६५४३२१०"
     },
     "gender": {
       "male": "पुरुष",
@@ -1095,7 +1099,8 @@
       "referenceNoRequired": "संदर्भ क्र. आवश्यक आहे",
       "referenceNoDuplicate": "संदर्भ क्र. आधीच अस्तित्वात आहे",
       "dateRequired": "दिनांक आवश्यक आहे",
-      "fieldRequired": "हे फील्ड आवश्यक आहे"
+      "fieldRequired": "हे फील्ड आवश्यक आहे",
+      "contactNoInvalid": "संपर्क क्रमांक नेमके १० अंकी असावा"
     }
   },
   "dailyProgramme": {

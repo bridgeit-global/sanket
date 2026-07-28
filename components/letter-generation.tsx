@@ -94,6 +94,8 @@ import {
 import {
   getDefaultWardIssueType,
   getDefaultWardToAddress,
+  getDefaultWardToName,
+  getWardIssueOfficerSeedName,
   getWardIssueOptions,
   resolveWardIssueType,
   wardIssueRequiresDuration,
@@ -188,6 +190,11 @@ function normalizeFamilyMemberAge(age: string): string {
 /** Digits-only Aadhaar (max 12). Accepts Devanagari input. */
 function normalizeAadhaarNo(value: string): string {
   return toWesternDigits(value).replace(/\D/g, '').slice(0, 12);
+}
+
+/** Digits-only mobile contact (max 10). Accepts Devanagari input. */
+function normalizeContactNo(value: string): string {
+  return toWesternDigits(value).replace(/\D/g, '').slice(0, 10);
 }
 
 function formatFamilyMembersString(
@@ -521,6 +528,7 @@ function wardDefaults(locale: LetterLocale): WardLetterFields {
     ...commonDefaults(locale),
     issueType,
     to: getDefaultWardToAddress(issueType, locale),
+    toName: getDefaultWardToName(issueType, locale),
     complainantName: '',
     contactNo: '',
     location: '',
@@ -701,6 +709,7 @@ type AddressSelectionState = {
   applicant: string | null;
   rationOffice: string | null;
   office: string | null;
+  to: string | null;
   fromRationOffice: string | null;
   toRationOffice: string | null;
 };
@@ -716,6 +725,7 @@ const MULTILINE_ADDRESS_KEYS: ReadonlySet<ManualAddressKey> = new Set([
   'school',
   'rationOffice',
   'office',
+  'to',
 ]);
 
 function formatAddressForManualKey(
@@ -815,6 +825,26 @@ function formatRationOfficeWithAddress(
   });
 }
 
+function formatWardToWithAddress(
+  address: Pick<AddressMasterRow, 'name' | 'nameMr'> & AddressMasterAddressParts,
+  locale: LetterLocale,
+): string {
+  return formatRationOfficeWithAddress(address, locale, true);
+}
+
+function findWardOfficerAddress(
+  addresses: AddressMasterRow[],
+  issueType: ReturnType<typeof resolveWardIssueType>,
+): AddressMasterRow | undefined {
+  const seedName = getWardIssueOfficerSeedName(issueType);
+  return addresses.find(
+    (row) =>
+      row.addressType === 'office' &&
+      row.isActive !== false &&
+      row.name === seedName,
+  );
+}
+
 function getRationOfficeLabelById(
   addresses: AddressMasterRow[],
   masterId: string | null,
@@ -838,6 +868,7 @@ function applyMasterAddressToFields(
     setRationFields: Dispatch<SetStateAction<RationLetterFields>>;
     setIncomeFields: Dispatch<SetStateAction<IncomeLetterFields>>;
     setDomicileFields: Dispatch<SetStateAction<DomicileLetterFields>>;
+    setWardFields: Dispatch<SetStateAction<WardLetterFields>>;
   },
 ) {
   const schoolText = getAddressTextFromMaster(addresses, selections.school, locale, true);
@@ -853,6 +884,7 @@ function applyMasterAddressToFields(
     true,
   );
   const officeText = getAddressTextFromMaster(addresses, selections.office, locale, true);
+  const toText = getAddressTextFromMaster(addresses, selections.to, locale, true);
 
   if (schoolText) {
     setters.setFeesFields((prev) => ({ ...prev, schoolAddress: schoolText }));
@@ -900,6 +932,19 @@ function applyMasterAddressToFields(
       officeName: officeName || prev.officeName,
       officeAddress: officeText,
     }));
+  }
+
+  if (selections.to) {
+    const toMaster = addresses.find((item) => item.id === selections.to);
+    if (toMaster) {
+      setters.setWardFields((prev) => ({
+        ...prev,
+        toName: getAddressMasterName(toMaster, locale) || prev.toName,
+        to: formatWardToWithAddress(toMaster, locale),
+      }));
+    } else if (toText) {
+      setters.setWardFields((prev) => ({ ...prev, to: toText }));
+    }
   }
 }
 
@@ -1036,6 +1081,7 @@ export function LetterGeneration({
     applicant: null,
     rationOffice: null,
     office: null,
+    to: null,
     fromRationOffice: null,
     toRationOffice: null,
   });
@@ -1046,6 +1092,7 @@ export function LetterGeneration({
     applicant: createEmptyAddressParts(),
     rationOffice: createEmptyAddressParts(),
     office: createEmptyAddressParts(),
+    to: createEmptyAddressParts(),
     fromRationOffice: createEmptyAddressParts(),
     toRationOffice: createEmptyAddressParts(),
   }));
@@ -1413,8 +1460,14 @@ export function LetterGeneration({
         date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
         issueType,
         to: nextTo,
+        toName:
+          !prev.toName.trim() ||
+          prev.toName.trim() === getDefaultWardToName(issueType, prevLocale).trim() ||
+          prev.toName.trim() === getDefaultWardToName(issueType, letterLocale).trim()
+            ? getDefaultWardToName(issueType, letterLocale)
+            : filterText(prev.toName),
         complainantName: filterText(prev.complainantName),
-        contactNo: filterText(prev.contactNo),
+        contactNo: normalizeContactNo(prev.contactNo),
         location: filterText(prev.location),
         duration: filterText(prev.duration),
       };
@@ -1440,6 +1493,7 @@ export function LetterGeneration({
       setRationFields,
       setIncomeFields,
       setDomicileFields,
+      setWardFields,
     });
 
     // For manual entry (no master selection), restore the per-locale formatted text when switching locale.
@@ -1486,6 +1540,27 @@ export function LetterGeneration({
         setIncomeFields((prev) => ({ ...prev, officeAddress: text }));
         setDomicileFields((prev) => ({ ...prev, officeAddress: text }));
       }
+    }
+    if (!addressSelections.to) {
+      setWardFields((prev) => {
+        const addressText = formatAddressForManualKey(
+          manualAddressParts.to,
+          letterLocale,
+          'to',
+        );
+        const text = combineNameAndAddress(prev.toName, addressText, ',<br>', {
+          boldName: true,
+        });
+        if (text.trim()) {
+          return { ...prev, to: text };
+        }
+        const issueType = resolveWardIssueType(prev.issueType);
+        return {
+          ...prev,
+          toName: getDefaultWardToName(issueType, letterLocale),
+          to: getDefaultWardToAddress(issueType, letterLocale),
+        };
+      });
     }
 
     prevLetterLocaleRef.current = letterLocale;
@@ -1575,6 +1650,14 @@ export function LetterGeneration({
           setIncomeFields((prev) => ({ ...prev, officeAddress: value }));
           setDomicileFields((prev) => ({ ...prev, officeAddress: value }));
           break;
+        case 'to':
+          setWardFields((prev) => ({
+            ...prev,
+            to: combineNameAndAddress(prev.toName, value, ',<br>', {
+              boldName: true,
+            }),
+          }));
+          break;
       }
     },
     [],
@@ -1611,7 +1694,9 @@ export function LetterGeneration({
           key === 'rationOffice' ? ',<br>' : ', ',
           key === 'rationOffice' ? { boldName: true } : undefined,
         )
-        : formatted;
+        : key === 'to'
+          ? formatted
+          : formatted;
     applyManualAddressToLetterFields(key, value);
     // The beneficiary's (applicant's) address is not translated.
     if (key !== 'applicant') {
@@ -1861,6 +1946,53 @@ export function LetterGeneration({
       seedManualAddressPartsFromText('office', seedText);
     }
   };
+
+  const handleWardToAddressSelect = (id: string | null, seedText = '') => {
+    setAddressSelections((prev) => {
+      const next = { ...prev, to: id };
+      addressSelectionsRef.current = next;
+      return next;
+    });
+    setFieldErrors((prev) => ({
+      ...prev,
+      to: undefined,
+      toAddress: undefined,
+      toName: undefined,
+    }));
+    if (id) {
+      const selected = addresses.find((a) => a.id === id);
+      if (selected) {
+        const toName = getAddressMasterName(selected, letterLocale);
+        setWardFields((prev) => ({
+          ...prev,
+          toName,
+          to: formatWardToWithAddress(selected, letterLocale),
+        }));
+        setManualAddressParts((prev) => ({ ...prev, to: addressRowToParts(selected) }));
+      }
+    } else {
+      setWardFields((prev) => ({ ...prev, toName: '', to: '' }));
+      seedManualAddressPartsFromText('to', seedText);
+    }
+  };
+
+  // Prefill ward recipient with the issue-type officer once addresses load.
+  const defaultWardToAppliedRef = useRef(false);
+  useEffect(() => {
+    if (defaultWardToAppliedRef.current) return;
+    if (addressSelections.to) {
+      defaultWardToAppliedRef.current = true;
+      return;
+    }
+    const preferred = findWardOfficerAddress(
+      addresses,
+      resolveWardIssueType(wardFields.issueType),
+    );
+    if (!preferred) return;
+    defaultWardToAppliedRef.current = true;
+    handleWardToAddressSelect(preferred.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addresses, wardFields.issueType]);
 
   const refreshLetterMasters = async () => {
     setLetterMastersLoading(true);
@@ -2386,9 +2518,15 @@ export function LetterGeneration({
       requireAddress('applicant', domicileFields.address);
       requireAddress('office', domicileFields.officeAddress);
     } else if (formTab === 'ward') {
-      requireField(errors, 'to', wardFields.to, requiredMsg);
+      requireField(errors, 'toName', wardFields.toName, requiredMsg);
+      requireAddress('to', wardFields.to);
       requireField(errors, 'complainantName', wardFields.complainantName, requiredMsg);
-      requireField(errors, 'contactNo', wardFields.contactNo, requiredMsg);
+      const contactDigits = normalizeContactNo(wardFields.contactNo);
+      if (!contactDigits) {
+        errors.contactNo = requiredMsg;
+      } else if (contactDigits.length !== 10) {
+        errors.contactNo = lt('letterGeneration.validation.contactNoInvalid');
+      }
       requireField(errors, 'location', wardFields.location, requiredMsg);
       if (wardIssueRequiresDuration(resolveWardIssueType(wardFields.issueType))) {
         requireField(errors, 'duration', wardFields.duration, requiredMsg);
@@ -2616,6 +2754,23 @@ export function LetterGeneration({
         }
       }
 
+      if (!addressSelections.to && formTab === 'ward') {
+        const toText = wardFields.to ?? '';
+        if (toText.trim()) {
+          const created = await createAddressMasterFromManualEntry({
+            addressType: addressTypeForField('to'),
+            name: wardFields.toName.trim() || deriveAddressMasterName(toText, 'Ward Officer'),
+            parts: manualAddressParts.to,
+          });
+          if (created?.id) {
+            setAddresses((prev) =>
+              prev.some((a) => a.id === created.id) ? prev : [created, ...prev],
+            );
+            setAddressSelections((prev) => ({ ...prev, to: created.id }));
+          }
+        }
+      }
+
       const res = await fetch('/api/letters', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
@@ -2745,6 +2900,7 @@ export function LetterGeneration({
       applicant: null,
       rationOffice: null,
       office: null,
+      to: null,
       fromRationOffice: null,
       toRationOffice: null,
     });
@@ -2753,6 +2909,7 @@ export function LetterGeneration({
       applicant: createEmptyAddressParts(),
       rationOffice: createEmptyAddressParts(),
       office: createEmptyAddressParts(),
+      to: createEmptyAddressParts(),
       fromRationOffice: createEmptyAddressParts(),
       toRationOffice: createEmptyAddressParts(),
     });
@@ -2770,6 +2927,15 @@ export function LetterGeneration({
     const preferredRationOffice = findDefaultRationOfficeAddress(addresses);
     if (preferredRationOffice) {
       handleRationOfficeAddressSelect(preferredRationOffice.id);
+    }
+    defaultWardToAppliedRef.current = false;
+    const preferredWardTo = findWardOfficerAddress(
+      addresses,
+      getDefaultWardIssueType(),
+    );
+    if (preferredWardTo) {
+      defaultWardToAppliedRef.current = true;
+      handleWardToAddressSelect(preferredWardTo.id);
     }
     setClearAllDialogOpen(false);
     toast.success(t('letterGeneration.clearAllSuccess'));
@@ -4427,52 +4593,81 @@ export function LetterGeneration({
                           value={wardFields.issueType}
                           onValueChange={(value) => {
                             const issueType = resolveWardIssueType(value);
-                            setWardFields((prev) => {
-                              const prevDefaultTo = getDefaultWardToAddress(
-                                resolveWardIssueType(prev.issueType),
-                                letterLocale,
-                              );
-                              const toTrimmed = prev.to.trim();
-                              const nextTo =
-                                !toTrimmed || toTrimmed === prevDefaultTo.trim()
-                                  ? getDefaultWardToAddress(issueType, letterLocale)
-                                  : prev.to;
-                              return {
-                                ...prev,
-                                issueType,
-                                to: nextTo,
-                                duration: wardIssueRequiresDuration(issueType)
-                                  ? prev.duration
-                                  : '',
-                              };
-                            });
                             setFieldErrors((prev) => ({
                               ...prev,
                               duration: undefined,
+                            }));
+                            const preferred = findWardOfficerAddress(addresses, issueType);
+                            if (preferred) {
+                              setWardFields((prev) => ({
+                                ...prev,
+                                issueType,
+                                duration: wardIssueRequiresDuration(issueType)
+                                  ? prev.duration
+                                  : '',
+                              }));
+                              handleWardToAddressSelect(preferred.id);
+                              return;
+                            }
+                            setWardFields((prev) => ({
+                              ...prev,
+                              issueType,
+                              toName: addressSelections.to
+                                ? prev.toName
+                                : getDefaultWardToName(issueType, letterLocale),
+                              to: addressSelections.to
+                                ? prev.to
+                                : getDefaultWardToAddress(issueType, letterLocale),
+                              duration: wardIssueRequiresDuration(issueType)
+                                ? prev.duration
+                                : '',
                             }));
                           }}
                           options={wardIssueComboboxOptions}
                           placeholder={lt('letterGeneration.placeholders.issueType')}
                         />
                       </FieldGroup>
-                      <FieldGroup
+                      <LetterAddressField
                         label={lt('letterGeneration.fields.to')}
+                        addressType={addressTypeForField('to')}
+                        locale={letterLocale}
+                        selectedAddressId={addressSelections.to}
+                        addresses={addresses}
+                        addressParts={manualAddressParts.to}
+                        onAddressPartsChange={(parts) =>
+                          handleManualAddressPartsChange('to', parts)
+                        }
+                        pincodeError={addressPincodeErrors.to}
+                        error={fieldErrors.toAddress ?? fieldErrors.to}
                         required
-                        error={fieldErrors.to}
-                      >
-                        <LocaleTextarea
-                          locale={letterLocale}
-                          value={wardFields.to}
-                          onValueChange={(to) => {
-                            setWardFields((prev) => ({ ...prev, to }));
-                            if (fieldErrors.to) {
-                              setFieldErrors((prev) => ({ ...prev, to: undefined }));
-                            }
-                          }}
-                          rows={5}
-                          required
-                        />
-                      </FieldGroup>
+                        nameLabel={lt('letterGeneration.fields.toName')}
+                        namePlaceholder={lt('letterGeneration.placeholders.toName')}
+                        nameValue={wardFields.toName}
+                        nameRequired
+                        nameError={fieldErrors.toName}
+                        onNameChange={(value) => {
+                          setWardFields((prev) => {
+                            const addressText = formatAddressForManualKey(
+                              manualAddressParts.to,
+                              letterLocale,
+                              'to',
+                            );
+                            return {
+                              ...prev,
+                              toName: value,
+                              to: combineNameAndAddress(value, addressText, ',<br>', {
+                                boldName: true,
+                              }),
+                            };
+                          });
+                          if (fieldErrors.toName) {
+                            setFieldErrors((prev) => ({ ...prev, toName: undefined }));
+                          }
+                        }}
+                        onSelectedAddressIdChange={(id) =>
+                          handleWardToAddressSelect(id, wardFields.to)
+                        }
+                      />
                       <div className="grid gap-4 sm:grid-cols-2">
                         <FieldGroup
                           label={lt('letterGeneration.fields.complainantName')}
@@ -4499,11 +4694,17 @@ export function LetterGeneration({
                           required
                           error={fieldErrors.contactNo}
                         >
-                          <LocaleTextInput
-                            locale={letterLocale}
-                            value={wardFields.contactNo}
-                            onValueChange={(contactNo) => {
-                              setWardFields((prev) => ({ ...prev, contactNo }));
+                          <Input
+                            value={
+                              wardFields.contactNo
+                                ? toLocaleDigits(wardFields.contactNo, letterLocale)
+                                : ''
+                            }
+                            onChange={(e) => {
+                              setWardFields((prev) => ({
+                                ...prev,
+                                contactNo: normalizeContactNo(e.target.value),
+                              }));
                               if (fieldErrors.contactNo) {
                                 setFieldErrors((prev) => ({
                                   ...prev,
@@ -4511,6 +4712,9 @@ export function LetterGeneration({
                                 }));
                               }
                             }}
+                            inputMode="numeric"
+                            maxLength={10}
+                            placeholder={lt('letterGeneration.placeholders.contactNo')}
                             required
                           />
                         </FieldGroup>

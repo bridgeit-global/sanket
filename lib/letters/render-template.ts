@@ -245,14 +245,21 @@ export function buildRenderFields(
   } else if (formType === 'ward') {
     const wardFields = fields as WardLetterFields;
     const issueType = resolveWardIssueType(wardFields.issueType);
+    const contactDigits = toWesternDigits(wardFields.contactNo ?? '').replace(/\D/g, '');
     const values = {
-      location: wardFields.location ?? '',
+      location: toLocaleDigits(wardFields.location ?? '', locale),
       complainantName: wardFields.complainantName ?? '',
-      contactNo: wardFields.contactNo ?? '',
-      duration: wardFields.duration ?? '',
+      contactNo: toLocaleDigits(contactDigits, locale),
+      duration: toLocaleDigits(wardFields.duration ?? '', locale),
     };
-    const subject = buildWardSubject(issueType, locale, values);
-    const paragraphs = buildWardParagraphs(issueType, locale, values);
+    const subject = toLocaleDigits(
+      buildWardSubject(issueType, locale, values),
+      locale,
+    );
+    const paragraphs = toLocaleDigits(
+      buildWardParagraphs(issueType, locale, values),
+      locale,
+    );
     renderFields = {
       ...base,
       issueType,
@@ -262,7 +269,7 @@ export function buildRenderFields(
       location: values.location,
       duration: values.duration,
       subject,
-      toBlock: formatMultilineHtmlBlock(wardFields.to),
+      toBlock: formatMultilineHtmlBlock(toLocaleDigits(wardFields.to ?? '', locale)),
       paragraphsBlock: formatParagraphsBlock(paragraphs),
     };
   } else {

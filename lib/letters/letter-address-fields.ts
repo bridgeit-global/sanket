@@ -7,6 +7,7 @@ export const LETTER_ADDRESS_FIELDS = [
   'applicant',
   'rationOffice',
   'office',
+  'to',
   'fromRationOffice',
   'toRationOffice',
 ] as const;
@@ -124,6 +125,7 @@ export function getDefaultLetterAddressTypeLinks(): LetterAddressTypeLinkSeed[] 
       addressType: 'general',
       sortOrder: 2,
     },
+    { letterType: 'ward', addressField: 'to', addressType: 'office', sortOrder: 1 },
   ];
 }
 

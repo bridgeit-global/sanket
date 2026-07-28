@@ -4,6 +4,10 @@ import {
   type WardIssueType,
   WARD_ISSUE_TYPES,
 } from '@/lib/letters/templates';
+import {
+  WARD_OFFICER_ADDRESS_NAMES,
+  type WardOfficerKey,
+} from '@/lib/letters/default-addresses';
 
 const BMC_M_EAST_OFFICE = {
   mr: `बृहन्मुंबई महानगरपालिका,
@@ -16,40 +20,63 @@ Late Madhukar Tukaram Kadam Marg,
 Govandi (West), Mumbai - 400 043.`,
 } as const;
 
-function swmAeTo(locale: LetterLocale): string {
-  if (locale === 'mr') {
-    return `सहाय्यक अभियंता (घ. क. व्य.) एम/पूर्व प्रभाग,
-${BMC_M_EAST_OFFICE.mr}`;
+const WARD_ISSUE_OFFICER_KEY: Record<WardIssueType, WardOfficerKey> = {
+  garbage: 'swm',
+  drain: 'swm',
+  'tree-trim': 'garden',
+  'tree-dead': 'garden',
+  'tree-hazard': 'garden',
+  'water-contaminated': 'water',
+  'water-low-pressure': 'water',
+  'water-none': 'water',
+  'water-tanker': 'water',
+  'road-repair': 'maintenance',
+  'footpath-repair': 'maintenance',
+  'street-lights': 'maintenance',
+  'speed-breaker': 'maintenance',
+};
+
+export function getWardIssueOfficerKey(issueType: WardIssueType): WardOfficerKey {
+  return WARD_ISSUE_OFFICER_KEY[issueType];
+}
+
+export function getWardIssueOfficerSeedName(issueType: WardIssueType): string {
+  return WARD_OFFICER_ADDRESS_NAMES[getWardIssueOfficerKey(issueType)];
+}
+
+function officerName(locale: LetterLocale, key: WardOfficerKey): string {
+  if (locale === 'en') return WARD_OFFICER_ADDRESS_NAMES[key];
+  switch (key) {
+    case 'swm':
+      return 'सहाय्यक अभियंता (घ. क. व्य.) एम/पूर्व प्रभाग';
+    case 'garden':
+      return 'सहाय्यक उद्यान अधीक्षक - एम/पूर्व प्रभाग';
+    case 'water':
+      return 'सहाय्यक अभियंता (जलकामे)';
+    case 'maintenance':
+      return 'मा. सहाय्यक अभियंता (परिरक्षण)';
   }
-  return `Assistant Engineer (SWM) M/East Ward,
-${BMC_M_EAST_OFFICE.en}`;
+}
+
+function buildDefaultTo(locale: LetterLocale, key: WardOfficerKey): string {
+  return `${officerName(locale, key)},
+${BMC_M_EAST_OFFICE[locale]}`;
+}
+
+function swmAeTo(locale: LetterLocale): string {
+  return buildDefaultTo(locale, 'swm');
 }
 
 function gardenTo(locale: LetterLocale): string {
-  if (locale === 'mr') {
-    return `सहाय्यक उद्यान अधीक्षक - एम/पूर्व प्रभाग,
-${BMC_M_EAST_OFFICE.mr}`;
-  }
-  return `Assistant Garden Superintendent - M/East Ward,
-${BMC_M_EAST_OFFICE.en}`;
+  return buildDefaultTo(locale, 'garden');
 }
 
 function waterTo(locale: LetterLocale): string {
-  if (locale === 'mr') {
-    return `सहाय्यक अभियंता (जलकामे),
-${BMC_M_EAST_OFFICE.mr}`;
-  }
-  return `Assistant Engineer (Water Works),
-${BMC_M_EAST_OFFICE.en}`;
+  return buildDefaultTo(locale, 'water');
 }
 
 function maintenanceTo(locale: LetterLocale): string {
-  if (locale === 'mr') {
-    return `मा. सहाय्यक अभियंता (परिरक्षण),
-${BMC_M_EAST_OFFICE.mr}`;
-  }
-  return `Assistant Engineer (Maintenance),
-${BMC_M_EAST_OFFICE.en}`;
+  return buildDefaultTo(locale, 'maintenance');
 }
 
 export type WardIssuePreset = {
@@ -420,6 +447,13 @@ export function getDefaultWardToAddress(
   locale: LetterLocale,
 ): string {
   return WARD_ISSUE_PRESETS[issueType].defaultTo[locale];
+}
+
+export function getDefaultWardToName(
+  issueType: WardIssueType,
+  locale: LetterLocale,
+): string {
+  return officerName(locale, getWardIssueOfficerKey(issueType));
 }
 
 export function buildWardSubject(

@@ -126,6 +126,7 @@ const KNOWN_PLACEHOLDERS_BY_FORM: Record<LetterType, readonly string[]> = {
     ...COMMON_PLACEHOLDER_KEYS,
     'issueType',
     'to',
+    'toName',
     'complainantName',
     'contactNo',
     'location',

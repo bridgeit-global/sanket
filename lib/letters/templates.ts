@@ -126,7 +126,10 @@ export type GeneralLetterFields = CommonLetterFields & {
 
 export type WardLetterFields = CommonLetterFields & {
   issueType: WardIssueType;
+  /** Full recipient block (officer name + address) for the letter body. */
   to: string;
+  /** Officer / office name used by the address master picker. */
+  toName: string;
   complainantName: string;
   contactNo: string;
   location: string;
