@@ -356,6 +356,7 @@ export function mapLetterRow(row: Row): Letter {
     pdfStoragePath: toStringOrNull(
       row.pdf_storage_path ?? row.pdfStoragePath,
     ),
+    printedAt: toDateOrNull(row.printed_at ?? row.printedAt),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),
     beneficiaryServiceId: toStringOrNull(
       row.beneficiary_service_id ?? row.beneficiaryServiceId,

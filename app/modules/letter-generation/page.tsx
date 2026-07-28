@@ -85,6 +85,7 @@ export default async function LetterGenerationPage({
             priority: service.priority,
             token: service.token,
             description: service.description,
+            voterId: service.voterId,
             createdAt:
               service.createdAt instanceof Date
                 ? service.createdAt.toISOString()

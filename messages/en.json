@@ -691,6 +691,7 @@
     "pdfError": "Failed to generate PDF. Please try again.",
     "printPopupBlocked": "Unable to print letter. Please try again.",
     "printWithLetterhead": "Include letterhead when printing / PDF",
+    "printDuplicateWarning": "A letter for this voter and service was already printed today.",
     "letterTypes": {
       "addNewOption": "+ Add new letter type…",
       "code": "Type code",
@@ -967,6 +968,9 @@
       "deleteError": "Failed to delete letter.",
       "deleteConfirmTitle": "Delete letter?",
       "deleteConfirmDescription": "Are you sure you want to delete this letter? This action cannot be undone.",
+      "reprintConfirmTitle": "Letter already printed",
+      "reprintConfirmDescription": "A letter for voter {voterId} and service \"{serviceName}\" was already printed on {date} (ref: {referenceNos}). Reprint only if needed.",
+      "printedBadge": "Printed",
       "columns": {
         "referenceNo": "Reference No.",
         "type": "Type",
@@ -978,6 +982,7 @@
         "preview": "Preview",
         "load": "Load",
         "print": "Print Letter",
+        "reprintConfirm": "Reprint anyway",
         "download": "Download PDF",
         "delete": "Delete",
         "regenerate": "Regenerate",

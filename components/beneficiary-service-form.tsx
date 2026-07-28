@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Paperclip, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -136,18 +135,15 @@ type IndividualServiceRow = {
 
 function buildServiceComboboxOptions(
     services: IndividualServiceRow[],
-    customLabel: string,
 ): Array<{
     value: string;
     label: string;
     disabled?: boolean;
-    renderLabel?: (label: string) => ReactNode;
 }> {
     const options: Array<{
         value: string;
         label: string;
         disabled?: boolean;
-        renderLabel?: (label: string) => ReactNode;
     }> = [];
 
     let lastCategory: string | null = null;
@@ -167,12 +163,6 @@ function buildServiceComboboxOptions(
         });
     }
 
-    options.push({
-        value: 'custom',
-        label: customLabel,
-        renderLabel: (label) => <span className="italic">{label}</span>,
-    });
-
     return options;
 }
 
@@ -184,8 +174,6 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
     const [individualServices, setIndividualServices] = useState<IndividualServiceRow[]>([]);
     const [servicesLoaded, setServicesLoaded] = useState(false);
     const [serviceName, setServiceName] = useState(initialServiceName);
-    const [customServiceName, setCustomServiceName] = useState('');
-    const [isCustomService, setIsCustomService] = useState(false);
     const [description, setDescription] = useState(initialData?.description ?? '');
     const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>(initialData?.priority ?? 'medium');
     const [notes, setNotes] = useState(initialData?.notes ?? '');
@@ -221,19 +209,11 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
                     setIndividualServices(rows);
                     if (initialServiceName) {
                         const isKnown = rows.some((row) => row.name === initialServiceName);
-                        if (isKnown) {
-                            setServiceName(initialServiceName);
-                            setCustomServiceName('');
-                            setIsCustomService(false);
-                        } else {
-                            setServiceName('');
-                            setCustomServiceName(initialServiceName);
-                            setIsCustomService(true);
-                        }
+                        setServiceName(isKnown ? initialServiceName : '');
                     }
                 }
             } catch {
-                // optional — combobox still allows custom entry
+                // optional — leave combobox empty if catalog fails to load
             } finally {
                 if (!cancelled) setServicesLoaded(true);
             }
@@ -321,9 +301,7 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const finalServiceName = isCustomService ? customServiceName : serviceName;
-
-        if (!finalServiceName.trim()) {
+        if (!serviceName.trim()) {
             toast({
                 type: 'error',
                 description: t('beneficiaryService.messages.serviceNameRequired'),
@@ -337,7 +315,7 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
 
         const serviceData = {
             serviceType,
-            serviceName: finalServiceName,
+            serviceName: serviceName.trim(),
             description,
             priority,
             notes,
@@ -443,40 +421,17 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                             <div>
                                 <Label htmlFor="serviceName">{t('beneficiaryService.form.fields.serviceName')}</Label>
-                                <div className="space-y-2">
-                                    <Combobox
-                                        value={isCustomService ? 'custom' : serviceName}
-                                        onValueChange={(value) => {
-                                            if (value === 'custom') {
-                                                setIsCustomService(true);
-                                                setServiceName('');
-                                            } else {
-                                                setIsCustomService(false);
-                                                setServiceName(value);
-                                                setCustomServiceName('');
-                                            }
-                                        }}
-                                        placeholder={
-                                            servicesLoaded
-                                                ? t('beneficiaryService.form.fields.selectService')
-                                                : t('common.loading')
-                                        }
-                                        disabled={!servicesLoaded}
-                                        options={buildServiceComboboxOptions(
-                                            individualServices,
-                                            t('beneficiaryService.form.fields.customService'),
-                                        )}
-                                    />
-
-                                    {isCustomService && (
-                                        <Input
-                                            value={customServiceName}
-                                            onChange={(e) => setCustomServiceName(e.target.value)}
-                                            placeholder={t('beneficiaryService.form.fields.customServiceName')}
-                                            className="mt-2"
-                                        />
-                                    )}
-                                </div>
+                                <Combobox
+                                    value={serviceName}
+                                    onValueChange={setServiceName}
+                                    placeholder={
+                                        servicesLoaded
+                                            ? t('beneficiaryService.form.fields.selectService')
+                                            : t('common.loading')
+                                    }
+                                    disabled={!servicesLoaded}
+                                    options={buildServiceComboboxOptions(individualServices)}
+                                />
                             </div>
                             <div>
                                 <Label htmlFor="priority">{t('beneficiaryService.form.fields.priority')}</Label>

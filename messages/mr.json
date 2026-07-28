@@ -691,6 +691,7 @@
     "pdfError": "PDF तयार करण्यात अयशस्वी. कृपया पुन्हा प्रयत्न करा.",
     "printPopupBlocked": "पत्र प्रिंट करता आले नाही. कृपया पुन्हा प्रयत्न करा.",
     "printWithLetterhead": "प्रिंट / PDF मध्ये लेटरहेड समाविष्ट करा",
+    "printDuplicateWarning": "या मतदार आणि सेवेसाठी आज आधीच पत्र प्रिंट झाले आहे.",
     "letterTypes": {
       "addNewOption": "+ नवीन पत्र प्रकार जोडा…",
       "code": "प्रकार कोड",
@@ -967,6 +968,9 @@
       "deleteError": "पत्र हटवण्यात अयशस्वी.",
       "deleteConfirmTitle": "पत्र हटवायचे?",
       "deleteConfirmDescription": "तुम्हाला हे पत्र खरोखर हटवायचे आहे का? ही क्रिया पूर्ववत करता येणार नाही.",
+      "reprintConfirmTitle": "पत्र आधीच प्रिंट झाले आहे",
+      "reprintConfirmDescription": "मतदार {voterId} आणि सेवा \"{serviceName}\" साठी {date} रोजी आधीच पत्र प्रिंट झाले आहे (संदर्भ: {referenceNos}). आवश्यक असल्यासच पुन्हा प्रिंट करा.",
+      "printedBadge": "प्रिंट झाले",
       "columns": {
         "referenceNo": "संदर्भ क्र.",
         "type": "प्रकार",
@@ -978,6 +982,7 @@
         "preview": "पूर्वावलोकन",
         "load": "लोड करा",
         "print": "पत्र प्रिंट करा",
+        "reprintConfirm": "तरीही पुन्हा प्रिंट करा",
         "download": "PDF डाउनलोड",
         "delete": "हटवा",
         "regenerate": "पुन्हा तयार करा",

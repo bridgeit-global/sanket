@@ -3978,6 +3978,131 @@ export async function updateLetterPdfStoragePath({
   }
 }
 
+export async function markLetterPrinted(id: string): Promise<Letter> {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.letter)
+      .update(
+        toSnakeCaseKeys({
+          printedAt: now,
+          updatedAt: now,
+        }),
+      )
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to mark letter as printed');
+    return mapLetterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to mark letter as printed',
+    );
+  }
+}
+
+export type PrintedLetterDuplicate = {
+  id: string;
+  referenceNo: string;
+  title: string;
+  printedAt: Date;
+  beneficiaryServiceId: string | null;
+  voterId: string | null;
+};
+
+/**
+ * Find letters already printed for the same voter + beneficiary service on the
+ * given calendar day (Asia/Kolkata). Used to warn before reprinting.
+ */
+export async function findPrintedLetterDuplicates({
+  beneficiaryServiceId,
+  voterId,
+  onDate,
+  excludeLetterId,
+}: {
+  beneficiaryServiceId: string;
+  voterId?: string | null;
+  /** ISO date `YYYY-MM-DD` in local (India) calendar. Defaults to today. */
+  onDate?: string;
+  excludeLetterId?: string;
+}): Promise<PrintedLetterDuplicate[]> {
+  try {
+    const day =
+      onDate && /^\d{4}-\d{2}-\d{2}$/.test(onDate)
+        ? onDate
+        : new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }).format(new Date());
+
+    const dayStart = `${day}T00:00:00+05:30`;
+    const dayEnd = `${day}T23:59:59.999+05:30`;
+
+    const { data: serviceRow, error: serviceError } = await supabase
+      .from(TABLES.beneficiaryServices)
+      .select('id, voter_id')
+      .eq('id', beneficiaryServiceId)
+      .maybeSingle();
+    throwOnSupabaseError(
+      serviceError,
+      'Failed to look up beneficiary service for print dedupe',
+    );
+
+    const serviceVoterId = serviceRow?.voter_id
+      ? String(serviceRow.voter_id)
+      : null;
+    const requestedVoterId = voterId?.trim() || null;
+
+    // If caller supplied a voter id, it must match the service's voter.
+    if (
+      requestedVoterId &&
+      serviceVoterId &&
+      requestedVoterId !== serviceVoterId
+    ) {
+      return [];
+    }
+
+    const resolvedVoterId = requestedVoterId || serviceVoterId;
+
+    let query = supabase
+      .from(TABLES.letter)
+      .select('id, reference_no, title, printed_at, beneficiary_service_id')
+      .eq('beneficiary_service_id', beneficiaryServiceId)
+      .not('printed_at', 'is', null)
+      .gte('printed_at', dayStart)
+      .lte('printed_at', dayEnd)
+      .order('printed_at', { ascending: false });
+
+    if (excludeLetterId) {
+      query = query.neq('id', excludeLetterId);
+    }
+
+    const { data, error } = await query;
+    throwOnSupabaseError(error, 'Failed to find printed letter duplicates');
+
+    return (data ?? []).map((row) => ({
+      id: String(row.id),
+      referenceNo: String(row.reference_no ?? ''),
+      title: String(row.title ?? ''),
+      printedAt: new Date(String(row.printed_at)),
+      beneficiaryServiceId: row.beneficiary_service_id
+        ? String(row.beneficiary_service_id)
+        : null,
+      voterId: resolvedVoterId,
+    }));
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to find printed letter duplicates',
+    );
+  }
+}
+
 export async function deleteLetter(id: string): Promise<void> {
   try {
     const existing = await getLetterById(id);

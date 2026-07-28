@@ -92,6 +92,8 @@ export {
   deleteLetter,
   updateLetterRenderedHtml,
   updateLetterPdfStoragePath,
+  markLetterPrinted,
+  findPrintedLetterDuplicates,
   ensureLetterMasterDefaults,
   getLetterMasters,
   getLetterMasterByTypeAndLocale,

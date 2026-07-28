@@ -960,6 +960,7 @@ type SavedLetterRow = {
   renderedHtml: string;
   paperSize: LetterPaperSize;
   pdfStoragePath?: string | null;
+  printedAt?: string | Date | null;
   createdAt: string | Date;
 };
 
@@ -983,6 +984,7 @@ export type BeneficiaryServiceInfo = {
   priority: 'low' | 'medium' | 'high' | 'urgent';
   token: string;
   description: string | null;
+  voterId: string | null;
   createdAt: string;
 };
 
@@ -1023,6 +1025,10 @@ export function LetterGeneration({
     null,
   );
   const [printingLetterId, setPrintingLetterId] = useState<string | null>(null);
+  const [reprintDialogOpen, setReprintDialogOpen] = useState(false);
+  const [reprintWarning, setReprintWarning] = useState<string>('');
+  const [letterPendingPrint, setLetterPendingPrint] =
+    useState<SavedLetterRow | null>(null);
   const [isGeneratorCollapsed, setIsGeneratorCollapsed] = useState(false);
 
   const [feesFields, setFeesFields] = useState<FeesLetterFields>(() =>
@@ -2960,7 +2966,7 @@ export function LetterGeneration({
     toast.success(t('letterGeneration.clearAllSuccess'));
   };
 
-  const handlePrintSavedLetter = async (letter: SavedLetterRow) => {
+  const executePrintSavedLetter = async (letter: SavedLetterRow) => {
     setPrintingLetterId(letter.id);
     try {
       // Print via PDF so Chrome cannot stamp URL/date headers (HTML @page cannot suppress them).
@@ -2968,11 +2974,112 @@ export function LetterGeneration({
       // Stop loader as soon as the print dialog can open — cancel does not always fire afterprint.
       setPrintingLetterId(null);
       await printPdfBlob(blob);
+
+      // Best-effort: record print so reprints can be detected.
+      try {
+        const res = await fetch(
+          `/api/letters/${encodeURIComponent(letter.id)}/print`,
+          { method: 'POST' },
+        );
+        if (res.ok) {
+          const json = (await res.json()) as { letter?: SavedLetterRow };
+          if (json.letter) {
+            setSavedLetters((prev) =>
+              prev.map((row) =>
+                row.id === letter.id
+                  ? {
+                      ...row,
+                      printedAt:
+                        json.letter?.printedAt ?? new Date().toISOString(),
+                    }
+                  : row,
+              ),
+            );
+          }
+        }
+      } catch (markError) {
+        console.error('Failed to mark letter as printed', markError);
+      }
     } catch (error) {
       console.error('Saved letter print failed', error);
       toast.error(t('letterGeneration.printPopupBlocked'));
     } finally {
       setPrintingLetterId(null);
+    }
+  };
+
+  const handlePrintSavedLetter = async (letter: SavedLetterRow) => {
+    setPrintingLetterId(letter.id);
+    try {
+      const params = new URLSearchParams();
+      if (service?.voterId) {
+        params.set('voterId', service.voterId);
+      }
+      const query = params.toString();
+      const checkUrl = `/api/letters/${encodeURIComponent(letter.id)}/print${
+        query ? `?${query}` : ''
+      }`;
+      const res = await fetch(checkUrl);
+      if (!res.ok) {
+        // If check fails, still allow print (do not block office work).
+        console.error('Print duplicate check failed', await res.text());
+        setPrintingLetterId(null);
+        await executePrintSavedLetter(letter);
+        return;
+      }
+
+      const check = (await res.json()) as {
+        isReprint?: boolean;
+        alreadyPrinted?: boolean;
+        voterId?: string | null;
+        date?: string;
+        duplicates?: Array<{
+          id: string;
+          referenceNo: string;
+          title: string;
+          printedAt: string | Date;
+          isCurrentLetter?: boolean;
+        }>;
+      };
+
+      if (check.isReprint) {
+        const refs = (check.duplicates ?? [])
+          .map((row) => row.referenceNo)
+          .filter(Boolean);
+        const uniqueRefs = Array.from(new Set(refs));
+        const refText =
+          uniqueRefs.length > 0 ? uniqueRefs.join(', ') : letter.referenceNo;
+        setReprintWarning(
+          t('letterGeneration.savedLetters.reprintConfirmDescription', {
+            voterId: check.voterId || service?.voterId || '—',
+            serviceName: service?.serviceName || '—',
+            date: check.date || '—',
+            referenceNos: refText,
+          }),
+        );
+        setLetterPendingPrint(letter);
+        setReprintDialogOpen(true);
+        toast.info(t('letterGeneration.printDuplicateWarning'));
+        setPrintingLetterId(null);
+        return;
+      }
+
+      setPrintingLetterId(null);
+      await executePrintSavedLetter(letter);
+    } catch (error) {
+      console.error('Saved letter print check failed', error);
+      setPrintingLetterId(null);
+      await executePrintSavedLetter(letter);
+    }
+  };
+
+  const confirmReprintSavedLetter = () => {
+    const letter = letterPendingPrint;
+    setReprintDialogOpen(false);
+    setLetterPendingPrint(null);
+    setReprintWarning('');
+    if (letter) {
+      void executePrintSavedLetter(letter);
     }
   };
 
@@ -4977,6 +5084,11 @@ export function LetterGeneration({
                               {letter.referenceNo
                                 ? formatReferenceForDisplay(letter.referenceNo, locale)
                                 : '—'}
+                              {letter.printedAt ? (
+                                <span className="ml-2 text-xs font-normal text-amber-700 dark:text-amber-400">
+                                  ({t('letterGeneration.savedLetters.printedBadge')})
+                                </span>
+                              ) : null}
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {resolveTypeLabel(letter.letterType)} ·{' '}
@@ -5020,6 +5132,11 @@ export function LetterGeneration({
                               {letter.referenceNo
                                 ? formatReferenceForDisplay(letter.referenceNo, locale)
                                 : '—'}
+                              {letter.printedAt ? (
+                                <span className="ml-2 text-xs font-normal text-amber-700 dark:text-amber-400">
+                                  ({t('letterGeneration.savedLetters.printedBadge')})
+                                </span>
+                              ) : null}
                             </TableCell>
                             <TableCell>
                               {resolveTypeLabel(letter.letterType)}{' '}
@@ -5170,6 +5287,22 @@ export function LetterGeneration({
         cancelText={t('common.cancel')}
         variant="destructive"
         onConfirm={() => void confirmDeleteSavedLetter()}
+      />
+
+      <ConfirmDialog
+        open={reprintDialogOpen}
+        onOpenChange={(open) => {
+          setReprintDialogOpen(open);
+          if (!open) {
+            setLetterPendingPrint(null);
+            setReprintWarning('');
+          }
+        }}
+        title={t('letterGeneration.savedLetters.reprintConfirmTitle')}
+        description={reprintWarning}
+        confirmText={t('letterGeneration.savedLetters.actions.reprintConfirm')}
+        cancelText={t('common.cancel')}
+        onConfirm={confirmReprintSavedLetter}
       />
     </div>
   );
