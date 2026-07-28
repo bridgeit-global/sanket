@@ -87,5 +87,6 @@
   { "category": "Letters, Meetings & General Requests", "name": "Handover Letter Request", "sortOrder": 86 },
   { "category": "Letters, Meetings & General Requests", "name": "Government Courtesy or Protocol Request", "sortOrder": 87 },
   { "category": "Letters, Meetings & General Requests", "name": "Government Programme Invitation", "sortOrder": 88 },
-  { "category": "Letters, Meetings & General Requests", "name": "Honour or Felicitation Request", "sortOrder": 89 }
+  { "category": "Letters, Meetings & General Requests", "name": "Honour or Felicitation Request", "sortOrder": 89 },
+  { "category": "Letters, Meetings & General Requests", "name": "Others", "sortOrder": 90 }
 ]
