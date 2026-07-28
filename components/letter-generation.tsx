@@ -95,6 +95,7 @@ import {
   getDefaultWardIssueType,
   getDefaultWardToAddress,
   getDefaultWardToName,
+  getWardIssueLabel,
   getWardIssueOfficerSeedName,
   getWardIssueOptions,
   resolveWardIssueType,
@@ -124,7 +125,7 @@ import {
   resolveLetterPaperSize,
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
-import { letterPdfDownloadFileName } from '@/lib/letters/pdf-storage';
+import { letterPdfDownloadFileName, wardIssueLabelFromLetterFields } from '@/lib/letters/pdf-storage';
 import { exportElementToPdf, printPdfBlob } from '@/lib/pdf/export-element-to-pdf';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { ModulePageHeader } from '@/components/module-page-header';
@@ -2340,7 +2341,15 @@ export function LetterGeneration({
     documentTypes,
   ]);
 
-  const activeTitle = resolveTypeLabel(activeTab);
+  const activeTitle = (() => {
+    const base = resolveTypeLabel(activeTab);
+    if (resolveLetterFormBase(activeTab) !== 'ward') return base;
+    const issueLabel = getWardIssueLabel(
+      resolveWardIssueType(wardFields.issueType),
+      letterLocale,
+    );
+    return issueLabel ? `${base} — ${issueLabel}` : base;
+  })();
   const activePaperSize = paperSizeDraft;
   const activePaperLabel = getLetterPaperLabel(activePaperSize);
   const activeLetterheadUrl = resolveLetterheadUrl(
@@ -2576,6 +2585,11 @@ export function LetterGeneration({
       const pdfFileName = letterPdfDownloadFileName(
         letter.title,
         letter.referenceNo,
+        wardIssueLabelFromLetterFields(
+          letter.letterType,
+          letter.fields,
+          letter.letterLocale,
+        ),
       ).replace(/\.pdf$/i, '');
       return await exportElementToPdf({
         element: exportHost,
@@ -2603,6 +2617,11 @@ export function LetterGeneration({
     const pdfFileName = letterPdfDownloadFileName(
       letter.title,
       letter.referenceNo,
+      wardIssueLabelFromLetterFields(
+        letter.letterType,
+        letter.fields,
+        letter.letterLocale,
+      ),
     );
     const formData = new FormData();
     formData.append('file', blob, pdfFileName);
@@ -2974,6 +2993,11 @@ export function LetterGeneration({
       const pdfFileName = letterPdfDownloadFileName(
         letter.title,
         letter.referenceNo,
+        wardIssueLabelFromLetterFields(
+          letter.letterType,
+          letter.fields,
+          letter.letterLocale,
+        ),
       );
 
       if (letter.pdfStoragePath) {

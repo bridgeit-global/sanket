@@ -10,6 +10,7 @@ import {
   contentDispositionAttachment,
   letterPdfDownloadFileName,
   letterPdfStoragePath,
+  wardIssueLabelFromLetterFields,
 } from '@/lib/letters/pdf-storage';
 import { supabase } from '@/lib/supabase/server';
 
@@ -134,6 +135,11 @@ export async function GET(
     const fileName = letterPdfDownloadFileName(
       letter.title,
       letter.referenceNo,
+      wardIssueLabelFromLetterFields(
+        letter.letterType,
+        letter.fields,
+        letter.letterLocale,
+      ),
     );
 
     return new NextResponse(data, {
