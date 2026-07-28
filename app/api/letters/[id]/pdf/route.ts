@@ -7,11 +7,11 @@ import {
 import {
   LETTER_PDF_BUCKET,
   LETTER_PDF_MAX_BYTES,
+  contentDispositionAttachment,
+  letterPdfDownloadFileName,
   letterPdfStoragePath,
 } from '@/lib/letters/pdf-storage';
 import { supabase } from '@/lib/supabase/server';
-
-const SIGNED_URL_TTL_SECONDS = 60;
 
 async function requireLetterGenerationAccess() {
   const session = await auth();
@@ -95,7 +95,7 @@ export async function POST(
   }
 }
 
-/** Return a short-lived signed URL to download the stored letter PDF. */
+/** Stream the stored letter PDF with a Unicode-safe Content-Disposition. */
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -121,24 +121,31 @@ export async function GET(
 
     const { data, error } = await supabase.storage
       .from(LETTER_PDF_BUCKET)
-      .createSignedUrl(letter.pdfStoragePath, SIGNED_URL_TTL_SECONDS, {
-        download: `${letter.title}-${letter.referenceNo || 'letter'}.pdf`,
-      });
+      .download(letter.pdfStoragePath);
 
-    if (error || !data?.signedUrl) {
-      console.error('Failed to sign letter PDF URL:', error);
+    if (error || !data) {
+      console.error('Failed to download letter PDF:', error);
       return NextResponse.json(
-        { error: 'Failed to create download link' },
+        { error: 'Failed to download PDF' },
         { status: 500 },
       );
     }
 
-    return NextResponse.json({
-      url: data.signedUrl,
-      pdfStoragePath: letter.pdfStoragePath,
+    const fileName = letterPdfDownloadFileName(
+      letter.title,
+      letter.referenceNo,
+    );
+
+    return new NextResponse(data, {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': contentDispositionAttachment(fileName),
+        'Cache-Control': 'private, no-store',
+      },
     });
   } catch (error) {
-    console.error('Error fetching letter PDF URL:', error);
+    console.error('Error fetching letter PDF:', error);
     return NextResponse.json(
       { error: 'Failed to fetch PDF' },
       { status: 500 },

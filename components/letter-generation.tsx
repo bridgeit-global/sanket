@@ -114,6 +114,7 @@ import {
   resolveLetterPaperSize,
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
+import { letterPdfDownloadFileName } from '@/lib/letters/pdf-storage';
 import { exportElementToPdf, printPdfBlob } from '@/lib/pdf/export-element-to-pdf';
 import { DateRangePicker } from '@/components/date-range-picker';
 import { ModulePageHeader } from '@/components/module-page-header';
@@ -2354,7 +2355,10 @@ export function LetterGeneration({
     });
     document.body.appendChild(exportHost);
     try {
-      const pdfFileName = `${letter.title}-${letter.referenceNo || 'letter'}`;
+      const pdfFileName = letterPdfDownloadFileName(
+        letter.title,
+        letter.referenceNo,
+      ).replace(/\.pdf$/i, '');
       return await exportElementToPdf({
         element: exportHost,
         fileName: pdfFileName,
@@ -2378,7 +2382,10 @@ export function LetterGeneration({
     letter: SavedLetterRow,
     blob: Blob,
   ): Promise<SavedLetterRow | null> => {
-    const pdfFileName = `${letter.title}-${letter.referenceNo || 'letter'}.pdf`;
+    const pdfFileName = letterPdfDownloadFileName(
+      letter.title,
+      letter.referenceNo,
+    );
     const formData = new FormData();
     formData.append('file', blob, pdfFileName);
     const res = await fetch(`/api/letters/${encodeURIComponent(letter.id)}/pdf`, {
@@ -2703,36 +2710,39 @@ export function LetterGeneration({
     }
   };
 
+  const triggerPdfDownload = (blob: Blob, fileName: string) => {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const handleDownloadSavedLetter = async (letter: SavedLetterRow) => {
     setDownloadingLetterId(letter.id);
     try {
+      const pdfFileName = letterPdfDownloadFileName(
+        letter.title,
+        letter.referenceNo,
+      );
+
       if (letter.pdfStoragePath) {
         const res = await fetch(
           `/api/letters/${encodeURIComponent(letter.id)}/pdf`,
         );
-        const json = await res.json().catch(() => ({}));
-        if (res.ok && typeof json?.url === 'string') {
-          const anchor = document.createElement('a');
-          anchor.href = json.url;
-          anchor.rel = 'noopener';
-          document.body.appendChild(anchor);
-          anchor.click();
-          anchor.remove();
+        if (res.ok) {
+          const blob = await res.blob();
+          triggerPdfDownload(blob, pdfFileName);
           toast.success(t('letterGeneration.pdfSuccess'));
           return;
         }
       }
 
-      const pdfFileName = `${letter.title}-${letter.referenceNo || 'letter'}`;
       const blob = await generateLetterPdfBlob(letter);
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `${pdfFileName}.pdf`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
+      triggerPdfDownload(blob, pdfFileName);
       toast.success(t('letterGeneration.pdfSuccess'));
       void uploadLetterPdfToStorage(letter, blob).catch((error) => {
         console.error('Failed to store letter PDF after download', error);

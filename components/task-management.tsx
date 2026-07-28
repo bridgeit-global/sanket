@@ -17,6 +17,7 @@ import type { VoterTask, BeneficiaryService } from '@/lib/db/schema';
 import { TablePagination } from '@/components/table-pagination';
 import { QrCode, Share2, FileText, FileDown, Loader2, Paperclip } from 'lucide-react';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
+import { letterPdfDownloadFileName } from '@/lib/letters/pdf-storage';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
 import {
   buildManageSearchParams,
@@ -856,18 +857,24 @@ export function TaskManagement({
         setDownloadingLetterId(letter.id);
         try {
             const res = await fetch(`/api/letters/${encodeURIComponent(letter.id)}/pdf`);
-            const json = await res.json().catch(() => ({}));
-            if (!res.ok || typeof json?.url !== 'string') {
+            if (!res.ok) {
+                const json = await res.json().catch(() => ({}));
                 throw new Error(
                     typeof json?.error === 'string' ? json.error : 'Failed to download letter PDF',
                 );
             }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
             const anchor = document.createElement('a');
-            anchor.href = json.url;
-            anchor.rel = 'noopener';
+            anchor.href = url;
+            anchor.download = letterPdfDownloadFileName(
+                letter.title,
+                letter.referenceNo,
+            );
             document.body.appendChild(anchor);
             anchor.click();
             anchor.remove();
+            URL.revokeObjectURL(url);
             toast({
                 type: 'success',
                 description: t('taskManagement.dialog.downloadLetterSuccess'),
