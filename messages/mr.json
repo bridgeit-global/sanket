@@ -726,7 +726,10 @@
       "activeTemplate": "सध्याचा पत्र प्रकार",
       "html": "साचा HTML",
       "htmlPlaceholder": "<div class=\"letter-content\">...</div>",
-      "placeholderHint": "{{referencePrefix}}, {{referenceNo}}, {{date}}, {{fullName}}, {{signatory}} सारखे प्लेसहोल्डर वापरा. साठवलेली पत्रे नवीनतम साच्यावरून पुन्हा तयार केली जाऊ शकतात.",
+      "placeholderHint": "{{referencePrefix}}, {{referenceNo}}, {{date}}, {{fullName}}, {{signatory}} सारखे प्लेसहोल्डर वापरा. फॉर्मवर नसलेले इतर {{name}} पत्र तयार करताना इनपुट म्हणून दिसतील. साठवलेली पत्रे नवीनतम साच्यावरून पुन्हा तयार केली जाऊ शकतात.",
+      "customPlaceholdersTitle": "सानुकूल प्लेसहोल्डर",
+      "customPlaceholdersEmpty": "या साच्यात सानुकूल प्लेसहोल्डर नाहीत.",
+      "customPlaceholdersHint": "हे पत्र निर्मिती फॉर्मवर अतिरिक्त इनपुट म्हणून दिसतील.",
       "letterhead": "लेटरहेड",
       "letterheadEmpty": "लेटरहेड अपलोड केलेले नाही",
       "letterheadPreviewAlt": "लेटरहेड पूर्वावलोकन",
@@ -1045,6 +1048,11 @@
       "removeParagraph": "परिच्छेद काढा",
       "addSignatureParagraph": "स्वाक्षरी ओळ जोडा",
       "removeSignatureParagraph": "स्वाक्षरी ओळ काढा"
+    },
+    "customFields": {
+      "title": "साच्याची फील्ड्स",
+      "description": "निवडलेल्या साच्यातील सानुकूल प्लेसहोल्डरसाठी अतिरिक्त इनपुट.",
+      "placeholder": "{key} प्रविष्ट करा"
     },
     "placeholders": {
       "referencePrefix": "दस्तऐवज प्रकार निवडा",

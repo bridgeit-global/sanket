@@ -103,6 +103,10 @@ import {
 import { buildRenderedLetterHtml, type LetterheadMode } from '@/lib/letters/render-template';
 import { getDefaultTemplateHtml } from '@/lib/letters/default-template-html';
 import {
+  getCustomTemplatePlaceholders,
+  humanizePlaceholderKey,
+} from '@/lib/letters/template-placeholders';
+import {
   getDefaultLetterPaperSize,
   getLetterPaperContentWidthPx,
   getLetterPaperLabel,
@@ -976,6 +980,10 @@ export function LetterGeneration({
   const [domicileFields, setDomicileFields] = useState<DomicileLetterFields>(
     () => domicileDefaults('mr'),
   );
+  /** Values for {{placeholders}} in the template that are not on the standard form. */
+  const [customPlaceholderValues, setCustomPlaceholderValues] = useState<
+    Record<string, string>
+  >({});
   const referenceNumberAutoRef = useRef(true);
   const referenceSequenceRequestId = useRef(0);
 
@@ -2066,21 +2074,41 @@ export function LetterGeneration({
     activeLetterMaster?.templateHtml?.trim() ||
     getDefaultTemplateHtml(activeTab, letterLocale);
 
+  const customPlaceholders = useMemo(
+    () => getCustomTemplatePlaceholders(activeTemplateHtml, activeTab),
+    [activeTemplateHtml, activeTab],
+  );
+
+  useEffect(() => {
+    setCustomPlaceholderValues((prev) => {
+      const next: Record<string, string> = {};
+      let changed = Object.keys(prev).length !== customPlaceholders.length;
+      for (const key of customPlaceholders) {
+        next[key] = prev[key] ?? '';
+        if (!(key in prev)) changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [customPlaceholders]);
+
   const existingReferenceNos = useMemo(
     () => savedLetters.map((letter) => letter.referenceNo),
     [savedLetters],
   );
 
   const activeBody = useMemo(() => {
-    const fields = getFieldsForLetterType(activeTab, {
-      generalFields,
-      feesFields,
-      schoolAdmissionFields,
-      schoolTransferFields,
-      rationFields,
-      incomeFields,
-      domicileFields,
-    });
+    const fields = {
+      ...getFieldsForLetterType(activeTab, {
+        generalFields,
+        feesFields,
+        schoolAdmissionFields,
+        schoolTransferFields,
+        rationFields,
+        incomeFields,
+        domicileFields,
+      }),
+      ...customPlaceholderValues,
+    };
 
     if (activeTemplateHtml.trim()) {
       return buildRenderedLetterHtml(
@@ -2105,6 +2133,7 @@ export function LetterGeneration({
     rationFields,
     incomeFields,
     domicileFields,
+    customPlaceholderValues,
     activeTemplateHtml,
     documentTypes,
   ]);
@@ -2118,8 +2147,8 @@ export function LetterGeneration({
   );
 
   const activeFields = useMemo(
-    () =>
-      getFieldsForLetterType(activeTab, {
+    () => ({
+      ...getFieldsForLetterType(activeTab, {
         generalFields,
         feesFields,
         schoolAdmissionFields,
@@ -2128,8 +2157,11 @@ export function LetterGeneration({
         incomeFields,
         domicileFields,
       }),
+      ...customPlaceholderValues,
+    }),
     [
       activeTab,
+      customPlaceholderValues,
       domicileFields,
       generalFields,
       feesFields,
@@ -2615,6 +2647,9 @@ export function LetterGeneration({
     setRationFields(rationDefaults(letterLocale));
     setIncomeFields(incomeDefaults(letterLocale));
     setDomicileFields(domicileDefaults(letterLocale));
+    setCustomPlaceholderValues(
+      Object.fromEntries(customPlaceholders.map((key) => [key, ''])),
+    );
     setParagraphRows(['']);
     setFamilyMemberRows([emptyFamilyMemberRow()]);
     setAddressSelections({
@@ -4293,6 +4328,40 @@ export function LetterGeneration({
                         />
                       </FieldGroup>
                     </TabsContent>
+
+                    {customPlaceholders.length > 0 ? (
+                      <div className="mt-6 space-y-4 border-t pt-4">
+                        <div className="space-y-1">
+                          <h3 className="text-sm font-medium">
+                            {t('letterGeneration.customFields.title')}
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            {t('letterGeneration.customFields.description')}
+                          </p>
+                        </div>
+                        {customPlaceholders.map((key) => (
+                          <FieldGroup
+                            key={key}
+                            label={humanizePlaceholderKey(key)}
+                          >
+                            <LocaleTextInput
+                              locale={letterLocale}
+                              value={customPlaceholderValues[key] ?? ''}
+                              onValueChange={(value) => {
+                                setCustomPlaceholderValues((prev) => ({
+                                  ...prev,
+                                  [key]: value,
+                                }));
+                              }}
+                              placeholder={t(
+                                'letterGeneration.customFields.placeholder',
+                                { key },
+                              )}
+                            />
+                          </FieldGroup>
+                        ))}
+                      </div>
+                    ) : null}
                   </CardContent>
                 </Card>
 

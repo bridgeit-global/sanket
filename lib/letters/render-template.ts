@@ -62,7 +62,7 @@ export function renderLetterTemplate(
   return templateHtml.replace(PLACEHOLDER_PATTERN, (_, key: string) => fields[key] ?? '');
 }
 
-function toFieldRecord(fields: LetterFields): Record<string, string> {
+function toFieldRecord(fields: LetterFields & Record<string, string>): Record<string, string> {
   return Object.fromEntries(
     Object.entries(fields).map(([key, value]) => [key, String(value ?? '')]),
   );
@@ -166,7 +166,7 @@ function withLocalizedReferenceFields(
 
 export function buildRenderFields(
   type: LetterType | string,
-  fields: LetterFields,
+  fields: LetterFields & Record<string, string>,
   locale: LetterLocale,
   documentTypes?: DocumentTypeLabelSource[],
 ): Record<string, string> {
@@ -237,7 +237,7 @@ export function buildRenderFields(
 export function buildRenderedLetterHtml(
   type: LetterType | string,
   templateHtml: string,
-  fields: LetterFields,
+  fields: LetterFields & Record<string, string>,
   locale: LetterLocale,
   letterheadUrl?: string | null,
   letterheadMode: LetterheadMode = 'full',

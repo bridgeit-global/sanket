@@ -65,6 +65,10 @@ import {
   type LetterheadMode,
 } from '@/lib/letters/render-template';
 import {
+  getCustomTemplatePlaceholders,
+  humanizePlaceholderKey,
+} from '@/lib/letters/template-placeholders';
+import {
   isLetterType,
   type LetterLocale,
 } from '@/lib/letters/templates';
@@ -483,6 +487,15 @@ export function LetterTemplateMasterManager({
     return code;
   };
 
+  const formCustomPlaceholders = useMemo(
+    () =>
+      getCustomTemplatePlaceholders(
+        form.templateHtml,
+        creatingNewType ? 'general' : form.letterType,
+      ),
+    [form.templateHtml, form.letterType, creatingNewType],
+  );
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim() || !form.templateHtml.trim()) {
@@ -831,6 +844,27 @@ export function LetterTemplateMasterManager({
                   <p className="text-xs text-muted-foreground">
                     {t('letterGeneration.templates.placeholderHint')}
                   </p>
+                  {formCustomPlaceholders.length > 0 ? (
+                    <div className="rounded-md border bg-muted/30 p-3 text-xs">
+                      <p className="font-medium">
+                        {t('letterGeneration.templates.customPlaceholdersTitle')}
+                      </p>
+                      <p className="mt-1 text-muted-foreground">
+                        {t('letterGeneration.templates.customPlaceholdersHint')}
+                      </p>
+                      <ul className="mt-2 flex flex-wrap gap-1.5">
+                        {formCustomPlaceholders.map((key) => (
+                          <li
+                            key={key}
+                            className="rounded border bg-background px-2 py-0.5 font-mono text-[11px]"
+                            title={humanizePlaceholderKey(key)}
+                          >
+                            {`{{${key}}}`}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="space-y-2">
