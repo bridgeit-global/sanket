@@ -8,6 +8,7 @@ import {
   ChevronDown,
   ChevronUp,
   Eraser,
+  ExternalLink,
   Eye,
   FileCode2,
   FileDown,
@@ -20,6 +21,7 @@ import {
   Printer,
   RefreshCw,
   Save,
+  Send,
   Trash2,
   X,
 } from 'lucide-react';
@@ -655,6 +657,15 @@ function LocaleTextarea({
 
 type LetterFieldErrors = Record<string, string | undefined>;
 
+/** Collapse HTML/newline breaks back to a single comma-separated line. */
+function addressToSingleLine(value: string): string {
+  return value
+    .split(/\r?\n|<br\s*\/?>/i)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
 function requireField(
   errors: LetterFieldErrors,
   key: string,
@@ -1032,6 +1043,12 @@ export function LetterGeneration({
     [],
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [addingToOutwardLetterId, setAddingToOutwardLetterId] = useState<
+    string | null
+  >(null);
+  const [outwardAddedReferenceNos, setOutwardAddedReferenceNos] = useState<
+    Set<string>
+  >(() => new Set());
   const [downloadingLetterId, setDownloadingLetterId] = useState<string | null>(
     null,
   );
@@ -2096,6 +2113,23 @@ export function LetterGeneration({
     void refreshAddresses();
     void refreshDocumentTypes();
     void refreshAddressTypeLinks();
+    // Preload reference numbers already present in the outward register so the
+    // "Add to Outward" action stays disabled across reloads.
+    void (async () => {
+      try {
+        const res = await fetch('/api/register?type=outward');
+        if (!res.ok) return;
+        const entries = (await res.json()) as Array<{ refNo?: string | null }>;
+        const refs = new Set(
+          entries
+            .map((entry) => entry.refNo)
+            .filter((ref): ref is string => Boolean(ref)),
+        );
+        if (refs.size > 0) setOutwardAddedReferenceNos(refs);
+      } catch {
+        // best-effort; in-session guard still applies
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -2579,6 +2613,40 @@ export function LetterGeneration({
     return letter.title;
   };
 
+  const deriveOutwardRecipient = (letter: SavedLetterRow): string => {
+    const fields = (letter.fields ?? {}) as Record<string, unknown>;
+    const candidates = [
+      fields.schoolName,
+      fields.toName,
+      fields.officeName,
+      fields.officeAddress,
+      fields.rationOfficeAddress,
+      fields.toRationOffice,
+      fields.to,
+      fields.fullName,
+      fields.parentName,
+      fields.studentName,
+      fields.complainantName,
+    ];
+    for (const candidate of candidates) {
+      if (typeof candidate === 'string' && candidate.trim()) {
+        return addressToSingleLine(candidate);
+      }
+    }
+    return letter.title;
+  };
+
+  const resolveLetterPdfFileName = (letter: SavedLetterRow): string =>
+    letterPdfDownloadFileName(
+      letter.title,
+      letter.referenceNo,
+      wardIssueLabelFromLetterFields(
+        letter.letterType,
+        letter.fields,
+        letter.letterLocale,
+      ),
+    );
+
   const buildLetterPdfDocumentInfo = (letter: SavedLetterRow, pdfFileName: string) => ({
     title: pdfFileName,
     author: DEFAULT_SIGNATORY.en,
@@ -2596,15 +2664,7 @@ export function LetterGeneration({
     });
     document.body.appendChild(exportHost);
     try {
-      const pdfFileName = letterPdfDownloadFileName(
-        letter.title,
-        letter.referenceNo,
-        wardIssueLabelFromLetterFields(
-          letter.letterType,
-          letter.fields,
-          letter.letterLocale,
-        ),
-      ).replace(/\.pdf$/i, '');
+      const pdfFileName = resolveLetterPdfFileName(letter).replace(/\.pdf$/i, '');
       return await exportElementToPdf({
         element: exportHost,
         fileName: pdfFileName,
@@ -2628,15 +2688,7 @@ export function LetterGeneration({
     letter: SavedLetterRow,
     blob: Blob,
   ): Promise<SavedLetterRow | null> => {
-    const pdfFileName = letterPdfDownloadFileName(
-      letter.title,
-      letter.referenceNo,
-      wardIssueLabelFromLetterFields(
-        letter.letterType,
-        letter.fields,
-        letter.letterLocale,
-      ),
-    );
+    const pdfFileName = resolveLetterPdfFileName(letter);
     const formData = new FormData();
     formData.append('file', blob, pdfFileName);
     const res = await fetch(`/api/letters/${encodeURIComponent(letter.id)}/pdf`, {
@@ -2662,13 +2714,134 @@ export function LetterGeneration({
     };
   };
 
-  const persistLetterPdf = async (letter: SavedLetterRow): Promise<void> => {
+  const markOutwardAdded = (referenceNo: string) => {
+    if (!referenceNo) return;
+    setOutwardAddedReferenceNos((prev) => {
+      if (prev.has(referenceNo)) return prev;
+      const next = new Set(prev);
+      next.add(referenceNo);
+      return next;
+    });
+  };
+
+  // Deep-link into the outward register, pre-filtered to this letter's
+  // reference number so the user lands on the matching entry.
+  const buildOutwardEntryHref = (letter: SavedLetterRow): string => {
+    const params = new URLSearchParams({ tab: 'outward' });
+    if (letter.referenceNo) params.set('search', letter.referenceNo);
+    return `/modules/io-register?${params.toString()}`;
+  };
+
+  /** Create an outward register entry for the saved letter and attach its PDF. */
+  const registerLetterInOutward = async (
+    letter: SavedLetterRow,
+    pdfBlob: Blob,
+  ): Promise<boolean> => {
+    const parsed = parseReference(letter.referenceNo || '');
+    const entryDate = new Date(letter.createdAt);
+    const dateString = Number.isNaN(entryDate.getTime())
+      ? new Date().toISOString().slice(0, 10)
+      : entryDate.toISOString().slice(0, 10);
+
+    const res = await fetch('/api/register', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        type: 'outward',
+        documentType: parsed.prefix || undefined,
+        date: dateString,
+        fromTo: deriveOutwardRecipient(letter),
+        subject: deriveLetterSubject(letter),
+        refNo: letter.referenceNo,
+        autoSequence: false,
+      }),
+    });
+    const json = await res.json().catch(() => ({}));
+    if (res.status === 403) {
+      // User can save letters without outward module access — skip quietly.
+      return false;
+    }
+    if (!res.ok) {
+      throw new Error(json?.error || 'Failed to add letter to outward register');
+    }
+
+    const entryId = json?.id as string | undefined;
+    if (!entryId) return false;
+
+    const formData = new FormData();
+    formData.append(
+      'file',
+      new File([pdfBlob], resolveLetterPdfFileName(letter), {
+        type: 'application/pdf',
+      }),
+    );
+    // Best-effort attachment; the register entry is already created.
+    const uploadRes = await fetch(`/api/register/${entryId}/attachments`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!uploadRes.ok) {
+      const uploadJson = await uploadRes.json().catch(() => ({}));
+      throw new Error(
+        uploadJson?.error || 'Failed to attach letter PDF to outward register',
+      );
+    }
+    return true;
+  };
+
+  const persistLetterPdf = async (
+    letter: SavedLetterRow,
+    options?: { registerOutward?: boolean },
+  ): Promise<void> => {
     try {
       const blob = await generateLetterPdfBlob(letter);
-      await uploadLetterPdfToStorage(letter, blob);
+      try {
+        await uploadLetterPdfToStorage(letter, blob);
+      } catch (error) {
+        console.error('Failed to store letter PDF', error);
+        toast.error(t('letterGeneration.savedLetters.pdfStorageError'));
+      }
+
+      if (options?.registerOutward) {
+        try {
+          const registered = await registerLetterInOutward(letter, blob);
+          if (registered) {
+            markOutwardAdded(letter.referenceNo);
+            toast.success(t('letterGeneration.savedLetters.addToOutwardSuccess'));
+          }
+        } catch (error) {
+          console.error('Failed to register letter in outward', error);
+          toast.error(t('letterGeneration.savedLetters.addToOutwardError'));
+        }
+      }
     } catch (error) {
-      console.error('Failed to store letter PDF', error);
+      console.error('Failed to generate letter PDF', error);
       toast.error(t('letterGeneration.savedLetters.pdfStorageError'));
+    }
+  };
+
+  const handleAddLetterToOutward = async (letter: SavedLetterRow) => {
+    if (!letter.referenceNo || outwardAddedReferenceNos.has(letter.referenceNo)) {
+      return;
+    }
+    setAddingToOutwardLetterId(letter.id);
+    try {
+      const blob = await generateLetterPdfBlob(letter);
+      try {
+        await uploadLetterPdfToStorage(letter, blob);
+      } catch (error) {
+        console.error('Failed to store letter PDF', error);
+      }
+      const registered = await registerLetterInOutward(letter, blob);
+      if (registered) {
+        markOutwardAdded(letter.referenceNo);
+        toast.success(t('letterGeneration.savedLetters.addToOutwardSuccess'));
+      }
+    } catch (error) {
+      console.error('Add letter to outward failed', error);
+      toast.error(t('letterGeneration.savedLetters.addToOutwardError'));
+    } finally {
+      setAddingToOutwardLetterId(null);
     }
   };
 
@@ -2841,7 +3014,7 @@ export function LetterGeneration({
       const savedLetter = json?.letter as SavedLetterRow | undefined;
       setSelectedSavedLetterId(savedLetter?.id ?? null);
       if (savedLetter?.id && savedLetter.renderedHtml) {
-        void persistLetterPdf(savedLetter);
+        void persistLetterPdf(savedLetter, { registerOutward: true });
       }
       const savedRef = parseReference(String(json?.letter?.referenceNo ?? ''));
       if (savedRef.prefix && savedRef.number) {
@@ -3218,6 +3391,34 @@ export function LetterGeneration({
         <Eye className="mr-2 size-4" />
         {t('letterGeneration.savedLetters.actions.preview')}
       </Button>
+      {outwardAddedReferenceNos.has(letter.referenceNo) ? (
+        <Button
+          asChild
+          size="sm"
+          variant="outline"
+          className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+        >
+          <Link href={buildOutwardEntryHref(letter)}>
+            <ExternalLink className="mr-2 size-4" />
+            {t('letterGeneration.savedLetters.actions.goToOutward')}
+          </Link>
+        </Button>
+      ) : (
+        <Button
+          size="sm"
+          variant="outline"
+          className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+          onClick={() => void handleAddLetterToOutward(letter)}
+          disabled={addingToOutwardLetterId === letter.id}
+        >
+          {addingToOutwardLetterId === letter.id ? (
+            <Loader2 className="mr-2 size-4 animate-spin" />
+          ) : (
+            <Send className="mr-2 size-4" />
+          )}
+          {t('letterGeneration.savedLetters.actions.addToOutward')}
+        </Button>
+      )}
       {/* <Button
         size="sm"
         variant="outline"
@@ -5222,6 +5423,47 @@ export function LetterGeneration({
                                 </DialogDescription>
                               </div>
                               <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row sm:items-center">
+                                {outwardAddedReferenceNos.has(
+                                  selectedSavedLetter.referenceNo,
+                                ) ? (
+                                  <Button
+                                    asChild
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full sm:w-auto"
+                                  >
+                                    <Link
+                                      href={buildOutwardEntryHref(selectedSavedLetter)}
+                                    >
+                                      <ExternalLink className="mr-2 size-4" />
+                                      {t(
+                                        'letterGeneration.savedLetters.actions.goToOutward',
+                                      )}
+                                    </Link>
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full sm:w-auto"
+                                    onClick={() =>
+                                      void handleAddLetterToOutward(selectedSavedLetter)
+                                    }
+                                    disabled={
+                                      addingToOutwardLetterId === selectedSavedLetter.id
+                                    }
+                                  >
+                                    {addingToOutwardLetterId ===
+                                    selectedSavedLetter.id ? (
+                                      <Loader2 className="mr-2 size-4 animate-spin" />
+                                    ) : (
+                                      <Send className="mr-2 size-4" />
+                                    )}
+                                    {t(
+                                      'letterGeneration.savedLetters.actions.addToOutward',
+                                    )}
+                                  </Button>
+                                )}
                                 <Button
                                   size="sm"
                                   variant="outline"
