@@ -145,7 +145,7 @@ export async function POST(
       fileName: file.name,
       fileSizeKb: Math.round(file.size / 1024),
       fileUrl: blob.url,
-      performedBy: session.user?.id,
+      performedBy: session?.user?.id,
     });
 
     return NextResponse.json(attachment, { status: 201 });
