@@ -664,6 +664,12 @@
         "urgent": "Urgent"
       }
     },
+    "letterTypeLink": {
+      "title": "No letter type linked",
+      "description": "Service \"{serviceName}\" is not linked to a letter type. Link it in the service catalog, or continue with a general letter.",
+      "linkService": "Link letter type to service",
+      "useGeneral": "Use general letter"
+    },
     "generator": {
       "actions": {
         "collapse": "Collapse",

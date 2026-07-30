@@ -83,6 +83,7 @@ export function ServiceCatalogMasterPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const deepLinkAppliedRef = useRef(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -182,6 +183,43 @@ export function ServiceCatalogMasterPage() {
       .getElementById('service-catalog-form')
       ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
+
+  // Deep-link from letter generation when service has no letter type.
+  useEffect(() => {
+    if (loading || deepLinkAppliedRef.current) return;
+    const editId = searchParams.get('editId')?.trim();
+    const serviceName = searchParams.get('serviceName')?.trim();
+    if (!editId && !serviceName) return;
+
+    if (editId) {
+      const row = services.find((s) => s.id === editId);
+      if (row) {
+        deepLinkAppliedRef.current = true;
+        openEditForm(row);
+        return;
+      }
+      // Wait until services finish loading before giving up on editId.
+      if (services.length === 0) return;
+    }
+    if (serviceName) {
+      deepLinkAppliedRef.current = true;
+      const row = services.find(
+        (s) => s.name.toLowerCase() === serviceName.toLowerCase(),
+      );
+      if (row) {
+        openEditForm(row);
+        return;
+      }
+      setEditingId(null);
+      setForm({
+        ...EMPTY_FORM,
+        name: serviceName,
+      });
+      setFormCardOpen(true);
+    }
+    // Intentionally run once services load for the deep-link params.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, services, searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

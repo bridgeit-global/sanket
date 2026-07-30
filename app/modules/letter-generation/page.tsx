@@ -8,7 +8,6 @@ import {
   getServiceCatalogByName,
   getVoterByEpicNumber,
 } from '@/lib/db/queries';
-import { resolveLetterTypeFromServiceName } from '@/lib/letters/letter-type-options';
 
 export default async function LetterGenerationPage({
   searchParams,
@@ -53,17 +52,19 @@ export default async function LetterGenerationPage({
     }
   }
 
+  // Letter type comes only from the service catalog link — no manual dropdown.
   let initialLetterType: string | undefined;
+  let catalogServiceId: string | undefined;
   try {
     const catalog = await getServiceCatalogByName(service.serviceName);
-    if (catalog?.letterType) {
-      initialLetterType = catalog.letterType;
+    if (catalog) {
+      catalogServiceId = catalog.id;
+      if (catalog.letterType) {
+        initialLetterType = catalog.letterType;
+      }
     }
   } catch {
     // best-effort catalog lookup
-  }
-  if (!initialLetterType) {
-    initialLetterType = resolveLetterTypeFromServiceName(service.serviceName);
   }
 
   const isAdmin = await isUserAdmin(session.user.id);
@@ -77,6 +78,7 @@ export default async function LetterGenerationPage({
           prefillName={prefillName}
           prefillAddress={prefillAddress}
           initialLetterType={initialLetterType}
+          catalogServiceId={catalogServiceId}
           service={{
             id: service.id,
             serviceName: service.serviceName,

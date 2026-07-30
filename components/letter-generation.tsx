@@ -105,7 +105,6 @@ import {
 import {
   letterTypeLabel,
   resolveLetterFormBase,
-  resolveLetterTypeFromServiceName,
   type LetterTypeOption,
 } from '@/lib/letters/letter-type-options';
 import {
@@ -999,14 +998,17 @@ export function LetterGeneration({
   prefillName,
   prefillAddress,
   initialLetterType,
+  catalogServiceId,
   service,
 }: {
   isAdmin?: boolean;
   beneficiaryServiceId?: string;
   prefillName?: string;
   prefillAddress?: string;
-  /** Preferred letter type from ServiceCatalog.letter_type (or name fallback). */
+  /** Letter type linked on ServiceCatalog.letter_type for this service. */
   initialLetterType?: string;
+  /** ServiceCatalog row id — used to deep-link “link letter type”. */
+  catalogServiceId?: string;
   service?: BeneficiaryServiceInfo;
 }) {
   const { data: session } = useSession();
@@ -1018,9 +1020,13 @@ export function LetterGeneration({
     [letterLocale],
   );
   const prevLetterLocaleRef = useRef<LetterLocale>('mr');
-  const [activeTab, setActiveTab] = useState<string>(() =>
-    initialLetterType?.trim() ||
-    resolveLetterTypeFromServiceName(service?.serviceName),
+  const linkedLetterType = initialLetterType?.trim() || null;
+  const [activeTab, setActiveTab] = useState<string>(
+    () => linkedLetterType ?? 'general',
+  );
+  /** True once service has a linked type, or operator chose General Letter. */
+  const [letterTypeReady, setLetterTypeReady] = useState(
+    () => Boolean(linkedLetterType),
   );
   const [letterTypeOptions, setLetterTypeOptions] = useState<LetterTypeOption[]>(
     [],
@@ -3519,14 +3525,63 @@ export function LetterGeneration({
             className="p-4 sm:p-6"
           >
             <Tabs value={formTab} onValueChange={(value) => setActiveTab(value)}>
+              {!letterTypeReady ? (
+                <Card className="mb-6 border-amber-500/40 bg-amber-500/5">
+                  <CardHeader className="p-4 sm:p-6">
+                    <CardTitle className="text-base">
+                      {t('letterGeneration.letterTypeLink.title')}
+                    </CardTitle>
+                    <CardDescription>
+                      {t('letterGeneration.letterTypeLink.description', {
+                        serviceName: service?.serviceName ?? '',
+                      })}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex flex-wrap gap-2 p-4 pt-0 sm:p-6 sm:pt-0">
+                    <Button variant="default" asChild>
+                      <Link
+                        href={(() => {
+                          const params = new URLSearchParams();
+                          if (beneficiaryServiceId) {
+                            params.set(
+                              'beneficiaryServiceId',
+                              beneficiaryServiceId,
+                            );
+                          }
+                          if (catalogServiceId) {
+                            params.set('editId', catalogServiceId);
+                          } else if (service?.serviceName) {
+                            params.set('serviceName', service.serviceName);
+                          }
+                          const qs = params.toString();
+                          return qs
+                            ? `/modules/letter-generation/service-catalog?${qs}`
+                            : '/modules/letter-generation/service-catalog';
+                        })()}
+                      >
+                        <ListTree className="mr-2 size-4" />
+                        {t('letterGeneration.letterTypeLink.linkService')}
+                      </Link>
+                    </Button>
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => {
+                        setActiveTab('general');
+                        setLetterTypeReady(true);
+                      }}
+                    >
+                      {t('letterGeneration.letterTypeLink.useGeneral')}
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
               <div className="grid w-full max-w-3xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <FieldGroup label={lt('letterGeneration.fields.letterType')}>
-                  <Combobox
-                    value={activeTab}
-                    onValueChange={(value) => setActiveTab(value)}
-                    options={letterTypeComboboxOptions}
-                    placeholder={lt('letterGeneration.placeholders.letterType')}
-                  />
+                  <div className="flex h-10 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">
+                    {resolveTypeLabel(activeTab)}
+                  </div>
                 </FieldGroup>
                 <FieldGroup label={lt('letterGeneration.fields.letterLanguage')}>
                   <Select
@@ -4987,6 +5042,8 @@ export function LetterGeneration({
                   />
                 </div>
               </div>
+                </>
+              )}
             </Tabs>
           </CardContent>
         )}
