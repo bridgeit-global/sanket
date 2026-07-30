@@ -92,6 +92,17 @@ const SERVICE_NAME_TO_LETTER_TYPE: Array<{ match: string; letterType: string }> 
   { match: 'handover letter request', letterType: 'general' },
   { match: 'ward letter', letterType: 'ward' },
   { match: 'ward complaint', letterType: 'ward' },
+  { match: 'ward - garbage', letterType: 'ward' },
+  { match: 'ward - drain', letterType: 'ward' },
+  { match: 'ward - tree', letterType: 'ward' },
+  { match: 'ward - contaminated', letterType: 'ward' },
+  { match: 'ward - low water', letterType: 'ward' },
+  { match: 'ward - no water', letterType: 'ward' },
+  { match: 'ward - tanker', letterType: 'ward' },
+  { match: 'ward - road', letterType: 'ward' },
+  { match: 'ward - footpath', letterType: 'ward' },
+  { match: 'ward - street light', letterType: 'ward' },
+  { match: 'ward - speed breaker', letterType: 'ward' },
 ];
 
 /**

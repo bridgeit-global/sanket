@@ -88,5 +88,18 @@
   { "category": "Letters, Meetings & General Requests", "name": "Government Courtesy or Protocol Request", "sortOrder": 87 },
   { "category": "Letters, Meetings & General Requests", "name": "Government Programme Invitation", "sortOrder": 88 },
   { "category": "Letters, Meetings & General Requests", "name": "Honour or Felicitation Request", "sortOrder": 89 },
-  { "category": "Letters, Meetings & General Requests", "name": "Others", "sortOrder": 90 }
+  { "category": "Letters, Meetings & General Requests", "name": "Others", "sortOrder": 90 },
+  { "category": "BMC & Civic Amenities", "name": "Ward – Garbage Removal", "sortOrder": 91 },
+  { "category": "BMC & Civic Amenities", "name": "Ward – Drain / Gutter Cleaning", "sortOrder": 92 },
+  { "category": "BMC & Civic Amenities", "name": "Ward – Tree Branch Trimming", "sortOrder": 93 },
+  { "category": "BMC & Civic Amenities", "name": "Ward – Dead / Hazardous Tree Removal", "sortOrder": 94 },
+  { "category": "BMC & Civic Amenities", "name": "Ward – Hazardous Tree Inspection", "sortOrder": 95 },
+  { "category": "BMC & Civic Amenities", "name": "Ward – Contaminated Water Supply", "sortOrder": 96 },
+  { "category": "BMC & Civic Amenities", "name": "Ward – Low Water Pressure", "sortOrder": 97 },
+  { "category": "BMC & Civic Amenities", "name": "Ward – No Water Supply", "sortOrder": 98 },
+  { "category": "BMC & Civic Amenities", "name": "Ward – Tanker Water Supply", "sortOrder": 99 },
+  { "category": "BMC & Civic Amenities", "name": "Ward – Road Repair", "sortOrder": 100 },
+  { "category": "BMC & Civic Amenities", "name": "Ward – Footpath Repair", "sortOrder": 101 },
+  { "category": "BMC & Civic Amenities", "name": "Ward – Street Light Repair", "sortOrder": 102 },
+  { "category": "BMC & Civic Amenities", "name": "Ward – Speed Breaker Installation", "sortOrder": 103 }
 ]

@@ -99,6 +99,7 @@ import {
   getWardIssueOfficerSeedName,
   getWardIssueOptions,
   resolveWardIssueType,
+  resolveWardIssueTypeFromServiceName,
   wardIssueRequiresDuration,
 } from '@/lib/letters/ward-issue-presets';
 import {
@@ -524,13 +525,16 @@ function generalDefaults(locale: LetterLocale): GeneralLetterFields {
   };
 }
 
-function wardDefaults(locale: LetterLocale): WardLetterFields {
-  const issueType = getDefaultWardIssueType();
+function wardDefaults(
+  locale: LetterLocale,
+  issueType: ReturnType<typeof resolveWardIssueType> = getDefaultWardIssueType(),
+): WardLetterFields {
+  const resolved = resolveWardIssueType(issueType);
   return {
     ...commonDefaults(locale),
-    issueType,
-    to: getDefaultWardToAddress(issueType, locale),
-    toName: getDefaultWardToName(issueType, locale),
+    issueType: resolved,
+    to: getDefaultWardToAddress(resolved, locale),
+    toName: getDefaultWardToName(resolved, locale),
     complainantName: '',
     contactNo: '',
     location: '',
@@ -1063,7 +1067,11 @@ export function LetterGeneration({
     () => domicileDefaults('mr'),
   );
   const [wardFields, setWardFields] = useState<WardLetterFields>(() =>
-    wardDefaults('mr'),
+    wardDefaults(
+      'mr',
+      resolveWardIssueTypeFromServiceName(service?.serviceName) ??
+        getDefaultWardIssueType(),
+    ),
   );
   /** Values for {{placeholders}} in the template that are not on the standard form. */
   const [customPlaceholderValues, setCustomPlaceholderValues] = useState<
@@ -2918,7 +2926,13 @@ export function LetterGeneration({
     setRationFields(rationDefaults(letterLocale));
     setIncomeFields(incomeDefaults(letterLocale));
     setDomicileFields(domicileDefaults(letterLocale));
-    setWardFields(wardDefaults(letterLocale));
+    setWardFields(
+      wardDefaults(
+        letterLocale,
+        resolveWardIssueTypeFromServiceName(service?.serviceName) ??
+          getDefaultWardIssueType(),
+      ),
+    );
     setCustomPlaceholderValues(
       Object.fromEntries(customPlaceholders.map((key) => [key, ''])),
     );
@@ -2958,10 +2972,10 @@ export function LetterGeneration({
       handleRationOfficeAddressSelect(preferredRationOffice.id);
     }
     defaultWardToAppliedRef.current = false;
-    const preferredWardTo = findWardOfficerAddress(
-      addresses,
-      getDefaultWardIssueType(),
-    );
+    const clearedWardIssue =
+      resolveWardIssueTypeFromServiceName(service?.serviceName) ??
+      getDefaultWardIssueType();
+    const preferredWardTo = findWardOfficerAddress(addresses, clearedWardIssue);
     if (preferredWardTo) {
       defaultWardToAppliedRef.current = true;
       handleWardToAddressSelect(preferredWardTo.id);

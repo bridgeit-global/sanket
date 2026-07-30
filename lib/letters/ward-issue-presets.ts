@@ -82,6 +82,8 @@ function maintenanceTo(locale: LetterLocale): string {
 export type WardIssuePreset = {
   labelEn: string;
   labelMr: string;
+  /** ServiceCatalog display name (English). */
+  catalogName: string;
   requiresDuration: boolean;
   defaultTo: Record<LetterLocale, string>;
   subject: Record<LetterLocale, string>;
@@ -96,6 +98,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   garbage: {
     labelEn: 'Garbage removal',
     labelMr: 'साचलेला कचरा हटविणे',
+    catalogName: 'Ward – Garbage Removal',
     requiresDuration: false,
     defaultTo: { mr: swmAeTo('mr'), en: swmAeTo('en') },
     subject: {
@@ -120,6 +123,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   drain: {
     labelEn: 'Drain / gutter cleaning',
     labelMr: 'नाले/गटार साफसफाई',
+    catalogName: 'Ward – Drain / Gutter Cleaning',
     requiresDuration: false,
     defaultTo: { mr: swmAeTo('mr'), en: swmAeTo('en') },
     subject: {
@@ -144,6 +148,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'tree-trim': {
     labelEn: 'Tree branch trimming',
     labelMr: 'झाडांच्या फांद्यांची छाटणी',
+    catalogName: 'Ward – Tree Branch Trimming',
     requiresDuration: false,
     defaultTo: { mr: gardenTo('mr'), en: gardenTo('en') },
     subject: {
@@ -168,6 +173,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'tree-dead': {
     labelEn: 'Dead / hazardous tree removal',
     labelMr: 'मृत व धोकादायक झाडे हटविणे',
+    catalogName: 'Ward – Dead / Hazardous Tree Removal',
     requiresDuration: false,
     defaultTo: { mr: gardenTo('mr'), en: gardenTo('en') },
     subject: {
@@ -192,6 +198,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'tree-hazard': {
     labelEn: 'Hazardous tree inspection',
     labelMr: 'धोकादायक झाडाची पाहणी',
+    catalogName: 'Ward – Hazardous Tree Inspection',
     requiresDuration: false,
     defaultTo: { mr: gardenTo('mr'), en: gardenTo('en') },
     subject: {
@@ -216,6 +223,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'water-contaminated': {
     labelEn: 'Contaminated water supply',
     labelMr: 'दूषित पाणीपुरवठा',
+    catalogName: 'Ward – Contaminated Water Supply',
     requiresDuration: false,
     defaultTo: { mr: waterTo('mr'), en: waterTo('en') },
     subject: {
@@ -238,6 +246,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'water-low-pressure': {
     labelEn: 'Low water pressure',
     labelMr: 'कमी दाबाने पाणीपुरवठा',
+    catalogName: 'Ward – Low Water Pressure',
     requiresDuration: false,
     defaultTo: { mr: waterTo('mr'), en: waterTo('en') },
     subject: {
@@ -260,6 +269,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'water-none': {
     labelEn: 'No water supply',
     labelMr: 'पाणीपुरवठा होत नसणे',
+    catalogName: 'Ward – No Water Supply',
     requiresDuration: true,
     defaultTo: { mr: waterTo('mr'), en: waterTo('en') },
     subject: {
@@ -282,6 +292,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'water-tanker': {
     labelEn: 'Tanker water supply',
     labelMr: 'टँकरद्वारे पाणीपुरवठा',
+    catalogName: 'Ward – Tanker Water Supply',
     requiresDuration: false,
     defaultTo: { mr: waterTo('mr'), en: waterTo('en') },
     subject: {
@@ -304,6 +315,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'road-repair': {
     labelEn: 'Road repair',
     labelMr: 'रस्त्याची दुरुस्ती',
+    catalogName: 'Ward – Road Repair',
     requiresDuration: false,
     defaultTo: { mr: maintenanceTo('mr'), en: maintenanceTo('en') },
     subject: {
@@ -326,6 +338,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'footpath-repair': {
     labelEn: 'Footpath repair',
     labelMr: 'पदपथाची दुरुस्ती',
+    catalogName: 'Ward – Footpath Repair',
     requiresDuration: false,
     defaultTo: { mr: maintenanceTo('mr'), en: maintenanceTo('en') },
     subject: {
@@ -348,6 +361,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'street-lights': {
     labelEn: 'Street light repair',
     labelMr: 'बंद पथदिवे सुरू करणे',
+    catalogName: 'Ward – Street Light Repair',
     requiresDuration: true,
     defaultTo: { mr: maintenanceTo('mr'), en: maintenanceTo('en') },
     subject: {
@@ -370,6 +384,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'speed-breaker': {
     labelEn: 'Speed breaker installation',
     labelMr: 'गतिरोधक बसविणे',
+    catalogName: 'Ward – Speed Breaker Installation',
     requiresDuration: false,
     defaultTo: { mr: maintenanceTo('mr'), en: maintenanceTo('en') },
     subject: {
@@ -454,6 +469,80 @@ export function getDefaultWardToName(
   locale: LetterLocale,
 ): string {
   return officerName(locale, getWardIssueOfficerKey(issueType));
+}
+
+export function getWardIssueCatalogName(issueType: WardIssueType): string {
+  return WARD_ISSUE_PRESETS[issueType].catalogName;
+}
+
+/** All ward issue types as ServiceCatalog seed rows (letter_type = ward). */
+export function getWardServiceCatalogSeedEntries(startSortOrder = 91): Array<{
+  category: string;
+  name: string;
+  sortOrder: number;
+  letterType: 'ward';
+  issueType: WardIssueType;
+}> {
+  return WARD_ISSUE_TYPES.map((issueType, index) => ({
+    category: 'BMC & Civic Amenities',
+    name: getWardIssueCatalogName(issueType),
+    sortOrder: startSortOrder + index,
+    letterType: 'ward' as const,
+    issueType,
+  }));
+}
+
+function normalizeServiceNameKey(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[–—−]/g, '-')
+    .replace(/\s+/g, ' ');
+}
+
+/**
+ * Infer ward issue type from a ServiceCatalog / beneficiary service name.
+ * Returns null when the name is not a known ward catalog entry.
+ */
+export function resolveWardIssueTypeFromServiceName(
+  serviceName: string | null | undefined,
+): WardIssueType | null {
+  const key = normalizeServiceNameKey(serviceName ?? '');
+  if (!key) return null;
+
+  for (const issueType of WARD_ISSUE_TYPES) {
+    const catalogKey = normalizeServiceNameKey(getWardIssueCatalogName(issueType));
+    if (key === catalogKey || key.includes(catalogKey)) {
+      return issueType;
+    }
+  }
+
+  // Loose fallbacks for shortened / variant names.
+  const heuristics: Array<{ match: RegExp; issueType: WardIssueType }> = [
+    { match: /\bgarbage\b|\bkachra\b/, issueType: 'garbage' },
+    { match: /\bdrain\b|\bgutter\b|\bnale\b/, issueType: 'drain' },
+    { match: /\bdead\b.*\btree\b|\btree\b.*\bdead\b/, issueType: 'tree-dead' },
+    { match: /\bhazard\b.*\btree\b|\btree\b.*\binspection\b/, issueType: 'tree-hazard' },
+    { match: /\btrim\b|\bbranch\b/, issueType: 'tree-trim' },
+    { match: /\bcontaminat/, issueType: 'water-contaminated' },
+    { match: /\blow\b.*\bpressure\b|\bpressure\b/, issueType: 'water-low-pressure' },
+    { match: /\btanker\b/, issueType: 'water-tanker' },
+    { match: /\bno\b.*\bwater\b|\bwater\b.*\bnone\b|\bwater\b.*\babsen/, issueType: 'water-none' },
+    { match: /\bfootpath\b|\bfoot\s*path\b/, issueType: 'footpath-repair' },
+    { match: /\broad\b/, issueType: 'road-repair' },
+    { match: /\bstreet\s*light|\bpath\s*light|\bpathdive\b/, issueType: 'street-lights' },
+    { match: /\bspeed\s*breaker|\bgatirodhak\b/, issueType: 'speed-breaker' },
+  ];
+
+  if (!/\bward\b/.test(key) && !/\bbmc\b/.test(key) && !/\bcivic\b/.test(key)) {
+    return null;
+  }
+
+  for (const { match, issueType } of heuristics) {
+    if (match.test(key)) return issueType;
+  }
+
+  return null;
 }
 
 export function buildWardSubject(
