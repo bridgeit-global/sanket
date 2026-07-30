@@ -1996,6 +1996,16 @@
       "loadingLetters": "Loading letters…",
       "noLetters": "No letters generated for this service yet.",
       "documents": "Uploaded Documents",
+      "attachDocuments": "Attach Documents or Images",
+      "attachDocumentsHelp": "Photos and documents are uploaded when you push this update.",
+      "chooseFiles": "Choose files",
+      "removeFile": "Remove file",
+      "updateHistory": "Update History",
+      "loadingHistory": "Loading history…",
+      "noHistory": "No updates recorded yet.",
+      "legacyNote": "Existing note (before history tracking)",
+      "byUser": "By {user}",
+      "updating": "Updating…",
       "updateStatus": "Update Status",
       "selectNewStatus": "Select new status",
       "assignTo": "Assign to",
@@ -2011,6 +2021,15 @@
       "escalationReasonPlaceholder": "Please provide a detailed reason for escalation...",
       "submitEscalation": "Submit Escalation"
     },
+    "historyActions": {
+      "created": "Created",
+      "status_changed": "Status changed",
+      "priority_changed": "Priority changed",
+      "note_added": "Note added",
+      "escalated": "Escalated",
+      "assigned": "Assigned",
+      "attachment_added": "Document uploaded"
+    },
     "pagination": {
       "page": "Page {current} of {total} ({count} total tasks)",
       "first": "First",
@@ -2022,6 +2041,7 @@
       "fetchFailed": "Failed to fetch tasks",
       "updateSuccess": "Task status updated successfully",
       "updateFailed": "Failed to update task status",
+      "uploadFailed": "Failed to upload document",
       "escalationReasonRequired": "Please provide a reason for escalation",
       "escalationSuccess": "Escalation request submitted successfully",
       "escalationFailed": "Failed to escalate request"

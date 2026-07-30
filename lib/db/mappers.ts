@@ -1,6 +1,7 @@
 import type {
   BeneficiaryService,
   BeneficiaryServiceAttachment,
+  BeneficiaryServiceHistory,
   BoothMaster,
   CadreGeographicUnit,
   CadreMember,
@@ -743,6 +744,24 @@ export function mapBeneficiaryServiceAttachmentRow(
     fileName: String(row.file_name ?? row.fileName),
     fileSizeKb: Number(row.file_size_kb ?? row.fileSizeKb),
     fileUrl: toStringOrNull(row.file_url ?? row.fileUrl),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+  };
+}
+
+export function mapBeneficiaryServiceHistoryRow(
+  row: Row,
+): BeneficiaryServiceHistory {
+  return {
+    id: String(row.id),
+    serviceId: String(row.service_id ?? row.serviceId),
+    action: String(row.action) as BeneficiaryServiceHistory['action'],
+    oldValue: toStringOrNull(row.old_value ?? row.oldValue),
+    newValue: toStringOrNull(row.new_value ?? row.newValue),
+    performedBy: String(row.performed_by ?? row.performedBy),
+    performedByName: toStringOrNull(
+      row.performed_by_name ?? row.performedByName ?? row.user_id,
+    ),
+    notes: toStringOrNull(row.notes),
     createdAt: toDate(row.created_at ?? row.createdAt),
   };
 }

@@ -92,3 +92,44 @@ export function differenceInCalendarDaysYmd(
   const bDays = Date.UTC(b.year, b.month - 1, b.day) / 86_400_000;
   return Math.round(aDays - bDays);
 }
+
+/**
+ * Parse a DB/API instant for display. Naive `YYYY-MM-DDTHH:mm:ss` values from
+ * `timestamp without time zone` columns are treated as UTC (Supabase default).
+ */
+export function parseInstant(value: string | Date | number): Date {
+  if (value instanceof Date) return value;
+  if (typeof value === 'number') return new Date(value);
+  const trimmed = value.trim();
+  if (
+    /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(trimmed)
+  ) {
+    return new Date(`${trimmed.replace(' ', 'T')}Z`);
+  }
+  return new Date(trimmed);
+}
+
+/** Display date as `dd-mm-yyyy` in Asia/Kolkata. */
+export function formatDisplayDateIST(value: string | Date | number): string {
+  return parseInstant(value)
+    .toLocaleDateString('en-GB', {
+      timeZone: APP_TIMEZONE,
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+    })
+    .replace(/\//g, '-');
+}
+
+/** Display date+time as `dd-mm-yyyy hh:mm am/pm` in Asia/Kolkata. */
+export function formatDisplayDateTimeIST(value: string | Date | number): string {
+  const date = parseInstant(value);
+  const day = formatDisplayDateIST(date);
+  const time = date.toLocaleTimeString('en-IN', {
+    timeZone: APP_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `${day} ${time}`;
+}

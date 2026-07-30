@@ -1,0 +1,30 @@
+---
+description: All user-facing dates and datetimes must use Asia/Kolkata (IST)
+alwaysApply: true
+---
+
+# Datetimes: always IST (Asia/Kolkata)
+
+Constituency ops run on Indian Standard Time. Every user-facing date or datetime must be shown in **IST** (`Asia/Kolkata`).
+
+## Rules
+
+- Prefer helpers from `@/lib/ist-date` (`APP_TIMEZONE`, `formatDisplayDateIST`, `formatDisplayDateTimeIST`, `getTodayDateStringIST`, `startOfDayIST`).
+- Never call `toLocaleDateString()` / `toLocaleString()` / `toLocaleTimeString()` for UI without `timeZone: 'Asia/Kolkata'` (or an `ist-date` helper).
+- Do not rely on the browser/server local timezone for display.
+- Naive DB timestamps (`timestamp without time zone`) from Supabase are UTC wall-clock — parse via `parseInstant` / IST helpers, not raw `new Date(dbString)` + local formatting.
+- Date-only UI (filters, calendars) should use IST calendar days (`yyyy-MM-dd` via `getTodayDateStringIST` / `formatYmd`), not the host TZ.
+- Relative times (`formatDistanceToNow`, etc.) are fine if the input `Date` is a correct absolute instant; still prefer IST when showing an absolute stamp next to them.
+
+## Examples
+
+```typescript
+// BAD
+new Date(row.createdAt).toLocaleDateString();
+new Date(row.createdAt).toLocaleString('en-IN');
+
+// GOOD
+import { formatDisplayDateIST, formatDisplayDateTimeIST } from '@/lib/ist-date';
+formatDisplayDateIST(row.createdAt); // dd-mm-yyyy
+formatDisplayDateTimeIST(row.createdAt); // dd-mm-yyyy hh:mm am/pm IST
+```

@@ -9,13 +9,17 @@ import {
   deleteBeneficiaryServiceAttachment,
 } from '@/lib/db/queries';
 
-// Allowed file types for document uploads (images + common documents)
+// Allowed file types for document / image uploads
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
   'image/jpeg',
+  'image/jpg',
   'image/png',
   'image/gif',
   'image/webp',
+  'image/heic',
+  'image/heif',
+  'image/bmp',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/vnd.ms-excel',
@@ -23,7 +27,32 @@ const ALLOWED_MIME_TYPES = [
   'text/plain',
 ];
 
+const ALLOWED_EXTENSIONS = [
+  '.pdf',
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.gif',
+  '.webp',
+  '.heic',
+  '.heif',
+  '.bmp',
+  '.doc',
+  '.docx',
+  '.xls',
+  '.xlsx',
+  '.txt',
+];
+
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+function isAllowedUpload(file: File): boolean {
+  const mime = (file.type || '').toLowerCase();
+  if (mime && ALLOWED_MIME_TYPES.includes(mime)) return true;
+  if (mime.startsWith('image/')) return true;
+  const name = file.name.toLowerCase();
+  return ALLOWED_EXTENSIONS.some((ext) => name.endsWith(ext));
+}
 
 function hasOperatorAccess(
   session: { user?: { modules?: unknown } } | null,
@@ -93,11 +122,11 @@ export async function POST(
       );
     }
 
-    if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+    if (!isAllowedUpload(file)) {
       return NextResponse.json(
         {
           error:
-            'File type not allowed. Accepted: PDF, images, Word, Excel, text files',
+            'File type not allowed. Accepted: images (JPG, PNG, WEBP, HEIC, GIF), PDF, Word, Excel, text',
         },
         { status: 400 },
       );
@@ -108,7 +137,7 @@ export async function POST(
 
     const blob = await put(filename, fileBuffer, {
       access: 'public',
-      contentType: file.type,
+      contentType: file.type || 'application/octet-stream',
     });
 
     const attachment = await createBeneficiaryServiceAttachment({
@@ -116,6 +145,7 @@ export async function POST(
       fileName: file.name,
       fileSizeKb: Math.round(file.size / 1024),
       fileUrl: blob.url,
+      performedBy: session.user?.id,
     });
 
     return NextResponse.json(attachment, { status: 201 });

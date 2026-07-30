@@ -1998,6 +1998,16 @@
       "loadingLetters": "पत्रे लोड होत आहेत…",
       "noLetters": "या सेवेसाठी अद्याप कोणतेही पत्र तयार केलेले नाही.",
       "documents": "अपलोड केलेले दस्तऐवज",
+      "attachDocuments": "दस्तऐवज किंवा प्रतिमा जोडा",
+      "attachDocumentsHelp": "तुम्ही हे अपडेट पुश केल्यावर फोटो आणि दस्तऐवज अपलोड होतील.",
+      "chooseFiles": "फाइल्स निवडा",
+      "removeFile": "फाइल काढा",
+      "updateHistory": "अपडेट इतिहास",
+      "loadingHistory": "इतिहास लोड होत आहे…",
+      "noHistory": "अद्याप कोणतेही अपडेट नोंदवलेले नाहीत.",
+      "legacyNote": "अस्तित्वात असलेली टिप्पणी (इतिहास ट्रॅकिंगपूर्वी)",
+      "byUser": "{user} यांनी",
+      "updating": "अपडेट होत आहे…",
       "updateStatus": "स्थिती अपडेट करा",
       "selectNewStatus": "नवीन स्थिती निवडा",
       "assignTo": "नियुक्त करा",
@@ -2013,6 +2023,15 @@
       "escalationReasonPlaceholder": "कृपया वाढवण्यासाठी तपशीलवार कारण प्रदान करा...",
       "submitEscalation": "वाढवण्याची विनंती सबमिट करा"
     },
+    "historyActions": {
+      "created": "तयार केले",
+      "status_changed": "स्थिती बदलली",
+      "priority_changed": "प्राधान्य बदलले",
+      "note_added": "टिप्पणी जोडली",
+      "escalated": "वाढवले",
+      "assigned": "नियुक्त केले",
+      "attachment_added": "दस्तऐवज अपलोड केला"
+    },
     "pagination": {
       "page": "पृष्ठ {current} पैकी {total} ({count} एकूण कार्ये)",
       "first": "पहिले",
@@ -2024,6 +2043,7 @@
       "fetchFailed": "कार्ये मिळवण्यात अयशस्वी",
       "updateSuccess": "कार्य स्थिती यशस्वीरित्या अपडेट केली",
       "updateFailed": "कार्य स्थिती अपडेट करण्यात अयशस्वी",
+      "uploadFailed": "दस्तऐवज अपलोड करण्यात अयशस्वी",
       "escalationReasonRequired": "कृपया वाढवण्याचे कारण प्रदान करा",
       "escalationSuccess": "वाढवण्याची विनंती यशस्वीरित्या सबमिट केली",
       "escalationFailed": "वाढवण्याची विनंती करण्यात अयशस्वी"

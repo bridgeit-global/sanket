@@ -15,7 +15,7 @@ import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
 import { useTranslations } from '@/hooks/use-translations';
 import type { VoterTask, BeneficiaryService } from '@/lib/db/schema';
 import { TablePagination } from '@/components/table-pagination';
-import { QrCode, Share2, FileText, FileDown, Loader2, Paperclip } from 'lucide-react';
+import { QrCode, Share2, FileText, FileDown, Loader2, Paperclip, Upload, X } from 'lucide-react';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { letterPdfDownloadFileName } from '@/lib/letters/pdf-storage';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
@@ -24,6 +24,10 @@ import {
   parseManageFiltersFromSearchParams,
   type ManageFilterState,
 } from '@/lib/operator/manage-url-params';
+import {
+  formatDisplayDateIST,
+  formatDisplayDateTimeIST,
+} from '@/lib/ist-date';
 
 interface TaskVoter {
     epicNumber: string;
@@ -59,6 +63,17 @@ interface AssignableUser {
     id: string;
     userId: string;
     roleName: string | null;
+}
+
+interface TaskHistoryEntry {
+    id: string;
+    action: string;
+    oldValue: string | null;
+    newValue: string | null;
+    performedBy: string;
+    performedByName?: string | null;
+    notes: string | null;
+    createdAt: string;
 }
 
 function extractTokenFromQrPayload(payload: string): string | null {
@@ -366,6 +381,11 @@ export function TaskManagement({
     const [serviceAttachments, setServiceAttachments] = useState<
         Array<{ id: string; fileName: string; fileUrl: string | null }>
     >([]);
+    const [taskHistory, setTaskHistory] = useState<TaskHistoryEntry[]>([]);
+    const [taskHistoryLoading, setTaskHistoryLoading] = useState(false);
+    const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+    const [isUpdating, setIsUpdating] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [showEscalationDialog, setShowEscalationDialog] = useState(false);
     const [escalationReason, setEscalationReason] = useState('');
     const [escalationPriority, setEscalationPriority] = useState<'high' | 'urgent'>('high');
@@ -386,38 +406,66 @@ export function TaskManagement({
     const [filterMobileInput, setFilterMobileInput] = useState<string>(mergedInitial.mobile);
     const [filterVoterIdInput, setFilterVoterIdInput] = useState<string>(mergedInitial.voterId);
 
-    // Load letters + document uploads linked to the selected service when the
-    // manage dialog opens.
+    // Load letters + document uploads + update history when the manage dialog opens.
     useEffect(() => {
         const serviceId = selectedTask?.serviceId;
-        if (!showTaskDialog || !serviceId) {
+        const taskId = selectedTask?.id;
+        if (!showTaskDialog || !taskId) {
             setLinkedLetters([]);
             setLinkedLettersLoading(false);
             setServiceAttachments([]);
+            setTaskHistory([]);
+            setTaskHistoryLoading(false);
+            setPendingFiles([]);
             return;
         }
         let cancelled = false;
         setLinkedLettersLoading(true);
+        setTaskHistoryLoading(true);
         (async () => {
             try {
-                const [lettersRes, attachmentsRes] = await Promise.all([
-                    fetch(
-                        `/api/letters?limit=50&beneficiaryServiceId=${encodeURIComponent(serviceId)}`,
-                    ),
-                    fetch(
-                        `/operator/api/beneficiary-services/${encodeURIComponent(serviceId)}/attachments`,
-                    ),
-                ]);
+                const requests: Promise<Response>[] = [
+                    fetch(`/operator/api/tasks/${encodeURIComponent(taskId)}/history`),
+                ];
+                if (serviceId) {
+                    requests.push(
+                        fetch(
+                            `/api/letters?limit=50&beneficiaryServiceId=${encodeURIComponent(serviceId)}`,
+                        ),
+                        fetch(
+                            `/operator/api/beneficiary-services/${encodeURIComponent(serviceId)}/attachments`,
+                        ),
+                    );
+                }
+
+                const [historyRes, lettersRes, attachmentsRes] = await Promise.all(requests);
                 if (cancelled) return;
-                if (lettersRes.ok) {
-                    const json = await lettersRes.json();
-                    setLinkedLetters(json?.letters ?? []);
+
+                if (historyRes.ok) {
+                    const json = await historyRes.json();
+                    setTaskHistory(Array.isArray(json?.history) ? json.history : []);
+                } else {
+                    setTaskHistory([]);
+                }
+
+                if (serviceId && lettersRes) {
+                    if (lettersRes.ok) {
+                        const json = await lettersRes.json();
+                        setLinkedLetters(json?.letters ?? []);
+                    } else {
+                        setLinkedLetters([]);
+                    }
                 } else {
                     setLinkedLetters([]);
                 }
-                if (attachmentsRes.ok) {
-                    const json = await attachmentsRes.json();
-                    setServiceAttachments(Array.isArray(json) ? json : []);
+
+                if (serviceId && attachmentsRes) {
+                    if (attachmentsRes.ok) {
+                        const json = await attachmentsRes.json();
+                        setServiceAttachments(Array.isArray(json) ? json : []);
+                    } else {
+                        setServiceAttachments([]);
+                    }
                 } else {
                     setServiceAttachments([]);
                 }
@@ -425,17 +473,19 @@ export function TaskManagement({
                 if (!cancelled) {
                     setLinkedLetters([]);
                     setServiceAttachments([]);
+                    setTaskHistory([]);
                 }
             } finally {
                 if (!cancelled) {
                     setLinkedLettersLoading(false);
+                    setTaskHistoryLoading(false);
                 }
             }
         })();
         return () => {
             cancelled = true;
         };
-    }, [showTaskDialog, selectedTask?.serviceId]);
+    }, [showTaskDialog, selectedTask?.serviceId, selectedTask?.id]);
     const [serviceCatalog, setServiceCatalog] = useState<ServiceCatalogOption[]>([]);
     const [showQrScanner, setShowQrScanner] = useState(false);
     const [pendingAutoFocusToken, setPendingAutoFocusToken] = useState<string | null>(null);
@@ -759,8 +809,36 @@ export function TaskManagement({
         });
     };
 
-    const handleStatusUpdate = async (taskId: string, status: string, notes?: string, nextAssignedTo?: string) => {
+    const uploadPendingFiles = async (serviceId: string) => {
+        for (const file of pendingFiles) {
+            const formData = new FormData();
+            formData.append('file', file);
+            const response = await fetch(
+                `/operator/api/beneficiary-services/${encodeURIComponent(serviceId)}/attachments`,
+                {
+                    method: 'POST',
+                    body: formData,
+                },
+            );
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(
+                    typeof err?.error === 'string'
+                        ? err.error
+                        : t('taskManagement.messages.uploadFailed'),
+                );
+            }
+        }
+    };
+
+    const handleStatusUpdate = async (
+        taskId: string,
+        status: string,
+        notes?: string,
+        nextAssignedTo?: string,
+    ) => {
         try {
+            setIsUpdating(true);
             const response = await fetch(`/operator/api/tasks/${taskId}`, {
                 method: 'PATCH',
                 headers: {
@@ -777,6 +855,11 @@ export function TaskManagement({
                 throw new Error('Failed to update task status');
             }
 
+            const serviceId = selectedTask?.serviceId || taskId;
+            if (pendingFiles.length > 0 && serviceId) {
+                await uploadPendingFiles(serviceId);
+            }
+
             toast({
                 type: 'success',
                 description: t('taskManagement.messages.updateSuccess'),
@@ -787,12 +870,19 @@ export function TaskManagement({
             setNewNote('');
             setNewStatus('');
             setAssignedTo('');
+            setPendingFiles([]);
+            setTaskHistory([]);
         } catch (error) {
             console.error('Error updating task status:', error);
             toast({
                 type: 'error',
-                description: t('taskManagement.messages.updateFailed'),
+                description:
+                    error instanceof Error && error.message
+                        ? error.message
+                        : t('taskManagement.messages.updateFailed'),
             });
+        } finally {
+            setIsUpdating(false);
         }
     };
 
@@ -1351,7 +1441,8 @@ export function TaskManagement({
 
                                                             <div className="text-sm text-muted-foreground flex flex-col sm:flex-row sm:flex-wrap gap-1">
                                                                 <span>
-                                                                    <strong>{t('taskManagement.created')}</strong> {new Date(task.createdAt).toLocaleDateString()}
+                                                                    <strong>{t('taskManagement.created')}</strong>{' '}
+                                                                    {formatDisplayDateIST(task.createdAt)}
                                                                 </span>
                                                                 {(task.createdByName || task.createdBy) && (
                                                                     <span><strong>Created by:</strong> {task.createdByName || task.createdBy}</span>
@@ -1363,7 +1454,10 @@ export function TaskManagement({
                                                                         || t('taskManagement.noAssignee')}
                                                                 </span>
                                                                 {task.updatedAt !== task.createdAt && (
-                                                                    <span><strong>{t('taskManagement.updated')}</strong> {new Date(task.updatedAt).toLocaleDateString()}</span>
+                                                                    <span>
+                                                                        <strong>{t('taskManagement.updated')}</strong>{' '}
+                                                                        {formatDisplayDateIST(task.updatedAt)}
+                                                                    </span>
                                                                 )}
                                                                 {(task.updatedByName || task.updatedBy) && (
                                                                     <span><strong>Updated by:</strong> {task.updatedByName || task.updatedBy}</span>
@@ -1648,6 +1742,158 @@ export function TaskManagement({
                                 />
                             </div>
 
+                            {selectedTask.serviceId && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="update-documents">
+                                        {t('taskManagement.dialog.attachDocuments')}
+                                    </Label>
+                                    <input
+                                        ref={fileInputRef}
+                                        id="update-documents"
+                                        type="file"
+                                        multiple
+                                        className="hidden"
+                                        accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.bmp,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                                        onChange={(e) => {
+                                            const files = Array.from(e.target.files ?? []);
+                                            if (files.length === 0) return;
+                                            setPendingFiles((prev) => [...prev, ...files]);
+                                            e.target.value = '';
+                                        }}
+                                    />
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full sm:w-auto"
+                                        onClick={() => fileInputRef.current?.click()}
+                                    >
+                                        <Upload className="mr-2 size-4" />
+                                        {t('taskManagement.dialog.chooseFiles')}
+                                    </Button>
+                                    {pendingFiles.length > 0 && (
+                                        <ul className="space-y-1">
+                                            {pendingFiles.map((file, index) => (
+                                                <li
+                                                    key={`${file.name}-${file.size}-${index}`}
+                                                    className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm"
+                                                >
+                                                    <span className="flex min-w-0 items-center gap-2">
+                                                        <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
+                                                        <span className="truncate">{file.name}</span>
+                                                    </span>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-7 w-7 shrink-0 p-0"
+                                                        onClick={() =>
+                                                            setPendingFiles((prev) =>
+                                                                prev.filter((_, i) => i !== index),
+                                                            )
+                                                        }
+                                                        aria-label={t('taskManagement.dialog.removeFile')}
+                                                    >
+                                                        <X className="size-3.5" />
+                                                    </Button>
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                    <p className="text-xs text-muted-foreground">
+                                        {t('taskManagement.dialog.attachDocumentsHelp')}
+                                    </p>
+                                </div>
+                            )}
+
+                            <div className="space-y-2 rounded-md border p-3">
+                                <Label>{t('taskManagement.dialog.updateHistory')}</Label>
+                                {taskHistoryLoading ? (
+                                    <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+                                        <Loader2 className="size-4 animate-spin" />
+                                        {t('taskManagement.dialog.loadingHistory')}
+                                    </div>
+                                ) : taskHistory.length > 0 ? (
+                                    <ul className="max-h-56 space-y-2 overflow-y-auto">
+                                        {taskHistory.map((entry) => {
+                                            const resolveUserLabel = (idOrName: string | null | undefined) => {
+                                                if (!idOrName) return '';
+                                                const fromAssignable = assignableUsers.find(
+                                                    (u) => u.id === idOrName,
+                                                )?.userId;
+                                                return fromAssignable || idOrName;
+                                            };
+                                            const actor = resolveUserLabel(
+                                                entry.performedByName || entry.performedBy,
+                                            );
+                                            let detail = '';
+                                            if (entry.action === 'note_added') {
+                                                detail = entry.newValue || entry.notes || '';
+                                            } else if (entry.action === 'status_changed') {
+                                                detail = `${entry.oldValue || '—'} → ${entry.newValue || '—'}`;
+                                            } else if (entry.action === 'priority_changed') {
+                                                detail = `${entry.oldValue || '—'} → ${entry.newValue || '—'}`;
+                                            } else if (entry.action === 'assigned') {
+                                                const from = resolveUserLabel(entry.oldValue) || '—';
+                                                const to = resolveUserLabel(entry.newValue) || '—';
+                                                detail = from === '—' ? to : `${from} → ${to}`;
+                                            } else if (entry.action === 'attachment_added') {
+                                                detail = entry.newValue || '';
+                                            } else if (entry.action === 'escalated') {
+                                                detail = entry.newValue || entry.notes || '';
+                                            } else {
+                                                detail = entry.newValue || entry.notes || '';
+                                            }
+                                            const actionKey = `taskManagement.historyActions.${entry.action}`;
+                                            const actionLabel = t(actionKey);
+                                            return (
+                                                <li
+                                                    key={entry.id}
+                                                    className="rounded-md bg-muted/50 p-2 text-sm"
+                                                >
+                                                    <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+                                                        <span className="font-medium">
+                                                            {actionLabel === actionKey
+                                                                ? entry.action.replaceAll('_', ' ')
+                                                                : actionLabel}
+                                                        </span>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {formatDisplayDateTimeIST(entry.createdAt)}
+                                                        </span>
+                                                    </div>
+                                                    {detail ? (
+                                                        <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+                                                            {detail}
+                                                        </p>
+                                                    ) : null}
+                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                        {t('taskManagement.dialog.byUser', {
+                                                            user: actor,
+                                                        })}
+                                                    </p>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                ) : selectedTask.notes ? (
+                                    <div className="rounded-md bg-muted/50 p-2 text-sm">
+                                        <p className="font-medium">
+                                            {t('taskManagement.historyActions.note_added')}
+                                        </p>
+                                        <p className="mt-1 whitespace-pre-wrap text-muted-foreground">
+                                            {selectedTask.notes}
+                                        </p>
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            {t('taskManagement.dialog.legacyNote')}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground">
+                                        {t('taskManagement.dialog.noHistory')}
+                                    </p>
+                                )}
+                            </div>
+
                             <div className="flex flex-col sm:flex-row gap-2">
                                 <Button
                                     onClick={() => {
@@ -1661,19 +1907,29 @@ export function TaskManagement({
                                         }
                                     }}
                                     disabled={
-                                        (newStatus || selectedTask.status) === selectedTask.status &&
-                                        !newNote.trim() &&
-                                        assignedTo === (selectedTask.assignedTo || '')
+                                        isUpdating ||
+                                        ((newStatus || selectedTask.status) === selectedTask.status &&
+                                            !newNote.trim() &&
+                                            assignedTo === (selectedTask.assignedTo || '') &&
+                                            pendingFiles.length === 0)
                                     }
                                     className="w-full"
                                 >
-                                    {t('taskManagement.dialog.updateTask')}
+                                    {isUpdating ? (
+                                        <>
+                                            <Loader2 className="mr-2 size-4 animate-spin" />
+                                            {t('taskManagement.dialog.updating')}
+                                        </>
+                                    ) : (
+                                        t('taskManagement.dialog.updateTask')
+                                    )}
                                 </Button>
                                 <Button variant="outline" onClick={() => {
                                     setShowTaskDialog(false);
                                     setSelectedTask(null);
                                     setAssignedTo('');
-                                }} className="w-full sm:w-auto">
+                                    setPendingFiles([]);
+                                }} className="w-full sm:w-auto" disabled={isUpdating}>
                                     {t('common.cancel')}
                                 </Button>
                             </div>

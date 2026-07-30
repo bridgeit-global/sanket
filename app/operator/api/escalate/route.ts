@@ -6,7 +6,8 @@ import {
     updateBeneficiaryServiceStatus,
     getVoterTaskById,
     getBeneficiaryServiceById,
-    createTaskHistoryEntry
+    createTaskHistoryEntry,
+    createBeneficiaryServiceHistoryEntry,
 } from '@/lib/db/queries';
 import { notifyPush, sendPushToModule } from '@/lib/push/send';
 
@@ -58,7 +59,19 @@ export async function POST(request: NextRequest) {
                 priority,
                 notes: escalationNote,
                 assignedTo: session.user.id,
+                performedBy: session.user.id,
             });
+
+            if (updatedService) {
+                await createBeneficiaryServiceHistoryEntry({
+                    serviceId: id,
+                    action: 'escalated',
+                    oldValue: service.priority,
+                    newValue: `Priority: ${priority}, Reason: ${reason}`,
+                    performedBy: session.user.id,
+                    notes: escalationNote,
+                });
+            }
 
             result.service = updatedService;
             return updatedService;

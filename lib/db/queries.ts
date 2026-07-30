@@ -161,6 +161,8 @@ export {
   getCommunityServiceAreasByServiceId,
   createTaskHistoryEntry,
   getTaskHistory,
+  createBeneficiaryServiceHistoryEntry,
+  getBeneficiaryServiceHistory,
   getUserModulePermissions,
   getAllUsersWithPermissions,
   updateUserModulePermissions,

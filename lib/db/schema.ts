@@ -26,6 +26,7 @@ export const TABLES = {
   voterMobileNumber: 'VoterMobileNumber',
   beneficiaryServices: 'BeneficiaryService',
   beneficiaryServiceAttachment: 'BeneficiaryServiceAttachment',
+  beneficiaryServiceHistory: 'BeneficiaryServiceHistory',
   serviceCatalog: 'ServiceCatalog',
   voterTasks: 'VoterTask',
   communityServiceAreas: 'CommunityServiceArea',
@@ -349,6 +350,27 @@ export type BeneficiaryServiceAttachment = {
   fileName: string;
   fileSizeKb: number;
   fileUrl: string | null;
+  createdAt: Date;
+};
+
+export type BeneficiaryServiceHistoryAction =
+  | 'created'
+  | 'status_changed'
+  | 'priority_changed'
+  | 'note_added'
+  | 'escalated'
+  | 'assigned'
+  | 'attachment_added';
+
+export type BeneficiaryServiceHistory = {
+  id: string;
+  serviceId: string;
+  action: BeneficiaryServiceHistoryAction | string;
+  oldValue: string | null;
+  newValue: string | null;
+  performedBy: string;
+  performedByName?: string | null;
+  notes: string | null;
   createdAt: Date;
 };
 

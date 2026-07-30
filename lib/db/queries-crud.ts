@@ -7,6 +7,7 @@ import { TABLES } from './schema';
 import {
   mapBeneficiaryServiceRow,
   mapBeneficiaryServiceAttachmentRow,
+  mapBeneficiaryServiceHistoryRow,
   mapBoothMasterRow,
   mapChatRow,
   mapCommunityServiceAreaRow,
@@ -56,6 +57,8 @@ import { notifyPush, sendPushToUser } from '@/lib/push/send';
 import type {
   BeneficiaryService,
   BeneficiaryServiceAttachment,
+  BeneficiaryServiceHistory,
+  BeneficiaryServiceHistoryAction,
   Chat,
   CommunityServiceArea,
   DailyProgramme,
@@ -1438,12 +1441,14 @@ export async function updateBeneficiaryServiceStatus({
   priority,
   notes,
   assignedTo,
+  performedBy,
 }: {
   id: string;
   status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   notes?: string;
   assignedTo?: string;
+  performedBy?: string;
 }): Promise<BeneficiaryService | null> {
   try {
     const currentService = await getBeneficiaryServiceById(id);
@@ -1467,6 +1472,45 @@ export async function updateBeneficiaryServiceStatus({
     throwOnSupabaseError(error, 'Failed to update beneficiary service status');
 
     const updatedService = data ? mapBeneficiaryServiceRow(data) : null;
+
+    if (performedBy && updatedService) {
+      if (currentService.status !== status) {
+        await createBeneficiaryServiceHistoryEntry({
+          serviceId: id,
+          action: 'status_changed',
+          oldValue: currentService.status,
+          newValue: status,
+          performedBy,
+        });
+      }
+      if (priority && currentService.priority !== priority) {
+        await createBeneficiaryServiceHistoryEntry({
+          serviceId: id,
+          action: 'priority_changed',
+          oldValue: currentService.priority,
+          newValue: priority,
+          performedBy,
+        });
+      }
+      if (notes?.trim() && notes !== currentService.notes) {
+        await createBeneficiaryServiceHistoryEntry({
+          serviceId: id,
+          action: 'note_added',
+          newValue: notes.trim(),
+          performedBy,
+        });
+      }
+      if (assignedTo && assignedTo !== currentService.assignedTo) {
+        await createBeneficiaryServiceHistoryEntry({
+          serviceId: id,
+          action: 'assigned',
+          oldValue: currentService.assignedTo || '',
+          newValue: assignedTo,
+          performedBy,
+        });
+      }
+    }
+
     if (
       updatedService &&
       currentService.status !== status &&
@@ -1529,11 +1573,13 @@ export async function createBeneficiaryServiceAttachment({
   fileName,
   fileSizeKb,
   fileUrl,
+  performedBy,
 }: {
   serviceId: string;
   fileName: string;
   fileSizeKb: number;
   fileUrl?: string;
+  performedBy?: string;
 }): Promise<BeneficiaryServiceAttachment> {
   try {
     const { data, error } = await supabase
@@ -1550,7 +1596,18 @@ export async function createBeneficiaryServiceAttachment({
       .select('*')
       .single();
     throwOnSupabaseError(error, 'Failed to create beneficiary service attachment');
-    return mapBeneficiaryServiceAttachmentRow(data);
+    const attachment = mapBeneficiaryServiceAttachmentRow(data);
+
+    if (performedBy) {
+      await createBeneficiaryServiceHistoryEntry({
+        serviceId,
+        action: 'attachment_added',
+        newValue: fileName,
+        performedBy,
+      });
+    }
+
+    return attachment;
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError(
@@ -1920,6 +1977,109 @@ export async function getTaskHistory(taskId: string): Promise<Array<TaskHistory>
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to get task history');
+  }
+}
+
+export async function createBeneficiaryServiceHistoryEntry({
+  serviceId,
+  action,
+  oldValue,
+  newValue,
+  performedBy,
+  notes,
+}: {
+  serviceId: string;
+  action: BeneficiaryServiceHistoryAction;
+  oldValue?: string;
+  newValue?: string;
+  performedBy: string;
+  notes?: string;
+}): Promise<BeneficiaryServiceHistory> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.beneficiaryServiceHistory)
+      .insert(
+        toSnakeCaseKeys({
+          serviceId,
+          action,
+          oldValue,
+          newValue,
+          performedBy,
+          notes,
+          createdAt: new Date().toISOString(),
+        }),
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create beneficiary service history entry');
+    return mapBeneficiaryServiceHistoryRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create beneficiary service history entry',
+    );
+  }
+}
+
+export async function getBeneficiaryServiceHistory(
+  serviceId: string,
+): Promise<Array<BeneficiaryServiceHistory>> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.beneficiaryServiceHistory)
+      .select('*')
+      .eq('service_id', serviceId)
+      .order('created_at', { ascending: false });
+    throwOnSupabaseError(error, 'Failed to get beneficiary service history');
+
+    const history = (data ?? []).map(mapBeneficiaryServiceHistoryRow);
+    if (history.length === 0) return history;
+
+    const userIds = new Set<string>();
+    for (const entry of history) {
+      userIds.add(entry.performedBy);
+      if (entry.action === 'assigned') {
+        if (entry.oldValue) userIds.add(entry.oldValue);
+        if (entry.newValue) userIds.add(entry.newValue);
+      }
+    }
+
+    const { data: users, error: usersError } = await supabase
+      .from(TABLES.user)
+      .select('id, user_id')
+      .in('id', [...userIds]);
+    throwOnSupabaseError(usersError, 'Failed to get history performer names');
+
+    const nameById = new Map(
+      (users ?? []).map((user) => [String(user.id), String(user.user_id)]),
+    );
+
+    const resolveUserLabel = (id: string | null | undefined): string | null => {
+      if (!id) return null;
+      return nameById.get(id) ?? id;
+    };
+
+    return history.map((entry) => {
+      if (entry.action === 'assigned') {
+        return {
+          ...entry,
+          performedByName: resolveUserLabel(entry.performedBy),
+          oldValue: resolveUserLabel(entry.oldValue) ?? entry.oldValue,
+          newValue: resolveUserLabel(entry.newValue) ?? entry.newValue,
+        };
+      }
+      return {
+        ...entry,
+        performedByName: resolveUserLabel(entry.performedBy),
+      };
+    });
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get beneficiary service history',
+    );
   }
 }
 

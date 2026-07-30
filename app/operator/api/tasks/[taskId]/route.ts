@@ -108,6 +108,7 @@ export async function PATCH(
                 status: status as 'pending' | 'in_progress' | 'completed' | 'cancelled',
                 notes,
                 assignedTo: nextAssignedTo,
+                performedBy: session.user.id,
             });
 
             if (!updatedService) {
