@@ -121,6 +121,7 @@ import {
   getDefaultLetterPaperSize,
   getLetterPaperContentWidthPx,
   getLetterPaperLabel,
+  LETTER_PAPER_DIMENSIONS_MM,
   LETTER_PAPER_MARGIN_MM,
   resolveLetterPaperSize,
   type LetterPaperSize,
@@ -1025,10 +1026,13 @@ export function LetterGeneration({
     null,
   );
   const [printingLetterId, setPrintingLetterId] = useState<string | null>(null);
+  const [printPaperDialogOpen, setPrintPaperDialogOpen] = useState(false);
+  const [printPaperSizeInfo, setPrintPaperSizeInfo] = useState('');
   const [reprintDialogOpen, setReprintDialogOpen] = useState(false);
   const [reprintWarning, setReprintWarning] = useState<string>('');
   const [letterPendingPrint, setLetterPendingPrint] =
     useState<SavedLetterRow | null>(null);
+  const letterPendingPrintRef = useRef<SavedLetterRow | null>(null);
   const [isGeneratorCollapsed, setIsGeneratorCollapsed] = useState(false);
 
   const [feesFields, setFeesFields] = useState<FeesLetterFields>(() =>
@@ -3008,79 +3012,65 @@ export function LetterGeneration({
     }
   };
 
-  const handlePrintSavedLetter = async (letter: SavedLetterRow) => {
-    setPrintingLetterId(letter.id);
-    try {
-      const params = new URLSearchParams();
-      if (service?.voterId) {
-        params.set('voterId', service.voterId);
-      }
-      const query = params.toString();
-      const checkUrl = `/api/letters/${encodeURIComponent(letter.id)}/print${
-        query ? `?${query}` : ''
-      }`;
-      const res = await fetch(checkUrl);
-      if (!res.ok) {
-        // If check fails, still allow print (do not block office work).
-        console.error('Print duplicate check failed', await res.text());
-        setPrintingLetterId(null);
-        await executePrintSavedLetter(letter);
-        return;
-      }
+  const handlePrintSavedLetter = (letter: SavedLetterRow) => {
+    letterPendingPrintRef.current = letter;
+    setLetterPendingPrint(letter);
+    setReprintDialogOpen(false);
+    setReprintWarning('');
+    setPrintPaperDialogOpen(false);
 
-      const check = (await res.json()) as {
-        isReprint?: boolean;
-        alreadyPrinted?: boolean;
-        voterId?: string | null;
-        date?: string;
-        duplicates?: Array<{
-          id: string;
-          referenceNo: string;
-          title: string;
-          printedAt: string | Date;
-          isCurrentLetter?: boolean;
-        }>;
-      };
+    const paperSize = resolveSavedLetterPaperSize(letter);
+    const dims = LETTER_PAPER_DIMENSIONS_MM[paperSize];
+    const paperInfo = t('letterGeneration.printPaperSize.description', {
+      size: t(`letterGeneration.paperSize.options.${paperSize}`),
+      widthMm: dims.widthMm,
+      heightMm: dims.heightMm,
+      marginMm: LETTER_PAPER_MARGIN_MM[paperSize],
+    });
+    setPrintPaperSizeInfo(paperInfo);
 
-      if (check.isReprint) {
-        const refs = (check.duplicates ?? [])
-          .map((row) => row.referenceNo)
-          .filter(Boolean);
-        const uniqueRefs = Array.from(new Set(refs));
-        const refText =
-          uniqueRefs.length > 0 ? uniqueRefs.join(', ') : letter.referenceNo;
-        setReprintWarning(
-          t('letterGeneration.savedLetters.reprintConfirmDescription', {
-            voterId: check.voterId || service?.voterId || '—',
-            serviceName: service?.serviceName || '—',
-            date: check.date || '—',
-            referenceNos: refText,
-          }),
-        );
-        setLetterPendingPrint(letter);
-        setReprintDialogOpen(true);
-        toast.info(t('letterGeneration.printDuplicateWarning'));
-        setPrintingLetterId(null);
-        return;
-      }
-
-      setPrintingLetterId(null);
-      await executePrintSavedLetter(letter);
-    } catch (error) {
-      console.error('Saved letter print check failed', error);
-      setPrintingLetterId(null);
-      await executePrintSavedLetter(letter);
+    // Already printed → one dialog with reprint warning + paper size, then print.
+    if (letter.printedAt) {
+      setReprintWarning(
+        `${t('letterGeneration.savedLetters.reprintConfirmDescription', {
+          voterId: service?.voterId || '—',
+          serviceName: service?.serviceName || '—',
+          date: new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'Asia/Kolkata',
+          }).format(new Date(letter.printedAt)),
+          referenceNos: letter.referenceNo || '—',
+        })}\n\n${paperInfo}`,
+      );
+      setReprintDialogOpen(true);
+      toast.info(t('letterGeneration.printDuplicateWarning'));
+      return;
     }
+
+    // First print → paper size info only.
+    setPrintPaperDialogOpen(true);
+  };
+
+  const confirmPrintPaperSize = () => {
+    const letter = letterPendingPrintRef.current ?? letterPendingPrint;
+    setPrintPaperDialogOpen(false);
+    setLetterPendingPrint(null);
+    if (!letter) return;
+    setSelectedSavedLetterId(null);
+    window.setTimeout(() => {
+      void executePrintSavedLetter(letter);
+    }, 450);
   };
 
   const confirmReprintSavedLetter = () => {
-    const letter = letterPendingPrint;
+    const letter = letterPendingPrintRef.current ?? letterPendingPrint;
     setReprintDialogOpen(false);
-    setLetterPendingPrint(null);
     setReprintWarning('');
-    if (letter) {
+    setLetterPendingPrint(null);
+    if (!letter) return;
+    setSelectedSavedLetterId(null);
+    window.setTimeout(() => {
       void executePrintSavedLetter(letter);
-    }
+    }, 450);
   };
 
   const triggerPdfDownload = (blob: Blob, fileName: string) => {
@@ -5287,6 +5277,19 @@ export function LetterGeneration({
         cancelText={t('common.cancel')}
         variant="destructive"
         onConfirm={() => void confirmDeleteSavedLetter()}
+      />
+
+      <ConfirmDialog
+        open={printPaperDialogOpen}
+        onOpenChange={(open) => {
+          setPrintPaperDialogOpen(open);
+          if (!open) setLetterPendingPrint(null);
+        }}
+        title={t('letterGeneration.printPaperSize.title')}
+        description={printPaperSizeInfo}
+        confirmText={t('letterGeneration.printPaperSize.confirm')}
+        cancelText={t('common.cancel')}
+        onConfirm={confirmPrintPaperSize}
       />
 
       <ConfirmDialog

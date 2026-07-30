@@ -680,11 +680,17 @@
     "paperSize": {
       "label": "कागदाचा आकार: {size}",
       "hint": "आकार बदलण्यासाठी वर निवडा",
+      "dimensions": "{widthMm} × {heightMm} मिमी",
       "options": {
         "a4": "A4 (मोठा)",
         "b5": "B5 (मध्यम)",
         "a5": "A5 (लहान)"
       }
+    },
+    "printPaperSize": {
+      "title": "कागदाचा आकार",
+      "description": "हे पत्र {size} कागदावर प्रिंट होईल ({widthMm} × {heightMm} मिमी).",
+      "confirm": "प्रिंट करा"
     },
     "generatePdf": "PDF तयार करा",
     "pdfSuccess": "PDF यशस्वीरित्या डाउनलोड झाला",

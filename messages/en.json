@@ -680,11 +680,17 @@
     "paperSize": {
       "label": "Paper size: {size}",
       "hint": "Change size above to customize",
+      "dimensions": "{widthMm} × {heightMm} mm",
       "options": {
         "a4": "A4 (big)",
         "b5": "B5 (medium)",
         "a5": "A5 (small)"
       }
+    },
+    "printPaperSize": {
+      "title": "Paper size",
+      "description": "This letter will print on {size} ({widthMm} × {heightMm} mm).",
+      "confirm": "Print"
     },
     "generatePdf": "Generate PDF",
     "pdfSuccess": "PDF downloaded successfully",

@@ -77,6 +77,7 @@ export async function GET(
       beneficiaryServiceId,
       voterId,
       onDate,
+      excludeLetterId: id,
     });
 
     const alreadyPrinted = Boolean(letter.printedAt);

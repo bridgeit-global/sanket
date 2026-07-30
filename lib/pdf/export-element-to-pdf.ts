@@ -694,54 +694,80 @@ export async function exportElementToPdf(
 /** Print a PDF blob via a hidden iframe (no browser URL/date headers). */
 export function printPdfBlob(blob: Blob): Promise<void> {
   return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(blob);
+    const pdfBlob =
+      blob.type === 'application/pdf'
+        ? blob
+        : new Blob([blob], { type: 'application/pdf' });
+    const url = URL.createObjectURL(pdfBlob);
+
     const iframe = document.createElement('iframe');
-    iframe.setAttribute('aria-hidden', 'true');
+    iframe.setAttribute('title', 'Print letter');
+    // Off-screen but real size — Chrome often ignores print() on 0×0 / display:none frames.
     iframe.style.cssText =
-      'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+      'position:fixed;left:-10000px;top:0;width:1024px;height:768px;border:0;';
 
     let settled = false;
+    let cleaned = false;
+
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      window.removeEventListener('focus', onWindowFocus);
+      iframe.remove();
+      URL.revokeObjectURL(url);
+    };
+
     const finish = () => {
       if (settled) return;
       settled = true;
-      window.removeEventListener('focus', finish);
-      iframe.remove();
-      URL.revokeObjectURL(url);
       resolve();
+    };
+
+    const onWindowFocus = () => {
+      finish();
+      window.setTimeout(cleanup, 1000);
     };
 
     const fail = (error: Error) => {
       if (settled) return;
       settled = true;
-      window.removeEventListener('focus', finish);
-      iframe.remove();
-      URL.revokeObjectURL(url);
+      cleanup();
       reject(error);
     };
 
-    iframe.onload = () => {
+    const triggerPrint = () => {
       const frameWindow = iframe.contentWindow;
       if (!frameWindow) {
         fail(new Error('Failed to open print frame'));
         return;
       }
+      try {
+        frameWindow.addEventListener(
+          'afterprint',
+          () => {
+            finish();
+            cleanup();
+          },
+          { once: true },
+        );
+        frameWindow.focus();
+        frameWindow.print();
+        window.setTimeout(() => {
+          if (!settled) window.addEventListener('focus', onWindowFocus);
+        }, 750);
+        // Resolve for callers, but keep the iframe alive for the print UI.
+        window.setTimeout(() => {
+          finish();
+          if (!cleaned) window.setTimeout(cleanup, 120_000);
+        }, 3000);
+      } catch (error) {
+        fail(error instanceof Error ? error : new Error('Print failed'));
+      }
+    };
 
-      // PDF plugin needs a tick before print is available.
-      window.setTimeout(() => {
-        try {
-          frameWindow.addEventListener('afterprint', finish, { once: true });
-          frameWindow.focus();
-          frameWindow.print();
-          // Attach after print() so opening the dialog doesn't immediately settle.
-          window.setTimeout(() => {
-            if (!settled) window.addEventListener('focus', finish);
-          }, 500);
-          // Hard fallback so the caller never hangs (PDF viewers are inconsistent).
-          window.setTimeout(finish, 1500);
-        } catch (error) {
-          fail(error instanceof Error ? error : new Error('Print failed'));
-        }
-      }, 300);
+    iframe.onload = () => {
+      // Chrome PDF viewer needs time after onload before print() works.
+      window.setTimeout(triggerPrint, 750);
     };
 
     iframe.onerror = () => {
