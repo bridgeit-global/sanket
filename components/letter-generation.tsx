@@ -177,7 +177,6 @@ import { cn } from '@/lib/utils';
 type SavedLetterTypeFilter = string;
 
 const ALL_LETTER_TYPES = 'all' as const;
-const LETTER_LOCALES: LetterLocale[] = ['en', 'mr'];
 
 type FamilyMemberRow = { name: string; age: string };
 
@@ -1013,7 +1012,8 @@ export function LetterGeneration({
 }) {
   const { data: session } = useSession();
   const { t, locale } = useTranslations();
-  const [letterLocale, setLetterLocale] = useState<LetterLocale>('mr');
+  /** Letters are Marathi-only. */
+  const letterLocale: LetterLocale = 'mr';
   /** Field labels / options follow letter language, not UI locale. */
   const lt = useCallback(
     (key: string) => letterMessage(letterLocale, key),
@@ -1173,9 +1173,10 @@ export function LetterGeneration({
     const trimmedName = filterLocaleText(name.trim(), letterLocale);
     if (!trimmedName || !hasRequiredAddressFields(parts, letterLocale)) return null;
 
-    let nameEn = letterLocale === 'en' ? trimmedName : '';
-    let nameMr = letterLocale === 'mr' ? trimmedName : '';
-    const targetLocale: LetterLocale = letterLocale === 'en' ? 'mr' : 'en';
+    // Letters are Marathi-only; translate into English for bilingual address master.
+    let nameMr = trimmedName;
+    let nameEn = '';
+    const targetLocale: LetterLocale = 'en';
 
     let translatedName = '';
     try {
@@ -1193,22 +1194,13 @@ export function LetterGeneration({
     }
 
     let translatedParts = { ...parts };
-    const hasTargetContent =
-      targetLocale === 'mr'
-        ? Boolean(
-          parts.line1Mr.trim() ||
-          parts.line2Mr.trim() ||
-          parts.line3Mr.trim() ||
-          parts.cityMr.trim() ||
-          parts.stateMr.trim(),
-        )
-        : Boolean(
-          parts.line1En.trim() ||
-          parts.line2En.trim() ||
-          parts.line3En.trim() ||
-          parts.cityEn.trim() ||
-          parts.stateEn.trim(),
-        );
+    const hasTargetContent = Boolean(
+      parts.line1En.trim() ||
+      parts.line2En.trim() ||
+      parts.line3En.trim() ||
+      parts.cityEn.trim() ||
+      parts.stateEn.trim(),
+    );
 
     if (!hasTargetContent) {
       const sourceText = formatAddressMaster(parts, letterLocale);
@@ -1241,12 +1233,7 @@ export function LetterGeneration({
     }
 
     // Translate directly on save — no review modal.
-    const otherLocaleName = filterLocaleText(translatedName, targetLocale).trim();
-    if (letterLocale === 'en') {
-      nameMr = otherLocaleName;
-    } else {
-      nameEn = otherLocaleName;
-    }
+    nameEn = filterLocaleText(translatedName, targetLocale).trim();
     if (!nameEn) nameEn = trimmedName;
     if (!nameMr) nameMr = trimmedName;
 
@@ -1596,16 +1583,19 @@ export function LetterGeneration({
     parts: AddressMasterAddressParts,
   ) => {
     const sourceLocale = letterLocale;
-    const targetLocale: LetterLocale = sourceLocale === 'en' ? 'mr' : 'en';
+    const targetLocale: LetterLocale = 'en';
     const sourceText = formatAddressMaster(parts, sourceLocale);
 
     if (!sourceText.trim()) return;
 
     // Pincode-only updates don't need translation and can be mis-parsed.
-    const hasAddressLines =
-      sourceLocale === 'mr'
-        ? Boolean(parts.line1Mr.trim() || parts.line2Mr.trim() || parts.line3Mr.trim() || parts.cityMr.trim() || parts.stateMr.trim())
-        : Boolean(parts.line1En.trim() || parts.line2En.trim() || parts.line3En.trim() || parts.cityEn.trim() || parts.stateEn.trim());
+    const hasAddressLines = Boolean(
+      parts.line1Mr.trim() ||
+      parts.line2Mr.trim() ||
+      parts.line3Mr.trim() ||
+      parts.cityMr.trim() ||
+      parts.stateMr.trim(),
+    );
     if (!hasAddressLines) return;
 
     const nextReqId = (translateReqIdRef.current[key] ?? 0) + 1;
@@ -3583,23 +3573,6 @@ export function LetterGeneration({
                     {resolveTypeLabel(activeTab)}
                   </div>
                 </FieldGroup>
-                <FieldGroup label={lt('letterGeneration.fields.letterLanguage')}>
-                  <Select
-                    value={letterLocale}
-                    onValueChange={(value: LetterLocale) => setLetterLocale(value)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LETTER_LOCALES.map((lang) => (
-                        <SelectItem key={lang} value={lang}>
-                          {lt(`letterGeneration.letterLanguage.${lang}`)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </FieldGroup>
                 {mastersForActive.length > 1 ? (
                   <FieldGroup label={t('letterGeneration.templates.selectTemplate')}>
                     <Combobox
@@ -5153,8 +5126,6 @@ export function LetterGeneration({
                             </p>
                             <p className="text-sm text-muted-foreground">
                               {resolveTypeLabel(letter.letterType)} ·{' '}
-                              {t(`letterGeneration.letterLanguage.${letter.letterLocale}`)}{' '}
-                              ·{' '}
                               {getLetterPaperLabel(resolveSavedLetterPaperSize(letter))}
                             </p>
                           </div>
@@ -5175,9 +5146,6 @@ export function LetterGeneration({
                             {t('letterGeneration.savedLetters.columns.referenceNo')}
                           </TableHead>
                           <TableHead>{t('letterGeneration.savedLetters.columns.type')}</TableHead>
-                          <TableHead>
-                            {t('letterGeneration.savedLetters.columns.locale')}
-                          </TableHead>
                           <TableHead>
                             {t('letterGeneration.savedLetters.columns.createdAt')}
                           </TableHead>
@@ -5204,9 +5172,6 @@ export function LetterGeneration({
                               <span className="text-muted-foreground">
                                 ({getLetterPaperLabel(resolveSavedLetterPaperSize(letter))})
                               </span>
-                            </TableCell>
-                            <TableCell>
-                              {t(`letterGeneration.letterLanguage.${letter.letterLocale}`)}
                             </TableCell>
                             <TableCell>
                               {new Date(letter.createdAt).toLocaleString('en-IN')}
@@ -5249,10 +5214,6 @@ export function LetterGeneration({
                                 </DialogTitle>
                                 <DialogDescription>
                                   {resolveTypeLabel(selectedSavedLetter.letterType)} ·{' '}
-                                  {t(
-                                    `letterGeneration.letterLanguage.${selectedSavedLetter.letterLocale}`,
-                                  )}{' '}
-                                  ·{' '}
                                   {t('letterGeneration.paperSize.label', {
                                     size: getLetterPaperLabel(
                                       resolveSavedLetterPaperSize(selectedSavedLetter),
