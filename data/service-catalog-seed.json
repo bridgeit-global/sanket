@@ -22,6 +22,7 @@
   { "category": "Education & Student Services", "name": "School Leaving Certificate", "sortOrder": 16 },
   { "category": "Education & Student Services", "name": "School / College Transfer Admission", "sortOrder": 106 },
   { "category": "Education & Student Services", "name": "College Leaving Certificate", "sortOrder": 17 },
+  { "category": "Education & Student Services", "name": "Fee Concession Recommendation", "sortOrder": 104 },
   { "category": "Education & Student Services", "name": "School-Related General Request", "sortOrder": 19 },
   { "category": "Education & Student Services", "name": "Balwadi", "sortOrder": 20 },
   { "category": "Education & Student Services", "name": "Anganwadi", "sortOrder": 21 },
