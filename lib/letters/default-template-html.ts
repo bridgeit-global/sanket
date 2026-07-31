@@ -2,12 +2,21 @@ import { EN_TEMPLATE_HTML } from '@/lib/letters/en-template-html';
 import { MR_TEMPLATE_HTML } from '@/lib/letters/mr-template-html';
 import {
   LETTER_TYPES,
+  WARD_LETTER_TYPES,
   isLetterType,
+  wardIssueTypeFromLetterType,
   type LetterLocale,
   type LetterType,
 } from '@/lib/letters/templates';
+import {
+  getWardIssueCatalogName,
+  getWardIssueLabel,
+} from '@/lib/letters/ward-issue-presets';
 
-const DEFAULT_TEMPLATE_NAMES: Record<LetterType, Record<LetterLocale, string>> = {
+const BASE_TEMPLATE_NAMES: Record<
+  Exclude<LetterType, (typeof WARD_LETTER_TYPES)[number]>,
+  Record<LetterLocale, string>
+> = {
   general: { en: 'General Letter', mr: 'सामान्य पत्र' },
   fees: { en: 'Fee Concession Recommendation', mr: 'शुल्क सवलत शिफारस' },
   'school-admission': {
@@ -35,6 +44,27 @@ const DEFAULT_TEMPLATE_NAMES: Record<LetterType, Record<LetterLocale, string>> =
   domicile: { en: 'Domicile Certificate', mr: 'अधिवास प्रमाणपत्र' },
   ward: { en: 'Ward Letter', mr: 'प्रभाग पत्र' },
 };
+
+const WARD_TEMPLATE_NAMES = Object.fromEntries(
+  WARD_LETTER_TYPES.map((letterType) => {
+    const issueType = wardIssueTypeFromLetterType(letterType);
+    return [
+      letterType,
+      {
+        en: issueType ? getWardIssueCatalogName(issueType) : letterType,
+        mr: issueType
+          ? `प्रभाग – ${getWardIssueLabel(issueType, 'mr')}`
+          : letterType,
+      },
+    ];
+  }),
+) as Record<(typeof WARD_LETTER_TYPES)[number], Record<LetterLocale, string>>;
+
+const DEFAULT_TEMPLATE_NAMES: Record<LetterType, Record<LetterLocale, string>> =
+  {
+    ...BASE_TEMPLATE_NAMES,
+    ...WARD_TEMPLATE_NAMES,
+  };
 
 const DEFAULT_TEMPLATE_HTML: Record<LetterType, Record<LetterLocale, string>> =
   Object.fromEntries(

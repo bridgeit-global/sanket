@@ -1,5 +1,5 @@
 import { resolveLetterFormBase } from '@/lib/letters/letter-type-options';
-import { isLetterType, type LetterType } from '@/lib/letters/templates';
+import type { LetterType } from '@/lib/letters/templates';
 
 const PLACEHOLDER_PATTERN = /\{\{(\w+)\}\}/g;
 
@@ -10,7 +10,11 @@ const COMMON_PLACEHOLDER_KEYS = [
   'signatory',
 ] as const;
 
-const KNOWN_PLACEHOLDERS_BY_FORM: Record<LetterType, readonly string[]> = {
+/** Keys are form bases (`resolveLetterFormBase`), not every letter-type code. */
+const KNOWN_PLACEHOLDERS_BY_FORM: Partial<
+  Record<LetterType, readonly string[]>
+> &
+  Record<'general' | 'ward', readonly string[]> = {
   general: [
     ...COMMON_PLACEHOLDER_KEYS,
     'to',
@@ -154,10 +158,10 @@ export function extractTemplatePlaceholders(templateHtml: string): string[] {
 export function getKnownPlaceholderKeys(
   letterType: LetterType | string,
 ): ReadonlySet<string> {
-  const formBase = isLetterType(letterType)
-    ? letterType
-    : resolveLetterFormBase(letterType);
-  return new Set(KNOWN_PLACEHOLDERS_BY_FORM[formBase]);
+  const formBase = resolveLetterFormBase(letterType);
+  return new Set(
+    KNOWN_PLACEHOLDERS_BY_FORM[formBase] ?? KNOWN_PLACEHOLDERS_BY_FORM.general,
+  );
 }
 
 /**

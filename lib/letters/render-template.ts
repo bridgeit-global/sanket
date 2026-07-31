@@ -31,7 +31,7 @@ import type {
   SchoolTransferLetterFields,
   WardLetterFields,
 } from '@/lib/letters/templates';
-import { isLetterType } from '@/lib/letters/templates';
+import { resolveLetterFormBase } from '@/lib/letters/letter-type-options';
 
 const PLACEHOLDER_PATTERN = /\{\{(\w+)\}\}/g;
 
@@ -173,7 +173,9 @@ export function buildRenderFields(
 ): Record<string, string> {
   const base = toFieldRecord(fields);
   let renderFields: Record<string, string>;
-  const formType = isLetterType(type) ? type : 'general';
+  const formType = resolveLetterFormBase(
+    typeof type === 'string' ? type : 'general',
+  );
 
   if (formType === 'general') {
     const generalFields = fields as GeneralLetterFields;

@@ -1,10 +1,13 @@
 import {
   LETTER_TYPES,
   isLetterType,
+  isWardLetterType,
+  letterTypeFromWardIssue,
   type LetterLocale,
   type LetterType,
 } from '@/lib/letters/templates';
 import { getDefaultTemplateName } from '@/lib/letters/default-template-html';
+import { resolveWardIssueTypeFromServiceName } from '@/lib/letters/ward-issue-presets';
 
 export const LETTER_TYPE_CODE_PATTERN = /^[a-z][a-z0-9-]{1,62}$/;
 
@@ -19,8 +22,12 @@ export type LetterTypeOption = {
   id?: string;
 };
 
-/** Built-in types always use themselves as the form base. */
+/**
+ * Form UI / field shape for a letter type.
+ * Specific `ward-*` complaint types share the ward form.
+ */
 export function resolveLetterFormBase(letterType: string): LetterType {
+  if (isWardLetterType(letterType)) return 'ward';
   if (isLetterType(letterType)) return letterType;
   return 'general';
 }
@@ -44,7 +51,7 @@ export function getBuiltInLetterTypeOptions(): LetterTypeOption[] {
     code,
     labelEn: getDefaultTemplateName(code, 'en'),
     labelMr: getDefaultTemplateName(code, 'mr'),
-    formBase: code,
+    formBase: resolveLetterFormBase(code),
     isBuiltIn: true,
     isActive: true,
     sortOrder: index,
@@ -92,17 +99,6 @@ const SERVICE_NAME_TO_LETTER_TYPE: Array<{ match: string; letterType: string }> 
   { match: 'handover letter request', letterType: 'general' },
   { match: 'ward letter', letterType: 'ward' },
   { match: 'ward complaint', letterType: 'ward' },
-  { match: 'ward - garbage', letterType: 'ward' },
-  { match: 'ward - drain', letterType: 'ward' },
-  { match: 'ward - tree', letterType: 'ward' },
-  { match: 'ward - contaminated', letterType: 'ward' },
-  { match: 'ward - low water', letterType: 'ward' },
-  { match: 'ward - no water', letterType: 'ward' },
-  { match: 'ward - tanker', letterType: 'ward' },
-  { match: 'ward - road', letterType: 'ward' },
-  { match: 'ward - footpath', letterType: 'ward' },
-  { match: 'ward - street light', letterType: 'ward' },
-  { match: 'ward - speed breaker', letterType: 'ward' },
 ];
 
 /**
@@ -122,6 +118,10 @@ export function resolveLetterTypeFromServiceName(
   if (isValidLetterTypeCode(rawLower) && asCode === rawLower) {
     return asCode;
   }
+
+  // Prefer specific ward complaint types (e.g. Ward – Low Water Pressure).
+  const wardIssue = resolveWardIssueTypeFromServiceName(raw);
+  if (wardIssue) return letterTypeFromWardIssue(wardIssue);
 
   const key = normalizeServiceNameKey(raw);
   if (!key) return 'general';

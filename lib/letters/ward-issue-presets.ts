@@ -475,19 +475,19 @@ export function getWardIssueCatalogName(issueType: WardIssueType): string {
   return WARD_ISSUE_PRESETS[issueType].catalogName;
 }
 
-/** All ward issue types as ServiceCatalog seed rows (letter_type = ward). */
+/** All ward issue types as ServiceCatalog seed rows (specific ward-* letter types). */
 export function getWardServiceCatalogSeedEntries(startSortOrder = 91): Array<{
   category: string;
   name: string;
   sortOrder: number;
-  letterType: 'ward';
+  letterType: `ward-${WardIssueType}`;
   issueType: WardIssueType;
 }> {
   return WARD_ISSUE_TYPES.map((issueType, index) => ({
     category: 'BMC & Civic Amenities',
     name: getWardIssueCatalogName(issueType),
     sortOrder: startSortOrder + index,
-    letterType: 'ward' as const,
+    letterType: `ward-${issueType}` as const,
     issueType,
   }));
 }

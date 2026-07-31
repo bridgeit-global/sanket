@@ -2,7 +2,11 @@ import {
   getWardIssueLabel,
   resolveWardIssueType,
 } from '@/lib/letters/ward-issue-presets';
-import type { LetterLocale } from '@/lib/letters/templates';
+import {
+  isWardLetterType,
+  wardIssueTypeFromLetterType,
+  type LetterLocale,
+} from '@/lib/letters/templates';
 
 /** Private Supabase Storage bucket for letter PDFs. */
 export const LETTER_PDF_BUCKET = 'letters';
@@ -27,12 +31,14 @@ export function wardIssueLabelFromLetterFields(
   fields: unknown,
   locale: LetterLocale | string | null | undefined = 'en',
 ): string {
-  if (letterType !== 'ward') return '';
+  if (!isWardLetterType(letterType)) return '';
   const record =
     fields && typeof fields === 'object'
       ? (fields as Record<string, unknown>)
       : {};
-  const issueType = resolveWardIssueType(record.issueType);
+  const issueType =
+    wardIssueTypeFromLetterType(letterType) ??
+    resolveWardIssueType(record.issueType);
   const letterLocale: LetterLocale = locale === 'mr' ? 'mr' : 'en';
   return getWardIssueLabel(issueType, letterLocale);
 }

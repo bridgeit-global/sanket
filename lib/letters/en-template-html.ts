@@ -1,4 +1,4 @@
-import type { LetterType } from '@/lib/letters/templates';
+import { WARD_LETTER_TYPES, type LetterType } from '@/lib/letters/templates';
 
 /** Shared layout CSS matching the fees concession Marathi letter. */
 const LETTER_STYLE = `
@@ -27,6 +27,22 @@ const CLOSING = `<div class="right-tab">
   <div class="right-tab-sign">
     (<span class="var">{{signatory}}</span>)
   </div>`;
+
+const WARD_TEMPLATE_HTML = `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>Date: <span class="var">{{date}}</span></div>
+  </div>
+To,<br>
+  <div class="address">{{toBlock}}</div>
+  <div class="subject"><span style="font-weight: normal;">Subject:</span> <span class="var">{{subject}}</span></div>
+  <div class="salutation">
+    Sir/Madam,
+  </div>
+  {{paragraphsBlock}}
+  ${CLOSING}
+</div>`;
 
 export const EN_TEMPLATE_HTML: Record<LetterType, string> = {
   general: `<div class="letter-content" style="${ROOT}">
@@ -322,19 +338,8 @@ To,<br>
   ${CLOSING}
 </div>`,
 
-  ward: `<div class="letter-content" style="${ROOT}">
-  <style>${LETTER_STYLE}</style>
-  <div class="top-row">
-    <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
-    <div>Date: <span class="var">{{date}}</span></div>
-  </div>
-To,<br>
-  <div class="address">{{toBlock}}</div>
-  <div class="subject"><span style="font-weight: normal;">Subject:</span> <span class="var">{{subject}}</span></div>
-  <div class="salutation">
-    Sir/Madam,
-  </div>
-  {{paragraphsBlock}}
-  ${CLOSING}
-</div>`,
-};
+  ward: WARD_TEMPLATE_HTML,
+  ...Object.fromEntries(
+    WARD_LETTER_TYPES.map((type) => [type, WARD_TEMPLATE_HTML]),
+  ),
+} as Record<LetterType, string>;

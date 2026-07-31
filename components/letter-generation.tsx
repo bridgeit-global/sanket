@@ -79,7 +79,10 @@ import {
   buildLetterBody,
   DEFAULT_SIGNATORY,
   isLetterType,
+  isSpecificWardLetterType,
+  isWardLetterType,
   LETTER_TYPES,
+  wardIssueTypeFromLetterType,
   type CommonLetterFields,
   type DomicileLetterFields,
   type FeesLetterFields,
@@ -246,7 +249,21 @@ function matchesSavedLetterTypeFilter(
   if (filter === 'ration') {
     return letterType === 'ration' || letterType.startsWith('ration-');
   }
+  if (filter === 'ward') {
+    return isWardLetterType(letterType);
+  }
   return letterType === filter;
+}
+
+function resolveWardIssueForLetterContext(
+  letterType: string | null | undefined,
+  serviceName: string | null | undefined,
+) {
+  return (
+    wardIssueTypeFromLetterType(letterType ?? undefined) ??
+    resolveWardIssueTypeFromServiceName(serviceName) ??
+    getDefaultWardIssueType()
+  );
 }
 
 function getFieldsForLetterType(
@@ -1092,8 +1109,7 @@ export function LetterGeneration({
   const [wardFields, setWardFields] = useState<WardLetterFields>(() =>
     wardDefaults(
       'mr',
-      resolveWardIssueTypeFromServiceName(service?.serviceName) ??
-        getDefaultWardIssueType(),
+      resolveWardIssueForLetterContext(linkedLetterType, service?.serviceName),
     ),
   );
   /** Values for {{placeholders}} in the template that are not on the standard form. */
@@ -2175,14 +2191,35 @@ export function LetterGeneration({
         value: ALL_LETTER_TYPES,
         label: t('letterGeneration.savedLetters.filters.allTypes'),
       },
-      ...letterTypeComboboxOptions,
+      ...letterTypeComboboxOptions.filter(
+        (opt) => !isWardLetterType(opt.value) && opt.value !== 'ration',
+      ),
       {
         value: 'ration',
         label: t('letterGeneration.tabs.ration'),
       },
+      {
+        value: 'ward',
+        label: t('letterGeneration.tabs.ward'),
+      },
     ],
     [letterTypeComboboxOptions, t],
   );
+
+  const wardIssueLocked = isSpecificWardLetterType(activeTab);
+
+  // Keep ward issue type locked to the selected ward-* letter type.
+  useEffect(() => {
+    const lockedIssue = wardIssueTypeFromLetterType(activeTab);
+    if (!lockedIssue || wardFields.issueType === lockedIssue) return;
+    defaultWardToAppliedRef.current = false;
+    setAddressSelections((prev) => (prev.to ? { ...prev, to: null } : prev));
+    setWardFields((prev) => ({
+      ...prev,
+      issueType: lockedIssue,
+      duration: wardIssueRequiresDuration(lockedIssue) ? prev.duration : '',
+    }));
+  }, [activeTab, wardFields.issueType]);
 
   const documentTypeComboboxOptions = useMemo(() => {
     const codes =
@@ -2312,7 +2349,7 @@ export function LetterGeneration({
     const masterSize = resolveLetterPaperSize(activeLetterMaster.paperSize, activeTab);
     // Ward was seeded as A4 before the default moved to A5 — prefer type default
     // until LetterMaster paper_size is synced.
-    if (activeTab === 'ward') {
+    if (isWardLetterType(activeTab)) {
       setPaperSizeDraft(typeDefault);
       return;
     }
@@ -2391,7 +2428,10 @@ export function LetterGeneration({
 
   const activeTitle = (() => {
     const base = resolveTypeLabel(activeTab);
-    if (resolveLetterFormBase(activeTab) !== 'ward') return base;
+    // Specific ward-* types already include the complaint in the label.
+    if (resolveLetterFormBase(activeTab) !== 'ward' || wardIssueLocked) {
+      return base;
+    }
     const issueLabel = getWardIssueLabel(
       resolveWardIssueType(wardFields.issueType),
       letterLocale,
@@ -3098,8 +3138,7 @@ export function LetterGeneration({
     setWardFields(
       wardDefaults(
         letterLocale,
-        resolveWardIssueTypeFromServiceName(service?.serviceName) ??
-          getDefaultWardIssueType(),
+        resolveWardIssueForLetterContext(activeTab, service?.serviceName),
       ),
     );
     setCustomPlaceholderValues(
@@ -3141,9 +3180,10 @@ export function LetterGeneration({
       handleRationOfficeAddressSelect(preferredRationOffice.id);
     }
     defaultWardToAppliedRef.current = false;
-    const clearedWardIssue =
-      resolveWardIssueTypeFromServiceName(service?.serviceName) ??
-      getDefaultWardIssueType();
+    const clearedWardIssue = resolveWardIssueForLetterContext(
+      activeTab,
+      service?.serviceName,
+    );
     const preferredWardTo = findWardOfficerAddress(addresses, clearedWardIssue);
     if (preferredWardTo) {
       defaultWardToAppliedRef.current = true;
@@ -4949,6 +4989,7 @@ export function LetterGeneration({
 
                     <TabsContent value="ward" className="mt-0 space-y-4">
                       {renderCommonFields(wardFields, setWardFields)}
+                      {wardIssueLocked ? null : (
                       <FieldGroup
                         label={lt('letterGeneration.fields.issueType')}
                         required
@@ -4991,6 +5032,7 @@ export function LetterGeneration({
                           placeholder={lt('letterGeneration.placeholders.issueType')}
                         />
                       </FieldGroup>
+                      )}
                       <LetterAddressField
                         label={lt('letterGeneration.fields.to')}
                         addressType={addressTypeForField('to')}

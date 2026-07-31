@@ -8,6 +8,8 @@ import {
   getServiceCatalogByName,
   getVoterByEpicNumber,
 } from '@/lib/db/queries';
+import { resolveLetterTypeFromServiceName } from '@/lib/letters/letter-type-options';
+import { isSpecificWardLetterType } from '@/lib/letters/templates';
 
 export default async function LetterGenerationPage({
   searchParams,
@@ -52,7 +54,9 @@ export default async function LetterGenerationPage({
     }
   }
 
-  // Letter type comes only from the service catalog link — no manual dropdown.
+  // Letter type comes from the service catalog link — no manual dropdown.
+  // If catalog still has legacy generic `ward`, promote to the specific
+  // ward-* type inferred from the service name (e.g. Low Water Pressure).
   let initialLetterType: string | undefined;
   let catalogServiceId: string | undefined;
   try {
@@ -65,6 +69,13 @@ export default async function LetterGenerationPage({
     }
   } catch {
     // best-effort catalog lookup
+  }
+  const inferredType = resolveLetterTypeFromServiceName(service.serviceName);
+  if (
+    isSpecificWardLetterType(inferredType) &&
+    (!initialLetterType || initialLetterType === 'ward')
+  ) {
+    initialLetterType = inferredType;
   }
 
   const isAdmin = await isUserAdmin(session.user.id);

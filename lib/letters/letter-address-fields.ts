@@ -1,5 +1,11 @@
 import { ADDRESS_TYPES, type AddressType, isAddressType } from '@/lib/letters/address-types';
-import { LETTER_TYPES, type LetterType, isLetterType } from '@/lib/letters/templates';
+import { resolveLetterFormBase } from '@/lib/letters/letter-type-options';
+import {
+  LETTER_TYPES,
+  WARD_LETTER_TYPES,
+  type LetterType,
+  isLetterType,
+} from '@/lib/letters/templates';
 
 /** Address picker slots used in letter generation forms. */
 export const LETTER_ADDRESS_FIELDS = [
@@ -126,6 +132,12 @@ export function getDefaultLetterAddressTypeLinks(): LetterAddressTypeLinkSeed[] 
       sortOrder: 2,
     },
     { letterType: 'ward', addressField: 'to', addressType: 'office', sortOrder: 1 },
+    ...WARD_LETTER_TYPES.map((letterType) => ({
+      letterType,
+      addressField: 'to' as const,
+      addressType: 'office' as const,
+      sortOrder: 1,
+    })),
   ];
 }
 
@@ -137,7 +149,12 @@ export function getFallbackAddressType(
   const match = getDefaultLetterAddressTypeLinks().find(
     (row) => row.letterType === letterType && row.addressField === addressField,
   );
-  return match?.addressType ?? 'general';
+  if (match) return match.addressType;
+  const formBase = resolveLetterFormBase(String(letterType));
+  if (formBase !== letterType) {
+    return getFallbackAddressType(formBase, addressField);
+  }
+  return 'general';
 }
 
 export function resolveAddressTypeForLetterField(
@@ -149,6 +166,15 @@ export function resolveAddressTypeForLetterField(
     (row) => row.letterType === letterType && row.addressField === addressField,
   );
   if (match && isAddressType(match.addressType)) return match.addressType;
+  const formBase = resolveLetterFormBase(String(letterType));
+  if (formBase !== letterType) {
+    const formMatch = links.find(
+      (row) => row.letterType === formBase && row.addressField === addressField,
+    );
+    if (formMatch && isAddressType(formMatch.addressType)) {
+      return formMatch.addressType;
+    }
+  }
   return getFallbackAddressType(letterType, addressField);
 }
 

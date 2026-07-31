@@ -1,19 +1,3 @@
-export const LETTER_TYPES = [
-  'general',
-  'fees',
-  'school-admission',
-  'school-transfer',
-  'ration-new',
-  'ration-add-members',
-  'ration-delete-members',
-  'ration-transfer',
-  'income',
-  'domicile',
-  'ward',
-] as const;
-
-export type LetterType = (typeof LETTER_TYPES)[number];
-
 export const WARD_ISSUE_TYPES = [
   'garbage',
   'drain',
@@ -32,11 +16,70 @@ export const WARD_ISSUE_TYPES = [
 
 export type WardIssueType = (typeof WARD_ISSUE_TYPES)[number];
 
+/** One letter type per ward civic complaint (form base remains `ward`). */
+export const WARD_LETTER_TYPES = [
+  'ward-garbage',
+  'ward-drain',
+  'ward-tree-trim',
+  'ward-tree-dead',
+  'ward-tree-hazard',
+  'ward-water-contaminated',
+  'ward-water-low-pressure',
+  'ward-water-none',
+  'ward-water-tanker',
+  'ward-road-repair',
+  'ward-footpath-repair',
+  'ward-street-lights',
+  'ward-speed-breaker',
+] as const;
+
+export type WardLetterType = (typeof WARD_LETTER_TYPES)[number];
+
+export const LETTER_TYPES = [
+  'general',
+  'fees',
+  'school-admission',
+  'school-transfer',
+  'ration-new',
+  'ration-add-members',
+  'ration-delete-members',
+  'ration-transfer',
+  'income',
+  'domicile',
+  /** @deprecated Prefer specific ward-* letter types */
+  'ward',
+  ...WARD_LETTER_TYPES,
+] as const;
+
+export type LetterType = (typeof LETTER_TYPES)[number];
+
 export function isWardIssueType(value: unknown): value is WardIssueType {
   return (
     typeof value === 'string' &&
     (WARD_ISSUE_TYPES as readonly string[]).includes(value)
   );
+}
+
+export function isWardLetterType(value: unknown): boolean {
+  return typeof value === 'string' && (value === 'ward' || value.startsWith('ward-'));
+}
+
+/** Map `ward-water-low-pressure` → `water-low-pressure`. Null for generic `ward`. */
+export function wardIssueTypeFromLetterType(
+  letterType: string | null | undefined,
+): WardIssueType | null {
+  if (!letterType || letterType === 'ward') return null;
+  if (!letterType.startsWith('ward-')) return null;
+  const issue = letterType.slice('ward-'.length);
+  return isWardIssueType(issue) ? issue : null;
+}
+
+export function letterTypeFromWardIssue(issueType: WardIssueType): WardLetterType {
+  return `ward-${issueType}` as WardLetterType;
+}
+
+export function isSpecificWardLetterType(value: unknown): boolean {
+  return typeof value === 'string' && wardIssueTypeFromLetterType(value) !== null;
 }
 
 /** @deprecated Use specific ration-* letter types */

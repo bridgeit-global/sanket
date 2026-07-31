@@ -1,4 +1,4 @@
-import type { LetterType } from '@/lib/letters/templates';
+import { isWardLetterType, type LetterType } from '@/lib/letters/templates';
 
 export type LetterPaperSize = 'a4' | 'a5' | 'b5';
 
@@ -36,6 +36,7 @@ export const LETTER_PAPER_BOTTOM_MARGIN_MM: Record<LetterPaperSize, number> = {
 export function getDefaultLetterPaperSize(
   letterType: LetterType | string,
 ): LetterPaperSize {
+  if (isWardLetterType(letterType)) return 'a5';
   switch (letterType) {
     case 'ration-new':
     case 'ration-add-members':
@@ -50,7 +51,6 @@ export function getDefaultLetterPaperSize(
     case 'school-transfer':
     case 'income':
     case 'domicile':
-    case 'ward':
       return 'a5';
     default:
       return 'a4';
