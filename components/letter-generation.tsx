@@ -4116,6 +4116,7 @@ export function LetterGeneration({
                       <LetterAddressField
                         label={lt('letterGeneration.fields.address')}
                         addressType={addressTypeForField('applicant')}
+                        entryMode="structured"
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
@@ -4256,6 +4257,7 @@ export function LetterGeneration({
                       <LetterAddressField
                         label={lt('letterGeneration.fields.address')}
                         addressType={addressTypeForField('applicant')}
+                        entryMode="structured"
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
@@ -4425,6 +4427,7 @@ export function LetterGeneration({
                         <LetterAddressField
                           label={lt('letterGeneration.fields.address')}
                           addressType={addressTypeForField('applicant')}
+                          entryMode="structured"
                           locale={letterLocale}
                           selectedAddressId={addressSelections.applicant}
                           addresses={addresses}
@@ -4736,6 +4739,7 @@ export function LetterGeneration({
                       <LetterAddressField
                         label={lt('letterGeneration.fields.address')}
                         addressType={addressTypeForField('applicant')}
+                        entryMode="structured"
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
@@ -4912,6 +4916,7 @@ export function LetterGeneration({
                       <LetterAddressField
                         label={lt('letterGeneration.fields.address')}
                         addressType={addressTypeForField('applicant')}
+                        entryMode="structured"
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}

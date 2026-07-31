@@ -1,15 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { X } from 'lucide-react';
+import { useCallback, useRef } from 'react';
 
 import { Combobox } from '@/components/ui/combobox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { BilingualAddressFields } from '@/components/bilingual-address-fields';
+import { StructuredAddressFields } from '@/components/structured-address-fields';
 import type { AddressType } from '@/lib/letters/address-types';
 import { letterMessage } from '@/lib/letters/letter-messages';
-import { filterLocaleText } from '@/lib/letters/locale-text';
 import {
   EMPTY_ADDRESS_PARTS,
   enrichAddressPartsWithPincodeLookup,
@@ -20,7 +16,6 @@ import { getCityLabel, getStateLabel } from '@/lib/letters/indian-locations';
 import type { PincodeLookupResult } from '@/lib/letters/pincode-lookup';
 import { usePincodeLookup } from '@/lib/letters/use-pincode-lookup';
 import type { LetterLocale } from '@/lib/letters/templates';
-import { cn } from '@/lib/utils';
 
 export type AddressMasterRow = {
   id: string;
@@ -42,8 +37,6 @@ export type AddressMasterRow = {
   sortOrder: number;
 };
 
-const MANUAL_VALUE = '__manual__';
-
 type LetterAddressFieldProps = {
   label: string;
   addressType: AddressType;
@@ -56,7 +49,12 @@ type LetterAddressFieldProps = {
   pincodeError?: string;
   required?: boolean;
   error?: string;
-  /** When provided, a name input is shown above the manual address lines. */
+  /**
+   * `select` — pick from address master (default).
+   * `structured` — type address in the letter locale (used for voter/applicant).
+   */
+  entryMode?: 'select' | 'structured';
+  /** @deprecated Manual name entry removed; kept for call-site compatibility. */
   nameLabel?: string;
   namePlaceholder?: string;
   nameValue?: string;
@@ -77,53 +75,11 @@ export function LetterAddressField({
   pincodeError,
   required,
   error,
-  nameLabel,
-  namePlaceholder,
-  nameValue,
-  onNameChange,
-  nameRequired,
-  nameError,
+  entryMode = 'select',
 }: LetterAddressFieldProps) {
   const at = (key: string) => letterMessage(locale, key);
   const addressPartsRef = useRef(addressParts);
   addressPartsRef.current = addressParts;
-
-  const filteredAddresses = addresses.filter(
-    (address) => address.isActive && address.addressType === addressType,
-  );
-  const hasSavedAddresses = filteredAddresses.length > 0;
-
-  // Manual entry is opt-in when saved addresses exist; otherwise show fields directly.
-  const [isManualMode, setIsManualMode] = useState(false);
-  const userChoseManualRef = useRef(false);
-  const hadSavedAddressesRef = useRef(hasSavedAddresses);
-
-  useEffect(() => {
-    if (selectedAddressId) {
-      userChoseManualRef.current = false;
-      setIsManualMode(false);
-      hadSavedAddressesRef.current = hasSavedAddresses;
-      return;
-    }
-
-    if (!hasSavedAddresses) {
-      setIsManualMode(true);
-      hadSavedAddressesRef.current = false;
-      return;
-    }
-
-    // Addresses loaded after an empty list — leave auto-manual unless user chose manual.
-    if (!hadSavedAddressesRef.current) {
-      hadSavedAddressesRef.current = true;
-      if (!userChoseManualRef.current) {
-        setIsManualMode(false);
-      }
-      return;
-    }
-
-    hadSavedAddressesRef.current = true;
-    setIsManualMode(userChoseManualRef.current);
-  }, [selectedAddressId, hasSavedAddresses]);
 
   const applyPincodeLookup = useCallback(
     (lookup: PincodeLookupResult) => {
@@ -165,19 +121,32 @@ export function LetterAddressField({
     }
   };
 
-  const handleSelectChange = (nextValue: string) => {
-    if (nextValue === MANUAL_VALUE) {
-      userChoseManualRef.current = true;
-      setIsManualMode(true);
-      onSelectedAddressIdChange(null);
-      return;
-    }
+  if (entryMode === 'structured') {
+    return (
+      <div className="space-y-2">
+        <label className="mb-1.5 block text-sm font-medium">
+          {label}
+          {required ? ' *' : null}
+        </label>
+        <StructuredAddressFields
+          locale={locale}
+          parts={addressParts}
+          onPartsChange={updateAddressParts}
+          pincodeError={pincodeError}
+        />
+        {error ? <p className="text-xs text-destructive">{error}</p> : null}
+      </div>
+    );
+  }
 
+  const filteredAddresses = addresses.filter(
+    (address) => address.isActive && address.addressType === addressType,
+  );
+
+  const handleSelectChange = (nextValue: string) => {
     const selected = filteredAddresses.find((address) => address.id === nextValue);
     if (!selected) return;
 
-    userChoseManualRef.current = false;
-    setIsManualMode(false);
     onSelectedAddressIdChange(selected.id);
     onAddressPartsChange({
       line1En: selected.line1En,
@@ -194,25 +163,14 @@ export function LetterAddressField({
     });
   };
 
-  const comboboxOptions = [
-    {
-      value: MANUAL_VALUE,
-      label: at('letterGeneration.addresses.manualEntry'),
-      pinned: true,
-    },
-    ...filteredAddresses.map((address) => ({
-      value: address.id,
-      label:
-        locale === 'mr' ? address.nameMr.trim() || address.name : address.name,
-    })),
-  ];
+  const comboboxOptions = filteredAddresses.map((address) => ({
+    value: address.id,
+    label: locale === 'mr' ? address.nameMr.trim() || address.name : address.name,
+  }));
 
   const selectedAddress = selectedAddressId
     ? filteredAddresses.find((address) => address.id === selectedAddressId)
     : null;
-
-  const showManualFields = isManualMode || !hasSavedAddresses;
-  const comboboxValue = selectedAddressId ?? (isManualMode ? MANUAL_VALUE : '');
 
   return (
     <div className="space-y-2">
@@ -220,66 +178,16 @@ export function LetterAddressField({
         {label}
         {required ? ' *' : null}
       </label>
-      {hasSavedAddresses ? (
-        <Combobox
-          options={comboboxOptions}
-          value={comboboxValue}
-          onValueChange={handleSelectChange}
-          placeholder={at('letterGeneration.addresses.selectPlaceholder')}
-          emptyMessage={at('letterGeneration.addresses.empty')}
-        />
-      ) : null}
-
+      <Combobox
+        options={comboboxOptions}
+        value={selectedAddressId ?? ''}
+        onValueChange={handleSelectChange}
+        placeholder={at('letterGeneration.addresses.selectPlaceholder')}
+        emptyMessage={at('letterGeneration.addresses.empty')}
+      />
       {selectedAddress ? (
         <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
           {formatAddressMaster(selectedAddress, locale, { pincodeDisplay: 'full' })}
-        </div>
-      ) : showManualFields ? (
-        <div className="space-y-3">
-          {onNameChange ? (
-            <div className="space-y-1.5">
-              {nameLabel ? (
-                <Label className="text-xs">
-                  {nameLabel}
-                  {nameRequired ? ' *' : null}
-                </Label>
-              ) : null}
-              <div className="relative">
-                <Input
-                  value={nameValue ?? ''}
-                  onChange={(event) =>
-                    onNameChange(filterLocaleText(event.target.value, locale))
-                  }
-                  placeholder={namePlaceholder}
-                  lang={locale === 'mr' ? 'mr' : 'en'}
-                  autoComplete="off"
-                  className={cn('h-9', nameValue ? 'pr-10' : undefined)}
-                  required={nameRequired}
-                  aria-required={nameRequired}
-                  aria-invalid={Boolean(nameError)}
-                />
-                {nameValue ? (
-                  <button
-                    type="button"
-                    onClick={() => onNameChange('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-                    aria-label="Clear"
-                    tabIndex={-1}
-                  >
-                    <X className="size-4" />
-                  </button>
-                ) : null}
-              </div>
-              {nameError ? (
-                <p className="text-xs text-destructive">{nameError}</p>
-              ) : null}
-            </div>
-          ) : null}
-          <BilingualAddressFields
-            parts={addressParts}
-            onPartsChange={updateAddressParts}
-            pincodeError={pincodeError}
-          />
         </div>
       ) : null}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}

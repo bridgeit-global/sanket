@@ -2,7 +2,6 @@
 
 import { useEffect } from 'react';
 
-import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { AddressMasterAddressParts } from '@/lib/letters/format-address-master';
@@ -10,15 +9,8 @@ import { letterMessage } from '@/lib/letters/letter-messages';
 import {
   DEFAULT_CITY,
   DEFAULT_STATE,
-  getCitiesForState,
-  getCityLabel,
-  getStateLabel,
-  INDIAN_STATES,
-  isCityInState,
   localizedCityParts,
   localizedStateParts,
-  normalizeCityName,
-  normalizeStateName,
 } from '@/lib/letters/indian-locations';
 import { filterLocaleText } from '@/lib/letters/locale-text';
 import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
@@ -31,22 +23,12 @@ const LINE_FIELDS = [
 ] as const;
 
 function localeKey(
-  field: 'line1' | 'line2' | 'line3' | 'city' | 'state',
+  field: 'line1' | 'line2' | 'line3',
   locale: LetterLocale,
 ): keyof AddressMasterAddressParts {
   if (field === 'line1') return locale === 'mr' ? 'line1Mr' : 'line1En';
   if (field === 'line2') return locale === 'mr' ? 'line2Mr' : 'line2En';
-  if (field === 'line3') return locale === 'mr' ? 'line3Mr' : 'line3En';
-  if (field === 'city') return locale === 'mr' ? 'cityMr' : 'cityEn';
-  return locale === 'mr' ? 'stateMr' : 'stateEn';
-}
-
-function resolveState(parts: AddressMasterAddressParts): string {
-  return normalizeStateName(parts.stateEn || parts.stateMr);
-}
-
-function resolveCity(parts: AddressMasterAddressParts): string {
-  return normalizeCityName(parts.cityEn || parts.cityMr);
+  return locale === 'mr' ? 'line3Mr' : 'line3En';
 }
 
 /** Ensure Maharashtra / Mumbai are present when location fields are still empty. */
@@ -87,7 +69,7 @@ export function StructuredAddressFields({
   const hasStoredState = Boolean(parts.stateEn.trim() || parts.stateMr.trim());
   const hasStoredCity = Boolean(parts.cityEn.trim() || parts.cityMr.trim());
 
-  // Keep displayed Maharashtra/Mumbai defaults in form state so validation passes.
+  // Keep Maharashtra/Mumbai defaults in form state so validation passes.
   useEffect(() => {
     if (hasStoredState && hasStoredCity) return;
     const patch: Partial<AddressMasterAddressParts> = {};
@@ -98,73 +80,8 @@ export function StructuredAddressFields({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sync defaults when empty
   }, [hasStoredState, hasStoredCity]);
 
-  const normalizedState = resolveState(parts) || DEFAULT_STATE;
-  const normalizedCity =
-    resolveCity(parts) || (!hasStoredState ? DEFAULT_CITY : '');
-
-  const stateOptions = [
-    ...INDIAN_STATES.map((state) => ({
-      value: getStateLabel(state, locale),
-      label: getStateLabel(state, locale),
-    })),
-    ...(hasStoredState &&
-      !INDIAN_STATES.some((state) => state.toLowerCase() === normalizedState.toLowerCase())
-      ? [
-          {
-            value: getStateLabel(normalizedState, locale),
-            label: getStateLabel(normalizedState, locale),
-          },
-        ]
-      : []),
-  ];
-
-  const cities = getCitiesForState(normalizedState);
-  const cityOptions = [
-    ...cities.map((city) => ({
-      value: getCityLabel(city, locale),
-      label: getCityLabel(city, locale),
-    })),
-    ...(hasStoredCity &&
-      normalizedCity &&
-      !cities.some((city) => city.toLowerCase() === normalizedCity.toLowerCase())
-      ? [
-          {
-            value: getCityLabel(normalizedCity, locale),
-            label: getCityLabel(normalizedCity, locale),
-          },
-        ]
-      : []),
-  ];
-
-  const selectedState = getStateLabel(normalizedState, locale);
-  const selectedCity = normalizedCity ? getCityLabel(normalizedCity, locale) : '';
-
   const emitChange = (patch: Partial<AddressMasterAddressParts>) => {
     onPartsChange(withLocationDefaults(parts, patch));
-  };
-
-  const handleStateChange = (nextState: string) => {
-    const stateParts = localizedStateParts(nextState);
-    const patch: Partial<AddressMasterAddressParts> = { ...stateParts };
-    const currentCity = resolveCity(parts);
-    if (currentCity && !isCityInState(currentCity, stateParts.stateEn)) {
-      if (stateParts.stateEn === DEFAULT_STATE) {
-        Object.assign(patch, localizedCityParts(DEFAULT_CITY));
-      } else {
-        patch.cityEn = '';
-        patch.cityMr = '';
-      }
-    } else if (!currentCity && stateParts.stateEn === DEFAULT_STATE) {
-      Object.assign(patch, localizedCityParts(DEFAULT_CITY));
-    }
-    onPartsChange(patch);
-  };
-
-  const handleCityChange = (nextCity: string) => {
-    onPartsChange({
-      ...(!hasStoredState ? localizedStateParts(DEFAULT_STATE) : {}),
-      ...localizedCityParts(nextCity),
-    });
   };
 
   return (
@@ -199,55 +116,27 @@ export function StructuredAddressFields({
         })}
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs">
-            {at('letterGeneration.addresses.fields.state')}
-          </Label>
-          <Combobox
-            options={stateOptions}
-            value={selectedState || undefined}
-            onValueChange={handleStateChange}
-            placeholder={at('letterGeneration.addresses.selectState')}
-            emptyMessage={at('letterGeneration.addresses.empty')}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs">
-            {at('letterGeneration.addresses.fields.city')} *
-          </Label>
-          <Combobox
-            options={cityOptions}
-            value={selectedCity || undefined}
-            onValueChange={handleCityChange}
-            placeholder={at('letterGeneration.addresses.selectCity')}
-            emptyMessage={at('letterGeneration.addresses.empty')}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <Label className="text-xs">
-            {at('letterGeneration.addresses.fields.pincode')} *
-          </Label>
-          <Input
-            value={toLocaleDigits(parts.pincode, locale)}
-            onChange={(event) => {
-              const cleaned = toWesternDigits(event.target.value).replace(/\D/g, '').slice(0, 6);
-              emitChange({ pincode: cleaned });
-            }}
-            inputMode="numeric"
-            maxLength={6}
-            lang={locale === 'mr' ? 'mr' : 'en'}
-            className="h-9"
-            required
-            aria-required
-            aria-invalid={Boolean(pincodeError)}
-          />
-          {pincodeError ? (
-            <p className="text-xs text-destructive">{pincodeError}</p>
-          ) : null}
-        </div>
+      <div className="space-y-1.5 sm:max-w-xs">
+        <Label className="text-xs">
+          {at('letterGeneration.addresses.fields.pincode')} *
+        </Label>
+        <Input
+          value={toLocaleDigits(parts.pincode, locale)}
+          onChange={(event) => {
+            const cleaned = toWesternDigits(event.target.value).replace(/\D/g, '').slice(0, 6);
+            emitChange({ pincode: cleaned });
+          }}
+          inputMode="numeric"
+          maxLength={6}
+          lang={locale === 'mr' ? 'mr' : 'en'}
+          className="h-9"
+          required
+          aria-required
+          aria-invalid={Boolean(pincodeError)}
+        />
+        {pincodeError ? (
+          <p className="text-xs text-destructive">{pincodeError}</p>
+        ) : null}
       </div>
 
       {previewText !== undefined ? (
