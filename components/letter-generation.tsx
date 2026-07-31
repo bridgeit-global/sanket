@@ -1023,15 +1023,14 @@ export function LetterGeneration({
   isAdmin = false,
   beneficiaryServiceId,
   prefillName,
-  prefillAddress,
   initialLetterType,
   catalogServiceId,
   service,
 }: {
   isAdmin?: boolean;
   beneficiaryServiceId?: string;
+  /** Display-only beneficiary name in the service info card (not form prefill). */
   prefillName?: string;
-  prefillAddress?: string;
   /** Letter type linked on ServiceCatalog.letter_type for this service. */
   initialLetterType?: string;
   /** ServiceCatalog row id — used to deep-link “link letter type”. */
@@ -2241,30 +2240,6 @@ export function LetterGeneration({
     },
     [letterTypeOptions, letterLocale, lt],
   );
-
-  // Best-effort prefill from the linked beneficiary/voter. Only fills empty
-  // fields, and only once on mount, so operator edits are never clobbered.
-  const prefillAppliedRef = useRef(false);
-  useEffect(() => {
-    if (prefillAppliedRef.current) return;
-    const name = (prefillName ?? '').trim();
-    const address = (prefillAddress ?? '').trim();
-    if (!name && !address) return;
-    prefillAppliedRef.current = true;
-    if (name) {
-      setRationFields((p) => ({ ...p, fullName: p.fullName || name }));
-      setIncomeFields((p) => ({ ...p, fullName: p.fullName || name }));
-      setDomicileFields((p) => ({ ...p, fullName: p.fullName || name }));
-    }
-    if (address) {
-      setSchoolAdmissionFields((p) => ({ ...p, address: p.address || address }));
-      setSchoolTransferFields((p) => ({ ...p, address: p.address || address }));
-      setRationFields((p) => ({ ...p, address: p.address || address }));
-      setIncomeFields((p) => ({ ...p, address: p.address || address }));
-      setDomicileFields((p) => ({ ...p, address: p.address || address }));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prefillName, prefillAddress]);
 
   useEffect(() => {
     if (!addressSelections.school) return;

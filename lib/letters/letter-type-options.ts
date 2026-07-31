@@ -86,11 +86,29 @@ function normalizeServiceNameKey(value: string): string {
 const SERVICE_NAME_TO_LETTER_TYPE: Array<{ match: string; letterType: string }> = [
   { match: 'fees concession', letterType: 'fees' },
   { match: 'fee concession', letterType: 'fees' },
+  { match: 'school / college new admission', letterType: 'school-admission' },
+  { match: 'school college new admission', letterType: 'school-admission' },
+  { match: 'school new admission', letterType: 'school-admission' },
   { match: 'school admission', letterType: 'school-admission' },
   { match: 'college admission', letterType: 'school-admission' },
+  {
+    match: 'school / college transfer admission',
+    letterType: 'school-transfer',
+  },
+  { match: 'school college transfer admission', letterType: 'school-transfer' },
+  { match: 'school transfer admission', letterType: 'school-transfer' },
   { match: 'school leaving certificate', letterType: 'school-transfer' },
   { match: 'college leaving certificate', letterType: 'school-transfer' },
   { match: 'school-related general request', letterType: 'general' },
+  // Specific ration variants before generic "ration card".
+  { match: 'ration card - name addition', letterType: 'ration-add-members' },
+  { match: 'ration card name addition', letterType: 'ration-add-members' },
+  { match: 'ration card - name deletion', letterType: 'ration-delete-members' },
+  { match: 'ration card name deletion', letterType: 'ration-delete-members' },
+  { match: 'ration card - transfer', letterType: 'ration-transfer' },
+  { match: 'ration card transfer', letterType: 'ration-transfer' },
+  { match: 'ration card - new', letterType: 'ration-new' },
+  { match: 'ration card new', letterType: 'ration-new' },
   { match: 'ration card', letterType: 'ration-new' },
   { match: 'ration donation', letterType: 'ration-new' },
   { match: 'income certificate', letterType: 'income' },
@@ -140,7 +158,16 @@ export function resolveLetterTypeFromServiceName(
   if (/\b(transfer|leaving)\b/.test(key) && /\b(school|college)\b/.test(key)) {
     return 'school-transfer';
   }
-  if (/\bration\b/.test(key)) return 'ration-new';
+  if (/\bration\b/.test(key)) {
+    if (/\bname addition\b/.test(key) || /\badd members?\b/.test(key)) {
+      return 'ration-add-members';
+    }
+    if (/\bname deletion\b/.test(key) || /\bdelete members?\b/.test(key)) {
+      return 'ration-delete-members';
+    }
+    if (/\btransfer\b/.test(key)) return 'ration-transfer';
+    return 'ration-new';
+  }
   if (/\bincome\b/.test(key)) return 'income';
   if (/\bdomicile\b/.test(key)) return 'domicile';
   if (/\bward\b/.test(key)) return 'ward';

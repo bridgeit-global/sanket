@@ -39,18 +39,18 @@ export default async function LetterGenerationPage({
     redirect('/modules/operator');
   }
 
+  // Beneficiary name is display-only in the service info card — letter form
+  // fields stay blank so operators enter voter details intentionally.
   let prefillName = '';
-  let prefillAddress = '';
   if (service.voterId) {
     try {
       const voters = await getVoterByEpicNumber(service.voterId);
       const voter = voters[0];
       if (voter) {
         prefillName = voter.fullName ?? '';
-        prefillAddress = voter.address ?? '';
       }
     } catch {
-      // best-effort prefill; ignore lookup failures
+      // best-effort display lookup; ignore failures
     }
   }
 
@@ -87,7 +87,6 @@ export default async function LetterGenerationPage({
           isAdmin={isAdmin}
           beneficiaryServiceId={beneficiaryServiceId}
           prefillName={prefillName}
-          prefillAddress={prefillAddress}
           initialLetterType={initialLetterType}
           catalogServiceId={catalogServiceId}
           service={{
