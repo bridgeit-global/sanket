@@ -140,27 +140,40 @@ function buildServiceComboboxOptions(
     label: string;
     disabled?: boolean;
 }> {
+    const groups = new Map<string, IndividualServiceRow[]>();
+    const sorted = [...services].sort((a, b) => {
+        const catA = a.category?.trim() || 'Other';
+        const catB = b.category?.trim() || 'Other';
+        if (catA !== catB) return catA.localeCompare(catB);
+        if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+        return a.name.localeCompare(b.name);
+    });
+
+    for (const service of sorted) {
+        const category = service.category?.trim() || 'Other';
+        const list = groups.get(category) ?? [];
+        list.push(service);
+        groups.set(category, list);
+    }
+
     const options: Array<{
         value: string;
         label: string;
         disabled?: boolean;
     }> = [];
 
-    let lastCategory: string | null = null;
-    for (const service of services) {
-        const category = service.category?.trim() || 'Other';
-        if (category !== lastCategory) {
-            options.push({
-                value: `__category__${category}`,
-                label: category,
-                disabled: true,
-            });
-            lastCategory = category;
-        }
+    for (const [category, rows] of groups) {
         options.push({
-            value: service.name,
-            label: service.name,
+            value: `__category__${category}`,
+            label: category,
+            disabled: true,
         });
+        for (const service of rows) {
+            options.push({
+                value: service.name,
+                label: service.name,
+            });
+        }
     }
 
     return options;

@@ -63,32 +63,16 @@ export function Combobox({
     const selectedOption = options.find((opt) => opt.value === value);
 
     // Filter options based on search query (pinned options always remain visible).
-    // Category headers stay only when at least one following selectable option matches.
+    // Category/section headers are browse-only — hide them while typing so search
+    // results show matching selectable options only.
     const filteredOptions = React.useMemo(() => {
         if (!searchQuery.trim()) return options;
         const query = searchQuery.toLowerCase();
-        const matched = options.filter(
+        return options.filter(
             (opt) =>
-                opt.pinned ||
-                (!opt.disabled && opt.label.toLowerCase().includes(query)),
+                !opt.disabled &&
+                (opt.pinned || opt.label.toLowerCase().includes(query)),
         );
-        const matchedValues = new Set(matched.map((opt) => opt.value));
-        const result: typeof options = [];
-        let pendingHeader: (typeof options)[number] | null = null;
-        for (const opt of options) {
-            if (opt.disabled) {
-                pendingHeader = opt;
-                continue;
-            }
-            if (matchedValues.has(opt.value) || opt.pinned) {
-                if (pendingHeader) {
-                    result.push(pendingHeader);
-                    pendingHeader = null;
-                }
-                result.push(opt);
-            }
-        }
-        return result;
     }, [options, searchQuery]);
 
     const trimmedQuery = searchQuery.trim();
@@ -273,7 +257,7 @@ export function Combobox({
                             )}
                             {filteredOptions.map((option, index) => (
                                 <div
-                                    key={option.value}
+                                    key={`${option.value}__${index}`}
                                     ref={(el) => {
                                         optionRefs.current[index] = el;
                                     }}
