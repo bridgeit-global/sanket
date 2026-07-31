@@ -2,6 +2,7 @@
 
 import { useLayoutEffect, useRef, useState } from 'react';
 
+import { truncateAddressPincodesForLetter } from '@/lib/letters/format-address-master';
 import {
   getLetterheadContentPaddingMm,
   resolveLetterheadUrl,
@@ -21,6 +22,11 @@ import type { LetterLocale } from '@/lib/letters/templates';
 import {
   paginateLetterContentRoot,
 } from '@/lib/pdf/page-breaks';
+
+/** Preview/print HTML: keep only last 2 digits of any address PIN. */
+function withLetterPincodeDisplay(html: string, letterLocale: LetterLocale): string {
+  return truncateAddressPincodesForLetter(html, letterLocale);
+}
 
 const LETTER_PREVIEW_CONTENT_CLASSES =
   // Templates use block margins / <br> for structure — do not use pre-wrap or
@@ -256,9 +262,13 @@ export function createLetterExportElement(
   },
 ): HTMLElement {
   const host = document.createElement('div');
-  const contentHtml = stripLetterheadFromHtml(html);
+  const letterLocale = options?.letterLocale ?? 'mr';
+  const contentHtml = withLetterPincodeDisplay(
+    stripLetterheadFromHtml(html),
+    letterLocale,
+  );
   const paperSize = options?.paperSize ?? 'a4';
-  const fontFamily = LETTER_FONT_STACK[options?.letterLocale ?? 'mr'];
+  const fontFamily = LETTER_FONT_STACK[letterLocale];
   const fallbackFontSizePx = getLetterPrintFontSizePx(paperSize);
 
   host.innerHTML = withLetterAddressWidthStyle(withLetterClosingAlignStyle(contentHtml));
@@ -315,7 +325,9 @@ export function LetterPreview({
 }) {
   const resolvedLetterhead = resolveLetterheadUrl(paperSize, letterheadUrl);
   const contentHtml = withLetterAddressWidthStyle(
-    withLetterClosingAlignStyle(stripLetterheadFromHtml(html)),
+    withLetterClosingAlignStyle(
+      withLetterPincodeDisplay(stripLetterheadFromHtml(html), letterLocale),
+    ),
   );
   const hasLetterhead = Boolean(resolvedLetterhead);
   const headerPaddingMm = getLetterheadContentPaddingMm(paperSize);

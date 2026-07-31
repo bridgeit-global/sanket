@@ -158,7 +158,10 @@ export function LetterAddressField({
     onAddressPartsChange(next);
 
     if (patch.pincode !== undefined && patch.pincode.length === 6) {
-      schedulePincodeLookup(formatAddressMaster(next, locale), patch.pincode);
+      schedulePincodeLookup(
+        formatAddressMaster(next, locale, { pincodeDisplay: 'full' }),
+        patch.pincode,
+      );
     }
   };
 
@@ -229,7 +232,7 @@ export function LetterAddressField({
 
       {selectedAddress ? (
         <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-          {formatAddressMaster(selectedAddress, locale)}
+          {formatAddressMaster(selectedAddress, locale, { pincodeDisplay: 'full' })}
         </div>
       ) : showManualFields ? (
         <div className="space-y-3">

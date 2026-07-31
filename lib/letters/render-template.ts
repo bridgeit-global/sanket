@@ -3,7 +3,10 @@ import {
   toLocaleDigits,
   toWesternDigits,
 } from '@/lib/locale-digits';
-import { formatAddressSoftWrapHtml } from '@/lib/letters/format-address-master';
+import {
+  formatAddressSoftWrapHtml,
+  truncateAddressPincodesForLetter,
+} from '@/lib/letters/format-address-master';
 import {
   coerceDocumentType,
   documentTypeLabel,
@@ -277,7 +280,14 @@ export function buildRenderFields(
   }
 
   // Apply last so type-specific spreads cannot overwrite localized values.
-  return withLocalizedReferenceFields(renderFields, locale, documentTypes);
+  const localized = withLocalizedReferenceFields(renderFields, locale, documentTypes);
+  // Letter preview/print: show only the last 2 digits of any PIN in addresses.
+  return Object.fromEntries(
+    Object.entries(localized).map(([key, value]) => [
+      key,
+      truncateAddressPincodesForLetter(value, locale),
+    ]),
+  );
 }
 
 export function buildRenderedLetterHtml(
