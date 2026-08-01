@@ -757,14 +757,20 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   ]);
 
   useEffect(() => {
-    if (!focusMemberId || loading) return;
+    if (!focusMemberId || loading || scopeLoading) return;
     const frame = requestAnimationFrame(() => {
       document
         .getElementById(`member-card-${focusMemberId}`)
         ?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     });
     return () => cancelAnimationFrame(frame);
-  }, [focusMemberId, visibleMembers, loading]);
+  }, [
+    focusMemberId,
+    visibleMembers,
+    pagedListMembers,
+    loading,
+    scopeLoading,
+  ]);
 
   useEffect(() => {
     if (usesServerMemberPagination) {

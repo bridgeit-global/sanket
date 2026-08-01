@@ -486,6 +486,8 @@ type PositionMeta = {
 };
 
 const POST_FETCH_CHUNK = 100;
+/** PostgREST `max_rows` default — page past this when collecting full ID sets. */
+const SUPABASE_ROW_PAGE_SIZE = 1000;
 
 function chunkIds(ids: string[], size: number): string[][] {
   const chunks: string[][] = [];
@@ -493,6 +495,39 @@ function chunkIds(ids: string[], size: number): string[][] {
     chunks.push(ids.slice(index, index + size));
   }
   return chunks;
+}
+
+/**
+ * Fetch every matching row id, paging through Supabase's max_rows cap.
+ * Without this, sets larger than ~1000 silently truncate and drop members.
+ */
+async function fetchAllColumnValues(
+  column: string,
+  fetchPage: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{
+    data: Array<Record<string, unknown>> | null;
+    error: PostgrestError | null;
+  }>,
+  errorMessage: string,
+): Promise<string[]> {
+  const values: string[] = [];
+  let from = 0;
+
+  for (;;) {
+    const { data, error } = await fetchPage(from, from + SUPABASE_ROW_PAGE_SIZE - 1);
+    throwOnSupabaseError(error, errorMessage);
+    const batch = data ?? [];
+    for (const row of batch) {
+      const value = row[column];
+      if (value != null) values.push(String(value));
+    }
+    if (batch.length < SUPABASE_ROW_PAGE_SIZE) break;
+    from += SUPABASE_ROW_PAGE_SIZE;
+  }
+
+  return values;
 }
 
 /** Fetch rows with `.in()` in chunks to stay under Supabase/undici header limits (~16KB). */
@@ -778,12 +813,17 @@ export type CadreMembersPage = {
 async function resolveCadreMemberIdsForVertical(
   verticalId: string,
 ): Promise<string[] | null> {
-  const { data, error } = await supabase
-    .from(TABLES.cadreMemberVertical)
-    .select('member_id')
-    .eq('vertical_id', verticalId);
-  throwOnSupabaseError(error, 'Failed to filter members by vertical');
-  const memberIds = (data ?? []).map((row) => String(row.member_id));
+  const memberIds = await fetchAllColumnValues(
+    'member_id',
+    (from, to) =>
+      supabase
+        .from(TABLES.cadreMemberVertical)
+        .select('member_id')
+        .eq('vertical_id', verticalId)
+        .order('member_id', { ascending: true })
+        .range(from, to),
+    'Failed to filter members by vertical',
+  );
   return memberIds.length > 0 ? memberIds : null;
 }
 
@@ -903,13 +943,34 @@ function intersectMemberIdSets(a: Set<string>, b: Set<string>): Set<string> {
 }
 
 async function loadConstituencyMemberIds(constituencyId: string): Promise<Set<string>> {
+  const ids = await fetchAllColumnValues(
+    'id',
+    (from, to) =>
+      supabase
+        .from(TABLES.cadreMember)
+        .select('id')
+        .eq('is_active', true)
+        .or(`constituency_id.eq.${constituencyId},constituency_id.is.null`)
+        .order('id', { ascending: true })
+        .range(from, to),
+    'Failed to load member ids',
+  );
+  return new Set(ids);
+}
+
+async function memberBelongsToConstituency(
+  memberId: string,
+  constituencyId: string,
+): Promise<boolean> {
   const { data, error } = await supabase
     .from(TABLES.cadreMember)
     .select('id')
+    .eq('id', memberId)
     .eq('is_active', true)
-    .or(`constituency_id.eq.${constituencyId},constituency_id.is.null`);
-  throwOnSupabaseError(error, 'Failed to load member ids');
-  return new Set((data ?? []).map((row) => String(row.id)));
+    .or(`constituency_id.eq.${constituencyId},constituency_id.is.null`)
+    .maybeSingle();
+  throwOnSupabaseError(error, 'Failed to verify member constituency');
+  return Boolean(data);
 }
 
 async function resolvePostScopedMemberIds(filters: {
@@ -919,20 +980,23 @@ async function resolvePostScopedMemberIds(filters: {
 }): Promise<Set<string> | null> {
   if (!filters.wardGeoId && !filters.boothNo && !filters.positionId) return null;
 
-  let postQuery = supabase.from(TABLES.cadreMemberPost).select('member_id');
-  if (filters.wardGeoId) {
-    postQuery = postQuery.eq('ward_geo_id', filters.wardGeoId);
-  }
-  if (filters.boothNo) {
-    postQuery = postQuery.eq('booth_no', filters.boothNo);
-  }
-  if (filters.positionId) {
-    postQuery = postQuery.eq('position_id', filters.positionId);
-  }
-
-  const { data, error } = await postQuery;
-  throwOnSupabaseError(error, 'Failed to filter members by post');
-  const ids = (data ?? []).map((row) => String(row.member_id));
+  const ids = await fetchAllColumnValues(
+    'member_id',
+    (from, to) => {
+      let postQuery = supabase.from(TABLES.cadreMemberPost).select('member_id');
+      if (filters.wardGeoId) {
+        postQuery = postQuery.eq('ward_geo_id', filters.wardGeoId);
+      }
+      if (filters.boothNo) {
+        postQuery = postQuery.eq('booth_no', filters.boothNo);
+      }
+      if (filters.positionId) {
+        postQuery = postQuery.eq('position_id', filters.positionId);
+      }
+      return postQuery.order('member_id', { ascending: true }).range(from, to);
+    },
+    'Failed to filter members by post',
+  );
   return new Set(ids);
 }
 
@@ -1135,13 +1199,20 @@ export async function getCadreMembersPage(filters: {
   const pageSize = Math.max(1, filters.pageSize);
   const query = filters.query?.trim() ?? '';
 
-  let allowed = await loadConstituencyMemberIds(filters.constituencyId);
-
+  // Deep-links (`?member=…`) must not depend on loading the full constituency
+  // ID set (which used to silently truncate at Supabase max_rows ≈ 1000).
+  let allowed: Set<string>;
   if (filters.memberId) {
-    if (!allowed.has(filters.memberId)) {
+    const belongs = await memberBelongsToConstituency(
+      filters.memberId,
+      filters.constituencyId,
+    );
+    if (!belongs) {
       return { members: [], total: 0, page, pageSize, totalPages: 1 };
     }
     allowed = new Set([filters.memberId]);
+  } else {
+    allowed = await loadConstituencyMemberIds(filters.constituencyId);
   }
 
   if (filters.verticalId) {
