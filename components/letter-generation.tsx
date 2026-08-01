@@ -633,6 +633,35 @@ function ClearableInput({
   );
 }
 
+function hasDevanagari(text: string) {
+  return /[\u0900-\u097F]/.test(text);
+}
+
+function hasLatinLetters(text: string) {
+  return /[A-Za-z]/.test(text);
+}
+
+/** Phonetic Latin → Marathi Devanagari via /api/translate. Null when skip/fail. */
+async function transliterateToMarathi(text: string): Promise<string | null> {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+  if (hasDevanagari(trimmed) || !hasLatinLetters(trimmed)) return null;
+  try {
+    const res = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: trimmed, targetLocale: 'mr' }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.error || 'Failed to translate');
+    const translated = String(json?.translated ?? '').trim();
+    return translated || null;
+  } catch (error) {
+    console.error('Failed to transliterate name to Marathi', error);
+    return null;
+  }
+}
+
 /** Text input that only accepts characters for the selected letter language. */
 function LocaleTextInput({
   locale,
@@ -1064,8 +1093,9 @@ export function LetterGeneration({
   const voterPrefillName = (prefill?.name ?? prefillName ?? '').trim();
   const voterPrefillContact = (prefill?.contactNo ?? '').replace(/\D/g, '').slice(-10);
   const voterPrefillAddress = (prefill?.address ?? '').trim();
-  const lockComplainantName = lockFixedFields && Boolean(voterPrefillName);
   const lockContactNo = lockFixedFields && Boolean(voterPrefillContact);
+  /** Invalidates in-flight complainant Marathi transliteration when the operator edits. */
+  const complainantTranslateReqIdRef = useRef(0);
   const [activeTab, setActiveTab] = useState<string>(
     () => linkedLetterType ?? 'general',
   );
@@ -2512,6 +2542,21 @@ export function LetterGeneration({
   }, [activeTab, lockFixedFields]);
 
   // Seed voter name / contact / address into letter fields once.
+  const applyComplainantMarathiIfUnchanged = useCallback(async (source: string) => {
+    const trimmed = source.trim();
+    if (!trimmed || hasDevanagari(trimmed) || !hasLatinLetters(trimmed)) return;
+
+    const reqId = ++complainantTranslateReqIdRef.current;
+    const translated = await transliterateToMarathi(trimmed);
+    if (!translated) return;
+    if (complainantTranslateReqIdRef.current !== reqId) return;
+
+    setWardFields((prev) => {
+      if (prev.complainantName.trim() !== trimmed) return prev;
+      return { ...prev, complainantName: translated };
+    });
+  }, []);
+
   const voterPrefillAppliedRef = useRef(false);
   useEffect(() => {
     if (voterPrefillAppliedRef.current) return;
@@ -2525,6 +2570,7 @@ export function LetterGeneration({
           ? prev
           : { ...prev, complainantName: voterPrefillName },
       );
+      void applyComplainantMarathiIfUnchanged(voterPrefillName);
       setRationFields((prev) =>
         prev.fullName.trim() ? prev : { ...prev, fullName: voterPrefillName },
       );
@@ -2576,6 +2622,7 @@ export function LetterGeneration({
     voterPrefillName,
     voterPrefillContact,
     voterPrefillAddress,
+    applyComplainantMarathiIfUnchanged,
   ]);
 
   useEffect(() => {
@@ -5190,7 +5237,7 @@ export function LetterGeneration({
                             locale={letterLocale}
                             value={wardFields.complainantName}
                             onValueChange={(complainantName) => {
-                              if (lockComplainantName) return;
+                              complainantTranslateReqIdRef.current += 1;
                               setWardFields((prev) => ({ ...prev, complainantName }));
                               if (fieldErrors.complainantName) {
                                 setFieldErrors((prev) => ({
@@ -5199,9 +5246,12 @@ export function LetterGeneration({
                                 }));
                               }
                             }}
+                            onBlur={() => {
+                              void applyComplainantMarathiIfUnchanged(
+                                wardFields.complainantName,
+                              );
+                            }}
                             required
-                            readOnly={lockComplainantName}
-                            disabled={lockComplainantName}
                           />
                         </FieldGroup>
                         <FieldGroup
