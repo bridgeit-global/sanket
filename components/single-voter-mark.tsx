@@ -27,9 +27,10 @@ export function SingleVoterMark() {
     }
 
     setIsSearching(true);
+    const searchedEpic = epicNumber.trim();
     try {
       const response = await fetch(
-        `/api/voter/${encodeURIComponent(epicNumber.trim())}`,
+        `/api/voter/${encodeURIComponent(searchedEpic)}`,
       );
       if (!response.ok) {
         if (response.status === 404) {
@@ -43,11 +44,16 @@ export function SingleVoterMark() {
 
       const data = await response.json();
       if (data.success && data.voter) {
+        const responseEpic =
+          typeof data.voter.epicNumber === 'string'
+            ? data.voter.epicNumber.trim()
+            : '';
+        const resolvedEpic = responseEpic || searchedEpic;
         setVoter(data.voter);
-        setEpicNumber(data.voter.epicNumber);
+        setEpicNumber(resolvedEpic);
         // Check existing voting history
         const historyResponse = await fetch(
-          `/api/voting-participation/history/${encodeURIComponent(data.voter.epicNumber)}?electionId=${electionId}`,
+          `/api/voting-participation/history/${encodeURIComponent(resolvedEpic)}?electionId=${electionId}`,
         );
         if (historyResponse.ok) {
           const historyData = await historyResponse.json();
