@@ -42,46 +42,81 @@ self.addEventListener('push', (event) => {
     payload.body = event.data.text();
   }
 
+  const url = payload.url ?? '/modules/operator';
+
   event.waitUntil(
-    self.registration.showNotification(payload.title, {
-      body: payload.body,
-      icon: '/favicon/android-chrome-192x192.png',
-      badge: '/favicon/favicon-32x32.png',
-      tag: payload.tag,
-      data: { url: payload.url ?? '/modules/operator' },
-    }),
+    (async () => {
+      const clientList = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      });
+
+      // Always tell open app tabs so they can show an in-app toast.
+      for (const client of clientList) {
+        if (!client.url.startsWith(self.location.origin)) continue;
+        client.postMessage({
+          type: 'push-notification',
+          title: payload.title,
+          body: payload.body,
+          url,
+          tag: payload.tag,
+        });
+      }
+
+      const hasVisibleClient = clientList.some(
+        (client) =>
+          client.url.startsWith(self.location.origin) &&
+          'visibilityState' in client &&
+          (client as WindowClient).visibilityState === 'visible',
+      );
+
+      // Skip OS banner while the user is actively looking at the app.
+      if (hasVisibleClient) return;
+
+      await self.registration.showNotification(payload.title, {
+        body: payload.body,
+        icon: '/favicon/android-chrome-192x192.png',
+        badge: '/favicon/favicon-32x32.png',
+        tag: payload.tag,
+        data: { url },
+      });
+    })(),
   );
 });
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const url = (event.notification.data?.url as string) ?? '/modules/operator';
-  const targetUrl = new URL(url, self.location.origin).href;
+  const path =
+    typeof event.notification.data?.url === 'string' && event.notification.data.url
+      ? event.notification.data.url
+      : '/modules/operator';
+  const targetUrl = new URL(path, self.location.origin).href;
 
   event.waitUntil(
-    self.clients
-      .matchAll({ type: 'window', includeUncontrolled: true })
-      .then(async (clientList) => {
-        for (const client of clientList) {
-          if (!client.url.startsWith(self.location.origin) || !('focus' in client)) {
-            continue;
-          }
+    (async () => {
+      const clientList = await self.clients.matchAll({
+        type: 'window',
+        includeUncontrolled: true,
+      });
 
-          const windowClient = client as WindowClient;
-          await windowClient.focus();
-
-          if (typeof windowClient.navigate === 'function') {
-            return windowClient.navigate(targetUrl);
-          }
-
-          client.postMessage({ type: 'notification-click', url });
-          return;
+      for (const client of clientList) {
+        if (!client.url.startsWith(self.location.origin) || !('focus' in client)) {
+          continue;
         }
 
-        if (self.clients.openWindow) {
-          return self.clients.openWindow(targetUrl);
-        }
-      }),
+        const windowClient = client as WindowClient;
+        await windowClient.focus();
+
+        // Prefer page-driven navigation. WindowClient.navigate() often only
+        // focuses an existing SPA tab and never changes the route.
+        windowClient.postMessage({ type: 'notification-click', url: path });
+        return;
+      }
+
+      if (self.clients.openWindow) {
+        await self.clients.openWindow(targetUrl);
+      }
+    })(),
   );
 });

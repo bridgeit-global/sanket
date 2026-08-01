@@ -2,7 +2,6 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { getUpcomingCadreBirthdays } from '@/lib/db/dashboard-queries';
 import { sendPushToSubscribedAdmins } from '@/lib/push/send';
-import { isPushConfigured } from '@/lib/push/vapid';
 
 function isAuthorizedCron(request: NextRequest): boolean {
   const cronSecret = process.env.CRON_SECRET;
@@ -31,13 +30,6 @@ function birthdayReminderBody(count: number): string {
 export async function GET(request: NextRequest) {
   if (!isAuthorizedCron(request)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  if (!isPushConfigured()) {
-    return NextResponse.json(
-      { error: 'Push notifications are not configured' },
-      { status: 503 },
-    );
   }
 
   const now = new Date();

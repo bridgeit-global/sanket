@@ -151,6 +151,47 @@ export type Database = {
           },
         ]
       }
+      AppNotification: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          read_at: string | null
+          tag: string | null
+          title: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          tag?: string | null
+          title: string
+          url?: string
+          user_id: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          read_at?: string | null
+          tag?: string | null
+          title?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "AppNotification_user_id_User_id_fk"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "User"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       BeneficiaryService: {
         Row: {
           assigned_to: string | null

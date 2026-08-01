@@ -44,6 +44,7 @@ export const TABLES = {
   voterProfile: 'VoterProfile',
   userPartAssignment: 'UserPartAssignment',
   pushSubscription: 'PushSubscription',
+  appNotification: 'AppNotification',
   cadreVerticalCategory: 'CadreVerticalCategory',
   cadreVertical: 'CadreVertical',
   cadrePositionLevel: 'CadrePositionLevel',
@@ -643,6 +644,17 @@ export type PushSubscription = {
   userAgent: string | null;
   createdAt: Date;
   updatedAt: Date;
+};
+
+export type AppNotification = {
+  id: string;
+  userId: string;
+  title: string;
+  body: string;
+  url: string;
+  tag: string | null;
+  readAt: Date | null;
+  createdAt: Date;
 };
 
 export type CadreVerticalCategory = {

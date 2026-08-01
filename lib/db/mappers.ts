@@ -34,6 +34,7 @@ import type {
   PhoneUpdateHistory,
   ProjectAttachment,
   PushSubscription,
+  AppNotification,
   RegisterAttachment,
   RegisterEntry,
   Role,
@@ -879,6 +880,19 @@ export function mapPushSubscriptionRow(row: Row): PushSubscription {
     userAgent: toStringOrNull(row.user_agent ?? row.userAgent),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapAppNotificationRow(row: Row): AppNotification {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id ?? row.userId),
+    title: String(row.title ?? ''),
+    body: String(row.body ?? ''),
+    url: String(row.url ?? '/'),
+    tag: toStringOrNull(row.tag),
+    readAt: toDateOrNull(row.read_at ?? row.readAt),
+    createdAt: toDate(row.created_at ?? row.createdAt),
   };
 }
 

@@ -9,6 +9,7 @@ import {
 } from '@/lib/push/subscriptions';
 import type { PushNotificationPayload } from '@/lib/push/types';
 import { configureVapid, isPushConfigured } from '@/lib/push/vapid';
+import { createAppNotificationsForUsers } from '@/lib/notifications/store';
 
 async function sendToSubscription(
   subscription: {
@@ -41,7 +42,7 @@ async function sendToSubscription(
   }
 }
 
-export async function sendPushToUser(
+async function deliverWebPushToUser(
   userId: string,
   payload: PushNotificationPayload,
 ): Promise<void> {
@@ -71,6 +72,14 @@ export async function sendPushToUser(
   }
 }
 
+export async function sendPushToUser(
+  userId: string,
+  payload: PushNotificationPayload,
+): Promise<void> {
+  await createAppNotificationsForUsers([userId], payload);
+  await deliverWebPushToUser(userId, payload);
+}
+
 export async function sendPushToUsers(
   userIds: string[],
   payload: PushNotificationPayload,
@@ -82,7 +91,10 @@ export async function sendPushToUsers(
     ),
   ];
 
-  await Promise.all(uniqueIds.map((userId) => sendPushToUser(userId, payload)));
+  await createAppNotificationsForUsers(uniqueIds, payload);
+  await Promise.all(
+    uniqueIds.map((userId) => deliverWebPushToUser(userId, payload)),
+  );
 }
 
 export async function sendPushToModule(
@@ -94,7 +106,7 @@ export async function sendPushToModule(
   await sendPushToUsers(userIds, payload, options);
 }
 
-/** Test: push only to login user `admin` if they subscribed via Profile. */
+/** Test: notify login user `admin` (in-app always; web push if subscribed). */
 export async function sendPushToSubscribedAdmins(
   payload: PushNotificationPayload,
 ): Promise<string[]> {

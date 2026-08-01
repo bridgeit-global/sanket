@@ -2,6 +2,7 @@
 
 import type { User } from 'next-auth';
 
+import { NotificationBell } from '@/components/notification-bell';
 import { SidebarUserNav } from '@/components/sidebar-user-nav';
 import {
   Sidebar,
@@ -32,21 +33,24 @@ export function AppSidebar({ user, modules }: AppSidebarProps) {
     <Sidebar className="group-data-[side=left]:border-r-0">
       <SidebarHeader>
         <SidebarMenu>
-          <div className="flex flex-row items-center justify-between">
+          <div className="flex flex-row items-center justify-between gap-1">
             <Link
               href="/"
               onClick={() => {
                 setOpenMobile(false);
               }}
-              className="flex flex-row gap-3 items-center"
+              className="flex min-w-0 flex-row gap-3 items-center"
             >
-              <span className="text-lg font-semibold px-2 hover:bg-muted rounded-md cursor-pointer">
+              <span className="text-lg font-semibold px-2 hover:bg-muted rounded-md cursor-pointer truncate">
                 {t('sidebar.title')}
               </span>
             </Link>
-            <span className="text-xs text-muted-foreground px-2">
-              {t('sidebar.version')} {appVersion}
-            </span>
+            <div className="flex shrink-0 items-center gap-0.5 px-1">
+              {user ? <NotificationBell /> : null}
+              <span className="text-xs text-muted-foreground px-1">
+                {t('sidebar.version')} {appVersion}
+              </span>
+            </div>
           </div>
         </SidebarMenu>
       </SidebarHeader>

@@ -65,12 +65,18 @@ export async function PATCH(
             );
         }
 
+        const nextAssignedTo =
+            typeof assignedTo === 'string' && assignedTo.trim()
+                ? assignedTo.trim()
+                : undefined;
+
         const { serviceId } = await params;
         const updatedService = await updateBeneficiaryServiceStatus({
             id: serviceId,
             status,
             notes,
-            assignedTo: assignedTo || session.user.id,
+            assignedTo: nextAssignedTo,
+            performedBy: session.user.id,
         });
 
         if (!updatedService) {

@@ -1508,6 +1508,16 @@ export async function updateBeneficiaryServiceStatus({
           newValue: assignedTo,
           performedBy,
         });
+        if (assignedTo !== performedBy) {
+          notifyPush(() =>
+            sendPushToUser(assignedTo, {
+              title: 'New task assigned',
+              body: `You have been assigned: ${updatedService.serviceName}`,
+              url: `/modules/operator?taskId=${id}`,
+              tag: `service-${id}`,
+            }),
+          );
+        }
       }
     }
 

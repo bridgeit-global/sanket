@@ -135,8 +135,8 @@ export async function deleteStaleSubscriptions(endpoints: string[]) {
 }
 
 /**
- * Test helper: the single login user `user_id = 'admin'`, only if they
- * have enabled push from Profile.
+ * Test helper: the single login user `user_id = 'admin'` (in-app inbox +
+ * web push when subscribed).
  */
 export async function getSubscribedTestAdminUserIds(): Promise<string[]> {
   const { data: user, error: userError } = await supabase
@@ -146,16 +146,5 @@ export async function getSubscribedTestAdminUserIds(): Promise<string[]> {
     .maybeSingle();
   throwOnSupabaseError(userError, 'Failed to get admin user');
   if (!user) return [];
-
-  const userId = String(user.id);
-
-  const { data: sub, error: subsError } = await supabase
-    .from(TABLES.pushSubscription)
-    .select('user_id')
-    .eq('user_id', userId)
-    .limit(1)
-    .maybeSingle();
-  throwOnSupabaseError(subsError, 'Failed to get admin push subscription');
-
-  return sub ? [userId] : [];
+  return [String(user.id)];
 }
