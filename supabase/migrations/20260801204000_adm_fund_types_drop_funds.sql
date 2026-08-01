@@ -1,6 +1,11 @@
--- Soften prior destructive drop: never delete MLA-FUND / FUNDS when they have
--- (or may regain) fund records. Keep amenity types; leave MLA-FUND alone.
+-- Remove "Funds" as an ADM fund type; keep only Shade / Solar / Gym.
+-- Existing fund records under FUNDS/MLA-FUND are removed with the category
+-- (AdmFundRecord.category_id ON DELETE CASCADE).
 
+DELETE FROM "public"."AdmFundingCategory"
+WHERE code IN ('FUNDS', 'MLA-FUND');
+
+-- Ensure amenity types exist with stable display order
 INSERT INTO "public"."AdmFundingCategory" ("code", "name", "display_order")
 VALUES
   ('SHADE-INSTALL', 'Shade Installation or Repair', 1),
@@ -11,10 +16,3 @@ SET
   name = EXCLUDED.name,
   display_order = EXCLUDED.display_order,
   updated_at = now();
-
--- Only remove empty FUNDS alias if present and unused (do not touch MLA-FUND)
-DELETE FROM "public"."AdmFundingCategory" c
-WHERE c.code = 'FUNDS'
-AND NOT EXISTS (
-  SELECT 1 FROM "public"."AdmFundRecord" f WHERE f.category_id = c.id
-);
