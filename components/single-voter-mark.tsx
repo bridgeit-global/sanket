@@ -28,7 +28,9 @@ export function SingleVoterMark() {
 
     setIsSearching(true);
     try {
-      const response = await fetch(`/api/voter/${encodeURIComponent(epicNumber)}`);
+      const response = await fetch(
+        `/api/voter/${encodeURIComponent(epicNumber.trim())}`,
+      );
       if (!response.ok) {
         if (response.status === 404) {
           toast.error('Voter not found');
@@ -42,9 +44,10 @@ export function SingleVoterMark() {
       const data = await response.json();
       if (data.success && data.voter) {
         setVoter(data.voter);
+        setEpicNumber(data.voter.epicNumber);
         // Check existing voting history
         const historyResponse = await fetch(
-          `/api/voting-participation/history/${encodeURIComponent(epicNumber)}?electionId=${electionId}`
+          `/api/voting-participation/history/${encodeURIComponent(data.voter.epicNumber)}?electionId=${electionId}`,
         );
         if (historyResponse.ok) {
           const historyData = await historyResponse.json();

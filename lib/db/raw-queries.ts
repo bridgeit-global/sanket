@@ -8,6 +8,7 @@ import {
   mapDailyProgrammeRow,
   mapVoterMasterRow,
 } from './mappers';
+import { normalizeEpicNumber } from '@/lib/epic/normalize-epic';
 import { ChatSDKError } from '../errors';
 import { startOfDayIST } from '@/lib/ist-date';
 import type {
@@ -1234,6 +1235,9 @@ export async function getVoterVotingHistory(
   electionId?: string,
 ): Promise<Array<VotingHistoryWithBooth>> {
   try {
+    const normalizedEpic = normalizeEpicNumber(epicNumber);
+    if (!normalizedEpic) return [];
+
     const rows = electionId
       ? await pgSql`
           SELECT
@@ -1251,7 +1255,7 @@ export async function getVoterVotingHistory(
           LEFT JOIN "BoothMaster" bm
             ON em.election_id = bm.election_id
             AND CAST(em.booth_no AS TEXT) = CAST(bm.booth_no AS TEXT)
-          WHERE em.epic_number = ${epicNumber}
+          WHERE em.epic_number = ${normalizedEpic}
             AND em.election_id = ${electionId}
           ORDER BY em.election_id DESC
         `
@@ -1271,7 +1275,7 @@ export async function getVoterVotingHistory(
           LEFT JOIN "BoothMaster" bm
             ON em.election_id = bm.election_id
             AND CAST(em.booth_no AS TEXT) = CAST(bm.booth_no AS TEXT)
-          WHERE em.epic_number = ${epicNumber}
+          WHERE em.epic_number = ${normalizedEpic}
           ORDER BY em.election_id DESC
         `;
 

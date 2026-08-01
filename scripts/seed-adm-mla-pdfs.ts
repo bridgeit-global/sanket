@@ -272,37 +272,69 @@ async function main() {
         continue;
       }
 
-      const { data: project, error: projCreateError } = await supabase
+      // Prefer re-linking orphaned MLA projects (e.g. after fund-category cascade)
+      // instead of creating duplicates.
+      const { data: orphanProjects, error: orphanError } = await supabase
         .from('MlaProject')
-        .insert({
-          name: work.name,
-          ward: wardDisplay,
-          ward_geo_id: wardGeoId,
-          booth_no: null,
-          type: 'MLA Work',
-          status: projectStatusFromPhysical(work.physicalStatus),
-          department: 'MLA Fund',
-          category: 'MLA Fund',
-          taluka: null,
-          village: null,
-          estimated_cost: asAmount,
-          approval_status: 'Approved',
-          noc_required: false,
-          noc_status: 'NotRequired',
-          physical_status: work.physicalStatus,
-          created_by: createdBy,
-          created_at: now,
-          updated_at: now,
-        })
         .select('id')
-        .single();
-      if (projCreateError) throw projCreateError;
+        .eq('name', work.name)
+        .eq('department', 'MLA Fund')
+        .limit(1);
+      if (orphanError) throw orphanError;
+
+      let projectId: string;
+      if (orphanProjects?.[0]?.id) {
+        projectId = String(orphanProjects[0].id);
+        const { error: projUpdateError } = await supabase
+          .from('MlaProject')
+          .update({
+            ward: wardDisplay,
+            ward_geo_id: wardGeoId,
+            booth_no: null,
+            taluka: null,
+            village: null,
+            physical_status: work.physicalStatus,
+            status: projectStatusFromPhysical(work.physicalStatus),
+            estimated_cost: asAmount,
+            updated_at: now,
+          })
+          .eq('id', projectId);
+        if (projUpdateError) throw projUpdateError;
+        console.log(`  Relinked orphan project ${projectId} for ${work.workCode ?? work.sortOrder}`);
+      } else {
+        const { data: project, error: projCreateError } = await supabase
+          .from('MlaProject')
+          .insert({
+            name: work.name,
+            ward: wardDisplay,
+            ward_geo_id: wardGeoId,
+            booth_no: null,
+            type: 'MLA Work',
+            status: projectStatusFromPhysical(work.physicalStatus),
+            department: 'MLA Fund',
+            category: 'MLA Fund',
+            taluka: null,
+            village: null,
+            estimated_cost: asAmount,
+            approval_status: 'Approved',
+            noc_required: false,
+            noc_status: 'NotRequired',
+            physical_status: work.physicalStatus,
+            created_by: createdBy,
+            created_at: now,
+            updated_at: now,
+          })
+          .select('id')
+          .single();
+        if (projCreateError) throw projCreateError;
+        projectId = String(project.id);
+      }
 
       const { error: allocCreateError } = await supabase
         .from('AdmFundAllocation')
         .insert({
           fund_record_id: fundId,
-          project_id: project.id,
+          project_id: projectId,
           allocated_budget: asAmount,
           work_code: work.workCode,
           sort_order: work.sortOrder,

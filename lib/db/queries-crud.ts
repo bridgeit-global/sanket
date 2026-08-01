@@ -53,6 +53,7 @@ import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
 import type { ArtifactKind } from '@/components/artifact';
 import { ChatSDKError } from '../errors';
+import { normalizeEpicNumber } from '@/lib/epic/normalize-epic';
 import { notifyPush, sendPushToUser } from '@/lib/push/send';
 import type {
   BeneficiaryService,
@@ -661,6 +662,9 @@ export async function getVoterByEpicNumber(
   electionId?: string,
 ): Promise<Array<VoterMaster>> {
   try {
+    const normalizedEpic = normalizeEpicNumber(epicNumber);
+    if (!normalizedEpic) return [];
+
     const supportsCaste = await supportsVoterMasterCasteColumn();
     const casteSelect = supportsCaste ? pgSql`, caste` : pgSql``;
 
@@ -671,7 +675,7 @@ export async function getVoterByEpicNumber(
                house_number, religion, dob, age, gender, address, locality_street,
                town_village, pincode ${casteSelect}
         FROM "VoterMaster"
-        WHERE epic_number = ${epicNumber}
+        WHERE epic_number = ${normalizedEpic}
       `;
     } catch (error) {
       if (supportsCaste && isMissingColumnError(error, 'caste')) {
@@ -680,7 +684,7 @@ export async function getVoterByEpicNumber(
                  house_number, religion, dob, age, gender, address, locality_street,
                  town_village, pincode
           FROM "VoterMaster"
-          WHERE epic_number = ${epicNumber}
+          WHERE epic_number = ${normalizedEpic}
         `;
       } else {
         throw error;
