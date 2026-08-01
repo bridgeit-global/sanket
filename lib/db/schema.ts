@@ -531,7 +531,7 @@ export type ProjectGroundMedia = {
 export type RegisterEntry = {
   id: string;
   type: 'inward' | 'outward';
-  documentType: string;
+  documentType: string | null;
   date: string;
   fromTo: string;
   subject: string;

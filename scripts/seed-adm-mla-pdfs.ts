@@ -77,17 +77,26 @@ async function main() {
   }
   console.log(`Using created_by=${createdBy}`);
 
+  // MLA PDF seed historically used MLA-FUND / FUNDS; those types were removed.
+  // Attach seeded batches to Shade Installation (first amenity fund type) unless
+  // an explicit ADM_SEED_CATEGORY_CODE is set.
+  const preferredCode =
+    process.env.ADM_SEED_CATEGORY_CODE?.trim() || 'SHADE-INSTALL';
   const { data: category, error: catError } = await supabase
     .from('AdmFundingCategory')
     .select('*')
-    .eq('code', 'MLA-FUND')
+    .eq('code', preferredCode)
     .maybeSingle();
   if (catError) throw catError;
   if (!category) {
-    throw new Error('MLA-FUND category not found — run ADM migrations first');
+    throw new Error(
+      `ADM category "${preferredCode}" not found — run ADM migrations first`,
+    );
   }
   const categoryId = String(category.id);
-  console.log(`MLA-FUND category id=${categoryId}`);
+  console.log(
+    `Seeding into category id=${categoryId} code=${String(category.code)} name=${String(category.name)}`,
+  );
 
   const { data: wardUnits, error: wardError } = await supabase
     .from('CadreGeographicUnit')

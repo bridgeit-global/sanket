@@ -15,7 +15,9 @@ const LEGACY_PREFIX_ALIASES: Record<string, string> = {
   सामान्य: 'General',
   vip: 'VIP',
   department: 'Department',
+  departmental: 'Department',
   विभाग: 'Department',
+  विभागीय: 'Department',
 };
 
 export function isDocumentType(value: string): boolean {
@@ -38,12 +40,12 @@ export function defaultReferencePrefix(_locale?: LetterLocale | string): string 
 const DOCUMENT_TYPE_LABELS: Record<LetterLocale, Record<string, string>> = {
   en: {
     VIP: 'VIP',
-    Department: 'Department',
+    Department: 'Departmental',
     General: 'General',
   },
   mr: {
     VIP: 'VIP',
-    Department: 'विभाग',
+    Department: 'विभागीय',
     General: 'सामान्य',
   },
 };

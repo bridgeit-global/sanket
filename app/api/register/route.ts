@@ -134,13 +134,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
     }
 
-    const requestedType = String(documentType || 'General').trim();
-    const docType = await getDocumentTypeByCode(requestedType, {
-      activeOnly: true,
-    });
-    if (!docType) {
+    const requestedType = String(documentType ?? '').trim();
+    let docTypeCode: string | null = null;
+    if (requestedType) {
+      const docType = await getDocumentTypeByCode(requestedType, {
+        activeOnly: true,
+      });
+      if (!docType) {
+        return NextResponse.json(
+          { error: 'documentType is invalid or inactive' },
+          { status: 400 },
+        );
+      }
+      docTypeCode = docType.code;
+    } else if (type === 'outward') {
+      // Outward reference sequencing requires a document type.
       return NextResponse.json(
-        { error: 'documentType is invalid or inactive' },
+        { error: 'documentType is required for outward entries' },
         { status: 400 },
       );
     }
@@ -162,7 +172,7 @@ export async function POST(request: NextRequest) {
     if (type === 'outward') {
       const parsed = parseReference(resolvedRefNo ?? '');
       const resolved = await resolveDocumentTypeReferenceForSave({
-        code: docType.code,
+        code: docTypeCode!,
         autoSequence: autoSequence !== false,
         clientNumber: parsed.number || undefined,
       });
@@ -185,7 +195,7 @@ export async function POST(request: NextRequest) {
 
     const entry = await createRegisterEntry({
       type,
-      documentType: docType.code,
+      documentType: docTypeCode ?? undefined,
       date: new Date(date),
       fromTo: validation.data.fromTo,
       subject: validation.data.subject,

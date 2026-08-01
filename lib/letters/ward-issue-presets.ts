@@ -98,7 +98,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   garbage: {
     labelEn: 'Garbage removal',
     labelMr: 'साचलेला कचरा हटविणे',
-    catalogName: 'Ward – Garbage Removal',
+    catalogName: 'BMC – Garbage Removal',
     requiresDuration: false,
     defaultTo: { mr: swmAeTo('mr'), en: swmAeTo('en') },
     subject: {
@@ -123,7 +123,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   drain: {
     labelEn: 'Drain / gutter cleaning',
     labelMr: 'नाले/गटार साफसफाई',
-    catalogName: 'Ward – Drain / Gutter Cleaning',
+    catalogName: 'BMC – Drain / Gutter Cleaning',
     requiresDuration: false,
     defaultTo: { mr: swmAeTo('mr'), en: swmAeTo('en') },
     subject: {
@@ -148,7 +148,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'tree-trim': {
     labelEn: 'Tree branch trimming',
     labelMr: 'झाडांच्या फांद्यांची छाटणी',
-    catalogName: 'Ward – Tree Branch Trimming',
+    catalogName: 'BMC – Tree Branch Trimming',
     requiresDuration: false,
     defaultTo: { mr: gardenTo('mr'), en: gardenTo('en') },
     subject: {
@@ -173,7 +173,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'tree-dead': {
     labelEn: 'Dead / hazardous tree removal',
     labelMr: 'मृत व धोकादायक झाडे हटविणे',
-    catalogName: 'Ward – Dead / Hazardous Tree Removal',
+    catalogName: 'BMC – Dead / Hazardous Tree Removal',
     requiresDuration: false,
     defaultTo: { mr: gardenTo('mr'), en: gardenTo('en') },
     subject: {
@@ -198,7 +198,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'tree-hazard': {
     labelEn: 'Hazardous tree inspection',
     labelMr: 'धोकादायक झाडाची पाहणी',
-    catalogName: 'Ward – Hazardous Tree Inspection',
+    catalogName: 'BMC – Hazardous Tree Inspection',
     requiresDuration: false,
     defaultTo: { mr: gardenTo('mr'), en: gardenTo('en') },
     subject: {
@@ -223,7 +223,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'water-contaminated': {
     labelEn: 'Contaminated water supply',
     labelMr: 'दूषित पाणीपुरवठा',
-    catalogName: 'Ward – Contaminated Water Supply',
+    catalogName: 'BMC – Contaminated Water Supply',
     requiresDuration: false,
     defaultTo: { mr: waterTo('mr'), en: waterTo('en') },
     subject: {
@@ -246,7 +246,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'water-low-pressure': {
     labelEn: 'Low water pressure',
     labelMr: 'कमी दाबाने पाणीपुरवठा',
-    catalogName: 'Ward – Low Water Pressure',
+    catalogName: 'BMC – Low Water Pressure',
     requiresDuration: false,
     defaultTo: { mr: waterTo('mr'), en: waterTo('en') },
     subject: {
@@ -269,7 +269,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'water-none': {
     labelEn: 'No water supply',
     labelMr: 'पाणीपुरवठा होत नसणे',
-    catalogName: 'Ward – No Water Supply',
+    catalogName: 'BMC – No Water Supply',
     requiresDuration: true,
     defaultTo: { mr: waterTo('mr'), en: waterTo('en') },
     subject: {
@@ -292,7 +292,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'water-tanker': {
     labelEn: 'Tanker water supply',
     labelMr: 'टँकरद्वारे पाणीपुरवठा',
-    catalogName: 'Ward – Tanker Water Supply',
+    catalogName: 'BMC – Tanker Water Supply',
     requiresDuration: false,
     defaultTo: { mr: waterTo('mr'), en: waterTo('en') },
     subject: {
@@ -315,7 +315,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'road-repair': {
     labelEn: 'Road repair',
     labelMr: 'रस्त्याची दुरुस्ती',
-    catalogName: 'Ward – Road Repair',
+    catalogName: 'BMC – Road Repair',
     requiresDuration: false,
     defaultTo: { mr: maintenanceTo('mr'), en: maintenanceTo('en') },
     subject: {
@@ -338,7 +338,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'footpath-repair': {
     labelEn: 'Footpath repair',
     labelMr: 'पदपथाची दुरुस्ती',
-    catalogName: 'Ward – Footpath Repair',
+    catalogName: 'BMC – Footpath Repair',
     requiresDuration: false,
     defaultTo: { mr: maintenanceTo('mr'), en: maintenanceTo('en') },
     subject: {
@@ -361,7 +361,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'street-lights': {
     labelEn: 'Street light repair',
     labelMr: 'बंद पथदिवे सुरू करणे',
-    catalogName: 'Ward – Street Light Repair',
+    catalogName: 'BMC – Street Light Repair',
     requiresDuration: true,
     defaultTo: { mr: maintenanceTo('mr'), en: maintenanceTo('en') },
     subject: {
@@ -384,7 +384,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
   'speed-breaker': {
     labelEn: 'Speed breaker installation',
     labelMr: 'गतिरोधक बसविणे',
-    catalogName: 'Ward – Speed Breaker Installation',
+    catalogName: 'BMC – Speed Breaker Installation',
     requiresDuration: false,
     defaultTo: { mr: maintenanceTo('mr'), en: maintenanceTo('en') },
     subject: {

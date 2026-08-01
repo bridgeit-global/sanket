@@ -7,6 +7,7 @@ import {
   getBeneficiaryServiceById,
   getServiceCatalogByName,
   getVoterByEpicNumber,
+  getVoterMobileNumbersByEpicNumbers,
 } from '@/lib/db/queries';
 import { resolveLetterTypeFromServiceName } from '@/lib/letters/letter-type-options';
 import { isSpecificWardLetterType } from '@/lib/letters/templates';
@@ -39,18 +40,24 @@ export default async function LetterGenerationPage({
     redirect('/modules/operator');
   }
 
-  // Beneficiary name is display-only in the service info card — letter form
-  // fields stay blank so operators enter voter details intentionally.
   let prefillName = '';
+  let prefillContactNo = '';
+  let prefillAddress = '';
   if (service.voterId) {
     try {
       const voters = await getVoterByEpicNumber(service.voterId);
       const voter = voters[0];
       if (voter) {
         prefillName = voter.fullName ?? '';
+        prefillAddress = voter.address?.trim() || '';
+      }
+      const mobiles = await getVoterMobileNumbersByEpicNumbers([service.voterId]);
+      const primary = mobiles.get(service.voterId)?.[0]?.mobileNumber?.trim();
+      if (primary) {
+        prefillContactNo = primary.replace(/\D/g, '').slice(-10);
       }
     } catch {
-      // best-effort display lookup; ignore failures
+      // best-effort voter lookup; ignore failures
     }
   }
 
@@ -87,6 +94,11 @@ export default async function LetterGenerationPage({
           isAdmin={isAdmin}
           beneficiaryServiceId={beneficiaryServiceId}
           prefillName={prefillName}
+          prefill={{
+            name: prefillName,
+            contactNo: prefillContactNo,
+            address: prefillAddress,
+          }}
           initialLetterType={initialLetterType}
           catalogServiceId={catalogServiceId}
           service={{

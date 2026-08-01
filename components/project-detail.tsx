@@ -52,13 +52,11 @@ import {
 import {
   DOCUMENT_TYPES,
   documentTypeLabel,
-  defaultReferencePrefix,
 } from '@/lib/letters/reference-sequence';
 import type { DocumentTypeMasterRow } from '@/components/document-type-master-page';
 import {
   ProjectDetailExtras,
   ProjectRosterFields,
-  type ProjectFundAllocationView,
 } from '@/components/project-detail-extras';
 import type {
   ProjectAttachment,
@@ -79,7 +77,7 @@ interface Attachment {
 interface RegisterEntry {
   id: string;
   type: 'inward' | 'outward';
-  documentType: string;
+  documentType: string | null;
   date: string;
   fromTo: string;
   subject: string;
@@ -114,7 +112,6 @@ interface Project {
   registerEntries?: RegisterEntry[];
   documents?: ProjectAttachment[];
   groundMedia?: ProjectGroundMedia[];
-  fundAllocations?: ProjectFundAllocationView[];
 }
 
 interface ProjectDetailProps {
@@ -156,14 +153,11 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
 
   const [documents, setDocuments] = useState<ProjectAttachment[]>([]);
   const [groundMedia, setGroundMedia] = useState<ProjectGroundMedia[]>([]);
-  const [fundAllocations, setFundAllocations] = useState<
-    ProjectFundAllocationView[]
-  >([]);
 
   // Entry form
   const [entryForm, setEntryForm] = useState({
     type: 'inward' as 'inward' | 'outward',
-    documentType: defaultReferencePrefix(),
+    documentType: '',
     date: format(new Date(), 'yyyy-MM-dd'),
     fromTo: '',
     subject: '',
@@ -242,7 +236,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         setEntries(data.registerEntries || []);
         setDocuments(data.documents || []);
         setGroundMedia(data.groundMedia || []);
-        setFundAllocations(data.fundAllocations || []);
         setProjectForm({
           name: data.name,
           ward: data.ward || '',
@@ -406,7 +399,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         }
         setEntryForm({
           type: 'inward',
-          documentType: defaultReferencePrefix(),
+          documentType: '',
           date: format(new Date(), 'yyyy-MM-dd'),
           fromTo: '',
           subject: '',
@@ -541,7 +534,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     setEditingEntry(entry);
     setEntryForm({
       type: entry.type,
-      documentType: entry.documentType || 'General',
+      documentType: entry.documentType || '',
       date: entry.date,
       fromTo: entry.fromTo,
       subject: entry.subject,
@@ -570,16 +563,23 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const documentTypeCodes = useMemo(() => {
     const codes = new Set<string>();
     for (const item of documentTypes) codes.add(item.code);
+    let hasUntyped = false;
     for (const entry of entries) {
       if (entry.documentType) codes.add(entry.documentType);
+      else hasUntyped = true;
     }
     if (codes.size === 0) {
       for (const code of DOCUMENT_TYPES) codes.add(code);
     }
-    return Array.from(codes);
+    const list = Array.from(codes);
+    if (hasUntyped) list.push('__none__');
+    return list;
   }, [documentTypes, entries]);
 
   const defaultDocumentTypeTab = documentTypeCodes[0] ?? 'General';
+
+  const documentTypeTabLabel = (code: string) =>
+    code === '__none__' ? '—' : documentTypeLabel(code, 'en', documentTypes);
 
   // Filter entries by type for print view
   const inwardEntries = sortEntriesChronologically(entries.filter((e) => e.type === 'inward'));
@@ -901,7 +901,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           lokarpanDate={project.lokarpanDate || null}
           documents={documents}
           groundMedia={groundMedia}
-          fundAllocations={fundAllocations}
           onPatchProject={async (patch) => {
             const response = await fetch(`/api/projects/${projectId}`, {
               method: 'PUT',
@@ -983,17 +982,23 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="entry-documentType">Document Type *</Label>
+                  <Label htmlFor="entry-documentType">Document Type</Label>
                   <Select
-                    value={entryForm.documentType}
+                    value={entryForm.documentType || '__none__'}
                     onValueChange={(value) =>
-                      setEntryForm({ ...entryForm, documentType: value })
+                      setEntryForm({
+                        ...entryForm,
+                        documentType: value === '__none__' ? '' : value,
+                      })
                     }
                   >
                     <SelectTrigger id="entry-documentType">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      {entryForm.type === 'inward' ? (
+                        <SelectItem value="__none__">—</SelectItem>
+                      ) : null}
                       {(documentTypes.length > 0
                         ? documentTypes.map((docType) => docType.code)
                         : [...DOCUMENT_TYPES]
@@ -1173,17 +1178,21 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               style={{ gridTemplateColumns: `repeat(${Math.max(documentTypeCodes.length, 1)}, minmax(0, 1fr))` }}
             >
               {documentTypeCodes.map((code) => {
-                const count = entries.filter((e) => e.documentType === code).length;
+                const count = entries.filter((e) =>
+                  code === '__none__' ? !e.documentType : e.documentType === code,
+                ).length;
                 return (
                   <TabsTrigger key={code} value={code}>
-                    {documentTypeLabel(code, 'en', documentTypes)} ({count})
+                    {documentTypeTabLabel(code)} ({count})
                   </TabsTrigger>
                 );
               })}
             </TabsList>
             {documentTypeCodes.map((code) => {
               const typeEntries = sortEntriesChronologically(
-                entries.filter((e) => e.documentType === code),
+                entries.filter((e) =>
+                  code === '__none__' ? !e.documentType : e.documentType === code,
+                ),
               );
               return (
                 <TabsContent key={code} value={code} className="mt-4">
@@ -1209,7 +1218,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                               colSpan={9}
                               className="text-center text-muted-foreground"
                             >
-                              No {documentTypeLabel(code, 'en', documentTypes)} register entries yet.
+                              No {documentTypeTabLabel(code)} register entries yet.
                             </TableCell>
                           </TableRow>
                         ) : (
@@ -1300,17 +1309,23 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 <Input value={editingEntry?.type} disabled />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="edit-documentType">Document Type *</Label>
+                <Label htmlFor="edit-documentType">Document Type</Label>
                 <Select
-                  value={entryForm.documentType}
+                  value={entryForm.documentType || '__none__'}
                   onValueChange={(value) =>
-                    setEntryForm({ ...entryForm, documentType: value })
+                    setEntryForm({
+                      ...entryForm,
+                      documentType: value === '__none__' ? '' : value,
+                    })
                   }
                 >
                   <SelectTrigger id="edit-documentType">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    {(editingEntry?.type ?? entryForm.type) === 'inward' ? (
+                      <SelectItem value="__none__">—</SelectItem>
+                    ) : null}
                     {(documentTypes.length > 0
                       ? documentTypes.map((docType) => docType.code)
                       : [...DOCUMENT_TYPES]

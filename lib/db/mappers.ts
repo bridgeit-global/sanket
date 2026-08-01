@@ -722,7 +722,7 @@ export function mapRegisterEntryRow(row: Row): RegisterEntry {
   return {
     id: String(row.id),
     type: row.type as RegisterEntry['type'],
-    documentType: (row.document_type ?? row.documentType) as RegisterEntry['documentType'],
+    documentType: toStringOrNull(row.document_type ?? row.documentType),
     date: String(row.date),
     fromTo: String(row.from_to ?? row.fromTo),
     subject: String(row.subject),

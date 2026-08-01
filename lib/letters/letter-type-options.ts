@@ -32,6 +32,21 @@ export function resolveLetterFormBase(letterType: string): LetterType {
   return 'general';
 }
 
+/** School family letters use General; all other letter types use Departmental. */
+export function documentTypeForLetterType(
+  letterType: string,
+): 'General' | 'Department' {
+  const base = resolveLetterFormBase(letterType);
+  if (
+    base === 'fees' ||
+    base === 'school-admission' ||
+    base === 'school-transfer'
+  ) {
+    return 'General';
+  }
+  return 'Department';
+}
+
 export function isValidLetterTypeCode(value: unknown): value is string {
   return typeof value === 'string' && LETTER_TYPE_CODE_PATTERN.test(value);
 }
@@ -137,7 +152,7 @@ export function resolveLetterTypeFromServiceName(
     return asCode;
   }
 
-  // Prefer specific ward complaint types (e.g. Ward – Low Water Pressure).
+  // Prefer specific ward complaint types (e.g. BMC – Low Water Pressure).
   const wardIssue = resolveWardIssueTypeFromServiceName(raw);
   if (wardIssue) return letterTypeFromWardIssue(wardIssue);
 

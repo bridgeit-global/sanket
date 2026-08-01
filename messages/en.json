@@ -906,7 +906,7 @@
       "deleteError": "Failed to delete document type",
       "fetchError": "Failed to load document types",
       "validationRequired": "Code, English label, and Marathi label are required",
-      "empty": "No document types yet. Add VIP, Department, General, or custom types.",
+      "empty": "No document types yet. Add VIP, Departmental, General, or custom types.",
       "activeYes": "Active",
       "activeNo": "Inactive",
       "columns": {
@@ -1027,7 +1027,7 @@
       "referenceNo": "Reference No.",
       "documentTypes": {
         "VIP": "VIP",
-        "Department": "Department",
+        "Department": "Departmental",
         "General": "General"
       },
       "date": "Date",
@@ -1337,7 +1337,7 @@
     "noFunds": "No funds yet.",
     "noFundsHint": "Create a fund to start linking projects and tracking allocations.",
     "noFundsMatch": "No funds match your search.",
-    "associatedProjects": "Associated Projects",
+    "associatedProjects": "Works under this fund",
     "projectName": "Project",
     "department": "Department",
     "batchLabel": "Batch",

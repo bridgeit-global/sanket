@@ -77,7 +77,7 @@ interface Attachment {
 interface RegisterEntry {
   id: string;
   type: 'inward' | 'outward';
-  documentType: DocumentType;
+  documentType: string | null;
   date: string;
   fromTo: string;
   subject: string;
@@ -96,7 +96,7 @@ interface Project {
 }
 
 type RegisterFormState = {
-  documentType: DocumentType;
+  documentType: string;
   date: string;
   fromTo: string;
   subject: string;
@@ -111,7 +111,8 @@ type RegisterFormState = {
 function createEmptyRegisterForm(
   type: 'inward' | 'outward',
 ): RegisterFormState {
-  const documentType = defaultReferencePrefix();
+  // Inward: document type optional. Outward: default General for ref sequencing.
+  const documentType = type === 'outward' ? defaultReferencePrefix() : '';
   return {
     documentType,
     date: format(new Date(), 'yyyy-MM-dd'),
@@ -286,12 +287,15 @@ export function RegisterModule({
     });
   };
 
-  const setDocumentType = (value: DocumentType) => {
+  const DOCUMENT_TYPE_NONE = '__none__';
+
+  const setDocumentType = (value: string) => {
+    const next = value === DOCUMENT_TYPE_NONE ? '' : value;
     referenceNumberAutoRef.current = true;
     setForm((prev) => ({
       ...prev,
-      documentType: value,
-      refPrefix: type === 'outward' ? value : prev.refPrefix,
+      documentType: next,
+      refPrefix: type === 'outward' ? next : prev.refPrefix,
     }));
     clearFieldError('refNo');
   };
@@ -540,9 +544,11 @@ export function RegisterModule({
     const parsed =
       type === 'outward' ? parseReference(entry.refNo || '') : { prefix: '', number: '' };
     const documentType =
-      coerceDocumentType(parsed.prefix) ||
-      entry.documentType ||
-      defaultReferencePrefix();
+      type === 'outward'
+        ? coerceDocumentType(parsed.prefix) ||
+          entry.documentType ||
+          defaultReferencePrefix()
+        : entry.documentType || '';
     setForm({
       documentType,
       date: entry.date,
@@ -757,15 +763,19 @@ export function RegisterModule({
             <div className="space-y-2 md:col-span-1">
               <Label htmlFor="documentType">
                 {t('letterGeneration.fields.referencePrefix')}
+                {type === 'outward' ? ' *' : ''}
               </Label>
               <Select
-                value={form.documentType}
-                onValueChange={(value) => setDocumentType(value as DocumentType)}
+                value={form.documentType || DOCUMENT_TYPE_NONE}
+                onValueChange={setDocumentType}
               >
                 <SelectTrigger id="documentType">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  {type === 'inward' ? (
+                    <SelectItem value={DOCUMENT_TYPE_NONE}>—</SelectItem>
+                  ) : null}
                   {(documentTypes.length > 0
                     ? documentTypes.map((docType) => docType.code)
                     : [...DOCUMENT_TYPES]
@@ -1257,16 +1267,20 @@ export function RegisterModule({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-documentType">
-                  {t('letterGeneration.fields.referencePrefix')} *
+                  {t('letterGeneration.fields.referencePrefix')}
+                  {type === 'outward' ? ' *' : ''}
                 </Label>
                 <Select
-                  value={form.documentType}
-                  onValueChange={(value) => setDocumentType(value as DocumentType)}
+                  value={form.documentType || DOCUMENT_TYPE_NONE}
+                  onValueChange={setDocumentType}
                 >
                   <SelectTrigger id="edit-documentType">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    {type === 'inward' ? (
+                      <SelectItem value={DOCUMENT_TYPE_NONE}>—</SelectItem>
+                    ) : null}
                     {(documentTypes.length > 0
                       ? documentTypes.map((docType) => docType.code)
                       : [...DOCUMENT_TYPES]

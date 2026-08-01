@@ -32,7 +32,7 @@ import {
   getCurrentFinancialYear,
 } from '@/lib/adm/financial-year';
 import { AdmCroreAmountInput } from './adm-crore-amount-input';
-import { AdmFundDetail, type AdmProjectOption } from './adm-fund-detail';
+import { AdmFundDetail } from './adm-fund-detail';
 import { AdmFundSummaryRow } from './adm-fund-summary-row';
 
 interface AdmFundsListProps {
@@ -40,7 +40,6 @@ interface AdmFundsListProps {
   funds: AdmFundRecordWithDetails[];
   searchTerm: string;
   selectedFundId: string;
-  projects: AdmProjectOption[];
   onSelectFund: (fundId: string) => void;
   onBackToList: () => void;
   onCreateFund: (values: {
@@ -54,22 +53,6 @@ interface AdmFundsListProps {
     values: { financialYear: string; budget: number },
   ) => Promise<void>;
   onDeleteFund: (fundId: string) => void;
-  onAddAllocation: (
-    fundRecordId: string,
-    projectId: string,
-    allocatedBudget: number,
-  ) => Promise<void>;
-  onCreateProject: (
-    fundRecordId: string,
-    values: {
-      name: string;
-      department?: string;
-      allocatedBudget: number;
-      ward?: string;
-      wardGeoId?: string | null;
-      boothNo?: string | null;
-    },
-  ) => Promise<void>;
   onUpdateAllocation: (id: string, allocatedBudget: number) => Promise<void>;
   onDeleteAllocation: (allocation: AdmFundAllocationWithProject) => void;
   onUploadDocument: (
@@ -109,14 +92,11 @@ export function AdmFundsList({
   funds,
   searchTerm,
   selectedFundId,
-  projects,
   onSelectFund,
   onBackToList,
   onCreateFund,
   onUpdateFund,
   onDeleteFund,
-  onAddAllocation,
-  onCreateProject,
   onUpdateAllocation,
   onDeleteAllocation,
   onUploadDocument,
@@ -196,12 +176,9 @@ export function AdmFundsList({
       {selectedFundId && selectedFund ? (
         <AdmFundDetail
           fund={selectedFund}
-          projects={projects}
           onBack={onBackToList}
           onUpdateFund={onUpdateFund}
           onDeleteFund={onDeleteFund}
-          onAddAllocation={onAddAllocation}
-          onCreateProject={onCreateProject}
           onUpdateAllocation={onUpdateAllocation}
           onDeleteAllocation={onDeleteAllocation}
           onUploadDocument={onUploadDocument}

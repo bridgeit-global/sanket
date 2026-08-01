@@ -113,16 +113,27 @@ export async function PUT(
     if (body.refNo !== undefined) updateData.refNo = validation.data.refNo || null;
     if (body.officer !== undefined) updateData.officer = validation.data.officer || null;
     if (body.documentType !== undefined) {
-      const docType = await getDocumentTypeByCode(String(body.documentType), {
-        activeOnly: false,
-      });
-      if (!docType) {
-        return NextResponse.json(
-          { error: 'documentType is invalid' },
-          { status: 400 },
-        );
+      const requestedType = String(body.documentType ?? '').trim();
+      if (!requestedType) {
+        if (entry.type === 'outward') {
+          return NextResponse.json(
+            { error: 'documentType is required for outward entries' },
+            { status: 400 },
+          );
+        }
+        updateData.documentType = null;
+      } else {
+        const docType = await getDocumentTypeByCode(requestedType, {
+          activeOnly: false,
+        });
+        if (!docType) {
+          return NextResponse.json(
+            { error: 'documentType is invalid' },
+            { status: 400 },
+          );
+        }
+        updateData.documentType = docType.code;
       }
-      updateData.documentType = docType.code;
     }
 
     const updated = await updateRegisterEntry(id, updateData);

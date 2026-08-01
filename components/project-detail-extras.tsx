@@ -1,9 +1,8 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import Link from 'next/link';
 import Image from 'next/image';
-import { ExternalLink, FileText, Plus, Trash2, Upload, X } from 'lucide-react';
+import { FileText, Plus, Trash2, Upload, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +20,6 @@ import {
 } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslations } from '@/hooks/use-translations';
-import { formatCurrency } from '@/lib/mla-office-utils';
 import { AdmMilestoneRow } from '@/components/adm/adm-milestone-row';
 import type {
   ProjectAttachment,
@@ -55,7 +53,6 @@ interface ProjectDetailExtrasProps {
   lokarpanDate: string | null;
   documents: ProjectAttachment[];
   groundMedia: ProjectGroundMedia[];
-  fundAllocations: ProjectFundAllocationView[];
   onPatchProject: (patch: Record<string, unknown>) => Promise<void>;
   onRefresh: () => Promise<void>;
 }
@@ -77,7 +74,6 @@ export function ProjectDetailExtras({
   lokarpanDate,
   documents,
   groundMedia,
-  fundAllocations,
   onPatchProject,
   onRefresh,
 }: ProjectDetailExtrasProps) {
@@ -189,45 +185,6 @@ export function ProjectDetailExtras({
 
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t('projects.fundAllocations')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {fundAllocations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {t('projects.noFundAllocations')}
-            </p>
-          ) : (
-            <ul className="space-y-2">
-              {fundAllocations.map((a) => (
-                <li
-                  key={a.id}
-                  className="flex flex-col gap-2 rounded-md border border-border px-3 py-2 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:justify-between"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium">
-                      {a.categoryName} ({a.categoryCode})
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      FY {a.fundRecord.financialYear} ·{' '}
-                      {formatCurrency(a.allocatedBudget)}
-                    </p>
-                  </div>
-                  <Link
-                    href={`/modules/adm?fund=${a.fundRecord.id}`}
-                    className="inline-flex min-h-11 items-center justify-center gap-1 rounded-md border border-border px-3 text-primary hover:bg-muted/40 sm:min-h-0 sm:justify-start sm:border-0 sm:px-0 sm:hover:bg-transparent sm:hover:underline"
-                  >
-                    {t('projects.viewAdmFund')}
-                    <ExternalLink className="h-3.5 w-3.5" />
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
       <Card>
         <CardHeader>
           <CardTitle className="text-base">{t('projects.tabExecution')}</CardTitle>

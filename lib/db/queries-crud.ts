@@ -4346,7 +4346,7 @@ export async function createRegisterEntry({
       .insert(
         toSnakeCaseKeys({
           type,
-          documentType: documentType || 'General',
+          documentType: documentType?.trim() ? documentType.trim() : null,
           date: formatDateToString(date),
           fromTo,
           subject,

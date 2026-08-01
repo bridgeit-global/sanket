@@ -108,6 +108,7 @@ import {
   wardIssueRequiresDuration,
 } from '@/lib/letters/ward-issue-presets';
 import {
+  documentTypeForLetterType,
   letterTypeLabel,
   resolveLetterFormBase,
   type LetterTypeOption,
@@ -443,9 +444,11 @@ function LetterDatePicker({
   );
 }
 
-function commonDefaults(locale: LetterLocale) {
+function commonDefaults(locale: LetterLocale, letterType?: string | null) {
   return {
-    referencePrefix: defaultReferencePrefix(locale),
+    referencePrefix: letterType
+      ? documentTypeForLetterType(letterType)
+      : defaultReferencePrefix(locale),
     referenceNo: '',
     date: todayDisplay(locale),
     signatory: DEFAULT_SIGNATORY[locale],
@@ -454,7 +457,7 @@ function commonDefaults(locale: LetterLocale) {
 
 function feesDefaults(locale: LetterLocale): FeesLetterFields {
   return {
-    ...commonDefaults(locale),
+    ...commonDefaults(locale, 'fees'),
     schoolName: '',
     schoolAddress: '',
     standard: '',
@@ -464,7 +467,7 @@ function feesDefaults(locale: LetterLocale): FeesLetterFields {
 
 function schoolAdmissionDefaults(locale: LetterLocale): SchoolAdmissionLetterFields {
   return {
-    ...commonDefaults(locale),
+    ...commonDefaults(locale, 'school-admission'),
     schoolName: '',
     schoolAddress: '',
     standard: '',
@@ -477,7 +480,7 @@ function schoolAdmissionDefaults(locale: LetterLocale): SchoolAdmissionLetterFie
 
 function schoolTransferDefaults(locale: LetterLocale): SchoolTransferLetterFields {
   return {
-    ...commonDefaults(locale),
+    ...commonDefaults(locale, 'school-transfer'),
     schoolName: '',
     schoolAddress: '',
     standard: '',
@@ -492,7 +495,7 @@ function schoolTransferDefaults(locale: LetterLocale): SchoolTransferLetterField
 
 function rationDefaults(locale: LetterLocale): RationLetterFields {
   return {
-    ...commonDefaults(locale),
+    ...commonDefaults(locale, 'ration-new'),
     gender: 'female',
     salutation: resolveSalutation(locale, 'female'),
     fullName: '',
@@ -507,7 +510,7 @@ function rationDefaults(locale: LetterLocale): RationLetterFields {
 
 function incomeDefaults(locale: LetterLocale): IncomeLetterFields {
   return {
-    ...commonDefaults(locale),
+    ...commonDefaults(locale, 'income'),
     gender: 'male',
     salutation: resolveSalutation(locale, 'male'),
     fullName: '',
@@ -521,7 +524,7 @@ function incomeDefaults(locale: LetterLocale): IncomeLetterFields {
 
 function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
   return {
-    ...commonDefaults(locale),
+    ...commonDefaults(locale, 'domicile'),
     gender: 'male',
     salutation: resolveSalutation(locale, 'male'),
     fullName: '',
@@ -534,7 +537,7 @@ function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
 
 function generalDefaults(locale: LetterLocale): GeneralLetterFields {
   return {
-    ...commonDefaults(locale),
+    ...commonDefaults(locale, 'general'),
     to: '',
     subject: '',
     paragraphs: '',
@@ -548,7 +551,7 @@ function wardDefaults(
 ): WardLetterFields {
   const resolved = resolveWardIssueType(issueType);
   return {
-    ...commonDefaults(locale),
+    ...commonDefaults(locale, 'ward'),
     issueType: resolved,
     to: getDefaultWardToAddress(resolved, locale),
     toName: getDefaultWardToName(resolved, locale),
@@ -1019,18 +1022,27 @@ export type BeneficiaryServiceInfo = {
   createdAt: string;
 };
 
+export type LetterBeneficiaryPrefill = {
+  name?: string;
+  contactNo?: string;
+  address?: string;
+};
+
 export function LetterGeneration({
   isAdmin = false,
   beneficiaryServiceId,
   prefillName,
+  prefill,
   initialLetterType,
   catalogServiceId,
   service,
 }: {
   isAdmin?: boolean;
   beneficiaryServiceId?: string;
-  /** Display-only beneficiary name in the service info card (not form prefill). */
+  /** Beneficiary name shown in the service info card. */
   prefillName?: string;
+  /** Voter-derived values seeded into letter form fields. */
+  prefill?: LetterBeneficiaryPrefill;
   /** Letter type linked on ServiceCatalog.letter_type for this service. */
   initialLetterType?: string;
   /** ServiceCatalog row id — used to deep-link “link letter type”. */
@@ -1048,6 +1060,12 @@ export function LetterGeneration({
   );
   const prevLetterLocaleRef = useRef<LetterLocale>('mr');
   const linkedLetterType = initialLetterType?.trim() || null;
+  const lockFixedFields = Boolean(beneficiaryServiceId);
+  const voterPrefillName = (prefill?.name ?? prefillName ?? '').trim();
+  const voterPrefillContact = (prefill?.contactNo ?? '').replace(/\D/g, '').slice(-10);
+  const voterPrefillAddress = (prefill?.address ?? '').trim();
+  const lockComplainantName = lockFixedFields && Boolean(voterPrefillName);
+  const lockContactNo = lockFixedFields && Boolean(voterPrefillContact);
   const [activeTab, setActiveTab] = useState<string>(
     () => linkedLetterType ?? 'general',
   );
@@ -2474,6 +2492,92 @@ export function LetterGeneration({
     setWardFields(coercePrefix);
   }, []);
 
+  // Beneficiary flow: document type is derived from letter family (school → General, else Department).
+  useEffect(() => {
+    if (!lockFixedFields) return;
+    const nextPrefix = documentTypeForLetterType(activeTab);
+    const patchPrefix = <T extends { referencePrefix: string }>(prev: T): T =>
+      prev.referencePrefix === nextPrefix
+        ? prev
+        : { ...prev, referencePrefix: nextPrefix };
+    setFeesFields(patchPrefix);
+    setGeneralFields(patchPrefix);
+    setSchoolAdmissionFields(patchPrefix);
+    setSchoolTransferFields(patchPrefix);
+    setRationFields(patchPrefix);
+    setIncomeFields(patchPrefix);
+    setDomicileFields(patchPrefix);
+    setWardFields(patchPrefix);
+    referenceNumberAutoRef.current = true;
+  }, [activeTab, lockFixedFields]);
+
+  // Seed voter name / contact / address into letter fields once.
+  const voterPrefillAppliedRef = useRef(false);
+  useEffect(() => {
+    if (voterPrefillAppliedRef.current) return;
+    if (!lockFixedFields) return;
+    if (!voterPrefillName && !voterPrefillContact && !voterPrefillAddress) return;
+    voterPrefillAppliedRef.current = true;
+
+    if (voterPrefillName) {
+      setWardFields((prev) =>
+        prev.complainantName.trim()
+          ? prev
+          : { ...prev, complainantName: voterPrefillName },
+      );
+      setRationFields((prev) =>
+        prev.fullName.trim() ? prev : { ...prev, fullName: voterPrefillName },
+      );
+      setIncomeFields((prev) =>
+        prev.fullName.trim() ? prev : { ...prev, fullName: voterPrefillName },
+      );
+      setDomicileFields((prev) =>
+        prev.fullName.trim() ? prev : { ...prev, fullName: voterPrefillName },
+      );
+      setSchoolAdmissionFields((prev) =>
+        prev.parentName.trim()
+          ? prev
+          : { ...prev, parentName: voterPrefillName },
+      );
+      setSchoolTransferFields((prev) =>
+        prev.parentName.trim()
+          ? prev
+          : { ...prev, parentName: voterPrefillName },
+      );
+    }
+    if (voterPrefillContact) {
+      setWardFields((prev) =>
+        prev.contactNo.trim()
+          ? prev
+          : { ...prev, contactNo: voterPrefillContact },
+      );
+    }
+    if (voterPrefillAddress) {
+      setSchoolAdmissionFields((prev) =>
+        prev.address.trim() ? prev : { ...prev, address: voterPrefillAddress },
+      );
+      setSchoolTransferFields((prev) =>
+        prev.address.trim() ? prev : { ...prev, address: voterPrefillAddress },
+      );
+      setRationFields((prev) =>
+        prev.address.trim() ? prev : { ...prev, address: voterPrefillAddress },
+      );
+      setIncomeFields((prev) =>
+        prev.address.trim() ? prev : { ...prev, address: voterPrefillAddress },
+      );
+      setDomicileFields((prev) =>
+        prev.address.trim() ? prev : { ...prev, address: voterPrefillAddress },
+      );
+      seedManualAddressPartsFromText('applicant', voterPrefillAddress);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    lockFixedFields,
+    voterPrefillName,
+    voterPrefillContact,
+    voterPrefillAddress,
+  ]);
+
   useEffect(() => {
     const prefix = normalizeReferencePrefix(activeReferencePrefix);
     if (!prefix) return;
@@ -3471,28 +3575,42 @@ export function LetterGeneration({
           required
           error={fieldErrors.referencePrefix}
         >
-          <Combobox
-            value={
-              coerceDocumentType(fields.referencePrefix) ??
-              (fields.referencePrefix || defaultReferencePrefix())
-            }
-            onValueChange={(value) => {
-              const nextPrefix = value as DocumentType;
-              referenceNumberAutoRef.current = true;
-              syncReferenceFields(nextPrefix, fields.referenceNo);
-              if (fieldErrors.referencePrefix || fieldErrors.referenceNo) {
-                setFieldErrors((prev) => ({
-                  ...prev,
-                  referencePrefix: undefined,
-                  referenceNo: undefined,
-                }));
+          {lockFixedFields ? (
+            <Input
+              value={documentTypeLabel(
+                coerceDocumentType(fields.referencePrefix) ??
+                  fields.referencePrefix,
+                letterLocale,
+                documentTypes,
+              )}
+              readOnly
+              disabled
+              aria-required
+            />
+          ) : (
+            <Combobox
+              value={
+                coerceDocumentType(fields.referencePrefix) ??
+                (fields.referencePrefix || defaultReferencePrefix())
               }
-            }}
-            options={documentTypeComboboxOptions}
-            placeholder={lt('letterGeneration.placeholders.referencePrefix')}
-            aria-invalid={!!fieldErrors.referencePrefix}
-            aria-required
-          />
+              onValueChange={(value) => {
+                const nextPrefix = value as DocumentType;
+                referenceNumberAutoRef.current = true;
+                syncReferenceFields(nextPrefix, fields.referenceNo);
+                if (fieldErrors.referencePrefix || fieldErrors.referenceNo) {
+                  setFieldErrors((prev) => ({
+                    ...prev,
+                    referencePrefix: undefined,
+                    referenceNo: undefined,
+                  }));
+                }
+              }}
+              options={documentTypeComboboxOptions}
+              placeholder={lt('letterGeneration.placeholders.referencePrefix')}
+              aria-invalid={!!fieldErrors.referencePrefix}
+              aria-required
+            />
+          )}
         </FieldGroup>
         <FieldGroup
           label={lt('letterGeneration.fields.referenceNo')}
@@ -3502,6 +3620,7 @@ export function LetterGeneration({
           <ClearableInput
             value={fields.referenceNo}
             onChange={(e) => {
+              if (lockFixedFields) return;
               const nextNumber = formatReferenceNumberForLocale(
                 e.target.value,
                 letterLocale,
@@ -3513,6 +3632,7 @@ export function LetterGeneration({
               }
             }}
             onClear={() => {
+              if (lockFixedFields) return;
               referenceNumberAutoRef.current = false;
               syncReferenceFields(fields.referencePrefix, '');
               if (fieldErrors.referenceNo) {
@@ -3521,6 +3641,8 @@ export function LetterGeneration({
             }}
             placeholder={lt('letterGeneration.placeholders.referenceNo')}
             required
+            readOnly={lockFixedFields}
+            disabled={lockFixedFields}
             inputMode="numeric"
             lang={letterLocale === 'mr' ? 'mr' : 'en'}
             aria-invalid={!!fieldErrors.referenceNo}
@@ -3531,17 +3653,21 @@ export function LetterGeneration({
           required
           error={fieldErrors.date}
         >
-          <LetterDatePicker
-            locale={letterLocale}
-            value={fields.date}
-            onValueChange={(next) => {
-              setFields({ ...fields, date: next });
-              if (fieldErrors.date) {
-                setFieldErrors((prev) => ({ ...prev, date: undefined }));
-              }
-            }}
-            placeholder={lt('letterGeneration.placeholders.date')}
-          />
+          {lockFixedFields ? (
+            <Input value={fields.date} readOnly disabled aria-required />
+          ) : (
+            <LetterDatePicker
+              locale={letterLocale}
+              value={fields.date}
+              onValueChange={(next) => {
+                setFields({ ...fields, date: next });
+                if (fieldErrors.date) {
+                  setFieldErrors((prev) => ({ ...prev, date: undefined }));
+                }
+              }}
+              placeholder={lt('letterGeneration.placeholders.date')}
+            />
+          )}
         </FieldGroup>
       </div>
     </>
@@ -5064,6 +5190,7 @@ export function LetterGeneration({
                             locale={letterLocale}
                             value={wardFields.complainantName}
                             onValueChange={(complainantName) => {
+                              if (lockComplainantName) return;
                               setWardFields((prev) => ({ ...prev, complainantName }));
                               if (fieldErrors.complainantName) {
                                 setFieldErrors((prev) => ({
@@ -5073,6 +5200,8 @@ export function LetterGeneration({
                               }
                             }}
                             required
+                            readOnly={lockComplainantName}
+                            disabled={lockComplainantName}
                           />
                         </FieldGroup>
                         <FieldGroup
@@ -5087,6 +5216,7 @@ export function LetterGeneration({
                                 : ''
                             }
                             onChange={(e) => {
+                              if (lockContactNo) return;
                               setWardFields((prev) => ({
                                 ...prev,
                                 contactNo: normalizeContactNo(e.target.value),
@@ -5102,6 +5232,8 @@ export function LetterGeneration({
                             maxLength={10}
                             placeholder={lt('letterGeneration.placeholders.contactNo')}
                             required
+                            readOnly={lockContactNo}
+                            disabled={lockContactNo}
                           />
                         </FieldGroup>
                         <FieldGroup
