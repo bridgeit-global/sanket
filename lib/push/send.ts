@@ -1,5 +1,6 @@
 import 'server-only';
 
+import { after } from 'next/server';
 import webpush from 'web-push';
 import {
   deleteStaleSubscriptions,
@@ -115,10 +116,23 @@ export async function sendPushToSubscribedAdmins(
   return userIds;
 }
 
-export function notifyPush(
-  send: () => Promise<void>,
-): void {
-  void send().catch((error) => {
-    console.error('Push notification error:', error);
-  });
+/**
+ * Schedule push delivery after the response is sent so Vercel/serverless
+ * does not freeze the isolate before web-push finishes.
+ */
+export function notifyPush(send: () => Promise<void>): void {
+  const run = async () => {
+    try {
+      await send();
+    } catch (error) {
+      console.error('Push notification error:', error);
+    }
+  };
+
+  try {
+    after(run);
+  } catch {
+    // Outside a Next.js request context (scripts/tests): still fire-and-forget.
+    void run();
+  }
 }

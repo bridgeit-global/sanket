@@ -62,15 +62,26 @@ export function PushNotificationSettings() {
 
         <div className="flex items-center gap-3">
           {isSubscribed ? (
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => void unsubscribe()}
-              disabled={isLoading}
-            >
-              <BellOff className="mr-2 size-4" />
-              Disable notifications
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void unsubscribe()}
+                disabled={isLoading}
+              >
+                <BellOff className="mr-2 size-4" />
+                Disable notifications
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => void subscribe()}
+                disabled={isLoading || permission === 'denied'}
+              >
+                <Bell className="mr-2 size-4" />
+                Refresh subscription
+              </Button>
+            </>
           ) : (
             <Button
               type="button"
@@ -89,7 +100,7 @@ export function PushNotificationSettings() {
 
         <p className="text-xs text-muted-foreground">
           On iOS, install the app to your home screen first, then enable
-          notifications here.
+          notifications here. If alerts stop arriving, use Refresh subscription.
         </p>
       </CardContent>
     </Card>

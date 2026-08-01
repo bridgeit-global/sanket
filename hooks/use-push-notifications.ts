@@ -77,14 +77,26 @@ export function usePushNotifications() {
       }
 
       const registration = await navigator.serviceWorker.ready;
-      let subscription = await registration.pushManager.getSubscription();
-
-      if (!subscription) {
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(publicKey),
-        });
+      const existing = await registration.pushManager.getSubscription();
+      // Drop any existing endpoint first — expired FCM subscriptions otherwise
+      // look "enabled" in the UI while the server can no longer deliver to them.
+      if (existing) {
+        try {
+          await fetch('/api/push/unsubscribe', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ endpoint: existing.endpoint }),
+          });
+        } catch {
+          // best-effort server cleanup
+        }
+        await existing.unsubscribe();
       }
+
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
 
       const subscriptionJson = subscription.toJSON();
       const saveResponse = await fetch('/api/push/subscribe', {
