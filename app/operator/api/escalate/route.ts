@@ -122,9 +122,7 @@ export async function POST(request: NextRequest) {
             sendPushToModule('user-management', {
                 title: `${escalationTarget} escalated`,
                 body: reason.length > 120 ? `${reason.slice(0, 117)}...` : reason,
-                url: result.task
-                    ? `/modules/operator?taskId=${taskId}`
-                    : `/modules/operator?serviceId=${serviceId ?? taskId}`,
+                url: `/modules/operator?taskId=${taskId ?? serviceId}`,
                 tag: `escalation-${escalationId}`,
             }, { excludeUserId: session.user.id }),
         );

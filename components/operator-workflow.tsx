@@ -256,7 +256,12 @@ export function BeneficiaryManagement({
     const [workflowStep, setWorkflowStep] = useState<'search' | 'phoneUpdate' | 'service' | 'confirmation' | 'completed' | 'tasks'>(
         initialTab === 'manage' ? 'tasks' : 'search',
     );
-    const deepLinkTaskId = searchParams.get('taskId') ?? initialTaskId ?? null;
+    // Prefer taskId; serviceId is accepted for older notification links
+    const deepLinkTaskId =
+        searchParams.get('taskId') ??
+        searchParams.get('serviceId') ??
+        initialTaskId ??
+        null;
     const hasDeepLink = Boolean(deepLinkTaskId);
     const activeTab = hasDeepLink
         ? 'manage'

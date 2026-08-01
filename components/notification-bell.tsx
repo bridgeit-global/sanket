@@ -129,9 +129,22 @@ export function NotificationBell() {
       await markRead(item.id);
     }
     setOpen(false);
-    if (item.url) {
-      router.push(item.url);
+    if (!item.url) return;
+
+    // Full assign so operator deep-links (taskId) remount and open the dialog
+    // even when already on /modules/operator.
+    try {
+      const nextUrl = new URL(item.url, window.location.origin);
+      if (nextUrl.origin === window.location.origin) {
+        window.location.assign(
+          nextUrl.pathname + nextUrl.search + nextUrl.hash,
+        );
+        return;
+      }
+    } catch {
+      // fall through
     }
+    router.push(item.url);
   };
 
   return (

@@ -50,7 +50,7 @@ export default async function OperatorPage({
         <BeneficiaryManagement
           initialTab={initialTab}
           initialManageState={initialManageState}
-          initialTaskId={params.taskId}
+          initialTaskId={params.taskId ?? params.serviceId}
         />
       </div>
     </div>

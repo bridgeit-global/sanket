@@ -1524,13 +1524,15 @@ export async function updateBeneficiaryServiceStatus({
     if (
       updatedService &&
       currentService.status !== status &&
-      updatedService.assignedTo
+      updatedService.assignedTo &&
+      updatedService.assignedTo !== performedBy
     ) {
       notifyPush(() =>
         sendPushToUser(updatedService.assignedTo!, {
           title: 'Service status updated',
           body: `${updatedService.serviceName}: ${currentService.status} → ${status}`,
-          url: `/modules/operator?serviceId=${updatedService.id}`,
+          // taskId is the deep-link key; /operator/api/tasks/:id resolves services too
+          url: `/modules/operator?taskId=${updatedService.id}`,
           tag: `service-${updatedService.id}`,
         }),
       );
@@ -1874,6 +1876,22 @@ export async function updateVoterTaskStatus({
           );
         }
       }
+    }
+
+    if (
+      updatedTask &&
+      currentTask.status !== status &&
+      updatedTask.assignedTo &&
+      updatedTask.assignedTo !== performedBy
+    ) {
+      notifyPush(() =>
+        sendPushToUser(updatedTask.assignedTo!, {
+          title: 'Task status updated',
+          body: `${currentTask.taskType}: ${currentTask.status} → ${status}`,
+          url: `/modules/operator?taskId=${id}`,
+          tag: `task-${id}`,
+        }),
+      );
     }
 
     return updatedTask;
