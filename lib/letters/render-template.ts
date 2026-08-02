@@ -283,7 +283,7 @@ export function buildRenderFields(
 
   // Apply last so type-specific spreads cannot overwrite localized values.
   const localized = withLocalizedReferenceFields(renderFields, locale, documentTypes);
-  // Letter preview/print: show only the last 2 digits of any PIN in addresses.
+  // Letter preview/print: keep full 6-digit PINs in addresses (e.g. 400043).
   return Object.fromEntries(
     Object.entries(localized).map(([key, value]) => [
       key,

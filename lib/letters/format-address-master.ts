@@ -90,8 +90,8 @@ function localizeAddressText(value: string, locale: LetterLocale): string {
 }
 
 /**
- * Letter/print display for Indian PIN codes: only the last 2 digits
- * (e.g. 400088 → 88, ४०००८८ → ८८). Form fields still keep the full PIN.
+ * Letter/print display for Indian PIN codes: full 6 digits
+ * (e.g. 400043 → 400043, ४०००४३ → ४०००४३).
  */
 export function formatPincodeForLetter(
   pincode: string,
@@ -99,12 +99,12 @@ export function formatPincodeForLetter(
 ): string {
   const cleaned = toWesternDigits(pincode).replace(/\D/g, '');
   if (!cleaned) return '';
-  return toLocaleDigits(cleaned.slice(-2), locale);
+  return toLocaleDigits(cleaned, locale);
 }
 
 /**
- * In letter HTML field values, replace ` - 400088` / ` - ४०००८८` style
- * PIN suffixes with the last 2 digits so preview and print stay consistent.
+ * Normalize PIN suffixes in letter HTML/field values to locale digits
+ * while keeping the full 6-digit pincode (e.g. 400043).
  */
 export function truncateAddressPincodesForLetter(
   text: string,
@@ -118,7 +118,7 @@ export function truncateAddressPincodesForLetter(
     bareWestern.length === 6 &&
     toWesternDigits(trimmed).replace(/[\s]/g, '') === bareWestern
   ) {
-    return toLocaleDigits(bareWestern.slice(-2), locale);
+    return toLocaleDigits(bareWestern, locale);
   }
 
   return text.replace(
@@ -126,7 +126,7 @@ export function truncateAddressPincodesForLetter(
     (match, sep: string, pinGroup: string) => {
       const western = toWesternDigits(pinGroup).replace(/\D/g, '');
       if (western.length !== 6) return match;
-      return `${sep}${toLocaleDigits(western.slice(-2), locale)}`;
+      return `${sep}${toLocaleDigits(western, locale)}`;
     },
   );
 }
@@ -151,15 +151,18 @@ export function formatAddressMaster(
 
   const base = segments.join(', ');
   const rawPin = parts.pincode.trim();
+  const cleanedPin = toWesternDigits(rawPin).replace(/\D/g, '');
   const pincode =
-    options?.pincodeDisplay === 'full'
-      ? toLocaleDigits(rawPin, locale)
+    options?.pincodeDisplay === 'last2'
+      ? cleanedPin
+        ? toLocaleDigits(cleanedPin.slice(-2), locale)
+        : ''
       : formatPincodeForLetter(rawPin, locale);
 
   if (!base && !pincode) return '';
   if (!pincode) return base;
   if (!base) return pincode;
-  // Letter/display format: "line1, line2, line3, city - last2 of pincode"
+  // Letter/display format: "line1, line2, line3, city - 400043"
   return `${base} - ${pincode}`;
 }
 
@@ -222,7 +225,7 @@ export function formatAddressSoftWrapHtml(text: string): string {
 
 /**
  * Format an address for letter recipient ("To") blocks as plain
- * `line1, line2, line3, city - last2(pincode)` text. Soft-wrap HTML (visible commas
+ * `line1, line2, line3, city - 400043` text. Soft-wrap HTML (visible commas
  * between parts) is applied at render via `formatAddressSoftWrapHtml`.
  * Inline body placeholders still use `formatAddressMaster`.
  *

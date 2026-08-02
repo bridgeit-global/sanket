@@ -23,7 +23,7 @@ import {
   paginateLetterContentRoot,
 } from '@/lib/pdf/page-breaks';
 
-/** Preview/print HTML: keep only last 2 digits of any address PIN. */
+/** Preview/print HTML: keep full 6-digit address PINs (e.g. 400043). */
 function withLetterPincodeDisplay(html: string, letterLocale: LetterLocale): string {
   return truncateAddressPincodesForLetter(html, letterLocale);
 }
