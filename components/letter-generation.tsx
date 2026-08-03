@@ -1098,8 +1098,8 @@ export function LetterGeneration({
   const voterPrefillContact = (prefill?.contactNo ?? '').replace(/\D/g, '').slice(-10);
   const voterPrefillAddress = (prefill?.address ?? '').trim();
   const lockContactNo = lockFixedFields && Boolean(voterPrefillContact);
-  /** Invalidates in-flight complainant Marathi transliteration when the operator edits. */
-  const complainantTranslateReqIdRef = useRef(0);
+  /** Invalidates in-flight name Marathi transliteration when the operator edits. */
+  const nameTranslateReqIdRef = useRef(0);
   const [activeTab, setActiveTab] = useState<string>(
     () => linkedLetterType ?? 'general',
   );
@@ -2546,19 +2546,28 @@ export function LetterGeneration({
   }, [activeTab, lockFixedFields]);
 
   // Seed voter name / contact / address into letter fields once.
-  const applyComplainantMarathiIfUnchanged = useCallback(async (source: string) => {
+  /** Latin → Marathi for any name field that still equals `source` (prefill / blur). */
+  const applyNameMarathiIfUnchanged = useCallback(async (source: string) => {
     const trimmed = source.trim();
     if (!trimmed || hasDevanagari(trimmed) || !hasLatinLetters(trimmed)) return;
 
-    const reqId = ++complainantTranslateReqIdRef.current;
+    const reqId = ++nameTranslateReqIdRef.current;
     const translated = await transliterateToMarathi(trimmed);
     if (!translated) return;
-    if (complainantTranslateReqIdRef.current !== reqId) return;
+    if (nameTranslateReqIdRef.current !== reqId) return;
 
-    setWardFields((prev) => {
-      if (prev.complainantName.trim() !== trimmed) return prev;
-      return { ...prev, complainantName: translated };
-    });
+    const patchIfMatch = <T, K extends keyof T>(prev: T, key: K): T => {
+      const current = prev[key];
+      if (typeof current !== 'string' || current.trim() !== trimmed) return prev;
+      return { ...prev, [key]: translated };
+    };
+
+    setWardFields((prev) => patchIfMatch(prev, 'complainantName'));
+    setRationFields((prev) => patchIfMatch(prev, 'fullName'));
+    setIncomeFields((prev) => patchIfMatch(prev, 'fullName'));
+    setDomicileFields((prev) => patchIfMatch(prev, 'fullName'));
+    setSchoolAdmissionFields((prev) => patchIfMatch(prev, 'parentName'));
+    setSchoolTransferFields((prev) => patchIfMatch(prev, 'parentName'));
   }, []);
 
   const voterPrefillAppliedRef = useRef(false);
@@ -2574,7 +2583,6 @@ export function LetterGeneration({
           ? prev
           : { ...prev, complainantName: voterPrefillName },
       );
-      void applyComplainantMarathiIfUnchanged(voterPrefillName);
       setRationFields((prev) =>
         prev.fullName.trim() ? prev : { ...prev, fullName: voterPrefillName },
       );
@@ -2594,6 +2602,7 @@ export function LetterGeneration({
           ? prev
           : { ...prev, parentName: voterPrefillName },
       );
+      void applyNameMarathiIfUnchanged(voterPrefillName);
     }
     if (voterPrefillContact) {
       setWardFields((prev) =>
@@ -2626,7 +2635,7 @@ export function LetterGeneration({
     voterPrefillName,
     voterPrefillContact,
     voterPrefillAddress,
-    applyComplainantMarathiIfUnchanged,
+    applyNameMarathiIfUnchanged,
   ]);
 
   useEffect(() => {
@@ -4258,6 +4267,7 @@ export function LetterGeneration({
                           locale={letterLocale}
                           value={schoolAdmissionFields.parentName}
                           onValueChange={(parentName) => {
+                            nameTranslateReqIdRef.current += 1;
                             setSchoolAdmissionFields({
                               ...schoolAdmissionFields,
                               parentName,
@@ -4265,6 +4275,11 @@ export function LetterGeneration({
                             if (fieldErrors.parentName) {
                               setFieldErrors((prev) => ({ ...prev, parentName: undefined }));
                             }
+                          }}
+                          onBlur={() => {
+                            void applyNameMarathiIfUnchanged(
+                              schoolAdmissionFields.parentName,
+                            );
                           }}
                           required
                         />
@@ -4399,6 +4414,7 @@ export function LetterGeneration({
                           locale={letterLocale}
                           value={schoolTransferFields.parentName}
                           onValueChange={(parentName) => {
+                            nameTranslateReqIdRef.current += 1;
                             setSchoolTransferFields({
                               ...schoolTransferFields,
                               parentName,
@@ -4406,6 +4422,11 @@ export function LetterGeneration({
                             if (fieldErrors.parentName) {
                               setFieldErrors((prev) => ({ ...prev, parentName: undefined }));
                             }
+                          }}
+                          onBlur={() => {
+                            void applyNameMarathiIfUnchanged(
+                              schoolTransferFields.parentName,
+                            );
                           }}
                           required
                         />
@@ -4568,6 +4589,7 @@ export function LetterGeneration({
                               locale={letterLocale}
                               value={rationFields.fullName}
                               onValueChange={(fullName) => {
+                                nameTranslateReqIdRef.current += 1;
                                 setRationFields({ ...rationFields, fullName });
                                 if (fieldErrors.fullName) {
                                   setFieldErrors((prev) => ({
@@ -4575,6 +4597,9 @@ export function LetterGeneration({
                                     fullName: undefined,
                                   }));
                                 }
+                              }}
+                              onBlur={() => {
+                                void applyNameMarathiIfUnchanged(rationFields.fullName);
                               }}
                               required
                             />
@@ -4880,6 +4905,7 @@ export function LetterGeneration({
                             locale={letterLocale}
                             value={incomeFields.fullName}
                             onValueChange={(fullName) => {
+                              nameTranslateReqIdRef.current += 1;
                               setIncomeFields({ ...incomeFields, fullName });
                               if (fieldErrors.fullName) {
                                 setFieldErrors((prev) => ({
@@ -4887,6 +4913,9 @@ export function LetterGeneration({
                                   fullName: undefined,
                                 }));
                               }
+                            }}
+                            onBlur={() => {
+                              void applyNameMarathiIfUnchanged(incomeFields.fullName);
                             }}
                             required
                           />
@@ -5057,6 +5086,7 @@ export function LetterGeneration({
                             locale={letterLocale}
                             value={domicileFields.fullName}
                             onValueChange={(fullName) => {
+                              nameTranslateReqIdRef.current += 1;
                               setDomicileFields({ ...domicileFields, fullName });
                               if (fieldErrors.fullName) {
                                 setFieldErrors((prev) => ({
@@ -5064,6 +5094,9 @@ export function LetterGeneration({
                                   fullName: undefined,
                                 }));
                               }
+                            }}
+                            onBlur={() => {
+                              void applyNameMarathiIfUnchanged(domicileFields.fullName);
                             }}
                             required
                           />
@@ -5245,7 +5278,7 @@ export function LetterGeneration({
                             locale={letterLocale}
                             value={wardFields.complainantName}
                             onValueChange={(complainantName) => {
-                              complainantTranslateReqIdRef.current += 1;
+                              nameTranslateReqIdRef.current += 1;
                               setWardFields((prev) => ({ ...prev, complainantName }));
                               if (fieldErrors.complainantName) {
                                 setFieldErrors((prev) => ({
@@ -5255,7 +5288,7 @@ export function LetterGeneration({
                               }
                             }}
                             onBlur={() => {
-                              void applyComplainantMarathiIfUnchanged(
+                              void applyNameMarathiIfUnchanged(
                                 wardFields.complainantName,
                               );
                             }}
