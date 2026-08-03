@@ -175,8 +175,10 @@ function escapeAddressHtmlText(value: string): string {
 }
 
 /**
- * Preserve intentional newlines / `<br>` in address HTML for letter render.
- * Idempotent over prior soft-wrap span / `<wbr>` markup.
+ * Soft-wrap comma-separated address segments within each hard line.
+ * Each segment keeps its trailing comma (`पहिला मजला,`) so wraps happen
+ * between parts. Explicit newlines / `<br>` from multiline formatting stay
+ * hard breaks. Idempotent over prior soft-wrap span / `<wbr>` markup.
  */
 export function formatAddressSoftWrapHtml(text: string): string {
   return text
@@ -200,7 +202,24 @@ export function formatAddressSoftWrapHtml(text: string): string {
         .replace(/&nbsp;/gi, ' ')
         .trim();
       if (!cleaned) return '';
-      return escapeAddressHtmlText(cleaned);
+
+      // Preserve a trailing comma on hard lines like `line1,` after split.
+      const hadTrailingComma = /[,，،]\s*$/.test(cleaned);
+      const parts = cleaned
+        .split(/[,，،]/)
+        .map((part) => part.trim())
+        .filter(Boolean);
+      if (parts.length <= 1) return escapeAddressHtmlText(cleaned);
+
+      return parts
+        .map((part, index) => {
+          const isLast = index === parts.length - 1;
+          const label = !isLast || hadTrailingComma ? `${part},` : part;
+          // inline-block wraps as a unit so the comma stays with the segment;
+          // max-width lets an oversized single segment still break inside.
+          return `<span style="display:inline-block;max-width:100%;vertical-align:top">${escapeAddressHtmlText(label)}</span>`;
+        })
+        .join(' ');
     })
     .filter(Boolean)
     .join('<br>');
@@ -218,7 +237,9 @@ export function formatAddressSoftWrapHtml(text: string): string {
  *   line2,
  *   line3, city - 400043
  *
- * Inline body placeholders still use `formatAddressMaster` (single line).
+ * Long line1/line2 segments soft-wrap at commas (comma stays with the part)
+ * via `formatAddressSoftWrapHtml` at render. Inline body placeholders still
+ * use `formatAddressMaster` (single line).
  *
  * @param separator Legacy join override. Omit (or pass `', '` / `',<br>'`) for
  *   the standard layout above. Other values still rewrite comma joins.
