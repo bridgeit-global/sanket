@@ -142,10 +142,9 @@ import {
   type AddressMasterRow,
 } from '@/components/letter-address-field';
 import {
-  resolveAddressTypeForLetterField,
+  getFallbackAddressType,
   type LetterAddressField as LetterAddressFieldKey,
 } from '@/lib/letters/letter-address-fields';
-import type { LetterAddressTypeLinkRow } from '@/components/letter-address-link-manager';
 import {
   formatAddressMaster,
   formatAddressMasterMultiline,
@@ -157,7 +156,10 @@ import {
   sanitizeAddressPartsLocations,
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
-import { findDefaultRationOfficeAddress } from '@/lib/letters/default-addresses';
+import {
+  findDefaultOfficeAddress,
+  findDefaultRationOfficeAddress,
+} from '@/lib/letters/default-addresses';
 import { filterLocaleText } from '@/lib/letters/locale-text';
 import { letterMessage } from '@/lib/letters/letter-messages';
 import {
@@ -709,8 +711,10 @@ type LetterFieldErrors = Record<string, string | undefined>;
 /** Collapse HTML/newline breaks back to a single comma-separated line. */
 function addressToSingleLine(value: string): string {
   return value
+    .replace(/<span\b[^>]*>/gi, '')
+    .replace(/<\/span>/gi, '')
     .split(/\r?\n|<br\s*\/?>/i)
-    .map((line) => line.trim())
+    .map((line) => line.trim().replace(/,\s*$/, ''))
     .filter(Boolean)
     .join(', ');
 }
@@ -781,8 +785,8 @@ type AddressSelectionState = {
 type ManualAddressKey = keyof AddressSelectionState;
 type ManualAddressParts = Record<ManualAddressKey, AddressMasterAddressParts>;
 
-// Recipient ("To") blocks keep address parts comma-joined; soft-wrap HTML
-// (visible commas between parts at half paper width) is applied at render.
+// Recipient ("To") blocks use hard line breaks:
+//   line1, / line2, city - pin  (or with line3 before city).
 // Inline placeholders (applicant address, from/to ration office in body
 // text) stay single-line.
 const MULTILINE_ADDRESS_KEYS: ReadonlySet<ManualAddressKey> = new Set([
@@ -1174,11 +1178,9 @@ export function LetterGeneration({
     string | null
   >(null);
   const [addresses, setAddresses] = useState<AddressMasterRow[]>([]);
-  const [addressTypeLinks, setAddressTypeLinks] = useState<LetterAddressTypeLinkRow[]>([]);
   const addressTypeForField = useCallback(
-    (field: LetterAddressFieldKey) =>
-      resolveAddressTypeForLetterField(addressTypeLinks, activeTab, field),
-    [addressTypeLinks, activeTab],
+    (field: LetterAddressFieldKey) => getFallbackAddressType(activeTab, field),
+    [activeTab],
   );
   const [documentTypes, setDocumentTypes] = useState<DocumentTypeMasterRow[]>([]);
   const [addressSelections, setAddressSelections] = useState<AddressSelectionState>({
@@ -2042,6 +2044,21 @@ export function LetterGeneration({
     }
   };
 
+  // Prefill office with Tahsildar Office, Kurla once addresses load.
+  const defaultOfficeAppliedRef = useRef(false);
+  useEffect(() => {
+    if (defaultOfficeAppliedRef.current) return;
+    if (addressSelections.office) {
+      defaultOfficeAppliedRef.current = true;
+      return;
+    }
+    const preferred = findDefaultOfficeAddress(addresses);
+    if (!preferred) return;
+    defaultOfficeAppliedRef.current = true;
+    handleOfficeAddressSelect(preferred.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addresses]);
+
   const handleWardToAddressSelect = (id: string | null, seedText = '') => {
     setAddressSelections((prev) => {
       const next = { ...prev, to: id };
@@ -2139,18 +2156,6 @@ export function LetterGeneration({
     }
   };
 
-  const refreshAddressTypeLinks = async () => {
-    try {
-      const res = await fetch('/api/letter-address-links');
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || 'Failed to fetch letter address links');
-      setAddressTypeLinks((json?.links ?? []) as LetterAddressTypeLinkRow[]);
-    } catch (error) {
-      console.error('Failed to fetch letter address links', error);
-      toast.error(t('letterGeneration.letterAddressLinks.fetchError'));
-    }
-  };
-
   const refreshSavedLetters = async () => {
     setSavedLettersLoading(true);
     try {
@@ -2175,7 +2180,6 @@ export function LetterGeneration({
     void refreshLetterTypes();
     void refreshAddresses();
     void refreshDocumentTypes();
-    void refreshAddressTypeLinks();
     // Preload reference numbers already present in the outward register so the
     // "Add to Outward" action stays disabled across reloads.
     void (async () => {
@@ -2522,7 +2526,7 @@ export function LetterGeneration({
     setWardFields(coercePrefix);
   }, []);
 
-  // Beneficiary flow: document type is derived from letter family (school → General, else Department).
+  // Beneficiary flow: document type is derived from letter family (school/income/domicile → General, else Department).
   useEffect(() => {
     if (!lockFixedFields) return;
     const nextPrefix = documentTypeForLetterType(activeTab);
@@ -3374,6 +3378,10 @@ export function LetterGeneration({
     const preferredRationOffice = findDefaultRationOfficeAddress(addresses);
     if (preferredRationOffice) {
       handleRationOfficeAddressSelect(preferredRationOffice.id);
+    }
+    const preferredOffice = findDefaultOfficeAddress(addresses);
+    if (preferredOffice) {
+      handleOfficeAddressSelect(preferredOffice.id);
     }
     defaultWardToAppliedRef.current = false;
     const clearedWardIssue = resolveWardIssueForLetterContext(

@@ -104,6 +104,10 @@ export function getDefaultAddressSeeds(): DefaultAddressSeed[] {
   ];
 }
 
+/** Preferred default tahsildar office for income/domicile letters. */
+export const DEFAULT_OFFICE_PINCODE = '400080';
+export const DEFAULT_OFFICE_NAME = 'Tahsildar Office, Kurla';
+
 /** Preferred default ration office for Anushakti Nagar constituency letters. */
 export const DEFAULT_RATION_OFFICE_PINCODE = '400088';
 export const DEFAULT_RATION_OFFICE_NAME = 'Rationing Office 49-E, Anushakti Nagar';
@@ -114,6 +118,24 @@ export function getLegacyDefaultAddressText(
 ): string {
   if (addressType === 'office') return DEFAULT_OFFICE_ADDRESS[locale];
   return DEFAULT_RATION_OFFICE_ADDRESS[locale];
+}
+
+/** Pick the constituency default office (Tahsildar, Kurla) from address master rows. */
+export function findDefaultOfficeAddress<
+  T extends {
+    name: string;
+    addressType: string;
+    pincode: string;
+    isActive?: boolean;
+  },
+>(addresses: T[]): T | undefined {
+  const active = addresses.filter(
+    (row) => row.addressType === 'office' && row.isActive !== false,
+  );
+  return (
+    active.find((row) => row.name === DEFAULT_OFFICE_NAME) ??
+    active.find((row) => row.pincode === DEFAULT_OFFICE_PINCODE)
+  );
 }
 
 /** Pick the constituency default ration office from address master rows. */
