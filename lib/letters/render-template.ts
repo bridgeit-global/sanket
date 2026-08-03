@@ -101,8 +101,7 @@ function formatFamilyMembersBlock(familyMembers: string): string {
 }
 
 function formatMultilineHtmlBlock(text: string): string {
-  // Explicit newlines stay hard breaks. Comma-separated address/"To" parts
-  // soft-wrap as units so trailing commas stay visible (en + mr).
+  // Explicit newlines / `<br>` from recipient address formatting stay hard breaks.
   return formatAddressSoftWrapHtml(text);
 }
 

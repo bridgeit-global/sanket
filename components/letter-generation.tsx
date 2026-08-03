@@ -709,8 +709,10 @@ type LetterFieldErrors = Record<string, string | undefined>;
 /** Collapse HTML/newline breaks back to a single comma-separated line. */
 function addressToSingleLine(value: string): string {
   return value
+    .replace(/<span\b[^>]*>/gi, '')
+    .replace(/<\/span>/gi, '')
     .split(/\r?\n|<br\s*\/?>/i)
-    .map((line) => line.trim())
+    .map((line) => line.trim().replace(/,\s*$/, ''))
     .filter(Boolean)
     .join(', ');
 }
@@ -781,8 +783,8 @@ type AddressSelectionState = {
 type ManualAddressKey = keyof AddressSelectionState;
 type ManualAddressParts = Record<ManualAddressKey, AddressMasterAddressParts>;
 
-// Recipient ("To") blocks keep address parts comma-joined; soft-wrap HTML
-// (visible commas between parts at half paper width) is applied at render.
+// Recipient ("To") blocks use hard line breaks:
+//   line1, / line2, city - pin  (or with line3 before city).
 // Inline placeholders (applicant address, from/to ration office in body
 // text) stay single-line.
 const MULTILINE_ADDRESS_KEYS: ReadonlySet<ManualAddressKey> = new Set([

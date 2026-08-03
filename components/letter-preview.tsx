@@ -54,12 +54,12 @@ ${LETTER_CLOSING_ALIGN_SELECTOR} {
 }
 `.trim();
 
-/** Keep To-address blocks within half the content width; commas soft-wrap as units. */
+/** Address/"To" blocks use natural width with hard line breaks (no half-page clamp). */
 const LETTER_ADDRESS_WIDTH_SELECTOR = '.address, .recipient, .recipient-bottom';
 
 const LETTER_ADDRESS_WIDTH_STYLE = `
 ${LETTER_ADDRESS_WIDTH_SELECTOR} {
-  max-width: 50% !important;
+  max-width: none !important;
   box-sizing: border-box !important;
   white-space: normal !important;
   overflow-wrap: break-word !important;
@@ -100,7 +100,7 @@ function applyLetterClosingAlignment(root: ParentNode): void {
   });
 }
 
-/** Constrain To-address blocks to half page width (preview + PDF capture). */
+/** Ensure To-address blocks are not clamped to half page (preview + PDF capture). */
 function applyLetterAddressWidth(root: ParentNode): void {
   const doc = root instanceof Document ? root : root.ownerDocument;
   if (doc) {
@@ -115,13 +115,15 @@ function applyLetterAddressWidth(root: ParentNode): void {
         styleEl.setAttribute('data-letter-address-width', 'true');
         styleEl.textContent = LETTER_ADDRESS_WIDTH_STYLE;
         styleHost.insertBefore(styleEl, styleHost.firstChild);
+      } else {
+        styleEl.textContent = LETTER_ADDRESS_WIDTH_STYLE;
       }
     }
   }
 
   root.querySelectorAll(LETTER_ADDRESS_WIDTH_SELECTOR).forEach((node) => {
     if (!(node instanceof HTMLElement)) return;
-    node.style.setProperty('max-width', '50%', 'important');
+    node.style.setProperty('max-width', 'none', 'important');
     node.style.setProperty('box-sizing', 'border-box', 'important');
     node.style.setProperty('white-space', 'normal', 'important');
     node.style.setProperty('overflow-wrap', 'break-word', 'important');

@@ -175,10 +175,8 @@ function escapeAddressHtmlText(value: string): string {
 }
 
 /**
- * Soft-wrap comma-separated address text for half-width "To" blocks.
- * Each segment stays with its trailing comma (`line1,` / `line2,`) so wraps
- * happen between parts — commas remain visible. Explicit newlines / `<br>`
- * stay hard breaks. Idempotent over prior `<wbr>` / soft-wrap span markup.
+ * Preserve intentional newlines / `<br>` in address HTML for letter render.
+ * Idempotent over prior soft-wrap span / `<wbr>` markup.
  */
 export function formatAddressSoftWrapHtml(text: string): string {
   return text
@@ -202,35 +200,28 @@ export function formatAddressSoftWrapHtml(text: string): string {
         .replace(/&nbsp;/gi, ' ')
         .trim();
       if (!cleaned) return '';
-
-      const parts = cleaned
-        .split(/[,，،]/)
-        .map((part) => part.trim())
-        .filter(Boolean);
-      if (parts.length <= 1) return escapeAddressHtmlText(cleaned);
-
-      return parts
-        .map((part, index) => {
-          const isLast = index === parts.length - 1;
-          const label = isLast ? part : `${part},`;
-          // inline-block wraps as a unit so the comma stays with the segment;
-          // max-width lets an oversized single segment still break inside.
-          return `<span style="display:inline-block;max-width:100%;vertical-align:top">${escapeAddressHtmlText(label)}</span>`;
-        })
-        .join(' ');
+      return escapeAddressHtmlText(cleaned);
     })
     .filter(Boolean)
     .join('<br>');
 }
 
 /**
- * Format an address for letter recipient ("To") blocks as plain
- * `line1, line2, line3, city - 400043` text. Soft-wrap HTML (visible commas
- * between parts) is applied at render via `formatAddressSoftWrapHtml`.
- * Inline body placeholders still use `formatAddressMaster`.
+ * Format an address for letter recipient ("To") blocks with hard line breaks:
  *
- * @param separator Legacy join override. Omit for plain comma-separated text.
- *   Pass `',<br>'` (etc.) only when a caller still needs hard breaks in state.
+ *   line1,
+ *   line2, city - 400043
+ *
+ * When line3 is present:
+ *
+ *   line1,
+ *   line2,
+ *   line3, city - 400043
+ *
+ * Inline body placeholders still use `formatAddressMaster` (single line).
+ *
+ * @param separator Legacy join override. Omit (or pass `', '` / `',<br>'`) for
+ *   the standard layout above. Other values still rewrite comma joins.
  */
 export function formatAddressMasterMultiline(
   parts: AddressMasterAddressParts,
@@ -238,10 +229,46 @@ export function formatAddressMasterMultiline(
   separator?: string,
   options?: { pincodeDisplay?: 'full' | 'last2' },
 ): string {
-  const singleLine = formatAddressMaster(parts, locale, options);
-  if (!singleLine) return '';
-  if (!separator || separator === ', ') return singleLine;
-  return singleLine.replace(/[,，،]\s*/g, separator);
+  const city = pickLocaleField(parts, locale, 'city').trim();
+  const state = pickLocaleField(parts, locale, 'state').trim();
+  const streetLines = [
+    stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line1'), city, state),
+    stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line2'), city, state),
+    stripTrailingLocationFromLine(pickLocaleField(parts, locale, 'line3'), city, state),
+  ]
+    .map((value) => localizeAddressText(value, locale))
+    .filter(Boolean);
+
+  const localizedCity = localizeAddressText(city, locale);
+  const rawPin = parts.pincode.trim();
+  const cleanedPin = toWesternDigits(rawPin).replace(/\D/g, '');
+  const pincode =
+    options?.pincodeDisplay === 'last2'
+      ? cleanedPin
+        ? toLocaleDigits(cleanedPin.slice(-2), locale)
+        : ''
+      : formatPincodeForLetter(rawPin, locale);
+
+  let locationTail = '';
+  if (localizedCity && pincode) {
+    locationTail = `${localizedCity} - ${pincode}`;
+  } else {
+    locationTail = localizedCity || pincode;
+  }
+
+  if (streetLines.length === 0) return locationTail;
+
+  // Legacy override for callers that still need a custom join.
+  if (separator && separator !== ', ' && separator !== ',<br>') {
+    const singleLine = formatAddressMaster(parts, locale, options);
+    return singleLine ? singleLine.replace(/[,，،]\s*/g, separator) : '';
+  }
+
+  const leading = streetLines.slice(0, -1).map((line) => `${line},`);
+  const lastStreet = streetLines[streetLines.length - 1]!;
+  const lastLine = locationTail ? `${lastStreet}, ${locationTail}` : lastStreet;
+
+  return [...leading, lastLine].join('<br>');
 }
 
 export function hasAddressContent(parts: AddressMasterAddressParts): boolean {
