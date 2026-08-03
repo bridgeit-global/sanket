@@ -156,7 +156,10 @@ import {
   sanitizeAddressPartsLocations,
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
-import { findDefaultRationOfficeAddress } from '@/lib/letters/default-addresses';
+import {
+  findDefaultOfficeAddress,
+  findDefaultRationOfficeAddress,
+} from '@/lib/letters/default-addresses';
 import { filterLocaleText } from '@/lib/letters/locale-text';
 import { letterMessage } from '@/lib/letters/letter-messages';
 import {
@@ -2041,6 +2044,21 @@ export function LetterGeneration({
     }
   };
 
+  // Prefill office with Tahsildar Office, Kurla once addresses load.
+  const defaultOfficeAppliedRef = useRef(false);
+  useEffect(() => {
+    if (defaultOfficeAppliedRef.current) return;
+    if (addressSelections.office) {
+      defaultOfficeAppliedRef.current = true;
+      return;
+    }
+    const preferred = findDefaultOfficeAddress(addresses);
+    if (!preferred) return;
+    defaultOfficeAppliedRef.current = true;
+    handleOfficeAddressSelect(preferred.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addresses]);
+
   const handleWardToAddressSelect = (id: string | null, seedText = '') => {
     setAddressSelections((prev) => {
       const next = { ...prev, to: id };
@@ -3290,6 +3308,10 @@ export function LetterGeneration({
     const preferredRationOffice = findDefaultRationOfficeAddress(addresses);
     if (preferredRationOffice) {
       handleRationOfficeAddressSelect(preferredRationOffice.id);
+    }
+    const preferredOffice = findDefaultOfficeAddress(addresses);
+    if (preferredOffice) {
+      handleOfficeAddressSelect(preferredOffice.id);
     }
     defaultWardToAppliedRef.current = false;
     const clearedWardIssue = resolveWardIssueForLetterContext(
