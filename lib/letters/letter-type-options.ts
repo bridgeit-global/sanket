@@ -134,6 +134,15 @@ const SERVICE_NAME_TO_LETTER_TYPE: Array<{ match: string; letterType: string }> 
   { match: 'handover letter request', letterType: 'general' },
   { match: 'ward letter', letterType: 'ward' },
   { match: 'ward complaint', letterType: 'ward' },
+  // Generic BMC civic services (not a specific ward-* complaint).
+  { match: 'bmc general issue', letterType: 'ward' },
+  { match: 'bmc shop issue', letterType: 'ward' },
+  { match: 'bmc shop', letterType: 'ward' },
+  { match: 'bmc rickshaw stand', letterType: 'ward' },
+  { match: 'bmc riksha stand', letterType: 'ward' },
+  { match: 'bmc garden reconstruction', letterType: 'ward' },
+  { match: 'bmc water supply issue', letterType: 'ward' },
+  { match: 'bmc water leakage', letterType: 'ward' },
 ];
 
 /**
@@ -187,7 +196,8 @@ export function resolveLetterTypeFromServiceName(
   }
   if (/\bincome\b/.test(key)) return 'income';
   if (/\bdomicile\b/.test(key)) return 'domicile';
-  if (/\bward\b/.test(key)) return 'ward';
+  // Former "Ward – …" services were renamed to "BMC – …"; both open the ward form.
+  if (/\bward\b/.test(key) || /^bmc\s*-/.test(key)) return 'ward';
 
   return 'general';
 }
