@@ -32,7 +32,7 @@ export function resolveLetterFormBase(letterType: string): LetterType {
   return 'general';
 }
 
-/** School family + income letters use General; all other letter types use Departmental. */
+/** School family + income/domicile letters use General; all other letter types use Departmental. */
 export function documentTypeForLetterType(
   letterType: string,
 ): 'General' | 'Department' {
@@ -41,7 +41,8 @@ export function documentTypeForLetterType(
     base === 'fees' ||
     base === 'school-admission' ||
     base === 'school-transfer' ||
-    base === 'income'
+    base === 'income' ||
+    base === 'domicile'
   ) {
     return 'General';
   }
