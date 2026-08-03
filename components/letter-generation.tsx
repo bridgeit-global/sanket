@@ -142,10 +142,9 @@ import {
   type AddressMasterRow,
 } from '@/components/letter-address-field';
 import {
-  resolveAddressTypeForLetterField,
+  getFallbackAddressType,
   type LetterAddressField as LetterAddressFieldKey,
 } from '@/lib/letters/letter-address-fields';
-import type { LetterAddressTypeLinkRow } from '@/components/letter-address-link-manager';
 import {
   formatAddressMaster,
   formatAddressMasterMultiline,
@@ -1176,11 +1175,9 @@ export function LetterGeneration({
     string | null
   >(null);
   const [addresses, setAddresses] = useState<AddressMasterRow[]>([]);
-  const [addressTypeLinks, setAddressTypeLinks] = useState<LetterAddressTypeLinkRow[]>([]);
   const addressTypeForField = useCallback(
-    (field: LetterAddressFieldKey) =>
-      resolveAddressTypeForLetterField(addressTypeLinks, activeTab, field),
-    [addressTypeLinks, activeTab],
+    (field: LetterAddressFieldKey) => getFallbackAddressType(activeTab, field),
+    [activeTab],
   );
   const [documentTypes, setDocumentTypes] = useState<DocumentTypeMasterRow[]>([]);
   const [addressSelections, setAddressSelections] = useState<AddressSelectionState>({
@@ -2141,18 +2138,6 @@ export function LetterGeneration({
     }
   };
 
-  const refreshAddressTypeLinks = async () => {
-    try {
-      const res = await fetch('/api/letter-address-links');
-      const json = await res.json();
-      if (!res.ok) throw new Error(json?.error || 'Failed to fetch letter address links');
-      setAddressTypeLinks((json?.links ?? []) as LetterAddressTypeLinkRow[]);
-    } catch (error) {
-      console.error('Failed to fetch letter address links', error);
-      toast.error(t('letterGeneration.letterAddressLinks.fetchError'));
-    }
-  };
-
   const refreshSavedLetters = async () => {
     setSavedLettersLoading(true);
     try {
@@ -2177,7 +2162,6 @@ export function LetterGeneration({
     void refreshLetterTypes();
     void refreshAddresses();
     void refreshDocumentTypes();
-    void refreshAddressTypeLinks();
     // Preload reference numbers already present in the outward register so the
     // "Add to Outward" action stays disabled across reloads.
     void (async () => {
