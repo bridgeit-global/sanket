@@ -2073,6 +2073,8 @@
       "successTitle": "Visitor registered",
       "successDescription": "Service tokens have been issued. Save them for the visitor.",
       "saveToken": "Please save this token for future reference",
+      "printToken": "Print / Share Thermal Ticket",
+      "ticketDownloaded": "Ticket PDF downloaded. Share it to your thermal printer app.",
       "createAnother": "Register another visitor",
       "viewVisitors": "View visitors",
       "tokenLabel": "Visitor service token",
@@ -2090,6 +2092,7 @@
       "addService": "Add service",
       "saveService": "Save service",
       "serviceAdded": "Service added with token {token}",
+      "printToken": "Reprint Thermal",
       "convert": "Convert to beneficiary",
       "convertSuccess": "Converted. Beneficiary token: {token}",
       "linkedBeneficiary": "Linked to beneficiary service",
@@ -2157,7 +2160,8 @@
       "serviceDuplicate": "This service is already added",
       "create": "Failed to create visitor",
       "addService": "Failed to add service",
-      "convert": "Failed to convert to beneficiary"
+      "convert": "Failed to convert to beneficiary",
+      "printTicket": "Failed to print thermal ticket"
     }
   }
 }

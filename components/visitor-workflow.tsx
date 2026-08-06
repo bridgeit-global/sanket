@@ -25,6 +25,7 @@ import {
 import { VoterSearchPanel } from '@/components/voter-search-panel';
 import { formatDisplayDateTimeIST } from '@/lib/ist-date';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
+import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
 import type { VoterWithPartNo } from '@/lib/db/schema';
 import {
   buildVisitorManageSearchParams,
@@ -32,7 +33,7 @@ import {
   parseVisitorManageFiltersFromSearchParams,
   type VisitorManageFilterState,
 } from '@/lib/visitor/manage-url-params';
-import { ChevronDown, ChevronUp, Loader2, Plus, Search, UserCheck, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, Plus, Search, Share2, UserCheck, X } from 'lucide-react';
 
 type IndividualServiceRow = {
   id: string;
@@ -110,6 +111,12 @@ function statusVariant(status: VisitorServiceRow['status']): 'default' | 'second
   return 'secondary';
 }
 
+type CreatedVisitorService = {
+  serviceName: string;
+  token: string;
+  createdAt: string | Date;
+};
+
 type VisitorWorkflowProps = {
   initialTab?: 'create' | 'manage';
   initialManageState?: Partial<VisitorManageFilterState>;
@@ -151,9 +158,12 @@ export function VisitorWorkflow({
   const [programmeId, setProgrammeId] = useState('');
   const [notes, setNotes] = useState('');
   const [creating, setCreating] = useState(false);
-  const [createdServices, setCreatedServices] = useState<
-    Array<{ serviceName: string; token: string }>
-  >([]);
+  const [createdServices, setCreatedServices] = useState<CreatedVisitorService[]>([]);
+  const [createdVisitorSnapshot, setCreatedVisitorSnapshot] = useState<{
+    name: string;
+    mobileNumber: string;
+  } | null>(null);
+  const [sharingToken, setSharingToken] = useState<string | null>(null);
 
   const [filterStatus, setFilterStatus] = useState(mergedInitial.status);
   const [filterServiceName, setFilterServiceName] = useState(
@@ -464,6 +474,52 @@ export function VisitorWorkflow({
     setProgrammeId('');
     setNotes('');
     setCreatedServices([]);
+    setCreatedVisitorSnapshot(null);
+  }
+
+  async function shareVisitorThermalTicket(params: {
+    token: string;
+    createdAt: Date | string;
+    serviceName: string;
+    name?: string | null;
+    mobile?: string | null;
+  }) {
+    setSharingToken(params.token);
+    try {
+      const receiptText = buildThermalTicketText({
+        token: params.token,
+        createdAt: params.createdAt,
+        name: params.name?.trim() || 'Visitor',
+        mobile: params.mobile,
+        serviceName: params.serviceName,
+        width: 32,
+      });
+
+      const outcome = await shareThermalTicketPdf(
+        receiptText,
+        `thermal-ticket-${params.token.toLowerCase()}`,
+        {
+          headerImageUrl: '/images/ncp_election_symbol.png',
+          qrValue: params.token,
+          paperWidthMm: 88,
+        },
+      );
+
+      if (outcome === 'downloaded') {
+        toast({
+          type: 'success',
+          description: t('visitor.create.ticketDownloaded'),
+        });
+      }
+    } catch (error) {
+      console.error(error);
+      toast({
+        type: 'error',
+        description: t('visitor.errors.printTicket'),
+      });
+    } finally {
+      setSharingToken(null);
+    }
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -504,11 +560,18 @@ export function VisitorWorkflow({
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Create failed');
       const created = Array.isArray(json.services)
-        ? json.services.map((s: { serviceName: string; token: string }) => ({
-          serviceName: s.serviceName,
-          token: s.token,
-        }))
+        ? json.services.map(
+            (s: { serviceName: string; token: string; createdAt?: string | Date }) => ({
+              serviceName: s.serviceName,
+              token: s.token,
+              createdAt: s.createdAt ?? new Date().toISOString(),
+            }),
+          )
         : [];
+      setCreatedVisitorSnapshot({
+        name: name.trim(),
+        mobileNumber: normalizeIndianMobileDigits(mobileNumber),
+      });
       setCreatedServices(created);
       toast({ type: 'success', description: t('visitor.create.success') });
       setNotes('');
@@ -645,6 +708,28 @@ export function VisitorWorkflow({
                       <p className="mt-2 text-sm text-green-700">
                         {t('visitor.create.saveToken')}
                       </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-4 w-full sm:w-auto"
+                        disabled={sharingToken === service.token}
+                        onClick={() =>
+                          void shareVisitorThermalTicket({
+                            token: service.token,
+                            createdAt: service.createdAt,
+                            serviceName: service.serviceName,
+                            name: createdVisitorSnapshot?.name ?? name,
+                            mobile: createdVisitorSnapshot?.mobileNumber ?? mobileNumber,
+                          })
+                        }
+                      >
+                        {sharingToken === service.token ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Share2 className="mr-2 h-4 w-4" />
+                        )}
+                        {t('visitor.create.printToken')}
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -1160,22 +1245,47 @@ export function VisitorWorkflow({
                                   </div>
                                 )}
                               </div>
-                              {service.status === 'pending' && (
+                              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                                 <Button
                                   type="button"
+                                  variant="outline"
                                   size="sm"
                                   className="w-full shrink-0 sm:w-auto"
-                                  onClick={() => void handleConvert(service.id)}
-                                  disabled={convertingId === service.id}
+                                  disabled={sharingToken === service.token}
+                                  onClick={() =>
+                                    void shareVisitorThermalTicket({
+                                      token: service.token,
+                                      createdAt: service.createdAt,
+                                      serviceName: service.serviceName,
+                                      name: visitor.name,
+                                      mobile: visitor.mobileNumber,
+                                    })
+                                  }
                                 >
-                                  {convertingId === service.id ? (
+                                  {sharingToken === service.token ? (
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                   ) : (
-                                    <UserCheck className="mr-2 h-4 w-4" />
+                                    <Share2 className="mr-2 h-4 w-4" />
                                   )}
-                                  {t('visitor.manage.convert')}
+                                  {t('visitor.manage.printToken')}
                                 </Button>
-                              )}
+                                {service.status === 'pending' && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="w-full shrink-0 sm:w-auto"
+                                    onClick={() => void handleConvert(service.id)}
+                                    disabled={convertingId === service.id}
+                                  >
+                                    {convertingId === service.id ? (
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <UserCheck className="mr-2 h-4 w-4" />
+                                    )}
+                                    {t('visitor.manage.convert')}
+                                  </Button>
+                                )}
+                              </div>
                             </div>
                           ))
                         )}
