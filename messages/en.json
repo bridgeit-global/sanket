@@ -450,6 +450,8 @@
     "birthdayInDays": "in {days, plural, one {# day} other {# days}}",
     "turningAge": "turning {age}",
     "cadreMember": "Member",
+    "viewMoreBirthdays": "View more ({count})",
+    "showFewerBirthdays": "Show less",
     "openWhatsApp": "Open WhatsApp chat with {phone}",
     "callPhone": "Call {phone}",
     "quickActions": "Quick actions",

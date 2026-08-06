@@ -40,7 +40,7 @@ export function DashboardSkeleton() {
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
-            {[1, 2, 3].map((i) => (
+            {[1, 2].map((i) => (
               <div key={i} className="flex items-start justify-between gap-2">
                 <div className="space-y-1">
                   <Skeleton className="h-4 w-32" />
