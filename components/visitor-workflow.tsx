@@ -33,7 +33,7 @@ import {
   parseVisitorManageFiltersFromSearchParams,
   type VisitorManageFilterState,
 } from '@/lib/visitor/manage-url-params';
-import { ChevronDown, ChevronUp, Loader2, Plus, Search, Share2, UserCheck, X } from 'lucide-react';
+import { Loader2, Plus, Search, Share2, UserCheck, X } from 'lucide-react';
 
 type IndividualServiceRow = {
   id: string;
@@ -186,7 +186,6 @@ export function VisitorWorkflow({
 
   const [visitors, setVisitors] = useState<VisitorRow[]>([]);
   const [loadingList, setLoadingList] = useState(false);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addServiceForId, setAddServiceForId] = useState<string | null>(null);
   const [addServiceName, setAddServiceName] = useState('');
   const [addProgrammeId, setAddProgrammeId] = useState('');
@@ -616,7 +615,6 @@ export function VisitorWorkflow({
       setAddServiceName('');
       setAddProgrammeId('');
       await loadVisitors();
-      setExpandedId(visitorId);
     } catch (error) {
       console.error(error);
       toast({
@@ -1175,191 +1173,172 @@ export function VisitorWorkflow({
             </Card>
           ) : (
             <div className="space-y-3 pb-4">
-              {visitors.map((visitor) => {
-                const expanded = expandedId === visitor.id;
-                return (
+              {visitors.map((visitor) => (
                   <div
                     key={visitor.id}
-                    className="overflow-hidden rounded-xl border bg-background"
+                    className="space-y-3 overflow-hidden rounded-xl border bg-background p-3 sm:p-4"
                   >
-                    <button
-                      type="button"
-                      className="flex w-full items-start justify-between gap-3 p-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:p-4"
-                      onClick={() => setExpandedId(expanded ? null : visitor.id)}
-                      aria-expanded={expanded}
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                          <p className="break-words text-base font-medium leading-snug sm:text-lg">
-                            {visitor.name}
-                          </p>
-                          <span className="shrink-0 text-xs text-muted-foreground sm:text-sm">
-                            {formatDisplayDateTimeIST(visitor.createdAt)}
-                          </span>
-                        </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-                          <span className="font-mono">{visitor.mobileNumber}</span>
-                          {visitor.voterId ? (
-                            <span className="inline-flex items-center rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
-                              {visitor.voterId}
-                            </span>
-                          ) : null}
-                          <Badge variant="secondary">
-                            {t('visitor.manage.serviceCount', {
-                              count: visitor.services.length,
-                            })}
-                          </Badge>
-                        </div>
+                    <div className="min-w-0">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                        <p className="break-words text-base font-medium leading-snug sm:text-lg">
+                          {visitor.name}
+                        </p>
+                        <span className="shrink-0 text-xs text-muted-foreground sm:text-sm">
+                          {formatDisplayDateTimeIST(visitor.createdAt)}
+                        </span>
                       </div>
-                      <span className="mt-1 shrink-0 text-muted-foreground">
-                        {expanded ? (
-                          <ChevronUp className="h-5 w-5" />
-                        ) : (
-                          <ChevronDown className="h-5 w-5" />
-                        )}
-                      </span>
-                    </button>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+                        <span className="font-mono">{visitor.mobileNumber}</span>
+                        {visitor.voterId ? (
+                          <span className="inline-flex items-center rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                            {visitor.voterId}
+                          </span>
+                        ) : null}
+                        <Badge variant="secondary">
+                          {t('visitor.manage.serviceCount', {
+                            count: visitor.services.length,
+                          })}
+                        </Badge>
+                      </div>
+                    </div>
 
-                    {expanded && (
-                      <div className="space-y-3 border-t bg-muted/10 p-3 sm:p-4">
-                        {visitor.services.length === 0 ? (
-                          <p className="text-sm text-muted-foreground">
-                            {t('visitor.manage.noServices')}
-                          </p>
-                        ) : (
-                          visitor.services.map((service) => (
-                            <div
-                              key={service.id}
-                              className="flex flex-col gap-3 rounded-lg border bg-background p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4"
-                            >
-                              <div className="min-w-0 space-y-1">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  <span className="break-words font-medium">
-                                    {service.serviceName}
-                                  </span>
-                                  <Badge variant={statusVariant(service.status)}>
-                                    {t(`visitor.status.${service.status}`)}
-                                  </Badge>
+                    <div className="space-y-3 border-t pt-3">
+                      {visitor.services.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                          {t('visitor.manage.noServices')}
+                        </p>
+                      ) : (
+                        visitor.services.map((service) => (
+                          <div
+                            key={service.id}
+                            className="flex flex-col gap-3 rounded-lg border bg-muted/10 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4"
+                          >
+                            <div className="min-w-0 space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="break-words font-medium">
+                                  {service.serviceName}
+                                </span>
+                                <Badge variant={statusVariant(service.status)}>
+                                  {t(`visitor.status.${service.status}`)}
+                                </Badge>
+                              </div>
+                              <div className="break-all font-mono text-sm">{service.token}</div>
+                              {service.beneficiaryServiceId && (
+                                <div className="text-xs text-muted-foreground">
+                                  {t('visitor.manage.linkedBeneficiary')}
                                 </div>
-                                <div className="break-all font-mono text-sm">{service.token}</div>
-                                {service.beneficiaryServiceId && (
-                                  <div className="text-xs text-muted-foreground">
-                                    {t('visitor.manage.linkedBeneficiary')}
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="sm"
-                                  className="w-full shrink-0 sm:w-auto"
-                                  disabled={sharingToken === service.token}
-                                  onClick={() =>
-                                    void shareVisitorThermalTicket({
-                                      token: service.token,
-                                      createdAt: service.createdAt,
-                                      serviceName: service.serviceName,
-                                      name: visitor.name,
-                                      mobile: visitor.mobileNumber,
-                                    })
-                                  }
-                                >
-                                  {sharingToken === service.token ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Share2 className="mr-2 h-4 w-4" />
-                                  )}
-                                  {t('visitor.manage.printToken')}
-                                </Button>
-                                {service.status === 'pending' && (
-                                  <Button
-                                    type="button"
-                                    size="sm"
-                                    className="w-full shrink-0 sm:w-auto"
-                                    onClick={() => void handleConvert(service.id)}
-                                    disabled={convertingId === service.id}
-                                  >
-                                    {convertingId === service.id ? (
-                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    ) : (
-                                      <UserCheck className="mr-2 h-4 w-4" />
-                                    )}
-                                    {t('visitor.manage.convert')}
-                                  </Button>
-                                )}
-                              </div>
+                              )}
                             </div>
-                          ))
-                        )}
-
-                        {addServiceForId === visitor.id ? (
-                          <div className="grid grid-cols-1 gap-3 rounded-lg border bg-background p-3 sm:p-4 md:grid-cols-2">
-                            <div className="space-y-2 md:col-span-2">
-                              <Label>{t('visitor.form.service')}</Label>
-                              <Combobox
-                                options={serviceOptions}
-                                value={addServiceName}
-                                onValueChange={setAddServiceName}
-                                placeholder={t('visitor.form.servicePlaceholder')}
-                              />
-                            </div>
-                            <div className="space-y-2 md:col-span-2">
-                              <Label>{t('visitor.form.programme')}</Label>
-                              <Combobox
-                                options={programmeOptions}
-                                value={addProgrammeId}
-                                onValueChange={setAddProgrammeId}
-                                placeholder={t('visitor.form.programmePlaceholder')}
-                              />
-                            </div>
-                            <div className="flex flex-col gap-2 md:col-span-2 sm:flex-row">
-                              <Button
-                                type="button"
-                                onClick={() => void handleAddService(visitor.id)}
-                                disabled={addingService}
-                                className="flex-1"
-                              >
-                                {addingService ? (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : null}
-                                {t('visitor.manage.saveService')}
-                              </Button>
+                            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                               <Button
                                 type="button"
                                 variant="outline"
-                                className="sm:w-auto"
-                                onClick={() => {
-                                  setAddServiceForId(null);
-                                  setAddServiceName('');
-                                  setAddProgrammeId('');
-                                }}
+                                size="sm"
+                                className="w-full shrink-0 sm:w-auto"
+                                disabled={sharingToken === service.token}
+                                onClick={() =>
+                                  void shareVisitorThermalTicket({
+                                    token: service.token,
+                                    createdAt: service.createdAt,
+                                    serviceName: service.serviceName,
+                                    name: visitor.name,
+                                    mobile: visitor.mobileNumber,
+                                  })
+                                }
                               >
-                                {t('common.cancel')}
+                                {sharingToken === service.token ? (
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Share2 className="mr-2 h-4 w-4" />
+                                )}
+                                {t('visitor.manage.printToken')}
                               </Button>
+                              {service.status === 'pending' && (
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="w-full shrink-0 sm:w-auto"
+                                  onClick={() => void handleConvert(service.id)}
+                                  disabled={convertingId === service.id}
+                                >
+                                  {convertingId === service.id ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <UserCheck className="mr-2 h-4 w-4" />
+                                  )}
+                                  {t('visitor.manage.convert')}
+                                </Button>
+                              )}
                             </div>
                           </div>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="w-full sm:w-auto"
-                            onClick={() => {
-                              setAddServiceForId(visitor.id);
-                              setAddServiceName('');
-                              setAddProgrammeId('');
-                            }}
-                          >
-                            <Plus className="mr-2 h-4 w-4" />
-                            {t('visitor.manage.addService')}
-                          </Button>
-                        )}
-                      </div>
-                    )}
+                        ))
+                      )}
+
+                      {addServiceForId === visitor.id ? (
+                        <div className="grid grid-cols-1 gap-3 rounded-lg border bg-muted/10 p-3 sm:p-4 md:grid-cols-2">
+                          <div className="space-y-2 md:col-span-2">
+                            <Label>{t('visitor.form.service')}</Label>
+                            <Combobox
+                              options={serviceOptions}
+                              value={addServiceName}
+                              onValueChange={setAddServiceName}
+                              placeholder={t('visitor.form.servicePlaceholder')}
+                            />
+                          </div>
+                          <div className="space-y-2 md:col-span-2">
+                            <Label>{t('visitor.form.programme')}</Label>
+                            <Combobox
+                              options={programmeOptions}
+                              value={addProgrammeId}
+                              onValueChange={setAddProgrammeId}
+                              placeholder={t('visitor.form.programmePlaceholder')}
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2 md:col-span-2 sm:flex-row">
+                            <Button
+                              type="button"
+                              onClick={() => void handleAddService(visitor.id)}
+                              disabled={addingService}
+                              className="flex-1"
+                            >
+                              {addingService ? (
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              ) : null}
+                              {t('visitor.manage.saveService')}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="sm:w-auto"
+                              onClick={() => {
+                                setAddServiceForId(null);
+                                setAddServiceName('');
+                                setAddProgrammeId('');
+                              }}
+                            >
+                              {t('common.cancel')}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="w-full sm:w-auto"
+                          onClick={() => {
+                            setAddServiceForId(visitor.id);
+                            setAddServiceName('');
+                            setAddProgrammeId('');
+                          }}
+                        >
+                          <Plus className="mr-2 h-4 w-4" />
+                          {t('visitor.manage.addService')}
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                );
-              })}
+              ))}
 
               {totalPages > 1 && (
                 <TablePagination
