@@ -316,6 +316,9 @@ export function VisitorWorkflow({
     } finally {
       setLoadingList(false);
     }
+    // Omit `t`: useTranslations returns a new function each render and would
+    // retrigger this callback → manage-tab fetch effect in a loop.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     filterStatus,
     filterServiceName,
@@ -327,7 +330,6 @@ export function VisitorWorkflow({
     filterCreatedTo,
     currentPage,
     pageSize,
-    t,
   ]);
 
   useEffect(() => {
@@ -384,6 +386,8 @@ export function VisitorWorkflow({
     }, 400);
 
     return () => window.clearTimeout(handle);
+    // Omit `t`: unstable identity would reset this debounce every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     filterTokenInput,
     filterMobileInput,
@@ -393,7 +397,6 @@ export function VisitorWorkflow({
     filterMobile,
     filterVoterId,
     filterName,
-    t,
     syncManageUrl,
   ]);
 
