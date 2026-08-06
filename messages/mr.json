@@ -2098,6 +2098,7 @@
       "convert": "लाभार्थीमध्ये रुपांतर करा",
       "convertSuccess": "रुपांतर झाले. लाभार्थी टोकन: {token}",
       "linkedBeneficiary": "लाभार्थी सेवेशी जोडले",
+      "openBeneficiary": "लाभार्थी उघडा",
       "filters": {
         "status": "स्थिती",
         "serviceName": "सेवा नाव",

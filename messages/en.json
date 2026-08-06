@@ -2096,6 +2096,7 @@
       "convert": "Convert to beneficiary",
       "convertSuccess": "Converted. Beneficiary token: {token}",
       "linkedBeneficiary": "Linked to beneficiary service",
+      "openBeneficiary": "Open beneficiary",
       "filters": {
         "status": "Status",
         "serviceName": "Service Name",

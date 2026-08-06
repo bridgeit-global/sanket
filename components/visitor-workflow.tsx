@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from '@/components/toast';
 import { useTranslations } from '@/hooks/use-translations';
@@ -33,7 +34,7 @@ import {
   parseVisitorManageFiltersFromSearchParams,
   type VisitorManageFilterState,
 } from '@/lib/visitor/manage-url-params';
-import { Loader2, Plus, Search, Share2, UserCheck, X } from 'lucide-react';
+import { ExternalLink, Loader2, Plus, Search, Share2, UserCheck, X } from 'lucide-react';
 
 type IndividualServiceRow = {
   id: string;
@@ -1267,6 +1268,21 @@ export function VisitorWorkflow({
                                     <UserCheck className="mr-2 h-4 w-4" />
                                   )}
                                   {t('visitor.manage.convert')}
+                                </Button>
+                              )}
+                              {service.status === 'converted' && service.beneficiaryServiceId && (
+                                <Button
+                                  asChild
+                                  type="button"
+                                  size="sm"
+                                  className="w-full shrink-0 sm:w-auto"
+                                >
+                                  <Link
+                                    href={`/modules/operator?tab=manage&serviceId=${encodeURIComponent(service.beneficiaryServiceId)}`}
+                                  >
+                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                    {t('visitor.manage.openBeneficiary')}
+                                  </Link>
                                 </Button>
                               )}
                             </div>
