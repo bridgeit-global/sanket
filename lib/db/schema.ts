@@ -27,6 +27,8 @@ export const TABLES = {
   beneficiaryServices: 'BeneficiaryService',
   beneficiaryServiceAttachment: 'BeneficiaryServiceAttachment',
   beneficiaryServiceHistory: 'BeneficiaryServiceHistory',
+  visitor: 'Visitor',
+  visitorService: 'VisitorService',
   serviceCatalog: 'ServiceCatalog',
   voterTasks: 'VoterTask',
   communityServiceAreas: 'CommunityServiceArea',
@@ -343,6 +345,38 @@ export type BeneficiaryService = {
   completedAt: Date | null;
   notes: string | null;
   programmeId: string | null;
+};
+
+export type Visitor = {
+  id: string;
+  name: string;
+  mobileNumber: string;
+  voterId: string | null;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type VisitorServiceStatus = 'pending' | 'converted' | 'cancelled';
+
+export type VisitorService = {
+  id: string;
+  visitorId: string;
+  serviceName: string;
+  programmeId: string | null;
+  token: string;
+  description: string | null;
+  notes: string | null;
+  status: VisitorServiceStatus;
+  beneficiaryServiceId: string | null;
+  convertedAt: Date | null;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type VisitorWithServices = Visitor & {
+  services: VisitorService[];
 };
 
 export type BeneficiaryServiceAttachment = {

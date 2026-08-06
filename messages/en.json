@@ -76,6 +76,10 @@
       "label": "Beneficiary Management",
       "description": "Manage beneficiary services"
     },
+    "visitor": {
+      "label": "Visitor",
+      "description": "Register visitors, issue service tokens, convert to beneficiaries"
+    },
     "fieldVisitor": {
       "label": "Field Visitor",
       "description": "Data collection and profiling by field workers"
@@ -2050,5 +2054,110 @@
   "pwa": {
     "updateAvailable": "Update available",
     "updateDescription": "A new version of eOffice is ready. Refresh to apply it."
+  },
+  "visitor": {
+    "title": "Visitor",
+    "subtitle": "Register visitors, issue tokens, and convert them to beneficiaries later",
+    "tabs": {
+      "create": "Create",
+      "createVisitor": "Create Visitor",
+      "manage": "Manage",
+      "manageVisitors": "Manage Visitors"
+    },
+    "create": {
+      "title": "Register visitor",
+      "description": "Capture visitor details and issue one or more service tokens",
+      "submit": "Create visitor & tokens",
+      "submitting": "Creating…",
+      "success": "Visitor registered and tokens issued",
+      "successTitle": "Visitor registered",
+      "successDescription": "Service tokens have been issued. Save them for the visitor.",
+      "saveToken": "Please save this token for future reference",
+      "createAnother": "Register another visitor",
+      "viewVisitors": "View visitors",
+      "tokenLabel": "Visitor service token",
+      "tokensLabel": "Visitor service tokens"
+    },
+    "manage": {
+      "title": "Visitors",
+      "description": "Search visitors, add more services, or convert to beneficiary",
+      "searchPlaceholder": "Search by name, mobile, or voter ID…",
+      "loading": "Loading visitors…",
+      "empty": "No visitors found",
+      "emptyHelp": "Try adjusting your filters to find visitors",
+      "serviceCount": "{count, plural, one {# service} other {# services}}",
+      "noServices": "No services yet",
+      "addService": "Add service",
+      "saveService": "Save service",
+      "serviceAdded": "Service added with token {token}",
+      "convert": "Convert to beneficiary",
+      "convertSuccess": "Converted. Beneficiary token: {token}",
+      "linkedBeneficiary": "Linked to beneficiary service",
+      "filters": {
+        "status": "Status",
+        "serviceName": "Service Name",
+        "serviceToken": "Service Token",
+        "mobileNumber": "Mobile Number",
+        "voterId": "Voter ID",
+        "name": "Name",
+        "selectStatus": "Select status",
+        "enterToken": "Enter service token...",
+        "enterMobile": "Enter mobile number...",
+        "enterVoterId": "Enter voter ID...",
+        "enterName": "Enter visitor name...",
+        "allServices": "All Services",
+        "allStatuses": "All Statuses",
+        "itemsPerPage": "Items per page",
+        "createdFrom": "Created From",
+        "createdTo": "Created To",
+        "showing": "Showing {count} of {total} visitors"
+      },
+      "actions": {
+        "search": "Search",
+        "searching": "Searching...",
+        "clearFilters": "Clear Filters"
+      }
+    },
+    "form": {
+      "searchVoter": "Optional voter lookup",
+      "searchVoterHelp": "Search by VoterId (EPIC), phone, or detailed criteria to prefill visitor details. You can also fill the form manually.",
+      "searchVoterPlaceholder": "Search by voter ID, name, or mobile…",
+      "searching": "Searching…",
+      "searchingVoters": "Searching voters…",
+      "searchResults": "Search results",
+      "selectedVoter": "Selected voter details",
+      "noVotersFound": "No voter found with the provided search criteria.",
+      "noVotersFoundHelp": "You can still register the visitor manually below.",
+      "name": "Name",
+      "mobile": "Mobile number",
+      "voterId": "Voter ID (EPIC)",
+      "programme": "Programme",
+      "programmePlaceholder": "Select today's programme (optional)",
+      "noProgramme": "No programme",
+      "service": "Service",
+      "services": "Services",
+      "servicePlaceholder": "Select a service",
+      "addService": "Add service",
+      "removeService": "Remove service",
+      "servicesHint": "Add one or more services. Each service gets its own token.",
+      "notes": "Notes"
+    },
+    "status": {
+      "pending": "Pending",
+      "converted": "Converted",
+      "cancelled": "Cancelled"
+    },
+    "errors": {
+      "loadMeta": "Failed to load services and programmes",
+      "loadList": "Failed to load visitors",
+      "searchVoter": "Failed to search voters",
+      "nameRequired": "Name is required",
+      "mobileInvalid": "Enter a valid 10-digit Indian mobile number",
+      "serviceRequired": "At least one service is required",
+      "serviceDuplicate": "This service is already added",
+      "create": "Failed to create visitor",
+      "addService": "Failed to add service",
+      "convert": "Failed to convert to beneficiary"
+    }
   }
 }

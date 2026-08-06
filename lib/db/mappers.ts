@@ -47,6 +47,8 @@ import type {
   UserModulePermission,
   UserPartAssignment,
   Vote,
+  Visitor,
+  VisitorService,
   VoterMaster,
   VoterMobileNumber,
   VoterProfile,
@@ -453,6 +455,38 @@ export function mapBeneficiaryServiceRow(row: Row): BeneficiaryService {
     completedAt: toDateOrNull(row.completed_at ?? row.completedAt),
     notes: toStringOrNull(row.notes),
     programmeId: toStringOrNull(row.programme_id ?? row.programmeId),
+  };
+}
+
+export function mapVisitorRow(row: Row): Visitor {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    mobileNumber: String(row.mobile_number ?? row.mobileNumber),
+    voterId: toStringOrNull(row.voter_id ?? row.voterId),
+    createdBy: String(row.created_by ?? row.createdBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapVisitorServiceRow(row: Row): VisitorService {
+  return {
+    id: String(row.id),
+    visitorId: String(row.visitor_id ?? row.visitorId),
+    serviceName: String(row.service_name ?? row.serviceName),
+    programmeId: toStringOrNull(row.programme_id ?? row.programmeId),
+    token: String(row.token),
+    description: toStringOrNull(row.description),
+    notes: toStringOrNull(row.notes),
+    status: row.status as VisitorService['status'],
+    beneficiaryServiceId: toStringOrNull(
+      row.beneficiary_service_id ?? row.beneficiaryServiceId,
+    ),
+    convertedAt: toDateOrNull(row.converted_at ?? row.convertedAt),
+    createdBy: String(row.created_by ?? row.createdBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
   };
 }
 

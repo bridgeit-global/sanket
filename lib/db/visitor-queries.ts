@@ -1,0 +1,488 @@
+import 'server-only';
+
+import { supabase } from '@/lib/supabase/server';
+import { throwOnSupabaseError } from '@/lib/db/errors';
+import { ChatSDKError } from '@/lib/errors';
+import { startOfDayIST, getCalendarYmd } from '@/lib/ist-date';
+import { normalizeIndianMobileDigits } from '@/lib/indian-mobile';
+import {
+  mapVisitorRow,
+  mapVisitorServiceRow,
+  toSnakeCaseKeys,
+} from '@/lib/db/mappers';
+import { TABLES, type BeneficiaryService, type Visitor, type VisitorService, type VisitorWithServices } from '@/lib/db/schema';
+import { createBeneficiaryService, ensureServiceCatalogEntry, getDailyProgrammeItemById } from '@/lib/db/queries-crud';
+
+function shortProgrammeTokenSegment(programmeUuid: string): string {
+  const compact = programmeUuid.replace(/-/g, '');
+  return compact.slice(0, 4).toUpperCase();
+}
+
+async function generateVisitorServiceToken(programmeId?: string | null): Promise<string> {
+  const now = new Date();
+  const todayStart = startOfDayIST(now);
+  const ymd = getCalendarYmd(now);
+  const dd = String(ymd.day).padStart(2, '0');
+  const mm = String(ymd.month).padStart(2, '0');
+  const yy = String(ymd.year).slice(-2);
+  const datePrefix = `${dd}${mm}${yy}`;
+
+  const trimmedProgrammeId = programmeId?.trim() || '';
+  let query = supabase
+    .from(TABLES.visitorService)
+    .select('id', { count: 'exact', head: true })
+    .gte('created_at', todayStart.toISOString());
+
+  if (trimmedProgrammeId) {
+    query = query.eq('programme_id', trimmedProgrammeId);
+  }
+
+  const { count, error } = await query;
+  throwOnSupabaseError(error, 'Failed to count visitor service tokens');
+
+  const nextNumber = (count ?? 0) + 1;
+  if (trimmedProgrammeId) {
+    const shortProg = shortProgrammeTokenSegment(trimmedProgrammeId);
+    return `${datePrefix}-${shortProg}-${String(nextNumber).padStart(4, '0')}`;
+  }
+  return `${datePrefix}-${String(nextNumber).padStart(4, '0')}`;
+}
+
+export async function createVisitor({
+  name,
+  mobileNumber,
+  voterId,
+  createdBy,
+}: {
+  name: string;
+  mobileNumber: string;
+  voterId?: string | null;
+  createdBy: string;
+}): Promise<Visitor> {
+  try {
+    const now = new Date().toISOString();
+    const mobile = normalizeIndianMobileDigits(mobileNumber);
+    const { data, error } = await supabase
+      .from(TABLES.visitor)
+      .insert(
+        toSnakeCaseKeys({
+          name: name.trim(),
+          mobileNumber: mobile,
+          voterId: voterId?.trim() || null,
+          createdBy,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create visitor');
+    return mapVisitorRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to create visitor');
+  }
+}
+
+export async function findOrCreateVisitor({
+  name,
+  mobileNumber,
+  voterId,
+  createdBy,
+}: {
+  name: string;
+  mobileNumber: string;
+  voterId?: string | null;
+  createdBy: string;
+}): Promise<Visitor> {
+  try {
+    const mobile = normalizeIndianMobileDigits(mobileNumber);
+    const trimmedVoter = voterId?.trim() || null;
+
+    if (trimmedVoter) {
+      const { data, error } = await supabase
+        .from(TABLES.visitor)
+        .select('*')
+        .eq('voter_id', trimmedVoter)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      throwOnSupabaseError(error, 'Failed to find visitor by voter id');
+      if (data) return mapVisitorRow(data);
+    }
+
+    const { data: byMobile, error: mobileError } = await supabase
+      .from(TABLES.visitor)
+      .select('*')
+      .eq('mobile_number', mobile)
+      .ilike('name', name.trim())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    throwOnSupabaseError(mobileError, 'Failed to find visitor by mobile');
+    if (byMobile) {
+      const existing = mapVisitorRow(byMobile);
+      if (trimmedVoter && !existing.voterId) {
+        const now = new Date().toISOString();
+        const { data: updated, error: updateError } = await supabase
+          .from(TABLES.visitor)
+          .update({ voter_id: trimmedVoter, updated_at: now })
+          .eq('id', existing.id)
+          .select('*')
+          .single();
+        throwOnSupabaseError(updateError, 'Failed to update visitor voter id');
+        return mapVisitorRow(updated);
+      }
+      return existing;
+    }
+
+    return createVisitor({ name, mobileNumber: mobile, voterId: trimmedVoter, createdBy });
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to find or create visitor');
+  }
+}
+
+export async function createVisitorService({
+  visitorId,
+  serviceName,
+  programmeId,
+  description,
+  notes,
+  createdBy,
+}: {
+  visitorId: string;
+  serviceName: string;
+  programmeId?: string | null;
+  description?: string | null;
+  notes?: string | null;
+  createdBy: string;
+}): Promise<VisitorService> {
+  try {
+    const trimmedProgramme = programmeId?.trim() || null;
+    if (trimmedProgramme) {
+      const programme = await getDailyProgrammeItemById(trimmedProgramme);
+      if (!programme) {
+        throw new ChatSDKError('bad_request:database', 'Programme not found');
+      }
+    }
+
+    await ensureServiceCatalogEntry(serviceName);
+    const token = await generateVisitorServiceToken(trimmedProgramme);
+    const now = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from(TABLES.visitorService)
+      .insert(
+        toSnakeCaseKeys({
+          visitorId,
+          serviceName: serviceName.trim(),
+          programmeId: trimmedProgramme,
+          token,
+          description: description?.trim() || null,
+          notes: notes?.trim() || null,
+          status: 'pending',
+          createdBy,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create visitor service');
+    return mapVisitorServiceRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to create visitor service');
+  }
+}
+
+export async function getVisitorById(id: string): Promise<Visitor | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.visitor)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get visitor');
+    return data ? mapVisitorRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get visitor');
+  }
+}
+
+export async function getVisitorServices(visitorId: string): Promise<VisitorService[]> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.visitorService)
+      .select('*')
+      .eq('visitor_id', visitorId)
+      .order('created_at', { ascending: false });
+    throwOnSupabaseError(error, 'Failed to get visitor services');
+    return (data ?? []).map(mapVisitorServiceRow);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get visitor services');
+  }
+}
+
+export async function getVisitorWithServices(id: string): Promise<VisitorWithServices | null> {
+  const visitor = await getVisitorById(id);
+  if (!visitor) return null;
+  const services = await getVisitorServices(id);
+  return { ...visitor, services };
+}
+
+export async function getVisitorServiceById(id: string): Promise<VisitorService | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.visitorService)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get visitor service');
+    return data ? mapVisitorServiceRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get visitor service');
+  }
+}
+
+export type ListVisitorsFilters = {
+  search?: string;
+  name?: string;
+  mobile?: string;
+  voterId?: string;
+  token?: string;
+  serviceName?: string;
+  status?: string;
+  createdFrom?: string;
+  createdTo?: string;
+  page?: number;
+  limit?: number;
+  offset?: number;
+};
+
+export async function listVisitors({
+  search,
+  name,
+  mobile,
+  voterId,
+  token,
+  serviceName,
+  status,
+  createdFrom,
+  createdTo,
+  page,
+  limit = 50,
+  offset,
+}: ListVisitorsFilters = {}): Promise<{
+  visitors: VisitorWithServices[];
+  total: number;
+  totalPages: number;
+  currentPage: number;
+}> {
+  try {
+    const safeLimit = Math.min(Math.max(limit, 1), 100);
+    const currentPage =
+      page != null && Number.isFinite(page) && page >= 1
+        ? Math.floor(page)
+        : Math.floor(Math.max(offset ?? 0, 0) / safeLimit) + 1;
+    const safeOffset =
+      page != null && Number.isFinite(page) && page >= 1
+        ? (currentPage - 1) * safeLimit
+        : Math.max(offset ?? 0, 0);
+
+    const trimmedSearch = search?.trim() || '';
+    const trimmedName = name?.trim() || '';
+    const trimmedToken = token?.trim() || '';
+    const trimmedServiceName = serviceName?.trim() || '';
+    const trimmedStatus = status?.trim() || '';
+    const trimmedVoterId = voterId?.trim().toUpperCase() || '';
+    const trimmedMobileRaw = mobile?.trim() || '';
+    const trimmedMobile = trimmedMobileRaw
+      ? normalizeIndianMobileDigits(trimmedMobileRaw)
+      : '';
+    const createdFromVal =
+      createdFrom && /^\d{4}-\d{2}-\d{2}$/.test(createdFrom.trim())
+        ? createdFrom.trim()
+        : '';
+    const createdToVal =
+      createdTo && /^\d{4}-\d{2}-\d{2}$/.test(createdTo.trim())
+        ? createdTo.trim()
+        : '';
+
+    const hasServiceFilters = Boolean(
+      trimmedStatus || trimmedServiceName || trimmedToken,
+    );
+
+    let visitorIdsFromServices: string[] | null = null;
+    if (hasServiceFilters) {
+      let serviceQuery = supabase.from(TABLES.visitorService).select('visitor_id');
+
+      if (trimmedStatus) {
+        serviceQuery = serviceQuery.eq('status', trimmedStatus);
+      }
+      if (trimmedServiceName) {
+        serviceQuery = serviceQuery.eq('service_name', trimmedServiceName);
+      }
+      if (trimmedToken) {
+        serviceQuery = serviceQuery.ilike('token', `%${trimmedToken}%`);
+      }
+
+      const { data: serviceRows, error: serviceError } = await serviceQuery;
+      throwOnSupabaseError(serviceError, 'Failed to filter visitor services');
+
+      visitorIdsFromServices = Array.from(
+        new Set((serviceRows ?? []).map((row) => String(row.visitor_id)).filter(Boolean)),
+      );
+
+      if (visitorIdsFromServices.length === 0) {
+        return {
+          visitors: [],
+          total: 0,
+          totalPages: 0,
+          currentPage,
+        };
+      }
+    }
+
+    let query = supabase
+      .from(TABLES.visitor)
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(safeOffset, safeOffset + safeLimit - 1);
+
+    if (visitorIdsFromServices) {
+      query = query.in('id', visitorIdsFromServices);
+    }
+
+    if (trimmedMobile) {
+      query = query.eq('mobile_number', trimmedMobile);
+    }
+    if (trimmedVoterId) {
+      query = query.eq('voter_id', trimmedVoterId);
+    }
+    if (trimmedName) {
+      query = query.ilike('name', `%${trimmedName}%`);
+    }
+    if (createdFromVal) {
+      query = query.gte('created_at', `${createdFromVal}T00:00:00+05:30`);
+    }
+    if (createdToVal) {
+      query = query.lte('created_at', `${createdToVal}T23:59:59.999+05:30`);
+    }
+
+    // Legacy single search box (kept for compatibility)
+    if (trimmedSearch && !trimmedName && !trimmedMobile && !trimmedVoterId) {
+      const mobileFromSearch = normalizeIndianMobileDigits(trimmedSearch);
+      if (/^\d{10}$/.test(mobileFromSearch)) {
+        query = query.eq('mobile_number', mobileFromSearch);
+      } else if (/^[A-Z]{3}\d{7}$/i.test(trimmedSearch)) {
+        query = query.eq('voter_id', trimmedSearch.toUpperCase());
+      } else {
+        query = query.or(
+          `name.ilike.%${trimmedSearch}%,voter_id.ilike.%${trimmedSearch}%,mobile_number.ilike.%${trimmedSearch}%`,
+        );
+      }
+    }
+
+    const { data, error, count } = await query;
+    throwOnSupabaseError(error, 'Failed to list visitors');
+
+    const total = count ?? 0;
+    const totalPages = total === 0 ? 0 : Math.ceil(total / safeLimit);
+    const visitors = (data ?? []).map(mapVisitorRow);
+    if (visitors.length === 0) {
+      return { visitors: [], total, totalPages, currentPage };
+    }
+
+    const ids = visitors.map((v) => v.id);
+    const { data: servicesData, error: servicesError } = await supabase
+      .from(TABLES.visitorService)
+      .select('*')
+      .in('visitor_id', ids)
+      .order('created_at', { ascending: false });
+    throwOnSupabaseError(servicesError, 'Failed to list visitor services');
+
+    const servicesByVisitor = new Map<string, VisitorService[]>();
+    for (const row of servicesData ?? []) {
+      const service = mapVisitorServiceRow(row);
+      const list = servicesByVisitor.get(service.visitorId) ?? [];
+      list.push(service);
+      servicesByVisitor.set(service.visitorId, list);
+    }
+
+    return {
+      visitors: visitors.map((v) => ({
+        ...v,
+        services: servicesByVisitor.get(v.id) ?? [],
+      })),
+      total,
+      totalPages,
+      currentPage,
+    };
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to list visitors');
+  }
+}
+
+export async function convertVisitorServiceToBeneficiary({
+  visitorServiceId,
+  requestedBy,
+}: {
+  visitorServiceId: string;
+  requestedBy: string;
+}): Promise<{ visitorService: VisitorService; beneficiaryService: BeneficiaryService }> {
+  try {
+    const visitorService = await getVisitorServiceById(visitorServiceId);
+    if (!visitorService) {
+      throw new ChatSDKError('not_found:database', 'Visitor service not found');
+    }
+    if (visitorService.status === 'converted' || visitorService.beneficiaryServiceId) {
+      throw new ChatSDKError('bad_request:database', 'Visitor service already converted');
+    }
+
+    const visitor = await getVisitorById(visitorService.visitorId);
+    if (!visitor) {
+      throw new ChatSDKError('not_found:database', 'Visitor not found');
+    }
+
+    const beneficiaryService = await createBeneficiaryService({
+      serviceType: 'individual',
+      serviceName: visitorService.serviceName,
+      description: visitorService.description ?? undefined,
+      notes: visitorService.notes ?? undefined,
+      requestedBy,
+      voterId: visitor.voterId ?? undefined,
+      programmeId: visitorService.programmeId ?? undefined,
+    });
+
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.visitorService)
+      .update({
+        status: 'converted',
+        beneficiary_service_id: beneficiaryService.id,
+        converted_at: now,
+        updated_at: now,
+      })
+      .eq('id', visitorServiceId)
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to mark visitor service converted');
+
+    return {
+      visitorService: mapVisitorServiceRow(data),
+      beneficiaryService,
+    };
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to convert visitor service to beneficiary',
+    );
+  }
+}
