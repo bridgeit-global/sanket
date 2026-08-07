@@ -472,9 +472,7 @@ export async function listVisitors({
 
     let query = supabase
       .from(TABLES.visitor)
-      .select('*', { count: 'exact' })
-      .order('created_at', { ascending: false })
-      .range(safeOffset, safeOffset + safeLimit - 1);
+      .select('*', { count: 'exact' });
 
     if (visitorIdsFromServices) {
       query = query.in('id', visitorIdsFromServices);
@@ -512,6 +510,12 @@ export async function listVisitors({
         );
       }
     }
+
+    // Apply sort after filters so latest visitors stay on top.
+    query = query
+      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
+      .range(safeOffset, safeOffset + safeLimit - 1);
 
     const { data, error, count } = await query;
     throwOnSupabaseError(error, 'Failed to list visitors');
