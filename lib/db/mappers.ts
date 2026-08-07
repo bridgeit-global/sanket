@@ -468,8 +468,9 @@ export function mapVisitorRow(row: Row): Visitor {
     location: toStringOrNull(row.location),
     programmeId: toStringOrNull(row.programme_id ?? row.programmeId),
     createdBy: String(row.created_by ?? row.createdBy),
-    createdAt: toDate(row.created_at ?? row.createdAt),
-    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+    // Visitor timestamps are `timestamp without time zone` (UTC wall-clock).
+    createdAt: parseUtcTimestamp(row.created_at ?? row.createdAt),
+    updatedAt: parseUtcTimestamp(row.updated_at ?? row.updatedAt),
   };
 }
 
@@ -486,10 +487,13 @@ export function mapVisitorServiceRow(row: Row): VisitorService {
     beneficiaryServiceId: toStringOrNull(
       row.beneficiary_service_id ?? row.beneficiaryServiceId,
     ),
-    convertedAt: toDateOrNull(row.converted_at ?? row.convertedAt),
+    convertedAt:
+      row.converted_at == null && row.convertedAt == null
+        ? null
+        : parseUtcTimestamp(row.converted_at ?? row.convertedAt),
     createdBy: String(row.created_by ?? row.createdBy),
-    createdAt: toDate(row.created_at ?? row.createdAt),
-    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+    createdAt: parseUtcTimestamp(row.created_at ?? row.createdAt),
+    updatedAt: parseUtcTimestamp(row.updated_at ?? row.updatedAt),
   };
 }
 

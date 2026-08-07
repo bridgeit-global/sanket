@@ -122,7 +122,7 @@ export async function createVisitor({
         .single();
 
       if (!error) return mapVisitorRow(data);
-      // Concurrent create/reissue can race on the same next token.
+      // Concurrent creates can race on the same next token.
       if (error.code === '23505' && attempt < TOKEN_UNIQUE_RETRIES - 1) continue;
       throwOnSupabaseError(error, 'Failed to create visitor');
     }
@@ -161,32 +161,27 @@ export async function findOrCreateVisitor({
       }
     }
 
-    async function reissueVisitToken(existing: Visitor): Promise<Visitor> {
-      for (let attempt = 0; attempt < TOKEN_UNIQUE_RETRIES; attempt += 1) {
-        const token = await generateVisitorToken(trimmedProgramme);
-        const now = new Date().toISOString();
-        const { data: updated, error: updateError } = await supabase
-          .from(TABLES.visitor)
-          .update(
-            toSnakeCaseKeys({
-              name: name.trim(),
-              mobileNumber: mobile,
-              voterId: trimmedVoter ?? existing.voterId,
-              location: trimmedLocation ?? existing.location,
-              programmeId: trimmedProgramme,
-              token,
-              updatedAt: now,
-            }),
-          )
-          .eq('id', existing.id)
-          .select('*')
-          .single();
+    async function reuseExistingVisitor(existing: Visitor): Promise<Visitor> {
+      const now = new Date().toISOString();
+      const { data: updated, error: updateError } = await supabase
+        .from(TABLES.visitor)
+        .update(
+          toSnakeCaseKeys({
+            name: name.trim(),
+            mobileNumber: mobile,
+            voterId: trimmedVoter ?? existing.voterId,
+            location: trimmedLocation ?? existing.location,
+            programmeId: trimmedProgramme ?? existing.programmeId,
+            // Keep the original visit token — never overwrite on revisit.
+            updatedAt: now,
+          }),
+        )
+        .eq('id', existing.id)
+        .select('*')
+        .single();
 
-        if (!updateError) return mapVisitorRow(updated);
-        if (updateError.code === '23505' && attempt < TOKEN_UNIQUE_RETRIES - 1) continue;
-        throwOnSupabaseError(updateError, 'Failed to reissue visitor token');
-      }
-      throw new ChatSDKError('bad_request:database', 'Failed to reissue visitor token');
+      throwOnSupabaseError(updateError, 'Failed to update visitor');
+      return mapVisitorRow(updated);
     }
 
     if (trimmedVoter) {
@@ -199,7 +194,7 @@ export async function findOrCreateVisitor({
         .maybeSingle();
       throwOnSupabaseError(error, 'Failed to find visitor by voter id');
       if (data) {
-        return reissueVisitToken(mapVisitorRow(data));
+        return reuseExistingVisitor(mapVisitorRow(data));
       }
     }
 
@@ -213,7 +208,7 @@ export async function findOrCreateVisitor({
       .maybeSingle();
     throwOnSupabaseError(mobileError, 'Failed to find visitor by mobile');
     if (byMobile) {
-      return reissueVisitToken(mapVisitorRow(byMobile));
+      return reuseExistingVisitor(mapVisitorRow(byMobile));
     }
 
     return createVisitor({
