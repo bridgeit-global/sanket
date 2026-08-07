@@ -1,8 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { toast } from '@/components/toast';
 import { useTranslations } from '@/hooks/use-translations';
 import { SidebarToggle } from '@/components/sidebar-toggle';
@@ -14,6 +13,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Combobox } from '@/components/ui/combobox';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   PhoneUpdateForm,
   type MobileNumberEntry,
@@ -156,8 +163,31 @@ export function VisitorWorkflow({
 }: VisitorWorkflowProps) {
   const { t } = useTranslations();
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  const [tab, setTab] = useState<WorkflowTab>(normalizeInitialTab(initialTab));
+  const [pendingTaskNavId, setPendingTaskNavId] = useState<string | undefined>();
+  // Prefer live URL/pending over server prop so stale initialTaskId can't pin the tab.
+  const deepLinkTaskId =
+    pendingTaskNavId ??
+    searchParams.get('taskId') ??
+    searchParams.get('serviceId') ??
+    undefined;
+
+  // URL (+ pending navigate) is the source of truth so tab UI can't desync.
+  const tab = useMemo<WorkflowTab>(() => {
+    if (deepLinkTaskId) return 'tasks';
+    return normalizeInitialTab(
+      searchParams.get('tab') ?? initialTab ?? (initialTaskId ? 'tasks' : 'visitor'),
+    );
+  }, [deepLinkTaskId, searchParams, initialTab, initialTaskId]);
+
+  useEffect(() => {
+    const urlTaskId = searchParams.get('taskId') ?? searchParams.get('serviceId');
+    if (pendingTaskNavId && urlTaskId === pendingTaskNavId) {
+      setPendingTaskNavId(undefined);
+    }
+  }, [searchParams, pendingTaskNavId]);
 
   const [catalog, setCatalog] = useState<IndividualServiceRow[]>([]);
   const [programmes, setProgrammes] = useState<ProgrammeRow[]>([]);
@@ -350,10 +380,10 @@ export function VisitorWorkflow({
   );
 
   useEffect(() => {
-    if (tab === 'create' && !selectedVisitor && createdServices.length === 0) {
+    if (tab === 'create') {
       void loadCreatePickerVisitors();
     }
-  }, [tab, selectedVisitor, createdServices.length, loadCreatePickerVisitors]);
+  }, [tab, loadCreatePickerVisitors]);
 
   useEffect(() => {
     if (tab !== 'create') return;
@@ -408,8 +438,17 @@ export function VisitorWorkflow({
   ]);
 
   function switchTab(next: WorkflowTab) {
-    setTab(next);
-    router.replace(`?tab=${next}`, { scroll: false });
+    setPendingTaskNavId(undefined);
+    router.replace(`${pathname}?tab=${next}`, { scroll: false });
+  }
+
+  function navigateToBeneficiaryTask(beneficiaryServiceId: string) {
+    resetCreateServiceForm();
+    setPendingTaskNavId(beneficiaryServiceId);
+    router.push(
+      `${pathname}?tab=tasks&taskId=${encodeURIComponent(beneficiaryServiceId)}`,
+      { scroll: false },
+    );
   }
 
   function selectVoter(voter: VoterWithPartNo) {
@@ -749,6 +788,19 @@ export function VisitorWorkflow({
     setCreatedServices([]);
   }
 
+  function openAddServiceModal(visitor: VisitorRow) {
+    setSelectedVisitor(visitor);
+    setPendingServiceName('');
+    setSelectedServices([]);
+    setNotes('');
+    setCreatedServices([]);
+  }
+
+  function closeAddServiceModal() {
+    resetCreateServiceForm();
+    void loadCreatePickerVisitors();
+  }
+
   async function shareVisitorThermalTicket(params: {
     token: string;
     createdAt: Date | string;
@@ -939,6 +991,17 @@ export function VisitorWorkflow({
           )
         : [];
       setCreatedServices(created);
+      setSelectedVisitor((prev) => {
+        if (!prev) return prev;
+        const addedServices = Array.isArray(json.services)
+          ? (json.services as VisitorServiceRow[])
+          : [];
+        return {
+          ...prev,
+          services: [...(prev.services ?? []), ...addedServices],
+        };
+      });
+      void loadCreatePickerVisitors();
       toast({ type: 'success', description: t('visitor.create.servicesSuccess') });
       setSelectedServices([]);
       setPendingServiceName('');
@@ -1263,300 +1326,196 @@ export function VisitorWorkflow({
 
       {tab === 'create' && (
         <>
-          {createdServices.length > 0 && selectedVisitor ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-green-600">{t('visitor.create.servicesSuccessTitle')}</CardTitle>
-                <CardDescription>{t('visitor.create.servicesSuccessDescription')}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  {createdServices.map((service) => (
-                    <div
-                      key={`${service.serviceName}-${service.token}`}
-                      className="rounded-lg border-2 border-green-200 bg-green-50 p-4 text-center sm:p-6"
-                    >
-                      <Label className="text-sm font-medium text-green-800">
-                        {service.serviceName}
-                      </Label>
-                      <p className="mt-2 break-all font-mono text-xl font-bold tracking-wide text-green-900 sm:text-2xl">
-                        {service.token}
-                      </p>
-                      <p className="mt-2 text-sm text-green-700">{t('visitor.create.saveToken')}</p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="mt-4 w-full sm:w-auto"
-                        disabled={sharingToken === service.token}
-                        onClick={() =>
-                          void shareVisitorThermalTicket({
-                            token: service.token,
-                            createdAt: service.createdAt,
-                            serviceName: service.serviceName,
-                            name: selectedVisitor.name,
-                            mobile: selectedVisitor.mobileNumber,
-                          })
-                        }
-                      >
-                        {sharingToken === service.token ? (
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        ) : (
-                          <Share2 className="mr-2 h-4 w-4" />
-                        )}
-                        {t('visitor.create.printToken')}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
-                  {createdServices.find((s) => s.beneficiaryServiceId) ? (
-                    <Button
-                      asChild
-                      className="flex-1"
-                    >
-                      <Link
-                        href={`/modules/operator?tab=tasks&taskId=${encodeURIComponent(
-                          createdServices.find((s) => s.beneficiaryServiceId)!
-                            .beneficiaryServiceId!,
-                        )}`}
-                      >
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        {t('visitor.manage.openBeneficiary')}
-                      </Link>
-                    </Button>
-                  ) : null}
-                  <Button
-                    variant="outline"
-                    onClick={() => resetCreateServiceForm(true)}
-                    className="flex-1"
-                  >
-                    {t('visitor.create.addMoreServices')}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="flex-1"
-                    onClick={() => {
-                      resetCreateServiceForm();
-                      switchTab('tasks');
-                    }}
-                  >
-                    {t('visitor.create.viewVisitors')}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('visitor.create.serviceTitle')}</CardTitle>
-                <CardDescription className="text-sm">
-                  {t('visitor.create.serviceDescription')}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="space-y-2 border-b pb-4">
-                  <Label>{t('visitor.form.programme')}</Label>
-                  <Combobox
-                    options={programmeOptions}
-                    value={programmeId}
-                    onValueChange={handleProgrammeChange}
-                    placeholder={t('visitor.form.programmePlaceholder')}
-                    disabled={loadingMeta}
-                  />
+          <Card>
+            <CardHeader>
+              <CardTitle>{t('visitor.create.serviceTitle')}</CardTitle>
+              <CardDescription className="text-sm">
+                {t('visitor.create.serviceDescription')}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2 border-b pb-4">
+                <Label>{t('visitor.form.programme')}</Label>
+                <Combobox
+                  options={programmeOptions}
+                  value={programmeId}
+                  onValueChange={handleProgrammeChange}
+                  placeholder={t('visitor.form.programmePlaceholder')}
+                  disabled={loadingMeta}
+                />
+              </div>
+
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label>{t('visitor.form.selectVisitor')}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t('visitor.form.selectVisitorHelp')}
+                  </p>
                 </div>
 
-                <div className="space-y-3">
-                  <div className="space-y-1">
-                    <Label>{t('visitor.form.selectVisitor')}</Label>
-                    <p className="text-sm text-muted-foreground">
-                      {t('visitor.form.selectVisitorHelp')}
-                    </p>
+                <div className="space-y-4 rounded-lg border p-3 sm:p-4">
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="create-visitor-created-from-filter">
+                        {t('visitor.manage.filters.createdFrom')}
+                      </Label>
+                      <Input
+                        id="create-visitor-created-from-filter"
+                        type="date"
+                        value={createFilterCreatedFrom}
+                        max={createFilterCreatedTo || undefined}
+                        onChange={(e) => {
+                          setCreateFilterCreatedFrom(e.target.value);
+                          setCreatePickerPage(1);
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="create-visitor-created-to-filter">
+                        {t('visitor.manage.filters.createdTo')}
+                      </Label>
+                      <Input
+                        id="create-visitor-created-to-filter"
+                        type="date"
+                        value={createFilterCreatedTo}
+                        min={createFilterCreatedFrom || undefined}
+                        onChange={(e) => {
+                          setCreateFilterCreatedTo(e.target.value);
+                          setCreatePickerPage(1);
+                        }}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="create-visitor-token-filter">
+                        {t('visitor.manage.filters.token')}
+                      </Label>
+                      <Input
+                        id="create-visitor-token-filter"
+                        placeholder={t('visitor.manage.filters.enterToken')}
+                        value={createFilterTokenInput}
+                        onChange={(e) => setCreateFilterTokenInput(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="create-visitor-name-filter">
+                        {t('visitor.manage.filters.name')}
+                      </Label>
+                      <Input
+                        id="create-visitor-name-filter"
+                        placeholder={t('visitor.manage.filters.enterName')}
+                        value={createFilterNameInput}
+                        onChange={(e) => setCreateFilterNameInput(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="create-visitor-mobile-filter">
+                        {t('visitor.manage.filters.mobileNumber')}
+                      </Label>
+                      <Input
+                        id="create-visitor-mobile-filter"
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        autoComplete="tel"
+                        maxLength={13}
+                        placeholder={t('visitor.manage.filters.enterMobile')}
+                        value={createFilterMobileInput}
+                        onChange={(e) =>
+                          setCreateFilterMobileInput(e.target.value.replace(/\D/g, ''))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="create-visitor-voter-filter">
+                        {t('visitor.manage.filters.voterId')}
+                      </Label>
+                      <Input
+                        id="create-visitor-voter-filter"
+                        placeholder={t('visitor.manage.filters.enterVoterId')}
+                        value={createFilterVoterIdInput}
+                        onChange={(e) =>
+                          setCreateFilterVoterIdInput(e.target.value.toUpperCase())
+                        }
+                        className="font-mono uppercase"
+                      />
+                    </div>
                   </div>
-                  {selectedVisitor ? (
-                    <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="min-w-0 text-sm">
-                        <p className="font-medium">{selectedVisitor.name}</p>
-                        <p className="font-mono text-muted-foreground">
-                          {selectedVisitor.token} · {selectedVisitor.mobileNumber}
-                          {selectedVisitor.voterId ? ` · ${selectedVisitor.voterId}` : ''}
-                        </p>
-                        {selectedVisitor.location ? (
-                          <p className="text-muted-foreground">{selectedVisitor.location}</p>
-                        ) : null}
-                      </div>
+
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      {t('visitor.manage.filters.showing', {
+                        count: createPickerVisitors.length,
+                        total: createPickerTotal,
+                      })}
+                    </p>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          const applied = applyCreatePickerFiltersFromInputs();
+                          if (!applied) return;
+                          void loadCreatePickerVisitors({
+                            ...applied,
+                            page: 1,
+                          });
+                        }}
+                        disabled={loadingCreatePicker}
+                        className="w-full sm:w-auto"
+                      >
+                        {loadingCreatePicker ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            {t('visitor.manage.actions.searching')}
+                          </>
+                        ) : (
+                          <>
+                            <Search className="mr-2 h-4 w-4" />
+                            {t('visitor.manage.actions.search')}
+                          </>
+                        )}
+                      </Button>
                       <Button
                         type="button"
                         variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedVisitor(null)}
+                        onClick={clearCreatePickerFilters}
+                        className="w-full sm:w-auto"
                       >
-                        {t('visitor.form.changeVisitor')}
+                        {t('visitor.manage.actions.clearFilters')}
                       </Button>
+                    </div>
+                  </div>
+
+                  {loadingCreatePicker && createPickerVisitors.length === 0 ? (
+                    <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t('visitor.form.searchingVisitors')}
+                    </div>
+                  ) : createPickerVisitors.length === 0 ? (
+                    <div className="rounded-md border border-dashed py-8 text-center">
+                      <p className="text-sm text-muted-foreground">
+                        {t('visitor.form.noVisitorsFound')}
+                      </p>
                     </div>
                   ) : (
-                    <div className="space-y-4 rounded-lg border p-3 sm:p-4">
-                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="create-visitor-created-from-filter">
-                            {t('visitor.manage.filters.createdFrom')}
-                          </Label>
-                          <Input
-                            id="create-visitor-created-from-filter"
-                            type="date"
-                            value={createFilterCreatedFrom}
-                            max={createFilterCreatedTo || undefined}
-                            onChange={(e) => {
-                              setCreateFilterCreatedFrom(e.target.value);
-                              setCreatePickerPage(1);
-                            }}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="create-visitor-created-to-filter">
-                            {t('visitor.manage.filters.createdTo')}
-                          </Label>
-                          <Input
-                            id="create-visitor-created-to-filter"
-                            type="date"
-                            value={createFilterCreatedTo}
-                            min={createFilterCreatedFrom || undefined}
-                            onChange={(e) => {
-                              setCreateFilterCreatedTo(e.target.value);
-                              setCreatePickerPage(1);
-                            }}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="create-visitor-token-filter">
-                            {t('visitor.manage.filters.token')}
-                          </Label>
-                          <Input
-                            id="create-visitor-token-filter"
-                            placeholder={t('visitor.manage.filters.enterToken')}
-                            value={createFilterTokenInput}
-                            onChange={(e) => setCreateFilterTokenInput(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="create-visitor-name-filter">
-                            {t('visitor.manage.filters.name')}
-                          </Label>
-                          <Input
-                            id="create-visitor-name-filter"
-                            placeholder={t('visitor.manage.filters.enterName')}
-                            value={createFilterNameInput}
-                            onChange={(e) => setCreateFilterNameInput(e.target.value)}
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="create-visitor-mobile-filter">
-                            {t('visitor.manage.filters.mobileNumber')}
-                          </Label>
-                          <Input
-                            id="create-visitor-mobile-filter"
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            autoComplete="tel"
-                            maxLength={13}
-                            placeholder={t('visitor.manage.filters.enterMobile')}
-                            value={createFilterMobileInput}
-                            onChange={(e) =>
-                              setCreateFilterMobileInput(e.target.value.replace(/\D/g, ''))
-                            }
-                          />
-                        </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="create-visitor-voter-filter">
-                            {t('visitor.manage.filters.voterId')}
-                          </Label>
-                          <Input
-                            id="create-visitor-voter-filter"
-                            placeholder={t('visitor.manage.filters.enterVoterId')}
-                            value={createFilterVoterIdInput}
-                            onChange={(e) =>
-                              setCreateFilterVoterIdInput(e.target.value.toUpperCase())
-                            }
-                            className="font-mono uppercase"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="text-sm text-muted-foreground">
-                          {t('visitor.manage.filters.showing', {
-                            count: createPickerVisitors.length,
-                            total: createPickerTotal,
-                          })}
-                        </p>
-                        <div className="flex flex-col gap-2 sm:flex-row">
-                          <Button
-                            type="button"
-                            onClick={() => {
-                              const applied = applyCreatePickerFiltersFromInputs();
-                              if (!applied) return;
-                              void loadCreatePickerVisitors({
-                                ...applied,
-                                page: 1,
-                              });
-                            }}
-                            disabled={loadingCreatePicker}
-                            className="w-full sm:w-auto"
-                          >
-                            {loadingCreatePicker ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                {t('visitor.manage.actions.searching')}
-                              </>
-                            ) : (
-                              <>
-                                <Search className="mr-2 h-4 w-4" />
-                                {t('visitor.manage.actions.search')}
-                              </>
-                            )}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={clearCreatePickerFilters}
-                            className="w-full sm:w-auto"
-                          >
-                            {t('visitor.manage.actions.clearFilters')}
-                          </Button>
-                        </div>
-                      </div>
-
-                      {loadingCreatePicker && createPickerVisitors.length === 0 ? (
-                        <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          {t('visitor.form.searchingVisitors')}
-                        </div>
-                      ) : createPickerVisitors.length === 0 ? (
-                        <div className="rounded-md border border-dashed py-8 text-center">
-                          <p className="text-sm text-muted-foreground">
-                            {t('visitor.form.noVisitorsFound')}
-                          </p>
-                        </div>
-                      ) : (
-                        <ul className="divide-y rounded-lg border">
-                          {createPickerVisitors.map((v) => (
-                            <li key={v.id}>
-                              <button
-                                type="button"
-                                className="flex w-full flex-col gap-1 px-3 py-3 text-left text-sm hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
-                                onClick={() => setSelectedVisitor(v)}
-                              >
-                                <div className="min-w-0">
-                                  <p className="font-medium">{v.name}</p>
-                                  <p className="font-mono text-xs text-muted-foreground">
-                                    {v.token} · {v.mobileNumber}
-                                    {v.voterId ? ` · ${v.voterId}` : ''}
+                    <div className="grid grid-cols-1 gap-3">
+                      {createPickerVisitors.map((v) => (
+                        <Card key={v.id} className="overflow-hidden shadow-sm">
+                          <CardHeader className="space-y-3 border-b bg-muted/20 p-4 pb-3">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                              <div className="min-w-0 space-y-1">
+                                <CardTitle className="text-base leading-snug sm:text-lg">
+                                  {v.name}
+                                </CardTitle>
+                                <CardDescription className="font-mono text-xs sm:text-sm">
+                                  {v.token} · {v.mobileNumber}
+                                  {v.voterId ? ` · ${v.voterId}` : ''}
+                                </CardDescription>
+                                {v.location ? (
+                                  <p className="text-xs text-muted-foreground sm:text-sm">
+                                    {v.location}
                                   </p>
-                                  {v.location ? (
-                                    <p className="text-xs text-muted-foreground">{v.location}</p>
-                                  ) : null}
-                                </div>
-                                <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                                ) : null}
+                                <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
                                   <Badge variant="secondary">
                                     {t('visitor.manage.serviceCount', {
                                       count: v.services?.length ?? 0,
@@ -1564,127 +1523,436 @@ export function VisitorWorkflow({
                                   </Badge>
                                   <span>{formatDisplayDateTimeIST(v.createdAt)}</span>
                                 </div>
-                              </button>
+                              </div>
+                              <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto">
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full sm:w-auto"
+                                  disabled={sharingToken === v.token}
+                                  onClick={() =>
+                                    void shareVisitorThermalTicket({
+                                      token: v.token,
+                                      createdAt: v.createdAt,
+                                      serviceName: t('visitor.create.visitTokenLabel'),
+                                      name: v.name,
+                                      mobile: v.mobileNumber,
+                                    })
+                                  }
+                                >
+                                  {sharingToken === v.token ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Share2 className="mr-2 h-4 w-4" />
+                                  )}
+                                  {t('visitor.manage.printToken')}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  className="w-full sm:w-auto"
+                                  onClick={() => openAddServiceModal(v)}
+                                >
+                                  <Plus className="mr-2 h-4 w-4" />
+                                  {t('visitor.manage.addService')}
+                                </Button>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="space-y-2 p-4 pt-3">
+                            <p className="text-xs font-medium text-muted-foreground">
+                              {t('visitor.manage.existingServices')}
+                            </p>
+                            {(v.services?.length ?? 0) > 0 ? (
+                              <ul className="space-y-2">
+                                {v.services.map((service) => (
+                                  <li
+                                    key={service.id}
+                                    className="flex flex-col gap-2 rounded-lg border bg-muted/10 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
+                                  >
+                                    <div className="min-w-0">
+                                      <p className="text-sm font-medium leading-snug">
+                                        {service.serviceName}
+                                      </p>
+                                      <p className="break-all font-mono text-xs text-muted-foreground">
+                                        {service.token}
+                                      </p>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <Badge
+                                        variant={
+                                          service.status === 'cancelled'
+                                            ? 'destructive'
+                                            : service.status === 'converted'
+                                              ? 'default'
+                                              : 'secondary'
+                                        }
+                                        className="w-fit shrink-0 capitalize"
+                                      >
+                                        {t(`visitor.status.${service.status}`)}
+                                      </Badge>
+                                      <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        className="w-full sm:w-auto"
+                                        disabled={sharingToken === service.token}
+                                        onClick={() =>
+                                          void shareVisitorThermalTicket({
+                                            token: service.token,
+                                            createdAt: service.createdAt,
+                                            serviceName: service.serviceName,
+                                            name: v.name,
+                                            mobile: v.mobileNumber,
+                                          })
+                                        }
+                                      >
+                                        {sharingToken === service.token ? (
+                                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                        ) : (
+                                          <Share2 className="mr-2 h-4 w-4" />
+                                        )}
+                                        {t('visitor.manage.printToken')}
+                                      </Button>
+                                      {service.beneficiaryServiceId ? (
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          className="w-full sm:w-auto"
+                                          onClick={() =>
+                                            navigateToBeneficiaryTask(
+                                              service.beneficiaryServiceId!,
+                                            )
+                                          }
+                                        >
+                                          <ExternalLink className="mr-2 h-4 w-4" />
+                                          {t('visitor.manage.openBeneficiary')}
+                                        </Button>
+                                      ) : null}
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <div className="rounded-lg border border-dashed px-3 py-4 text-center">
+                                <p className="text-sm text-muted-foreground">
+                                  {t('visitor.manage.noServices')}
+                                </p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+
+                  {createPickerTotal > 0 ? (
+                    <TablePagination
+                      currentPage={createPickerPage}
+                      totalPages={createPickerTotalPages}
+                      pageSize={createPickerPageSize}
+                      totalItems={createPickerTotal}
+                      onPageChange={setCreatePickerPage}
+                      onPageSizeChange={(size) => {
+                        setCreatePickerPageSize(size);
+                        setCreatePickerPage(1);
+                      }}
+                      pageSizeOptions={[5, 10, 20, 50]}
+                    />
+                  ) : null}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Dialog
+            open={Boolean(selectedVisitor)}
+            onOpenChange={(open) => {
+              if (!open) closeAddServiceModal();
+            }}
+          >
+            <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto sm:max-w-xl">
+              {selectedVisitor && createdServices.length > 0 ? (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="text-green-600">
+                      {t('visitor.create.servicesSuccessTitle')}
+                    </DialogTitle>
+                    <DialogDescription>
+                      {t('visitor.create.servicesSuccessDescription')}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-3">
+                    {createdServices.map((service) => (
+                      <div
+                        key={`${service.serviceName}-${service.token}`}
+                        className="rounded-lg border-2 border-green-200 bg-green-50 p-4 text-center"
+                      >
+                        <Label className="text-sm font-medium text-green-800">
+                          {service.serviceName}
+                        </Label>
+                        <p className="mt-2 break-all font-mono text-xl font-bold tracking-wide text-green-900">
+                          {service.token}
+                        </p>
+                        <p className="mt-2 text-sm text-green-700">
+                          {t('visitor.create.saveToken')}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="mt-4 w-full sm:w-auto"
+                          disabled={sharingToken === service.token}
+                          onClick={() =>
+                            void shareVisitorThermalTicket({
+                              token: service.token,
+                              createdAt: service.createdAt,
+                              serviceName: service.serviceName,
+                              name: selectedVisitor.name,
+                              mobile: selectedVisitor.mobileNumber,
+                            })
+                          }
+                        >
+                          {sharingToken === service.token ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Share2 className="mr-2 h-4 w-4" />
+                          )}
+                          {t('visitor.create.printToken')}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <DialogFooter className="flex-col gap-2 sm:flex-row">
+                    {createdServices.find((s) => s.beneficiaryServiceId) ? (
+                      <Button
+                        type="button"
+                        className="w-full sm:flex-1"
+                        onClick={() =>
+                          navigateToBeneficiaryTask(
+                            createdServices.find((s) => s.beneficiaryServiceId)!
+                              .beneficiaryServiceId!,
+                          )
+                        }
+                      >
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        {t('visitor.manage.openBeneficiary')}
+                      </Button>
+                    ) : null}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full sm:flex-1"
+                      onClick={() => resetCreateServiceForm(true)}
+                    >
+                      {t('visitor.create.addMoreServices')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full sm:flex-1"
+                      onClick={closeAddServiceModal}
+                    >
+                      {t('common.close')}
+                    </Button>
+                  </DialogFooter>
+                </>
+              ) : selectedVisitor ? (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>{t('visitor.manage.addService')}</DialogTitle>
+                    <DialogDescription>
+                      {selectedVisitor.name} · {selectedVisitor.token} ·{' '}
+                      {selectedVisitor.mobileNumber}
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>{t('visitor.manage.existingServices')}</Label>
+                      {(selectedVisitor.services?.length ?? 0) > 0 ? (
+                        <ul className="max-h-48 space-y-1.5 overflow-y-auto rounded-lg border bg-muted/20 p-2.5">
+                          {selectedVisitor.services.map((service) => (
+                            <li
+                              key={service.id}
+                              className="flex flex-col gap-2 rounded-md bg-background px-2.5 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
+                            >
+                              <div className="min-w-0">
+                                <p className="font-medium">{service.serviceName}</p>
+                                <p className="break-all font-mono text-xs text-muted-foreground">
+                                  {service.token}
+                                </p>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge
+                                  variant={
+                                    service.status === 'cancelled'
+                                      ? 'destructive'
+                                      : service.status === 'converted'
+                                        ? 'default'
+                                        : 'secondary'
+                                  }
+                                  className="w-fit shrink-0 capitalize"
+                                >
+                                  {t(`visitor.status.${service.status}`)}
+                                </Badge>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full sm:w-auto"
+                                  disabled={sharingToken === service.token}
+                                  onClick={() =>
+                                    void shareVisitorThermalTicket({
+                                      token: service.token,
+                                      createdAt: service.createdAt,
+                                      serviceName: service.serviceName,
+                                      name: selectedVisitor.name,
+                                      mobile: selectedVisitor.mobileNumber,
+                                    })
+                                  }
+                                >
+                                  {sharingToken === service.token ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Share2 className="mr-2 h-4 w-4" />
+                                  )}
+                                  {t('visitor.manage.printToken')}
+                                </Button>
+                                {service.beneficiaryServiceId ? (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full sm:w-auto"
+                                    onClick={() =>
+                                      navigateToBeneficiaryTask(
+                                        service.beneficiaryServiceId!,
+                                      )
+                                    }
+                                  >
+                                    <ExternalLink className="mr-2 h-4 w-4" />
+                                    {t('visitor.manage.openBeneficiary')}
+                                  </Button>
+                                ) : null}
+                              </div>
                             </li>
                           ))}
                         </ul>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          {t('visitor.manage.noServices')}
+                        </p>
                       )}
-
-                      {createPickerTotal > 0 ? (
-                        <TablePagination
-                          currentPage={createPickerPage}
-                          totalPages={createPickerTotalPages}
-                          pageSize={createPickerPageSize}
-                          totalItems={createPickerTotal}
-                          onPageChange={setCreatePickerPage}
-                          onPageSizeChange={(size) => {
-                            setCreatePickerPageSize(size);
-                            setCreatePickerPage(1);
-                          }}
-                          pageSizeOptions={[5, 10, 20, 50]}
-                        />
-                      ) : null}
                     </div>
-                  )}
-                </div>
 
-                <form onSubmit={handleCreateServices} className="space-y-6">
-                  <div className="space-y-2">
-                    <Label>
-                      {t('visitor.form.services')} <span className="text-red-500">*</span>
-                    </Label>
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <div className="min-w-0 flex-1">
-                        <Combobox
-                          options={serviceOptions}
-                          value={pendingServiceName}
-                          onValueChange={setPendingServiceName}
-                          placeholder={t('visitor.form.servicePlaceholder')}
-                          disabled={loadingMeta || !selectedVisitor}
-                          allowCustom
+                    <form onSubmit={handleCreateServices} className="space-y-4">
+                      <div className="space-y-2">
+                        <Label>
+                          {t('visitor.form.services')}{' '}
+                          <span className="text-red-500">*</span>
+                        </Label>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <div className="min-w-0 flex-1">
+                            <Combobox
+                              options={serviceOptions}
+                              value={pendingServiceName}
+                              onValueChange={setPendingServiceName}
+                              placeholder={t('visitor.form.servicePlaceholder')}
+                              disabled={loadingMeta}
+                              allowCustom
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={addSelectedService}
+                            disabled={loadingMeta || !pendingServiceName.trim()}
+                            className="sm:w-auto"
+                          >
+                            <Plus className="mr-2 h-4 w-4" />
+                            {t('visitor.form.addService')}
+                          </Button>
+                        </div>
+                        {selectedServices.length > 0 ? (
+                          <ul className="space-y-2 rounded-lg border bg-muted/20 p-3">
+                            {selectedServices.map((service) => (
+                              <li
+                                key={service}
+                                className="flex items-center justify-between gap-2 rounded-md bg-background px-3 py-2 text-sm"
+                              >
+                                <span className="min-w-0 break-words">{service}</span>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-8 w-8 shrink-0 p-0"
+                                  onClick={() => removeSelectedService(service)}
+                                  aria-label={t('visitor.form.removeService')}
+                                >
+                                  <X className="h-4 w-4" />
+                                </Button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-xs text-muted-foreground sm:text-sm">
+                            {t('visitor.form.servicesHint')}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="service-notes">{t('visitor.form.notes')}</Label>
+                        <Textarea
+                          id="service-notes"
+                          value={notes}
+                          onChange={(e) => setNotes(e.target.value)}
+                          rows={3}
                         />
                       </div>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onClick={addSelectedService}
-                        disabled={
-                          loadingMeta || !selectedVisitor || !pendingServiceName.trim()
-                        }
-                        className="sm:w-auto"
-                      >
-                        <Plus className="mr-2 h-4 w-4" />
-                        {t('visitor.form.addService')}
-                      </Button>
-                    </div>
-                    {selectedServices.length > 0 ? (
-                      <ul className="space-y-2 rounded-lg border bg-muted/20 p-3">
-                        {selectedServices.map((service) => (
-                          <li
-                            key={service}
-                            className="flex items-center justify-between gap-2 rounded-md bg-background px-3 py-2 text-sm"
-                          >
-                            <span className="min-w-0 break-words">{service}</span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 shrink-0 p-0"
-                              onClick={() => removeSelectedService(service)}
-                              aria-label={t('visitor.form.removeService')}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-xs text-muted-foreground sm:text-sm">
-                        {t('visitor.form.servicesHint')}
-                      </p>
-                    )}
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="service-notes">{t('visitor.form.notes')}</Label>
-                    <Textarea
-                      id="service-notes"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      rows={3}
-                      disabled={!selectedVisitor}
-                    />
+                      <DialogFooter className="gap-2 sm:justify-end">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={closeAddServiceModal}
+                          disabled={creatingServices}
+                        >
+                          {t('common.cancel')}
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={
+                            creatingServices ||
+                            loadingMeta ||
+                            (selectedServices.length === 0 && !pendingServiceName.trim())
+                          }
+                        >
+                          {creatingServices ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              {t('visitor.create.submittingServices')}
+                            </>
+                          ) : (
+                            t('visitor.create.submitServices')
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </form>
                   </div>
-
-                  <Button
-                    type="submit"
-                    disabled={
-                      creatingServices ||
-                      loadingMeta ||
-                      !selectedVisitor ||
-                      (selectedServices.length === 0 && !pendingServiceName.trim())
-                    }
-                    className="w-full sm:w-auto"
-                  >
-                    {creatingServices ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {t('visitor.create.submittingServices')}
-                      </>
-                    ) : (
-                      t('visitor.create.submitServices')
-                    )}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          )}
+                </>
+              ) : null}
+            </DialogContent>
+          </Dialog>
         </>
       )}
 
       {tab === 'tasks' && (
         <TaskManagement
-          initialTaskId={initialTaskId}
+          key={deepLinkTaskId ?? 'tasks'}
+          initialTaskId={deepLinkTaskId}
           initialManageState={initialTaskManageState}
         />
       )}
