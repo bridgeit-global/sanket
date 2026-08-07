@@ -49,8 +49,8 @@ export const ALL_MODULES: ModuleDefinition[] = [
   // Operations modules
   {
     key: 'operator',
-    label: 'Beneficiary Management',
-    description: 'Manage beneficiary services',
+    label: 'Operator',
+    description: 'Register visitors, create services, and manage service tokens',
     route: '/modules/operator',
     icon: 'Briefcase',
     category: 'operations',
@@ -59,7 +59,7 @@ export const ALL_MODULES: ModuleDefinition[] = [
   {
     key: 'visitor',
     label: 'Visitor',
-    description: 'Register visitors, issue service tokens, convert to beneficiaries',
+    description: 'Register visitors, create services, and manage service tokens',
     route: '/modules/visitor',
     icon: 'UserRound',
     category: 'operations',

@@ -2034,8 +2034,11 @@ export type Database = {
           created_at: string
           created_by: string
           id: string
+          location: string | null
           mobile_number: string
           name: string
+          programme_id: string | null
+          token: string
           updated_at: string
           voter_id: string | null
         }
@@ -2043,8 +2046,11 @@ export type Database = {
           created_at?: string
           created_by: string
           id?: string
+          location?: string | null
           mobile_number: string
           name: string
+          programme_id?: string | null
+          token: string
           updated_at?: string
           voter_id?: string | null
         }
@@ -2052,8 +2058,11 @@ export type Database = {
           created_at?: string
           created_by?: string
           id?: string
+          location?: string | null
           mobile_number?: string
           name?: string
+          programme_id?: string | null
+          token?: string
           updated_at?: string
           voter_id?: string | null
         }
@@ -2063,6 +2072,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "User"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Visitor_programme_id_fkey"
+            columns: ["programme_id"]
+            isOneToOne: false
+            referencedRelation: "DailyProgramme"
             referencedColumns: ["id"]
           },
           {

@@ -77,6 +77,7 @@ export async function POST(request: NextRequest) {
       name,
       mobileNumber,
       voterId,
+      location,
       serviceName,
       serviceNames,
       programmeId,
@@ -94,6 +95,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const trimmedVoterId =
+      typeof voterId === 'string' && voterId.trim() ? voterId.trim().toUpperCase() : null;
+    const trimmedLocation =
+      typeof location === 'string' && location.trim() ? location.trim() : null;
+
+    // Outsider (no voter ID) must provide location.
+    if (!trimmedVoterId && !trimmedLocation) {
+      return NextResponse.json(
+        { error: 'Location is required for outsider visitors' },
+        { status: 400 },
+      );
+    }
+
     const resolvedServiceNames = Array.from(
       new Set(
         [
@@ -105,19 +119,23 @@ export async function POST(request: NextRequest) {
       ),
     );
 
-    if (resolvedServiceNames.length === 0) {
-      return NextResponse.json(
-        { error: 'At least one service is required' },
-        { status: 400 },
-      );
-    }
-
     const visitor = await findOrCreateVisitor({
       name: name.trim(),
       mobileNumber: normalizeIndianMobileDigits(mobileNumber),
-      voterId: typeof voterId === 'string' && voterId.trim() ? voterId.trim().toUpperCase() : null,
+      voterId: trimmedVoterId,
+      location: trimmedLocation,
+      programmeId:
+        programmeId != null && programmeId !== '' ? String(programmeId) : null,
       createdBy: session.user.id,
     });
+
+    if (resolvedServiceNames.length === 0) {
+      return NextResponse.json({
+        visitor,
+        services: [],
+        service: null,
+      });
+    }
 
     const programme =
       programmeId != null && programmeId !== '' ? String(programmeId) : null;
@@ -125,8 +143,9 @@ export async function POST(request: NextRequest) {
     const noteText = typeof notes === 'string' ? notes : null;
 
     const services = [];
+    const beneficiaryServices = [];
     for (const resolvedName of resolvedServiceNames) {
-      const service = await createVisitorService({
+      const created = await createVisitorService({
         visitorId: visitor.id,
         serviceName: resolvedName,
         programmeId: programme,
@@ -134,13 +153,16 @@ export async function POST(request: NextRequest) {
         notes: noteText,
         createdBy: session.user.id,
       });
-      services.push(service);
+      services.push(created.visitorService);
+      beneficiaryServices.push(created.beneficiaryService);
     }
 
     return NextResponse.json({
       visitor,
       services,
       service: services[0] ?? null,
+      beneficiaryServices,
+      beneficiaryService: beneficiaryServices[0] ?? null,
     });
   } catch (error) {
     console.error('Error creating visitor:', error);
@@ -148,6 +170,6 @@ export async function POST(request: NextRequest) {
       error instanceof Error && error.message
         ? String((error as { cause?: string }).cause || error.message)
         : 'Failed to create visitor';
-    return NextResponse.json({ error: message || 'Failed to create visitor' }, { status: 500 });
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

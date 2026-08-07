@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { toast } from '@/components/toast';
 import { useTranslations } from '@/hooks/use-translations';
 import { SidebarToggle } from '@/components/sidebar-toggle';
@@ -13,28 +13,22 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Combobox } from '@/components/ui/combobox';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+  PhoneUpdateForm,
+  type MobileNumberEntry,
+} from '@/components/phone-update-form';
 import { VoterSearchPanel } from '@/components/voter-search-panel';
 import { formatDisplayDateTimeIST } from '@/lib/ist-date';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
 import type { VoterWithPartNo } from '@/lib/db/schema';
-import {
-  buildVisitorManageSearchParams,
-  DEFAULT_VISITOR_MANAGE_PAGE_SIZE,
-  parseVisitorManageFiltersFromSearchParams,
-  type VisitorManageFilterState,
-} from '@/lib/visitor/manage-url-params';
-import { ExternalLink, Loader2, Plus, Search, Share2, UserCheck, X } from 'lucide-react';
+import type { ManageFilterState } from '@/lib/operator/manage-url-params';
+import { TaskManagement } from '@/components/task-management';
+import { ExternalLink, Loader2, Plus, Search, Share2, X } from 'lucide-react';
+
+type WorkflowTab = 'visitor' | 'create' | 'tasks';
 
 type IndividualServiceRow = {
   id: string;
@@ -69,8 +63,18 @@ type VisitorRow = {
   name: string;
   mobileNumber: string;
   voterId: string | null;
+  token: string;
+  location: string | null;
   createdAt: string | Date;
   services: VisitorServiceRow[];
+};
+
+type CreatedVisitorService = {
+  serviceName: string;
+  token: string;
+  createdAt: string | Date;
+  beneficiaryServiceId?: string | null;
+  beneficiaryToken?: string | null;
 };
 
 function buildServiceComboboxOptions(
@@ -106,93 +110,111 @@ function buildServiceComboboxOptions(
   return options;
 }
 
-function statusVariant(status: VisitorServiceRow['status']): 'default' | 'secondary' | 'outline' {
-  if (status === 'converted') return 'default';
-  if (status === 'cancelled') return 'outline';
-  return 'secondary';
+const LINKED_PROGRAMME_STORAGE_KEY = 'visitor_linked_programme';
+
+function readStoredLinkedProgramme(): string {
+  if (typeof window === 'undefined') return '';
+  try {
+    const raw = sessionStorage.getItem(LINKED_PROGRAMME_STORAGE_KEY);
+    if (!raw) return '';
+    const v = JSON.parse(raw) as { programmeId?: string };
+    return v.programmeId?.trim() || '';
+  } catch {
+    return '';
+  }
 }
 
-type CreatedVisitorService = {
-  serviceName: string;
-  token: string;
-  createdAt: string | Date;
-};
+function writeStoredLinkedProgramme(programmeId: string) {
+  if (typeof window === 'undefined') return;
+  const trimmed = programmeId.trim();
+  if (!trimmed) {
+    sessionStorage.removeItem(LINKED_PROGRAMME_STORAGE_KEY);
+    return;
+  }
+  sessionStorage.setItem(
+    LINKED_PROGRAMME_STORAGE_KEY,
+    JSON.stringify({ programmeId: trimmed }),
+  );
+}
+
+function normalizeInitialTab(tab?: string): WorkflowTab {
+  if (tab === 'create' || tab === 'visitor') return tab;
+  // Legacy ?tab=manage and ?tab=tasks both open Manage Tasks.
+  if (tab === 'tasks' || tab === 'manage') return 'tasks';
+  return 'visitor';
+}
 
 type VisitorWorkflowProps = {
-  initialTab?: 'create' | 'manage';
-  initialManageState?: Partial<VisitorManageFilterState>;
+  initialTab?: WorkflowTab | 'create' | 'manage' | 'tasks';
+  initialTaskId?: string;
+  initialTaskManageState?: Partial<ManageFilterState>;
 };
 
 export function VisitorWorkflow({
-  initialTab = 'create',
-  initialManageState,
+  initialTab = 'visitor',
+  initialTaskId,
+  initialTaskManageState,
 }: VisitorWorkflowProps) {
   const { t } = useTranslations();
   const router = useRouter();
-  const searchParams = useSearchParams();
 
-  const urlFilters = parseVisitorManageFiltersFromSearchParams(searchParams);
-  const mergedInitial: VisitorManageFilterState = {
-    status: initialManageState?.status ?? urlFilters.status,
-    serviceName: initialManageState?.serviceName ?? urlFilters.serviceName,
-    token: initialManageState?.token ?? urlFilters.token,
-    mobile: initialManageState?.mobile ?? urlFilters.mobile,
-    voterId: initialManageState?.voterId ?? urlFilters.voterId,
-    name: initialManageState?.name ?? urlFilters.name,
-    createdFrom: initialManageState?.createdFrom ?? urlFilters.createdFrom,
-    createdTo: initialManageState?.createdTo ?? urlFilters.createdTo,
-    page: initialManageState?.page ?? urlFilters.page,
-    limit: initialManageState?.limit ?? urlFilters.limit,
-  };
-
-  const [tab, setTab] = useState<'create' | 'manage'>(initialTab);
+  const [tab, setTab] = useState<WorkflowTab>(normalizeInitialTab(initialTab));
 
   const [catalog, setCatalog] = useState<IndividualServiceRow[]>([]);
   const [programmes, setProgrammes] = useState<ProgrammeRow[]>([]);
   const [loadingMeta, setLoadingMeta] = useState(true);
 
+  // Visitor tab
   const [name, setName] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [voterId, setVoterId] = useState('');
-  const [pendingServiceName, setPendingServiceName] = useState('');
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
-  const [programmeId, setProgrammeId] = useState('');
-  const [notes, setNotes] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [createdServices, setCreatedServices] = useState<CreatedVisitorService[]>([]);
+  const [location, setLocation] = useState('');
+  const [isOutsider, setIsOutsider] = useState(false);
+  const [creatingVisitor, setCreatingVisitor] = useState(false);
+  const [createdVisitToken, setCreatedVisitToken] = useState<string | null>(null);
   const [createdVisitorSnapshot, setCreatedVisitorSnapshot] = useState<{
+    id: string;
     name: string;
     mobileNumber: string;
+    token: string;
+    createdAt: string | Date;
   } | null>(null);
+  const [selectedVoter, setSelectedVoterForPhone] = useState<VoterWithPartNo | null>(null);
+  const [selectedVoterMobileNumbers, setSelectedVoterMobileNumbers] = useState<
+    MobileNumberEntry[]
+  >([]);
+  const [showPhoneUpdate, setShowPhoneUpdate] = useState(false);
+  const [programmeId, setProgrammeId] = useState(() => readStoredLinkedProgramme());
+  const [programmesLoaded, setProgrammesLoaded] = useState(false);
+
+  // Create Service tab
+  const [selectedVisitor, setSelectedVisitor] = useState<VisitorRow | null>(null);
+  const [pendingServiceName, setPendingServiceName] = useState('');
+  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [notes, setNotes] = useState('');
+  const [creatingServices, setCreatingServices] = useState(false);
+  const [createdServices, setCreatedServices] = useState<CreatedVisitorService[]>([]);
+  const [createFilterTokenInput, setCreateFilterTokenInput] = useState('');
+  const [createFilterNameInput, setCreateFilterNameInput] = useState('');
+  const [createFilterMobileInput, setCreateFilterMobileInput] = useState('');
+  const [createFilterVoterIdInput, setCreateFilterVoterIdInput] = useState('');
+  const [createFilterCreatedFrom, setCreateFilterCreatedFrom] = useState('');
+  const [createFilterCreatedTo, setCreateFilterCreatedTo] = useState('');
+  const [createFilterToken, setCreateFilterToken] = useState('');
+  const [createFilterName, setCreateFilterName] = useState('');
+  const [createFilterMobile, setCreateFilterMobile] = useState('');
+  const [createFilterVoterId, setCreateFilterVoterId] = useState('');
+  const [createPickerVisitors, setCreatePickerVisitors] = useState<VisitorRow[]>([]);
+  const [createPickerPage, setCreatePickerPage] = useState(1);
+  const [createPickerPageSize, setCreatePickerPageSize] = useState(10);
+  const [createPickerTotal, setCreatePickerTotal] = useState(0);
+  const [createPickerTotalPages, setCreatePickerTotalPages] = useState(0);
+  const [loadingCreatePicker, setLoadingCreatePicker] = useState(false);
+  const createInvalidMobileToastRef = useRef(false);
+
   const [sharingToken, setSharingToken] = useState<string | null>(null);
 
-  const [filterStatus, setFilterStatus] = useState(mergedInitial.status);
-  const [filterServiceName, setFilterServiceName] = useState(
-    mergedInitial.serviceName || 'all',
-  );
-  const [filterToken, setFilterToken] = useState(mergedInitial.token);
-  const [filterMobile, setFilterMobile] = useState(mergedInitial.mobile);
-  const [filterVoterId, setFilterVoterId] = useState(mergedInitial.voterId);
-  const [filterName, setFilterName] = useState(mergedInitial.name);
-  const [filterCreatedFrom, setFilterCreatedFrom] = useState(mergedInitial.createdFrom);
-  const [filterCreatedTo, setFilterCreatedTo] = useState(mergedInitial.createdTo);
-  const [filterTokenInput, setFilterTokenInput] = useState(mergedInitial.token);
-  const [filterMobileInput, setFilterMobileInput] = useState(mergedInitial.mobile);
-  const [filterVoterIdInput, setFilterVoterIdInput] = useState(mergedInitial.voterId);
-  const [filterNameInput, setFilterNameInput] = useState(mergedInitial.name);
-  const [currentPage, setCurrentPage] = useState(mergedInitial.page);
-  const [pageSize, setPageSize] = useState(mergedInitial.limit);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-
-  const [visitors, setVisitors] = useState<VisitorRow[]>([]);
-  const [loadingList, setLoadingList] = useState(false);
-  const [addServiceForId, setAddServiceForId] = useState<string | null>(null);
-  const [addServiceName, setAddServiceName] = useState('');
-  const [addProgrammeId, setAddProgrammeId] = useState('');
-  const [addingService, setAddingService] = useState(false);
-  const [convertingId, setConvertingId] = useState<string | null>(null);
-  const invalidMobileFilterToastSentRef = useRef(false);
+  const outsiderMode = isOutsider || !voterId.trim();
 
   const serviceOptions = useMemo(() => buildServiceComboboxOptions(catalog), [catalog]);
   const programmeOptions = useMemo(
@@ -206,48 +228,6 @@ export function VisitorWorkflow({
     [programmes, t],
   );
 
-  const syncManageUrl = useCallback(
-    (updates: Partial<VisitorManageFilterState> & { tab?: string }, resetPage = false) => {
-      const next: Partial<VisitorManageFilterState> & { tab?: string } = {
-        status: updates.status ?? filterStatus,
-        serviceName:
-          updates.serviceName !== undefined
-            ? updates.serviceName
-            : filterServiceName === 'all'
-              ? ''
-              : filterServiceName,
-        token: updates.token ?? filterToken,
-        mobile: updates.mobile ?? filterMobile,
-        voterId: updates.voterId ?? filterVoterId,
-        name: updates.name ?? filterName,
-        createdFrom: updates.createdFrom ?? filterCreatedFrom,
-        createdTo: updates.createdTo ?? filterCreatedTo,
-        page: resetPage ? 1 : (updates.page ?? currentPage),
-        limit: updates.limit ?? pageSize,
-        tab: updates.tab ?? searchParams.get('tab') ?? 'manage',
-      };
-      const params = buildVisitorManageSearchParams(
-        next,
-        new URLSearchParams(searchParams.toString()),
-      );
-      router.replace(`?${params.toString()}`, { scroll: false });
-    },
-    [
-      searchParams,
-      router,
-      filterStatus,
-      filterServiceName,
-      filterToken,
-      filterMobile,
-      filterVoterId,
-      filterName,
-      filterCreatedFrom,
-      filterCreatedTo,
-      currentPage,
-      pageSize,
-    ],
-  );
-
   useEffect(() => {
     let cancelled = false;
     async function loadMeta() {
@@ -258,18 +238,20 @@ export function VisitorWorkflow({
           fetch('/api/visitor/today-programmes'),
         ]);
         if (!servicesRes.ok || !programmesRes.ok) {
-          throw new Error('Failed to load form data');
+          throw new Error('Failed to load meta');
         }
         const servicesJson = await servicesRes.json();
         const programmesJson = await programmesRes.json();
         if (!cancelled) {
-          setCatalog(servicesJson);
-          setProgrammes(programmesJson);
+          setCatalog(Array.isArray(servicesJson) ? servicesJson : []);
+          setProgrammes(Array.isArray(programmesJson) ? programmesJson : []);
+          setProgrammesLoaded(true);
         }
       } catch (error) {
         console.error(error);
         if (!cancelled) {
           toast({ type: 'error', description: t('visitor.errors.loadMeta') });
+          setProgrammesLoaded(true);
         }
       } finally {
         if (!cancelled) setLoadingMeta(false);
@@ -279,175 +261,292 @@ export function VisitorWorkflow({
     return () => {
       cancelled = true;
     };
-    // Intentionally mount-only: `t` from useTranslations is a new function each render
-    // and would retrigger this effect in a fetch loop.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadVisitors = useCallback(async () => {
-    setLoadingList(true);
-    try {
-      const params = new URLSearchParams();
-      if (filterStatus !== 'all') params.set('status', filterStatus);
-      if (filterServiceName && filterServiceName !== 'all') {
-        params.set('serviceName', filterServiceName);
-      }
-      if (filterToken) params.set('token', filterToken);
-      if (filterMobile) params.set('mobile', filterMobile);
-      if (filterVoterId) params.set('voterId', filterVoterId);
-      if (filterName) params.set('name', filterName);
-      if (filterCreatedFrom) params.set('createdFrom', filterCreatedFrom);
-      if (filterCreatedTo) params.set('createdTo', filterCreatedTo);
-      params.set('page', String(currentPage));
-      params.set('limit', String(pageSize));
-
-      const res = await fetch(`/api/visitor?${params.toString()}`);
-      if (!res.ok) throw new Error('Failed to list visitors');
-      const json = await res.json();
-      setVisitors(json.visitors ?? []);
-      setTotalCount(json.total ?? 0);
-      setTotalPages(json.totalPages ?? 0);
-      if (typeof json.currentPage === 'number' && json.currentPage !== currentPage) {
-        setCurrentPage(json.currentPage);
-      }
-    } catch (error) {
-      console.error(error);
-      toast({ type: 'error', description: t('visitor.errors.loadList') });
-    } finally {
-      setLoadingList(false);
+  // Keep selected programme across visitor creates; drop it if no longer in today's list.
+  useEffect(() => {
+    if (!programmesLoaded) return;
+    if (!programmeId) return;
+    if (programmes.length === 0) {
+      setProgrammeId('');
+      writeStoredLinkedProgramme('');
+      return;
     }
-    // Omit `t`: useTranslations returns a new function each render and would
-    // retrigger this callback → manage-tab fetch effect in a loop.
+    if (!programmes.some((p) => p.id === programmeId)) {
+      setProgrammeId('');
+      writeStoredLinkedProgramme('');
+    }
+  }, [programmesLoaded, programmes, programmeId]);
+
+  function handleProgrammeChange(value: string) {
+    setProgrammeId(value);
+    writeStoredLinkedProgramme(value);
+  }
+
+  const loadCreatePickerVisitors = useCallback(
+    async (overrides?: {
+      token?: string;
+      mobile?: string;
+      voterId?: string;
+      name?: string;
+      createdFrom?: string;
+      createdTo?: string;
+      page?: number;
+      limit?: number;
+    }) => {
+      setLoadingCreatePicker(true);
+      try {
+        const token = overrides?.token ?? createFilterToken;
+        const mobile = overrides?.mobile ?? createFilterMobile;
+        const voterId = overrides?.voterId ?? createFilterVoterId;
+        const name = overrides?.name ?? createFilterName;
+        const createdFrom = overrides?.createdFrom ?? createFilterCreatedFrom;
+        const createdTo = overrides?.createdTo ?? createFilterCreatedTo;
+        const page = overrides?.page ?? createPickerPage;
+        const limit = overrides?.limit ?? createPickerPageSize;
+
+        const params = new URLSearchParams();
+        if (token) params.set('token', token);
+        if (mobile) params.set('mobile', mobile);
+        if (voterId) params.set('voterId', voterId);
+        if (name) params.set('name', name);
+        if (createdFrom) params.set('createdFrom', createdFrom);
+        if (createdTo) params.set('createdTo', createdTo);
+        params.set('page', String(page));
+        params.set('limit', String(limit));
+
+        const res = await fetch(`/api/visitor?${params.toString()}`);
+        if (!res.ok) throw new Error('Failed to list visitors');
+        const json = await res.json();
+        setCreatePickerVisitors(json.visitors ?? []);
+        setCreatePickerTotal(json.total ?? 0);
+        setCreatePickerTotalPages(json.totalPages ?? 0);
+        if (typeof json.currentPage === 'number' && json.currentPage !== page) {
+          setCreatePickerPage(json.currentPage);
+        }
+      } catch (error) {
+        console.error(error);
+        toast({ type: 'error', description: t('visitor.errors.loadList') });
+      } finally {
+        setLoadingCreatePicker(false);
+      }
+    },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    filterStatus,
-    filterServiceName,
-    filterToken,
-    filterMobile,
-    filterVoterId,
-    filterName,
-    filterCreatedFrom,
-    filterCreatedTo,
-    currentPage,
-    pageSize,
-  ]);
+    [
+      createFilterToken,
+      createFilterMobile,
+      createFilterVoterId,
+      createFilterName,
+      createFilterCreatedFrom,
+      createFilterCreatedTo,
+      createPickerPage,
+      createPickerPageSize,
+    ],
+  );
 
   useEffect(() => {
-    if (tab === 'manage') {
-      void loadVisitors();
+    if (tab === 'create' && !selectedVisitor && createdServices.length === 0) {
+      void loadCreatePickerVisitors();
     }
-  }, [tab, loadVisitors]);
+  }, [tab, selectedVisitor, createdServices.length, loadCreatePickerVisitors]);
 
   useEffect(() => {
+    if (tab !== 'create') return;
     const handle = window.setTimeout(() => {
-      const nextToken = filterTokenInput.trim();
-      const nextMobileRaw = filterMobileInput.trim();
-      const nextVoter = filterVoterIdInput.trim().toUpperCase();
-      const nextName = filterNameInput.trim();
+      const nextToken = createFilterTokenInput.trim();
+      const nextMobileRaw = createFilterMobileInput.trim();
+      const nextVoter = createFilterVoterIdInput.trim().toUpperCase();
+      const nextName = createFilterNameInput.trim();
 
       let appliedMobile = '';
       if (nextMobileRaw === '') {
-        invalidMobileFilterToastSentRef.current = false;
+        createInvalidMobileToastRef.current = false;
       } else if (isValidIndianMobile(nextMobileRaw)) {
         appliedMobile = normalizeIndianMobileDigits(nextMobileRaw);
-        invalidMobileFilterToastSentRef.current = false;
-      } else if (!invalidMobileFilterToastSentRef.current) {
+        createInvalidMobileToastRef.current = false;
+      } else if (!createInvalidMobileToastRef.current) {
         toast({
           type: 'error',
           description: t('visitor.errors.mobileInvalid'),
         });
-        invalidMobileFilterToastSentRef.current = true;
+        createInvalidMobileToastRef.current = true;
       }
 
       const changed =
-        nextToken !== filterToken ||
-        appliedMobile !== filterMobile ||
-        nextVoter !== filterVoterId ||
-        nextName !== filterName;
+        nextToken !== createFilterToken ||
+        appliedMobile !== createFilterMobile ||
+        nextVoter !== createFilterVoterId ||
+        nextName !== createFilterName;
 
       if (changed) {
-        setCurrentPage(1);
-        syncManageUrl(
-          {
-            token: nextToken,
-            mobile: appliedMobile,
-            voterId: nextVoter,
-            name: nextName,
-            page: 1,
-          },
-          true,
-        );
+        setCreatePickerPage(1);
       }
 
-      setFilterToken(nextToken);
-      setFilterMobile(appliedMobile);
-      setFilterVoterId(nextVoter);
-      setFilterName(nextName);
+      setCreateFilterToken(nextToken);
+      setCreateFilterMobile(appliedMobile);
+      setCreateFilterVoterId(nextVoter);
+      setCreateFilterName(nextName);
     }, 400);
 
     return () => window.clearTimeout(handle);
-    // Omit `t`: unstable identity would reset this debounce every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    filterTokenInput,
-    filterMobileInput,
-    filterVoterIdInput,
-    filterNameInput,
-    filterToken,
-    filterMobile,
-    filterVoterId,
-    filterName,
-    syncManageUrl,
+    tab,
+    createFilterTokenInput,
+    createFilterMobileInput,
+    createFilterVoterIdInput,
+    createFilterNameInput,
+    createFilterToken,
+    createFilterMobile,
+    createFilterVoterId,
+    createFilterName,
   ]);
 
-  function switchTab(next: 'create' | 'manage') {
+  function switchTab(next: WorkflowTab) {
     setTab(next);
-    if (next === 'create') {
-      router.replace('?tab=create', { scroll: false });
-    } else {
-      syncManageUrl({ tab: 'manage' });
-    }
-  }
-
-  function handleClearFilters() {
-    setFilterStatus('all');
-    setFilterServiceName('all');
-    setFilterToken('');
-    setFilterMobile('');
-    setFilterVoterId('');
-    setFilterName('');
-    setFilterCreatedFrom('');
-    setFilterCreatedTo('');
-    setFilterTokenInput('');
-    setFilterMobileInput('');
-    setFilterVoterIdInput('');
-    setFilterNameInput('');
-    invalidMobileFilterToastSentRef.current = false;
-    setCurrentPage(1);
-    setPageSize(DEFAULT_VISITOR_MANAGE_PAGE_SIZE);
-    syncManageUrl(
-      {
-        status: 'all',
-        serviceName: '',
-        token: '',
-        mobile: '',
-        voterId: '',
-        name: '',
-        createdFrom: '',
-        createdTo: '',
-        page: 1,
-        limit: DEFAULT_VISITOR_MANAGE_PAGE_SIZE,
-        tab: 'manage',
-      },
-      true,
-    );
+    router.replace(`?tab=${next}`, { scroll: false });
   }
 
   function selectVoter(voter: VoterWithPartNo) {
+    setIsOutsider(false);
+    setLocation('');
     setVoterId(voter.epicNumber || '');
     setName(voter.fullName || '');
     const mobile = voter.mobileNoPrimary || voter.mobileNoSecondary || '';
     if (mobile) setMobileNumber(mobile);
+
+    // Same as beneficiary: always offer phone / DOB update after voter select.
+    setSelectedVoterForPhone(voter);
+    setSelectedVoterMobileNumbers([]);
+    setShowPhoneUpdate(true);
+
+    if (!voter.epicNumber) return;
+
+    fetch(`/api/voter/${encodeURIComponent(voter.epicNumber)}/mobile-numbers`)
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error('Failed to load voter contact numbers');
+        }
+        const data = await response.json();
+        if (data?.success && Array.isArray(data.voterMobileNumbers)) {
+          setSelectedVoterMobileNumbers(data.voterMobileNumbers);
+        }
+      })
+      .catch((error) => {
+        console.error('Error loading voter contact numbers:', error);
+      });
+  }
+
+  async function handlePhoneUpdate(phoneData: {
+    mobileNoPrimary: string;
+    mobileNoSecondary?: string;
+    dob?: string;
+  }) {
+    if (!selectedVoter) return;
+
+    if (!isValidIndianMobile(phoneData.mobileNoPrimary)) {
+      toast({
+        type: 'error',
+        description: t('operator.messages.invalidIndianMobile'),
+      });
+      return;
+    }
+
+    const secondaryTrimmed = phoneData.mobileNoSecondary?.trim() ?? '';
+    if (secondaryTrimmed !== '' && !isValidIndianMobile(secondaryTrimmed)) {
+      toast({
+        type: 'error',
+        description: t('operator.messages.invalidIndianMobile'),
+      });
+      return;
+    }
+
+    const primaryDigits = normalizeIndianMobileDigits(phoneData.mobileNoPrimary);
+    const secondaryDigits =
+      secondaryTrimmed !== '' ? normalizeIndianMobileDigits(secondaryTrimmed) : undefined;
+    const dobToSave =
+      !selectedVoter.dob?.trim() && phoneData.dob?.trim()
+        ? phoneData.dob.trim()
+        : undefined;
+
+    try {
+      const response = await fetch('/api/visitor/update-voter-phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          epicNumber: selectedVoter.epicNumber,
+          mobileNoPrimary: primaryDigits,
+          mobileNoSecondary: secondaryDigits,
+          ...(dobToSave ? { dob: dobToSave } : {}),
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(
+          typeof data?.error === 'string' ? data.error : 'Failed to update phone number',
+        );
+      }
+
+      const updatedVoter = (await response.json()) as VoterWithPartNo;
+      setSelectedVoterForPhone((prev) => (prev ? { ...prev, ...updatedVoter } : updatedVoter));
+      setMobileNumber(primaryDigits);
+      setName(updatedVoter.fullName || selectedVoter.fullName || name);
+      setVoterId(updatedVoter.epicNumber || selectedVoter.epicNumber || voterId);
+
+      const updatedMobileNumbers: MobileNumberEntry[] = [
+        { mobileNumber: primaryDigits, sortOrder: 1 },
+      ];
+      if (secondaryDigits) {
+        updatedMobileNumbers.push({ mobileNumber: secondaryDigits, sortOrder: 2 });
+      }
+      setSelectedVoterMobileNumbers(updatedMobileNumbers);
+      setShowPhoneUpdate(false);
+      toast({
+        type: 'success',
+        description: t('operator.messages.phoneUpdatedSuccess'),
+      });
+    } catch (error) {
+      console.error('Error updating phone number:', error);
+      toast({
+        type: 'error',
+        description:
+          error instanceof Error && error.message
+            ? error.message
+            : t('operator.messages.phoneUpdateFailed'),
+      });
+    }
+  }
+
+  function handleSkipPhoneUpdate() {
+    if (selectedVoter) {
+      setName(selectedVoter.fullName || name);
+      setVoterId(selectedVoter.epicNumber || voterId);
+      const fromList = selectedVoterMobileNumbers
+        .slice()
+        .sort((a, b) => a.sortOrder - b.sortOrder)
+        .map((entry) => entry.mobileNumber)
+        .find((n) => n?.trim());
+      const mobile =
+        fromList ||
+        selectedVoter.mobileNoPrimary ||
+        selectedVoter.mobileNoSecondary ||
+        mobileNumber;
+      if (mobile) setMobileNumber(mobile);
+    }
+    setShowPhoneUpdate(false);
+  }
+
+  function handleCancelPhoneUpdate() {
+    setShowPhoneUpdate(false);
+    setSelectedVoterForPhone(null);
+    setSelectedVoterMobileNumbers([]);
+    setName('');
+    setMobileNumber('');
+    setVoterId('');
+    setLocation('');
+    setIsOutsider(false);
   }
 
   function addSelectedService() {
@@ -468,16 +567,102 @@ export function VisitorWorkflow({
     setSelectedServices((prev) => prev.filter((item) => item !== service));
   }
 
-  function resetCreateForm() {
+  function resetVisitorForm() {
     setName('');
     setMobileNumber('');
     setVoterId('');
+    setLocation('');
+    setIsOutsider(false);
+    setCreatedVisitToken(null);
+    setCreatedVisitorSnapshot(null);
+    setSelectedVoterForPhone(null);
+    setSelectedVoterMobileNumbers([]);
+    setShowPhoneUpdate(false);
+    // Keep programme selected across successive visitor registrations.
+  }
+
+  function applyCreatePickerFiltersFromInputs():
+    | {
+        token: string;
+        mobile: string;
+        voterId: string;
+        name: string;
+        createdFrom: string;
+        createdTo: string;
+      }
+    | null {
+    const nextToken = createFilterTokenInput.trim();
+    const nextMobileRaw = createFilterMobileInput.trim();
+    const nextVoter = createFilterVoterIdInput.trim().toUpperCase();
+    const nextName = createFilterNameInput.trim();
+    const nextCreatedFrom = createFilterCreatedFrom.trim();
+    const nextCreatedTo = createFilterCreatedTo.trim();
+
+    let appliedMobile = '';
+    if (nextMobileRaw === '') {
+      createInvalidMobileToastRef.current = false;
+    } else if (isValidIndianMobile(nextMobileRaw)) {
+      appliedMobile = normalizeIndianMobileDigits(nextMobileRaw);
+      createInvalidMobileToastRef.current = false;
+    } else {
+      toast({
+        type: 'error',
+        description: t('visitor.errors.mobileInvalid'),
+      });
+      createInvalidMobileToastRef.current = true;
+      return null;
+    }
+
+    if (
+      nextCreatedFrom &&
+      nextCreatedTo &&
+      nextCreatedFrom > nextCreatedTo
+    ) {
+      toast({
+        type: 'error',
+        description: t('visitor.errors.dateRangeInvalid'),
+      });
+      return null;
+    }
+
+    setCreateFilterToken(nextToken);
+    setCreateFilterMobile(appliedMobile);
+    setCreateFilterVoterId(nextVoter);
+    setCreateFilterName(nextName);
+    setCreatePickerPage(1);
+    return {
+      token: nextToken,
+      mobile: appliedMobile,
+      voterId: nextVoter,
+      name: nextName,
+      createdFrom: nextCreatedFrom,
+      createdTo: nextCreatedTo,
+    };
+  }
+
+  function clearCreatePickerFilters() {
+    setCreateFilterTokenInput('');
+    setCreateFilterNameInput('');
+    setCreateFilterMobileInput('');
+    setCreateFilterVoterIdInput('');
+    setCreateFilterCreatedFrom('');
+    setCreateFilterCreatedTo('');
+    setCreateFilterToken('');
+    setCreateFilterName('');
+    setCreateFilterMobile('');
+    setCreateFilterVoterId('');
+    setCreatePickerPage(1);
+    createInvalidMobileToastRef.current = false;
+  }
+
+  function resetCreateServiceForm(keepVisitor = false) {
+    if (!keepVisitor) {
+      setSelectedVisitor(null);
+    }
     setPendingServiceName('');
     setSelectedServices([]);
-    setProgrammeId('');
     setNotes('');
     setCreatedServices([]);
-    setCreatedVisitorSnapshot(null);
   }
 
   async function shareVisitorThermalTicket(params: {
@@ -525,7 +710,7 @@ export function VisitorWorkflow({
     }
   }
 
-  async function handleCreate(e: React.FormEvent) {
+  async function handleCreateVisitor(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
       toast({ type: 'error', description: t('visitor.errors.nameRequired') });
@@ -535,7 +720,62 @@ export function VisitorWorkflow({
       toast({ type: 'error', description: t('visitor.errors.mobileInvalid') });
       return;
     }
+    const effectiveVoterId = outsiderMode ? null : voterId.trim().toUpperCase() || null;
+    if (!effectiveVoterId && !location.trim()) {
+      toast({ type: 'error', description: t('visitor.errors.locationRequired') });
+      return;
+    }
 
+    setCreatingVisitor(true);
+    setCreatedVisitToken(null);
+    try {
+      const res = await fetch('/api/visitor', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          mobileNumber: mobileNumber.trim(),
+          voterId: effectiveVoterId,
+          location: outsiderMode ? location.trim() : location.trim() || null,
+          programmeId: programmeId || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Create failed');
+
+      const visitor = json.visitor as {
+        id: string;
+        name: string;
+        mobileNumber: string;
+        token: string;
+        createdAt?: string | Date;
+      };
+      setCreatedVisitToken(visitor.token);
+      setCreatedVisitorSnapshot({
+        id: visitor.id,
+        name: visitor.name,
+        mobileNumber: visitor.mobileNumber,
+        token: visitor.token,
+        createdAt: visitor.createdAt ?? new Date().toISOString(),
+      });
+      toast({ type: 'success', description: t('visitor.create.visitorSuccess') });
+    } catch (error) {
+      console.error(error);
+      toast({
+        type: 'error',
+        description: error instanceof Error ? error.message : t('visitor.errors.create'),
+      });
+    } finally {
+      setCreatingVisitor(false);
+    }
+  }
+
+  async function handleCreateServices(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedVisitor) {
+      toast({ type: 'error', description: t('visitor.errors.visitorRequired') });
+      return;
+    }
     const servicesToCreate = [...selectedServices];
     if (pendingServiceName.trim() && !servicesToCreate.includes(pendingServiceName.trim())) {
       servicesToCreate.push(pendingServiceName.trim());
@@ -545,77 +785,52 @@ export function VisitorWorkflow({
       return;
     }
 
-    setCreating(true);
+    setCreatingServices(true);
     setCreatedServices([]);
     try {
-      const res = await fetch('/api/visitor', {
+      const res = await fetch(`/api/visitor/${selectedVisitor.id}/services`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: name.trim(),
-          mobileNumber: mobileNumber.trim(),
-          voterId: voterId.trim() || null,
           serviceNames: servicesToCreate,
           programmeId: programmeId || null,
           notes: notes.trim() || null,
         }),
       });
       const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Create failed');
+      if (!res.ok) throw new Error(json.error || 'Failed to create services');
+      const beneficiaryByIndex = Array.isArray(json.beneficiaryServices)
+        ? json.beneficiaryServices
+        : [];
       const created = Array.isArray(json.services)
         ? json.services.map(
-            (s: { serviceName: string; token: string; createdAt?: string | Date }) => ({
-              serviceName: s.serviceName,
-              token: s.token,
-              createdAt: s.createdAt ?? new Date().toISOString(),
-            }),
+            (
+              s: {
+                serviceName: string;
+                token: string;
+                createdAt?: string | Date;
+                beneficiaryServiceId?: string | null;
+              },
+              index: number,
+            ) => {
+              const beneficiary = beneficiaryByIndex[index] as
+                | { id?: string; token?: string }
+                | undefined;
+              return {
+                serviceName: s.serviceName,
+                token: beneficiary?.token || s.token,
+                createdAt: s.createdAt ?? new Date().toISOString(),
+                beneficiaryServiceId: beneficiary?.id ?? s.beneficiaryServiceId ?? null,
+                beneficiaryToken: beneficiary?.token ?? null,
+              };
+            },
           )
         : [];
-      setCreatedVisitorSnapshot({
-        name: name.trim(),
-        mobileNumber: normalizeIndianMobileDigits(mobileNumber),
-      });
       setCreatedServices(created);
-      toast({ type: 'success', description: t('visitor.create.success') });
-      setNotes('');
+      toast({ type: 'success', description: t('visitor.create.servicesSuccess') });
       setSelectedServices([]);
       setPendingServiceName('');
-    } catch (error) {
-      console.error(error);
-      toast({
-        type: 'error',
-        description: error instanceof Error ? error.message : t('visitor.errors.create'),
-      });
-    } finally {
-      setCreating(false);
-    }
-  }
-
-  async function handleAddService(visitorId: string) {
-    if (!addServiceName.trim()) {
-      toast({ type: 'error', description: t('visitor.errors.serviceRequired') });
-      return;
-    }
-    setAddingService(true);
-    try {
-      const res = await fetch(`/api/visitor/${visitorId}/services`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          serviceName: addServiceName,
-          programmeId: addProgrammeId || null,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Failed to add service');
-      toast({
-        type: 'success',
-        description: t('visitor.manage.serviceAdded', { token: json.service?.token ?? '' }),
-      });
-      setAddServiceForId(null);
-      setAddServiceName('');
-      setAddProgrammeId('');
-      await loadVisitors();
+      setNotes('');
     } catch (error) {
       console.error(error);
       toast({
@@ -623,33 +838,7 @@ export function VisitorWorkflow({
         description: error instanceof Error ? error.message : t('visitor.errors.addService'),
       });
     } finally {
-      setAddingService(false);
-    }
-  }
-
-  async function handleConvert(serviceId: string) {
-    setConvertingId(serviceId);
-    try {
-      const res = await fetch(`/api/visitor/services/${serviceId}/convert`, {
-        method: 'POST',
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error || 'Convert failed');
-      toast({
-        type: 'success',
-        description: t('visitor.manage.convertSuccess', {
-          token: json.beneficiaryService?.token ?? '',
-        }),
-      });
-      await loadVisitors();
-    } catch (error) {
-      console.error(error);
-      toast({
-        type: 'error',
-        description: error instanceof Error ? error.message : t('visitor.errors.convert'),
-      });
-    } finally {
-      setConvertingId(null);
+      setCreatingServices(false);
     }
   }
 
@@ -669,30 +858,248 @@ export function VisitorWorkflow({
 
       <div className="flex space-x-1 rounded-lg bg-muted p-1">
         <Button
+          variant={tab === 'visitor' ? 'default' : 'ghost'}
+          onClick={() => switchTab('visitor')}
+          className="flex-1 text-sm sm:text-base"
+        >
+          <span className="hidden sm:inline">{t('visitor.tabs.visitor')}</span>
+          <span className="sm:hidden">{t('visitor.tabs.visitorShort')}</span>
+        </Button>
+        <Button
           variant={tab === 'create' ? 'default' : 'ghost'}
           onClick={() => switchTab('create')}
           className="flex-1 text-sm sm:text-base"
         >
-          <span className="hidden sm:inline">{t('visitor.tabs.createVisitor')}</span>
+          <span className="hidden sm:inline">{t('visitor.tabs.createService')}</span>
           <span className="sm:hidden">{t('visitor.tabs.create')}</span>
         </Button>
         <Button
-          variant={tab === 'manage' ? 'default' : 'ghost'}
-          onClick={() => switchTab('manage')}
+          variant={tab === 'tasks' ? 'default' : 'ghost'}
+          onClick={() => switchTab('tasks')}
           className="flex-1 text-sm sm:text-base"
         >
-          <span className="hidden sm:inline">{t('visitor.tabs.manageVisitors')}</span>
+          <span className="hidden sm:inline">{t('visitor.tabs.manageTasks')}</span>
           <span className="sm:hidden">{t('visitor.tabs.manage')}</span>
         </Button>
       </div>
 
-      {tab === 'create' && (
+      {tab === 'visitor' && (
         <>
-          {createdServices.length > 0 ? (
+          {createdVisitToken && createdVisitorSnapshot ? (
             <Card>
               <CardHeader>
-                <CardTitle className="text-green-600">{t('visitor.create.successTitle')}</CardTitle>
-                <CardDescription>{t('visitor.create.successDescription')}</CardDescription>
+                <CardTitle className="text-green-600">{t('visitor.create.visitorSuccessTitle')}</CardTitle>
+                <CardDescription>{t('visitor.create.visitorSuccessDescription')}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="rounded-lg border-2 border-green-200 bg-green-50 p-4 text-center sm:p-6">
+                  <Label className="text-sm font-medium text-green-800">
+                    {t('visitor.create.visitTokenLabel')}
+                  </Label>
+                  <p className="mt-2 break-all font-mono text-xl font-bold tracking-wide text-green-900 sm:text-2xl">
+                    {createdVisitToken}
+                  </p>
+                  <p className="mt-2 text-sm text-green-700">{t('visitor.create.saveToken')}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-4 w-full sm:w-auto"
+                    disabled={sharingToken === createdVisitToken}
+                    onClick={() =>
+                      void shareVisitorThermalTicket({
+                        token: createdVisitToken,
+                        createdAt: createdVisitorSnapshot.createdAt,
+                        serviceName: t('visitor.create.visitTokenLabel'),
+                        name: createdVisitorSnapshot.name,
+                        mobile: createdVisitorSnapshot.mobileNumber,
+                      })
+                    }
+                  >
+                    {sharingToken === createdVisitToken ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Share2 className="mr-2 h-4 w-4" />
+                    )}
+                    {t('visitor.create.printToken')}
+                  </Button>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+                  <Button onClick={resetVisitorForm} className="flex-1">
+                    {t('visitor.create.createAnotherVisitor')}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => {
+                      resetCreateServiceForm(true);
+                      setSelectedVisitor({
+                        id: createdVisitorSnapshot.id,
+                        name: createdVisitorSnapshot.name,
+                        mobileNumber: createdVisitorSnapshot.mobileNumber,
+                        voterId: null,
+                        token: createdVisitorSnapshot.token,
+                        location: null,
+                        createdAt: createdVisitorSnapshot.createdAt,
+                        services: [],
+                      });
+                      switchTab('create');
+                    }}
+                  >
+                    {t('visitor.create.addServicesNext')}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ) : showPhoneUpdate && selectedVoter ? (
+            <PhoneUpdateForm
+              voter={selectedVoter}
+              mobileNumbers={selectedVoterMobileNumbers}
+              onPhoneUpdate={(phoneData) => {
+                void handlePhoneUpdate(phoneData);
+              }}
+              onSkip={handleSkipPhoneUpdate}
+              onPrevious={handleCancelPhoneUpdate}
+              onCancel={handleCancelPhoneUpdate}
+            />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('visitor.create.visitorTitle')}</CardTitle>
+                <CardDescription className="text-sm">
+                  {t('visitor.create.visitorDescription')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {!isOutsider && (
+                  <VoterSearchPanel
+                    searchEndpoint="/api/visitor/search-voter"
+                    onSelectVoter={selectVoter}
+                    title={t('operator.search.title')}
+                    description={t('visitor.form.searchVoterHelp')}
+                  />
+                )}
+
+                <form onSubmit={handleCreateVisitor} className="space-y-6">
+                  <div className="space-y-2 border-b pb-4">
+                    <Label>{t('visitor.form.programme')}</Label>
+                    <Combobox
+                      options={programmeOptions}
+                      value={programmeId}
+                      onValueChange={handleProgrammeChange}
+                      placeholder={t('visitor.form.programmePlaceholder')}
+                      disabled={loadingMeta}
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="visitor-outsider"
+                      checked={isOutsider}
+                      onChange={(e) => {
+                        const next = e.target.checked;
+                        setIsOutsider(next);
+                        if (next) {
+                          setVoterId('');
+                          setSelectedVoterForPhone(null);
+                          setShowPhoneUpdate(false);
+                        }
+                      }}
+                    />
+                    <Label htmlFor="visitor-outsider" className="cursor-pointer font-normal">
+                      {t('visitor.form.outsider')}
+                    </Label>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="visitor-name">
+                        {t('visitor.form.name')} <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="visitor-name"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="visitor-mobile">
+                        {t('visitor.form.mobile')} <span className="text-red-500">*</span>
+                      </Label>
+                      <Input
+                        id="visitor-mobile"
+                        value={mobileNumber}
+                        onChange={(e) => setMobileNumber(e.target.value)}
+                        placeholder="9876543210"
+                        type="tel"
+                        inputMode="numeric"
+                        autoComplete="tel"
+                        maxLength={13}
+                        className="font-mono"
+                        required
+                      />
+                    </div>
+                    {!isOutsider && (
+                      <div className="space-y-2">
+                        <Label htmlFor="visitor-voter-id">{t('visitor.form.voterId')}</Label>
+                        <Input
+                          id="visitor-voter-id"
+                          value={voterId}
+                          onChange={(e) => setVoterId(e.target.value.toUpperCase())}
+                          placeholder="ABC1234567"
+                          className="font-mono uppercase"
+                        />
+                      </div>
+                    )}
+                    {outsiderMode && (
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="visitor-location">
+                          {t('visitor.form.location')} <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="visitor-location"
+                          value={location}
+                          onChange={(e) => setLocation(e.target.value)}
+                          placeholder={t('visitor.form.locationPlaceholder')}
+                          required
+                        />
+                      </div>
+                    )}
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={
+                      creatingVisitor ||
+                      !name.trim() ||
+                      !isValidIndianMobile(mobileNumber) ||
+                      (outsiderMode && !location.trim())
+                    }
+                    className="w-full sm:w-auto"
+                  >
+                    {creatingVisitor ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t('visitor.create.submittingVisitor')}
+                      </>
+                    ) : (
+                      t('visitor.create.submitVisitor')
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+      {tab === 'create' && (
+        <>
+          {createdServices.length > 0 && selectedVisitor ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-green-600">{t('visitor.create.servicesSuccessTitle')}</CardTitle>
+                <CardDescription>{t('visitor.create.servicesSuccessDescription')}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="space-y-3">
@@ -707,9 +1114,7 @@ export function VisitorWorkflow({
                       <p className="mt-2 break-all font-mono text-xl font-bold tracking-wide text-green-900 sm:text-2xl">
                         {service.token}
                       </p>
-                      <p className="mt-2 text-sm text-green-700">
-                        {t('visitor.create.saveToken')}
-                      </p>
+                      <p className="mt-2 text-sm text-green-700">{t('visitor.create.saveToken')}</p>
                       <Button
                         type="button"
                         variant="outline"
@@ -720,8 +1125,8 @@ export function VisitorWorkflow({
                             token: service.token,
                             createdAt: service.createdAt,
                             serviceName: service.serviceName,
-                            name: createdVisitorSnapshot?.name ?? name,
-                            mobile: createdVisitorSnapshot?.mobileNumber ?? mobileNumber,
+                            name: selectedVisitor.name,
+                            mobile: selectedVisitor.mobileNumber,
                           })
                         }
                       >
@@ -736,15 +1141,35 @@ export function VisitorWorkflow({
                   ))}
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
-                  <Button onClick={resetCreateForm} className="flex-1">
-                    {t('visitor.create.createAnother')}
+                  {createdServices.find((s) => s.beneficiaryServiceId) ? (
+                    <Button
+                      asChild
+                      className="flex-1"
+                    >
+                      <Link
+                        href={`/modules/operator?tab=tasks&taskId=${encodeURIComponent(
+                          createdServices.find((s) => s.beneficiaryServiceId)!
+                            .beneficiaryServiceId!,
+                        )}`}
+                      >
+                        <ExternalLink className="mr-2 h-4 w-4" />
+                        {t('visitor.manage.openBeneficiary')}
+                      </Link>
+                    </Button>
+                  ) : null}
+                  <Button
+                    variant="outline"
+                    onClick={() => resetCreateServiceForm(true)}
+                    className="flex-1"
+                  >
+                    {t('visitor.create.addMoreServices')}
                   </Button>
                   <Button
                     variant="outline"
                     className="flex-1"
                     onClick={() => {
-                      resetCreateForm();
-                      switchTab('manage');
+                      resetCreateServiceForm();
+                      switchTab('tasks');
                     }}
                   >
                     {t('visitor.create.viewVisitors')}
@@ -755,89 +1180,251 @@ export function VisitorWorkflow({
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle>{t('visitor.create.title')}</CardTitle>
+                <CardTitle>{t('visitor.create.serviceTitle')}</CardTitle>
                 <CardDescription className="text-sm">
-                  {t('visitor.create.description')}
+                  {t('visitor.create.serviceDescription')}
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <VoterSearchPanel
-                  searchEndpoint="/api/visitor/search-voter"
-                  onSelectVoter={selectVoter}
-                  title={t('operator.search.title')}
-                  description={t('visitor.form.searchVoterHelp')}
-                />
+                <div className="space-y-2 border-b pb-4">
+                  <Label>{t('visitor.form.programme')}</Label>
+                  <Combobox
+                    options={programmeOptions}
+                    value={programmeId}
+                    onValueChange={handleProgrammeChange}
+                    placeholder={t('visitor.form.programmePlaceholder')}
+                    disabled={loadingMeta}
+                  />
+                </div>
 
-                {(name || mobileNumber || voterId) && (
-                  <div className="rounded-lg border bg-muted/30 p-3 sm:p-4">
-                    <p className="mb-2 text-sm font-medium">{t('visitor.form.selectedVoter')}</p>
-                    <div className="grid grid-cols-1 gap-2 text-sm md:grid-cols-3">
-                      <div>
-                        <span className="text-muted-foreground">{t('visitor.form.name')}: </span>
-                        <span className="font-medium">{name || '—'}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">{t('visitor.form.mobile')}: </span>
-                        <span className="font-mono font-medium">{mobileNumber || '—'}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">{t('visitor.form.voterId')}: </span>
-                        <span className="font-mono font-medium">{voterId || '—'}</span>
-                      </div>
-                    </div>
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <Label>{t('visitor.form.selectVisitor')}</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {t('visitor.form.selectVisitorHelp')}
+                    </p>
                   </div>
-                )}
+                  {selectedVisitor ? (
+                    <div className="flex flex-col gap-2 rounded-lg border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0 text-sm">
+                        <p className="font-medium">{selectedVisitor.name}</p>
+                        <p className="font-mono text-muted-foreground">
+                          {selectedVisitor.token} · {selectedVisitor.mobileNumber}
+                          {selectedVisitor.voterId ? ` · ${selectedVisitor.voterId}` : ''}
+                        </p>
+                        {selectedVisitor.location ? (
+                          <p className="text-muted-foreground">{selectedVisitor.location}</p>
+                        ) : null}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedVisitor(null)}
+                      >
+                        {t('visitor.form.changeVisitor')}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 rounded-lg border p-3 sm:p-4">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="create-visitor-created-from-filter">
+                            {t('visitor.manage.filters.createdFrom')}
+                          </Label>
+                          <Input
+                            id="create-visitor-created-from-filter"
+                            type="date"
+                            value={createFilterCreatedFrom}
+                            max={createFilterCreatedTo || undefined}
+                            onChange={(e) => {
+                              setCreateFilterCreatedFrom(e.target.value);
+                              setCreatePickerPage(1);
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="create-visitor-created-to-filter">
+                            {t('visitor.manage.filters.createdTo')}
+                          </Label>
+                          <Input
+                            id="create-visitor-created-to-filter"
+                            type="date"
+                            value={createFilterCreatedTo}
+                            min={createFilterCreatedFrom || undefined}
+                            onChange={(e) => {
+                              setCreateFilterCreatedTo(e.target.value);
+                              setCreatePickerPage(1);
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="create-visitor-token-filter">
+                            {t('visitor.manage.filters.token')}
+                          </Label>
+                          <Input
+                            id="create-visitor-token-filter"
+                            placeholder={t('visitor.manage.filters.enterToken')}
+                            value={createFilterTokenInput}
+                            onChange={(e) => setCreateFilterTokenInput(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="create-visitor-name-filter">
+                            {t('visitor.manage.filters.name')}
+                          </Label>
+                          <Input
+                            id="create-visitor-name-filter"
+                            placeholder={t('visitor.manage.filters.enterName')}
+                            value={createFilterNameInput}
+                            onChange={(e) => setCreateFilterNameInput(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="create-visitor-mobile-filter">
+                            {t('visitor.manage.filters.mobileNumber')}
+                          </Label>
+                          <Input
+                            id="create-visitor-mobile-filter"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            autoComplete="tel"
+                            maxLength={13}
+                            placeholder={t('visitor.manage.filters.enterMobile')}
+                            value={createFilterMobileInput}
+                            onChange={(e) =>
+                              setCreateFilterMobileInput(e.target.value.replace(/\D/g, ''))
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="create-visitor-voter-filter">
+                            {t('visitor.manage.filters.voterId')}
+                          </Label>
+                          <Input
+                            id="create-visitor-voter-filter"
+                            placeholder={t('visitor.manage.filters.enterVoterId')}
+                            value={createFilterVoterIdInput}
+                            onChange={(e) =>
+                              setCreateFilterVoterIdInput(e.target.value.toUpperCase())
+                            }
+                            className="font-mono uppercase"
+                          />
+                        </div>
+                      </div>
 
-                <form onSubmit={handleCreate} className="space-y-6">
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="visitor-name">{t('visitor.form.name')}</Label>
-                      <Input
-                        id="visitor-name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="visitor-mobile">{t('visitor.form.mobile')}</Label>
-                      <Input
-                        id="visitor-mobile"
-                        value={mobileNumber}
-                        onChange={(e) => setMobileNumber(e.target.value)}
-                        placeholder="9876543210"
-                        type="tel"
-                        inputMode="numeric"
-                        autoComplete="tel"
-                        maxLength={13}
-                        className="font-mono"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="visitor-voter-id">{t('visitor.form.voterId')}</Label>
-                      <Input
-                        id="visitor-voter-id"
-                        value={voterId}
-                        onChange={(e) => setVoterId(e.target.value.toUpperCase())}
-                        placeholder="ABC1234567"
-                        className="font-mono uppercase"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>{t('visitor.form.programme')}</Label>
-                      <Combobox
-                        options={programmeOptions}
-                        value={programmeId}
-                        onValueChange={setProgrammeId}
-                        placeholder={t('visitor.form.programmePlaceholder')}
-                        disabled={loadingMeta}
-                      />
-                    </div>
-                  </div>
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-sm text-muted-foreground">
+                          {t('visitor.manage.filters.showing', {
+                            count: createPickerVisitors.length,
+                            total: createPickerTotal,
+                          })}
+                        </p>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              const applied = applyCreatePickerFiltersFromInputs();
+                              if (!applied) return;
+                              void loadCreatePickerVisitors({
+                                ...applied,
+                                page: 1,
+                              });
+                            }}
+                            disabled={loadingCreatePicker}
+                            className="w-full sm:w-auto"
+                          >
+                            {loadingCreatePicker ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                {t('visitor.manage.actions.searching')}
+                              </>
+                            ) : (
+                              <>
+                                <Search className="mr-2 h-4 w-4" />
+                                {t('visitor.manage.actions.search')}
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={clearCreatePickerFilters}
+                            className="w-full sm:w-auto"
+                          >
+                            {t('visitor.manage.actions.clearFilters')}
+                          </Button>
+                        </div>
+                      </div>
 
+                      {loadingCreatePicker && createPickerVisitors.length === 0 ? (
+                        <div className="flex items-center justify-center py-8 text-sm text-muted-foreground">
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {t('visitor.form.searchingVisitors')}
+                        </div>
+                      ) : createPickerVisitors.length === 0 ? (
+                        <div className="rounded-md border border-dashed py-8 text-center">
+                          <p className="text-sm text-muted-foreground">
+                            {t('visitor.form.noVisitorsFound')}
+                          </p>
+                        </div>
+                      ) : (
+                        <ul className="divide-y rounded-lg border">
+                          {createPickerVisitors.map((v) => (
+                            <li key={v.id}>
+                              <button
+                                type="button"
+                                className="flex w-full flex-col gap-1 px-3 py-3 text-left text-sm hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
+                                onClick={() => setSelectedVisitor(v)}
+                              >
+                                <div className="min-w-0">
+                                  <p className="font-medium">{v.name}</p>
+                                  <p className="font-mono text-xs text-muted-foreground">
+                                    {v.token} · {v.mobileNumber}
+                                    {v.voterId ? ` · ${v.voterId}` : ''}
+                                  </p>
+                                  {v.location ? (
+                                    <p className="text-xs text-muted-foreground">{v.location}</p>
+                                  ) : null}
+                                </div>
+                                <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+                                  <Badge variant="secondary">
+                                    {t('visitor.manage.serviceCount', {
+                                      count: v.services?.length ?? 0,
+                                    })}
+                                  </Badge>
+                                  <span>{formatDisplayDateTimeIST(v.createdAt)}</span>
+                                </div>
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {createPickerTotal > 0 ? (
+                        <TablePagination
+                          currentPage={createPickerPage}
+                          totalPages={createPickerTotalPages}
+                          pageSize={createPickerPageSize}
+                          totalItems={createPickerTotal}
+                          onPageChange={setCreatePickerPage}
+                          onPageSizeChange={(size) => {
+                            setCreatePickerPageSize(size);
+                            setCreatePickerPage(1);
+                          }}
+                          pageSizeOptions={[5, 10, 20, 50]}
+                        />
+                      ) : null}
+                    </div>
+                  )}
+                </div>
+
+                <form onSubmit={handleCreateServices} className="space-y-6">
                   <div className="space-y-2">
-                    <Label>{t('visitor.form.services')}</Label>
+                    <Label>
+                      {t('visitor.form.services')} <span className="text-red-500">*</span>
+                    </Label>
                     <div className="flex flex-col gap-2 sm:flex-row">
                       <div className="min-w-0 flex-1">
                         <Combobox
@@ -845,14 +1432,17 @@ export function VisitorWorkflow({
                           value={pendingServiceName}
                           onValueChange={setPendingServiceName}
                           placeholder={t('visitor.form.servicePlaceholder')}
-                          disabled={loadingMeta}
+                          disabled={loadingMeta || !selectedVisitor}
+                          allowCustom
                         />
                       </div>
                       <Button
                         type="button"
                         variant="secondary"
                         onClick={addSelectedService}
-                        disabled={loadingMeta || !pendingServiceName.trim()}
+                        disabled={
+                          loadingMeta || !selectedVisitor || !pendingServiceName.trim()
+                        }
                         className="sm:w-auto"
                       >
                         <Plus className="mr-2 h-4 w-4" />
@@ -888,31 +1478,35 @@ export function VisitorWorkflow({
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="visitor-notes">{t('visitor.form.notes')}</Label>
+                    <Label htmlFor="service-notes">{t('visitor.form.notes')}</Label>
                     <Textarea
-                      id="visitor-notes"
+                      id="service-notes"
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
                       rows={3}
+                      disabled={!selectedVisitor}
                     />
                   </div>
 
-                  <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
-                    <Button
-                      type="submit"
-                      disabled={creating || loadingMeta}
-                      className="flex-1"
-                    >
-                      {creating ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          {t('visitor.create.submitting')}
-                        </>
-                      ) : (
-                        t('visitor.create.submit')
-                      )}
-                    </Button>
-                  </div>
+                  <Button
+                    type="submit"
+                    disabled={
+                      creatingServices ||
+                      loadingMeta ||
+                      !selectedVisitor ||
+                      (selectedServices.length === 0 && !pendingServiceName.trim())
+                    }
+                    className="w-full sm:w-auto"
+                  >
+                    {creatingServices ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {t('visitor.create.submittingServices')}
+                      </>
+                    ) : (
+                      t('visitor.create.submitServices')
+                    )}
+                  </Button>
                 </form>
               </CardContent>
             </Card>
@@ -920,464 +1514,13 @@ export function VisitorWorkflow({
         </>
       )}
 
-      {tab === 'manage' && (
-        <div className="space-y-4">
-          <Card>
-            <CardContent className="pt-4 sm:pt-6">
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  <div>
-                    <Label htmlFor="visitor-service-name-filter">
-                      {t('visitor.manage.filters.serviceName')}
-                    </Label>
-                    <Select
-                      value={filterServiceName}
-                      onValueChange={(value) => {
-                        setFilterServiceName(value);
-                        setCurrentPage(1);
-                        syncManageUrl(
-                          {
-                            serviceName: value === 'all' ? '' : value,
-                            page: 1,
-                          },
-                          true,
-                        );
-                      }}
-                    >
-                      <SelectTrigger id="visitor-service-name-filter">
-                        <SelectValue placeholder={t('visitor.manage.filters.allServices')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">
-                          {t('visitor.manage.filters.allServices')}
-                        </SelectItem>
-                        {(() => {
-                          const groups = new Map<string, IndividualServiceRow[]>();
-                          for (const service of catalog) {
-                            const key = service.category?.trim() || 'Other';
-                            const list = groups.get(key) ?? [];
-                            list.push(service);
-                            groups.set(key, list);
-                          }
-                          return Array.from(groups.entries()).map(([category, services]) => (
-                            <SelectGroup key={category}>
-                              <SelectLabel>{category}</SelectLabel>
-                              {services.map((service) => (
-                                <SelectItem key={service.id} value={service.name}>
-                                  {service.name}
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
-                          ));
-                        })()}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="visitor-status-filter">
-                      {t('visitor.manage.filters.status')}
-                    </Label>
-                    <Select
-                      value={filterStatus}
-                      onValueChange={(value) => {
-                        setFilterStatus(value);
-                        setCurrentPage(1);
-                        syncManageUrl({ status: value, page: 1 }, true);
-                      }}
-                    >
-                      <SelectTrigger id="visitor-status-filter">
-                        <SelectValue placeholder={t('visitor.manage.filters.selectStatus')} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">
-                          {t('visitor.manage.filters.allStatuses')}
-                        </SelectItem>
-                        <SelectItem value="pending">{t('visitor.status.pending')}</SelectItem>
-                        <SelectItem value="converted">{t('visitor.status.converted')}</SelectItem>
-                        <SelectItem value="cancelled">{t('visitor.status.cancelled')}</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="visitor-token-filter">
-                      {t('visitor.manage.filters.serviceToken')}
-                    </Label>
-                    <Input
-                      id="visitor-token-filter"
-                      placeholder={t('visitor.manage.filters.enterToken')}
-                      value={filterTokenInput}
-                      onChange={(e) => setFilterTokenInput(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="visitor-name-filter">
-                      {t('visitor.manage.filters.name')}
-                    </Label>
-                    <Input
-                      id="visitor-name-filter"
-                      placeholder={t('visitor.manage.filters.enterName')}
-                      value={filterNameInput}
-                      onChange={(e) => setFilterNameInput(e.target.value)}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="visitor-mobile-filter">
-                      {t('visitor.manage.filters.mobileNumber')}
-                    </Label>
-                    <Input
-                      id="visitor-mobile-filter"
-                      type="text"
-                      inputMode="numeric"
-                      pattern="[0-9]*"
-                      autoComplete="tel"
-                      maxLength={13}
-                      placeholder={t('visitor.manage.filters.enterMobile')}
-                      value={filterMobileInput}
-                      onChange={(e) =>
-                        setFilterMobileInput(e.target.value.replace(/\D/g, ''))
-                      }
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="visitor-voter-filter">
-                      {t('visitor.manage.filters.voterId')}
-                    </Label>
-                    <Input
-                      id="visitor-voter-filter"
-                      placeholder={t('visitor.manage.filters.enterVoterId')}
-                      value={filterVoterIdInput}
-                      onChange={(e) => setFilterVoterIdInput(e.target.value.toUpperCase())}
-                      className="font-mono uppercase"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="visitor-created-from-filter">
-                      {t('visitor.manage.filters.createdFrom')}
-                    </Label>
-                    <Input
-                      id="visitor-created-from-filter"
-                      type="date"
-                      value={filterCreatedFrom}
-                      max={filterCreatedTo || undefined}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setFilterCreatedFrom(value);
-                        setCurrentPage(1);
-                        syncManageUrl({ createdFrom: value, page: 1 }, true);
-                      }}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="visitor-created-to-filter">
-                      {t('visitor.manage.filters.createdTo')}
-                    </Label>
-                    <Input
-                      id="visitor-created-to-filter"
-                      type="date"
-                      value={filterCreatedTo}
-                      min={filterCreatedFrom || undefined}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setFilterCreatedTo(value);
-                        setCurrentPage(1);
-                        syncManageUrl({ createdTo: value, page: 1 }, true);
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-                    <div>
-                      <Label htmlFor="visitor-page-size">
-                        {t('visitor.manage.filters.itemsPerPage')}
-                      </Label>
-                      <Select
-                        value={pageSize.toString()}
-                        onValueChange={(value) => {
-                          const size = Number.parseInt(value, 10);
-                          setPageSize(size);
-                          setCurrentPage(1);
-                          syncManageUrl({ limit: size, page: 1 });
-                        }}
-                      >
-                        <SelectTrigger id="visitor-page-size" className="w-20">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="5">5</SelectItem>
-                          <SelectItem value="10">10</SelectItem>
-                          <SelectItem value="20">20</SelectItem>
-                          <SelectItem value="50">50</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {t('visitor.manage.filters.showing', {
-                        count: visitors.length,
-                        total: totalCount,
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Button
-                      onClick={() => {
-                        setCurrentPage(1);
-                        syncManageUrl({ page: 1 }, true);
-                        void loadVisitors();
-                      }}
-                      disabled={loadingList}
-                      className="w-full sm:w-auto"
-                    >
-                      {loadingList
-                        ? t('visitor.manage.actions.searching')
-                        : t('visitor.manage.actions.search')}
-                    </Button>
-                    <Button
-                      onClick={handleClearFilters}
-                      variant="outline"
-                      className="w-full sm:w-auto"
-                    >
-                      {t('visitor.manage.actions.clearFilters')}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {loadingList && visitors.length === 0 ? (
-            <div className="flex min-h-[40vh] items-center justify-center bg-background">
-              <div className="text-center">
-                <div className="mx-auto size-8 animate-spin rounded-full border-b-2 border-primary" />
-                <p className="mt-2 text-muted-foreground">{t('visitor.manage.loading')}</p>
-              </div>
-            </div>
-          ) : visitors.length === 0 ? (
-            <Card>
-              <CardContent className="pt-4 sm:pt-6">
-                <div className="py-8 text-center">
-                  <p className="text-muted-foreground">{t('visitor.manage.empty')}</p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {t('visitor.manage.emptyHelp')}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3 pb-4">
-              {visitors.map((visitor) => (
-                  <div
-                    key={visitor.id}
-                    className="space-y-3 overflow-hidden rounded-xl border bg-background p-3 sm:p-4"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-                        <p className="break-words text-base font-medium leading-snug sm:text-lg">
-                          {visitor.name}
-                        </p>
-                        <span className="shrink-0 text-xs text-muted-foreground sm:text-sm">
-                          {formatDisplayDateTimeIST(visitor.createdAt)}
-                        </span>
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-                        <span className="font-mono">{visitor.mobileNumber}</span>
-                        {visitor.voterId ? (
-                          <span className="inline-flex items-center rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
-                            {visitor.voterId}
-                          </span>
-                        ) : null}
-                        <Badge variant="secondary">
-                          {t('visitor.manage.serviceCount', {
-                            count: visitor.services.length,
-                          })}
-                        </Badge>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 border-t pt-3">
-                      {visitor.services.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          {t('visitor.manage.noServices')}
-                        </p>
-                      ) : (
-                        visitor.services.map((service) => (
-                          <div
-                            key={service.id}
-                            className="flex flex-col gap-3 rounded-lg border bg-muted/10 p-3 sm:flex-row sm:items-center sm:justify-between sm:p-4"
-                          >
-                            <div className="min-w-0 space-y-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <span className="break-words font-medium">
-                                  {service.serviceName}
-                                </span>
-                                <Badge variant={statusVariant(service.status)}>
-                                  {t(`visitor.status.${service.status}`)}
-                                </Badge>
-                              </div>
-                              <div className="break-all font-mono text-sm">{service.token}</div>
-                              {service.beneficiaryServiceId && (
-                                <div className="text-xs text-muted-foreground">
-                                  {t('visitor.manage.linkedBeneficiary')}
-                                </div>
-                              )}
-                            </div>
-                            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                className="w-full shrink-0 sm:w-auto"
-                                disabled={sharingToken === service.token}
-                                onClick={() =>
-                                  void shareVisitorThermalTicket({
-                                    token: service.token,
-                                    createdAt: service.createdAt,
-                                    serviceName: service.serviceName,
-                                    name: visitor.name,
-                                    mobile: visitor.mobileNumber,
-                                  })
-                                }
-                              >
-                                {sharingToken === service.token ? (
-                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Share2 className="mr-2 h-4 w-4" />
-                                )}
-                                {t('visitor.manage.printToken')}
-                              </Button>
-                              {service.status === 'pending' && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  className="w-full shrink-0 sm:w-auto"
-                                  onClick={() => void handleConvert(service.id)}
-                                  disabled={convertingId === service.id}
-                                >
-                                  {convertingId === service.id ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <UserCheck className="mr-2 h-4 w-4" />
-                                  )}
-                                  {t('visitor.manage.convert')}
-                                </Button>
-                              )}
-                              {service.status === 'converted' && service.beneficiaryServiceId && (
-                                <Button
-                                  asChild
-                                  type="button"
-                                  size="sm"
-                                  className="w-full shrink-0 sm:w-auto"
-                                >
-                                  <Link
-                                    href={`/modules/operator?tab=manage&serviceId=${encodeURIComponent(service.beneficiaryServiceId)}`}
-                                  >
-                                    <ExternalLink className="mr-2 h-4 w-4" />
-                                    {t('visitor.manage.openBeneficiary')}
-                                  </Link>
-                                </Button>
-                              )}
-                            </div>
-                          </div>
-                        ))
-                      )}
-
-                      {addServiceForId === visitor.id ? (
-                        <div className="grid grid-cols-1 gap-3 rounded-lg border bg-muted/10 p-3 sm:p-4 md:grid-cols-2">
-                          <div className="space-y-2 md:col-span-2">
-                            <Label>{t('visitor.form.service')}</Label>
-                            <Combobox
-                              options={serviceOptions}
-                              value={addServiceName}
-                              onValueChange={setAddServiceName}
-                              placeholder={t('visitor.form.servicePlaceholder')}
-                            />
-                          </div>
-                          <div className="space-y-2 md:col-span-2">
-                            <Label>{t('visitor.form.programme')}</Label>
-                            <Combobox
-                              options={programmeOptions}
-                              value={addProgrammeId}
-                              onValueChange={setAddProgrammeId}
-                              placeholder={t('visitor.form.programmePlaceholder')}
-                            />
-                          </div>
-                          <div className="flex flex-col gap-2 md:col-span-2 sm:flex-row">
-                            <Button
-                              type="button"
-                              onClick={() => void handleAddService(visitor.id)}
-                              disabled={addingService}
-                              className="flex-1"
-                            >
-                              {addingService ? (
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                              ) : null}
-                              {t('visitor.manage.saveService')}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="sm:w-auto"
-                              onClick={() => {
-                                setAddServiceForId(null);
-                                setAddServiceName('');
-                                setAddProgrammeId('');
-                              }}
-                            >
-                              {t('common.cancel')}
-                            </Button>
-                          </div>
-                        </div>
-                      ) : (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="w-full sm:w-auto"
-                          onClick={() => {
-                            setAddServiceForId(visitor.id);
-                            setAddServiceName('');
-                            setAddProgrammeId('');
-                          }}
-                        >
-                          <Plus className="mr-2 h-4 w-4" />
-                          {t('visitor.manage.addService')}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-              ))}
-
-              {totalPages > 1 && (
-                <TablePagination
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  pageSize={pageSize}
-                  totalItems={totalCount}
-                  onPageChange={(page) => {
-                    setCurrentPage(page);
-                    syncManageUrl({ page });
-                  }}
-                  onPageSizeChange={(size) => {
-                    setPageSize(size);
-                    setCurrentPage(1);
-                    syncManageUrl({ limit: size, page: 1 });
-                  }}
-                  pageSizeOptions={[5, 10, 20, 50]}
-                />
-              )}
-            </div>
-          )}
-        </div>
+      {tab === 'tasks' && (
+        <TaskManagement
+          initialTaskId={initialTaskId}
+          initialManageState={initialTaskManageState}
+        />
       )}
+
     </div>
   );
 }

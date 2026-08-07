@@ -19,23 +19,49 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { serviceName, programmeId, description, notes } = body ?? {};
+    const { serviceName, serviceNames, programmeId, description, notes } = body ?? {};
 
-    if (!serviceName || typeof serviceName !== 'string' || !serviceName.trim()) {
-      return NextResponse.json({ error: 'Service is required' }, { status: 400 });
+    const resolvedServiceNames = Array.from(
+      new Set(
+        [
+          ...(Array.isArray(serviceNames) ? serviceNames : []),
+          ...(typeof serviceName === 'string' ? [serviceName] : []),
+        ]
+          .map((s) => (typeof s === 'string' ? s.trim() : ''))
+          .filter(Boolean),
+      ),
+    );
+
+    if (resolvedServiceNames.length === 0) {
+      return NextResponse.json({ error: 'At least one service is required' }, { status: 400 });
     }
 
-    const service = await createVisitorService({
-      visitorId: visitor.id,
-      serviceName: serviceName.trim(),
-      programmeId:
-        programmeId != null && programmeId !== '' ? String(programmeId) : null,
-      description: typeof description === 'string' ? description : null,
-      notes: typeof notes === 'string' ? notes : null,
-      createdBy: session.user.id,
-    });
+    const programme =
+      programmeId != null && programmeId !== '' ? String(programmeId) : null;
+    const desc = typeof description === 'string' ? description : null;
+    const noteText = typeof notes === 'string' ? notes : null;
 
-    return NextResponse.json({ service });
+    const services = [];
+    const beneficiaryServices = [];
+    for (const resolvedName of resolvedServiceNames) {
+      const created = await createVisitorService({
+        visitorId: visitor.id,
+        serviceName: resolvedName,
+        programmeId: programme,
+        description: desc,
+        notes: noteText,
+        createdBy: session.user.id,
+      });
+      services.push(created.visitorService);
+      beneficiaryServices.push(created.beneficiaryService);
+    }
+
+    return NextResponse.json({
+      services,
+      service: services[0] ?? null,
+      beneficiaryServices,
+      beneficiaryService: beneficiaryServices[0] ?? null,
+    });
   } catch (error) {
     console.error('Error creating visitor service:', error);
     return NextResponse.json(

@@ -352,6 +352,9 @@ export type Visitor = {
   name: string;
   mobileNumber: string;
   voterId: string | null;
+  token: string;
+  location: string | null;
+  programmeId: string | null;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;

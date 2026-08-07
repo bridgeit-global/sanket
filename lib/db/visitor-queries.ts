@@ -18,6 +18,39 @@ function shortProgrammeTokenSegment(programmeUuid: string): string {
   return compact.slice(0, 4).toUpperCase();
 }
 
+async function generateVisitorToken(programmeId?: string | null): Promise<string> {
+  const now = new Date();
+  const todayStart = startOfDayIST(now);
+  const ymd = getCalendarYmd(now);
+  const dd = String(ymd.day).padStart(2, '0');
+  const mm = String(ymd.month).padStart(2, '0');
+  const yy = String(ymd.year).slice(-2);
+  const datePrefix = `${dd}${mm}${yy}`;
+
+  const trimmedProgrammeId = programmeId?.trim() || '';
+  let query = supabase
+    .from(TABLES.visitor)
+    .select('id', { count: 'exact', head: true })
+    .gte('created_at', todayStart.toISOString());
+
+  if (trimmedProgrammeId) {
+    query = query.eq('programme_id', trimmedProgrammeId);
+  } else {
+    query = query.is('programme_id', null);
+  }
+
+  const { count, error } = await query;
+  throwOnSupabaseError(error, 'Failed to count visitor tokens');
+
+  const nextNumber = (count ?? 0) + 1;
+  const seq = String(nextNumber).padStart(4, '0');
+  if (trimmedProgrammeId) {
+    const shortProg = shortProgrammeTokenSegment(trimmedProgrammeId);
+    return `${datePrefix}-${shortProg}-V-${seq}`;
+  }
+  return `${datePrefix}-V-${seq}`;
+}
+
 async function generateVisitorServiceToken(programmeId?: string | null): Promise<string> {
   const now = new Date();
   const todayStart = startOfDayIST(now);
@@ -52,16 +85,29 @@ export async function createVisitor({
   name,
   mobileNumber,
   voterId,
+  location,
+  programmeId,
   createdBy,
 }: {
   name: string;
   mobileNumber: string;
   voterId?: string | null;
+  location?: string | null;
+  programmeId?: string | null;
   createdBy: string;
 }): Promise<Visitor> {
   try {
+    const trimmedProgramme = programmeId?.trim() || null;
+    if (trimmedProgramme) {
+      const programme = await getDailyProgrammeItemById(trimmedProgramme);
+      if (!programme) {
+        throw new ChatSDKError('bad_request:database', 'Programme not found');
+      }
+    }
+
     const now = new Date().toISOString();
     const mobile = normalizeIndianMobileDigits(mobileNumber);
+    const token = await generateVisitorToken(trimmedProgramme);
     const { data, error } = await supabase
       .from(TABLES.visitor)
       .insert(
@@ -69,6 +115,9 @@ export async function createVisitor({
           name: name.trim(),
           mobileNumber: mobile,
           voterId: voterId?.trim() || null,
+          token,
+          location: location?.trim() || null,
+          programmeId: trimmedProgramme,
           createdBy,
           createdAt: now,
           updatedAt: now,
@@ -88,16 +137,22 @@ export async function findOrCreateVisitor({
   name,
   mobileNumber,
   voterId,
+  location,
+  programmeId,
   createdBy,
 }: {
   name: string;
   mobileNumber: string;
   voterId?: string | null;
+  location?: string | null;
+  programmeId?: string | null;
   createdBy: string;
 }): Promise<Visitor> {
   try {
     const mobile = normalizeIndianMobileDigits(mobileNumber);
     const trimmedVoter = voterId?.trim() || null;
+    const trimmedLocation = location?.trim() || null;
+    const trimmedProgramme = programmeId?.trim() || null;
 
     if (trimmedVoter) {
       const { data, error } = await supabase
@@ -108,7 +163,24 @@ export async function findOrCreateVisitor({
         .limit(1)
         .maybeSingle();
       throwOnSupabaseError(error, 'Failed to find visitor by voter id');
-      if (data) return mapVisitorRow(data);
+      if (data) {
+        const existing = mapVisitorRow(data);
+        const patch: Record<string, string> = {};
+        if (trimmedLocation && !existing.location) patch.location = trimmedLocation;
+        if (trimmedProgramme && !existing.programmeId) patch.programme_id = trimmedProgramme;
+        if (Object.keys(patch).length > 0) {
+          const now = new Date().toISOString();
+          const { data: updated, error: updateError } = await supabase
+            .from(TABLES.visitor)
+            .update({ ...patch, updated_at: now })
+            .eq('id', existing.id)
+            .select('*')
+            .single();
+          throwOnSupabaseError(updateError, 'Failed to update visitor');
+          return mapVisitorRow(updated);
+        }
+        return existing;
+      }
     }
 
     const { data: byMobile, error: mobileError } = await supabase
@@ -122,21 +194,32 @@ export async function findOrCreateVisitor({
     throwOnSupabaseError(mobileError, 'Failed to find visitor by mobile');
     if (byMobile) {
       const existing = mapVisitorRow(byMobile);
-      if (trimmedVoter && !existing.voterId) {
+      const patch: Record<string, string> = {};
+      if (trimmedVoter && !existing.voterId) patch.voter_id = trimmedVoter;
+      if (trimmedLocation && !existing.location) patch.location = trimmedLocation;
+      if (trimmedProgramme && !existing.programmeId) patch.programme_id = trimmedProgramme;
+      if (Object.keys(patch).length > 0) {
         const now = new Date().toISOString();
         const { data: updated, error: updateError } = await supabase
           .from(TABLES.visitor)
-          .update({ voter_id: trimmedVoter, updated_at: now })
+          .update({ ...patch, updated_at: now })
           .eq('id', existing.id)
           .select('*')
           .single();
-        throwOnSupabaseError(updateError, 'Failed to update visitor voter id');
+        throwOnSupabaseError(updateError, 'Failed to update visitor');
         return mapVisitorRow(updated);
       }
       return existing;
     }
 
-    return createVisitor({ name, mobileNumber: mobile, voterId: trimmedVoter, createdBy });
+    return createVisitor({
+      name,
+      mobileNumber: mobile,
+      voterId: trimmedVoter,
+      location: trimmedLocation,
+      programmeId: trimmedProgramme,
+      createdBy,
+    });
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to find or create visitor');
@@ -157,7 +240,7 @@ export async function createVisitorService({
   description?: string | null;
   notes?: string | null;
   createdBy: string;
-}): Promise<VisitorService> {
+}): Promise<{ visitorService: VisitorService; beneficiaryService: BeneficiaryService }> {
   try {
     const trimmedProgramme = programmeId?.trim() || null;
     if (trimmedProgramme) {
@@ -190,7 +273,12 @@ export async function createVisitorService({
       .select('*')
       .single();
     throwOnSupabaseError(error, 'Failed to create visitor service');
-    return mapVisitorServiceRow(data);
+
+    // Immediately create the linked BeneficiaryService (operator manage queue).
+    return convertVisitorServiceToBeneficiary({
+      visitorServiceId: mapVisitorServiceRow(data).id,
+      requestedBy: createdBy,
+    });
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to create visitor service');
@@ -313,9 +401,7 @@ export async function listVisitors({
         ? createdTo.trim()
         : '';
 
-    const hasServiceFilters = Boolean(
-      trimmedStatus || trimmedServiceName || trimmedToken,
-    );
+    const hasServiceFilters = Boolean(trimmedStatus || trimmedServiceName);
 
     let visitorIdsFromServices: string[] | null = null;
     if (hasServiceFilters) {
@@ -326,9 +412,6 @@ export async function listVisitors({
       }
       if (trimmedServiceName) {
         serviceQuery = serviceQuery.eq('service_name', trimmedServiceName);
-      }
-      if (trimmedToken) {
-        serviceQuery = serviceQuery.ilike('token', `%${trimmedToken}%`);
       }
 
       const { data: serviceRows, error: serviceError } = await serviceQuery;
@@ -348,6 +431,34 @@ export async function listVisitors({
       }
     }
 
+    // Token may match visit token on Visitor or service token on VisitorService.
+    let visitorIdsFromToken: string[] | null = null;
+    if (trimmedToken) {
+      const [{ data: visitorTokenRows, error: visitorTokenError }, { data: serviceTokenRows, error: serviceTokenError }] =
+        await Promise.all([
+          supabase.from(TABLES.visitor).select('id').ilike('token', `%${trimmedToken}%`),
+          supabase.from(TABLES.visitorService).select('visitor_id').ilike('token', `%${trimmedToken}%`),
+        ]);
+      throwOnSupabaseError(visitorTokenError, 'Failed to filter visitors by visit token');
+      throwOnSupabaseError(serviceTokenError, 'Failed to filter visitors by service token');
+
+      visitorIdsFromToken = Array.from(
+        new Set([
+          ...(visitorTokenRows ?? []).map((row) => String(row.id)).filter(Boolean),
+          ...(serviceTokenRows ?? []).map((row) => String(row.visitor_id)).filter(Boolean),
+        ]),
+      );
+
+      if (visitorIdsFromToken.length === 0) {
+        return {
+          visitors: [],
+          total: 0,
+          totalPages: 0,
+          currentPage,
+        };
+      }
+    }
+
     let query = supabase
       .from(TABLES.visitor)
       .select('*', { count: 'exact' })
@@ -356,6 +467,9 @@ export async function listVisitors({
 
     if (visitorIdsFromServices) {
       query = query.in('id', visitorIdsFromServices);
+    }
+    if (visitorIdsFromToken) {
+      query = query.in('id', visitorIdsFromToken);
     }
 
     if (trimmedMobile) {
@@ -383,7 +497,7 @@ export async function listVisitors({
         query = query.eq('voter_id', trimmedSearch.toUpperCase());
       } else {
         query = query.or(
-          `name.ilike.%${trimmedSearch}%,voter_id.ilike.%${trimmedSearch}%,mobile_number.ilike.%${trimmedSearch}%`,
+          `name.ilike.%${trimmedSearch}%,voter_id.ilike.%${trimmedSearch}%,mobile_number.ilike.%${trimmedSearch}%,token.ilike.%${trimmedSearch}%`,
         );
       }
     }

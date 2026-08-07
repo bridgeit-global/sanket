@@ -4,14 +4,12 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/app/(auth)/auth';
 import { hasModuleAccess } from '@/lib/db/queries';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  parseVisitorManageFiltersFromSearchParams,
-  type VisitorManageFilterState,
-} from '@/lib/visitor/manage-url-params';
+import { parseManageFiltersFromSearchParams } from '@/lib/operator/manage-url-params';
 
 type VisitorWorkflowProps = {
-  initialTab?: 'create' | 'manage';
-  initialManageState?: Partial<VisitorManageFilterState>;
+  initialTab?: 'visitor' | 'create' | 'tasks' | 'manage';
+  initialTaskId?: string;
+  initialTaskManageState?: ReturnType<typeof parseManageFiltersFromSearchParams>;
 };
 
 const VisitorWorkflow = dynamic(
@@ -31,6 +29,15 @@ const VisitorWorkflow = dynamic(
   },
 ) as ComponentType<VisitorWorkflowProps>;
 
+function resolveVisitorTab(
+  tab: string | undefined,
+  hasTaskDeepLink: boolean,
+): 'visitor' | 'create' | 'tasks' {
+  if (hasTaskDeepLink || tab === 'tasks' || tab === 'manage') return 'tasks';
+  if (tab === 'create' || tab === 'visitor') return tab;
+  return 'visitor';
+}
+
 export default async function VisitorPage({
   searchParams,
 }: {
@@ -48,19 +55,20 @@ export default async function VisitorPage({
   }
 
   const params = await searchParams;
-  const initialTab: 'create' | 'manage' = params.tab === 'manage' ? 'manage' : 'create';
+  const beneficiaryTaskId = params.taskId ?? params.serviceId;
   const urlParams = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value) urlParams.set(key, value);
   }
-  const initialManageState = parseVisitorManageFiltersFromSearchParams(urlParams);
+  const initialTaskManageState = parseManageFiltersFromSearchParams(urlParams);
 
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-7xl p-4 sm:py-8">
         <VisitorWorkflow
-          initialTab={initialTab}
-          initialManageState={initialManageState}
+          initialTab={resolveVisitorTab(params.tab, Boolean(beneficiaryTaskId))}
+          initialTaskId={beneficiaryTaskId}
+          initialTaskManageState={initialTaskManageState}
         />
       </div>
     </div>
