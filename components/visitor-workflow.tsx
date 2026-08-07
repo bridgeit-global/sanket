@@ -32,7 +32,8 @@ import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/rec
 import type { VoterWithPartNo } from '@/lib/db/schema';
 import type { ManageFilterState } from '@/lib/operator/manage-url-params';
 import { TaskManagement } from '@/components/task-management';
-import { ExternalLink, Loader2, Plus, Search, Share2, X } from 'lucide-react';
+import { ExternalLink, Loader2, Plus, QrCode, Search, Share2, X } from 'lucide-react';
+import { QrScannerDialog } from '@/components/qr-scanner-dialog';
 
 type WorkflowTab = 'visitor' | 'create' | 'tasks';
 
@@ -143,6 +144,32 @@ function writeStoredLinkedProgramme(programmeId: string) {
   );
 }
 
+function extractTokenFromQrPayload(payload: string): string | null {
+  const raw = (payload ?? '').trim();
+  if (!raw) return null;
+
+  try {
+    const url = new URL(raw);
+    const tokenParam =
+      url.searchParams.get('token') ??
+      url.searchParams.get('tokenNo') ??
+      url.searchParams.get('token_no') ??
+      url.searchParams.get('tokenNumber') ??
+      url.searchParams.get('token_number');
+    if (tokenParam?.trim()) return tokenParam.trim();
+  } catch {
+    // Not a URL.
+  }
+
+  if (/^[A-Za-z0-9-]{2,}$/.test(raw)) return raw;
+
+  return (
+    raw.match(/\b[A-Za-z]{1,10}-\d{1,10}\b/)?.[0] ??
+    raw.match(/\b\d{1,10}\b/)?.[0] ??
+    null
+  );
+}
+
 function normalizeInitialTab(tab?: string): WorkflowTab {
   if (tab === 'create' || tab === 'visitor') return tab;
   // Legacy ?tab=manage and ?tab=tasks both open Manage Tasks.
@@ -246,6 +273,7 @@ export function VisitorWorkflow({
   const [createPickerTotal, setCreatePickerTotal] = useState(0);
   const [createPickerTotalPages, setCreatePickerTotalPages] = useState(0);
   const [loadingCreatePicker, setLoadingCreatePicker] = useState(false);
+  const [showTokenQrScanner, setShowTokenQrScanner] = useState(false);
   const createInvalidMobileToastRef = useRef(false);
 
   const [sharingToken, setSharingToken] = useState<string | null>(null);
@@ -328,7 +356,7 @@ export function VisitorWorkflow({
       createdTo?: string;
       page?: number;
       limit?: number;
-    }) => {
+    }): Promise<VisitorRow[]> => {
       setLoadingCreatePicker(true);
       try {
         const token = overrides?.token ?? createFilterToken;
@@ -353,15 +381,18 @@ export function VisitorWorkflow({
         const res = await fetch(`/api/visitor?${params.toString()}`);
         if (!res.ok) throw new Error('Failed to list visitors');
         const json = await res.json();
-        setCreatePickerVisitors(json.visitors ?? []);
+        const visitors = (json.visitors ?? []) as VisitorRow[];
+        setCreatePickerVisitors(visitors);
         setCreatePickerTotal(json.total ?? 0);
         setCreatePickerTotalPages(json.totalPages ?? 0);
         if (typeof json.currentPage === 'number' && json.currentPage !== page) {
           setCreatePickerPage(json.currentPage);
         }
+        return visitors;
       } catch (error) {
         console.error(error);
         toast({ type: 'error', description: t('visitor.errors.loadList') });
+        return [];
       } finally {
         setLoadingCreatePicker(false);
       }
@@ -801,6 +832,38 @@ export function VisitorWorkflow({
     void loadCreatePickerVisitors();
   }
 
+  async function handleVisitTokenQrScan(payload: string) {
+    const token = extractTokenFromQrPayload(payload);
+    if (!token) {
+      toast({ type: 'error', description: t('visitor.errors.invalidTokenQr') });
+      throw new Error('Invalid token QR');
+    }
+
+    setCreateFilterTokenInput(token);
+    setCreateFilterToken(token);
+    setCreateFilterNameInput('');
+    setCreateFilterName('');
+    setCreateFilterMobileInput('');
+    setCreateFilterMobile('');
+    setCreateFilterVoterIdInput('');
+    setCreateFilterVoterId('');
+    setCreatePickerPage(1);
+
+    const visitors = await loadCreatePickerVisitors({
+      token,
+      name: '',
+      mobile: '',
+      voterId: '',
+      page: 1,
+    });
+
+    if (visitors.length === 1) {
+      openAddServiceModal(visitors[0]);
+    } else if (visitors.length === 0) {
+      toast({ type: 'error', description: t('visitor.form.noVisitorsFound') });
+    }
+  }
+
   async function shareVisitorThermalTicket(params: {
     token: string;
     createdAt: Date | string;
@@ -982,10 +1045,11 @@ export function VisitorWorkflow({
                 | undefined;
               return {
                 serviceName: s.serviceName,
-                token: beneficiary?.token || s.token,
+                // Always surface the visit token — beneficiary reuses it.
+                token: selectedVisitor.token,
                 createdAt: s.createdAt ?? new Date().toISOString(),
                 beneficiaryServiceId: beneficiary?.id ?? s.beneficiaryServiceId ?? null,
-                beneficiaryToken: beneficiary?.token ?? null,
+                beneficiaryToken: selectedVisitor.token,
               };
             },
           )
@@ -1326,6 +1390,13 @@ export function VisitorWorkflow({
 
       {tab === 'create' && (
         <>
+          <QrScannerDialog
+            open={showTokenQrScanner}
+            onOpenChange={setShowTokenQrScanner}
+            onScan={handleVisitTokenQrScan}
+            title={t('visitor.manage.actions.scanTokenQrTitle')}
+            description={t('visitor.manage.actions.scanTokenQrDescription')}
+          />
           <Card>
             <CardHeader>
               <CardTitle>{t('visitor.create.serviceTitle')}</CardTitle>
@@ -1389,12 +1460,23 @@ export function VisitorWorkflow({
                       <Label htmlFor="create-visitor-token-filter">
                         {t('visitor.manage.filters.token')}
                       </Label>
-                      <Input
-                        id="create-visitor-token-filter"
-                        placeholder={t('visitor.manage.filters.enterToken')}
-                        value={createFilterTokenInput}
-                        onChange={(e) => setCreateFilterTokenInput(e.target.value)}
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          id="create-visitor-token-filter"
+                          placeholder={t('visitor.manage.filters.enterToken')}
+                          value={createFilterTokenInput}
+                          onChange={(e) => setCreateFilterTokenInput(e.target.value)}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="shrink-0"
+                          title={t('visitor.manage.actions.scanTokenQr')}
+                          onClick={() => setShowTokenQrScanner(true)}
+                        >
+                          <QrCode className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="space-y-1.5">
                       <Label htmlFor="create-visitor-name-filter">
@@ -1575,9 +1657,6 @@ export function VisitorWorkflow({
                                       <p className="text-sm font-medium leading-snug">
                                         {service.serviceName}
                                       </p>
-                                      <p className="break-all font-mono text-xs text-muted-foreground">
-                                        {service.token}
-                                      </p>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-2">
                                       <Badge
@@ -1592,29 +1671,6 @@ export function VisitorWorkflow({
                                       >
                                         {t(`visitor.status.${service.status}`)}
                                       </Badge>
-                                      <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        className="w-full sm:w-auto"
-                                        disabled={sharingToken === service.token}
-                                        onClick={() =>
-                                          void shareVisitorThermalTicket({
-                                            token: service.token,
-                                            createdAt: service.createdAt,
-                                            serviceName: service.serviceName,
-                                            name: v.name,
-                                            mobile: v.mobileNumber,
-                                          })
-                                        }
-                                      >
-                                        {sharingToken === service.token ? (
-                                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        ) : (
-                                          <Share2 className="mr-2 h-4 w-4" />
-                                        )}
-                                        {t('visitor.manage.printToken')}
-                                      </Button>
                                       {service.beneficiaryServiceId ? (
                                         <Button
                                           type="button"
@@ -1685,61 +1741,64 @@ export function VisitorWorkflow({
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-3">
-                    {createdServices.map((service) => (
-                      <div
-                        key={`${service.serviceName}-${service.token}`}
-                        className="rounded-lg border-2 border-green-200 bg-green-50 p-4 text-center"
-                      >
-                        <Label className="text-sm font-medium text-green-800">
-                          {service.serviceName}
-                        </Label>
-                        <p className="mt-2 break-all font-mono text-xl font-bold tracking-wide text-green-900">
-                          {service.token}
-                        </p>
-                        <p className="mt-2 text-sm text-green-700">
-                          {t('visitor.create.saveToken')}
-                        </p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="mt-4 w-full sm:w-auto"
-                          disabled={sharingToken === service.token}
-                          onClick={() =>
-                            void shareVisitorThermalTicket({
-                              token: service.token,
-                              createdAt: service.createdAt,
-                              serviceName: service.serviceName,
-                              name: selectedVisitor.name,
-                              mobile: selectedVisitor.mobileNumber,
-                            })
-                          }
-                        >
-                          {sharingToken === service.token ? (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : (
-                            <Share2 className="mr-2 h-4 w-4" />
-                          )}
-                          {t('visitor.create.printToken')}
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                  <DialogFooter className="flex-col gap-2 sm:flex-row">
-                    {createdServices.find((s) => s.beneficiaryServiceId) ? (
+                    <div className="rounded-lg border-2 border-green-200 bg-green-50 p-4 text-center">
+                      <Label className="text-sm font-medium text-green-800">
+                        {t('visitor.create.visitTokenLabel')}
+                      </Label>
+                      <p className="mt-2 break-all font-mono text-xl font-bold tracking-wide text-green-900">
+                        {selectedVisitor.token}
+                      </p>
+                      <p className="mt-2 text-sm text-green-700">
+                        {t('visitor.create.saveToken')}
+                      </p>
                       <Button
                         type="button"
-                        className="w-full sm:flex-1"
+                        variant="outline"
+                        className="mt-4 w-full sm:w-auto"
+                        disabled={sharingToken === selectedVisitor.token}
                         onClick={() =>
-                          navigateToBeneficiaryTask(
-                            createdServices.find((s) => s.beneficiaryServiceId)!
-                              .beneficiaryServiceId!,
-                          )
+                          void shareVisitorThermalTicket({
+                            token: selectedVisitor.token,
+                            createdAt: selectedVisitor.createdAt,
+                            serviceName: t('visitor.create.visitTokenLabel'),
+                            name: selectedVisitor.name,
+                            mobile: selectedVisitor.mobileNumber,
+                          })
                         }
                       >
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        {t('visitor.manage.openBeneficiary')}
+                        {sharingToken === selectedVisitor.token ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Share2 className="mr-2 h-4 w-4" />
+                        )}
+                        {t('visitor.manage.printToken')}
                       </Button>
-                    ) : null}
+                    </div>
+                    <ul className="space-y-2 rounded-lg border bg-muted/20 p-3">
+                      {createdServices.map((service) => (
+                        <li
+                          key={`${service.serviceName}-${service.beneficiaryServiceId ?? service.token}`}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-background px-3 py-2 text-sm"
+                        >
+                          <span className="min-w-0 font-medium">{service.serviceName}</span>
+                          {service.beneficiaryServiceId ? (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() =>
+                                navigateToBeneficiaryTask(service.beneficiaryServiceId!)
+                              }
+                            >
+                              <ExternalLink className="mr-2 h-4 w-4" />
+                              {t('visitor.manage.openBeneficiary')}
+                            </Button>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  <DialogFooter className="flex-col gap-2 sm:flex-row">
                     <Button
                       type="button"
                       variant="outline"
@@ -1780,9 +1839,6 @@ export function VisitorWorkflow({
                             >
                               <div className="min-w-0">
                                 <p className="font-medium">{service.serviceName}</p>
-                                <p className="break-all font-mono text-xs text-muted-foreground">
-                                  {service.token}
-                                </p>
                               </div>
                               <div className="flex flex-wrap items-center gap-2">
                                 <Badge
@@ -1797,29 +1853,6 @@ export function VisitorWorkflow({
                                 >
                                   {t(`visitor.status.${service.status}`)}
                                 </Badge>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  className="w-full sm:w-auto"
-                                  disabled={sharingToken === service.token}
-                                  onClick={() =>
-                                    void shareVisitorThermalTicket({
-                                      token: service.token,
-                                      createdAt: service.createdAt,
-                                      serviceName: service.serviceName,
-                                      name: selectedVisitor.name,
-                                      mobile: selectedVisitor.mobileNumber,
-                                    })
-                                  }
-                                >
-                                  {sharingToken === service.token ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Share2 className="mr-2 h-4 w-4" />
-                                  )}
-                                  {t('visitor.manage.printToken')}
-                                </Button>
                                 {service.beneficiaryServiceId ? (
                                   <Button
                                     type="button"

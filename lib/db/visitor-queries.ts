@@ -75,32 +75,6 @@ async function generateVisitorToken(programmeId?: string | null): Promise<string
   return `${prefix}${String(nextNumber).padStart(4, '0')}`;
 }
 
-async function generateVisitorServiceToken(programmeId?: string | null): Promise<string> {
-  const datePrefix = istDatePrefix();
-  const trimmedProgrammeId = programmeId?.trim() || '';
-
-  if (trimmedProgrammeId) {
-    const prefix = `${datePrefix}-${shortProgrammeTokenSegment(trimmedProgrammeId)}-`;
-    const nextNumber = await nextTokenSequence({
-      table: TABLES.visitorService,
-      likePattern: `${prefix}%`,
-      seqStart: prefix.length,
-      errorMessage: 'Failed to resolve next visitor service token',
-    });
-    return `${prefix}${String(nextNumber).padStart(4, '0')}`;
-  }
-
-  // Unscoped tokens are `ddmmyy-NNNN` — do not match programme tokens `ddmmyy-XXXX-NNNN`.
-  const prefix = `${datePrefix}-`;
-  const nextNumber = await nextTokenSequence({
-    table: TABLES.visitorService,
-    likePattern: `${prefix}____`,
-    seqStart: prefix.length,
-    errorMessage: 'Failed to resolve next visitor service token',
-  });
-  return `${prefix}${String(nextNumber).padStart(4, '0')}`;
-}
-
 export async function createVisitor({
   name,
   mobileNumber,
@@ -272,6 +246,11 @@ export async function createVisitorService({
   createdBy: string;
 }): Promise<{ visitorService: VisitorService; beneficiaryService: BeneficiaryService }> {
   try {
+    const visitor = await getVisitorById(visitorId);
+    if (!visitor) {
+      throw new ChatSDKError('not_found:database', 'Visitor not found');
+    }
+
     const trimmedProgramme = programmeId?.trim() || null;
     if (trimmedProgramme) {
       const programme = await getDailyProgrammeItemById(trimmedProgramme);
@@ -282,39 +261,29 @@ export async function createVisitorService({
 
     await ensureServiceCatalogEntry(serviceName);
 
-    let visitorServiceId: string | null = null;
-    for (let attempt = 0; attempt < TOKEN_UNIQUE_RETRIES; attempt += 1) {
-      const token = await generateVisitorServiceToken(trimmedProgramme);
-      const now = new Date().toISOString();
-      const { data, error } = await supabase
-        .from(TABLES.visitorService)
-        .insert(
-          toSnakeCaseKeys({
-            visitorId,
-            serviceName: serviceName.trim(),
-            programmeId: trimmedProgramme,
-            token,
-            description: description?.trim() || null,
-            notes: notes?.trim() || null,
-            status: 'pending',
-            createdBy,
-            createdAt: now,
-            updatedAt: now,
-          }),
-        )
-        .select('*')
-        .single();
-
-      if (!error) {
-        visitorServiceId = mapVisitorServiceRow(data).id;
-        break;
-      }
-      if (error.code === '23505' && attempt < TOKEN_UNIQUE_RETRIES - 1) continue;
-      throwOnSupabaseError(error, 'Failed to create visitor service');
-    }
-    if (!visitorServiceId) {
-      throw new ChatSDKError('bad_request:database', 'Failed to create visitor service');
-    }
+    // Reuse the visit token — no separate service/beneficiary token.
+    const token = visitor.token;
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.visitorService)
+      .insert(
+        toSnakeCaseKeys({
+          visitorId,
+          serviceName: serviceName.trim(),
+          programmeId: trimmedProgramme,
+          token,
+          description: description?.trim() || null,
+          notes: notes?.trim() || null,
+          status: 'pending',
+          createdBy,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create visitor service');
+    const visitorServiceId = mapVisitorServiceRow(data).id;
 
     // Immediately create the linked BeneficiaryService (operator manage queue).
     return convertVisitorServiceToBeneficiary({
@@ -614,6 +583,8 @@ export async function convertVisitorServiceToBeneficiary({
       requestedBy,
       voterId: visitor.voterId ?? undefined,
       programmeId: visitorService.programmeId ?? undefined,
+      // Carry the visit token — do not mint a separate beneficiary token.
+      token: visitor.token,
     });
 
     const now = new Date().toISOString();

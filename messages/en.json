@@ -2077,10 +2077,10 @@
       "visitorTitle": "Add visitor",
       "visitorDescription": "Capture basic details only. No service is required. A visit token will be issued.",
       "serviceTitle": "Create service",
-      "serviceDescription": "Select an existing visitor and add one or more services. Each service gets its own token.",
+      "serviceDescription": "Select an existing visitor and add one or more services. Services use the visitor visit token.",
       "submit": "Create visitor & tokens",
       "submitVisitor": "Create visitor & token",
-      "submitServices": "Create service tokens",
+      "submitServices": "Create services",
       "submitting": "Creating…",
       "submittingVisitor": "Creating visitor…",
       "submittingServices": "Creating services…",
@@ -2091,7 +2091,7 @@
       "visitorSuccessTitle": "Visitor registered",
       "visitorSuccessDescription": "Visit token has been issued. Add services next or manage later.",
       "servicesSuccessTitle": "Services created",
-      "servicesSuccessDescription": "Service tokens issued. Each service is linked in beneficiary manage when added.",
+      "servicesSuccessDescription": "Services are linked in beneficiary manage using this visitor visit token.",
       "successDescription": "Service tokens have been issued. Save them for the visitor.",
       "saveToken": "Please save this token for future reference",
       "printToken": "Print / Share Thermal Ticket",
@@ -2150,7 +2150,10 @@
       "actions": {
         "search": "Search",
         "searching": "Searching...",
-        "clearFilters": "Clear Filters"
+        "clearFilters": "Clear Filters",
+        "scanTokenQr": "Scan visit token QR",
+        "scanTokenQrTitle": "Scan visit token",
+        "scanTokenQrDescription": "Point the camera at the visit token QR on the thermal ticket."
       }
     },
     "form": {
@@ -2183,7 +2186,7 @@
       "servicePlaceholder": "Select a service",
       "addService": "Add service",
       "removeService": "Remove service",
-      "servicesHint": "Add one or more services. Each service gets its own token.",
+      "servicesHint": "Add one or more services. They are linked using the visitor visit token.",
       "notes": "Notes"
     },
     "status": {
@@ -2202,6 +2205,7 @@
       "visitorRequired": "Select a visitor first",
       "serviceRequired": "At least one service is required",
       "serviceDuplicate": "This service is already added",
+      "invalidTokenQr": "Could not read a visit token from that QR code",
       "create": "Failed to create visitor",
       "addService": "Failed to add service",
       "convert": "Failed to convert to beneficiary",
