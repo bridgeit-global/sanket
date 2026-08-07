@@ -3,7 +3,7 @@ import 'server-only';
 import { supabase } from '@/lib/supabase/server';
 import { throwOnSupabaseError } from '@/lib/db/errors';
 import { ChatSDKError } from '@/lib/errors';
-import { startOfDayIST, getCalendarYmd } from '@/lib/ist-date';
+import { getCalendarYmd } from '@/lib/ist-date';
 import { normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import {
   mapVisitorRow,
@@ -13,72 +13,92 @@ import {
 import { TABLES, type BeneficiaryService, type Visitor, type VisitorService, type VisitorWithServices } from '@/lib/db/schema';
 import { createBeneficiaryService, ensureServiceCatalogEntry, getDailyProgrammeItemById } from '@/lib/db/queries-crud';
 
+const TOKEN_UNIQUE_RETRIES = 5;
+
 function shortProgrammeTokenSegment(programmeUuid: string): string {
   const compact = programmeUuid.replace(/-/g, '');
   return compact.slice(0, 4).toUpperCase();
 }
 
-async function generateVisitorToken(programmeId?: string | null): Promise<string> {
-  const now = new Date();
-  const todayStart = startOfDayIST(now);
+function istDatePrefix(now = new Date()): string {
   const ymd = getCalendarYmd(now);
   const dd = String(ymd.day).padStart(2, '0');
   const mm = String(ymd.month).padStart(2, '0');
   const yy = String(ymd.year).slice(-2);
-  const datePrefix = `${dd}${mm}${yy}`;
+  return `${dd}${mm}${yy}`;
+}
 
+/**
+ * Next sequence from the highest existing token matching `likePattern`.
+ * `seqStart` is the index where the numeric suffix begins (for parsing).
+ */
+async function nextTokenSequence({
+  table,
+  likePattern,
+  seqStart,
+  errorMessage,
+}: {
+  table: string;
+  likePattern: string;
+  seqStart: number;
+  errorMessage: string;
+}): Promise<number> {
+  const { data, error } = await supabase
+    .from(table)
+    .select('token')
+    .like('token', likePattern)
+    .order('token', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  throwOnSupabaseError(error, errorMessage);
+
+  if (!data?.token) return 1;
+  const seqPart = String(data.token).slice(seqStart);
+  const parsed = Number.parseInt(seqPart, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) return 1;
+  return parsed + 1;
+}
+
+async function generateVisitorToken(programmeId?: string | null): Promise<string> {
+  const datePrefix = istDatePrefix();
   const trimmedProgrammeId = programmeId?.trim() || '';
-  let query = supabase
-    .from(TABLES.visitor)
-    .select('id', { count: 'exact', head: true })
-    .gte('created_at', todayStart.toISOString());
+  const prefix = trimmedProgrammeId
+    ? `${datePrefix}-${shortProgrammeTokenSegment(trimmedProgrammeId)}-V-`
+    : `${datePrefix}-V-`;
 
-  if (trimmedProgrammeId) {
-    query = query.eq('programme_id', trimmedProgrammeId);
-  } else {
-    query = query.is('programme_id', null);
-  }
-
-  const { count, error } = await query;
-  throwOnSupabaseError(error, 'Failed to count visitor tokens');
-
-  const nextNumber = (count ?? 0) + 1;
-  const seq = String(nextNumber).padStart(4, '0');
-  if (trimmedProgrammeId) {
-    const shortProg = shortProgrammeTokenSegment(trimmedProgrammeId);
-    return `${datePrefix}-${shortProg}-V-${seq}`;
-  }
-  return `${datePrefix}-V-${seq}`;
+  const nextNumber = await nextTokenSequence({
+    table: TABLES.visitor,
+    likePattern: `${prefix}%`,
+    seqStart: prefix.length,
+    errorMessage: 'Failed to resolve next visitor token',
+  });
+  return `${prefix}${String(nextNumber).padStart(4, '0')}`;
 }
 
 async function generateVisitorServiceToken(programmeId?: string | null): Promise<string> {
-  const now = new Date();
-  const todayStart = startOfDayIST(now);
-  const ymd = getCalendarYmd(now);
-  const dd = String(ymd.day).padStart(2, '0');
-  const mm = String(ymd.month).padStart(2, '0');
-  const yy = String(ymd.year).slice(-2);
-  const datePrefix = `${dd}${mm}${yy}`;
-
+  const datePrefix = istDatePrefix();
   const trimmedProgrammeId = programmeId?.trim() || '';
-  let query = supabase
-    .from(TABLES.visitorService)
-    .select('id', { count: 'exact', head: true })
-    .gte('created_at', todayStart.toISOString());
 
   if (trimmedProgrammeId) {
-    query = query.eq('programme_id', trimmedProgrammeId);
+    const prefix = `${datePrefix}-${shortProgrammeTokenSegment(trimmedProgrammeId)}-`;
+    const nextNumber = await nextTokenSequence({
+      table: TABLES.visitorService,
+      likePattern: `${prefix}%`,
+      seqStart: prefix.length,
+      errorMessage: 'Failed to resolve next visitor service token',
+    });
+    return `${prefix}${String(nextNumber).padStart(4, '0')}`;
   }
 
-  const { count, error } = await query;
-  throwOnSupabaseError(error, 'Failed to count visitor service tokens');
-
-  const nextNumber = (count ?? 0) + 1;
-  if (trimmedProgrammeId) {
-    const shortProg = shortProgrammeTokenSegment(trimmedProgrammeId);
-    return `${datePrefix}-${shortProg}-${String(nextNumber).padStart(4, '0')}`;
-  }
-  return `${datePrefix}-${String(nextNumber).padStart(4, '0')}`;
+  // Unscoped tokens are `ddmmyy-NNNN` — do not match programme tokens `ddmmyy-XXXX-NNNN`.
+  const prefix = `${datePrefix}-`;
+  const nextNumber = await nextTokenSequence({
+    table: TABLES.visitorService,
+    likePattern: `${prefix}____`,
+    seqStart: prefix.length,
+    errorMessage: 'Failed to resolve next visitor service token',
+  });
+  return `${prefix}${String(nextNumber).padStart(4, '0')}`;
 }
 
 export async function createVisitor({
@@ -105,28 +125,34 @@ export async function createVisitor({
       }
     }
 
-    const now = new Date().toISOString();
     const mobile = normalizeIndianMobileDigits(mobileNumber);
-    const token = await generateVisitorToken(trimmedProgramme);
-    const { data, error } = await supabase
-      .from(TABLES.visitor)
-      .insert(
-        toSnakeCaseKeys({
-          name: name.trim(),
-          mobileNumber: mobile,
-          voterId: voterId?.trim() || null,
-          token,
-          location: location?.trim() || null,
-          programmeId: trimmedProgramme,
-          createdBy,
-          createdAt: now,
-          updatedAt: now,
-        }),
-      )
-      .select('*')
-      .single();
-    throwOnSupabaseError(error, 'Failed to create visitor');
-    return mapVisitorRow(data);
+    for (let attempt = 0; attempt < TOKEN_UNIQUE_RETRIES; attempt += 1) {
+      const now = new Date().toISOString();
+      const token = await generateVisitorToken(trimmedProgramme);
+      const { data, error } = await supabase
+        .from(TABLES.visitor)
+        .insert(
+          toSnakeCaseKeys({
+            name: name.trim(),
+            mobileNumber: mobile,
+            voterId: voterId?.trim() || null,
+            token,
+            location: location?.trim() || null,
+            programmeId: trimmedProgramme,
+            createdBy,
+            createdAt: now,
+            updatedAt: now,
+          }),
+        )
+        .select('*')
+        .single();
+
+      if (!error) return mapVisitorRow(data);
+      // Concurrent create/reissue can race on the same next token.
+      if (error.code === '23505' && attempt < TOKEN_UNIQUE_RETRIES - 1) continue;
+      throwOnSupabaseError(error, 'Failed to create visitor');
+    }
+    throw new ChatSDKError('bad_request:database', 'Failed to create visitor');
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to create visitor');
@@ -154,6 +180,41 @@ export async function findOrCreateVisitor({
     const trimmedLocation = location?.trim() || null;
     const trimmedProgramme = programmeId?.trim() || null;
 
+    if (trimmedProgramme) {
+      const programme = await getDailyProgrammeItemById(trimmedProgramme);
+      if (!programme) {
+        throw new ChatSDKError('bad_request:database', 'Programme not found');
+      }
+    }
+
+    async function reissueVisitToken(existing: Visitor): Promise<Visitor> {
+      for (let attempt = 0; attempt < TOKEN_UNIQUE_RETRIES; attempt += 1) {
+        const token = await generateVisitorToken(trimmedProgramme);
+        const now = new Date().toISOString();
+        const { data: updated, error: updateError } = await supabase
+          .from(TABLES.visitor)
+          .update(
+            toSnakeCaseKeys({
+              name: name.trim(),
+              mobileNumber: mobile,
+              voterId: trimmedVoter ?? existing.voterId,
+              location: trimmedLocation ?? existing.location,
+              programmeId: trimmedProgramme,
+              token,
+              updatedAt: now,
+            }),
+          )
+          .eq('id', existing.id)
+          .select('*')
+          .single();
+
+        if (!updateError) return mapVisitorRow(updated);
+        if (updateError.code === '23505' && attempt < TOKEN_UNIQUE_RETRIES - 1) continue;
+        throwOnSupabaseError(updateError, 'Failed to reissue visitor token');
+      }
+      throw new ChatSDKError('bad_request:database', 'Failed to reissue visitor token');
+    }
+
     if (trimmedVoter) {
       const { data, error } = await supabase
         .from(TABLES.visitor)
@@ -164,22 +225,7 @@ export async function findOrCreateVisitor({
         .maybeSingle();
       throwOnSupabaseError(error, 'Failed to find visitor by voter id');
       if (data) {
-        const existing = mapVisitorRow(data);
-        const patch: Record<string, string> = {};
-        if (trimmedLocation && !existing.location) patch.location = trimmedLocation;
-        if (trimmedProgramme && !existing.programmeId) patch.programme_id = trimmedProgramme;
-        if (Object.keys(patch).length > 0) {
-          const now = new Date().toISOString();
-          const { data: updated, error: updateError } = await supabase
-            .from(TABLES.visitor)
-            .update({ ...patch, updated_at: now })
-            .eq('id', existing.id)
-            .select('*')
-            .single();
-          throwOnSupabaseError(updateError, 'Failed to update visitor');
-          return mapVisitorRow(updated);
-        }
-        return existing;
+        return reissueVisitToken(mapVisitorRow(data));
       }
     }
 
@@ -193,23 +239,7 @@ export async function findOrCreateVisitor({
       .maybeSingle();
     throwOnSupabaseError(mobileError, 'Failed to find visitor by mobile');
     if (byMobile) {
-      const existing = mapVisitorRow(byMobile);
-      const patch: Record<string, string> = {};
-      if (trimmedVoter && !existing.voterId) patch.voter_id = trimmedVoter;
-      if (trimmedLocation && !existing.location) patch.location = trimmedLocation;
-      if (trimmedProgramme && !existing.programmeId) patch.programme_id = trimmedProgramme;
-      if (Object.keys(patch).length > 0) {
-        const now = new Date().toISOString();
-        const { data: updated, error: updateError } = await supabase
-          .from(TABLES.visitor)
-          .update({ ...patch, updated_at: now })
-          .eq('id', existing.id)
-          .select('*')
-          .single();
-        throwOnSupabaseError(updateError, 'Failed to update visitor');
-        return mapVisitorRow(updated);
-      }
-      return existing;
+      return reissueVisitToken(mapVisitorRow(byMobile));
     }
 
     return createVisitor({
@@ -251,32 +281,44 @@ export async function createVisitorService({
     }
 
     await ensureServiceCatalogEntry(serviceName);
-    const token = await generateVisitorServiceToken(trimmedProgramme);
-    const now = new Date().toISOString();
 
-    const { data, error } = await supabase
-      .from(TABLES.visitorService)
-      .insert(
-        toSnakeCaseKeys({
-          visitorId,
-          serviceName: serviceName.trim(),
-          programmeId: trimmedProgramme,
-          token,
-          description: description?.trim() || null,
-          notes: notes?.trim() || null,
-          status: 'pending',
-          createdBy,
-          createdAt: now,
-          updatedAt: now,
-        }),
-      )
-      .select('*')
-      .single();
-    throwOnSupabaseError(error, 'Failed to create visitor service');
+    let visitorServiceId: string | null = null;
+    for (let attempt = 0; attempt < TOKEN_UNIQUE_RETRIES; attempt += 1) {
+      const token = await generateVisitorServiceToken(trimmedProgramme);
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from(TABLES.visitorService)
+        .insert(
+          toSnakeCaseKeys({
+            visitorId,
+            serviceName: serviceName.trim(),
+            programmeId: trimmedProgramme,
+            token,
+            description: description?.trim() || null,
+            notes: notes?.trim() || null,
+            status: 'pending',
+            createdBy,
+            createdAt: now,
+            updatedAt: now,
+          }),
+        )
+        .select('*')
+        .single();
+
+      if (!error) {
+        visitorServiceId = mapVisitorServiceRow(data).id;
+        break;
+      }
+      if (error.code === '23505' && attempt < TOKEN_UNIQUE_RETRIES - 1) continue;
+      throwOnSupabaseError(error, 'Failed to create visitor service');
+    }
+    if (!visitorServiceId) {
+      throw new ChatSDKError('bad_request:database', 'Failed to create visitor service');
+    }
 
     // Immediately create the linked BeneficiaryService (operator manage queue).
     return convertVisitorServiceToBeneficiary({
-      visitorServiceId: mapVisitorServiceRow(data).id,
+      visitorServiceId,
       requestedBy: createdBy,
     });
   } catch (error) {

@@ -13,7 +13,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Combobox } from '@/components/ui/combobox';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   PhoneUpdateForm,
@@ -184,6 +183,13 @@ export function VisitorWorkflow({
     MobileNumberEntry[]
   >([]);
   const [showPhoneUpdate, setShowPhoneUpdate] = useState(false);
+  const [pendingVisitConfirm, setPendingVisitConfirm] = useState<{
+    name: string;
+    mobileNumber: string;
+    secondaryMobile: string | null;
+    voterId: string | null;
+    location: string | null;
+  } | null>(null);
   const [programmeId, setProgrammeId] = useState(() => readStoredLinkedProgramme());
   const [programmesLoaded, setProgrammesLoaded] = useState(false);
 
@@ -213,8 +219,6 @@ export function VisitorWorkflow({
   const createInvalidMobileToastRef = useRef(false);
 
   const [sharingToken, setSharingToken] = useState<string | null>(null);
-
-  const outsiderMode = isOutsider || !voterId.trim();
 
   const serviceOptions = useMemo(() => buildServiceComboboxOptions(catalog), [catalog]);
   const programmeOptions = useMemo(
@@ -416,9 +420,25 @@ export function VisitorWorkflow({
     const mobile = voter.mobileNoPrimary || voter.mobileNoSecondary || '';
     if (mobile) setMobileNumber(mobile);
 
-    // Same as beneficiary: always offer phone / DOB update after voter select.
     setSelectedVoterForPhone(voter);
-    setSelectedVoterMobileNumbers([]);
+    setPendingVisitConfirm(null);
+
+    const seeded: MobileNumberEntry[] = [];
+    if (voter.mobileNoPrimary?.trim()) {
+      seeded.push({
+        mobileNumber: normalizeIndianMobileDigits(voter.mobileNoPrimary),
+        sortOrder: 1,
+      });
+    }
+    if (voter.mobileNoSecondary?.trim()) {
+      seeded.push({
+        mobileNumber: normalizeIndianMobileDigits(voter.mobileNoSecondary),
+        sortOrder: seeded.length + 1,
+      });
+    }
+    setSelectedVoterMobileNumbers(seeded);
+
+    // Always confirm / update phones (incl. secondary) before issuing a visit token.
     setShowPhoneUpdate(true);
 
     if (!voter.epicNumber) return;
@@ -436,6 +456,41 @@ export function VisitorWorkflow({
       .catch((error) => {
         console.error('Error loading voter contact numbers:', error);
       });
+  }
+
+  function openVisitConfirm(params: {
+    name: string;
+    mobileNumber: string;
+    secondaryMobile?: string | null;
+    voterId: string | null;
+    location: string | null;
+  }) {
+    const primary = normalizeIndianMobileDigits(params.mobileNumber);
+    if (!isValidIndianMobile(primary)) {
+      toast({
+        type: 'error',
+        description: t('visitor.errors.mobileInvalid'),
+      });
+      return;
+    }
+
+    const secondaryRaw = params.secondaryMobile?.trim() || '';
+    const secondary =
+      secondaryRaw && isValidIndianMobile(secondaryRaw)
+        ? normalizeIndianMobileDigits(secondaryRaw)
+        : null;
+
+    setMobileNumber(primary);
+    setName(params.name);
+    if (params.voterId) setVoterId(params.voterId);
+    setShowPhoneUpdate(false);
+    setPendingVisitConfirm({
+      name: params.name.trim(),
+      mobileNumber: primary,
+      secondaryMobile: secondary && secondary !== primary ? secondary : null,
+      voterId: params.voterId?.trim().toUpperCase() || null,
+      location: params.location?.trim() || null,
+    });
   }
 
   async function handlePhoneUpdate(phoneData: {
@@ -490,10 +545,13 @@ export function VisitorWorkflow({
       }
 
       const updatedVoter = (await response.json()) as VoterWithPartNo;
+      const nextName = updatedVoter.fullName || selectedVoter.fullName || name;
+      const nextVoterId = updatedVoter.epicNumber || selectedVoter.epicNumber || voterId;
+
       setSelectedVoterForPhone((prev) => (prev ? { ...prev, ...updatedVoter } : updatedVoter));
       setMobileNumber(primaryDigits);
-      setName(updatedVoter.fullName || selectedVoter.fullName || name);
-      setVoterId(updatedVoter.epicNumber || selectedVoter.epicNumber || voterId);
+      setName(nextName);
+      setVoterId(nextVoterId);
 
       const updatedMobileNumbers: MobileNumberEntry[] = [
         { mobileNumber: primaryDigits, sortOrder: 1 },
@@ -502,10 +560,17 @@ export function VisitorWorkflow({
         updatedMobileNumbers.push({ mobileNumber: secondaryDigits, sortOrder: 2 });
       }
       setSelectedVoterMobileNumbers(updatedMobileNumbers);
-      setShowPhoneUpdate(false);
       toast({
         type: 'success',
         description: t('operator.messages.phoneUpdatedSuccess'),
+      });
+
+      openVisitConfirm({
+        name: nextName,
+        mobileNumber: primaryDigits,
+        secondaryMobile: secondaryDigits ?? null,
+        voterId: nextVoterId,
+        location: null,
       });
     } catch (error) {
       console.error('Error updating phone number:', error);
@@ -520,33 +585,51 @@ export function VisitorWorkflow({
   }
 
   function handleSkipPhoneUpdate() {
-    if (selectedVoter) {
-      setName(selectedVoter.fullName || name);
-      setVoterId(selectedVoter.epicNumber || voterId);
-      const fromList = selectedVoterMobileNumbers
-        .slice()
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-        .map((entry) => entry.mobileNumber)
-        .find((n) => n?.trim());
-      const mobile =
-        fromList ||
-        selectedVoter.mobileNoPrimary ||
-        selectedVoter.mobileNoSecondary ||
-        mobileNumber;
-      if (mobile) setMobileNumber(mobile);
+    if (!selectedVoter) {
+      setShowPhoneUpdate(false);
+      return;
     }
-    setShowPhoneUpdate(false);
+
+    const nextName = selectedVoter.fullName || name;
+    const nextVoterId = selectedVoter.epicNumber || voterId;
+    const ordered = selectedVoterMobileNumbers
+      .slice()
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((entry) => entry.mobileNumber)
+      .filter((n) => n?.trim());
+    const nextMobile =
+      ordered[0] ||
+      selectedVoter.mobileNoPrimary ||
+      selectedVoter.mobileNoSecondary ||
+      mobileNumber;
+    const nextSecondary = ordered[1] || selectedVoter.mobileNoSecondary || null;
+
+    openVisitConfirm({
+      name: nextName,
+      mobileNumber: nextMobile || '',
+      secondaryMobile: nextSecondary,
+      voterId: nextVoterId,
+      location: null,
+    });
   }
 
   function handleCancelPhoneUpdate() {
     setShowPhoneUpdate(false);
     setSelectedVoterForPhone(null);
     setSelectedVoterMobileNumbers([]);
+    setPendingVisitConfirm(null);
     setName('');
     setMobileNumber('');
     setVoterId('');
     setLocation('');
     setIsOutsider(false);
+  }
+
+  function handleBackToPhoneUpdate() {
+    setPendingVisitConfirm(null);
+    if (selectedVoter) {
+      setShowPhoneUpdate(true);
+    }
   }
 
   function addSelectedService() {
@@ -578,6 +661,7 @@ export function VisitorWorkflow({
     setSelectedVoterForPhone(null);
     setSelectedVoterMobileNumbers([]);
     setShowPhoneUpdate(false);
+    setPendingVisitConfirm(null);
     // Keep programme selected across successive visitor registrations.
   }
 
@@ -710,20 +794,32 @@ export function VisitorWorkflow({
     }
   }
 
-  async function handleCreateVisitor(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim()) {
+  async function createVisitor(params: {
+    name: string;
+    mobileNumber: string;
+    voterId: string | null;
+    location: string | null;
+  }): Promise<boolean> {
+    const trimmedName = params.name.trim();
+    const trimmedMobile = params.mobileNumber.trim();
+    const effectiveVoterId =
+      params.voterId?.trim().toUpperCase() || null;
+    const trimmedLocation = params.location?.trim() || null;
+
+    if (!trimmedName) {
       toast({ type: 'error', description: t('visitor.errors.nameRequired') });
-      return;
+      setCreatingVisitor(false);
+      return false;
     }
-    if (!isValidIndianMobile(mobileNumber)) {
+    if (!isValidIndianMobile(trimmedMobile)) {
       toast({ type: 'error', description: t('visitor.errors.mobileInvalid') });
-      return;
+      setCreatingVisitor(false);
+      return false;
     }
-    const effectiveVoterId = outsiderMode ? null : voterId.trim().toUpperCase() || null;
-    if (!effectiveVoterId && !location.trim()) {
+    if (!effectiveVoterId && !trimmedLocation) {
       toast({ type: 'error', description: t('visitor.errors.locationRequired') });
-      return;
+      setCreatingVisitor(false);
+      return false;
     }
 
     setCreatingVisitor(true);
@@ -733,10 +829,10 @@ export function VisitorWorkflow({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: name.trim(),
-          mobileNumber: mobileNumber.trim(),
+          name: trimmedName,
+          mobileNumber: trimmedMobile,
           voterId: effectiveVoterId,
-          location: outsiderMode ? location.trim() : location.trim() || null,
+          location: trimmedLocation,
           programmeId: programmeId || null,
         }),
       });
@@ -758,16 +854,32 @@ export function VisitorWorkflow({
         token: visitor.token,
         createdAt: visitor.createdAt ?? new Date().toISOString(),
       });
+      setShowPhoneUpdate(false);
+      setPendingVisitConfirm(null);
+      setSelectedVoterForPhone(null);
+      setSelectedVoterMobileNumbers([]);
       toast({ type: 'success', description: t('visitor.create.visitorSuccess') });
+      return true;
     } catch (error) {
       console.error(error);
       toast({
         type: 'error',
         description: error instanceof Error ? error.message : t('visitor.errors.create'),
       });
+      return false;
     } finally {
       setCreatingVisitor(false);
     }
+  }
+
+  async function handleCreateVisitor(e: React.FormEvent) {
+    e.preventDefault();
+    await createVisitor({
+      name,
+      mobileNumber,
+      voterId: null,
+      location,
+    });
   }
 
   async function handleCreateServices(e: React.FormEvent) {
@@ -950,6 +1062,78 @@ export function VisitorWorkflow({
                 </div>
               </CardContent>
             </Card>
+          ) : creatingVisitor ? (
+            <Card>
+              <CardContent className="flex items-center justify-center gap-3 py-12">
+                <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                <p className="text-sm text-muted-foreground">
+                  {t('visitor.create.submittingVisitor')}
+                </p>
+              </CardContent>
+            </Card>
+          ) : pendingVisitConfirm ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('visitor.create.confirmTitle')}</CardTitle>
+                <CardDescription className="text-sm">
+                  {t('visitor.create.confirmDescription')}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 gap-4 rounded-lg bg-muted p-4 md:grid-cols-2">
+                  <div>
+                    <Label className="text-sm font-medium">{t('common.name')}</Label>
+                    <p className="text-sm">{pendingVisitConfirm.name}</p>
+                  </div>
+                  {pendingVisitConfirm.voterId && (
+                    <div>
+                      <Label className="text-sm font-medium">{t('forms.epicNumber')}</Label>
+                      <p className="font-mono text-sm">{pendingVisitConfirm.voterId}</p>
+                    </div>
+                  )}
+                  <div>
+                    <Label className="text-sm font-medium">{t('phoneUpdate.primary')}</Label>
+                    <p className="font-mono text-sm">{pendingVisitConfirm.mobileNumber}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium">{t('phoneUpdate.secondary')}</Label>
+                    <p className="font-mono text-sm">
+                      {pendingVisitConfirm.secondaryMobile || t('visitor.create.noSecondaryMobile')}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Button
+                    className="flex-1"
+                    onClick={() => {
+                      void createVisitor({
+                        name: pendingVisitConfirm.name,
+                        mobileNumber: pendingVisitConfirm.mobileNumber,
+                        voterId: pendingVisitConfirm.voterId,
+                        location: pendingVisitConfirm.location,
+                      });
+                    }}
+                  >
+                    {t('visitor.create.confirmGenerateToken')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="flex-1"
+                    onClick={handleBackToPhoneUpdate}
+                  >
+                    {t('common.previous')}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleCancelPhoneUpdate}
+                  >
+                    {t('common.cancel')}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
           ) : showPhoneUpdate && selectedVoter ? (
             <PhoneUpdateForm
               voter={selectedVoter}
@@ -957,7 +1141,9 @@ export function VisitorWorkflow({
               onPhoneUpdate={(phoneData) => {
                 void handlePhoneUpdate(phoneData);
               }}
-              onSkip={handleSkipPhoneUpdate}
+              onSkip={() => {
+                handleSkipPhoneUpdate();
+              }}
               onPrevious={handleCancelPhoneUpdate}
               onCancel={handleCancelPhoneUpdate}
             />
@@ -970,88 +1156,70 @@ export function VisitorWorkflow({
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {!isOutsider && (
-                  <VoterSearchPanel
-                    searchEndpoint="/api/visitor/search-voter"
-                    onSelectVoter={selectVoter}
-                    title={t('operator.search.title')}
-                    description={t('visitor.form.searchVoterHelp')}
+                <div className="space-y-2 border-b pb-4">
+                  <Label>{t('visitor.form.programme')}</Label>
+                  <Combobox
+                    options={programmeOptions}
+                    value={programmeId}
+                    onValueChange={handleProgrammeChange}
+                    placeholder={t('visitor.form.programmePlaceholder')}
+                    disabled={loadingMeta}
                   />
-                )}
+                </div>
 
-                <form onSubmit={handleCreateVisitor} className="space-y-6">
-                  <div className="space-y-2 border-b pb-4">
-                    <Label>{t('visitor.form.programme')}</Label>
-                    <Combobox
-                      options={programmeOptions}
-                      value={programmeId}
-                      onValueChange={handleProgrammeChange}
-                      placeholder={t('visitor.form.programmePlaceholder')}
-                      disabled={loadingMeta}
-                    />
-                  </div>
+                <VoterSearchPanel
+                  searchEndpoint="/api/visitor/search-voter"
+                  onSelectVoter={selectVoter}
+                  title={t('operator.search.title')}
+                  description={t('visitor.form.searchVoterHelp')}
+                  enableOutsider
+                  isOutsider={isOutsider}
+                  onOutsiderChange={(next) => {
+                    setIsOutsider(next);
+                    if (next) {
+                      setVoterId('');
+                      setSelectedVoterForPhone(null);
+                      setShowPhoneUpdate(false);
+                      setPendingVisitConfirm(null);
+                    } else {
+                      setName('');
+                      setMobileNumber('');
+                      setLocation('');
+                    }
+                  }}
+                />
 
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="visitor-outsider"
-                      checked={isOutsider}
-                      onChange={(e) => {
-                        const next = e.target.checked;
-                        setIsOutsider(next);
-                        if (next) {
-                          setVoterId('');
-                          setSelectedVoterForPhone(null);
-                          setShowPhoneUpdate(false);
-                        }
-                      }}
-                    />
-                    <Label htmlFor="visitor-outsider" className="cursor-pointer font-normal">
-                      {t('visitor.form.outsider')}
-                    </Label>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="visitor-name">
-                        {t('visitor.form.name')} <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="visitor-name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="visitor-mobile">
-                        {t('visitor.form.mobile')} <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="visitor-mobile"
-                        value={mobileNumber}
-                        onChange={(e) => setMobileNumber(e.target.value)}
-                        placeholder="9876543210"
-                        type="tel"
-                        inputMode="numeric"
-                        autoComplete="tel"
-                        maxLength={13}
-                        className="font-mono"
-                        required
-                      />
-                    </div>
-                    {!isOutsider && (
+                {isOutsider && (
+                  <form onSubmit={handleCreateVisitor} className="space-y-6">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="visitor-voter-id">{t('visitor.form.voterId')}</Label>
+                        <Label htmlFor="visitor-name">
+                          {t('visitor.form.name')} <span className="text-red-500">*</span>
+                        </Label>
                         <Input
-                          id="visitor-voter-id"
-                          value={voterId}
-                          onChange={(e) => setVoterId(e.target.value.toUpperCase())}
-                          placeholder="ABC1234567"
-                          className="font-mono uppercase"
+                          id="visitor-name"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          required
                         />
                       </div>
-                    )}
-                    {outsiderMode && (
+                      <div className="space-y-2">
+                        <Label htmlFor="visitor-mobile">
+                          {t('visitor.form.mobile')} <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="visitor-mobile"
+                          value={mobileNumber}
+                          onChange={(e) => setMobileNumber(e.target.value)}
+                          placeholder="9876543210"
+                          type="tel"
+                          inputMode="numeric"
+                          autoComplete="tel"
+                          maxLength={13}
+                          className="font-mono"
+                          required
+                        />
+                      </div>
                       <div className="space-y-2 md:col-span-2">
                         <Label htmlFor="visitor-location">
                           {t('visitor.form.location')} <span className="text-red-500">*</span>
@@ -1064,29 +1232,29 @@ export function VisitorWorkflow({
                           required
                         />
                       </div>
-                    )}
-                  </div>
+                    </div>
 
-                  <Button
-                    type="submit"
-                    disabled={
-                      creatingVisitor ||
-                      !name.trim() ||
-                      !isValidIndianMobile(mobileNumber) ||
-                      (outsiderMode && !location.trim())
-                    }
-                    className="w-full sm:w-auto"
-                  >
-                    {creatingVisitor ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {t('visitor.create.submittingVisitor')}
-                      </>
-                    ) : (
-                      t('visitor.create.submitVisitor')
-                    )}
-                  </Button>
-                </form>
+                    <Button
+                      type="submit"
+                      disabled={
+                        creatingVisitor ||
+                        !name.trim() ||
+                        !isValidIndianMobile(mobileNumber) ||
+                        !location.trim()
+                      }
+                      className="w-full sm:w-auto"
+                    >
+                      {creatingVisitor ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          {t('visitor.create.submittingVisitor')}
+                        </>
+                      ) : (
+                        t('visitor.create.submitVisitor')
+                      )}
+                    </Button>
+                  </form>
+                )}
               </CardContent>
             </Card>
           )}

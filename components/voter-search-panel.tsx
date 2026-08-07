@@ -220,11 +220,17 @@ function VoterSearchResultsVirtualList({
   );
 }
 
+type VoterSearchType = 'voterId' | 'phone' | 'details' | 'outsider';
+
 export type VoterSearchPanelProps = {
   searchEndpoint: string;
   onSelectVoter: (voter: VoterWithPartNo) => void;
   title?: string;
   description?: string;
+  /** When true, shows an Outsider option that skips voter lookup. */
+  enableOutsider?: boolean;
+  isOutsider?: boolean;
+  onOutsiderChange?: (isOutsider: boolean) => void;
 };
 
 export function VoterSearchPanel({
@@ -232,6 +238,9 @@ export function VoterSearchPanel({
   onSelectVoter,
   title,
   description,
+  enableOutsider = false,
+  isOutsider = false,
+  onOutsiderChange,
 }: VoterSearchPanelProps) {
   const { t } = useTranslations();
   const [searchTerm, setSearchTerm] = useState('');
@@ -241,7 +250,9 @@ export function VoterSearchPanel({
   const [hasMoreSearchResults, setHasMoreSearchResults] = useState(false);
   const [searchTotalCount, setSearchTotalCount] = useState(0);
   const loadMoreInFlightRef = useRef(false);
-  const [searchType, setSearchType] = useState<'voterId' | 'phone' | 'details'>('voterId');
+  const [searchType, setSearchType] = useState<VoterSearchType>(
+    isOutsider && enableOutsider ? 'outsider' : 'voterId',
+  );
   const [lastSearchType, setLastSearchType] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [detailName, setDetailName] = useState('');
@@ -252,7 +263,16 @@ export function VoterSearchPanel({
   const [showEpicScanner, setShowEpicScanner] = useState(false);
   const [showEpicBarcodeScanner, setShowEpicBarcodeScanner] = useState(false);
 
-  const handleSearchTypeChange = (newSearchType: 'voterId' | 'phone' | 'details') => {
+  useEffect(() => {
+    if (!enableOutsider) return;
+    if (isOutsider && searchType !== 'outsider') {
+      setSearchType('outsider');
+    } else if (!isOutsider && searchType === 'outsider') {
+      setSearchType('voterId');
+    }
+  }, [enableOutsider, isOutsider, searchType]);
+
+  const handleSearchTypeChange = (newSearchType: VoterSearchType) => {
     setSearchType(newSearchType);
     setSearchTerm('');
     setDetailName('');
@@ -267,6 +287,9 @@ export function VoterSearchPanel({
     loadMoreInFlightRef.current = false;
     setSearchTotalCount(0);
     setLastSearchType(null);
+    if (enableOutsider) {
+      onOutsiderChange?.(newSearchType === 'outsider');
+    }
   };
 
   const clearSearch = () => {
@@ -556,7 +579,9 @@ export function VoterSearchPanel({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div
+        className={`grid grid-cols-1 gap-3 ${enableOutsider ? 'sm:grid-cols-2 lg:grid-cols-4' : 'sm:grid-cols-3'}`}
+      >
         <div className="flex items-center space-x-2 rounded-lg border p-3 transition-colors hover:bg-muted/50">
           <input
             type="radio"
@@ -564,9 +589,7 @@ export function VoterSearchPanel({
             name="visitorSearchType"
             value="voterId"
             checked={searchType === 'voterId'}
-            onChange={(e) =>
-              handleSearchTypeChange(e.target.value as 'voterId' | 'phone' | 'details')
-            }
+            onChange={(e) => handleSearchTypeChange(e.target.value as VoterSearchType)}
             className="size-4"
           />
           <Label htmlFor="visitor-search-voterId" className="flex-1 cursor-pointer text-sm font-medium">
@@ -580,9 +603,7 @@ export function VoterSearchPanel({
             name="visitorSearchType"
             value="phone"
             checked={searchType === 'phone'}
-            onChange={(e) =>
-              handleSearchTypeChange(e.target.value as 'voterId' | 'phone' | 'details')
-            }
+            onChange={(e) => handleSearchTypeChange(e.target.value as VoterSearchType)}
             className="size-4"
           />
           <Label htmlFor="visitor-search-phone" className="flex-1 cursor-pointer text-sm font-medium">
@@ -596,9 +617,7 @@ export function VoterSearchPanel({
             name="visitorSearchType"
             value="details"
             checked={searchType === 'details'}
-            onChange={(e) =>
-              handleSearchTypeChange(e.target.value as 'voterId' | 'phone' | 'details')
-            }
+            onChange={(e) => handleSearchTypeChange(e.target.value as VoterSearchType)}
             className="size-4"
           />
           <Label
@@ -608,9 +627,32 @@ export function VoterSearchPanel({
             {t('operator.search.types.detailed')}
           </Label>
         </div>
+        {enableOutsider && (
+          <div className="flex items-center space-x-2 rounded-lg border p-3 transition-colors hover:bg-muted/50">
+            <input
+              type="radio"
+              id="visitor-search-outsider"
+              name="visitorSearchType"
+              value="outsider"
+              checked={searchType === 'outsider'}
+              onChange={(e) => handleSearchTypeChange(e.target.value as VoterSearchType)}
+              className="size-4"
+            />
+            <Label
+              htmlFor="visitor-search-outsider"
+              className="flex-1 cursor-pointer text-sm font-medium"
+            >
+              {t('operator.search.types.outsider')}
+            </Label>
+          </div>
+        )}
       </div>
 
-      {searchType === 'details' ? (
+      {searchType === 'outsider' ? (
+        <div className="rounded-lg border border-dashed bg-muted/20 p-4">
+          <p className="text-sm text-muted-foreground">{t('operator.search.outsiderHelp')}</p>
+        </div>
+      ) : searchType === 'details' ? (
         <div className="space-y-6">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>

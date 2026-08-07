@@ -55,9 +55,27 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
             .map((entry) => entry.mobileNumber)
             .filter((number) => !!number?.trim());
 
-        setMobileNoPrimary(orderedNumbers[0] || '');
-        setMobileNoSecondary(orderedNumbers[1] || '');
-    }, [mobileNumbers]);
+        let primary =
+            orderedNumbers[0] || voter.mobileNoPrimary?.trim() || '';
+        let secondary =
+            orderedNumbers[1] || voter.mobileNoSecondary?.trim() || '';
+
+        if (!primary && secondary) {
+            primary = secondary;
+            secondary = '';
+        }
+
+        if (
+            primary &&
+            secondary &&
+            normalizeIndianMobileDigits(primary) === normalizeIndianMobileDigits(secondary)
+        ) {
+            secondary = '';
+        }
+
+        setMobileNoPrimary(primary);
+        setMobileNoSecondary(secondary);
+    }, [mobileNumbers, voter.mobileNoPrimary, voter.mobileNoSecondary, voter.epicNumber]);
 
     useEffect(() => {
         setDob(hadDob ? (voter.dob?.trim() ?? '') : '');

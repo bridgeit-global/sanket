@@ -1452,8 +1452,10 @@
         "detailed": "Detailed Search",
         "phone": "Phone Number",
         "voterId": "VoterId (EPIC)",
-        "name": "Name"
+        "name": "Name",
+        "outsider": "Outsider"
       },
+      "outsiderHelp": "No voter ID on file. Enter name, mobile, and location below to create the visit token.",
       "scrollForMore": "Scroll to load more results.",
       "loadingMore": "Loading more…",
       "totalCountOnly": "{count, plural, one {# voter total} other {# voters total}}",
@@ -2101,7 +2103,11 @@
       "viewVisitors": "Manage tasks",
       "visitTokenLabel": "Visit token",
       "tokenLabel": "Visitor service token",
-      "tokensLabel": "Visitor service tokens"
+      "tokensLabel": "Visitor service tokens",
+      "confirmTitle": "Confirm visit details",
+      "confirmDescription": "Review the contact numbers, then confirm to generate the visit token.",
+      "confirmGenerateToken": "Confirm & generate visit token",
+      "noSecondaryMobile": "Not provided"
     },
     "manage": {
       "title": "Visitors",
@@ -2148,7 +2154,7 @@
     },
     "form": {
       "searchVoter": "Optional voter lookup",
-      "searchVoterHelp": "Search by VoterId (EPIC), phone, or detailed criteria to prefill visitor details. You can also fill the form manually.",
+      "searchVoterHelp": "Search by VoterId (EPIC), phone, or detailed criteria — then update/confirm phones (including secondary) before the visit token is issued. Choose Outsider to enter details manually.",
       "searchVoterPlaceholder": "Search by voter ID, name, or mobile…",
       "searching": "Searching…",
       "searchingVoters": "Searching voters…",
