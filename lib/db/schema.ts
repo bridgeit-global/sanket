@@ -398,7 +398,8 @@ export type BeneficiaryServiceHistoryAction =
   | 'note_added'
   | 'escalated'
   | 'assigned'
-  | 'attachment_added';
+  | 'attachment_added'
+  | 'service_name_changed';
 
 export type BeneficiaryServiceHistory = {
   id: string;

@@ -2034,7 +2034,8 @@
       "note_added": "Note added",
       "escalated": "Escalated",
       "assigned": "Assigned",
-      "attachment_added": "Document uploaded"
+      "attachment_added": "Document uploaded",
+      "service_name_changed": "Service changed"
     },
     "pagination": {
       "page": "Page {current} of {total} ({count} total tasks)",
@@ -2129,6 +2130,12 @@
       "convertSuccess": "Converted. Beneficiary token: {token}",
       "linkedBeneficiary": "Linked to beneficiary service",
       "openBeneficiary": "Open beneficiary",
+      "changeService": "Change service",
+      "changeServiceTitle": "Change service",
+      "changeServiceDescription": "Update the service type. Allowed only when the request is not completed and no letter has been generated.",
+      "changeServicePlaceholder": "Select a new service",
+      "changeServiceSave": "Save service",
+      "changeServiceSuccess": "Service updated",
       "filters": {
         "status": "Status",
         "serviceName": "Service Name",
@@ -2212,6 +2219,8 @@
       "invalidTokenQr": "Could not read a visit token from that QR code",
       "create": "Failed to create visitor",
       "addService": "Failed to add service",
+      "changeService": "Failed to change service",
+      "changeServiceRequired": "Select a service",
       "convert": "Failed to convert to beneficiary",
       "printTicket": "Failed to print thermal ticket"
     }

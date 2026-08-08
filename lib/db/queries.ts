@@ -59,6 +59,7 @@ export {
   getVisitorServiceById,
   listVisitors,
   convertVisitorServiceToBeneficiary,
+  updateVisitorServiceName,
 } from './visitor-queries';
 
 export {

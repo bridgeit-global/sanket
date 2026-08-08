@@ -32,7 +32,7 @@ import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/rec
 import type { VoterWithPartNo } from '@/lib/db/schema';
 import type { ManageFilterState } from '@/lib/operator/manage-url-params';
 import { TaskManagement } from '@/components/task-management';
-import { ExternalLink, Loader2, Plus, QrCode, Search, Share2, X } from 'lucide-react';
+import { ExternalLink, Loader2, Pencil, Plus, QrCode, Search, Share2, X } from 'lucide-react';
 import { QrScannerDialog } from '@/components/qr-scanner-dialog';
 import { AadhaarQrScanButton, AadhaarQrScannerDialog } from '@/components/aadhaar-qr-scanner-dialog';
 import {
@@ -68,6 +68,7 @@ type VisitorServiceRow = {
   beneficiaryServiceId: string | null;
   convertedAt: string | Date | null;
   createdAt: string | Date;
+  canChangeService?: boolean;
 };
 
 type VisitorRow = {
@@ -287,6 +288,12 @@ export function VisitorWorkflow({
   const createInvalidMobileToastRef = useRef(false);
 
   const [sharingToken, setSharingToken] = useState<string | null>(null);
+  const [serviceBeingChanged, setServiceBeingChanged] = useState<{
+    visitorId: string;
+    service: VisitorServiceRow;
+  } | null>(null);
+  const [changeServiceName, setChangeServiceName] = useState('');
+  const [changingService, setChangingService] = useState(false);
 
   const serviceOptions = useMemo(() => buildServiceComboboxOptions(catalog), [catalog]);
   const programmeOptions = useMemo(
@@ -870,6 +877,102 @@ export function VisitorWorkflow({
     void loadCreatePickerVisitors();
   }
 
+  function openChangeServiceDialog(visitorId: string, service: VisitorServiceRow) {
+    setServiceBeingChanged({ visitorId, service });
+    setChangeServiceName(service.serviceName);
+  }
+
+  function closeChangeServiceDialog() {
+    setServiceBeingChanged(null);
+    setChangeServiceName('');
+    setChangingService(false);
+  }
+
+  function applyServiceNameUpdate(
+    visitorId: string,
+    updatedService: VisitorServiceRow,
+  ) {
+    setCreatePickerVisitors((prev) =>
+      prev.map((visitor) =>
+        visitor.id !== visitorId
+          ? visitor
+          : {
+              ...visitor,
+              services: visitor.services.map((service) =>
+                service.id === updatedService.id
+                  ? { ...service, ...updatedService }
+                  : service,
+              ),
+            },
+      ),
+    );
+    setSelectedVisitor((prev) => {
+      if (!prev || prev.id !== visitorId) return prev;
+      return {
+        ...prev,
+        services: prev.services.map((service) =>
+          service.id === updatedService.id
+            ? { ...service, ...updatedService }
+            : service,
+        ),
+      };
+    });
+  }
+
+  async function handleChangeService(e: React.FormEvent) {
+    e.preventDefault();
+    if (!serviceBeingChanged) return;
+
+    const nextName = changeServiceName.trim();
+    if (!nextName) {
+      toast({
+        type: 'error',
+        description: t('visitor.errors.changeServiceRequired'),
+      });
+      return;
+    }
+    if (nextName === serviceBeingChanged.service.serviceName) {
+      closeChangeServiceDialog();
+      return;
+    }
+
+    setChangingService(true);
+    try {
+      const res = await fetch(
+        `/api/visitor/services/${serviceBeingChanged.service.id}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ serviceName: nextName }),
+        },
+      );
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Failed to change service');
+
+      const updated = json.visitorService as VisitorServiceRow;
+      applyServiceNameUpdate(serviceBeingChanged.visitorId, {
+        ...serviceBeingChanged.service,
+        ...updated,
+        serviceName: updated.serviceName ?? nextName,
+        canChangeService: updated.canChangeService ?? true,
+      });
+      toast({
+        type: 'success',
+        description: t('visitor.manage.changeServiceSuccess'),
+      });
+      closeChangeServiceDialog();
+    } catch (error) {
+      console.error(error);
+      toast({
+        type: 'error',
+        description:
+          error instanceof Error ? error.message : t('visitor.errors.changeService'),
+      });
+    } finally {
+      setChangingService(false);
+    }
+  }
+
   async function handleVisitTokenQrScan(payload: string) {
     const token = extractTokenFromQrPayload(payload);
     if (!token) {
@@ -1103,7 +1206,10 @@ export function VisitorWorkflow({
       setSelectedVisitor((prev) => {
         if (!prev) return prev;
         const addedServices = Array.isArray(json.services)
-          ? (json.services as VisitorServiceRow[])
+          ? (json.services as VisitorServiceRow[]).map((service) => ({
+              ...service,
+              canChangeService: service.canChangeService ?? true,
+            }))
           : [];
         return {
           ...prev,
@@ -1758,6 +1864,20 @@ export function VisitorWorkflow({
                                       >
                                         {t(`visitor.status.${service.status}`)}
                                       </Badge>
+                                      {service.canChangeService ? (
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          className="w-full sm:w-auto"
+                                          onClick={() =>
+                                            openChangeServiceDialog(v.id, service)
+                                          }
+                                        >
+                                          <Pencil className="mr-2 h-4 w-4" />
+                                          {t('visitor.manage.changeService')}
+                                        </Button>
+                                      ) : null}
                                       {service.beneficiaryServiceId ? (
                                         <Button
                                           type="button"
@@ -1940,6 +2060,23 @@ export function VisitorWorkflow({
                                 >
                                   {t(`visitor.status.${service.status}`)}
                                 </Badge>
+                                {service.canChangeService ? (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full sm:w-auto"
+                                    onClick={() =>
+                                      openChangeServiceDialog(
+                                        selectedVisitor.id,
+                                        service,
+                                      )
+                                    }
+                                  >
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    {t('visitor.manage.changeService')}
+                                  </Button>
+                                ) : null}
                                 {service.beneficiaryServiceId ? (
                                   <Button
                                     type="button"
@@ -2062,6 +2199,70 @@ export function VisitorWorkflow({
                       </DialogFooter>
                     </form>
                   </div>
+                </>
+              ) : null}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog
+            open={Boolean(serviceBeingChanged)}
+            onOpenChange={(open) => {
+              if (!open) closeChangeServiceDialog();
+            }}
+          >
+            <DialogContent className="max-w-lg sm:max-w-xl">
+              {serviceBeingChanged ? (
+                <>
+                  <DialogHeader>
+                    <DialogTitle>{t('visitor.manage.changeServiceTitle')}</DialogTitle>
+                    <DialogDescription>
+                      {t('visitor.manage.changeServiceDescription')}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleChangeService} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>{t('visitor.form.service')}</Label>
+                      <Combobox
+                        options={serviceOptions}
+                        value={changeServiceName}
+                        onValueChange={setChangeServiceName}
+                        placeholder={t('visitor.manage.changeServicePlaceholder')}
+                        disabled={changingService || loadingMeta}
+                        allowCustom
+                      />
+                    </div>
+                    <DialogFooter className="flex-col gap-2 sm:flex-row">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full sm:flex-1"
+                        disabled={changingService}
+                        onClick={closeChangeServiceDialog}
+                      >
+                        {t('common.cancel')}
+                      </Button>
+                      <Button
+                        type="submit"
+                        className="w-full sm:flex-1"
+                        disabled={
+                          changingService ||
+                          loadingMeta ||
+                          !changeServiceName.trim() ||
+                          changeServiceName.trim() ===
+                            serviceBeingChanged.service.serviceName
+                        }
+                      >
+                        {changingService ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            {t('visitor.manage.changeServiceSave')}
+                          </>
+                        ) : (
+                          t('visitor.manage.changeServiceSave')
+                        )}
+                      </Button>
+                    </DialogFooter>
+                  </form>
                 </>
               ) : null}
             </DialogContent>

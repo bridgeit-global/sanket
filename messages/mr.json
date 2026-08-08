@@ -2036,7 +2036,8 @@
       "note_added": "टिप्पणी जोडली",
       "escalated": "वाढवले",
       "assigned": "नियुक्त केले",
-      "attachment_added": "दस्तऐवज अपलोड केला"
+      "attachment_added": "दस्तऐवज अपलोड केला",
+      "service_name_changed": "सेवा बदलली"
     },
     "pagination": {
       "page": "पृष्ठ {current} पैकी {total} ({count} एकूण कार्ये)",
@@ -2131,6 +2132,12 @@
       "convertSuccess": "रुपांतर झाले. लाभार्थी टोकन: {token}",
       "linkedBeneficiary": "लाभार्थी सेवेशी जोडले",
       "openBeneficiary": "लाभार्थी उघडा",
+      "changeService": "सेवा बदला",
+      "changeServiceTitle": "सेवा बदला",
+      "changeServiceDescription": "सेवा प्रकार अपडेट करा. विनंती पूर्ण झालेली नसेल आणि पत्र तयार झालेले नसेल तेव्हाच परवानगी आहे.",
+      "changeServicePlaceholder": "नवीन सेवा निवडा",
+      "changeServiceSave": "सेवा जतन करा",
+      "changeServiceSuccess": "सेवा अपडेट झाली",
       "filters": {
         "status": "स्थिती",
         "serviceName": "सेवा नाव",
@@ -2214,6 +2221,8 @@
       "invalidTokenQr": "त्या QR कोडमधून भेट टोकन वाचता आले नाही",
       "create": "भेटकर्ता तयार करण्यात अयशस्वी",
       "addService": "सेवा जोडण्यात अयशस्वी",
+      "changeService": "सेवा बदलण्यात अयशस्वी",
+      "changeServiceRequired": "सेवा निवडा",
       "convert": "लाभार्थीमध्ये रुपांतर करण्यात अयशस्वी",
       "printTicket": "थर्मल तिकीट प्रिंट करण्यात अयशस्वी"
     }

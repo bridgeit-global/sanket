@@ -6,12 +6,33 @@ import { ChatSDKError } from '@/lib/errors';
 import { getCalendarYmd } from '@/lib/ist-date';
 import { normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import {
+  mapBeneficiaryServiceRow,
   mapVisitorRow,
   mapVisitorServiceRow,
   toSnakeCaseKeys,
 } from '@/lib/db/mappers';
-import { TABLES, type BeneficiaryService, type Visitor, type VisitorService, type VisitorWithServices } from '@/lib/db/schema';
-import { createBeneficiaryService, ensureServiceCatalogEntry, getDailyProgrammeItemById } from '@/lib/db/queries-crud';
+import {
+  TABLES,
+  type BeneficiaryService,
+  type Visitor,
+  type VisitorService,
+  type VisitorWithServices,
+} from '@/lib/db/schema';
+import {
+  createBeneficiaryService,
+  createBeneficiaryServiceHistoryEntry,
+  ensureServiceCatalogEntry,
+  getBeneficiaryServiceById,
+  getDailyProgrammeItemById,
+} from '@/lib/db/queries-crud';
+
+export type VisitorServiceWithChangeMeta = VisitorService & {
+  canChangeService: boolean;
+};
+
+export type VisitorWithServicesMeta = Visitor & {
+  services: VisitorServiceWithChangeMeta[];
+};
 
 const TOKEN_UNIQUE_RETRIES = 5;
 
@@ -375,6 +396,74 @@ export type ListVisitorsFilters = {
   offset?: number;
 };
 
+async function getCanChangeServiceFlags(
+  services: VisitorService[],
+): Promise<Map<string, boolean>> {
+  const flags = new Map<string, boolean>();
+  const beneficiaryIds = Array.from(
+    new Set(
+      services
+        .map((s) => s.beneficiaryServiceId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+
+  if (beneficiaryIds.length === 0) {
+    for (const service of services) {
+      flags.set(service.id, service.status !== 'cancelled');
+    }
+    return flags;
+  }
+
+  const [
+    { data: beneficiaryRows, error: beneficiaryError },
+    { data: letterRows, error: letterError },
+  ] = await Promise.all([
+    supabase
+      .from(TABLES.beneficiaryServices)
+      .select('id, status')
+      .in('id', beneficiaryIds),
+    supabase
+      .from(TABLES.letter)
+      .select('beneficiary_service_id')
+      .in('beneficiary_service_id', beneficiaryIds),
+  ]);
+  throwOnSupabaseError(
+    beneficiaryError,
+    'Failed to load beneficiary services for change check',
+  );
+  throwOnSupabaseError(letterError, 'Failed to load letters for change check');
+
+  const statusById = new Map(
+    (beneficiaryRows ?? []).map((row) => [String(row.id), String(row.status)]),
+  );
+  const letterBeneficiaryIds = new Set(
+    (letterRows ?? [])
+      .map((row) => row.beneficiary_service_id)
+      .filter(Boolean)
+      .map(String),
+  );
+
+  for (const service of services) {
+    if (service.status === 'cancelled') {
+      flags.set(service.id, false);
+      continue;
+    }
+    if (!service.beneficiaryServiceId) {
+      flags.set(service.id, true);
+      continue;
+    }
+    const status = statusById.get(service.beneficiaryServiceId);
+    const hasLetter = letterBeneficiaryIds.has(service.beneficiaryServiceId);
+    flags.set(
+      service.id,
+      status !== 'completed' && status !== 'cancelled' && !hasLetter,
+    );
+  }
+
+  return flags;
+}
+
 export async function listVisitors({
   search,
   name,
@@ -390,7 +479,7 @@ export async function listVisitors({
   limit = 50,
   offset,
 }: ListVisitorsFilters = {}): Promise<{
-  visitors: VisitorWithServices[];
+  visitors: VisitorWithServicesMeta[];
   total: number;
   totalPages: number;
   currentPage: number;
@@ -552,11 +641,16 @@ export async function listVisitors({
       .order('created_at', { ascending: false });
     throwOnSupabaseError(servicesError, 'Failed to list visitor services');
 
-    const servicesByVisitor = new Map<string, VisitorService[]>();
-    for (const row of servicesData ?? []) {
-      const service = mapVisitorServiceRow(row);
+    const mappedServices = (servicesData ?? []).map(mapVisitorServiceRow);
+    const canChangeFlags = await getCanChangeServiceFlags(mappedServices);
+
+    const servicesByVisitor = new Map<string, VisitorServiceWithChangeMeta[]>();
+    for (const service of mappedServices) {
       const list = servicesByVisitor.get(service.visitorId) ?? [];
-      list.push(service);
+      list.push({
+        ...service,
+        canChangeService: canChangeFlags.get(service.id) ?? false,
+      });
       servicesByVisitor.set(service.visitorId, list);
     }
 
@@ -631,6 +725,127 @@ export async function convertVisitorServiceToBeneficiary({
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to convert visitor service to beneficiary',
+    );
+  }
+}
+
+export async function updateVisitorServiceName({
+  visitorServiceId,
+  serviceName,
+  performedBy,
+}: {
+  visitorServiceId: string;
+  serviceName: string;
+  performedBy: string;
+}): Promise<{
+  visitorService: VisitorServiceWithChangeMeta;
+  beneficiaryService: BeneficiaryService | null;
+}> {
+  try {
+    const trimmed = serviceName.trim();
+    if (!trimmed) {
+      throw new ChatSDKError('bad_request:api', 'Service name is required');
+    }
+
+    const visitorService = await getVisitorServiceById(visitorServiceId);
+    if (!visitorService) {
+      throw new ChatSDKError('not_found:database', 'Visitor service not found');
+    }
+    if (visitorService.status === 'cancelled') {
+      throw new ChatSDKError('bad_request:api', 'Cannot change a cancelled service');
+    }
+
+    let beneficiaryService: BeneficiaryService | null = null;
+    if (visitorService.beneficiaryServiceId) {
+      beneficiaryService = await getBeneficiaryServiceById(
+        visitorService.beneficiaryServiceId,
+      );
+      if (!beneficiaryService) {
+        throw new ChatSDKError(
+          'not_found:database',
+          'Linked beneficiary service not found',
+        );
+      }
+      if (beneficiaryService.status === 'completed') {
+        throw new ChatSDKError(
+          'bad_request:api',
+          'Cannot change service after it is completed',
+        );
+      }
+      if (beneficiaryService.status === 'cancelled') {
+        throw new ChatSDKError('bad_request:api', 'Cannot change a cancelled service');
+      }
+
+      const { count, error: letterError } = await supabase
+        .from(TABLES.letter)
+        .select('id', { count: 'exact', head: true })
+        .eq('beneficiary_service_id', beneficiaryService.id);
+      throwOnSupabaseError(letterError, 'Failed to check letters for service');
+      if ((count ?? 0) > 0) {
+        throw new ChatSDKError(
+          'bad_request:api',
+          'Cannot change service after a letter has been generated',
+        );
+      }
+    }
+
+    if (visitorService.serviceName === trimmed) {
+      return {
+        visitorService: { ...visitorService, canChangeService: true },
+        beneficiaryService,
+      };
+    }
+
+    await ensureServiceCatalogEntry(trimmed);
+    const now = new Date().toISOString();
+    const oldName = visitorService.serviceName;
+
+    const { data, error } = await supabase
+      .from(TABLES.visitorService)
+      .update({
+        service_name: trimmed,
+        updated_at: now,
+      })
+      .eq('id', visitorServiceId)
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to update visitor service name');
+
+    let updatedBeneficiary: BeneficiaryService | null = beneficiaryService;
+    if (beneficiaryService) {
+      const { data: bsData, error: bsError } = await supabase
+        .from(TABLES.beneficiaryServices)
+        .update({
+          service_name: trimmed,
+          updated_at: now,
+        })
+        .eq('id', beneficiaryService.id)
+        .select('*')
+        .single();
+      throwOnSupabaseError(bsError, 'Failed to update beneficiary service name');
+      updatedBeneficiary = mapBeneficiaryServiceRow(bsData);
+
+      await createBeneficiaryServiceHistoryEntry({
+        serviceId: beneficiaryService.id,
+        action: 'service_name_changed',
+        oldValue: oldName,
+        newValue: trimmed,
+        performedBy,
+      });
+    }
+
+    return {
+      visitorService: {
+        ...mapVisitorServiceRow(data),
+        canChangeService: true,
+      },
+      beneficiaryService: updatedBeneficiary,
+    };
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update visitor service name',
     );
   }
 }
