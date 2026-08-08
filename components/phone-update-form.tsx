@@ -277,7 +277,7 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                                 <Label htmlFor="phone-update-dob">
                                     {t('phoneUpdate.dob')} <span className="text-red-500">*</span>
                                 </Label>
-                                <div className="flex gap-2">
+                                <div className="relative">
                                     <Input
                                         id="phone-update-dob"
                                         type="text"
@@ -296,16 +296,34 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                                             }
                                         }}
                                         aria-invalid={Boolean(dobError)}
-                                        className={
-                                            dobError
-                                                ? 'border-red-500 focus-visible:ring-red-500 font-mono'
-                                                : 'font-mono'
-                                        }
+                                        className={cn(
+                                            'pr-10 font-mono',
+                                            dobError &&
+                                                'border-red-500 focus-visible:ring-red-500',
+                                        )}
                                         required
                                     />
-                                    <Input
-                                        type="date"
+                                    <button
+                                        type="button"
+                                        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
                                         aria-label={t('phoneUpdate.dobPick')}
+                                        onClick={() => {
+                                            const picker = dobPickerRef.current;
+                                            if (!picker) return;
+                                            try {
+                                                picker.showPicker();
+                                            } catch {
+                                                picker.click();
+                                            }
+                                        }}
+                                    >
+                                        <Calendar className="h-4 w-4" aria-hidden />
+                                    </button>
+                                    <input
+                                        ref={dobPickerRef}
+                                        type="date"
+                                        tabIndex={-1}
+                                        aria-hidden
                                         value={dobIsoValue}
                                         max={maxDobDate}
                                         onChange={(e) => {
@@ -313,7 +331,7 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                                             setDob(next ? formatYmdAsDmy(next) : '');
                                             setDobError(null);
                                         }}
-                                        className="w-[10.5rem] shrink-0"
+                                        className="pointer-events-none absolute h-0 w-0 opacity-0"
                                     />
                                 </div>
                                 {dobError ? (
