@@ -73,11 +73,7 @@
       "description": "Special Intensive Revision voter verification"
     },
     "operator": {
-      "label": "Operator",
-      "description": "Register visitors, create services, and manage service tokens"
-    },
-    "visitor": {
-      "label": "Visitor",
+      "label": "Beneficiary Management",
       "description": "Register visitors, create services, and manage service tokens"
     },
     "fieldVisitor": {
@@ -1436,7 +1432,7 @@
   },
   "operator": {
     "dashboard": {
-      "title": "Operator",
+      "title": "Beneficiary Management",
       "subtitle": "Register visitors, create services, and manage service tokens"
     },
     "tabs": {

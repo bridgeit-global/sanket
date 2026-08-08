@@ -49,21 +49,12 @@ export const ALL_MODULES: ModuleDefinition[] = [
   // Operations modules
   {
     key: 'operator',
-    label: 'Operator',
+    label: 'Beneficiary Management',
     description: 'Register visitors, create services, and manage service tokens',
     route: '/modules/operator',
     icon: 'Briefcase',
     category: 'operations',
     defaultRoles: ['admin', 'operator', 'back-office'],
-  },
-  {
-    key: 'visitor',
-    label: 'Visitor',
-    description: 'Register visitors, create services, and manage service tokens',
-    route: '/modules/visitor',
-    icon: 'UserRound',
-    category: 'operations',
-    defaultRoles: ['admin', 'operator'],
   },
   {
     key: 'back-office',
@@ -229,7 +220,6 @@ export const MODULE_DISPLAY_ORDER = [
   'back-office',
   'sir',
   'operator',
-  'visitor',
   'field-visitor',
   'hierarchy',
   'data-export',
@@ -298,7 +288,6 @@ export const MODULE_KEYS = {
   PROFILE: 'profile',
   CHAT: 'chat',
   OPERATOR: 'operator',
-  VISITOR: 'visitor',
   BACK_OFFICE: 'back-office',
   SIR: 'sir',
   DATA_EXPORT: 'data-export',
