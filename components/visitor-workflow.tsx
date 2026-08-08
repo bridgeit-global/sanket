@@ -1602,10 +1602,10 @@ export function VisitorWorkflow({
                         id="create-visitor-voter-filter"
                         placeholder={t('visitor.manage.filters.enterVoterId')}
                         value={createFilterVoterIdInput}
-                        onChange={(e) =>
-                          setCreateFilterVoterIdInput(e.target.value.toUpperCase())
-                        }
+                        onChange={(e) => setCreateFilterVoterIdInput(e.target.value)}
                         className="font-mono uppercase"
+                        spellCheck={false}
+                        autoCapitalize="characters"
                       />
                     </div>
                   </div>

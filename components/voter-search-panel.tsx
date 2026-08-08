@@ -326,7 +326,10 @@ export function VoterSearchPanel({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          searchTerm: searchTerm.trim(),
+          searchTerm:
+            effectiveSearchType === 'voterId'
+              ? searchTerm.trim().toUpperCase()
+              : searchTerm.trim(),
           searchType: effectiveSearchType,
           name: effectiveSearchType === 'details' ? detailName.trim() : undefined,
           gender:
@@ -389,7 +392,9 @@ export function VoterSearchPanel({
       const effectiveGender = overrides?.gender ?? gender;
       const effectiveAge = overrides?.age !== undefined ? overrides.age : age;
       const effectiveAgeRange = overrides?.ageRange ?? ageRange;
-      const trimmedTerm = (overrides?.searchTerm ?? searchTerm).trim();
+      const rawTerm = (overrides?.searchTerm ?? searchTerm).trim();
+      const trimmedTerm =
+        effectiveSearchType === 'voterId' ? rawTerm.toUpperCase() : rawTerm;
 
       if (effectiveSearchType === 'details') {
         if (
@@ -786,9 +791,7 @@ export function VoterSearchPanel({
                   setSearchTerm(
                     searchType === 'phone'
                       ? next.replace(/\D/g, '').slice(0, 10)
-                      : searchType === 'voterId'
-                        ? next.toUpperCase()
-                        : next,
+                      : next,
                   );
                 }}
                 placeholder={
@@ -809,6 +812,8 @@ export function VoterSearchPanel({
                 className={
                   searchType === 'voterId' ? 'pr-10 font-mono uppercase' : 'pr-10'
                 }
+                spellCheck={searchType === 'voterId' ? false : undefined}
+                autoCapitalize={searchType === 'voterId' ? 'characters' : undefined}
               />
               {searchTerm && (
                 <button
