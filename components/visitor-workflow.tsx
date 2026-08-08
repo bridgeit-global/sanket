@@ -34,6 +34,11 @@ import type { ManageFilterState } from '@/lib/operator/manage-url-params';
 import { TaskManagement } from '@/components/task-management';
 import { ExternalLink, Loader2, Plus, QrCode, Search, Share2, X } from 'lucide-react';
 import { QrScannerDialog } from '@/components/qr-scanner-dialog';
+import { AadhaarQrScanButton, AadhaarQrScannerDialog } from '@/components/aadhaar-qr-scanner-dialog';
+import {
+  formatAadhaarAddress,
+  type AadhaarQrData,
+} from '@/lib/aadhaar/decode-qr-payload';
 
 type WorkflowTab = 'visitor' | 'create' | 'tasks';
 
@@ -227,6 +232,7 @@ export function VisitorWorkflow({
   const [voterId, setVoterId] = useState('');
   const [location, setLocation] = useState('');
   const [isOutsider, setIsOutsider] = useState(false);
+  const [showAadhaarScanner, setShowAadhaarScanner] = useState(false);
   const [creatingVisitor, setCreatingVisitor] = useState(false);
   const [createdVisitToken, setCreatedVisitToken] = useState<string | null>(null);
   const [createdVisitorSnapshot, setCreatedVisitorSnapshot] = useState<{
@@ -715,6 +721,16 @@ export function VisitorWorkflow({
     setIsOutsider(false);
   }
 
+  const handleOutsiderAadhaarDetected = useCallback((data: AadhaarQrData) => {
+    if (data.name.trim()) {
+      setName(data.name.trim());
+    }
+    const address = formatAadhaarAddress(data);
+    if (address) {
+      setLocation(address);
+    }
+  }, []);
+
   function handleBackToPhoneUpdate() {
     setPendingVisitConfirm(null);
     setVisitConfirmServiceName('');
@@ -759,13 +775,13 @@ export function VisitorWorkflow({
 
   function applyCreatePickerFiltersFromInputs():
     | {
-      token: string;
-      mobile: string;
-      voterId: string;
-      name: string;
-      createdFrom: string;
-      createdTo: string;
-    }
+        token: string;
+        mobile: string;
+        voterId: string;
+        name: string;
+        createdFrom: string;
+        createdTo: string;
+      }
     | null {
     const nextToken = createFilterTokenInput.trim();
     const nextMobileRaw = createFilterMobileInput.trim();
@@ -1060,28 +1076,28 @@ export function VisitorWorkflow({
         : [];
       const created = Array.isArray(json.services)
         ? json.services.map(
-          (
-            s: {
-              serviceName: string;
-              token: string;
-              createdAt?: string | Date;
-              beneficiaryServiceId?: string | null;
+            (
+              s: {
+                serviceName: string;
+                token: string;
+                createdAt?: string | Date;
+                beneficiaryServiceId?: string | null;
+              },
+              index: number,
+            ) => {
+              const beneficiary = beneficiaryByIndex[index] as
+                | { id?: string; token?: string }
+                | undefined;
+              return {
+                serviceName: s.serviceName,
+                // Always surface the visit token — beneficiary reuses it.
+                token: selectedVisitor.token,
+                createdAt: s.createdAt ?? new Date().toISOString(),
+                beneficiaryServiceId: beneficiary?.id ?? s.beneficiaryServiceId ?? null,
+                beneficiaryToken: selectedVisitor.token,
+              };
             },
-            index: number,
-          ) => {
-            const beneficiary = beneficiaryByIndex[index] as
-              | { id?: string; token?: string }
-              | undefined;
-            return {
-              serviceName: s.serviceName,
-              // Always surface the visit token — beneficiary reuses it.
-              token: selectedVisitor.token,
-              createdAt: s.createdAt ?? new Date().toISOString(),
-              beneficiaryServiceId: beneficiary?.id ?? s.beneficiaryServiceId ?? null,
-              beneficiaryToken: selectedVisitor.token,
-            };
-          },
-        )
+          )
         : [];
       setCreatedServices(created);
       setSelectedVisitor((prev) => {
@@ -1367,6 +1383,16 @@ export function VisitorWorkflow({
 
                 {isOutsider && (
                   <form onSubmit={handleCreateVisitor} className="space-y-6">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        {t('visitor.form.scanAadhaarHelp')}
+                      </p>
+                      <AadhaarQrScanButton
+                        onClick={() => setShowAadhaarScanner(true)}
+                        label={t('operator.search.scanAadhaarQr')}
+                      />
+                    </div>
+
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
                         <Label htmlFor="visitor-name">
@@ -1433,6 +1459,14 @@ export function VisitorWorkflow({
                     </Button>
                   </form>
                 )}
+
+                <AadhaarQrScannerDialog
+                  open={showAadhaarScanner}
+                  onOpenChange={setShowAadhaarScanner}
+                  onDataDetected={handleOutsiderAadhaarDetected}
+                  title={t('operator.search.aadhaarScannerTitle')}
+                  description={t('visitor.form.aadhaarScannerDescription')}
+                />
               </CardContent>
             </Card>
           )}

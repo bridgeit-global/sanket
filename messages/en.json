@@ -1451,7 +1451,7 @@
         "name": "Name",
         "outsider": "Outsider"
       },
-      "outsiderHelp": "No voter ID on file. Enter name, mobile, and location below to create the visit token.",
+      "outsiderHelp": "No voter ID on file. Scan Aadhaar QR or enter name, mobile, and location below to create the visit token.",
       "scrollForMore": "Scroll to load more results.",
       "loadingMore": "Loading more…",
       "totalCountOnly": "{count, plural, one {# voter total} other {# voters total}}",
@@ -2156,7 +2156,7 @@
     },
     "form": {
       "searchVoter": "Optional voter lookup",
-      "searchVoterHelp": "Search by VoterId (EPIC), phone, or detailed criteria — then update/confirm phones (including secondary) before the visit token is issued. Choose Outsider to enter details manually.",
+      "searchVoterHelp": "Search by VoterId (EPIC), phone, or detailed criteria — then update/confirm phones (including secondary) before the visit token is issued. Choose Outsider to scan Aadhaar QR or enter details manually.",
       "searchVoterPlaceholder": "Search by voter ID, name, or mobile…",
       "searching": "Searching…",
       "searchingVoters": "Searching voters…",
@@ -2174,6 +2174,8 @@
       "mobile": "Mobile number",
       "voterId": "Voter ID (EPIC)",
       "outsider": "Outsider (no voter ID)",
+      "scanAadhaarHelp": "Scan the Aadhaar QR to prefill name and location, then enter mobile.",
+      "aadhaarScannerDescription": "Scan the QR code on the Aadhaar card to prefill name and location.",
       "location": "Location",
       "locationPlaceholder": "Village / area / address",
       "programme": "Programme",
