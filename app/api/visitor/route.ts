@@ -24,6 +24,9 @@ export async function GET(request: NextRequest) {
     const token = searchParams.get('token') ?? undefined;
     const serviceName = searchParams.get('serviceName') ?? searchParams.get('service') ?? undefined;
     const status = searchParams.get('status') ?? undefined;
+    const programmeIdRaw = searchParams.get('programmeId');
+    const programmeId =
+      programmeIdRaw && programmeIdRaw.trim() ? programmeIdRaw.trim() : undefined;
     const createdFromRaw = searchParams.get('createdFrom');
     const createdToRaw = searchParams.get('createdTo');
     const createdFrom =
@@ -51,6 +54,7 @@ export async function GET(request: NextRequest) {
       token,
       serviceName,
       status: status && status !== 'all' ? status : undefined,
+      programmeId,
       createdFrom,
       createdTo,
       page,

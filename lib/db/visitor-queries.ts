@@ -367,6 +367,7 @@ export type ListVisitorsFilters = {
   token?: string;
   serviceName?: string;
   status?: string;
+  programmeId?: string;
   createdFrom?: string;
   createdTo?: string;
   page?: number;
@@ -382,6 +383,7 @@ export async function listVisitors({
   token,
   serviceName,
   status,
+  programmeId,
   createdFrom,
   createdTo,
   page,
@@ -409,6 +411,7 @@ export async function listVisitors({
     const trimmedToken = token?.trim() || '';
     const trimmedServiceName = serviceName?.trim() || '';
     const trimmedStatus = status?.trim() || '';
+    const trimmedProgrammeId = programmeId?.trim() || '';
     const trimmedVoterId = voterId?.trim().toUpperCase() || '';
     const trimmedMobileRaw = mobile?.trim() || '';
     const trimmedMobile = trimmedMobileRaw
@@ -500,6 +503,9 @@ export async function listVisitors({
     }
     if (trimmedName) {
       query = query.ilike('name', `%${trimmedName}%`);
+    }
+    if (trimmedProgrammeId) {
+      query = query.eq('programme_id', trimmedProgrammeId);
     }
     if (createdFromVal) {
       query = query.gte('created_at', `${createdFromVal}T00:00:00+05:30`);

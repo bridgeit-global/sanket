@@ -72,6 +72,7 @@ type VisitorRow = {
   voterId: string | null;
   token: string;
   location: string | null;
+  programmeId: string | null;
   createdAt: string | Date;
   services: VisitorServiceRow[];
 };
@@ -233,6 +234,7 @@ export function VisitorWorkflow({
     name: string;
     mobileNumber: string;
     token: string;
+    programmeId: string | null;
     createdAt: string | Date;
     serviceName: string | null;
   } | null>(null);
@@ -346,6 +348,14 @@ export function VisitorWorkflow({
   function handleProgrammeChange(value: string) {
     setProgrammeId(value);
     writeStoredLinkedProgramme(value);
+    setCreatePickerPage(1);
+    if (
+      selectedVisitor &&
+      value &&
+      (selectedVisitor.programmeId ?? '') !== value
+    ) {
+      setSelectedVisitor(null);
+    }
   }
 
   const loadCreatePickerVisitors = useCallback(
@@ -356,6 +366,7 @@ export function VisitorWorkflow({
       name?: string;
       createdFrom?: string;
       createdTo?: string;
+      programmeId?: string;
       page?: number;
       limit?: number;
     }): Promise<VisitorRow[]> => {
@@ -367,6 +378,8 @@ export function VisitorWorkflow({
         const name = overrides?.name ?? createFilterName;
         const createdFrom = overrides?.createdFrom ?? createFilterCreatedFrom;
         const createdTo = overrides?.createdTo ?? createFilterCreatedTo;
+        const programme =
+          overrides?.programmeId !== undefined ? overrides.programmeId : programmeId;
         const page = overrides?.page ?? createPickerPage;
         const limit = overrides?.limit ?? createPickerPageSize;
 
@@ -377,6 +390,7 @@ export function VisitorWorkflow({
         if (name) params.set('name', name);
         if (createdFrom) params.set('createdFrom', createdFrom);
         if (createdTo) params.set('createdTo', createdTo);
+        if (programme) params.set('programmeId', programme);
         params.set('page', String(page));
         params.set('limit', String(limit));
 
@@ -407,6 +421,7 @@ export function VisitorWorkflow({
       createFilterName,
       createFilterCreatedFrom,
       createFilterCreatedTo,
+      programmeId,
       createPickerPage,
       createPickerPageSize,
     ],
@@ -744,13 +759,13 @@ export function VisitorWorkflow({
 
   function applyCreatePickerFiltersFromInputs():
     | {
-        token: string;
-        mobile: string;
-        voterId: string;
-        name: string;
-        createdFrom: string;
-        createdTo: string;
-      }
+      token: string;
+      mobile: string;
+      voterId: string;
+      name: string;
+      createdFrom: string;
+      createdTo: string;
+    }
     | null {
     const nextToken = createFilterTokenInput.trim();
     const nextMobileRaw = createFilterMobileInput.trim();
@@ -969,6 +984,7 @@ export function VisitorWorkflow({
         name: string;
         mobileNumber: string;
         token: string;
+        programmeId?: string | null;
         createdAt?: string | Date;
       };
       setCreatedVisitToken(visitor.token);
@@ -977,6 +993,7 @@ export function VisitorWorkflow({
         name: visitor.name,
         mobileNumber: visitor.mobileNumber,
         token: visitor.token,
+        programmeId: visitor.programmeId ?? (programmeId || null),
         createdAt: visitor.createdAt ?? new Date().toISOString(),
         serviceName: trimmedServiceName,
       });
@@ -1043,28 +1060,28 @@ export function VisitorWorkflow({
         : [];
       const created = Array.isArray(json.services)
         ? json.services.map(
-            (
-              s: {
-                serviceName: string;
-                token: string;
-                createdAt?: string | Date;
-                beneficiaryServiceId?: string | null;
-              },
-              index: number,
-            ) => {
-              const beneficiary = beneficiaryByIndex[index] as
-                | { id?: string; token?: string }
-                | undefined;
-              return {
-                serviceName: s.serviceName,
-                // Always surface the visit token — beneficiary reuses it.
-                token: selectedVisitor.token,
-                createdAt: s.createdAt ?? new Date().toISOString(),
-                beneficiaryServiceId: beneficiary?.id ?? s.beneficiaryServiceId ?? null,
-                beneficiaryToken: selectedVisitor.token,
-              };
+          (
+            s: {
+              serviceName: string;
+              token: string;
+              createdAt?: string | Date;
+              beneficiaryServiceId?: string | null;
             },
-          )
+            index: number,
+          ) => {
+            const beneficiary = beneficiaryByIndex[index] as
+              | { id?: string; token?: string }
+              | undefined;
+            return {
+              serviceName: s.serviceName,
+              // Always surface the visit token — beneficiary reuses it.
+              token: selectedVisitor.token,
+              createdAt: s.createdAt ?? new Date().toISOString(),
+              beneficiaryServiceId: beneficiary?.id ?? s.beneficiaryServiceId ?? null,
+              beneficiaryToken: selectedVisitor.token,
+            };
+          },
+        )
         : [];
       setCreatedServices(created);
       setSelectedVisitor((prev) => {
@@ -1192,6 +1209,7 @@ export function VisitorWorkflow({
                         voterId: null,
                         token: createdVisitorSnapshot.token,
                         location: null,
+                        programmeId: createdVisitorSnapshot.programmeId,
                         createdAt: createdVisitorSnapshot.createdAt,
                         services: [],
                       });
