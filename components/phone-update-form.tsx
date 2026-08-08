@@ -352,7 +352,11 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                             disabled={isSubmitting || !mobileNoPrimary.trim()}
                             className="flex-1"
                         >
-                            {isSubmitting ? t('phoneUpdate.updating') : t('phoneUpdate.update')}
+                            {isSubmitting
+                                ? t('phoneUpdate.updating')
+                                : hadDob
+                                    ? t('phoneUpdate.update')
+                                    : t('phoneUpdate.updateWithDob')}
                         </Button>
 
                         <Button

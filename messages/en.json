@@ -1913,6 +1913,7 @@
     "dobInvalid": "Enter a valid date as dd-mm-yyyy",
     "dobMinAge": "Voter must be at least 18 years old",
     "update": "Update Phone Number",
+    "updateWithDob": "DOB & Phone Number Update",
     "updating": "Updating...",
     "skip": "Skip",
     "continueWithout": "Continue without updating",
