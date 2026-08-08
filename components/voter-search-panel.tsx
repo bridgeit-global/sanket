@@ -786,7 +786,9 @@ export function VoterSearchPanel({
                   setSearchTerm(
                     searchType === 'phone'
                       ? next.replace(/\D/g, '').slice(0, 10)
-                      : next,
+                      : searchType === 'voterId'
+                        ? next.toUpperCase()
+                        : next,
                   );
                 }}
                 placeholder={
@@ -804,7 +806,9 @@ export function VoterSearchPanel({
                     void handleSearch();
                   }
                 }}
-                className="pr-10"
+                className={
+                  searchType === 'voterId' ? 'pr-10 font-mono uppercase' : 'pr-10'
+                }
               />
               {searchTerm && (
                 <button
