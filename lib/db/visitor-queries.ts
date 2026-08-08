@@ -3,7 +3,7 @@ import 'server-only';
 import { supabase } from '@/lib/supabase/server';
 import { throwOnSupabaseError } from '@/lib/db/errors';
 import { ChatSDKError } from '@/lib/errors';
-import { getCalendarYmd, getTodayDateStringIST } from '@/lib/ist-date';
+import { getCalendarYmd } from '@/lib/ist-date';
 import { normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import {
   mapVisitorRow,
@@ -14,15 +14,6 @@ import { TABLES, type BeneficiaryService, type Visitor, type VisitorService, typ
 import { createBeneficiaryService, ensureServiceCatalogEntry, getDailyProgrammeItemById } from '@/lib/db/queries-crud';
 
 const TOKEN_UNIQUE_RETRIES = 5;
-
-/** IST calendar-day bounds for naive/timestamptz `created_at` filters. */
-function istDayCreatedAtBounds(date: Date = new Date()): { from: string; to: string } {
-  const day = getTodayDateStringIST(date);
-  return {
-    from: `${day}T00:00:00+05:30`,
-    to: `${day}T23:59:59.999+05:30`,
-  };
-}
 
 function shortProgrammeTokenSegment(programmeUuid: string): string {
   const compact = programmeUuid.replace(/-/g, '');
@@ -118,7 +109,7 @@ export async function createVisitor({
           toSnakeCaseKeys({
             name: name.trim(),
             mobileNumber: mobile,
-            voterId: voterId?.trim() || null,
+            voterId: voterId?.trim().toUpperCase() || null,
             token,
             location: location?.trim() || null,
             programmeId: trimmedProgramme,
@@ -159,7 +150,7 @@ export async function findOrCreateVisitor({
 }): Promise<Visitor> {
   try {
     const mobile = normalizeIndianMobileDigits(mobileNumber);
-    const trimmedVoter = voterId?.trim() || null;
+    const trimmedVoter = voterId?.trim().toUpperCase() || null;
     const trimmedLocation = location?.trim() || null;
     const trimmedProgramme = programmeId?.trim() || null;
 
@@ -197,14 +188,14 @@ export async function findOrCreateVisitor({
     }
 
     // Same visitor + same IST day + same event → reuse token; else mint new.
-    const { from: dayFrom, to: dayTo } = istDayCreatedAtBounds();
+    // Day scope uses token DDMMYY prefix (authoritative IST), not created_at bounds.
+    const todayTokenPrefix = istDatePrefix();
 
     function baseSameDayEventQuery() {
       let query = supabase
         .from(TABLES.visitor)
         .select('*')
-        .gte('created_at', dayFrom)
-        .lte('created_at', dayTo);
+        .like('token', `${todayTokenPrefix}%`);
       if (trimmedProgramme) {
         query = query.eq('programme_id', trimmedProgramme);
       } else {
