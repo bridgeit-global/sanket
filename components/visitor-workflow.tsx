@@ -490,7 +490,7 @@ export function VisitorWorkflow({
     setVoterId(voter.epicNumber || '');
     setName(voter.fullName || '');
     const mobile = voter.mobileNoPrimary || voter.mobileNoSecondary || '';
-    if (mobile) setMobileNumber(mobile);
+    if (mobile) setMobileNumber(normalizeIndianMobileDigits(mobile).slice(0, 10));
 
     setSelectedVoterForPhone(voter);
     setPendingVisitConfirm(null);
@@ -1368,12 +1368,14 @@ export function VisitorWorkflow({
                         <Input
                           id="visitor-mobile"
                           value={mobileNumber}
-                          onChange={(e) => setMobileNumber(e.target.value)}
+                          onChange={(e) =>
+                            setMobileNumber(e.target.value.replace(/\D/g, '').slice(0, 10))
+                          }
                           placeholder="9876543210"
                           type="tel"
                           inputMode="numeric"
                           autoComplete="tel"
-                          maxLength={13}
+                          maxLength={10}
                           className="font-mono"
                           required
                         />
@@ -1530,11 +1532,13 @@ export function VisitorWorkflow({
                         inputMode="numeric"
                         pattern="[0-9]*"
                         autoComplete="tel"
-                        maxLength={13}
+                        maxLength={10}
                         placeholder={t('visitor.manage.filters.enterMobile')}
                         value={createFilterMobileInput}
                         onChange={(e) =>
-                          setCreateFilterMobileInput(e.target.value.replace(/\D/g, ''))
+                          setCreateFilterMobileInput(
+                            e.target.value.replace(/\D/g, '').slice(0, 10),
+                          )
                         }
                       />
                     </div>

@@ -73,8 +73,10 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
             secondary = '';
         }
 
-        setMobileNoPrimary(primary);
-        setMobileNoSecondary(secondary);
+        setMobileNoPrimary(primary ? normalizeIndianMobileDigits(primary).slice(0, 10) : '');
+        setMobileNoSecondary(
+            secondary ? normalizeIndianMobileDigits(secondary).slice(0, 10) : '',
+        );
     }, [mobileNumbers, voter.mobileNoPrimary, voter.mobileNoSecondary, voter.epicNumber]);
 
     useEffect(() => {
@@ -184,9 +186,13 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                                     type="tel"
                                     inputMode="numeric"
                                     autoComplete="tel"
-                                    maxLength={13}
+                                    maxLength={10}
                                     value={mobileNoPrimary}
-                                    onChange={(e) => setMobileNoPrimary(e.target.value)}
+                                    onChange={(e) =>
+                                        setMobileNoPrimary(
+                                            e.target.value.replace(/\D/g, '').slice(0, 10),
+                                        )
+                                    }
                                     placeholder={t('phoneUpdate.primaryPlaceholder')}
                                     required
                                     className="font-mono"
@@ -204,9 +210,13 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                                     type="tel"
                                     inputMode="numeric"
                                     autoComplete="tel"
-                                    maxLength={13}
+                                    maxLength={10}
                                     value={mobileNoSecondary}
-                                    onChange={(e) => setMobileNoSecondary(e.target.value)}
+                                    onChange={(e) =>
+                                        setMobileNoSecondary(
+                                            e.target.value.replace(/\D/g, '').slice(0, 10),
+                                        )
+                                    }
                                     placeholder={t('phoneUpdate.secondaryPlaceholder')}
                                     className="font-mono"
                                 />

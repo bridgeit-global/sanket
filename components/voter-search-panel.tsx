@@ -781,7 +781,14 @@ export function VoterSearchPanel({
               <Input
                 id="visitor-search-term"
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  setSearchTerm(
+                    searchType === 'phone'
+                      ? next.replace(/\D/g, '').slice(0, 10)
+                      : next,
+                  );
+                }}
                 placeholder={
                   searchType === 'voterId'
                     ? t('operator.search.voterIdPlaceholder')
@@ -790,7 +797,7 @@ export function VoterSearchPanel({
                 type={searchType === 'phone' ? 'tel' : 'text'}
                 inputMode={searchType === 'phone' ? 'numeric' : undefined}
                 autoComplete={searchType === 'phone' ? 'tel' : undefined}
-                maxLength={searchType === 'phone' ? 13 : undefined}
+                maxLength={searchType === 'phone' ? 10 : undefined}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault();

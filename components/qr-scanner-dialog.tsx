@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from '@/components/toast';
-import { ImageUp, ScanLine } from 'lucide-react';
+import { ImageUp, QrCode } from 'lucide-react';
 
 type QrScannerDialogProps = {
   open: boolean;
@@ -343,7 +343,7 @@ export function QrScanButton({
 }) {
   return (
     <Button type="button" variant="outline" size="sm" onClick={onClick} className="shrink-0">
-      <ScanLine className="mr-2 h-4 w-4" />
+      <QrCode className="mr-2 h-4 w-4" />
       {label}
     </Button>
   );
