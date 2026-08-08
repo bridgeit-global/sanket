@@ -234,6 +234,7 @@ export function VisitorWorkflow({
     mobileNumber: string;
     token: string;
     createdAt: string | Date;
+    serviceName: string | null;
   } | null>(null);
   const [selectedVoter, setSelectedVoterForPhone] = useState<VoterWithPartNo | null>(null);
   const [selectedVoterMobileNumbers, setSelectedVoterMobileNumbers] = useState<
@@ -247,6 +248,7 @@ export function VisitorWorkflow({
     voterId: string | null;
     location: string | null;
   } | null>(null);
+  const [visitConfirmServiceName, setVisitConfirmServiceName] = useState('');
   const [programmeId, setProgrammeId] = useState(() => readStoredLinkedProgramme());
   const [programmesLoaded, setProgrammesLoaded] = useState(false);
 
@@ -492,6 +494,7 @@ export function VisitorWorkflow({
 
     setSelectedVoterForPhone(voter);
     setPendingVisitConfirm(null);
+    setVisitConfirmServiceName('');
 
     const seeded: MobileNumberEntry[] = [];
     if (voter.mobileNoPrimary?.trim()) {
@@ -554,6 +557,7 @@ export function VisitorWorkflow({
     setName(params.name);
     if (params.voterId) setVoterId(params.voterId);
     setShowPhoneUpdate(false);
+    setVisitConfirmServiceName('');
     setPendingVisitConfirm({
       name: params.name.trim(),
       mobileNumber: primary,
@@ -688,6 +692,7 @@ export function VisitorWorkflow({
     setSelectedVoterForPhone(null);
     setSelectedVoterMobileNumbers([]);
     setPendingVisitConfirm(null);
+    setVisitConfirmServiceName('');
     setName('');
     setMobileNumber('');
     setVoterId('');
@@ -697,6 +702,7 @@ export function VisitorWorkflow({
 
   function handleBackToPhoneUpdate() {
     setPendingVisitConfirm(null);
+    setVisitConfirmServiceName('');
     if (selectedVoter) {
       setShowPhoneUpdate(true);
     }
@@ -732,6 +738,7 @@ export function VisitorWorkflow({
     setSelectedVoterMobileNumbers([]);
     setShowPhoneUpdate(false);
     setPendingVisitConfirm(null);
+    setVisitConfirmServiceName('');
     // Keep programme selected across successive visitor registrations.
   }
 
@@ -914,12 +921,14 @@ export function VisitorWorkflow({
     mobileNumber: string;
     voterId: string | null;
     location: string | null;
+    serviceName?: string | null;
   }): Promise<boolean> {
     const trimmedName = params.name.trim();
     const trimmedMobile = params.mobileNumber.trim();
     const effectiveVoterId =
       params.voterId?.trim().toUpperCase() || null;
     const trimmedLocation = params.location?.trim() || null;
+    const trimmedServiceName = params.serviceName?.trim() || null;
 
     if (!trimmedName) {
       toast({ type: 'error', description: t('visitor.errors.nameRequired') });
@@ -949,6 +958,7 @@ export function VisitorWorkflow({
           voterId: effectiveVoterId,
           location: trimmedLocation,
           programmeId: programmeId || null,
+          ...(trimmedServiceName ? { serviceName: trimmedServiceName } : {}),
         }),
       });
       const json = await res.json();
@@ -968,9 +978,11 @@ export function VisitorWorkflow({
         mobileNumber: visitor.mobileNumber,
         token: visitor.token,
         createdAt: visitor.createdAt ?? new Date().toISOString(),
+        serviceName: trimmedServiceName,
       });
       setShowPhoneUpdate(false);
       setPendingVisitConfirm(null);
+      setVisitConfirmServiceName('');
       setSelectedVoterForPhone(null);
       setSelectedVoterMobileNumbers([]);
       toast({ type: 'success', description: t('visitor.create.visitorSuccess') });
@@ -1148,7 +1160,9 @@ export function VisitorWorkflow({
                       void shareVisitorThermalTicket({
                         token: createdVisitToken,
                         createdAt: createdVisitorSnapshot.createdAt,
-                        serviceName: t('visitor.create.visitTokenLabel'),
+                        serviceName:
+                          createdVisitorSnapshot.serviceName ||
+                          t('visitor.create.visitTokenLabel'),
                         name: createdVisitorSnapshot.name,
                         mobile: createdVisitorSnapshot.mobileNumber,
                       })
@@ -1229,6 +1243,21 @@ export function VisitorWorkflow({
                     </p>
                   </div>
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="visit-confirm-service">
+                    {t('visitor.form.service')}
+                  </Label>
+                  <Input
+                    id="visit-confirm-service"
+                    value={visitConfirmServiceName}
+                    onChange={(e) => setVisitConfirmServiceName(e.target.value)}
+                    placeholder={t('visitor.create.serviceForPrintPlaceholder')}
+                    autoComplete="off"
+                  />
+                  <p className="text-xs text-muted-foreground sm:text-sm">
+                    {t('visitor.create.serviceForPrintHelp')}
+                  </p>
+                </div>
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <Button
                     className="flex-1"
@@ -1238,6 +1267,7 @@ export function VisitorWorkflow({
                         mobileNumber: pendingVisitConfirm.mobileNumber,
                         voterId: pendingVisitConfirm.voterId,
                         location: pendingVisitConfirm.location,
+                        serviceName: visitConfirmServiceName,
                       });
                     }}
                   >
@@ -1308,6 +1338,7 @@ export function VisitorWorkflow({
                       setSelectedVoterForPhone(null);
                       setShowPhoneUpdate(false);
                       setPendingVisitConfirm(null);
+                      setVisitConfirmServiceName('');
                     } else {
                       setName('');
                       setMobileNumber('');

@@ -2105,8 +2105,10 @@
       "tokenLabel": "Visitor service token",
       "tokensLabel": "Visitor service tokens",
       "confirmTitle": "Confirm visit details",
-      "confirmDescription": "Review the contact numbers, then confirm to generate the visit token.",
+      "confirmDescription": "Review the contact numbers, optionally add a service for the thermal ticket, then confirm to generate the visit token.",
       "confirmGenerateToken": "Confirm & generate visit token",
+      "serviceForPrintPlaceholder": "Enter service name for print token…",
+      "serviceForPrintHelp": "Optional. Printed on the thermal ticket and saved as a visitor service when provided.",
       "noSecondaryMobile": "Not provided"
     },
     "manage": {
