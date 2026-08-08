@@ -952,13 +952,13 @@ export function VisitorWorkflow({
       const res = await fetch('/api/visitor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // Confirmation service name is print-only — omit from API so no beneficiary service is created.
         body: JSON.stringify({
           name: trimmedName,
           mobileNumber: trimmedMobile,
           voterId: effectiveVoterId,
           location: trimmedLocation,
           programmeId: programmeId || null,
-          ...(trimmedServiceName ? { serviceName: trimmedServiceName } : {}),
         }),
       });
       const json = await res.json();
