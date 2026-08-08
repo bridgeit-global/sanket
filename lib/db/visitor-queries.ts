@@ -3,7 +3,7 @@ import 'server-only';
 import { supabase } from '@/lib/supabase/server';
 import { throwOnSupabaseError } from '@/lib/db/errors';
 import { ChatSDKError } from '@/lib/errors';
-import { getCalendarYmd } from '@/lib/ist-date';
+import { getCalendarYmd, getTodayDateStringIST } from '@/lib/ist-date';
 import { normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import {
   mapVisitorRow,
@@ -14,6 +14,15 @@ import { TABLES, type BeneficiaryService, type Visitor, type VisitorService, typ
 import { createBeneficiaryService, ensureServiceCatalogEntry, getDailyProgrammeItemById } from '@/lib/db/queries-crud';
 
 const TOKEN_UNIQUE_RETRIES = 5;
+
+/** IST calendar-day bounds for naive/timestamptz `created_at` filters. */
+function istDayCreatedAtBounds(date: Date = new Date()): { from: string; to: string } {
+  const day = getTodayDateStringIST(date);
+  return {
+    from: `${day}T00:00:00+05:30`,
+    to: `${day}T23:59:59.999+05:30`,
+  };
+}
 
 function shortProgrammeTokenSegment(programmeUuid: string): string {
   const compact = programmeUuid.replace(/-/g, '');
@@ -161,6 +170,10 @@ export async function findOrCreateVisitor({
       }
     }
 
+    /**
+     * Reuse only for same visitor + same IST day + same event (programme).
+     * Different day or different event → mint a new visit token.
+     */
     async function reuseExistingVisitor(existing: Visitor): Promise<Visitor> {
       const now = new Date().toISOString();
       const { data: updated, error: updateError } = await supabase
@@ -171,8 +184,7 @@ export async function findOrCreateVisitor({
             mobileNumber: mobile,
             voterId: trimmedVoter ?? existing.voterId,
             location: trimmedLocation ?? existing.location,
-            programmeId: trimmedProgramme ?? existing.programmeId,
-            // Keep the original visit token — never overwrite on revisit.
+            // Keep original programme + visit token for this day/event.
             updatedAt: now,
           }),
         )
@@ -184,29 +196,42 @@ export async function findOrCreateVisitor({
       return mapVisitorRow(updated);
     }
 
-    if (trimmedVoter) {
-      const { data, error } = await supabase
+    // Same visitor + same IST day + same event → reuse token; else mint new.
+    const { from: dayFrom, to: dayTo } = istDayCreatedAtBounds();
+
+    function baseSameDayEventQuery() {
+      let query = supabase
         .from(TABLES.visitor)
         .select('*')
+        .gte('created_at', dayFrom)
+        .lte('created_at', dayTo);
+      if (trimmedProgramme) {
+        query = query.eq('programme_id', trimmedProgramme);
+      } else {
+        query = query.is('programme_id', null);
+      }
+      return query;
+    }
+
+    if (trimmedVoter) {
+      const { data, error } = await baseSameDayEventQuery()
         .eq('voter_id', trimmedVoter)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      throwOnSupabaseError(error, 'Failed to find visitor by voter id');
+      throwOnSupabaseError(error, 'Failed to find visitor by voter id for day/event');
       if (data) {
         return reuseExistingVisitor(mapVisitorRow(data));
       }
     }
 
-    const { data: byMobile, error: mobileError } = await supabase
-      .from(TABLES.visitor)
-      .select('*')
+    const { data: byMobile, error: mobileError } = await baseSameDayEventQuery()
       .eq('mobile_number', mobile)
       .ilike('name', name.trim())
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
-    throwOnSupabaseError(mobileError, 'Failed to find visitor by mobile');
+    throwOnSupabaseError(mobileError, 'Failed to find visitor by mobile for day/event');
     if (byMobile) {
       return reuseExistingVisitor(mapVisitorRow(byMobile));
     }
