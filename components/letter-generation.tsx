@@ -186,10 +186,10 @@ type SavedLetterTypeFilter = string;
 
 const ALL_LETTER_TYPES = 'all' as const;
 
-type FamilyMemberRow = { name: string; age: string };
+type FamilyMemberRow = { name: string; relation: string; age: string };
 
 function emptyFamilyMemberRow(): FamilyMemberRow {
-  return { name: '', age: '' };
+  return { name: '', relation: '', age: '' };
 }
 
 function normalizeFamilyMemberAge(age: string): string {
@@ -211,11 +211,16 @@ function formatFamilyMembersString(
   locale: LetterLocale,
 ): string {
   return members
-    .filter((member) => member.name.trim() && normalizeFamilyMemberAge(member.age))
+    .filter(
+      (member) =>
+        member.name.trim() &&
+        member.relation.trim() &&
+        normalizeFamilyMemberAge(member.age),
+    )
     .map((member, index) => {
       const age = toLocaleDigits(normalizeFamilyMemberAge(member.age), locale);
       const yearsLabel = locale === 'mr' ? 'वर्षे' : 'years';
-      return `${toLocaleDigits(index + 1, locale)}- ${member.name.trim()}  ${age} ${yearsLabel}`;
+      return `${toLocaleDigits(index + 1, locale)}- ${member.name.trim()} - ${age} ${yearsLabel} - ${member.relation.trim()}`;
     })
     .join('\n');
 }
@@ -1483,6 +1488,7 @@ export function LetterGeneration({
     }));
     const nextFamilyMemberRows = familyMemberRowsRef.current.map((row) => ({
       name: filterText(row.name),
+      relation: filterText(row.relation),
       age: normalizeFamilyMemberAge(row.age),
     }));
     setFamilyMemberRows(nextFamilyMemberRows);
@@ -4859,7 +4865,7 @@ export function LetterGeneration({
                                 key={`family-member-${index}`}
                                 className="flex flex-col gap-2 sm:flex-row sm:items-start"
                               >
-                                <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-[1fr_7rem]">
+                                <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-[1fr_7rem_8rem]">
                                   <LocaleTextInput
                                     locale={letterLocale}
                                     value={member.name}
@@ -4923,6 +4929,23 @@ export function LetterGeneration({
                                     )}
                                     aria-label={lt(
                                       'letterGeneration.fields.familyMemberAge',
+                                    )}
+                                    required={index === 0}
+                                  />
+                                  <LocaleTextInput
+                                    locale={letterLocale}
+                                    value={member.relation}
+                                    onValueChange={(relation) => {
+                                      const next = familyMemberRows.map((row, i) =>
+                                        i === index ? { ...row, relation } : row,
+                                      );
+                                      updateFamilyMemberRows(next);
+                                    }}
+                                    placeholder={lt(
+                                      'letterGeneration.placeholders.familyMemberRelation',
+                                    )}
+                                    aria-label={lt(
+                                      'letterGeneration.fields.familyMemberRelation',
                                     )}
                                     required={index === 0}
                                   />
