@@ -17,6 +17,9 @@ export const TABLES = {
   letterMaster: 'LetterMaster',
   letterTypeMaster: 'LetterTypeMaster',
   addressMaster: 'AddressMaster',
+  addressTypeMaster: 'AddressTypeMaster',
+  addressBlock: 'AddressBlock',
+  positionMaster: 'PositionMaster',
   letterAddressTypeLink: 'LetterAddressTypeLink',
   documentTypeMaster: 'DocumentTypeMaster',
   voterMaster: 'VoterMaster',
@@ -186,11 +189,20 @@ export type LetterTypeMaster = {
   updatedAt: Date;
 };
 
-export type AddressMaster = {
+export type AddressTypeMaster = {
   id: string;
-  name: string;
-  nameMr: string;
-  addressType: 'school' | 'office' | 'ration_office' | 'general';
+  code: string;
+  labelEn: string;
+  labelMr: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type AddressBlock = {
+  id: string;
+  contentKey: string;
   line1En: string;
   line1Mr: string;
   line2En: string;
@@ -202,6 +214,56 @@ export type AddressMaster = {
   stateEn: string;
   stateMr: string;
   pincode: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type PositionMaster = {
+  id: string;
+  code: string | null;
+  titleEn: string;
+  titleMr: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdBy: string | null;
+  updatedBy: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+/** Letter-selectable address entry (holder + type + position + physical address). */
+export type AddressMaster = {
+  id: string;
+  holderNameEn: string;
+  holderNameMr: string;
+  /** @deprecated Prefer holderNameEn — kept for letter-picker compatibility. */
+  name: string;
+  /** @deprecated Prefer holderNameMr — kept for letter-picker compatibility. */
+  nameMr: string;
+  typeId: string;
+  addressType: string;
+  typeLabelEn: string;
+  typeLabelMr: string;
+  addressId: string;
+  line1En: string;
+  line1Mr: string;
+  line2En: string;
+  line2Mr: string;
+  line3En: string;
+  line3Mr: string;
+  cityEn: string;
+  cityMr: string;
+  stateEn: string;
+  stateMr: string;
+  pincode: string;
+  positionId: string;
+  positionTitleEn: string;
+  positionTitleMr: string;
+  positionCode: string | null;
   isActive: boolean;
   sortOrder: number;
   createdBy: string | null;
@@ -228,7 +290,7 @@ export type LetterAddressTypeLink = {
   id: string;
   letterType: string;
   addressField: string;
-  addressType: 'school' | 'office' | 'ration_office' | 'general';
+  addressType: string;
   sortOrder: number;
   createdAt: Date;
   updatedAt: Date;

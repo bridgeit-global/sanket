@@ -1,0 +1,31 @@
+---
+description: Address Master four-part model and no-delete migration/seed rules
+globs: supabase/migrations/**/*address*,scripts/seed-address-master.ts,data/address-master*.json,data/maharashtra-ministers-seed.json,lib/letters/address-types.ts,lib/letters/format-address-master.ts,lib/letters/default-addresses.ts,lib/letters/address-block-key.ts,lib/db/queries-crud.ts,components/address-master*.tsx,app/api/addresses/**/*,app/api/address-types/**/*,app/api/address-blocks/**/*,app/api/positions/**/*,app/modules/letter-generation/addresses/**
+alwaysApply: false
+---
+
+# Address Master: type / address / position / holder
+
+Letter Address Master is four linked parts:
+
+1. **Type** — `AddressTypeMaster` (`code`, bilingual labels). Legacy codes: `school`, `office`, `ration_office`, `general`. Minister codes: `guardian_minister`, `co_guardian_minister`, `cabinet_minister`, `state_minister`, `chief_minister`, `deputy_chief_minister`.
+2. **Address** — `AddressBlock` physical lines only (`line1/2/3`, city, state, pincode). Deduped by `content_key` (MD5 of normalized bilingual fields).
+3. **Position** — `PositionMaster` designation/portfolio (`title_en`/`title_mr`, optional `code` e.g. `MAH-GM-GADCHIROLI`).
+4. **Holder** — `AddressMaster.holder_name_en` / `holder_name_mr` on the letter-selectable entry, with FKs `type_id`, `address_id`, `position_id`.
+
+`LetterAddressTypeLink.address_type` stores the **type code** (FK to `AddressTypeMaster.code`).
+
+## Data preservation (hard rule)
+
+Migrations and seeds for address masters must **never delete or truncate existing rows**:
+
+- Preserve every `AddressMaster.id` (in-place `UPDATE` backfill only).
+- Do not wipe-and-replace seed scripts; use INSERT / upsert / `ON CONFLICT DO NOTHING`.
+- Do not rewrite saved `Letter.fields` JSON.
+- Dropping obsolete **columns** after a successful backfill is OK; deleting **rows** is not.
+- Shared `AddressBlock` reuse is by inserting/reusing blocks and pointing FKs — never by deleting source entries to dedupe.
+
+## Letter formatting
+
+- Minister types: `{holder}, {type label}, {position}, {formatted address}` via `formatAddressMasterRecipient`.
+- School / office / ration / general: keep holder + address (do not force type/position into the print line).

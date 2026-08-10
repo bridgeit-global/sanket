@@ -19,9 +19,15 @@ import type { LetterLocale } from '@/lib/letters/templates';
 
 export type AddressMasterRow = {
   id: string;
+  holderNameEn?: string;
+  holderNameMr?: string;
   name: string;
   nameMr: string;
-  addressType: AddressType;
+  addressType: AddressType | string;
+  typeId?: string;
+  typeLabelEn?: string;
+  typeLabelMr?: string;
+  addressId?: string;
   line1En: string;
   line1Mr: string;
   line2En: string;
@@ -33,6 +39,10 @@ export type AddressMasterRow = {
   stateEn: string;
   stateMr: string;
   pincode: string;
+  positionId?: string;
+  positionTitleEn?: string;
+  positionTitleMr?: string;
+  positionCode?: string | null;
   isActive: boolean;
   sortOrder: number;
 };

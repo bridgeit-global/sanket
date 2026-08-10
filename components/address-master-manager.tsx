@@ -73,6 +73,9 @@ type AddressFormState = {
   name: string;
   nameMr: string;
   addressType: AddressType;
+  positionTitleEn: string;
+  positionTitleMr: string;
+  positionCode: string;
   isActive: boolean;
   sortOrder: string;
 } & AddressMasterAddressParts;
@@ -81,6 +84,9 @@ const EMPTY_FORM: AddressFormState = {
   name: '',
   nameMr: '',
   addressType: 'general',
+  positionTitleEn: '',
+  positionTitleMr: '',
+  positionCode: '',
   ...EMPTY_ADDRESS_PARTS,
   ...defaultLocationParts(),
   isActive: true,
@@ -179,6 +185,11 @@ export function AddressMasterManager({
       const haystack = [
         address.name,
         address.nameMr,
+        address.holderNameEn,
+        address.holderNameMr,
+        address.positionTitleEn,
+        address.positionTitleMr,
+        address.positionCode,
         address.addressType,
         formatAddressMaster(address, 'en'),
         formatAddressMaster(address, 'mr'),
@@ -229,9 +240,14 @@ export function AddressMasterManager({
   const openEditForm = (address: AddressMasterRow) => {
     setEditingId(address.id);
     setForm({
-      name: address.name,
-      nameMr: address.nameMr,
-      addressType: address.addressType,
+      name: address.holderNameEn || address.name,
+      nameMr: address.holderNameMr || address.nameMr,
+      addressType: (ADDRESS_TYPES.includes(address.addressType as AddressType)
+        ? address.addressType
+        : 'general') as AddressType,
+      positionTitleEn: address.positionTitleEn || address.name,
+      positionTitleMr: address.positionTitleMr || address.nameMr,
+      positionCode: address.positionCode || '',
       line1En: address.line1En,
       line1Mr: address.line1Mr,
       line2En: address.line2En,
@@ -301,6 +317,9 @@ export function AddressMasterManager({
       name: nameEn || nameMr,
       nameMr,
       addressType: form.addressType,
+      positionTitleEn: form.positionTitleEn.trim() || nameEn || nameMr,
+      positionTitleMr: form.positionTitleMr.trim() || nameMr || nameEn,
+      positionCode: form.positionCode.trim() || null,
       ...parts,
       isActive: form.isActive,
       sortOrder: Number(toWesternDigits(form.sortOrder)) || 0,
@@ -608,7 +627,7 @@ export function AddressMasterManager({
 
             <div className="space-y-1.5">
               <Label>
-                {t('letterGeneration.addresses.columns.name')} *
+                {t('letterGeneration.addresses.columns.holder')} *
               </Label>
               <div className="grid gap-2 sm:grid-cols-2">
                 <Input
@@ -617,7 +636,7 @@ export function AddressMasterManager({
                   autoComplete="off"
                   required
                   aria-required
-                  aria-label={`${t('letterGeneration.addresses.columns.name')} (${t('letterGeneration.addresses.english')})`}
+                  aria-label={`${t('letterGeneration.addresses.columns.holder')} (${t('letterGeneration.addresses.english')})`}
                   placeholder={t('letterGeneration.addresses.english')}
                   onChange={(event) =>
                     setForm({
@@ -633,7 +652,7 @@ export function AddressMasterManager({
                   value={form.nameMr}
                   lang="mr"
                   autoComplete="off"
-                  aria-label={`${t('letterGeneration.addresses.columns.name')} (${t('letterGeneration.addresses.marathi')})`}
+                  aria-label={`${t('letterGeneration.addresses.columns.holder')} (${t('letterGeneration.addresses.marathi')})`}
                   placeholder={t('letterGeneration.addresses.marathi')}
                   onChange={(event) =>
                     setForm({
@@ -667,6 +686,47 @@ export function AddressMasterManager({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>{t('letterGeneration.addresses.columns.position')}</Label>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Input
+                  value={form.positionTitleEn}
+                  lang="en"
+                  autoComplete="off"
+                  aria-label={`${t('letterGeneration.addresses.columns.position')} (${t('letterGeneration.addresses.english')})`}
+                  placeholder={t('letterGeneration.addresses.english')}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      positionTitleEn: filterLocaleText(event.target.value, 'en'),
+                    })
+                  }
+                />
+                <Input
+                  value={form.positionTitleMr}
+                  lang="mr"
+                  autoComplete="off"
+                  aria-label={`${t('letterGeneration.addresses.columns.position')} (${t('letterGeneration.addresses.marathi')})`}
+                  placeholder={t('letterGeneration.addresses.marathi')}
+                  onChange={(event) =>
+                    setForm({
+                      ...form,
+                      positionTitleMr: filterLocaleText(event.target.value, 'mr'),
+                    })
+                  }
+                />
+              </div>
+              <Input
+                value={form.positionCode}
+                autoComplete="off"
+                aria-label={t('letterGeneration.addresses.columns.positionCode')}
+                placeholder={t('letterGeneration.addresses.columns.positionCode')}
+                onChange={(event) =>
+                  setForm({ ...form, positionCode: event.target.value.trim() })
+                }
+              />
             </div>
 
             <BilingualAddressFields
@@ -821,9 +881,9 @@ export function AddressMasterManager({
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>{t('letterGeneration.addresses.columns.nameEn')}</TableHead>
-                          <TableHead>{t('letterGeneration.addresses.columns.nameMr')}</TableHead>
+                          <TableHead>{t('letterGeneration.addresses.columns.holder')}</TableHead>
                           <TableHead>{t('letterGeneration.addresses.columns.type')}</TableHead>
+                          <TableHead>{t('letterGeneration.addresses.columns.position')}</TableHead>
                           <TableHead>{t('letterGeneration.addresses.columns.english')}</TableHead>
                           <TableHead>{t('letterGeneration.addresses.columns.marathi')}</TableHead>
                           <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
@@ -835,12 +895,26 @@ export function AddressMasterManager({
                       <TableBody>
                         {paginatedAddresses.map((address) => (
                           <TableRow key={address.id}>
-                            <TableCell className="font-medium">{address.name}</TableCell>
-                            <TableCell className="font-medium" lang="mr">
-                              {address.nameMr.trim() || '—'}
+                            <TableCell className="font-medium">
+                              <div>{address.name}</div>
+                              {address.nameMr.trim() ? (
+                                <div className="text-muted-foreground text-xs" lang="mr">
+                                  {address.nameMr}
+                                </div>
+                              ) : null}
                             </TableCell>
                             <TableCell>
-                              {t(`letterGeneration.addresses.types.${address.addressType}`)}
+                              {ADDRESS_TYPES.includes(address.addressType as AddressType)
+                                ? t(`letterGeneration.addresses.types.${address.addressType}`)
+                                : address.typeLabelEn || address.addressType}
+                            </TableCell>
+                            <TableCell className="max-w-[180px] whitespace-pre-wrap text-sm">
+                              {address.positionTitleEn || address.positionTitleMr || '—'}
+                              {address.positionCode ? (
+                                <div className="text-muted-foreground text-xs">
+                                  {address.positionCode}
+                                </div>
+                              ) : null}
                             </TableCell>
                             <TableCell className="max-w-[220px] whitespace-pre-wrap text-sm">
                               {formatAddressMaster(address, 'en')}

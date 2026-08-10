@@ -148,6 +148,7 @@ import {
 import {
   formatAddressMaster,
   formatAddressMasterMultiline,
+  formatAddressMasterRecipient,
   hasAddressContent,
   hasRequiredAddressFields,
   localizeAddressPartsDigits,
@@ -156,6 +157,7 @@ import {
   sanitizeAddressPartsLocations,
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
+import { isMinisterAddressType } from '@/lib/letters/address-types';
 import {
   findDefaultOfficeAddress,
   findDefaultRationOfficeAddress,
@@ -884,11 +886,26 @@ function combineNameAndAddress(
 }
 
 function formatRationOfficeWithAddress(
-  address: Pick<AddressMasterRow, 'name' | 'nameMr'> & AddressMasterAddressParts,
+  address: Pick<
+    AddressMasterRow,
+    | 'name'
+    | 'nameMr'
+    | 'holderNameEn'
+    | 'holderNameMr'
+    | 'addressType'
+    | 'typeLabelEn'
+    | 'typeLabelMr'
+    | 'positionTitleEn'
+    | 'positionTitleMr'
+  > &
+    AddressMasterAddressParts,
   locale: LetterLocale,
   /** When true, name sits on its own line above a multiline address (recipient block). */
   nameOnOwnLine = false,
 ): string {
+  if (isMinisterAddressType(address.addressType)) {
+    return formatAddressMasterRecipient(address, locale, { multiline: nameOnOwnLine });
+  }
   const name = getAddressMasterName(address, locale);
   const addressText = nameOnOwnLine
     ? formatAddressMasterMultiline(address, locale)
@@ -899,7 +916,7 @@ function formatRationOfficeWithAddress(
 }
 
 function formatWardToWithAddress(
-  address: Pick<AddressMasterRow, 'name' | 'nameMr'> & AddressMasterAddressParts,
+  address: Parameters<typeof formatRationOfficeWithAddress>[0],
   locale: LetterLocale,
 ): string {
   return formatRationOfficeWithAddress(address, locale, true);

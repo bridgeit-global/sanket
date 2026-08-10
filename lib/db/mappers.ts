@@ -28,6 +28,9 @@ import type {
   LetterMaster,
   LetterTypeMaster,
   AddressMaster,
+  AddressTypeMaster,
+  AddressBlock,
+  PositionMaster,
   DocumentTypeMaster,
   LetterAddressTypeLink,
   MlaProject,
@@ -283,16 +286,35 @@ export function mapLetterTypeMasterRow(row: Row): LetterTypeMaster {
   };
 }
 
-function mapAddressType(value: unknown): AddressMaster['addressType'] {
-  return isAddressType(value) ? value : 'general';
+function mapAddressType(value: unknown): string {
+  return isAddressType(value) ? value : String(value ?? 'general');
 }
 
-export function mapAddressMasterRow(row: Row): AddressMaster {
+function nestedRow(row: Row, key: string): Row | null {
+  const value = row[key];
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Row;
+  }
+  return null;
+}
+
+export function mapAddressTypeMasterRow(row: Row): AddressTypeMaster {
   return {
     id: String(row.id),
-    name: String(row.name),
-    nameMr: String(row.name_mr ?? row.nameMr ?? ''),
-    addressType: mapAddressType(row.address_type ?? row.addressType),
+    code: String(row.code),
+    labelEn: String(row.label_en ?? row.labelEn ?? ''),
+    labelMr: String(row.label_mr ?? row.labelMr ?? ''),
+    isActive: Boolean(row.is_active ?? row.isActive ?? true),
+    sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapAddressBlockRow(row: Row): AddressBlock {
+  return {
+    id: String(row.id),
+    contentKey: String(row.content_key ?? row.contentKey ?? ''),
     line1En: String(row.line1_en ?? row.line1En ?? ''),
     line1Mr: String(row.line1_mr ?? row.line1Mr ?? ''),
     line2En: String(row.line2_en ?? row.line2En ?? ''),
@@ -304,6 +326,84 @@ export function mapAddressMasterRow(row: Row): AddressMaster {
     stateEn: String(row.state_en ?? row.stateEn ?? ''),
     stateMr: String(row.state_mr ?? row.stateMr ?? ''),
     pincode: String(row.pincode ?? ''),
+    isActive: Boolean(row.is_active ?? row.isActive ?? true),
+    sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
+    createdBy: toStringOrNull(row.created_by ?? row.createdBy),
+    updatedBy: toStringOrNull(row.updated_by ?? row.updatedBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapPositionMasterRow(row: Row): PositionMaster {
+  return {
+    id: String(row.id),
+    code: toStringOrNull(row.code),
+    titleEn: String(row.title_en ?? row.titleEn ?? ''),
+    titleMr: String(row.title_mr ?? row.titleMr ?? ''),
+    isActive: Boolean(row.is_active ?? row.isActive ?? true),
+    sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
+    createdBy: toStringOrNull(row.created_by ?? row.createdBy),
+    updatedBy: toStringOrNull(row.updated_by ?? row.updatedBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapAddressMasterRow(row: Row): AddressMaster {
+  const typeRow =
+    nestedRow(row, 'AddressTypeMaster') ??
+    nestedRow(row, 'address_type_master') ??
+    nestedRow(row, 'type');
+  const blockRow =
+    nestedRow(row, 'AddressBlock') ??
+    nestedRow(row, 'address_block') ??
+    nestedRow(row, 'address');
+  const positionRow =
+    nestedRow(row, 'PositionMaster') ??
+    nestedRow(row, 'position_master') ??
+    nestedRow(row, 'position');
+
+  const holderNameEn = String(
+    row.holder_name_en ?? row.holderNameEn ?? row.name ?? '',
+  );
+  const holderNameMr = String(
+    row.holder_name_mr ?? row.holderNameMr ?? row.name_mr ?? row.nameMr ?? '',
+  );
+  const addressType = mapAddressType(
+    typeRow?.code ?? row.address_type ?? row.addressType ?? 'general',
+  );
+
+  return {
+    id: String(row.id),
+    holderNameEn,
+    holderNameMr,
+    name: holderNameEn,
+    nameMr: holderNameMr,
+    typeId: String(row.type_id ?? row.typeId ?? typeRow?.id ?? ''),
+    addressType,
+    typeLabelEn: String(typeRow?.label_en ?? typeRow?.labelEn ?? addressType),
+    typeLabelMr: String(typeRow?.label_mr ?? typeRow?.labelMr ?? addressType),
+    addressId: String(row.address_id ?? row.addressId ?? blockRow?.id ?? ''),
+    line1En: String(blockRow?.line1_en ?? blockRow?.line1En ?? row.line1_en ?? row.line1En ?? ''),
+    line1Mr: String(blockRow?.line1_mr ?? blockRow?.line1Mr ?? row.line1_mr ?? row.line1Mr ?? ''),
+    line2En: String(blockRow?.line2_en ?? blockRow?.line2En ?? row.line2_en ?? row.line2En ?? ''),
+    line2Mr: String(blockRow?.line2_mr ?? blockRow?.line2Mr ?? row.line2_mr ?? row.line2Mr ?? ''),
+    line3En: String(blockRow?.line3_en ?? blockRow?.line3En ?? row.line3_en ?? row.line3En ?? ''),
+    line3Mr: String(blockRow?.line3_mr ?? blockRow?.line3Mr ?? row.line3_mr ?? row.line3Mr ?? ''),
+    cityEn: String(blockRow?.city_en ?? blockRow?.cityEn ?? row.city_en ?? row.cityEn ?? ''),
+    cityMr: String(blockRow?.city_mr ?? blockRow?.cityMr ?? row.city_mr ?? row.cityMr ?? ''),
+    stateEn: String(blockRow?.state_en ?? blockRow?.stateEn ?? row.state_en ?? row.stateEn ?? ''),
+    stateMr: String(blockRow?.state_mr ?? blockRow?.stateMr ?? row.state_mr ?? row.stateMr ?? ''),
+    pincode: String(blockRow?.pincode ?? row.pincode ?? ''),
+    positionId: String(row.position_id ?? row.positionId ?? positionRow?.id ?? ''),
+    positionTitleEn: String(
+      positionRow?.title_en ?? positionRow?.titleEn ?? holderNameEn,
+    ),
+    positionTitleMr: String(
+      positionRow?.title_mr ?? positionRow?.titleMr ?? holderNameMr,
+    ),
+    positionCode: toStringOrNull(positionRow?.code),
     isActive: Boolean(row.is_active ?? row.isActive ?? true),
     sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),
