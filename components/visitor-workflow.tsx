@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { toast } from '@/components/toast';
 import { useTranslations } from '@/hooks/use-translations';
 import { SidebarToggle } from '@/components/sidebar-toggle';
@@ -26,13 +27,29 @@ import {
   type MobileNumberEntry,
 } from '@/components/phone-update-form';
 import { VoterSearchPanel } from '@/components/voter-search-panel';
-import { formatDisplayDateTimeIST } from '@/lib/ist-date';
+import { formatDisplayDateIST, formatDisplayDateTimeIST } from '@/lib/ist-date';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
-import type { VoterWithPartNo } from '@/lib/db/schema';
+import type {
+  BeneficiaryService,
+  VoterMaster,
+  VoterWithPartNo,
+} from '@/lib/db/schema';
+import type { CadreMemberCard } from '@/lib/hierarchy/types';
 import type { ManageFilterState } from '@/lib/operator/manage-url-params';
 import { TaskManagement } from '@/components/task-management';
-import { ExternalLink, Loader2, Pencil, Plus, QrCode, Search, Share2, X } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
+  Loader2,
+  Pencil,
+  Plus,
+  QrCode,
+  Search,
+  Share2,
+  X,
+} from 'lucide-react';
 import { QrScannerDialog } from '@/components/qr-scanner-dialog';
 import { AadhaarQrScanButton, AadhaarQrScannerDialog } from '@/components/aadhaar-qr-scanner-dialog';
 import {
@@ -81,6 +98,79 @@ type VisitorRow = {
   programmeId: string | null;
   createdAt: string | Date;
   services: VisitorServiceRow[];
+};
+
+type LetterSummary = {
+  id: string;
+  beneficiaryServiceId: string | null;
+  letterType: string;
+  referenceNo: string;
+  title: string;
+  printedAt: string | Date | null;
+  createdAt: string | Date;
+  pdfStoragePath: string | null;
+};
+
+type AttachmentSummary = {
+  id: string;
+  serviceId: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl: string | null;
+  createdAt: string | Date;
+};
+
+type RelatedVoterRow = VoterMaster & {
+  mobileNumbers?: Array<{ mobileNumber: string; sortOrder: number }>;
+};
+
+type VotingHistoryRow = {
+  epicNumber: string;
+  electionId: string;
+  hasVoted: boolean | null;
+  boothName: string | null;
+  boothAddress: string | null;
+  boothNo: string | null;
+  srNo: string | null;
+  electionYear: number | null;
+  electionType: string | null;
+};
+
+type VisitorVoterDetails = {
+  success: boolean;
+  hasVoter: boolean;
+  voterNotFound?: boolean;
+  visitor?: VisitorRow;
+  voter: VoterMaster | null;
+  voterMobileNumbers: Array<{ mobileNumber: string; sortOrder: number }>;
+  relatedVoters: RelatedVoterRow[];
+  beneficiaryServices: {
+    individual: BeneficiaryService[];
+    community: BeneficiaryService[];
+  };
+  dailyProgrammeEvents: Array<{
+    id: string;
+    title: string;
+    remarks: string | null;
+    attended: boolean | null;
+    date: string | Date;
+    startTime: string;
+    endTime: string;
+    location: string;
+    visitorName?: string;
+  }>;
+  relatedVotersData: Array<{
+    voter: VoterMaster;
+    services: {
+      individual: BeneficiaryService[];
+      community: BeneficiaryService[];
+    };
+  }>;
+  cadreMembers: CadreMemberCard[];
+  votingHistory: VotingHistoryRow[];
+  letters: LetterSummary[];
+  attachments: AttachmentSummary[];
+  error?: string;
 };
 
 type CreatedVisitorService = {
@@ -288,6 +378,15 @@ export function VisitorWorkflow({
   const createInvalidMobileToastRef = useRef(false);
 
   const [sharingToken, setSharingToken] = useState<string | null>(null);
+  const [expandedVisitorIds, setExpandedVisitorIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [voterDetailsByVisitorId, setVoterDetailsByVisitorId] = useState<
+    Record<string, VisitorVoterDetails>
+  >({});
+  const [loadingVoterDetailsIds, setLoadingVoterDetailsIds] = useState<
+    Set<string>
+  >(() => new Set());
   const [serviceBeingChanged, setServiceBeingChanged] = useState<{
     visitorId: string;
     service: VisitorServiceRow;
@@ -1050,6 +1149,88 @@ export function VisitorWorkflow({
     }
   }
 
+  async function loadVisitorVoterDetails(visitorId: string) {
+    if (voterDetailsByVisitorId[visitorId] || loadingVoterDetailsIds.has(visitorId)) {
+      return;
+    }
+    setLoadingVoterDetailsIds((prev) => {
+      const next = new Set(prev);
+      next.add(visitorId);
+      return next;
+    });
+    try {
+      const res = await fetch(
+        `/api/visitor/${encodeURIComponent(visitorId)}/voter-details`,
+      );
+      const data = (await res.json()) as VisitorVoterDetails & { error?: string };
+      if (!res.ok) {
+        throw new Error(data.error || t('visitor.manage.loadVoterDetailsFailed'));
+      }
+      setVoterDetailsByVisitorId((prev) => ({ ...prev, [visitorId]: data }));
+    } catch (error) {
+      console.error(error);
+      setVoterDetailsByVisitorId((prev) => ({
+        ...prev,
+        [visitorId]: {
+          success: false,
+          hasVoter: false,
+          voter: null,
+          voterMobileNumbers: [],
+          relatedVoters: [],
+          beneficiaryServices: { individual: [], community: [] },
+          dailyProgrammeEvents: [],
+          relatedVotersData: [],
+          cadreMembers: [],
+          votingHistory: [],
+          letters: [],
+          attachments: [],
+          error:
+            error instanceof Error
+              ? error.message
+              : t('visitor.manage.loadVoterDetailsFailed'),
+        },
+      }));
+    } finally {
+      setLoadingVoterDetailsIds((prev) => {
+        const next = new Set(prev);
+        next.delete(visitorId);
+        return next;
+      });
+    }
+  }
+
+  function toggleVisitorExpanded(visitor: VisitorRow) {
+    const isExpanded = expandedVisitorIds.has(visitor.id);
+    setExpandedVisitorIds((prev) => {
+      const next = new Set(prev);
+      if (isExpanded) next.delete(visitor.id);
+      else next.add(visitor.id);
+      return next;
+    });
+    if (!isExpanded && visitor.voterId?.trim()) {
+      void loadVisitorVoterDetails(visitor.id);
+    }
+  }
+
+  function expandAllVisitorCards() {
+    const ids = createPickerVisitors.map((v) => v.id);
+    setExpandedVisitorIds(new Set(ids));
+    for (const visitor of createPickerVisitors) {
+      if (visitor.voterId?.trim()) {
+        void loadVisitorVoterDetails(visitor.id);
+      }
+    }
+  }
+
+  function collapseAllVisitorCards() {
+    setExpandedVisitorIds(new Set());
+  }
+
+  function programmeTitleFor(programmeId: string | null | undefined): string | null {
+    if (!programmeId) return null;
+    return programmes.find((p) => p.id === programmeId)?.title ?? null;
+  }
+
   async function createVisitor(params: {
     name: string;
     mobileNumber: string;
@@ -1723,7 +1904,7 @@ export function VisitorWorkflow({
                         total: createPickerTotal,
                       })}
                     </p>
-                    <div className="flex flex-col gap-2 sm:flex-row">
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                       <Button
                         type="button"
                         onClick={() => {
@@ -1757,6 +1938,28 @@ export function VisitorWorkflow({
                       >
                         {t('visitor.manage.actions.clearFilters')}
                       </Button>
+                      {createPickerVisitors.length > 0 ? (
+                        <>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={expandAllVisitorCards}
+                            className="w-full sm:w-auto"
+                          >
+                            <ChevronDown className="mr-2 h-4 w-4" />
+                            {t('visitor.manage.expandAll')}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={collapseAllVisitorCards}
+                            className="w-full sm:w-auto"
+                          >
+                            <ChevronUp className="mr-2 h-4 w-4" />
+                            {t('visitor.manage.collapseAll')}
+                          </Button>
+                        </>
+                      ) : null}
                     </div>
                   </div>
 
@@ -1773,141 +1976,702 @@ export function VisitorWorkflow({
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 gap-3">
-                      {createPickerVisitors.map((v) => (
-                        <Card key={v.id} className="overflow-hidden shadow-sm">
-                          <CardHeader className="space-y-3 border-b bg-muted/20 p-4 pb-3">
-                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                              <div className="min-w-0 space-y-1">
-                                <CardTitle className="text-base leading-snug sm:text-lg">
-                                  {v.name}
-                                </CardTitle>
-                                <CardDescription className="font-mono text-xs sm:text-sm">
-                                  {v.token} · {v.mobileNumber}
-                                  {v.voterId ? ` · ${v.voterId}` : ''}
-                                </CardDescription>
-                                {v.location ? (
-                                  <p className="text-xs text-muted-foreground sm:text-sm">
-                                    {v.location}
-                                  </p>
-                                ) : null}
-                                <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
-                                  <Badge variant="secondary">
-                                    {t('visitor.manage.serviceCount', {
-                                      count: v.services?.length ?? 0,
-                                    })}
-                                  </Badge>
-                                  <span>{formatDisplayDateTimeIST(v.createdAt)}</span>
+                      {createPickerVisitors.map((v) => {
+                        const isExpanded = expandedVisitorIds.has(v.id);
+                        const details = voterDetailsByVisitorId[v.id];
+                        const detailsLoading = loadingVoterDetailsIds.has(v.id);
+                        const epic = v.voterId?.trim().toUpperCase() || null;
+                        const visitProgrammeTitle = programmeTitleFor(v.programmeId);
+
+                        return (
+                          <Card key={v.id} className="overflow-hidden shadow-sm">
+                            <CardHeader className="space-y-3 border-b bg-muted/20 p-4 pb-3">
+                              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div className="min-w-0 space-y-1">
+                                  <CardTitle className="text-base leading-snug sm:text-lg">
+                                    {v.name}
+                                  </CardTitle>
+                                  <CardDescription className="font-mono text-xs sm:text-sm">
+                                    {v.token} · {v.mobileNumber}
+                                    {v.voterId ? ` · ${v.voterId}` : ''}
+                                  </CardDescription>
+                                  {v.location ? (
+                                    <p className="text-xs text-muted-foreground sm:text-sm">
+                                      {v.location}
+                                    </p>
+                                  ) : null}
+                                  <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
+                                    <Badge variant="secondary">
+                                      {t('visitor.manage.serviceCount', {
+                                        count: v.services?.length ?? 0,
+                                      })}
+                                    </Badge>
+                                    <span>{formatDisplayDateTimeIST(v.createdAt)}</span>
+                                  </div>
+                                </div>
+                                <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto">
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    className="w-full sm:w-auto"
+                                    disabled={sharingToken === v.token}
+                                    onClick={() =>
+                                      void shareVisitorThermalTicket({
+                                        token: v.token,
+                                        createdAt: v.createdAt,
+                                        serviceName: t('visitor.create.visitTokenLabel'),
+                                        name: v.name,
+                                        mobile: v.mobileNumber,
+                                      })
+                                    }
+                                  >
+                                    {sharingToken === v.token ? (
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                    ) : (
+                                      <Share2 className="mr-2 h-4 w-4" />
+                                    )}
+                                    {t('visitor.manage.printToken')}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    className="w-full sm:w-auto"
+                                    onClick={() => openAddServiceModal(v)}
+                                  >
+                                    <Plus className="mr-2 h-4 w-4" />
+                                    {t('visitor.manage.addService')}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="w-full sm:w-auto"
+                                    aria-expanded={isExpanded}
+                                    onClick={() => toggleVisitorExpanded(v)}
+                                  >
+                                    {isExpanded ? (
+                                      <ChevronUp className="mr-2 h-4 w-4" />
+                                    ) : (
+                                      <ChevronDown className="mr-2 h-4 w-4" />
+                                    )}
+                                    {isExpanded
+                                      ? t('visitor.manage.hideDetails')
+                                      : t('visitor.manage.showDetails')}
+                                  </Button>
                                 </div>
                               </div>
-                              <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto">
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="outline"
-                                  className="w-full sm:w-auto"
-                                  disabled={sharingToken === v.token}
-                                  onClick={() =>
-                                    void shareVisitorThermalTicket({
-                                      token: v.token,
-                                      createdAt: v.createdAt,
-                                      serviceName: t('visitor.create.visitTokenLabel'),
-                                      name: v.name,
-                                      mobile: v.mobileNumber,
-                                    })
-                                  }
-                                >
-                                  {sharingToken === v.token ? (
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            </CardHeader>
+                            {isExpanded ? (
+                              <CardContent className="space-y-5 p-4 pt-3">
+                                <section className="space-y-2">
+                                  <p className="text-xs font-medium text-muted-foreground">
+                                    {t('visitor.manage.visitDetails')}
+                                  </p>
+                                  {visitProgrammeTitle || v.programmeId ? (
+                                    <p className="text-sm text-muted-foreground">
+                                      {t('visitor.form.programme')}:{' '}
+                                      {visitProgrammeTitle ?? v.programmeId}
+                                    </p>
+                                  ) : null}
+                                  <p className="text-xs font-medium text-muted-foreground">
+                                    {t('visitor.manage.existingServices')}
+                                  </p>
+                                  {(v.services?.length ?? 0) > 0 ? (
+                                    <ul className="space-y-2">
+                                      {v.services.map((service) => (
+                                        <li
+                                          key={service.id}
+                                          className="space-y-2 rounded-lg border bg-muted/10 px-3 py-2.5"
+                                        >
+                                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                            <div className="min-w-0 space-y-1">
+                                              <p className="text-sm font-medium leading-snug">
+                                                {service.serviceName}
+                                              </p>
+                                              <p className="font-mono text-xs text-muted-foreground">
+                                                {t('visitor.manage.serviceToken')}:{' '}
+                                                {service.token}
+                                              </p>
+                                              {service.description ? (
+                                                <p className="text-xs text-muted-foreground">
+                                                  {t('visitor.manage.description')}:{' '}
+                                                  {service.description}
+                                                </p>
+                                              ) : null}
+                                              {service.notes ? (
+                                                <p className="text-xs text-muted-foreground">
+                                                  {t('visitor.form.notes')}: {service.notes}
+                                                </p>
+                                              ) : null}
+                                              {service.convertedAt ? (
+                                                <p className="text-xs text-muted-foreground">
+                                                  {t('visitor.manage.convertedAt')}:{' '}
+                                                  {formatDisplayDateTimeIST(
+                                                    service.convertedAt,
+                                                  )}
+                                                </p>
+                                              ) : null}
+                                              <p className="text-xs text-muted-foreground">
+                                                {formatDisplayDateTimeIST(service.createdAt)}
+                                              </p>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2">
+                                              <Badge
+                                                variant={
+                                                  service.status === 'cancelled'
+                                                    ? 'destructive'
+                                                    : service.status === 'converted'
+                                                      ? 'default'
+                                                      : 'secondary'
+                                                }
+                                                className="w-fit shrink-0 capitalize"
+                                              >
+                                                {t(`visitor.status.${service.status}`)}
+                                              </Badge>
+                                              {service.canChangeService ? (
+                                                <Button
+                                                  type="button"
+                                                  size="sm"
+                                                  variant="outline"
+                                                  onClick={() =>
+                                                    openChangeServiceDialog(v.id, service)
+                                                  }
+                                                >
+                                                  <Pencil className="mr-2 h-4 w-4" />
+                                                  {t('visitor.manage.changeService')}
+                                                </Button>
+                                              ) : null}
+                                              {service.beneficiaryServiceId ? (
+                                                <Button
+                                                  type="button"
+                                                  size="sm"
+                                                  variant="outline"
+                                                  onClick={() =>
+                                                    navigateToBeneficiaryTask(
+                                                      service.beneficiaryServiceId!,
+                                                    )
+                                                  }
+                                                >
+                                                  <ExternalLink className="mr-2 h-4 w-4" />
+                                                  {t('visitor.manage.openBeneficiary')}
+                                                </Button>
+                                              ) : null}
+                                            </div>
+                                          </div>
+                                        </li>
+                                      ))}
+                                    </ul>
                                   ) : (
-                                    <Share2 className="mr-2 h-4 w-4" />
-                                  )}
-                                  {t('visitor.manage.printToken')}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  className="w-full sm:w-auto"
-                                  onClick={() => openAddServiceModal(v)}
-                                >
-                                  <Plus className="mr-2 h-4 w-4" />
-                                  {t('visitor.manage.addService')}
-                                </Button>
-                              </div>
-                            </div>
-                          </CardHeader>
-                          <CardContent className="space-y-2 p-4 pt-3">
-                            <p className="text-xs font-medium text-muted-foreground">
-                              {t('visitor.manage.existingServices')}
-                            </p>
-                            {(v.services?.length ?? 0) > 0 ? (
-                              <ul className="space-y-2">
-                                {v.services.map((service) => (
-                                  <li
-                                    key={service.id}
-                                    className="flex flex-col gap-2 rounded-lg border bg-muted/10 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
-                                  >
-                                    <div className="min-w-0">
-                                      <p className="text-sm font-medium leading-snug">
-                                        {service.serviceName}
+                                    <div className="rounded-lg border border-dashed px-3 py-4 text-center">
+                                      <p className="text-sm text-muted-foreground">
+                                        {t('visitor.manage.noServices')}
                                       </p>
                                     </div>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <Badge
-                                        variant={
-                                          service.status === 'cancelled'
-                                            ? 'destructive'
-                                            : service.status === 'converted'
-                                              ? 'default'
-                                              : 'secondary'
-                                        }
-                                        className="w-fit shrink-0 capitalize"
-                                      >
-                                        {t(`visitor.status.${service.status}`)}
-                                      </Badge>
-                                      {service.canChangeService ? (
+                                  )}
+                                </section>
+
+                                {!epic ? (
+                                  <p className="rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground">
+                                    {t('visitor.manage.noEpicLinked')}
+                                  </p>
+                                ) : detailsLoading && !details ? (
+                                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    {t('visitor.manage.loadingVoterDetails')}
+                                  </div>
+                                ) : details?.error ? (
+                                  <p className="text-sm text-destructive">
+                                    {details.error}
+                                  </p>
+                                ) : details ? (
+                                  <>
+                                    <section className="space-y-2">
+                                      <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <p className="text-xs font-medium text-muted-foreground">
+                                          {t('visitor.manage.linkedVoter')}
+                                        </p>
                                         <Button
                                           type="button"
                                           size="sm"
-                                          variant="outline"
-                                          className="w-full sm:w-auto"
-                                          onClick={() =>
-                                            openChangeServiceDialog(v.id, service)
-                                          }
+                                          variant="link"
+                                          className="h-auto p-0"
+                                          asChild
                                         >
-                                          <Pencil className="mr-2 h-4 w-4" />
-                                          {t('visitor.manage.changeService')}
+                                          <Link
+                                            href={`/modules/voter/${encodeURIComponent(epic)}`}
+                                          >
+                                            {t('visitor.manage.openFullProfile')}
+                                          </Link>
                                         </Button>
-                                      ) : null}
-                                      {service.beneficiaryServiceId ? (
+                                      </div>
+                                      {details.voterNotFound || !details.voter ? (
+                                        <p className="text-sm text-muted-foreground">
+                                          {t('visitor.manage.voterNotFound')}
+                                        </p>
+                                      ) : (
+                                        <div className="space-y-1 rounded-lg border bg-muted/10 px-3 py-2.5 text-sm">
+                                          <p className="font-medium">
+                                            {details.voter.fullName}
+                                          </p>
+                                          <p className="font-mono text-xs text-muted-foreground">
+                                            {details.voter.epicNumber}
+                                          </p>
+                                          {(details.voter.relationType ||
+                                            details.voter.relationName) && (
+                                            <p className="text-xs text-muted-foreground">
+                                              {[
+                                                details.voter.relationType,
+                                                details.voter.relationName,
+                                              ]
+                                                .filter(Boolean)
+                                                .join(': ')}
+                                            </p>
+                                          )}
+                                          <p className="text-xs text-muted-foreground">
+                                            {[
+                                              details.voter.age != null
+                                                ? `Age ${details.voter.age}`
+                                                : null,
+                                              details.voter.gender,
+                                              details.voter.dob
+                                                ? formatDisplayDateIST(details.voter.dob)
+                                                : null,
+                                            ]
+                                              .filter(Boolean)
+                                              .join(' · ')}
+                                          </p>
+                                          {(details.voter.houseNumber ||
+                                            details.voter.address ||
+                                            details.voter.localityStreet ||
+                                            details.voter.townVillage ||
+                                            details.voter.pincode) && (
+                                            <p className="text-xs text-muted-foreground">
+                                              {[
+                                                details.voter.houseNumber,
+                                                details.voter.localityStreet,
+                                                details.voter.townVillage,
+                                                details.voter.address,
+                                                details.voter.pincode,
+                                              ]
+                                                .filter(Boolean)
+                                                .join(', ')}
+                                            </p>
+                                          )}
+                                          {(details.voter.religion ||
+                                            details.voter.caste) && (
+                                            <p className="text-xs text-muted-foreground">
+                                              {[details.voter.religion, details.voter.caste]
+                                                .filter(Boolean)
+                                                .join(' · ')}
+                                            </p>
+                                          )}
+                                          {details.voterMobileNumbers.length > 0 ? (
+                                            <p className="text-xs text-muted-foreground">
+                                              {details.voterMobileNumbers
+                                                .map((m) => m.mobileNumber)
+                                                .join(' · ')}
+                                            </p>
+                                          ) : null}
+                                        </div>
+                                      )}
+                                    </section>
+
+                                    <section className="space-y-2">
+                                      <p className="text-xs font-medium text-muted-foreground">
+                                        {t('visitor.manage.votingInformation')}
+                                      </p>
+                                      {(details.votingHistory?.length ?? 0) ===
+                                      0 ? (
+                                        <p className="text-sm text-muted-foreground">
+                                          {t('visitor.manage.noVotingHistory')}
+                                        </p>
+                                      ) : (
+                                        <ul className="space-y-2">
+                                          {details.votingHistory.map((record) => (
+                                            <li
+                                              key={`${record.epicNumber}-${record.electionId}`}
+                                              className="space-y-1 rounded-lg border bg-muted/10 px-3 py-2.5"
+                                            >
+                                              <div className="flex flex-wrap items-center gap-2">
+                                                <p className="text-sm font-medium">
+                                                  {record.electionType &&
+                                                  record.electionYear
+                                                    ? t(
+                                                        'visitor.manage.electionLabel',
+                                                        {
+                                                          type: record.electionType,
+                                                          year: record.electionYear,
+                                                        },
+                                                      )
+                                                    : record.electionId}
+                                                </p>
+                                                <Badge
+                                                  variant={
+                                                    record.hasVoted
+                                                      ? 'default'
+                                                      : 'secondary'
+                                                  }
+                                                >
+                                                  {record.hasVoted
+                                                    ? t('visitor.manage.voted')
+                                                    : t('visitor.manage.notVoted')}
+                                                </Badge>
+                                              </div>
+                                              <p className="text-xs text-muted-foreground">
+                                                {[
+                                                  record.boothNo
+                                                    ? `${t('visitor.manage.booth')}: ${record.boothNo}`
+                                                    : null,
+                                                  record.srNo
+                                                    ? `${t('visitor.manage.serialNumber')}: ${record.srNo}`
+                                                    : null,
+                                                  record.boothName,
+                                                ]
+                                                  .filter(Boolean)
+                                                  .join(' · ')}
+                                              </p>
+                                              {record.boothAddress ? (
+                                                <p className="text-xs text-muted-foreground">
+                                                  {record.boothAddress}
+                                                </p>
+                                              ) : null}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                    </section>
+
+                                    <section className="space-y-2">
+                                      <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <p className="text-xs font-medium text-muted-foreground">
+                                          {t('visitor.manage.cadreHierarchy')}
+                                        </p>
                                         <Button
                                           type="button"
                                           size="sm"
-                                          variant="outline"
-                                          className="w-full sm:w-auto"
-                                          onClick={() =>
-                                            navigateToBeneficiaryTask(
-                                              service.beneficiaryServiceId!,
-                                            )
-                                          }
+                                          variant="link"
+                                          className="h-auto p-0"
+                                          asChild
                                         >
-                                          <ExternalLink className="mr-2 h-4 w-4" />
-                                          {t('visitor.manage.openBeneficiary')}
+                                          <Link href="/modules/hierarchy">
+                                            {t('visitor.manage.openHierarchy')}
+                                          </Link>
                                         </Button>
-                                      ) : null}
-                                    </div>
-                                  </li>
-                                ))}
-                              </ul>
-                            ) : (
-                              <div className="rounded-lg border border-dashed px-3 py-4 text-center">
-                                <p className="text-sm text-muted-foreground">
-                                  {t('visitor.manage.noServices')}
-                                </p>
-                              </div>
-                            )}
-                          </CardContent>
-                        </Card>
-                      ))}
+                                      </div>
+                                      {details.cadreMembers.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground">
+                                          {t('visitor.manage.notInCadre')}
+                                        </p>
+                                      ) : (
+                                        <ul className="space-y-2">
+                                          {details.cadreMembers.map((member) => (
+                                            <li
+                                              key={member.id}
+                                              className="space-y-2 rounded-lg border bg-muted/10 px-3 py-2.5"
+                                            >
+                                              <div className="flex flex-wrap items-center gap-2">
+                                                <p className="text-sm font-medium">
+                                                  {member.personName || v.name}
+                                                </p>
+                                                {!member.isActive ? (
+                                                  <Badge variant="secondary">Inactive</Badge>
+                                                ) : null}
+                                              </div>
+                                              {member.personPhone ? (
+                                                <p className="text-xs text-muted-foreground">
+                                                  {member.personPhone}
+                                                </p>
+                                              ) : null}
+                                              {member.verticals.length > 0 ? (
+                                                <p className="text-xs text-muted-foreground">
+                                                  {t('visitor.manage.verticals')}:{' '}
+                                                  {member.verticals
+                                                    .map((vert) => vert.name)
+                                                    .join(', ')}
+                                                </p>
+                                              ) : null}
+                                              {member.posts.length > 0 ? (
+                                                <ul className="space-y-1">
+                                                  {member.posts.map((post) => (
+                                                    <li
+                                                      key={post.id}
+                                                      className="rounded border border-dashed px-2 py-1.5 text-xs"
+                                                    >
+                                                      <span className="font-medium">
+                                                        {post.positionName}
+                                                      </span>
+                                                      {post.isPrimary ? (
+                                                        <Badge
+                                                          variant="secondary"
+                                                          className="ml-2"
+                                                        >
+                                                          {t('visitor.manage.primaryPost')}
+                                                        </Badge>
+                                                      ) : null}
+                                                      <p className="mt-0.5 text-muted-foreground">
+                                                        {[
+                                                          post.positionLevelName,
+                                                          post.verticalName,
+                                                          post.talukaName
+                                                            ? `${t('visitor.manage.taluka')}: ${post.talukaName}`
+                                                            : null,
+                                                          post.wardGeoName
+                                                            ? `${t('visitor.manage.ward')}: ${post.wardGeoName}`
+                                                            : null,
+                                                          post.boothNo
+                                                            ? `${t('visitor.manage.booth')}: ${post.boothNo}`
+                                                            : null,
+                                                          post.label,
+                                                        ]
+                                                          .filter(Boolean)
+                                                          .join(' · ')}
+                                                      </p>
+                                                    </li>
+                                                  ))}
+                                                </ul>
+                                              ) : null}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                    </section>
+
+                                    <section className="space-y-2">
+                                      <p className="text-xs font-medium text-muted-foreground">
+                                        {t('visitor.manage.allBeneficiaryServices')}
+                                      </p>
+                                      {details.beneficiaryServices.individual.length ===
+                                        0 &&
+                                      details.beneficiaryServices.community.length ===
+                                        0 ? (
+                                        <p className="text-sm text-muted-foreground">
+                                          {t('visitor.manage.noServices')}
+                                        </p>
+                                      ) : (
+                                        <div className="space-y-3">
+                                          {details.beneficiaryServices.individual.length >
+                                          0 ? (
+                                            <div className="space-y-1">
+                                              <p className="text-xs text-muted-foreground">
+                                                {t('visitor.manage.individualServices')}
+                                              </p>
+                                              <ul className="space-y-1">
+                                                {details.beneficiaryServices.individual.map(
+                                                  (svc) => (
+                                                    <li
+                                                      key={svc.id}
+                                                      className="rounded border px-2 py-1.5 text-sm"
+                                                    >
+                                                      <span className="font-medium">
+                                                        {svc.serviceName}
+                                                      </span>
+                                                      <span className="ml-2 text-xs capitalize text-muted-foreground">
+                                                        {svc.status}
+                                                        {svc.token
+                                                          ? ` · ${svc.token}`
+                                                          : ''}
+                                                      </span>
+                                                    </li>
+                                                  ),
+                                                )}
+                                              </ul>
+                                            </div>
+                                          ) : null}
+                                          {details.beneficiaryServices.community.length >
+                                          0 ? (
+                                            <div className="space-y-1">
+                                              <p className="text-xs text-muted-foreground">
+                                                {t('visitor.manage.communityServices')}
+                                              </p>
+                                              <ul className="space-y-1">
+                                                {details.beneficiaryServices.community.map(
+                                                  (svc) => (
+                                                    <li
+                                                      key={svc.id}
+                                                      className="rounded border px-2 py-1.5 text-sm"
+                                                    >
+                                                      <span className="font-medium">
+                                                        {svc.serviceName}
+                                                      </span>
+                                                      <span className="ml-2 text-xs capitalize text-muted-foreground">
+                                                        {svc.status}
+                                                        {svc.token
+                                                          ? ` · ${svc.token}`
+                                                          : ''}
+                                                      </span>
+                                                    </li>
+                                                  ),
+                                                )}
+                                              </ul>
+                                            </div>
+                                          ) : null}
+                                        </div>
+                                      )}
+                                    </section>
+
+                                    <section className="space-y-2">
+                                      <p className="text-xs font-medium text-muted-foreground">
+                                        {t('visitor.manage.lettersAndAttachments')}
+                                      </p>
+                                      {details.letters.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground">
+                                          {t('visitor.manage.noLetters')}
+                                        </p>
+                                      ) : (
+                                        <ul className="space-y-1">
+                                          {details.letters.map((letter) => (
+                                            <li
+                                              key={letter.id}
+                                              className="rounded border px-2 py-1.5 text-sm"
+                                            >
+                                              <span className="font-medium">
+                                                {letter.title || letter.letterType}
+                                              </span>
+                                              <span className="ml-2 font-mono text-xs text-muted-foreground">
+                                                {letter.referenceNo}
+                                              </span>
+                                              {letter.printedAt ? (
+                                                <span className="ml-2 text-xs text-muted-foreground">
+                                                  {formatDisplayDateTimeIST(
+                                                    letter.printedAt,
+                                                  )}
+                                                </span>
+                                              ) : null}
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                      {details.attachments.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground">
+                                          {t('visitor.manage.noAttachments')}
+                                        </p>
+                                      ) : (
+                                        <ul className="space-y-1">
+                                          {details.attachments.map((att) => (
+                                            <li
+                                              key={att.id}
+                                              className="rounded border px-2 py-1.5 text-sm"
+                                            >
+                                              {att.fileUrl ? (
+                                                <a
+                                                  href={att.fileUrl}
+                                                  target="_blank"
+                                                  rel="noreferrer"
+                                                  className="font-medium underline-offset-2 hover:underline"
+                                                >
+                                                  {att.fileName}
+                                                </a>
+                                              ) : (
+                                                <span className="font-medium">
+                                                  {att.fileName}
+                                                </span>
+                                              )}
+                                              <span className="ml-2 text-xs text-muted-foreground">
+                                                {att.fileSizeKb} KB
+                                              </span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                    </section>
+
+                                    <section className="space-y-2">
+                                      <p className="text-xs font-medium text-muted-foreground">
+                                        {t('visitor.manage.familyRelated')}
+                                      </p>
+                                      {details.relatedVoters.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground">
+                                          {t('visitor.manage.noFamily')}
+                                        </p>
+                                      ) : (
+                                        <ul className="space-y-2">
+                                          {details.relatedVoters.map((rv) => {
+                                            const relatedBundle =
+                                              details.relatedVotersData.find(
+                                                (d) =>
+                                                  d.voter.epicNumber === rv.epicNumber,
+                                              );
+                                            const relatedServiceCount =
+                                              (relatedBundle?.services.individual
+                                                .length ?? 0) +
+                                              (relatedBundle?.services.community.length ??
+                                                0);
+                                            return (
+                                              <li
+                                                key={rv.epicNumber}
+                                                className="rounded-lg border bg-muted/10 px-3 py-2 text-sm"
+                                              >
+                                                <p className="font-medium">{rv.fullName}</p>
+                                                <p className="font-mono text-xs text-muted-foreground">
+                                                  {rv.epicNumber}
+                                                </p>
+                                                <p className="text-xs text-muted-foreground">
+                                                  {[
+                                                    rv.relationType,
+                                                    rv.relationName,
+                                                    rv.age != null
+                                                      ? `Age ${rv.age}`
+                                                      : null,
+                                                    rv.gender,
+                                                  ]
+                                                    .filter(Boolean)
+                                                    .join(' · ')}
+                                                </p>
+                                                {rv.mobileNumbers &&
+                                                rv.mobileNumbers.length > 0 ? (
+                                                  <p className="text-xs text-muted-foreground">
+                                                    {rv.mobileNumbers
+                                                      .map((m) => m.mobileNumber)
+                                                      .join(' · ')}
+                                                  </p>
+                                                ) : null}
+                                                {relatedServiceCount > 0 ? (
+                                                  <p className="text-xs text-muted-foreground">
+                                                    {t('visitor.manage.serviceCount', {
+                                                      count: relatedServiceCount,
+                                                    })}
+                                                  </p>
+                                                ) : null}
+                                              </li>
+                                            );
+                                          })}
+                                        </ul>
+                                      )}
+                                    </section>
+
+                                    <section className="space-y-2">
+                                      <p className="text-xs font-medium text-muted-foreground">
+                                        {t('visitor.manage.dailyProgrammeEvents')}
+                                      </p>
+                                      {details.dailyProgrammeEvents.length === 0 ? (
+                                        <p className="text-sm text-muted-foreground">
+                                          {t('visitor.manage.noProgrammeEvents')}
+                                        </p>
+                                      ) : (
+                                        <ul className="space-y-1">
+                                          {details.dailyProgrammeEvents.map((ev) => (
+                                            <li
+                                              key={ev.id}
+                                              className="rounded border px-2 py-1.5 text-sm"
+                                            >
+                                              <span className="font-medium">{ev.title}</span>
+                                              <span className="ml-2 text-xs text-muted-foreground">
+                                                {formatDisplayDateTimeIST(ev.date)} ·{' '}
+                                                {ev.location}
+                                              </span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                    </section>
+                                  </>
+                                ) : null}
+                              </CardContent>
+                            ) : null}
+                          </Card>
+                        );
+                      })}
                     </div>
                   )}
 
