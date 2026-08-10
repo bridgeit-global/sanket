@@ -988,6 +988,9 @@ export function DailyProgramme({
     const headerDateRange = (() => {
       const startLabel = formatDateForPdfRange(dateRange.start);
       const endLabel = formatDateForPdfRange(dateRange.end);
+      if (startLabel && endLabel && dateRange.start === dateRange.end) {
+        return startLabel;
+      }
       if (startLabel && endLabel) return `${startLabel} – ${endLabel}`;
       if (startLabel) return startLabel;
       if (endLabel) return endLabel;
