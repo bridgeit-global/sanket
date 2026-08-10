@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-    title: 'Operator Dashboard - Voter Management',
-    description: 'Operator interface for updating voter mobile numbers',
+    title: 'Beneficiary Management - Voter Management',
+    description: 'Beneficiary management interface for updating voter mobile numbers',
 };
 
 export default function OperatorLayout({

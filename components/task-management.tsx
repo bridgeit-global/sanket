@@ -489,6 +489,7 @@ export function TaskManagement({
     const [serviceCatalog, setServiceCatalog] = useState<ServiceCatalogOption[]>([]);
     const [showQrScanner, setShowQrScanner] = useState(false);
     const [pendingAutoFocusToken, setPendingAutoFocusToken] = useState<string | null>(null);
+    const [pendingAutoFocusTaskId, setPendingAutoFocusTaskId] = useState<string | null>(null);
     const [highlightedItemId, setHighlightedItemId] = useState<string | null>(null);
     const [newNote, setNewNote] = useState('');
     const [newStatus, setNewStatus] = useState<string>('');
@@ -565,7 +566,8 @@ export function TaskManagement({
                 page: resetPage ? 1 : (updates.page ?? currentPage),
                 limit: updates.limit ?? pageSize,
                 taskId: updates.taskId ?? (searchParams.get('taskId') ?? ''),
-                tab: updates.tab ?? searchParams.get('tab') ?? 'manage',
+                // TaskManagement only lives on the tasks tab — never write create/visitor back.
+                tab: updates.tab ?? 'tasks',
             };
             const params = buildManageSearchParams(next, new URLSearchParams(searchParams.toString()));
             const qs = params.toString();
@@ -663,16 +665,44 @@ export function TaskManagement({
     }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, filterAssignedTo, filterCreatedFrom, filterCreatedTo]);
 
     useEffect(() => {
-        if (!pendingAutoFocusToken) return;
+        if (!pendingAutoFocusToken && !pendingAutoFocusTaskId) return;
         if (isLoading) return;
+        // Wait until the token filter has been applied when a token focus is pending,
+        // otherwise the first unfiltered page load clears the pending focus too early.
+        if (
+            pendingAutoFocusToken &&
+            filterToken.trim().toLowerCase() !== pendingAutoFocusToken.trim().toLowerCase()
+        ) {
+            return;
+        }
 
-        const token = pendingAutoFocusToken;
-        const matchTask = tasks.find((t) => (t.service?.token ?? '').toLowerCase() === token.toLowerCase());
+        const matchTask =
+            (pendingAutoFocusTaskId
+                ? tasks.find(
+                      (t) =>
+                          t.id === pendingAutoFocusTaskId ||
+                          t.serviceId === pendingAutoFocusTaskId ||
+                          t.service?.id === pendingAutoFocusTaskId,
+                  )
+                : null) ??
+            (pendingAutoFocusToken
+                ? tasks.find(
+                      (t) =>
+                          (t.service?.token ?? '').toLowerCase() ===
+                          pendingAutoFocusToken.toLowerCase(),
+                  )
+                : null);
         const matchId = matchTask?.id ?? null;
 
         if (!matchId) {
-            toast({ type: 'error', description: `No item found for token: ${token}` });
+            if (pendingAutoFocusToken) {
+                toast({
+                    type: 'error',
+                    description: `No item found for token: ${pendingAutoFocusToken}`,
+                });
+            }
             setPendingAutoFocusToken(null);
+            setPendingAutoFocusTaskId(null);
             return;
         }
 
@@ -689,7 +719,8 @@ export function TaskManagement({
         highlightTimeoutRef.current = window.setTimeout(() => setHighlightedItemId(null), 2500);
 
         setPendingAutoFocusToken(null);
-    }, [pendingAutoFocusToken, tasks, isLoading]);
+        setPendingAutoFocusTaskId(null);
+    }, [pendingAutoFocusToken, pendingAutoFocusTaskId, tasks, isLoading, filterToken]);
 
     useEffect(() => {
         return () => {
@@ -703,29 +734,43 @@ export function TaskManagement({
 
         let cancelled = false;
 
-        const openDeepLinkedItem = async () => {
+        const focusDeepLinkedItem = async () => {
             try {
                 const response = await fetch(`/operator/api/tasks/${targetId}`);
                 if (!response.ok) return;
                 const { task } = await response.json();
                 if (cancelled || !task) return;
 
-                setSelectedTask(task);
-                setNewStatus(task.status);
-                setNewNote('');
-                setAssignedTo(task.assignedTo || '');
-                setShowTaskDialog(true);
-                setHighlightedItemId(task.id);
+                const token = typeof task.service?.token === 'string' ? task.service.token.trim() : '';
+                setPendingAutoFocusTaskId(task.id);
+                if (token) {
+                    setFilterToken(token);
+                    setFilterTokenInput(token);
+                    setCurrentPage(1);
+                    syncManageUrl({ token, page: 1, taskId: targetId }, true);
+                    setPendingAutoFocusToken(token);
+                } else {
+                    setHighlightedItemId(task.id);
+                    if (highlightTimeoutRef.current != null) {
+                        window.clearTimeout(highlightTimeoutRef.current);
+                    }
+                    highlightTimeoutRef.current = window.setTimeout(
+                        () => setHighlightedItemId(null),
+                        2500,
+                    );
+                }
             } catch (error) {
-                console.error('Failed to open notification target:', error);
+                console.error('Failed to focus notification target:', error);
             }
         };
 
-        void openDeepLinkedItem();
+        void focusDeepLinkedItem();
 
         return () => {
             cancelled = true;
         };
+        // Intentionally only when deep-link target changes.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [initialTaskId, mergedInitial.taskId]);
 
     // Debounce the "typing" inputs before applying filters (prevents frequent fetches while typing).

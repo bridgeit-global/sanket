@@ -1380,6 +1380,7 @@ export async function createBeneficiaryService({
   voterId,
   notes,
   programmeId,
+  token: providedToken,
 }: {
   serviceType: 'individual' | 'community';
   serviceName: string;
@@ -1390,10 +1391,12 @@ export async function createBeneficiaryService({
   voterId?: string;
   notes?: string;
   programmeId?: string;
+  /** When set (e.g. visitor visit token), skip generating a new token. */
+  token?: string;
 }): Promise<BeneficiaryService> {
   try {
     const trimmedProgramme = programmeId?.trim() || undefined;
-    const token = await generateServiceToken(trimmedProgramme);
+    const token = providedToken?.trim() || (await generateServiceToken(trimmedProgramme));
 
     if (serviceType === 'individual') {
       await ensureServiceCatalogEntry(serviceName);

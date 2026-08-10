@@ -109,6 +109,63 @@ export function parseInstant(value: string | Date | number): Date {
   return new Date(trimmed);
 }
 
+/** Days in month for a Gregorian calendar year/month (month 1–12). */
+function daysInMonth(year: number, month: number): number {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function isValidCalendarYmd({ year, month, day }: CalendarYmd): boolean {
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
+    return false;
+  }
+  if (year < 1000 || year > 9999) return false;
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > daysInMonth(year, month)) return false;
+  return true;
+}
+
+/** Format `yyyy-MM-dd` as `dd-mm-yyyy` for typed date entry. */
+export function formatYmdAsDmy(ymd: string): string {
+  const match = ymd.trim().match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return ymd;
+  return `${match[3]}-${match[2]}-${match[1]}`;
+}
+
+/**
+ * Parse a user-entered date into `yyyy-MM-dd`.
+ * Accepts `yyyy-MM-dd`, `dd-mm-yyyy`, and `dd/mm/yyyy` (1–2 digit day/month).
+ */
+export function parseFlexibleDateToYmd(value: string): string | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const ymdMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (ymdMatch) {
+    const parts: CalendarYmd = {
+      year: Number(ymdMatch[1]),
+      month: Number(ymdMatch[2]),
+      day: Number(ymdMatch[3]),
+    };
+    return isValidCalendarYmd(parts) ? formatYmd(parts) : null;
+  }
+
+  const dmyMatch = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (dmyMatch) {
+    const parts: CalendarYmd = {
+      year: Number(dmyMatch[3]),
+      month: Number(dmyMatch[2]),
+      day: Number(dmyMatch[1]),
+    };
+    return isValidCalendarYmd(parts) ? formatYmd(parts) : null;
+  }
+
+  return null;
+}
+
 /** Display date as `dd-mm-yyyy` in Asia/Kolkata. */
 export function formatDisplayDateIST(value: string | Date | number): string {
   return parseInstant(value)

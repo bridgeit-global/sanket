@@ -50,7 +50,7 @@ export const ALL_MODULES: ModuleDefinition[] = [
   {
     key: 'operator',
     label: 'Beneficiary Management',
-    description: 'Manage beneficiary services',
+    description: 'Register visitors, create services, and manage service tokens',
     route: '/modules/operator',
     icon: 'Briefcase',
     category: 'operations',

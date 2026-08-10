@@ -228,6 +228,37 @@ export function mapAadhaarGenderToSearchValue(gender: string): 'M' | 'F' | '' {
   return '';
 }
 
+/** Join non-empty Aadhaar address parts for form prefills (e.g. outsider location). */
+export function formatAadhaarAddress(data: Pick<
+  AadhaarQrData,
+  | 'house'
+  | 'street'
+  | 'landmark'
+  | 'location'
+  | 'vtc'
+  | 'subDistrict'
+  | 'district'
+  | 'state'
+  | 'pincode'
+  | 'postOffice'
+>): string {
+  return [
+    data.house,
+    data.street,
+    data.landmark,
+    data.location,
+    data.vtc,
+    data.subDistrict,
+    data.district,
+    data.postOffice,
+    data.state,
+    data.pincode,
+  ]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(', ');
+}
+
 export function decodeAadhaarQrPayload(rawPayload: string): AadhaarQrData {
   const payload = rawPayload.trim();
   if (!payload) {
