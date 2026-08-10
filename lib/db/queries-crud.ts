@@ -3813,7 +3813,7 @@ export async function createAddressMaster({
       positionId ||
       (await createPositionRow({
         titleEn: positionTitleEn || name,
-        titleMr: positionTitleMr ?? nameMr ?? '',
+        titleMr: positionTitleMr || nameMr || '',
         code: positionCode,
         sortOrder,
         isActive,
@@ -3930,7 +3930,7 @@ export async function updateAddressMaster({
         .update(
           toSnakeCaseKeys({
             titleEn: positionTitleEn || name,
-            titleMr: positionTitleMr ?? nameMr ?? '',
+            titleMr: positionTitleMr || nameMr || '',
             code: positionCode ?? existing.positionCode,
             updatedBy: updatedBy || null,
             updatedAt: now,
@@ -3941,7 +3941,7 @@ export async function updateAddressMaster({
     } else if (!positionId) {
       resolvedPositionId = await createPositionRow({
         titleEn: positionTitleEn || name,
-        titleMr: positionTitleMr ?? nameMr ?? '',
+        titleMr: positionTitleMr || nameMr || '',
         code: positionCode,
         sortOrder,
         isActive,

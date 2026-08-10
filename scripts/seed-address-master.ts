@@ -13,7 +13,7 @@ import dotenv from 'dotenv';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { resolveServiceRoleKey, resolveSupabaseUrl } from '../lib/supabase/config';
 
-dotenv.config({ path: '.env.local.prod' });
+dotenv.config({ path: '.env.local' });
 dotenv.config();
 
 type SeedAddress = {
@@ -318,6 +318,7 @@ async function ensureEntry(
 async function main() {
   const supabaseUrl = resolveSupabaseUrl();
   const serviceKey = resolveServiceRoleKey();
+  console.log(`Seeding Address Master via ${supabaseUrl}`);
   const supabase = createClient(supabaseUrl, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
