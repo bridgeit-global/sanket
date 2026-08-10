@@ -2526,7 +2526,7 @@ export function LetterGeneration({
     setWardFields(coercePrefix);
   }, []);
 
-  // Beneficiary flow: document type is derived from letter family (school/income/domicile → General, else Department).
+  // Beneficiary flow: document type is derived from letter family (school/income/domicile/ration → General, else Department).
   useEffect(() => {
     if (!lockFixedFields) return;
     const nextPrefix = documentTypeForLetterType(activeTab);
