@@ -3290,6 +3290,17 @@ async function createPositionRow({
     )
     .select('id')
     .single();
+
+  if (error?.code === '23505' && code) {
+    const { data: raced, error: raceError } = await supabase
+      .from(TABLES.positionMaster)
+      .select('id')
+      .eq('code', code)
+      .maybeSingle();
+    throwOnSupabaseError(raceError, 'Failed to look up position after conflict');
+    if (raced?.id) return String(raced.id);
+  }
+
   throwOnSupabaseError(error, 'Failed to create position');
   const positionId = data?.id;
   if (!positionId) {

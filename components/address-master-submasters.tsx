@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Loader2, Pencil } from 'lucide-react';
 import { toast } from '@/components/toast';
 
@@ -52,6 +52,8 @@ type AddressBlockRow = AddressMasterAddressParts & {
 
 export function AddressTypesManager() {
   const { t } = useTranslations();
+  const tRef = useRef(t);
+  tRef.current = t;
   const [rows, setRows] = useState<AddressTypeRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -73,11 +75,11 @@ export function AddressTypesManager() {
       setRows((json?.types ?? []) as AddressTypeRow[]);
     } catch (error) {
       console.error(error);
-      toast.error(t('letterGeneration.addresses.typesTab.fetchError'));
+      toast.error(tRef.current('letterGeneration.addresses.typesTab.fetchError'));
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     void refresh();
@@ -238,6 +240,8 @@ export function AddressTypesManager() {
 
 export function AddressBlocksManager() {
   const { t } = useTranslations();
+  const tRef = useRef(t);
+  tRef.current = t;
   const [rows, setRows] = useState<AddressBlockRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -245,6 +249,7 @@ export function AddressBlocksManager() {
     ...EMPTY_ADDRESS_PARTS,
     ...defaultLocationParts(),
   });
+  const [sortOrder, setSortOrder] = useState('0');
   const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -257,11 +262,11 @@ export function AddressBlocksManager() {
       setRows((json?.blocks ?? []) as AddressBlockRow[]);
     } catch (error) {
       console.error(error);
-      toast.error(t('letterGeneration.addresses.blocksTab.fetchError'));
+      toast.error(tRef.current('letterGeneration.addresses.blocksTab.fetchError'));
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     void refresh();
@@ -270,6 +275,7 @@ export function AddressBlocksManager() {
   const reset = () => {
     setEditingId(null);
     setParts({ ...EMPTY_ADDRESS_PARTS, ...defaultLocationParts() });
+    setSortOrder('0');
     setIsActive(true);
   };
 
@@ -283,7 +289,12 @@ export function AddressBlocksManager() {
       const res = await fetch('/api/address-blocks', {
         method: editingId ? 'PUT' : 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ id: editingId, ...parts, isActive }),
+        body: JSON.stringify({
+          id: editingId,
+          ...parts,
+          sortOrder: Number(sortOrder) || 0,
+          isActive,
+        }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to save');
@@ -305,6 +316,13 @@ export function AddressBlocksManager() {
   return (
     <div className="space-y-4">
       <BilingualAddressFields parts={parts} onPartsChange={(patch) => setParts((p) => ({ ...p, ...patch }))} />
+      <div className="space-y-1.5 max-w-xs">
+        <Label>{t('letterGeneration.addresses.columns.sortOrder')}</Label>
+        <Input
+          value={sortOrder}
+          onChange={(e) => setSortOrder(e.target.value.replace(/\D/g, ''))}
+        />
+      </div>
       <div className="flex items-center gap-2">
         <Checkbox
           id="block-active"
@@ -337,6 +355,7 @@ export function AddressBlocksManager() {
             <TableRow>
               <TableHead>{t('letterGeneration.addresses.columns.english')}</TableHead>
               <TableHead>{t('letterGeneration.addresses.columns.marathi')}</TableHead>
+              <TableHead>{t('letterGeneration.addresses.columns.sortOrder')}</TableHead>
               <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
               <TableHead />
             </TableRow>
@@ -350,6 +369,7 @@ export function AddressBlocksManager() {
                 <TableCell className="max-w-[280px] whitespace-pre-wrap text-sm" lang="mr">
                   {formatAddressMaster(row, 'mr')}
                 </TableCell>
+                <TableCell>{row.sortOrder}</TableCell>
                 <TableCell>
                   {row.isActive
                     ? t('letterGeneration.addresses.activeYes')
@@ -375,6 +395,7 @@ export function AddressBlocksManager() {
                         stateMr: row.stateMr,
                         pincode: row.pincode,
                       });
+                      setSortOrder(String(row.sortOrder));
                       setIsActive(row.isActive);
                     }}
                   >
@@ -392,6 +413,8 @@ export function AddressBlocksManager() {
 
 export function PositionsManager() {
   const { t } = useTranslations();
+  const tRef = useRef(t);
+  tRef.current = t;
   const [rows, setRows] = useState<PositionRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -413,11 +436,11 @@ export function PositionsManager() {
       setRows((json?.positions ?? []) as PositionRow[]);
     } catch (error) {
       console.error(error);
-      toast.error(t('letterGeneration.addresses.positionsTab.fetchError'));
+      toast.error(tRef.current('letterGeneration.addresses.positionsTab.fetchError'));
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     void refresh();
