@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,6 +9,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from '@/components/toast';
 import { useTranslations } from '@/hooks/use-translations';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
+import {
+    formatYmd,
+    formatYmdAsDmy,
+    getCalendarYmd,
+    parseFlexibleDateToYmd,
+} from '@/lib/ist-date';
+import { cn } from '@/lib/utils';
 import type { VoterWithPartNo } from '@/lib/db/schema';
 
 export interface MobileNumberEntry {
@@ -32,9 +40,31 @@ interface PhoneUpdateFormProps {
 }
 
 function getMaxDobDate(): string {
-    const d = new Date();
-    d.setFullYear(d.getFullYear() - 18);
-    return d.toISOString().split('T')[0];
+    const today = getCalendarYmd();
+    // Clamp day when today is Feb 29 and year-18 is not a leap year.
+    for (let day = today.day; day >= 1; day -= 1) {
+        const ymd = formatYmd({
+            year: today.year - 18,
+            month: today.month,
+            day,
+        });
+        if (parseFlexibleDateToYmd(ymd)) return ymd;
+    }
+    return formatYmd({
+        year: today.year - 18,
+        month: today.month,
+        day: 1,
+    });
+}
+
+/** Prefill DOB year from age as `01-01-yyyy` (day/month left for the operator to correct). */
+function getDobPrefillFromAge(age: number | null | undefined): string {
+    if (age == null || !Number.isFinite(age)) return '';
+    const wholeAge = Math.floor(age);
+    if (wholeAge < 1 || wholeAge > 120) return '';
+    const birthYear = getCalendarYmd().year - wholeAge;
+    if (birthYear < 1000 || birthYear > 9999) return '';
+    return formatYmdAsDmy(formatYmd({ year: birthYear, month: 1, day: 1 }));
 }
 
 export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, onPrevious, onCancel }: PhoneUpdateFormProps) {
@@ -44,6 +74,7 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
     const [dob, setDob] = useState('');
     const [dobError, setDobError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const dobPickerRef = useRef<HTMLInputElement>(null);
 
     const hadDob = Boolean(voter.dob?.trim());
     const maxDobDate = useMemo(() => getMaxDobDate(), []);
@@ -55,14 +86,40 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
             .map((entry) => entry.mobileNumber)
             .filter((number) => !!number?.trim());
 
-        setMobileNoPrimary(orderedNumbers[0] || '');
-        setMobileNoSecondary(orderedNumbers[1] || '');
-    }, [mobileNumbers]);
+        let primary =
+            orderedNumbers[0] || voter.mobileNoPrimary?.trim() || '';
+        let secondary =
+            orderedNumbers[1] || voter.mobileNoSecondary?.trim() || '';
+
+        if (!primary && secondary) {
+            primary = secondary;
+            secondary = '';
+        }
+
+        if (
+            primary &&
+            secondary &&
+            normalizeIndianMobileDigits(primary) === normalizeIndianMobileDigits(secondary)
+        ) {
+            secondary = '';
+        }
+
+        setMobileNoPrimary(primary ? normalizeIndianMobileDigits(primary).slice(0, 10) : '');
+        setMobileNoSecondary(
+            secondary ? normalizeIndianMobileDigits(secondary).slice(0, 10) : '',
+        );
+    }, [mobileNumbers, voter.mobileNoPrimary, voter.mobileNoSecondary, voter.epicNumber]);
 
     useEffect(() => {
-        setDob(hadDob ? (voter.dob?.trim() ?? '') : '');
+        if (hadDob) {
+            const existing = voter.dob?.trim() ?? '';
+            const parsed = parseFlexibleDateToYmd(existing);
+            setDob(parsed ? formatYmdAsDmy(parsed) : existing);
+        } else {
+            setDob(getDobPrefillFromAge(voter.age));
+        }
         setDobError(null);
-    }, [hadDob, voter.dob, voter.epicNumber]);
+    }, [hadDob, voter.age, voter.dob, voter.epicNumber]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -87,17 +144,24 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
             return;
         }
 
+        let dobToSave: string | undefined;
         if (!hadDob) {
             const trimmedDob = dob.trim();
             if (!trimmedDob) {
                 setDobError(t('phoneUpdate.dobRequired'));
                 return;
             }
-            if (trimmedDob > maxDobDate) {
+            const parsedDob = parseFlexibleDateToYmd(trimmedDob);
+            if (!parsedDob) {
+                setDobError(t('phoneUpdate.dobInvalid'));
+                return;
+            }
+            if (parsedDob > maxDobDate) {
                 setDobError(t('phoneUpdate.dobMinAge'));
                 return;
             }
             setDobError(null);
+            dobToSave = parsedDob;
         }
 
         setIsSubmitting(true);
@@ -107,12 +171,14 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                 mobileNoSecondary: mobileNoSecondary.trim()
                     ? normalizeIndianMobileDigits(mobileNoSecondary)
                     : undefined,
-                ...(hadDob ? {} : { dob: dob.trim() }),
+                ...(dobToSave ? { dob: dobToSave } : {}),
             });
         } finally {
             setIsSubmitting(false);
         }
     };
+
+    const dobIsoValue = parseFlexibleDateToYmd(dob) ?? '';
 
     return (
         <Card>
@@ -166,9 +232,13 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                                     type="tel"
                                     inputMode="numeric"
                                     autoComplete="tel"
-                                    maxLength={13}
+                                    maxLength={10}
                                     value={mobileNoPrimary}
-                                    onChange={(e) => setMobileNoPrimary(e.target.value)}
+                                    onChange={(e) =>
+                                        setMobileNoPrimary(
+                                            e.target.value.replace(/\D/g, '').slice(0, 10),
+                                        )
+                                    }
                                     placeholder={t('phoneUpdate.primaryPlaceholder')}
                                     required
                                     className="font-mono"
@@ -186,9 +256,13 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                                     type="tel"
                                     inputMode="numeric"
                                     autoComplete="tel"
-                                    maxLength={13}
+                                    maxLength={10}
                                     value={mobileNoSecondary}
-                                    onChange={(e) => setMobileNoSecondary(e.target.value)}
+                                    onChange={(e) =>
+                                        setMobileNoSecondary(
+                                            e.target.value.replace(/\D/g, '').slice(0, 10),
+                                        )
+                                    }
                                     placeholder={t('phoneUpdate.secondaryPlaceholder')}
                                     className="font-mono"
                                 />
@@ -203,21 +277,63 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                                 <Label htmlFor="phone-update-dob">
                                     {t('phoneUpdate.dob')} <span className="text-red-500">*</span>
                                 </Label>
-                                <Input
-                                    id="phone-update-dob"
-                                    type="date"
-                                    value={dob}
-                                    max={maxDobDate}
-                                    onChange={(e) => {
-                                        setDob(e.target.value);
-                                        setDobError(null);
-                                    }}
-                                    aria-invalid={Boolean(dobError)}
-                                    className={
-                                        dobError ? 'border-red-500 focus-visible:ring-red-500' : ''
-                                    }
-                                    required
-                                />
+                                <div className="relative">
+                                    <Input
+                                        id="phone-update-dob"
+                                        type="text"
+                                        inputMode="numeric"
+                                        autoComplete="bday"
+                                        placeholder={t('phoneUpdate.dobPlaceholder')}
+                                        value={dob}
+                                        onChange={(e) => {
+                                            setDob(e.target.value);
+                                            setDobError(null);
+                                        }}
+                                        onBlur={() => {
+                                            const parsed = parseFlexibleDateToYmd(dob);
+                                            if (parsed) {
+                                                setDob(formatYmdAsDmy(parsed));
+                                            }
+                                        }}
+                                        aria-invalid={Boolean(dobError)}
+                                        className={cn(
+                                            'pr-10 font-mono',
+                                            dobError &&
+                                                'border-red-500 focus-visible:ring-red-500',
+                                        )}
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
+                                        aria-label={t('phoneUpdate.dobPick')}
+                                        onClick={() => {
+                                            const picker = dobPickerRef.current;
+                                            if (!picker) return;
+                                            try {
+                                                picker.showPicker();
+                                            } catch {
+                                                picker.click();
+                                            }
+                                        }}
+                                    >
+                                        <Calendar className="h-4 w-4" aria-hidden />
+                                    </button>
+                                    <input
+                                        ref={dobPickerRef}
+                                        type="date"
+                                        tabIndex={-1}
+                                        aria-hidden
+                                        value={dobIsoValue}
+                                        max={maxDobDate}
+                                        onChange={(e) => {
+                                            const next = e.target.value;
+                                            setDob(next ? formatYmdAsDmy(next) : '');
+                                            setDobError(null);
+                                        }}
+                                        className="pointer-events-none absolute h-0 w-0 opacity-0"
+                                    />
+                                </div>
                                 {dobError ? (
                                     <p className="text-xs text-red-500">{dobError}</p>
                                 ) : (
@@ -236,7 +352,11 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                             disabled={isSubmitting || !mobileNoPrimary.trim()}
                             className="flex-1"
                         >
-                            {isSubmitting ? t('phoneUpdate.updating') : t('phoneUpdate.update')}
+                            {isSubmitting
+                                ? t('phoneUpdate.updating')
+                                : hadDob
+                                    ? t('phoneUpdate.update')
+                                    : t('phoneUpdate.updateWithDob')}
                         </Button>
 
                         <Button

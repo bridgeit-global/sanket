@@ -50,6 +50,19 @@ export {
 export { getCurrentElectionId } from './election';
 
 export {
+  createVisitor,
+  findOrCreateVisitor,
+  createVisitorService,
+  getVisitorById,
+  getVisitorServices,
+  getVisitorWithServices,
+  getVisitorServiceById,
+  listVisitors,
+  convertVisitorServiceToBeneficiary,
+  updateVisitorServiceName,
+} from './visitor-queries';
+
+export {
   type SirPartAndSerial,
   type SirActivityBucket,
   type SirActivityGroupStat,

@@ -1,13 +1,22 @@
 import dynamic from 'next/dynamic';
+import type { ComponentType } from 'react';
 import { auth } from '@/app/(auth)/auth';
 import { redirect } from 'next/navigation';
 import { hasModuleAccess } from '@/lib/db/queries';
 import { Skeleton } from '@/components/ui/skeleton';
 import { parseManageFiltersFromSearchParams } from '@/lib/operator/manage-url-params';
 
-// Dynamically import the large BeneficiaryManagement component for code splitting
-const BeneficiaryManagement = dynamic(
-  () => import('@/components/operator-workflow').then((mod) => ({ default: mod.BeneficiaryManagement })),
+type VisitorWorkflowProps = {
+  initialTab?: 'visitor' | 'create' | 'tasks' | 'manage';
+  initialTaskId?: string;
+  initialTaskManageState?: ReturnType<typeof parseManageFiltersFromSearchParams>;
+};
+
+const VisitorWorkflow = dynamic(
+  () =>
+    import('@/components/visitor-workflow').then((mod) => ({
+      default: mod.VisitorWorkflow,
+    })),
   {
     loading: () => (
       <div className="space-y-6">
@@ -17,8 +26,17 @@ const BeneficiaryManagement = dynamic(
       </div>
     ),
     ssr: true,
-  }
-);
+  },
+) as ComponentType<VisitorWorkflowProps>;
+
+function resolveVisitorTab(
+  tab: string | undefined,
+  hasTaskDeepLink: boolean,
+): 'visitor' | 'create' | 'tasks' {
+  if (hasTaskDeepLink || tab === 'tasks' || tab === 'manage') return 'tasks';
+  if (tab === 'create' || tab === 'visitor') return tab;
+  return 'visitor';
+}
 
 export default async function OperatorPage({
   searchParams,
@@ -37,23 +55,22 @@ export default async function OperatorPage({
   }
 
   const params = await searchParams;
-  const initialTab: 'create' | 'manage' = params.tab === 'manage' ? 'manage' : 'create';
+  const beneficiaryTaskId = params.taskId ?? params.serviceId;
   const urlParams = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
     if (value) urlParams.set(key, value);
   }
-  const initialManageState = parseManageFiltersFromSearchParams(urlParams);
+  const initialTaskManageState = parseManageFiltersFromSearchParams(urlParams);
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto p-4 sm:py-8 max-w-7xl">
-        <BeneficiaryManagement
-          initialTab={initialTab}
-          initialManageState={initialManageState}
-          initialTaskId={params.taskId ?? params.serviceId}
+      <div className="container mx-auto max-w-7xl p-4 sm:py-8">
+        <VisitorWorkflow
+          initialTab={resolveVisitorTab(params.tab, Boolean(beneficiaryTaskId))}
+          initialTaskId={beneficiaryTaskId}
+          initialTaskManageState={initialTaskManageState}
         />
       </div>
     </div>
   );
 }
-
