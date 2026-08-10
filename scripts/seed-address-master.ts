@@ -205,7 +205,7 @@ async function ensureEntry(
     typeCache: Map<string, string>;
     blockCache: Map<string, string>;
   },
-): Promise<'inserted' | 'skipped'> {
+): Promise<'inserted' | 'skipped' | 'updated'> {
   const typeId = await resolveTypeId(supabase, opts.typeCode, opts.typeCache);
   const addressId = await findOrCreateBlock(
     supabase,
@@ -218,7 +218,7 @@ async function ensureEntry(
   if (opts.positionCode) {
     const { data: byCode, error } = await supabase
       .from('PositionMaster')
-      .select('id')
+      .select('id, title_en, title_mr')
       .eq('code', opts.positionCode)
       .maybeSingle();
     if (error) throw error;
@@ -226,11 +226,48 @@ async function ensureEntry(
       positionId = String(byCode.id);
       const { data: existingEntry, error: entryError } = await supabase
         .from('AddressMaster')
-        .select('id')
+        .select('id, holder_name_en, holder_name_mr, address_id, type_id')
         .eq('position_id', positionId)
         .maybeSingle();
       if (entryError) throw entryError;
-      if (existingEntry?.id) return 'skipped';
+      if (existingEntry?.id) {
+        const now = new Date().toISOString();
+        const needsPositionUpdate =
+          String(byCode.title_en ?? '') !== opts.positionEn ||
+          String(byCode.title_mr ?? '') !== opts.positionMr;
+        if (needsPositionUpdate) {
+          const { error: posUpdateError } = await supabase
+            .from('PositionMaster')
+            .update({
+              title_en: opts.positionEn,
+              title_mr: opts.positionMr,
+              updated_at: now,
+            })
+            .eq('id', positionId);
+          if (posUpdateError) throw posUpdateError;
+        }
+
+        const needsEntryUpdate =
+          String(existingEntry.holder_name_en ?? '') !== opts.holderEn ||
+          String(existingEntry.holder_name_mr ?? '') !== opts.holderMr ||
+          String(existingEntry.address_id ?? '') !== addressId ||
+          String(existingEntry.type_id ?? '') !== typeId;
+        if (needsEntryUpdate) {
+          const { error: entryUpdateError } = await supabase
+            .from('AddressMaster')
+            .update({
+              holder_name_en: opts.holderEn,
+              holder_name_mr: opts.holderMr,
+              type_id: typeId,
+              address_id: addressId,
+              updated_at: now,
+            })
+            .eq('id', existingEntry.id);
+          if (entryUpdateError) throw entryUpdateError;
+        }
+
+        return needsPositionUpdate || needsEntryUpdate ? 'updated' : 'skipped';
+      }
     }
   } else {
     const { data: existingHolders, error: holderError } = await supabase
@@ -333,6 +370,7 @@ async function main() {
   console.log(`Loaded ${ministers.length} ministers from data/maharashtra-ministers-seed.json`);
 
   let ministerInserted = 0;
+  let ministerUpdated = 0;
   let ministerSkipped = 0;
   for (const [index, item] of ministers.entries()) {
     const result = await ensureEntry(supabase, {
@@ -360,11 +398,12 @@ async function main() {
       blockCache,
     });
     if (result === 'inserted') ministerInserted += 1;
+    else if (result === 'updated') ministerUpdated += 1;
     else ministerSkipped += 1;
   }
 
   console.log(
-    `Minister seed: inserted ${ministerInserted}, skipped existing ${ministerSkipped}`,
+    `Minister seed: inserted ${ministerInserted}, updated ${ministerUpdated}, skipped existing ${ministerSkipped}`,
   );
 
   const { count, error: countError } = await supabase
