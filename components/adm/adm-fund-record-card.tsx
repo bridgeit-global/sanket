@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   ExternalLink,
   FileText,
@@ -14,6 +15,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -40,6 +48,7 @@ import type {
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/toast';
 import { AdmCroreAmountInput } from './adm-crore-amount-input';
+import { ProjectHierarchyGeoPickers } from '@/components/projects/project-hierarchy-geo-pickers';
 import { formatProjectHierarchyLocation } from '@/lib/projects/hierarchy-geo';
 import { AdmProjectGroundPhotos } from './adm-project-ground-photos';
 
@@ -66,11 +75,28 @@ function physicalStatusKey(
 
 interface AdmFundRecordCardProps {
   fund: AdmFundRecordWithDetails;
+  projects: AdmProjectOption[];
   onUpdateFund: (
     fundId: string,
     values: { financialYear: string; budget: number },
   ) => Promise<void>;
   onDeleteFund: (fundId: string) => void;
+  onAddAllocation: (
+    fundRecordId: string,
+    projectId: string,
+    allocatedBudget: number,
+  ) => Promise<void>;
+  onCreateProject: (
+    fundRecordId: string,
+    values: {
+      name: string;
+      department?: string;
+      allocatedBudget: number;
+      ward?: string;
+      wardGeoId?: string | null;
+      boothNo?: string | null;
+    },
+  ) => Promise<void>;
   onUpdateAllocation: (id: string, allocatedBudget: number) => Promise<void>;
   onDeleteAllocation: (allocation: AdmFundAllocationWithProject) => void;
   onUploadDocument: (
@@ -83,8 +109,11 @@ interface AdmFundRecordCardProps {
 
 export function AdmFundRecordCard({
   fund,
+  projects,
   onUpdateFund,
   onDeleteFund,
+  onAddAllocation,
+  onCreateProject,
   onUpdateAllocation,
   onDeleteAllocation,
   onUploadDocument,
@@ -96,9 +125,28 @@ export function AdmFundRecordCard({
   const [financialYear, setFinancialYear] = useState(fund.financialYear);
   const [budget, setBudget] = useState(fund.budget);
   const [saving, setSaving] = useState(false);
+
+  const [projectId, setProjectId] = useState('');
+  const [allocatedBudget, setAllocatedBudget] = useState(0);
+  const [addingAllocation, setAddingAllocation] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  const [createProjectOpen, setCreateProjectOpen] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDepartment, setNewProjectDepartment] = useState('');
+  const [newProjectBudget, setNewProjectBudget] = useState(0);
+  const [newProjectWard, setNewProjectWard] = useState('');
+  const [newProjectWardGeoId, setNewProjectWardGeoId] = useState<string | null>(
+    null,
+  );
+  const [newProjectBoothNo, setNewProjectBoothNo] = useState<string | null>(
+    null,
+  );
+  const [creatingProject, setCreatingProject] = useState(false);
+
   const isOverallocated = fund.allocatedBudget > fund.budget;
+  const allocatedProjectIds = new Set(fund.allocations.map((a) => a.projectId));
+  const availableProjects = projects.filter((p) => !allocatedProjectIds.has(p.id));
   const fyOptions = financialYearOptions(financialYear);
   const sourceDocuments = fund.documents.filter((d) => d.kind === 'source_details');
 
@@ -113,6 +161,50 @@ export function AdmFundRecordCard({
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAddAllocation = async () => {
+    if (!projectId) return;
+    setAddingAllocation(true);
+    try {
+      await onAddAllocation(fund.id, projectId, allocatedBudget);
+      setProjectId('');
+      setAllocatedBudget(0);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t('adm.failedToSave'),
+      );
+    } finally {
+      setAddingAllocation(false);
+    }
+  };
+
+  const handleCreateProject = async () => {
+    if (!newProjectName.trim()) return;
+    setCreatingProject(true);
+    try {
+      await onCreateProject(fund.id, {
+        name: newProjectName.trim(),
+        department: newProjectDepartment.trim() || undefined,
+        allocatedBudget: newProjectBudget,
+        ward: newProjectWard || undefined,
+        wardGeoId: newProjectWardGeoId,
+        boothNo: newProjectBoothNo,
+      });
+      setCreateProjectOpen(false);
+      setNewProjectName('');
+      setNewProjectDepartment('');
+      setNewProjectBudget(0);
+      setNewProjectWard('');
+      setNewProjectWardGeoId(null);
+      setNewProjectBoothNo(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t('adm.failedToSave'),
+      );
+    } finally {
+      setCreatingProject(false);
     }
   };
 
@@ -364,9 +456,21 @@ export function AdmFundRecordCard({
       </div>
 
       <div className="space-y-2">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {t('adm.associatedProjects')}
-        </p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t('adm.associatedProjects')}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="min-h-11 w-full sm:min-h-9 sm:w-auto"
+            onClick={() => setCreateProjectOpen(true)}
+          >
+            <Plus className="mr-1 h-3.5 w-3.5" />
+            {t('adm.createProject')}
+          </Button>
+        </div>
         {fund.allocations.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('adm.noAllocations')}</p>
         ) : (
@@ -382,9 +486,15 @@ export function AdmFundRecordCard({
                       <p className="font-mono text-xs text-muted-foreground">
                         {allocation.workCode || '—'}
                       </p>
-                      <p className="break-words font-medium">
-                        {allocation.projectName}
-                      </p>
+                      <Link
+                        href={`/modules/projects/${allocation.projectId}`}
+                        className="inline-flex items-start gap-1 font-medium text-primary hover:underline"
+                      >
+                        <span className="break-words">
+                          {allocation.projectName}
+                        </span>
+                        <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      </Link>
                       <p className="text-sm text-muted-foreground">
                         {locationLabel(allocation)}
                       </p>
@@ -475,9 +585,15 @@ export function AdmFundRecordCard({
                         {allocation.workCode || '—'}
                       </TableCell>
                       <TableCell>
-                        <span className="max-w-[18rem] truncate font-medium">
-                          {allocation.projectName}
-                        </span>
+                        <Link
+                          href={`/modules/projects/${allocation.projectId}`}
+                          className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                        >
+                          <span className="max-w-[18rem] truncate">
+                            {allocation.projectName}
+                          </span>
+                          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                        </Link>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {locationLabel(allocation)}
@@ -529,7 +645,114 @@ export function AdmFundRecordCard({
             </div>
           </>
         )}
+
+        <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border p-3 sm:flex-row sm:items-end">
+          <div className="min-w-0 flex-1 space-y-1">
+            <Label>{t('adm.linkProject')}</Label>
+            <select
+              className="flex min-h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+              value={projectId}
+              onChange={(e) => setProjectId(e.target.value)}
+            >
+              <option value="">{t('adm.selectProject')}</option>
+              {availableProjects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1 sm:w-40">
+            <Label>{t('adm.allocatedBudget')}</Label>
+            <Input
+              type="number"
+              min={0}
+              value={allocatedBudget || ''}
+              onChange={(e) =>
+                setAllocatedBudget(Number.parseInt(e.target.value, 10) || 0)
+              }
+              className="min-h-11"
+            />
+          </div>
+          <Button
+            type="button"
+            className="min-h-11 w-full sm:w-auto"
+            disabled={!projectId || addingAllocation}
+            onClick={handleAddAllocation}
+          >
+            <Plus className="mr-1 h-4 w-4" />
+            {t('adm.addAllocation')}
+          </Button>
+        </div>
       </div>
+
+      <Dialog open={createProjectOpen} onOpenChange={setCreateProjectOpen}>
+        <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-md overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{t('adm.createProject')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              {t('adm.createProjectHint', {
+                fundType: fund.categoryName,
+              })}
+            </p>
+            <div className="space-y-2">
+              <Label>{t('adm.projectName')}</Label>
+              <Input
+                value={newProjectName}
+                onChange={(e) => setNewProjectName(e.target.value)}
+                className="min-h-11"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>{t('adm.department')}</Label>
+              <Input
+                value={newProjectDepartment}
+                onChange={(e) => setNewProjectDepartment(e.target.value)}
+                className="min-h-11"
+              />
+            </div>
+            <ProjectHierarchyGeoPickers
+              wardGeoId={newProjectWardGeoId}
+              boothNo={newProjectBoothNo}
+              onChange={(geo) => {
+                setNewProjectWardGeoId(geo.wardGeoId);
+                setNewProjectBoothNo(geo.boothNo);
+                setNewProjectWard(geo.ward);
+              }}
+            />
+            <div className="space-y-2">
+              <Label>{t('adm.allocatedBudget')}</Label>
+              <Input
+                type="number"
+                min={0}
+                value={newProjectBudget || ''}
+                onChange={(e) =>
+                  setNewProjectBudget(Number.parseInt(e.target.value, 10) || 0)
+                }
+                className="min-h-11"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setCreateProjectOpen(false)}
+            >
+              {t('adm.cancel')}
+            </Button>
+            <Button
+              type="button"
+              disabled={creatingProject || !newProjectName.trim()}
+              onClick={handleCreateProject}
+            >
+              {t('adm.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

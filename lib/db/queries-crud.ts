@@ -5403,19 +5403,71 @@ export async function createProject({
   }
 }
 
+export type ProjectAdmScope = 'all' | 'standalone' | 'adm-linked';
+
+async function getAdmAllocatedProjectIds(): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from(TABLES.admFundAllocation)
+    .select('project_id');
+  throwOnSupabaseError(error, 'Failed to get ADM-linked project ids');
+  return new Set(
+    (data ?? [])
+      .map((row) => String(row.project_id ?? ''))
+      .filter(Boolean),
+  );
+}
+
+export async function projectHasAdmAllocation(
+  projectId: string,
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.admFundAllocation)
+      .select('id')
+      .eq('project_id', projectId)
+      .limit(1);
+    throwOnSupabaseError(error, 'Failed to check ADM allocation');
+    return (data?.length ?? 0) > 0;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to check ADM allocation',
+    );
+  }
+}
+
 export async function getProjects({
   status,
   limit = 100,
+  scope = 'all',
 }: {
   status?: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
   limit?: number;
+  scope?: ProjectAdmScope;
 } = {}): Promise<Array<MlaProject>> {
   try {
     let query = supabase.from(TABLES.mlaProject).select('*');
     if (status) query = query.eq('status', status);
-    const { data, error } = await query.order('created_at', { ascending: false }).limit(limit);
+    // Fetch a wider window when partitioning so limit still applies after filter.
+    const fetchLimit =
+      scope === 'all' ? limit : Math.max(limit * 5, 500);
+    const { data, error } = await query
+      .order('created_at', { ascending: false })
+      .limit(fetchLimit);
     throwOnSupabaseError(error, 'Failed to get projects');
-    return (data ?? []).map(mapMlaProjectRow);
+    let projects = (data ?? []).map(mapMlaProjectRow);
+
+    if (scope !== 'all') {
+      const linkedIds = await getAdmAllocatedProjectIds();
+      projects =
+        scope === 'standalone'
+          ? projects.filter((p) => !linkedIds.has(p.id))
+          : projects.filter((p) => linkedIds.has(p.id));
+      projects = projects.slice(0, limit);
+    }
+
+    return projects;
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to get projects');

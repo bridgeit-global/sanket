@@ -8,16 +8,36 @@ import type {
   AdmFundAllocationWithProject,
   AdmFundRecordWithDetails,
 } from '@/lib/db/schema';
-import { AdmFundRecordCard } from './adm-fund-record-card';
+import {
+  AdmFundRecordCard,
+  type AdmProjectOption,
+} from './adm-fund-record-card';
 
 interface AdmFundDetailProps {
   fund: AdmFundRecordWithDetails;
+  projects: AdmProjectOption[];
   onBack: () => void;
   onUpdateFund: (
     fundId: string,
     values: { financialYear: string; budget: number },
   ) => Promise<void>;
   onDeleteFund: (fundId: string) => void;
+  onAddAllocation: (
+    fundRecordId: string,
+    projectId: string,
+    allocatedBudget: number,
+  ) => Promise<void>;
+  onCreateProject: (
+    fundRecordId: string,
+    values: {
+      name: string;
+      department?: string;
+      allocatedBudget: number;
+      ward?: string;
+      wardGeoId?: string | null;
+      boothNo?: string | null;
+    },
+  ) => Promise<void>;
   onUpdateAllocation: (id: string, allocatedBudget: number) => Promise<void>;
   onDeleteAllocation: (allocation: AdmFundAllocationWithProject) => void;
   onUploadDocument: (
@@ -28,11 +48,16 @@ interface AdmFundDetailProps {
   onDeleteDocument: (fundRecordId: string, document: AdmDocument) => void;
 }
 
+export type { AdmProjectOption };
+
 export function AdmFundDetail({
   fund,
+  projects,
   onBack,
   onUpdateFund,
   onDeleteFund,
+  onAddAllocation,
+  onCreateProject,
   onUpdateAllocation,
   onDeleteAllocation,
   onUploadDocument,
@@ -54,8 +79,11 @@ export function AdmFundDetail({
 
       <AdmFundRecordCard
         fund={fund}
+        projects={projects}
         onUpdateFund={onUpdateFund}
         onDeleteFund={onDeleteFund}
+        onAddAllocation={onAddAllocation}
+        onCreateProject={onCreateProject}
         onUpdateAllocation={onUpdateAllocation}
         onDeleteAllocation={onDeleteAllocation}
         onUploadDocument={onUploadDocument}

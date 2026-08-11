@@ -213,6 +213,8 @@ export {
   deleteRegisterAttachment,
   createProject,
   getProjects,
+  type ProjectAdmScope,
+  projectHasAdmAllocation,
   getProjectById,
   updateProject,
   deleteProject,

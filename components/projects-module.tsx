@@ -107,7 +107,7 @@ export function ProjectsModule() {
   const loadProjects = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/projects');
+      const response = await fetch('/api/projects?scope=standalone');
       if (response.ok) {
         const data = await response.json();
         setProjects(data);

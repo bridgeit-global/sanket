@@ -22,6 +22,7 @@ import {
 } from '@/lib/adm/url-params';
 import { AdmProfileBanner } from './adm/adm-profile-banner';
 import { AdmFundsList } from './adm/adm-funds-list';
+import type { AdmProjectOption } from './adm/adm-fund-detail';
 
 export function AdmModule() {
   const router = useRouter();
@@ -32,6 +33,7 @@ export function AdmModule() {
 
   const [categories, setCategories] = useState<AdmFundingCategory[]>([]);
   const [funds, setFunds] = useState<AdmFundRecordWithDetails[]>([]);
+  const [projects, setProjects] = useState<AdmProjectOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(urlState.search);
   const [focusFundId, setFocusFundId] = useState(urlState.fund);
@@ -66,7 +68,10 @@ export function AdmModule() {
   const loadDashboard = async () => {
     try {
       setLoading(true);
-      const dashboardRes = await fetch('/api/adm/dashboard');
+      const [dashboardRes, projectsRes] = await Promise.all([
+        fetch('/api/adm/dashboard'),
+        fetch('/api/adm/projects'),
+      ]);
 
       if (!dashboardRes.ok) {
         throw new Error('Failed to load dashboard');
@@ -89,6 +94,11 @@ export function AdmModule() {
             return a.categoryName.localeCompare(b.categoryName);
           }),
       );
+
+      if (projectsRes.ok) {
+        const projectsData = await projectsRes.json();
+        setProjects(projectsData);
+      }
     } catch (error) {
       console.error('Error loading ADM dashboard:', error);
       toast.error(t('adm.failedToLoad'));
@@ -193,6 +203,57 @@ export function AdmModule() {
         error instanceof Error ? error.message : t('adm.failedToDelete'),
       );
     }
+  };
+
+  const handleAddAllocation = async (
+    fundRecordId: string,
+    projectId: string,
+    allocatedBudget: number,
+  ) => {
+    const response = await fetch('/api/adm/allocations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fundRecordId, projectId, allocatedBudget }),
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to add allocation');
+    }
+    toast.success(t('adm.allocationAddedSuccess'));
+    await loadDashboard();
+  };
+
+  const handleCreateProject = async (
+    fundRecordId: string,
+    values: {
+      name: string;
+      department?: string;
+      allocatedBudget: number;
+      ward?: string;
+      wardGeoId?: string | null;
+      boothNo?: string | null;
+    },
+  ) => {
+    const response = await fetch('/api/adm/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: values.name,
+        department: values.department,
+        ward: values.ward,
+        wardGeoId: values.wardGeoId,
+        boothNo: values.boothNo,
+        status: 'Concept',
+        fundRecordId,
+        allocatedBudget: values.allocatedBudget,
+      }),
+    });
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to create project');
+    }
+    toast.success(t('adm.projectCreatedSuccess'));
+    await loadDashboard();
   };
 
   const handleUpdateAllocation = async (
@@ -304,11 +365,14 @@ export function AdmModule() {
         funds={funds}
         searchTerm={searchTerm}
         selectedFundId={focusFundId}
+        projects={projects}
         onSelectFund={handleSelectFund}
         onBackToList={handleBackToList}
         onCreateFund={handleCreateFund}
         onUpdateFund={handleUpdateFund}
         onDeleteFund={(id) => setDeleteFundId(id)}
+        onAddAllocation={handleAddAllocation}
+        onCreateProject={handleCreateProject}
         onUpdateAllocation={handleUpdateAllocation}
         onDeleteAllocation={(a) => setDeleteAllocation(a)}
         onUploadDocument={handleUploadDocument}

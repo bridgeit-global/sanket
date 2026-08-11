@@ -1,8 +1,19 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
-import { getProjects, createProject, hasModuleAccess } from '@/lib/db/queries';
+import {
+  getProjects,
+  createProject,
+  hasModuleAccess,
+  type ProjectAdmScope,
+} from '@/lib/db/queries';
 import { projectFormSchema, validateForm } from '@/lib/validations';
+
+const PROJECT_SCOPES = new Set<ProjectAdmScope>([
+  'all',
+  'standalone',
+  'adm-linked',
+]);
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,9 +35,15 @@ export async function GET(request: NextRequest) {
       | 'In Progress'
       | 'Completed'
       | null;
+    const scopeParam = searchParams.get('scope');
+    const scope: ProjectAdmScope =
+      scopeParam && PROJECT_SCOPES.has(scopeParam as ProjectAdmScope)
+        ? (scopeParam as ProjectAdmScope)
+        : 'all';
 
     const projects = await getProjects({
       status: status || undefined,
+      scope,
     });
 
     return NextResponse.json(projects);

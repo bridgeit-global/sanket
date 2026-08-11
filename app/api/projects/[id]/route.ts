@@ -5,6 +5,7 @@ import {
   getProjectById,
   updateProject,
   deleteProject,
+  projectHasAdmAllocation,
   getRegisterEntriesByProjectId,
   getRegisterAttachments,
   getProjectAttachments,
@@ -162,6 +163,17 @@ export async function DELETE(
     const hasAccess = await hasModuleAccess(session.user.id, 'projects');
     if (!hasAccess) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const linkedToAdm = await projectHasAdmAllocation(id);
+    if (linkedToAdm) {
+      return NextResponse.json(
+        {
+          error:
+            'This project is linked to ADM and cannot be deleted from the Projects module. Remove the ADM allocation first.',
+        },
+        { status: 409 },
+      );
     }
 
     await deleteProject(id);
