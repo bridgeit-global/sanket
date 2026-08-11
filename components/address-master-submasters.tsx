@@ -195,8 +195,8 @@ export function AddressTypesManager() {
         <Button type="button" onClick={() => void save()} disabled={saving}>
           {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
           {editingId
-            ? t('letterGeneration.addresses.save')
-            : t('letterGeneration.addresses.create')}
+            ? t('letterGeneration.addresses.typesTab.save')
+            : t('letterGeneration.addresses.typesTab.create')}
         </Button>
         {editingId ? (
           <Button type="button" variant="outline" onClick={reset}>
@@ -390,8 +390,8 @@ export function AddressBlocksManager() {
         <Button type="button" onClick={() => void save()} disabled={saving}>
           {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
           {editingId
-            ? t('letterGeneration.addresses.save')
-            : t('letterGeneration.addresses.create')}
+            ? t('letterGeneration.addresses.blocksTab.save')
+            : t('letterGeneration.addresses.blocksTab.create')}
         </Button>
         {editingId ? (
           <Button type="button" variant="outline" onClick={reset}>
@@ -620,8 +620,8 @@ export function PositionsManager() {
         <Button type="button" onClick={() => void save()} disabled={saving}>
           {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
           {editingId
-            ? t('letterGeneration.addresses.save')
-            : t('letterGeneration.addresses.create')}
+            ? t('letterGeneration.addresses.positionsTab.save')
+            : t('letterGeneration.addresses.positionsTab.create')}
         </Button>
         {editingId ? (
           <Button type="button" variant="outline" onClick={reset}>
