@@ -48,21 +48,30 @@ function parseAddressBody(body: Record<string, unknown> | null | undefined) {
     pincode: String(pincode ?? '').trim(),
   };
 
+  const resolvedTypeId = String(typeId ?? '').trim() || undefined;
+  const resolvedAddressId = String(addressId ?? '').trim() || undefined;
+  const resolvedPositionId = String(positionId ?? '').trim() || undefined;
+  const hasRequiredFields =
+    hasRequiredAddressFields(parts, 'en') || hasRequiredAddressFields(parts, 'mr');
+  const hasLinkedMasters = Boolean(
+    resolvedTypeId && resolvedAddressId && resolvedPositionId,
+  );
+
   return {
     name: String(name ?? '').trim(),
     nameMr: String(nameMr ?? '').trim(),
-    addressType,
+    addressType: String(addressType ?? '').trim(),
     positionTitleEn: String(positionTitleEn ?? '').trim(),
     positionTitleMr: String(positionTitleMr ?? '').trim(),
     positionCode: String(positionCode ?? '').trim() || null,
-    typeId: String(typeId ?? '').trim() || undefined,
-    addressId: String(addressId ?? '').trim() || undefined,
-    positionId: String(positionId ?? '').trim() || undefined,
+    typeId: resolvedTypeId,
+    addressId: resolvedAddressId,
+    positionId: resolvedPositionId,
     ...parts,
     isActive: isActive !== false,
     sortOrder: Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0,
-    hasRequiredFields:
-      hasRequiredAddressFields(parts, 'en') || hasRequiredAddressFields(parts, 'mr'),
+    hasRequiredFields,
+    hasLinkedMasters,
   };
 }
 
@@ -75,7 +84,8 @@ export async function GET(request: NextRequest) {
     }
 
     const addressType = request.nextUrl.searchParams.get('addressType');
-    const includeInactive = request.nextUrl.searchParams.get('includeInactive') === 'true';
+    const includeInactive =
+      request.nextUrl.searchParams.get('includeInactive') === 'true';
 
     if (addressType && !isAddressType(addressType)) {
       return NextResponse.json({ error: 'Invalid address type' }, { status: 400 });
@@ -107,24 +117,31 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const parsed = parseAddressBody(body);
 
-    if (!parsed.name || !parsed.addressType || !parsed.hasRequiredFields) {
+    if (!parsed.name) {
+      return NextResponse.json({ error: 'Holder name is required' }, { status: 400 });
+    }
+
+    if (!parsed.hasLinkedMasters && !parsed.hasRequiredFields) {
       return NextResponse.json(
         {
           error:
-            'name, addressType, Line 1, City, and a valid 6-digit Pincode are required (Line 2 and State are optional)',
+            'typeId, addressId, and positionId are required (or provide Line 1, City, and a valid 6-digit Pincode)',
         },
         { status: 400 },
       );
     }
 
-    if (!isAddressType(parsed.addressType)) {
+    if (
+      !parsed.typeId &&
+      (!parsed.addressType || !isAddressType(parsed.addressType))
+    ) {
       return NextResponse.json({ error: 'Invalid address type' }, { status: 400 });
     }
 
     const address = await createAddressMaster({
       name: parsed.name,
       nameMr: parsed.nameMr,
-      addressType: String(parsed.addressType),
+      addressType: parsed.addressType || 'general',
       positionTitleEn: parsed.positionTitleEn,
       positionTitleMr: parsed.positionTitleMr,
       positionCode: parsed.positionCode,

@@ -173,10 +173,20 @@ export function LetterAddressField({
     });
   };
 
-  const comboboxOptions = filteredAddresses.map((address) => ({
-    value: address.id,
-    label: locale === 'mr' ? address.nameMr.trim() || address.name : address.name,
-  }));
+  const comboboxOptions = filteredAddresses.map((address) => {
+    const holder =
+      locale === 'mr'
+        ? address.nameMr.trim() || address.name
+        : address.name.trim() || address.nameMr;
+    const position =
+      locale === 'mr'
+        ? (address.positionTitleMr || address.positionTitleEn || '').trim()
+        : (address.positionTitleEn || address.positionTitleMr || '').trim();
+    return {
+      value: address.id,
+      label: position ? `${holder} — ${position}` : holder,
+    };
+  });
 
   const selectedAddress = selectedAddressId
     ? filteredAddresses.find((address) => address.id === selectedAddressId)

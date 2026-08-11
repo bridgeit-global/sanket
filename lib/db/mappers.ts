@@ -399,12 +399,8 @@ export function mapAddressMasterRow(row: Row): AddressMaster {
     stateMr: String(blockRow?.state_mr ?? blockRow?.stateMr ?? row.state_mr ?? row.stateMr ?? ''),
     pincode: String(blockRow?.pincode ?? row.pincode ?? ''),
     positionId: String(row.position_id ?? row.positionId ?? positionRow?.id ?? ''),
-    positionTitleEn: String(
-      positionRow?.title_en ?? positionRow?.titleEn ?? holderNameEn,
-    ),
-    positionTitleMr: String(
-      positionRow?.title_mr ?? positionRow?.titleMr ?? holderNameMr,
-    ),
+    positionTitleEn: String(positionRow?.title_en ?? positionRow?.titleEn ?? ''),
+    positionTitleMr: String(positionRow?.title_mr ?? positionRow?.titleMr ?? ''),
     positionCode: toStringOrNull(positionRow?.code),
     isActive: Boolean(row.is_active ?? row.isActive ?? true),
     sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),

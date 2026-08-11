@@ -1,0 +1,23 @@
+---
+description: Require pagination for every data table / list of rows in the app
+globs: components/**/*.tsx,app/modules/**/*.tsx,app/**/page.tsx
+alwaysApply: false
+---
+
+# Table pagination
+
+Every UI that renders a **data table or list of rows** must paginate. Do not render unbounded `.map` of master/list rows.
+
+## Required pattern
+
+- Prefer [`components/table-pagination.tsx`](components/table-pagination.tsx):
+  - Client-side: `usePagination(items, pageSize, { page, pageSize, onPageChange, onPageSizeChange })` + `<TablePagination … />`
+  - Server-backed: fetch with `page` / `limit`, then render the same `<TablePagination … />`
+- Default page size: **10**. Page size options: `[10, 20, 50, 100]` unless there is a clear product reason to differ.
+- Reset to page **1** whenever search or filters change.
+- Show pagination when `totalItems > 0` (even if a single page).
+
+## Do not
+
+- Ship a one-off pagination control when `TablePagination` / `usePagination` already fit.
+- Load or paint the full unpaged table “for simplicity” in masters, registries, or admin lists.

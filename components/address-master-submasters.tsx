@@ -16,6 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { TablePagination, usePagination } from '@/components/table-pagination';
 import { BilingualAddressFields } from '@/components/bilingual-address-fields';
 import {
   EMPTY_ADDRESS_PARTS,
@@ -25,6 +26,8 @@ import {
 } from '@/lib/letters/format-address-master';
 import { defaultLocationParts } from '@/lib/letters/indian-locations';
 import { useTranslations } from '@/hooks/use-translations';
+
+const DEFAULT_PAGE_SIZE = 10;
 
 type AddressTypeRow = {
   id: string;
@@ -65,6 +68,25 @@ export function AddressTypesManager() {
     isActive: true,
   });
   const [saving, setSaving] = useState(false);
+  const [listPage, setListPage] = useState(1);
+  const [listLimit, setListLimit] = useState(DEFAULT_PAGE_SIZE);
+  const {
+    paginatedItems,
+    currentPage,
+    totalPages,
+    pageSize,
+    totalItems,
+    handlePageChange,
+    handlePageSizeChange,
+  } = usePagination(rows, listLimit, {
+    page: listPage,
+    pageSize: listLimit,
+    onPageChange: setListPage,
+    onPageSizeChange: (size) => {
+      setListLimit(size);
+      setListPage(1);
+    },
+  });
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -188,51 +210,65 @@ export function AddressTypesManager() {
           <Loader2 className="size-4 animate-spin" />
           {t('common.loading')}
         </div>
+      ) : totalItems === 0 ? (
+        <div className="py-6 text-sm text-muted-foreground">
+          {t('letterGeneration.addresses.manageTypesHint')}
+        </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('letterGeneration.addresses.typesTab.code')}</TableHead>
-              <TableHead>{t('letterGeneration.addresses.english')}</TableHead>
-              <TableHead>{t('letterGeneration.addresses.marathi')}</TableHead>
-              <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>{row.code}</TableCell>
-                <TableCell>{row.labelEn}</TableCell>
-                <TableCell lang="mr">{row.labelMr || '—'}</TableCell>
-                <TableCell>
-                  {row.isActive
-                    ? t('letterGeneration.addresses.activeYes')
-                    : t('letterGeneration.addresses.activeNo')}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setEditingId(row.id);
-                      setForm({
-                        code: row.code,
-                        labelEn: row.labelEn,
-                        labelMr: row.labelMr,
-                        sortOrder: String(row.sortOrder),
-                        isActive: row.isActive,
-                      });
-                    }}
-                  >
-                    <Pencil className="size-4" />
-                  </Button>
-                </TableCell>
+        <>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('letterGeneration.addresses.typesTab.code')}</TableHead>
+                <TableHead>{t('letterGeneration.addresses.english')}</TableHead>
+                <TableHead>{t('letterGeneration.addresses.marathi')}</TableHead>
+                <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
+                <TableHead />
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {paginatedItems.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell>{row.code}</TableCell>
+                  <TableCell>{row.labelEn}</TableCell>
+                  <TableCell lang="mr">{row.labelMr || '—'}</TableCell>
+                  <TableCell>
+                    {row.isActive
+                      ? t('letterGeneration.addresses.activeYes')
+                      : t('letterGeneration.addresses.activeNo')}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setEditingId(row.id);
+                        setForm({
+                          code: row.code,
+                          labelEn: row.labelEn,
+                          labelMr: row.labelMr,
+                          sortOrder: String(row.sortOrder),
+                          isActive: row.isActive,
+                        });
+                      }}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+          />
+        </>
       )}
     </div>
   );
@@ -252,6 +288,25 @@ export function AddressBlocksManager() {
   const [sortOrder, setSortOrder] = useState('0');
   const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [listPage, setListPage] = useState(1);
+  const [listLimit, setListLimit] = useState(DEFAULT_PAGE_SIZE);
+  const {
+    paginatedItems,
+    currentPage,
+    totalPages,
+    pageSize,
+    totalItems,
+    handlePageChange,
+    handlePageSizeChange,
+  } = usePagination(rows, listLimit, {
+    page: listPage,
+    pageSize: listLimit,
+    onPageChange: setListPage,
+    onPageSizeChange: (size) => {
+      setListLimit(size);
+      setListPage(1);
+    },
+  });
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -349,63 +404,77 @@ export function AddressBlocksManager() {
           <Loader2 className="size-4 animate-spin" />
           {t('common.loading')}
         </div>
+      ) : totalItems === 0 ? (
+        <div className="py-6 text-sm text-muted-foreground">
+          {t('letterGeneration.addresses.manageAddressesHint')}
+        </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('letterGeneration.addresses.columns.english')}</TableHead>
-              <TableHead>{t('letterGeneration.addresses.columns.marathi')}</TableHead>
-              <TableHead>{t('letterGeneration.addresses.columns.sortOrder')}</TableHead>
-              <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell className="max-w-[280px] whitespace-pre-wrap text-sm">
-                  {formatAddressMaster(row, 'en')}
-                </TableCell>
-                <TableCell className="max-w-[280px] whitespace-pre-wrap text-sm" lang="mr">
-                  {formatAddressMaster(row, 'mr')}
-                </TableCell>
-                <TableCell>{row.sortOrder}</TableCell>
-                <TableCell>
-                  {row.isActive
-                    ? t('letterGeneration.addresses.activeYes')
-                    : t('letterGeneration.addresses.activeNo')}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setEditingId(row.id);
-                      setParts({
-                        line1En: row.line1En,
-                        line1Mr: row.line1Mr,
-                        line2En: row.line2En,
-                        line2Mr: row.line2Mr,
-                        line3En: row.line3En,
-                        line3Mr: row.line3Mr,
-                        cityEn: row.cityEn,
-                        cityMr: row.cityMr,
-                        stateEn: row.stateEn,
-                        stateMr: row.stateMr,
-                        pincode: row.pincode,
-                      });
-                      setSortOrder(String(row.sortOrder));
-                      setIsActive(row.isActive);
-                    }}
-                  >
-                    <Pencil className="size-4" />
-                  </Button>
-                </TableCell>
+        <>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('letterGeneration.addresses.columns.english')}</TableHead>
+                <TableHead>{t('letterGeneration.addresses.columns.marathi')}</TableHead>
+                <TableHead>{t('letterGeneration.addresses.columns.sortOrder')}</TableHead>
+                <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
+                <TableHead />
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {paginatedItems.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell className="max-w-[280px] whitespace-pre-wrap text-sm">
+                    {formatAddressMaster(row, 'en')}
+                  </TableCell>
+                  <TableCell className="max-w-[280px] whitespace-pre-wrap text-sm" lang="mr">
+                    {formatAddressMaster(row, 'mr')}
+                  </TableCell>
+                  <TableCell>{row.sortOrder}</TableCell>
+                  <TableCell>
+                    {row.isActive
+                      ? t('letterGeneration.addresses.activeYes')
+                      : t('letterGeneration.addresses.activeNo')}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setEditingId(row.id);
+                        setParts({
+                          line1En: row.line1En,
+                          line1Mr: row.line1Mr,
+                          line2En: row.line2En,
+                          line2Mr: row.line2Mr,
+                          line3En: row.line3En,
+                          line3Mr: row.line3Mr,
+                          cityEn: row.cityEn,
+                          cityMr: row.cityMr,
+                          stateEn: row.stateEn,
+                          stateMr: row.stateMr,
+                          pincode: row.pincode,
+                        });
+                        setSortOrder(String(row.sortOrder));
+                        setIsActive(row.isActive);
+                      }}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+          />
+        </>
       )}
     </div>
   );
@@ -426,6 +495,25 @@ export function PositionsManager() {
     isActive: true,
   });
   const [saving, setSaving] = useState(false);
+  const [listPage, setListPage] = useState(1);
+  const [listLimit, setListLimit] = useState(DEFAULT_PAGE_SIZE);
+  const {
+    paginatedItems,
+    currentPage,
+    totalPages,
+    pageSize,
+    totalItems,
+    handlePageChange,
+    handlePageSizeChange,
+  } = usePagination(rows, listLimit, {
+    page: listPage,
+    pageSize: listLimit,
+    onPageChange: setListPage,
+    onPageSizeChange: (size) => {
+      setListLimit(size);
+      setListPage(1);
+    },
+  });
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -546,56 +634,70 @@ export function PositionsManager() {
           <Loader2 className="size-4 animate-spin" />
           {t('common.loading')}
         </div>
+      ) : totalItems === 0 ? (
+        <div className="py-6 text-sm text-muted-foreground">
+          {t('letterGeneration.addresses.managePositionsHint')}
+        </div>
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t('letterGeneration.addresses.columns.position')}</TableHead>
-              <TableHead>{t('letterGeneration.addresses.columns.positionCode')}</TableHead>
-              <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((row) => (
-              <TableRow key={row.id}>
-                <TableCell>
-                  <div>{row.titleEn}</div>
-                  {row.titleMr ? (
-                    <div className="text-muted-foreground text-xs" lang="mr">
-                      {row.titleMr}
-                    </div>
-                  ) : null}
-                </TableCell>
-                <TableCell>{row.code || '—'}</TableCell>
-                <TableCell>
-                  {row.isActive
-                    ? t('letterGeneration.addresses.activeYes')
-                    : t('letterGeneration.addresses.activeNo')}
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setEditingId(row.id);
-                      setForm({
-                        titleEn: row.titleEn,
-                        titleMr: row.titleMr,
-                        code: row.code || '',
-                        sortOrder: String(row.sortOrder),
-                        isActive: row.isActive,
-                      });
-                    }}
-                  >
-                    <Pencil className="size-4" />
-                  </Button>
-                </TableCell>
+        <>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>{t('letterGeneration.addresses.columns.position')}</TableHead>
+                <TableHead>{t('letterGeneration.addresses.columns.positionCode')}</TableHead>
+                <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
+                <TableHead />
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {paginatedItems.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell>
+                    <div>{row.titleEn}</div>
+                    {row.titleMr ? (
+                      <div className="text-muted-foreground text-xs" lang="mr">
+                        {row.titleMr}
+                      </div>
+                    ) : null}
+                  </TableCell>
+                  <TableCell>{row.code || '—'}</TableCell>
+                  <TableCell>
+                    {row.isActive
+                      ? t('letterGeneration.addresses.activeYes')
+                      : t('letterGeneration.addresses.activeNo')}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setEditingId(row.id);
+                        setForm({
+                          titleEn: row.titleEn,
+                          titleMr: row.titleMr,
+                          code: row.code || '',
+                          sortOrder: String(row.sortOrder),
+                          isActive: row.isActive,
+                        });
+                      }}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <TablePagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalItems={totalItems}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+          />
+        </>
       )}
     </div>
   );

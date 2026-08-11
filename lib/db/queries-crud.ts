@@ -3684,6 +3684,9 @@ export async function ensureAddressMasterDefaults(): Promise<void> {
         name: item.name,
         nameMr: item.nameMr,
         addressType: item.addressType,
+        // Non-minister defaults: position title mirrors the institute/office name.
+        positionTitleEn: item.name,
+        positionTitleMr: item.nameMr ?? '',
         line1En: item.line1En,
         line1Mr: item.line1Mr,
         line2En: item.line2En,
@@ -3823,8 +3826,8 @@ export async function createAddressMaster({
     const resolvedPositionId =
       positionId ||
       (await createPositionRow({
-        titleEn: positionTitleEn || name,
-        titleMr: positionTitleMr || nameMr || '',
+        titleEn: (positionTitleEn ?? '').trim(),
+        titleMr: (positionTitleMr ?? '').trim(),
         code: positionCode,
         sortOrder,
         isActive,
@@ -3917,43 +3920,42 @@ export async function updateAddressMaster({
 
     const now = new Date().toISOString();
     const resolvedTypeId = typeId || (await getAddressTypeIdByCode(addressType));
+    // Prefer explicit addressId; otherwise reuse existing block when no line fields
+    // were sent (Entries picker flow). Legacy callers that send lines still get
+    // find-or-create by content_key — never mutate a shared block in place.
+    const hasAddressParts =
+      line1En !== undefined ||
+      line1Mr !== undefined ||
+      cityEn !== undefined ||
+      cityMr !== undefined ||
+      pincode !== undefined;
     const resolvedAddressId =
       addressId ||
-      (await findOrCreateAddressBlock({
-        line1En,
-        line1Mr,
-        line2En,
-        line2Mr,
-        line3En,
-        line3Mr,
-        cityEn,
-        cityMr,
-        stateEn,
-        stateMr,
-        pincode,
-        createdBy: updatedBy,
-      }));
+      (hasAddressParts
+        ? await findOrCreateAddressBlock({
+            line1En,
+            line1Mr,
+            line2En,
+            line2Mr,
+            line3En,
+            line3Mr,
+            cityEn,
+            cityMr,
+            stateEn,
+            stateMr,
+            pincode,
+            createdBy: updatedBy,
+          })
+        : existing.addressId);
 
+    // Link by positionId only. Do not mutate PositionMaster from entry saves —
+    // titles/codes are edited on the Positions tab.
     let resolvedPositionId = positionId || existing.positionId;
-    if (!positionId && existing.positionId) {
-      const { error: posError } = await supabase
-        .from(TABLES.positionMaster)
-        .update(
-          toSnakeCaseKeys({
-            titleEn: positionTitleEn || name,
-            titleMr: positionTitleMr || nameMr || '',
-            code: positionCode ?? existing.positionCode,
-            updatedBy: updatedBy || null,
-            updatedAt: now,
-          }),
-        )
-        .eq('id', existing.positionId);
-      throwOnSupabaseError(posError, 'Failed to update linked position');
-    } else if (!positionId) {
+    if (!positionId && !existing.positionId) {
       resolvedPositionId = await createPositionRow({
-        titleEn: positionTitleEn || name,
-        titleMr: positionTitleMr || nameMr || '',
-        code: positionCode,
+        titleEn: (positionTitleEn ?? '').trim(),
+        titleMr: (positionTitleMr ?? '').trim(),
+        code: positionCode !== undefined ? positionCode : null,
         sortOrder,
         isActive,
         createdBy: updatedBy,

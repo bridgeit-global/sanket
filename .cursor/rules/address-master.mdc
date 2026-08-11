@@ -15,6 +15,15 @@ Letter Address Master is four linked parts:
 
 `LetterAddressTypeLink.address_type` stores the **type code** (FK to `AddressTypeMaster.code`).
 
+## Link-by-FK semantics (hard rule)
+
+- Entries **select** existing type / address / position by id. Do not inline-edit block lines or position titles from the Entries form.
+- Changing **holder** = update `AddressMaster` holder fields only (and optionally re-point FKs). Never mutate `AddressBlock` or `PositionMaster` from an entry save.
+- Changing a **shared address or position** = edit the submaster row on the Addresses / Positions tab; every entry pointing at that id sees the change.
+- One physical address can belong to many positions/entries (many `AddressMaster` → one `AddressBlock`).
+- New holder for the same portfolio = new `AddressMaster` row with the same `position_id` + `address_id` (deactivate the previous holder as needed).
+- Do **not** fall back position title to holder name (mapper, CRUD, or UI). Empty position title is omitted from letter print via `.filter(Boolean)`.
+
 ## Data preservation (hard rule)
 
 Migrations and seeds for address masters must **never delete or truncate existing rows**:
