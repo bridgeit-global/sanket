@@ -123,6 +123,8 @@ export function AddressMasterManager({
   onRefresh,
 }: AddressMasterManagerProps) {
   const { t, locale } = useTranslations();
+  const tRef = useRef(t);
+  tRef.current = t;
   const [formCardOpen, setFormCardOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<AddressFormState>(EMPTY_FORM);
@@ -170,11 +172,11 @@ export function AddressMasterManager({
       setBlocks((blocksJson?.blocks ?? []) as AddressBlockOption[]);
     } catch (error) {
       console.error(error);
-      toast.error(t('letterGeneration.addresses.fetchError'));
+      toast.error(tRef.current('letterGeneration.addresses.fetchError'));
     } finally {
       setMastersLoading(false);
     }
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     void refreshMasters();
