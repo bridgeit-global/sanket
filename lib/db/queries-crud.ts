@@ -18,6 +18,9 @@ import {
   mapExportJobRow,
   mapLetterMasterRow,
   mapAddressMasterRow,
+  mapAddressTypeMasterRow,
+  mapAddressBlockRow,
+  mapPositionMasterRow,
   mapDocumentTypeMasterRow,
   mapLetterAddressTypeLinkRow,
   mapLetterTypeMasterRow,
@@ -73,6 +76,9 @@ import type {
   LetterMaster,
   LetterTypeMaster,
   AddressMaster,
+  AddressTypeMaster,
+  AddressBlock,
+  PositionMaster,
   DocumentTypeMaster,
   LetterAddressTypeLink,
   MlaProject,
@@ -3145,8 +3151,517 @@ export async function deleteLetterTypeMaster(id: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Address masters
+// Address masters (type / address block / position / holder)
 // ---------------------------------------------------------------------------
+
+const ADDRESS_MASTER_SELECT = `
+  *,
+  AddressTypeMaster (*),
+  AddressBlock (*),
+  PositionMaster (*)
+`;
+
+async function getAddressTypeIdByCode(code: string): Promise<string> {
+  const { data, error } = await supabase
+    .from(TABLES.addressTypeMaster)
+    .select('id')
+    .eq('code', code)
+    .maybeSingle();
+  throwOnSupabaseError(error, 'Failed to resolve address type');
+  if (!data?.id) {
+    throw new ChatSDKError('bad_request:database', `Unknown address type: ${code}`);
+  }
+  return String(data.id);
+}
+
+async function findOrCreateAddressBlock(parts: {
+  line1En?: string;
+  line1Mr?: string;
+  line2En?: string;
+  line2Mr?: string;
+  line3En?: string;
+  line3Mr?: string;
+  cityEn?: string;
+  cityMr?: string;
+  stateEn?: string;
+  stateMr?: string;
+  pincode?: string;
+  createdBy?: string | null;
+}): Promise<string> {
+  const { addressBlockContentKey } = await import('@/lib/letters/address-block-key');
+  const normalized = {
+    line1En: parts.line1En ?? '',
+    line1Mr: parts.line1Mr ?? '',
+    line2En: parts.line2En ?? '',
+    line2Mr: parts.line2Mr ?? '',
+    line3En: parts.line3En ?? '',
+    line3Mr: parts.line3Mr ?? '',
+    cityEn: parts.cityEn ?? '',
+    cityMr: parts.cityMr ?? '',
+    stateEn: parts.stateEn ?? '',
+    stateMr: parts.stateMr ?? '',
+    pincode: parts.pincode ?? '',
+  };
+  const contentKey = addressBlockContentKey(normalized);
+
+  const { data: existing, error: existingError } = await supabase
+    .from(TABLES.addressBlock)
+    .select('id')
+    .eq('content_key', contentKey)
+    .maybeSingle();
+  throwOnSupabaseError(existingError, 'Failed to look up address block');
+  if (existing?.id) return String(existing.id);
+
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from(TABLES.addressBlock)
+    .insert(
+      toSnakeCaseKeys({
+        contentKey,
+        ...normalized,
+        isActive: true,
+        sortOrder: 0,
+        createdBy: parts.createdBy || null,
+        updatedBy: parts.createdBy || null,
+        createdAt: now,
+        updatedAt: now,
+      }),
+    )
+    .select('id')
+    .single();
+
+  if (error?.code === '23505') {
+    const { data: raced, error: raceError } = await supabase
+      .from(TABLES.addressBlock)
+      .select('id')
+      .eq('content_key', contentKey)
+      .maybeSingle();
+    throwOnSupabaseError(raceError, 'Failed to look up address block after conflict');
+    if (raced?.id) return String(raced.id);
+  }
+
+  throwOnSupabaseError(error, 'Failed to create address block');
+  if (!data?.id) {
+    throw new ChatSDKError('bad_request:database', 'Failed to create address block');
+  }
+  return String(data.id);
+}
+
+async function createPositionRow({
+  titleEn,
+  titleMr,
+  code,
+  sortOrder = 0,
+  isActive = true,
+  createdBy,
+}: {
+  titleEn: string;
+  titleMr?: string;
+  code?: string | null;
+  sortOrder?: number;
+  isActive?: boolean;
+  createdBy?: string | null;
+}): Promise<string> {
+  const now = new Date().toISOString();
+  if (code) {
+    const { data: existing, error: existingError } = await supabase
+      .from(TABLES.positionMaster)
+      .select('id')
+      .eq('code', code)
+      .maybeSingle();
+    throwOnSupabaseError(existingError, 'Failed to look up position');
+    if (existing?.id) return String(existing.id);
+  }
+
+  const { data, error } = await supabase
+    .from(TABLES.positionMaster)
+    .insert(
+      toSnakeCaseKeys({
+        code: code || null,
+        titleEn,
+        titleMr: titleMr ?? '',
+        sortOrder,
+        isActive,
+        createdBy: createdBy || null,
+        updatedBy: createdBy || null,
+        createdAt: now,
+        updatedAt: now,
+      }),
+    )
+    .select('id')
+    .single();
+
+  if (error?.code === '23505' && code) {
+    const { data: raced, error: raceError } = await supabase
+      .from(TABLES.positionMaster)
+      .select('id')
+      .eq('code', code)
+      .maybeSingle();
+    throwOnSupabaseError(raceError, 'Failed to look up position after conflict');
+    if (raced?.id) return String(raced.id);
+  }
+
+  throwOnSupabaseError(error, 'Failed to create position');
+  const positionId = data?.id;
+  if (!positionId) {
+    throw new ChatSDKError('bad_request:database', 'Failed to create position');
+  }
+  return String(positionId);
+}
+
+export async function getAddressTypeMasters({
+  activeOnly = true,
+}: { activeOnly?: boolean } = {}): Promise<AddressTypeMaster[]> {
+  try {
+    let query = supabase
+      .from(TABLES.addressTypeMaster)
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('code', { ascending: true });
+    if (activeOnly) query = query.eq('is_active', true);
+    const { data, error } = await query;
+    throwOnSupabaseError(error, 'Failed to get address types');
+    return (data ?? []).map(mapAddressTypeMasterRow);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get address types');
+  }
+}
+
+export async function createAddressTypeMaster({
+  code,
+  labelEn,
+  labelMr,
+  isActive = true,
+  sortOrder = 0,
+}: {
+  code: string;
+  labelEn: string;
+  labelMr?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+}): Promise<AddressTypeMaster> {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.addressTypeMaster)
+      .insert(
+        toSnakeCaseKeys({
+          code,
+          labelEn,
+          labelMr: labelMr ?? '',
+          isActive,
+          sortOrder,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      )
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create address type');
+    return mapAddressTypeMasterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to create address type');
+  }
+}
+
+export async function updateAddressTypeMaster({
+  id,
+  code,
+  labelEn,
+  labelMr,
+  isActive,
+  sortOrder,
+}: {
+  id: string;
+  code: string;
+  labelEn: string;
+  labelMr?: string;
+  isActive: boolean;
+  sortOrder: number;
+}): Promise<AddressTypeMaster> {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.addressTypeMaster)
+      .update(
+        toSnakeCaseKeys({
+          code,
+          labelEn,
+          labelMr: labelMr ?? '',
+          isActive,
+          sortOrder,
+          updatedAt: now,
+        }),
+      )
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to update address type');
+    return mapAddressTypeMasterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to update address type');
+  }
+}
+
+export async function getAddressBlocks({
+  activeOnly = true,
+}: { activeOnly?: boolean } = {}): Promise<AddressBlock[]> {
+  try {
+    let query = supabase
+      .from(TABLES.addressBlock)
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('city_en', { ascending: true });
+    if (activeOnly) query = query.eq('is_active', true);
+    const { data, error } = await query;
+    throwOnSupabaseError(error, 'Failed to get address blocks');
+    return (data ?? []).map(mapAddressBlockRow);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get address blocks');
+  }
+}
+
+export async function createAddressBlockRecord({
+  line1En,
+  line1Mr,
+  line2En,
+  line2Mr,
+  line3En,
+  line3Mr,
+  cityEn,
+  cityMr,
+  stateEn,
+  stateMr,
+  pincode,
+  isActive = true,
+  sortOrder = 0,
+  createdBy,
+}: {
+  line1En?: string;
+  line1Mr?: string;
+  line2En?: string;
+  line2Mr?: string;
+  line3En?: string;
+  line3Mr?: string;
+  cityEn?: string;
+  cityMr?: string;
+  stateEn?: string;
+  stateMr?: string;
+  pincode?: string;
+  isActive?: boolean;
+  sortOrder?: number;
+  createdBy?: string | null;
+}): Promise<AddressBlock> {
+  try {
+    const id = await findOrCreateAddressBlock({
+      line1En,
+      line1Mr,
+      line2En,
+      line2Mr,
+      line3En,
+      line3Mr,
+      cityEn,
+      cityMr,
+      stateEn,
+      stateMr,
+      pincode,
+      createdBy,
+    });
+    const { data, error } = await supabase
+      .from(TABLES.addressBlock)
+      .update(
+        toSnakeCaseKeys({
+          isActive,
+          sortOrder,
+          updatedBy: createdBy || null,
+          updatedAt: new Date().toISOString(),
+        }),
+      )
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create address block');
+    return mapAddressBlockRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to create address block');
+  }
+}
+
+export async function updateAddressBlockRecord({
+  id,
+  line1En,
+  line1Mr,
+  line2En,
+  line2Mr,
+  line3En,
+  line3Mr,
+  cityEn,
+  cityMr,
+  stateEn,
+  stateMr,
+  pincode,
+  isActive,
+  sortOrder,
+  updatedBy,
+}: {
+  id: string;
+  line1En?: string;
+  line1Mr?: string;
+  line2En?: string;
+  line2Mr?: string;
+  line3En?: string;
+  line3Mr?: string;
+  cityEn?: string;
+  cityMr?: string;
+  stateEn?: string;
+  stateMr?: string;
+  pincode?: string;
+  isActive: boolean;
+  sortOrder: number;
+  updatedBy?: string | null;
+}): Promise<AddressBlock> {
+  try {
+    const { addressBlockContentKey } = await import('@/lib/letters/address-block-key');
+    const normalized = {
+      line1En: line1En ?? '',
+      line1Mr: line1Mr ?? '',
+      line2En: line2En ?? '',
+      line2Mr: line2Mr ?? '',
+      line3En: line3En ?? '',
+      line3Mr: line3Mr ?? '',
+      cityEn: cityEn ?? '',
+      cityMr: cityMr ?? '',
+      stateEn: stateEn ?? '',
+      stateMr: stateMr ?? '',
+      pincode: pincode ?? '',
+    };
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.addressBlock)
+      .update(
+        toSnakeCaseKeys({
+          contentKey: addressBlockContentKey(normalized),
+          ...normalized,
+          isActive,
+          sortOrder,
+          updatedBy: updatedBy || null,
+          updatedAt: now,
+        }),
+      )
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to update address block');
+    return mapAddressBlockRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to update address block');
+  }
+}
+
+export async function getPositionMasters({
+  activeOnly = true,
+}: { activeOnly?: boolean } = {}): Promise<PositionMaster[]> {
+  try {
+    let query = supabase
+      .from(TABLES.positionMaster)
+      .select('*')
+      .order('sort_order', { ascending: true })
+      .order('title_en', { ascending: true });
+    if (activeOnly) query = query.eq('is_active', true);
+    const { data, error } = await query;
+    throwOnSupabaseError(error, 'Failed to get positions');
+    return (data ?? []).map(mapPositionMasterRow);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to get positions');
+  }
+}
+
+export async function createPositionMaster({
+  titleEn,
+  titleMr,
+  code,
+  isActive = true,
+  sortOrder = 0,
+  createdBy,
+}: {
+  titleEn: string;
+  titleMr?: string;
+  code?: string | null;
+  isActive?: boolean;
+  sortOrder?: number;
+  createdBy?: string | null;
+}): Promise<PositionMaster> {
+  try {
+    const id = await createPositionRow({
+      titleEn,
+      titleMr,
+      code,
+      isActive,
+      sortOrder,
+      createdBy,
+    });
+    const { data, error } = await supabase
+      .from(TABLES.positionMaster)
+      .select('*')
+      .eq('id', id)
+      .single();
+    throwOnSupabaseError(error, 'Failed to get created position');
+    return mapPositionMasterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to create position');
+  }
+}
+
+export async function updatePositionMaster({
+  id,
+  titleEn,
+  titleMr,
+  code,
+  isActive,
+  sortOrder,
+  updatedBy,
+}: {
+  id: string;
+  titleEn: string;
+  titleMr?: string;
+  code?: string | null;
+  isActive: boolean;
+  sortOrder: number;
+  updatedBy?: string | null;
+}): Promise<PositionMaster> {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.positionMaster)
+      .update(
+        toSnakeCaseKeys({
+          titleEn,
+          titleMr: titleMr ?? '',
+          code: code || null,
+          isActive,
+          sortOrder,
+          updatedBy: updatedBy || null,
+          updatedAt: now,
+        }),
+      )
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to update position');
+    return mapPositionMasterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to update position');
+  }
+}
 
 export async function ensureAddressMasterDefaults(): Promise<void> {
   try {
@@ -3155,39 +3670,38 @@ export async function ensureAddressMasterDefaults(): Promise<void> {
 
     const { data: existingRows, error: existingError } = await supabase
       .from(TABLES.addressMaster)
-      .select('name');
+      .select('holder_name_en');
     throwOnSupabaseError(existingError, 'Failed to list address masters');
 
-    const existingNames = new Set((existingRows ?? []).map((row) => String(row.name)));
+    const existingNames = new Set(
+      (existingRows ?? []).map((row) => String(row.holder_name_en)),
+    );
     const missing = defaults.filter((item) => !existingNames.has(item.name));
     if (missing.length === 0) return;
 
-    const now = new Date().toISOString();
-    const { error } = await supabase.from(TABLES.addressMaster).insert(
-      missing.map((item) =>
-        toSnakeCaseKeys({
-          name: item.name,
-          nameMr: item.nameMr,
-          addressType: item.addressType,
-          line1En: item.line1En,
-          line1Mr: item.line1Mr,
-          line2En: item.line2En,
-          line2Mr: item.line2Mr,
-          line3En: item.line3En,
-          line3Mr: item.line3Mr,
-          cityEn: item.cityEn,
-          cityMr: item.cityMr,
-          stateEn: item.stateEn,
-          stateMr: item.stateMr,
-          pincode: item.pincode,
-          sortOrder: item.sortOrder,
-          isActive: true,
-          createdAt: now,
-          updatedAt: now,
-        }),
-      ),
-    );
-    throwOnSupabaseError(error, 'Failed to seed address masters');
+    for (const item of missing) {
+      await createAddressMaster({
+        name: item.name,
+        nameMr: item.nameMr,
+        addressType: item.addressType,
+        // Non-minister defaults: position title mirrors the institute/office name.
+        positionTitleEn: item.name,
+        positionTitleMr: item.nameMr ?? '',
+        line1En: item.line1En,
+        line1Mr: item.line1Mr,
+        line2En: item.line2En,
+        line2Mr: item.line2Mr,
+        line3En: item.line3En,
+        line3Mr: item.line3Mr,
+        cityEn: item.cityEn,
+        cityMr: item.cityMr,
+        stateEn: item.stateEn,
+        stateMr: item.stateMr,
+        pincode: item.pincode,
+        sortOrder: item.sortOrder,
+        isActive: true,
+      });
+    }
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to seed address masters');
@@ -3198,27 +3712,28 @@ export async function getAddressMasters({
   addressType,
   activeOnly = true,
 }: {
-  addressType?: AddressMaster['addressType'];
+  addressType?: string;
   activeOnly?: boolean;
 } = {}): Promise<Array<AddressMaster>> {
   try {
     await ensureAddressMasterDefaults();
     let query = supabase
       .from(TABLES.addressMaster)
-      .select('*')
+      .select(ADDRESS_MASTER_SELECT)
       .order('sort_order', { ascending: true })
-      .order('name', { ascending: true });
+      .order('holder_name_en', { ascending: true });
 
-    if (addressType) {
-      query = query.eq('address_type', addressType);
-    }
     if (activeOnly) {
       query = query.eq('is_active', true);
     }
 
     const { data, error } = await query;
     throwOnSupabaseError(error, 'Failed to get address masters');
-    return (data ?? []).map(mapAddressMasterRow);
+    let rows = (data ?? []).map(mapAddressMasterRow);
+    if (addressType) {
+      rows = rows.filter((row) => row.addressType === addressType);
+    }
+    return rows;
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to get address masters');
@@ -3229,7 +3744,7 @@ export async function getAddressMasterById(id: string): Promise<AddressMaster | 
   try {
     const { data, error } = await supabase
       .from(TABLES.addressMaster)
-      .select('*')
+      .select(ADDRESS_MASTER_SELECT)
       .eq('id', id)
       .maybeSingle();
     throwOnSupabaseError(error, 'Failed to get address master by id');
@@ -3255,13 +3770,19 @@ export async function createAddressMaster({
   stateEn,
   stateMr,
   pincode,
+  positionTitleEn,
+  positionTitleMr,
+  positionCode,
+  typeId,
+  addressId,
+  positionId,
   isActive = true,
   sortOrder = 0,
   createdBy,
 }: {
   name: string;
   nameMr?: string;
-  addressType: AddressMaster['addressType'];
+  addressType: string;
   line1En?: string;
   line1Mr?: string;
   line2En?: string;
@@ -3273,30 +3794,55 @@ export async function createAddressMaster({
   stateEn?: string;
   stateMr?: string;
   pincode?: string;
+  positionTitleEn?: string;
+  positionTitleMr?: string;
+  positionCode?: string | null;
+  typeId?: string;
+  addressId?: string;
+  positionId?: string;
   isActive?: boolean;
   sortOrder?: number;
   createdBy?: string | null;
 }): Promise<AddressMaster> {
   try {
     const now = new Date().toISOString();
+    const resolvedTypeId = typeId || (await getAddressTypeIdByCode(addressType));
+    const resolvedAddressId =
+      addressId ||
+      (await findOrCreateAddressBlock({
+        line1En,
+        line1Mr,
+        line2En,
+        line2Mr,
+        line3En,
+        line3Mr,
+        cityEn,
+        cityMr,
+        stateEn,
+        stateMr,
+        pincode,
+        createdBy,
+      }));
+    const resolvedPositionId =
+      positionId ||
+      (await createPositionRow({
+        titleEn: (positionTitleEn ?? '').trim(),
+        titleMr: (positionTitleMr ?? '').trim(),
+        code: positionCode,
+        sortOrder,
+        isActive,
+        createdBy,
+      }));
+
     const { data, error } = await supabase
       .from(TABLES.addressMaster)
       .insert(
         toSnakeCaseKeys({
-          name,
-          nameMr: nameMr ?? '',
-          addressType,
-          line1En: line1En ?? '',
-          line1Mr: line1Mr ?? '',
-          line2En: line2En ?? '',
-          line2Mr: line2Mr ?? '',
-          line3En: line3En ?? '',
-          line3Mr: line3Mr ?? '',
-          cityEn: cityEn ?? '',
-          cityMr: cityMr ?? '',
-          stateEn: stateEn ?? '',
-          stateMr: stateMr ?? '',
-          pincode: pincode ?? '',
+          holderNameEn: name,
+          holderNameMr: nameMr ?? '',
+          typeId: resolvedTypeId,
+          addressId: resolvedAddressId,
+          positionId: resolvedPositionId,
           isActive,
           sortOrder,
           createdBy: createdBy || null,
@@ -3305,7 +3851,7 @@ export async function createAddressMaster({
           updatedAt: now,
         }),
       )
-      .select('*')
+      .select(ADDRESS_MASTER_SELECT)
       .single();
     throwOnSupabaseError(error, 'Failed to create address master');
     return mapAddressMasterRow(data);
@@ -3331,6 +3877,12 @@ export async function updateAddressMaster({
   stateEn,
   stateMr,
   pincode,
+  positionTitleEn,
+  positionTitleMr,
+  positionCode,
+  typeId,
+  addressId,
+  positionId,
   isActive,
   sortOrder,
   updatedBy,
@@ -3338,7 +3890,7 @@ export async function updateAddressMaster({
   id: string;
   name: string;
   nameMr?: string;
-  addressType: AddressMaster['addressType'];
+  addressType: string;
   line1En?: string;
   line1Mr?: string;
   line2En?: string;
@@ -3350,30 +3902,75 @@ export async function updateAddressMaster({
   stateEn?: string;
   stateMr?: string;
   pincode?: string;
+  positionTitleEn?: string;
+  positionTitleMr?: string;
+  positionCode?: string | null;
+  typeId?: string;
+  addressId?: string;
+  positionId?: string;
   isActive: boolean;
   sortOrder: number;
   updatedBy?: string | null;
 }): Promise<AddressMaster> {
   try {
+    const existing = await getAddressMasterById(id);
+    if (!existing) {
+      throw new ChatSDKError('bad_request:database', 'Address master not found');
+    }
+
     const now = new Date().toISOString();
+    const resolvedTypeId = typeId || (await getAddressTypeIdByCode(addressType));
+    // Prefer explicit addressId; otherwise reuse existing block when no line fields
+    // were sent (Entries picker flow). Legacy callers that send lines still get
+    // find-or-create by content_key — never mutate a shared block in place.
+    const hasAddressParts =
+      line1En !== undefined ||
+      line1Mr !== undefined ||
+      cityEn !== undefined ||
+      cityMr !== undefined ||
+      pincode !== undefined;
+    const resolvedAddressId =
+      addressId ||
+      (hasAddressParts
+        ? await findOrCreateAddressBlock({
+            line1En,
+            line1Mr,
+            line2En,
+            line2Mr,
+            line3En,
+            line3Mr,
+            cityEn,
+            cityMr,
+            stateEn,
+            stateMr,
+            pincode,
+            createdBy: updatedBy,
+          })
+        : existing.addressId);
+
+    // Link by positionId only. Do not mutate PositionMaster from entry saves —
+    // titles/codes are edited on the Positions tab.
+    let resolvedPositionId = positionId || existing.positionId;
+    if (!positionId && !existing.positionId) {
+      resolvedPositionId = await createPositionRow({
+        titleEn: (positionTitleEn ?? '').trim(),
+        titleMr: (positionTitleMr ?? '').trim(),
+        code: positionCode !== undefined ? positionCode : null,
+        sortOrder,
+        isActive,
+        createdBy: updatedBy,
+      });
+    }
+
     const { data, error } = await supabase
       .from(TABLES.addressMaster)
       .update(
         toSnakeCaseKeys({
-          name,
-          nameMr: nameMr ?? '',
-          addressType,
-          line1En: line1En ?? '',
-          line1Mr: line1Mr ?? '',
-          line2En: line2En ?? '',
-          line2Mr: line2Mr ?? '',
-          line3En: line3En ?? '',
-          line3Mr: line3Mr ?? '',
-          cityEn: cityEn ?? '',
-          cityMr: cityMr ?? '',
-          stateEn: stateEn ?? '',
-          stateMr: stateMr ?? '',
-          pincode: pincode ?? '',
+          holderNameEn: name,
+          holderNameMr: nameMr ?? '',
+          typeId: resolvedTypeId,
+          addressId: resolvedAddressId,
+          positionId: resolvedPositionId,
           isActive,
           sortOrder,
           updatedBy: updatedBy || null,
@@ -3381,7 +3978,7 @@ export async function updateAddressMaster({
         }),
       )
       .eq('id', id)
-      .select('*')
+      .select(ADDRESS_MASTER_SELECT)
       .single();
     throwOnSupabaseError(error, 'Failed to update address master');
     return mapAddressMasterRow(data);

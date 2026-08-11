@@ -1,4 +1,5 @@
 import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
+import { isMinisterAddressType } from '@/lib/letters/address-types';
 import type { LetterLocale } from '@/lib/letters/templates';
 import type { PincodeLookupResult } from '@/lib/letters/pincode-lookup';
 
@@ -164,6 +165,86 @@ export function formatAddressMaster(
   if (!base) return pincode;
   // Letter/display format: "line1, line2, line3, city - 400043"
   return `${base} - ${pincode}`;
+}
+
+export type AddressMasterRecipientParts = AddressMasterAddressParts & {
+  holderNameEn?: string;
+  holderNameMr?: string;
+  /** @deprecated Prefer holderNameEn */
+  name?: string;
+  /** @deprecated Prefer holderNameMr */
+  nameMr?: string;
+  addressType?: string;
+  typeLabelEn?: string;
+  typeLabelMr?: string;
+  positionTitleEn?: string;
+  positionTitleMr?: string;
+};
+
+function pickHolderName(
+  parts: AddressMasterRecipientParts,
+  locale: LetterLocale,
+): string {
+  if (locale === 'mr') {
+    return (parts.holderNameMr || parts.nameMr || parts.holderNameEn || parts.name || '').trim();
+  }
+  return (parts.holderNameEn || parts.name || parts.holderNameMr || parts.nameMr || '').trim();
+}
+
+function pickTypeLabel(
+  parts: AddressMasterRecipientParts,
+  locale: LetterLocale,
+): string {
+  if (locale === 'mr') {
+    return (parts.typeLabelMr || parts.typeLabelEn || '').trim();
+  }
+  return (parts.typeLabelEn || parts.typeLabelMr || '').trim();
+}
+
+function pickPositionTitle(
+  parts: AddressMasterRecipientParts,
+  locale: LetterLocale,
+): string {
+  if (locale === 'mr') {
+    return (parts.positionTitleMr || parts.positionTitleEn || '').trim();
+  }
+  return (parts.positionTitleEn || parts.positionTitleMr || '').trim();
+}
+
+/**
+ * Full recipient line for letter To blocks.
+ * Minister types: holder, type label, position, address.
+ * Other types: holder + address (legacy school/office/ration behaviour).
+ */
+export function formatAddressMasterRecipient(
+  parts: AddressMasterRecipientParts,
+  locale: LetterLocale,
+  options?: {
+    multiline?: boolean;
+    pincodeDisplay?: 'full' | 'last2';
+  },
+): string {
+  const holder = pickHolderName(parts, locale);
+  const addressText = options?.multiline
+    ? formatAddressMasterMultiline(parts, locale, undefined, {
+        pincodeDisplay: options?.pincodeDisplay,
+      })
+    : formatAddressMaster(parts, locale, {
+        pincodeDisplay: options?.pincodeDisplay,
+      });
+
+  if (isMinisterAddressType(parts.addressType)) {
+    const typeLabel = pickTypeLabel(parts, locale);
+    const position = pickPositionTitle(parts, locale);
+    const head = [holder, typeLabel, position].filter(Boolean).join(', ');
+    if (!head) return addressText;
+    if (!addressText) return head;
+    return options?.multiline ? `${head},<br>${addressText}` : `${head}, ${addressText}`;
+  }
+
+  if (!holder) return addressText;
+  if (!addressText) return holder;
+  return options?.multiline ? `${holder},<br>${addressText}` : `${holder}, ${addressText}`;
 }
 
 function escapeAddressHtmlText(value: string): string {

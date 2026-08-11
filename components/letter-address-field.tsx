@@ -19,9 +19,15 @@ import type { LetterLocale } from '@/lib/letters/templates';
 
 export type AddressMasterRow = {
   id: string;
+  holderNameEn?: string;
+  holderNameMr?: string;
   name: string;
   nameMr: string;
-  addressType: AddressType;
+  addressType: AddressType | string;
+  typeId?: string;
+  typeLabelEn?: string;
+  typeLabelMr?: string;
+  addressId?: string;
   line1En: string;
   line1Mr: string;
   line2En: string;
@@ -33,6 +39,10 @@ export type AddressMasterRow = {
   stateEn: string;
   stateMr: string;
   pincode: string;
+  positionId?: string;
+  positionTitleEn?: string;
+  positionTitleMr?: string;
+  positionCode?: string | null;
   isActive: boolean;
   sortOrder: number;
 };
@@ -163,10 +173,20 @@ export function LetterAddressField({
     });
   };
 
-  const comboboxOptions = filteredAddresses.map((address) => ({
-    value: address.id,
-    label: locale === 'mr' ? address.nameMr.trim() || address.name : address.name,
-  }));
+  const comboboxOptions = filteredAddresses.map((address) => {
+    const holder =
+      locale === 'mr'
+        ? address.nameMr.trim() || address.name
+        : address.name.trim() || address.nameMr;
+    const position =
+      locale === 'mr'
+        ? (address.positionTitleMr || address.positionTitleEn || '').trim()
+        : (address.positionTitleEn || address.positionTitleMr || '').trim();
+    return {
+      value: address.id,
+      label: position ? `${holder} — ${position}` : holder,
+    };
+  });
 
   const selectedAddress = selectedAddressId
     ? filteredAddresses.find((address) => address.id === selectedAddressId)

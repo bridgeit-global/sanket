@@ -22,6 +22,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Combobox } from '@/components/ui/combobox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -43,46 +44,55 @@ import { TablePagination, usePagination } from '@/components/table-pagination';
 import { useTranslations } from '@/hooks/use-translations';
 import { ADDRESS_TYPES, type AddressType } from '@/lib/letters/address-types';
 import type { AddressMasterRow } from '@/components/letter-address-field';
-import { BilingualAddressFields } from '@/components/bilingual-address-fields';
 import {
-  EMPTY_ADDRESS_PARTS,
-  enrichAddressPartsWithPincodeLookup,
   formatAddressMaster,
-  hasRequiredAddressFields,
-  localizeAddressPartsDigits,
-  mergeAddressParts,
-  sanitizeAddressPartsLocations,
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
 import { filterLocaleText } from '@/lib/letters/locale-text';
-import {
-  defaultLocationParts,
-  getCityLabel,
-  getStateLabel,
-  localizedCityParts,
-  localizedStateParts,
-} from '@/lib/letters/indian-locations';
-import { usePincodeLookup } from '@/lib/letters/use-pincode-lookup';
-import type { PincodeLookupResult } from '@/lib/letters/pincode-lookup';
 import { toLocaleDigits, toWesternDigits } from '@/lib/locale-digits';
 import type { LetterLocale } from '@/lib/letters/templates';
 
 const DEFAULT_PAGE_SIZE = 10;
 
+type AddressTypeOption = {
+  id: string;
+  code: string;
+  labelEn: string;
+  labelMr: string;
+  isActive: boolean;
+};
+
+type PositionOption = {
+  id: string;
+  code: string | null;
+  titleEn: string;
+  titleMr: string;
+  isActive: boolean;
+};
+
+type AddressBlockOption = AddressMasterAddressParts & {
+  id: string;
+  isActive: boolean;
+};
+
 type AddressFormState = {
   name: string;
   nameMr: string;
-  addressType: AddressType;
+  typeId: string;
+  addressType: string;
+  addressId: string;
+  positionId: string;
   isActive: boolean;
   sortOrder: string;
-} & AddressMasterAddressParts;
+};
 
 const EMPTY_FORM: AddressFormState = {
   name: '',
   nameMr: '',
+  typeId: '',
   addressType: 'general',
-  ...EMPTY_ADDRESS_PARTS,
-  ...defaultLocationParts(),
+  addressId: '',
+  positionId: '',
   isActive: true,
   sortOrder: '0',
 };
@@ -100,30 +110,6 @@ async function translateAddressText(
   if (!res.ok) throw new Error(json?.error || 'Failed to translate');
   return String(json?.translated ?? '').trim();
 }
-
-type TranslatableField =
-  | 'name'
-  | 'nameMr'
-  | 'line1En'
-  | 'line1Mr'
-  | 'line2En'
-  | 'line2Mr'
-  | 'line3En'
-  | 'line3Mr';
-
-const FIELD_COUNTERPART: Record<
-  TranslatableField,
-  { targetKey: TranslatableField; targetLocale: LetterLocale }
-> = {
-  name: { targetKey: 'nameMr', targetLocale: 'mr' },
-  nameMr: { targetKey: 'name', targetLocale: 'en' },
-  line1En: { targetKey: 'line1Mr', targetLocale: 'mr' },
-  line1Mr: { targetKey: 'line1En', targetLocale: 'en' },
-  line2En: { targetKey: 'line2Mr', targetLocale: 'mr' },
-  line2Mr: { targetKey: 'line2En', targetLocale: 'en' },
-  line3En: { targetKey: 'line3Mr', targetLocale: 'mr' },
-  line3Mr: { targetKey: 'line3En', targetLocale: 'en' },
-};
 
 type AddressMasterManagerProps = {
   addresses: AddressMasterRow[];
@@ -149,19 +135,55 @@ export function AddressMasterManager({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [addressToDelete, setAddressToDelete] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | AddressType>('all');
+  const [typeFilter, setTypeFilter] = useState<'all' | string>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>(
     'all',
   );
   const [listPage, setListPage] = useState(1);
   const [listLimit, setListLimit] = useState(DEFAULT_PAGE_SIZE);
 
+  const [types, setTypes] = useState<AddressTypeOption[]>([]);
+  const [positions, setPositions] = useState<PositionOption[]>([]);
+  const [blocks, setBlocks] = useState<AddressBlockOption[]>([]);
+  const [mastersLoading, setMastersLoading] = useState(false);
+
+  const refreshMasters = useCallback(async () => {
+    setMastersLoading(true);
+    try {
+      const [typesRes, positionsRes, blocksRes] = await Promise.all([
+        fetch('/api/address-types'),
+        fetch('/api/positions'),
+        fetch('/api/address-blocks'),
+      ]);
+      const [typesJson, positionsJson, blocksJson] = await Promise.all([
+        typesRes.json(),
+        positionsRes.json(),
+        blocksRes.json(),
+      ]);
+      if (!typesRes.ok) throw new Error(typesJson?.error || 'Failed to load types');
+      if (!positionsRes.ok) {
+        throw new Error(positionsJson?.error || 'Failed to load positions');
+      }
+      if (!blocksRes.ok) throw new Error(blocksJson?.error || 'Failed to load blocks');
+      setTypes((typesJson?.types ?? []) as AddressTypeOption[]);
+      setPositions((positionsJson?.positions ?? []) as PositionOption[]);
+      setBlocks((blocksJson?.blocks ?? []) as AddressBlockOption[]);
+    } catch (error) {
+      console.error(error);
+      toast.error(t('letterGeneration.addresses.fetchError'));
+    } finally {
+      setMastersLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    void refreshMasters();
+  }, [refreshMasters]);
+
   const sortedAddresses = useMemo(
     () =>
       [...addresses].sort(
-        (a, b) =>
-          a.sortOrder - b.sortOrder ||
-          a.name.localeCompare(b.name),
+        (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name),
       ),
     [addresses],
   );
@@ -179,6 +201,11 @@ export function AddressMasterManager({
       const haystack = [
         address.name,
         address.nameMr,
+        address.holderNameEn,
+        address.holderNameMr,
+        address.positionTitleEn,
+        address.positionTitleMr,
+        address.positionCode,
         address.addressType,
         formatAddressMaster(address, 'en'),
         formatAddressMaster(address, 'mr'),
@@ -216,6 +243,51 @@ export function AddressMasterManager({
   const hasActiveFilters =
     searchTerm.trim() !== '' || typeFilter !== 'all' || statusFilter !== 'all';
 
+  const typeOptions = useMemo(
+    () =>
+      types
+        .filter((row) => row.isActive || row.id === form.typeId)
+        .map((row) => ({
+          value: row.id,
+          label:
+            locale === 'mr'
+              ? row.labelMr.trim() || row.labelEn || row.code
+              : row.labelEn || row.code,
+        })),
+    [types, form.typeId, locale],
+  );
+
+  const positionOptions = useMemo(
+    () =>
+      positions
+        .filter((row) => row.isActive || row.id === form.positionId)
+        .map((row) => {
+          const title =
+            locale === 'mr'
+              ? row.titleMr.trim() || row.titleEn
+              : row.titleEn || row.titleMr;
+          const label = row.code ? `${title} (${row.code})` : title;
+          return { value: row.id, label: label || row.id };
+        }),
+    [positions, form.positionId, locale],
+  );
+
+  const blockOptions = useMemo(
+    () =>
+      blocks
+        .filter((row) => row.isActive || row.id === form.addressId)
+        .map((row) => ({
+          value: row.id,
+          label: formatAddressMaster(row, locale) || row.id,
+        })),
+    [blocks, form.addressId, locale],
+  );
+
+  const selectedBlock = useMemo(
+    () => blocks.find((row) => row.id === form.addressId) ?? null,
+    [blocks, form.addressId],
+  );
+
   useEffect(() => {
     if (editingId) setFormCardOpen(true);
   }, [editingId]);
@@ -228,21 +300,16 @@ export function AddressMasterManager({
 
   const openEditForm = (address: AddressMasterRow) => {
     setEditingId(address.id);
+    const matchedType =
+      types.find((row) => row.id === address.typeId) ||
+      types.find((row) => row.code === address.addressType);
     setForm({
-      name: address.name,
-      nameMr: address.nameMr,
-      addressType: address.addressType,
-      line1En: address.line1En,
-      line1Mr: address.line1Mr,
-      line2En: address.line2En,
-      line2Mr: address.line2Mr,
-      line3En: address.line3En,
-      line3Mr: address.line3Mr,
-      cityEn: address.cityEn,
-      cityMr: address.cityMr,
-      stateEn: address.stateEn,
-      stateMr: address.stateMr,
-      pincode: address.pincode,
+      name: address.holderNameEn || address.name,
+      nameMr: address.holderNameMr || address.nameMr,
+      typeId: address.typeId || matchedType?.id || '',
+      addressType: address.addressType || matchedType?.code || 'general',
+      addressId: address.addressId || '',
+      positionId: address.positionId || '',
       isActive: address.isActive,
       sortOrder: String(address.sortOrder),
     });
@@ -253,95 +320,27 @@ export function AddressMasterManager({
     }
   };
 
-  const applyPincodeLookup = useCallback((lookup: PincodeLookupResult) => {
-    setForm((prev) => {
-      if (locale === 'mr') {
-        return {
-          ...prev,
-          cityMr: prev.cityMr.trim() || getCityLabel(lookup.city, 'mr'),
-          cityEn: prev.cityEn.trim() || lookup.city,
-          stateMr: prev.stateMr.trim() || getStateLabel(lookup.state, 'mr'),
-          stateEn: prev.stateEn.trim() || lookup.state,
-        };
-      }
-      return {
-        ...prev,
-        ...enrichAddressPartsWithPincodeLookup(prev, lookup),
-        cityMr: prev.cityMr.trim() || getCityLabel(lookup.city, 'mr'),
-        stateMr: prev.stateMr.trim() || getStateLabel(lookup.state, 'mr'),
-      };
-    });
-  }, [locale]);
-
-  const { schedulePincodeLookup } = usePincodeLookup({
-    onEnriched: () => {},
-    onResolved: applyPincodeLookup,
-  });
-
-  const updateAddressParts = (patch: Partial<AddressMasterAddressParts>) => {
-    setForm((prev) => {
-      const next = { ...prev, ...patch };
-      if (patch.pincode !== undefined && patch.pincode.length === 6) {
-        schedulePincodeLookup(formatAddressMaster(next, locale), patch.pincode);
-      }
-      return next;
-    });
-  };
-
-  const persistAddress = async ({
-    nameEn,
-    nameMr,
-    parts,
-  }: {
-    nameEn: string;
-    nameMr: string;
-    parts: AddressMasterAddressParts;
-  }) => {
-    const payload = {
-      name: nameEn || nameMr,
-      nameMr,
-      addressType: form.addressType,
-      ...parts,
-      isActive: form.isActive,
-      sortOrder: Number(toWesternDigits(form.sortOrder)) || 0,
-    };
-
-    const res = editingId
-      ? await fetch(`/api/addresses/${encodeURIComponent(editingId)}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        })
-      : await fetch('/api/addresses', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-    const json = await res.json();
-    if (!res.ok) throw new Error(json?.error || 'Failed to save address');
-  };
-
-  /** Translate `text` into `target`, applying locale text/digit rules. */
   const translateInto = async (
     text: string,
     target: LetterLocale,
   ): Promise<string> => {
     const source = text.trim();
     if (!source) return '';
-    const translated = filterLocaleText(await translateAddressText(source, target), target);
+    const translated = filterLocaleText(
+      await translateAddressText(source, target),
+      target,
+    );
     return target === 'mr' ? toLocaleDigits(translated, 'mr') : translated;
   };
 
-  /** On blur: if the counterpart language is empty, fill it from this field. */
   const fillCounterpartOnBlur = async (
-    sourceKey: TranslatableField,
+    sourceKey: 'name' | 'nameMr',
     value: string,
   ) => {
     const source = value.trim();
     if (!source) return;
-
-    const { targetKey, targetLocale } = FIELD_COUNTERPART[sourceKey];
+    const targetKey = sourceKey === 'name' ? 'nameMr' : 'name';
+    const targetLocale: LetterLocale = sourceKey === 'name' ? 'mr' : 'en';
     if (formRef.current[targetKey].trim()) return;
 
     translatingCountRef.current += 1;
@@ -354,7 +353,7 @@ export function AddressMasterManager({
         return { ...prev, [targetKey]: translated };
       });
     } catch (error) {
-      console.error('Failed to auto-translate address field on blur', error);
+      console.error('Failed to auto-translate holder name on blur', error);
       toast.error(t('letterGeneration.addresses.translateError'));
     } finally {
       translatingCountRef.current -= 1;
@@ -362,36 +361,23 @@ export function AddressMasterManager({
     }
   };
 
-  /** Fill any empty language column from its filled counterpart. */
   const handleAutoTranslate = async () => {
     setIsTranslating(true);
     try {
-      const patch: Partial<AddressFormState> = {};
-
       const nameEn = form.name.trim();
       const nameMr = form.nameMr.trim();
-      if (nameEn && !nameMr) patch.nameMr = await translateInto(nameEn, 'mr');
-      else if (nameMr && !nameEn) patch.name = await translateInto(nameMr, 'en');
-
-      const linePairs = [
-        ['line1En', 'line1Mr'],
-        ['line2En', 'line2Mr'],
-        ['line3En', 'line3Mr'],
-      ] as const;
-      for (const [enKey, mrKey] of linePairs) {
-        const enVal = form[enKey].trim();
-        const mrVal = form[mrKey].trim();
-        if (enVal && !mrVal) patch[mrKey] = await translateInto(enVal, 'mr');
-        else if (mrVal && !enVal) patch[enKey] = await translateInto(mrVal, 'en');
-      }
-
-      if (Object.keys(patch).length === 0) {
+      if (nameEn && !nameMr) {
+        setForm((prev) => ({ ...prev, nameMr: '' }));
+        const translated = await translateInto(nameEn, 'mr');
+        setForm((prev) => ({ ...prev, nameMr: translated }));
+      } else if (nameMr && !nameEn) {
+        const translated = await translateInto(nameMr, 'en');
+        setForm((prev) => ({ ...prev, name: translated }));
+      } else {
         toast.info(t('letterGeneration.addresses.nothingToTranslate'));
-        return;
       }
-      setForm((prev) => ({ ...prev, ...patch }));
     } catch (error) {
-      console.error('Failed to auto-translate address', error);
+      console.error('Failed to auto-translate holder name', error);
       toast.error(t('letterGeneration.addresses.translateError'));
     } finally {
       setIsTranslating(false);
@@ -402,83 +388,54 @@ export function AddressMasterManager({
     const nameEnInput = filterLocaleText(form.name.trim(), 'en');
     const nameMrInput = filterLocaleText(form.nameMr.trim(), 'mr');
 
-    const rawParts: AddressMasterAddressParts = {
-      line1En: form.line1En.trim(),
-      line1Mr: form.line1Mr.trim(),
-      line2En: form.line2En.trim(),
-      line2Mr: form.line2Mr.trim(),
-      line3En: form.line3En.trim(),
-      line3Mr: form.line3Mr.trim(),
-      cityEn: form.cityEn.trim(),
-      cityMr: form.cityMr.trim(),
-      stateEn: form.stateEn.trim(),
-      stateMr: form.stateMr.trim(),
-      pincode: form.pincode.trim(),
-    };
-
-    const hasName = Boolean(nameEnInput || nameMrInput);
-    const hasEn = hasRequiredAddressFields(rawParts, 'en');
-    const hasMr = hasRequiredAddressFields(rawParts, 'mr');
-    if (!hasName || (!hasEn && !hasMr)) {
+    if (!nameEnInput && !nameMrInput) {
+      toast.error(t('letterGeneration.addresses.validationRequired'));
+      return;
+    }
+    if (!form.typeId || !form.addressId || !form.positionId) {
       toast.error(t('letterGeneration.addresses.validationRequired'));
       return;
     }
 
     setIsSaving(true);
     try {
-      const parts = { ...rawParts };
-
-      // Auto-fill the missing language for each street line directly on save.
-      const linePairs = [
-        ['line1En', 'line1Mr'],
-        ['line2En', 'line2Mr'],
-        ['line3En', 'line3Mr'],
-      ] as const;
-      for (const [enKey, mrKey] of linePairs) {
-        try {
-          if (parts[enKey] && !parts[mrKey]) parts[mrKey] = await translateInto(parts[enKey], 'mr');
-          else if (parts[mrKey] && !parts[enKey]) parts[enKey] = await translateInto(parts[mrKey], 'en');
-        } catch (error) {
-          console.error(`Failed to translate ${enKey}/${mrKey} on save`, error);
-        }
-      }
-
-      // Keep city/state in sync across both locales.
-      if (parts.stateEn || parts.stateMr) {
-        Object.assign(parts, localizedStateParts(parts.stateEn || parts.stateMr));
-      }
-      if (parts.cityEn || parts.cityMr) {
-        Object.assign(parts, localizedCityParts(parts.cityEn || parts.cityMr));
-      }
-
       let nameEn = nameEnInput;
       let nameMr = nameMrInput;
       try {
         if (nameEn && !nameMr) nameMr = await translateInto(nameEn, 'mr');
         else if (nameMr && !nameEn) nameEn = await translateInto(nameMr, 'en');
       } catch (error) {
-        console.error('Failed to translate address name on save', error);
+        console.error('Failed to translate holder name on save', error);
       }
       if (!nameEn) nameEn = nameMr;
       if (!nameMr) nameMr = nameEn;
 
-      const finalParts = sanitizeAddressPartsLocations(
-        localizeAddressPartsDigits(mergeAddressParts(parts), 'mr'),
-      );
+      const selectedType = types.find((row) => row.id === form.typeId);
+      const payload = {
+        name: nameEn || nameMr,
+        nameMr,
+        addressType: selectedType?.code || form.addressType || 'general',
+        typeId: form.typeId,
+        addressId: form.addressId,
+        positionId: form.positionId,
+        isActive: form.isActive,
+        sortOrder: Number(toWesternDigits(form.sortOrder)) || 0,
+      };
 
-      // Re-check after translate/sanitize — those steps can change required fields.
-      if (
-        !(nameEn || nameMr) ||
-        !(
-          hasRequiredAddressFields(finalParts, 'en') ||
-          hasRequiredAddressFields(finalParts, 'mr')
-        )
-      ) {
-        toast.error(t('letterGeneration.addresses.validationRequired'));
-        return;
-      }
+      const res = editingId
+        ? await fetch(`/api/addresses/${encodeURIComponent(editingId)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          })
+        : await fetch('/api/addresses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
 
-      await persistAddress({ nameEn, nameMr, parts: finalParts });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json?.error || 'Failed to save address');
 
       toast.success(
         editingId
@@ -532,16 +489,25 @@ export function AddressMasterManager({
     }
   };
 
+  const filterTypeOptions = types.length > 0 ? types : ADDRESS_TYPES.map((code) => ({
+    id: code,
+    code,
+    labelEn: code,
+    labelMr: code,
+    isActive: true,
+  }));
+
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       <Card id="address-form">
         <CardHeader
-          className="cursor-pointer select-none p-4 transition-colors hover:bg-muted/50 sm:p-6 rounded-t-lg"
+          className="cursor-pointer select-none rounded-t-lg p-4 transition-colors hover:bg-muted/50 sm:p-6"
           onClick={() => {
             setFormCardOpen((open) => {
               const next = !open;
               if (next && !editingId) {
                 setForm(EMPTY_FORM);
+                void refreshMasters();
               }
               return next;
             });
@@ -553,6 +519,7 @@ export function AddressMasterManager({
                 const next = !open;
                 if (next && !editingId) {
                   setForm(EMPTY_FORM);
+                  void refreshMasters();
                 }
                 return next;
               });
@@ -608,7 +575,7 @@ export function AddressMasterManager({
 
             <div className="space-y-1.5">
               <Label>
-                {t('letterGeneration.addresses.columns.name')} *
+                {t('letterGeneration.addresses.columns.holder')} *
               </Label>
               <div className="grid gap-2 sm:grid-cols-2">
                 <Input
@@ -617,7 +584,7 @@ export function AddressMasterManager({
                   autoComplete="off"
                   required
                   aria-required
-                  aria-label={`${t('letterGeneration.addresses.columns.name')} (${t('letterGeneration.addresses.english')})`}
+                  aria-label={`${t('letterGeneration.addresses.columns.holder')} (${t('letterGeneration.addresses.english')})`}
                   placeholder={t('letterGeneration.addresses.english')}
                   onChange={(event) =>
                     setForm({
@@ -633,7 +600,7 @@ export function AddressMasterManager({
                   value={form.nameMr}
                   lang="mr"
                   autoComplete="off"
-                  aria-label={`${t('letterGeneration.addresses.columns.name')} (${t('letterGeneration.addresses.marathi')})`}
+                  aria-label={`${t('letterGeneration.addresses.columns.holder')} (${t('letterGeneration.addresses.marathi')})`}
                   placeholder={t('letterGeneration.addresses.marathi')}
                   onChange={(event) =>
                     setForm({
@@ -648,34 +615,61 @@ export function AddressMasterManager({
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>{t('letterGeneration.addresses.columns.type')}</Label>
-              <Select
-                value={form.addressType}
-                onValueChange={(value: AddressType) =>
-                  setForm({ ...form, addressType: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ADDRESS_TYPES.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {t(`letterGeneration.addresses.types.${type}`)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="space-y-1.5">
+              <Label>{t('letterGeneration.addresses.columns.type')} *</Label>
+              <Combobox
+                options={typeOptions}
+                value={form.typeId}
+                onValueChange={(value) => {
+                  const selected = types.find((row) => row.id === value);
+                  setForm({
+                    ...form,
+                    typeId: value,
+                    addressType: selected?.code || form.addressType,
+                  });
+                }}
+                placeholder={t('letterGeneration.addresses.selectType')}
+                emptyMessage={t('letterGeneration.addresses.manageTypesHint')}
+                disabled={mastersLoading}
+                aria-required
+              />
             </div>
 
-            <BilingualAddressFields
-              parts={form}
-              onPartsChange={updateAddressParts}
-              onLineBlur={(sourceKey, value) =>
-                void fillCounterpartOnBlur(sourceKey, value)
-              }
-            />
+            <div className="space-y-1.5">
+              <Label>{t('letterGeneration.addresses.columns.position')} *</Label>
+              <Combobox
+                options={positionOptions}
+                value={form.positionId}
+                onValueChange={(value) => setForm({ ...form, positionId: value })}
+                placeholder={t('letterGeneration.addresses.selectPosition')}
+                emptyMessage={t('letterGeneration.addresses.managePositionsHint')}
+                disabled={mastersLoading}
+                aria-required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>{t('letterGeneration.addresses.tabs.addresses')} *</Label>
+              <Combobox
+                options={blockOptions}
+                value={form.addressId}
+                onValueChange={(value) => setForm({ ...form, addressId: value })}
+                placeholder={t('letterGeneration.addresses.selectAddress')}
+                emptyMessage={t('letterGeneration.addresses.manageAddressesHint')}
+                disabled={mastersLoading}
+                aria-required
+              />
+              {selectedBlock ? (
+                <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                  <div>{formatAddressMaster(selectedBlock, 'en')}</div>
+                  {formatAddressMaster(selectedBlock, 'mr') ? (
+                    <div className="text-muted-foreground text-xs" lang="mr">
+                      {formatAddressMaster(selectedBlock, 'mr')}
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
@@ -712,7 +706,7 @@ export function AddressMasterManager({
               </Button>
               <Button
                 onClick={() => void handleSave()}
-                disabled={isSaving || isTranslating}
+                disabled={isSaving || isTranslating || mastersLoading}
               >
                 {isSaving || isTranslating ? (
                   <Loader2 className="mr-2 size-4 animate-spin" />
@@ -752,7 +746,7 @@ export function AddressMasterManager({
             <>
               <div className="flex flex-col gap-3 md:flex-row md:items-center">
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     value={searchTerm}
                     onChange={(event) => {
@@ -766,7 +760,7 @@ export function AddressMasterManager({
                 </div>
                 <Select
                   value={typeFilter}
-                  onValueChange={(value: 'all' | AddressType) => {
+                  onValueChange={(value: string) => {
                     setTypeFilter(value);
                     setListPage(1);
                   }}
@@ -778,9 +772,11 @@ export function AddressMasterManager({
                     <SelectItem value="all">
                       {t('letterGeneration.addresses.filterAllTypes')}
                     </SelectItem>
-                    {ADDRESS_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {t(`letterGeneration.addresses.types.${type}`)}
+                    {filterTypeOptions.map((type) => (
+                      <SelectItem key={type.code} value={type.code}>
+                        {ADDRESS_TYPES.includes(type.code as AddressType)
+                          ? t(`letterGeneration.addresses.types.${type.code}`)
+                          : type.labelEn || type.code}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -821,9 +817,9 @@ export function AddressMasterManager({
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>{t('letterGeneration.addresses.columns.nameEn')}</TableHead>
-                          <TableHead>{t('letterGeneration.addresses.columns.nameMr')}</TableHead>
+                          <TableHead>{t('letterGeneration.addresses.columns.holder')}</TableHead>
                           <TableHead>{t('letterGeneration.addresses.columns.type')}</TableHead>
+                          <TableHead>{t('letterGeneration.addresses.columns.position')}</TableHead>
                           <TableHead>{t('letterGeneration.addresses.columns.english')}</TableHead>
                           <TableHead>{t('letterGeneration.addresses.columns.marathi')}</TableHead>
                           <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
@@ -835,12 +831,26 @@ export function AddressMasterManager({
                       <TableBody>
                         {paginatedAddresses.map((address) => (
                           <TableRow key={address.id}>
-                            <TableCell className="font-medium">{address.name}</TableCell>
-                            <TableCell className="font-medium" lang="mr">
-                              {address.nameMr.trim() || '—'}
+                            <TableCell className="font-medium">
+                              <div>{address.name}</div>
+                              {address.nameMr.trim() ? (
+                                <div className="text-muted-foreground text-xs" lang="mr">
+                                  {address.nameMr}
+                                </div>
+                              ) : null}
                             </TableCell>
                             <TableCell>
-                              {t(`letterGeneration.addresses.types.${address.addressType}`)}
+                              {ADDRESS_TYPES.includes(address.addressType as AddressType)
+                                ? t(`letterGeneration.addresses.types.${address.addressType}`)
+                                : address.typeLabelEn || address.addressType}
+                            </TableCell>
+                            <TableCell className="max-w-[180px] whitespace-pre-wrap text-sm">
+                              {address.positionTitleEn || address.positionTitleMr || '—'}
+                              {address.positionCode ? (
+                                <div className="text-muted-foreground text-xs">
+                                  {address.positionCode}
+                                </div>
+                              ) : null}
                             </TableCell>
                             <TableCell className="max-w-[220px] whitespace-pre-wrap text-sm">
                               {formatAddressMaster(address, 'en')}
