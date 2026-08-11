@@ -215,6 +215,7 @@ function pickPositionTitle(
  * Full recipient line for letter To blocks.
  * Minister types: holder, type label, position, address.
  * Other types: holder + address (legacy school/office/ration behaviour).
+ * Holder is bold (`span.var`) for multiline To blocks by default.
  */
 export function formatAddressMasterRecipient(
   parts: AddressMasterRecipientParts,
@@ -222,6 +223,8 @@ export function formatAddressMasterRecipient(
   options?: {
     multiline?: boolean;
     pincodeDisplay?: 'full' | 'last2';
+    /** Default: true when `multiline` (letter To / recipient blocks). */
+    boldHolder?: boolean;
   },
 ): string {
   const holder = pickHolderName(parts, locale);
@@ -232,19 +235,26 @@ export function formatAddressMasterRecipient(
     : formatAddressMaster(parts, locale, {
         pincodeDisplay: options?.pincodeDisplay,
       });
+  const boldHolder = options?.boldHolder ?? Boolean(options?.multiline);
+  const displayHolder =
+    boldHolder && holder
+      ? `<span class="var">${escapeAddressHtmlText(holder)}</span>`
+      : holder;
 
   if (isMinisterAddressType(parts.addressType)) {
     const typeLabel = pickTypeLabel(parts, locale);
     const position = pickPositionTitle(parts, locale);
-    const head = [holder, typeLabel, position].filter(Boolean).join(', ');
+    const head = [displayHolder, typeLabel, position].filter(Boolean).join(', ');
     if (!head) return addressText;
     if (!addressText) return head;
     return options?.multiline ? `${head},<br>${addressText}` : `${head}, ${addressText}`;
   }
 
-  if (!holder) return addressText;
-  if (!addressText) return holder;
-  return options?.multiline ? `${holder},<br>${addressText}` : `${holder}, ${addressText}`;
+  if (!displayHolder) return addressText;
+  if (!addressText) return displayHolder;
+  return options?.multiline
+    ? `${displayHolder},<br>${addressText}`
+    : `${displayHolder}, ${addressText}`;
 }
 
 function escapeAddressHtmlText(value: string): string {

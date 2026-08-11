@@ -129,6 +129,7 @@ import {
   getLetterPaperLabel,
   LETTER_PAPER_DIMENSIONS_MM,
   LETTER_PAPER_MARGIN_MM,
+  LETTER_PAPER_SIZES,
   resolveLetterPaperSize,
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
@@ -792,6 +793,9 @@ type AddressSelectionState = {
 type ManualAddressKey = keyof AddressSelectionState;
 type ManualAddressParts = Record<ManualAddressKey, AddressMasterAddressParts>;
 
+/** Combobox value for general-letter free-text "To" (not a master address id). */
+const GENERAL_TO_MANUAL_VALUE = '__manual__';
+
 // Recipient ("To") blocks use hard line breaks:
 //   line1, / line2, city - pin  (or with line3 before city).
 // Inline placeholders (applicant address, from/to ration office in body
@@ -903,16 +907,16 @@ function formatRationOfficeWithAddress(
   /** When true, name sits on its own line above a multiline address (recipient block). */
   nameOnOwnLine = false,
 ): string {
-  if (isMinisterAddressType(address.addressType)) {
-    return formatAddressMasterRecipient(address, locale, { multiline: nameOnOwnLine });
+  if (isMinisterAddressType(address.addressType) || nameOnOwnLine) {
+    // Recipient ("To") blocks: bold holder name; ministers also get type + position.
+    return formatAddressMasterRecipient(address, locale, {
+      multiline: nameOnOwnLine,
+      boldHolder: nameOnOwnLine,
+    });
   }
   const name = getAddressMasterName(address, locale);
-  const addressText = nameOnOwnLine
-    ? formatAddressMasterMultiline(address, locale)
-    : formatAddressMaster(address, locale);
-  return combineNameAndAddress(name, addressText, nameOnOwnLine ? ',<br>' : ', ', {
-    boldName: nameOnOwnLine,
-  });
+  const addressText = formatAddressMaster(address, locale);
+  return combineNameAndAddress(name, addressText, ', ');
 }
 
 function formatWardToWithAddress(
@@ -1214,6 +1218,8 @@ export function LetterGeneration({
     fromRationOffice: null,
     toRationOffice: null,
   });
+  /** General letter "To" master pick — separate from ward `addressSelections.to`. */
+  const [generalToAddressId, setGeneralToAddressId] = useState<string | null>(null);
   const addressSelectionsRef = useRef(addressSelections);
   addressSelectionsRef.current = addressSelections;
   const [manualAddressParts, setManualAddressParts] = useState<ManualAddressParts>(() => ({
@@ -2111,6 +2117,23 @@ export function LetterGeneration({
     }
   };
 
+  const handleGeneralToAddressSelect = (value: string) => {
+    if (!value || value === GENERAL_TO_MANUAL_VALUE) {
+      setGeneralToAddressId(null);
+      return;
+    }
+    const selected = addresses.find((a) => a.id === value);
+    if (!selected) return;
+    setGeneralToAddressId(selected.id);
+    setGeneralFields((prev) => ({
+      ...prev,
+      to: formatWardToWithAddress(selected, letterLocale),
+    }));
+    if (fieldErrors.to) {
+      setFieldErrors((prev) => ({ ...prev, to: undefined }));
+    }
+  };
+
   // Prefill ward recipient with the issue-type officer once addresses load.
   const defaultWardToAppliedRef = useRef(false);
   useEffect(() => {
@@ -2371,6 +2394,34 @@ export function LetterGeneration({
     [mastersForActive],
   );
 
+  const generalToAddressComboboxOptions = useMemo(() => {
+    const rows = addresses
+      .filter((address) => address.isActive)
+      .map((address) => {
+        const holder =
+          letterLocale === 'mr'
+            ? address.nameMr.trim() || address.name
+            : address.name.trim() || address.nameMr;
+        const position =
+          letterLocale === 'mr'
+            ? (address.positionTitleMr || address.positionTitleEn || '').trim()
+            : (address.positionTitleEn || address.positionTitleMr || '').trim();
+        return {
+          value: address.id,
+          label: position ? `${holder} — ${position}` : holder,
+        };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+    return [
+      {
+        value: GENERAL_TO_MANUAL_VALUE,
+        label: t('letterGeneration.addresses.manualEntry'),
+        pinned: true,
+      },
+      ...rows,
+    ];
+  }, [addresses, letterLocale, t]);
+
   const activeLetterMaster = useMemo(() => {
     if (selectedLetterMasterId) {
       const selected = mastersForActive.find((m) => m.id === selectedLetterMasterId);
@@ -2549,9 +2600,11 @@ export function LetterGeneration({
     setWardFields(coercePrefix);
   }, []);
 
-  // Beneficiary flow: document type is derived from letter family (school/income/domicile/ration → General, else Department).
+  // Beneficiary flow: non-general letters lock document type to letter family.
+  // General letters keep a selectable document type (default still from family).
   useEffect(() => {
     if (!lockFixedFields) return;
+    if (resolveLetterFormBase(activeTab) === 'general') return;
     const nextPrefix = documentTypeForLetterType(activeTab);
     const patchPrefix = <T extends { referencePrefix: string }>(prev: T): T =>
       prev.referencePrefix === nextPrefix
@@ -3378,6 +3431,7 @@ export function LetterGeneration({
       fromRationOffice: null,
       toRationOffice: null,
     });
+    setGeneralToAddressId(null);
     setManualAddressParts({
       school: createEmptyAddressParts(),
       applicant: createEmptyAddressParts(),
@@ -3715,7 +3769,12 @@ export function LetterGeneration({
   const renderCommonFields = <T extends CommonLetterFields>(
     fields: T,
     setFields: React.Dispatch<React.SetStateAction<T>>,
-  ) => (
+  ) => {
+    // Beneficiary flow: document type is selectable only for general letters.
+    const canSelectDocumentType =
+      !lockFixedFields || formTab === 'general';
+
+    return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
         <FieldGroup
@@ -3723,19 +3782,7 @@ export function LetterGeneration({
           required
           error={fieldErrors.referencePrefix}
         >
-          {lockFixedFields ? (
-            <Input
-              value={documentTypeLabel(
-                coerceDocumentType(fields.referencePrefix) ??
-                  fields.referencePrefix,
-                letterLocale,
-                documentTypes,
-              )}
-              readOnly
-              disabled
-              aria-required
-            />
-          ) : (
+          {canSelectDocumentType ? (
             <Combobox
               value={
                 coerceDocumentType(fields.referencePrefix) ??
@@ -3756,6 +3803,18 @@ export function LetterGeneration({
               options={documentTypeComboboxOptions}
               placeholder={lt('letterGeneration.placeholders.referencePrefix')}
               aria-invalid={!!fieldErrors.referencePrefix}
+              aria-required
+            />
+          ) : (
+            <Input
+              value={documentTypeLabel(
+                coerceDocumentType(fields.referencePrefix) ??
+                  fields.referencePrefix,
+                letterLocale,
+                documentTypes,
+              )}
+              readOnly
+              disabled
               aria-required
             />
           )}
@@ -3819,7 +3878,8 @@ export function LetterGeneration({
         </FieldGroup>
       </div>
     </>
-  );
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -4063,6 +4123,27 @@ export function LetterGeneration({
                     {resolveTypeLabel(activeTab)}
                   </div>
                 </FieldGroup>
+                {formTab === 'general' ? (
+                  <FieldGroup label={lt('letterGeneration.fields.paperSize')}>
+                    <Select
+                      value={paperSizeDraft}
+                      onValueChange={(value: LetterPaperSize) =>
+                        setPaperSizeDraft(value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LETTER_PAPER_SIZES.map((size) => (
+                          <SelectItem key={size} value={size}>
+                            {t(`letterGeneration.paperSize.options.${size}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FieldGroup>
+                ) : null}
                 {mastersForActive.length > 1 ? (
                   <FieldGroup label={t('letterGeneration.templates.selectTemplate')}>
                     <Combobox
@@ -4096,18 +4177,34 @@ export function LetterGeneration({
                         required
                         error={fieldErrors.to}
                       >
-                        <LocaleTextarea
-                          locale={letterLocale}
-                          value={generalFields.to}
-                          onValueChange={(to) => {
-                            setGeneralFields({ ...generalFields, to });
-                            if (fieldErrors.to) {
-                              setFieldErrors((prev) => ({ ...prev, to: undefined }));
-                            }
-                          }}
-                          rows={4}
-                          required
-                        />
+                        <div className="space-y-2">
+                          <Combobox
+                            value={generalToAddressId ?? GENERAL_TO_MANUAL_VALUE}
+                            onValueChange={handleGeneralToAddressSelect}
+                            options={generalToAddressComboboxOptions}
+                            placeholder={lt(
+                              'letterGeneration.addresses.selectPlaceholder',
+                            )}
+                            emptyMessage={lt('letterGeneration.addresses.empty')}
+                            aria-invalid={!!fieldErrors.to}
+                          />
+                          <LocaleTextarea
+                            locale={letterLocale}
+                            value={generalFields.to}
+                            onValueChange={(to) => {
+                              if (generalToAddressId) setGeneralToAddressId(null);
+                              setGeneralFields({ ...generalFields, to });
+                              if (fieldErrors.to) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  to: undefined,
+                                }));
+                              }
+                            }}
+                            rows={4}
+                            required
+                          />
+                        </div>
                       </FieldGroup>
                       <FieldGroup
                         label={lt('letterGeneration.fields.subject')}
@@ -5639,8 +5736,12 @@ export function LetterGeneration({
                         {t('letterGeneration.paperSize.label', {
                           size: activePaperLabel,
                         })}
-                        {' · '}
-                        {t('letterGeneration.paperSize.hint')}
+                        {formTab === 'general' ? (
+                          <>
+                            {' · '}
+                            {t('letterGeneration.paperSize.hint')}
+                          </>
+                        ) : null}
                       </p>
                     </div>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
