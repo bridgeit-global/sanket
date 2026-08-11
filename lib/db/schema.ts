@@ -266,6 +266,10 @@ export type AddressMaster = {
   positionTitleEn: string;
   positionTitleMr: string;
   positionCode: string | null;
+  /** Inclusive start (`yyyy-MM-dd`); null = open start when endDate is set. */
+  startDate: string | null;
+  /** Inclusive end (`yyyy-MM-dd`); null = always visible in letter pickers. */
+  endDate: string | null;
   isActive: boolean;
   sortOrder: number;
   createdBy: string | null;

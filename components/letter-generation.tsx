@@ -129,6 +129,7 @@ import {
   getLetterPaperLabel,
   LETTER_PAPER_DIMENSIONS_MM,
   LETTER_PAPER_MARGIN_MM,
+  LETTER_PAPER_SIZES,
   resolveLetterPaperSize,
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
@@ -158,6 +159,7 @@ import {
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
 import { isMinisterAddressType } from '@/lib/letters/address-types';
+import { isAddressVisibleForLetterDate } from '@/lib/letters/address-date-visibility';
 import {
   findDefaultOfficeAddress,
   findDefaultRationOfficeAddress,
@@ -548,10 +550,60 @@ function generalDefaults(locale: LetterLocale): GeneralLetterFields {
   return {
     ...commonDefaults(locale, 'general'),
     to: '',
+    toName: '',
+    toAddress: '',
     subject: '',
     paragraphs: '',
     signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(locale)),
   };
+}
+
+function getGeneralRecipientName(
+  address: Pick<
+    AddressMasterRow,
+    | 'name'
+    | 'nameMr'
+    | 'addressType'
+    | 'typeLabelEn'
+    | 'typeLabelMr'
+    | 'positionTitleEn'
+    | 'positionTitleMr'
+  >,
+  locale: LetterLocale,
+): string {
+  const holder = getAddressMasterName(address, locale);
+  if (!isMinisterAddressType(address.addressType)) return holder;
+  const typeLabel =
+    locale === 'mr'
+      ? (address.typeLabelMr || address.typeLabelEn || '').trim()
+      : (address.typeLabelEn || address.typeLabelMr || '').trim();
+  const position =
+    locale === 'mr'
+      ? (address.positionTitleMr || address.positionTitleEn || '').trim()
+      : (address.positionTitleEn || address.positionTitleMr || '').trim();
+  return [holder, typeLabel, position].filter(Boolean).join(', ');
+}
+
+function addressHtmlBreaksToNewlines(value: string): string {
+  return value.replace(/<br\s*\/?>/gi, '\n');
+}
+
+function addressNewlinesToHtmlBreaks(value: string): string {
+  return value
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter((line, index, lines) => line.length > 0 || (index > 0 && index < lines.length - 1))
+    .join('<br>');
+}
+
+function syncGeneralToBlock(toName: string, toAddress: string): string {
+  return combineNameAndAddress(
+    toName,
+    addressNewlinesToHtmlBreaks(toAddress),
+    ',<br>',
+    { boldName: true },
+  );
 }
 
 function wardDefaults(
@@ -792,6 +844,9 @@ type AddressSelectionState = {
 type ManualAddressKey = keyof AddressSelectionState;
 type ManualAddressParts = Record<ManualAddressKey, AddressMasterAddressParts>;
 
+/** Combobox value for general-letter free-text "To" (not a master address id). */
+const GENERAL_TO_MANUAL_VALUE = '__manual__';
+
 // Recipient ("To") blocks use hard line breaks:
 //   line1, / line2, city - pin  (or with line3 before city).
 // Inline placeholders (applicant address, from/to ration office in body
@@ -903,16 +958,16 @@ function formatRationOfficeWithAddress(
   /** When true, name sits on its own line above a multiline address (recipient block). */
   nameOnOwnLine = false,
 ): string {
-  if (isMinisterAddressType(address.addressType)) {
-    return formatAddressMasterRecipient(address, locale, { multiline: nameOnOwnLine });
+  if (isMinisterAddressType(address.addressType) || nameOnOwnLine) {
+    // Recipient ("To") blocks: bold holder name; ministers also get type + position.
+    return formatAddressMasterRecipient(address, locale, {
+      multiline: nameOnOwnLine,
+      boldHolder: nameOnOwnLine,
+    });
   }
   const name = getAddressMasterName(address, locale);
-  const addressText = nameOnOwnLine
-    ? formatAddressMasterMultiline(address, locale)
-    : formatAddressMaster(address, locale);
-  return combineNameAndAddress(name, addressText, nameOnOwnLine ? ',<br>' : ', ', {
-    boldName: nameOnOwnLine,
-  });
+  const addressText = formatAddressMaster(address, locale);
+  return combineNameAndAddress(name, addressText, ', ');
 }
 
 function formatWardToWithAddress(
@@ -925,13 +980,15 @@ function formatWardToWithAddress(
 function findWardOfficerAddress(
   addresses: AddressMasterRow[],
   issueType: ReturnType<typeof resolveWardIssueType>,
+  letterDate?: string,
 ): AddressMasterRow | undefined {
   const seedName = getWardIssueOfficerSeedName(issueType);
   return addresses.find(
     (row) =>
       row.addressType === 'office' &&
       row.isActive !== false &&
-      row.name === seedName,
+      row.name === seedName &&
+      isAddressVisibleForLetterDate(row, letterDate),
   );
 }
 
@@ -1214,8 +1271,34 @@ export function LetterGeneration({
     fromRationOffice: null,
     toRationOffice: null,
   });
+  /** General letter "To" master pick — separate from ward `addressSelections.to`. */
+  const [generalToAddressId, setGeneralToAddressId] = useState<string | null>(null);
   const addressSelectionsRef = useRef(addressSelections);
   addressSelectionsRef.current = addressSelections;
+  const activeLetterDate = useMemo(
+    () =>
+      getFieldsForLetterType(activeTab, {
+        generalFields,
+        feesFields,
+        schoolAdmissionFields,
+        schoolTransferFields,
+        rationFields,
+        incomeFields,
+        domicileFields,
+        wardFields,
+      }).date,
+    [
+      activeTab,
+      domicileFields,
+      generalFields,
+      feesFields,
+      incomeFields,
+      rationFields,
+      schoolAdmissionFields,
+      schoolTransferFields,
+      wardFields,
+    ],
+  );
   const [manualAddressParts, setManualAddressParts] = useState<ManualAddressParts>(() => ({
     school: createEmptyAddressParts(),
     applicant: createEmptyAddressParts(),
@@ -1591,17 +1674,29 @@ export function LetterGeneration({
     });
     const nextParagraphRows = paragraphRowsRef.current.map((row) => filterText(row));
     setParagraphRows(nextParagraphRows.length > 0 ? nextParagraphRows : ['']);
-    setGeneralFields((prev) => ({
-      ...prev,
-      referencePrefix: nextPrefix(prev.referencePrefix),
-      referenceNo: nextReferenceNo(prev.referenceNo),
-      signatory: nextSignatory(prev.signatory),
-      date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
-      to: filterText(prev.to),
-      subject: filterText(prev.subject),
-      paragraphs: formatTextRows(nextParagraphRows),
-      signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(letterLocale)),
-    }));
+    setGeneralFields((prev) => {
+      const toName = filterText(prev.toName);
+      // Legacy general letters only stored combined `to`; split into address when name is empty.
+      const rawAddress =
+        prev.toAddress ||
+        (!prev.toName.trim()
+          ? addressHtmlBreaksToNewlines(prev.to).replace(/<[^>]+>/g, '')
+          : '');
+      const toAddress = filterText(rawAddress);
+      return {
+        ...prev,
+        referencePrefix: nextPrefix(prev.referencePrefix),
+        referenceNo: nextReferenceNo(prev.referenceNo),
+        signatory: nextSignatory(prev.signatory),
+        date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+        toName,
+        toAddress,
+        to: syncGeneralToBlock(toName, toAddress),
+        subject: filterText(prev.subject),
+        paragraphs: formatTextRows(nextParagraphRows),
+        signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(letterLocale)),
+      };
+    });
 
     applyMasterAddressToFields(addresses, addressSelections, letterLocale, {
       setFeesFields,
@@ -1965,7 +2060,7 @@ export function LetterGeneration({
       defaultRationOfficeAppliedRef.current = true;
       return;
     }
-    const preferred = findDefaultRationOfficeAddress(addresses);
+    const preferred = findDefaultRationOfficeAddress(addresses, activeLetterDate);
     if (!preferred) return;
     defaultRationOfficeAppliedRef.current = true;
     handleRationOfficeAddressSelect(preferred.id);
@@ -2075,7 +2170,7 @@ export function LetterGeneration({
       defaultOfficeAppliedRef.current = true;
       return;
     }
-    const preferred = findDefaultOfficeAddress(addresses);
+    const preferred = findDefaultOfficeAddress(addresses, activeLetterDate);
     if (!preferred) return;
     defaultOfficeAppliedRef.current = true;
     handleOfficeAddressSelect(preferred.id);
@@ -2111,6 +2206,34 @@ export function LetterGeneration({
     }
   };
 
+  const handleGeneralToAddressSelect = (value: string) => {
+    if (!value || value === GENERAL_TO_MANUAL_VALUE) {
+      setGeneralToAddressId(null);
+      return;
+    }
+    const selected = addresses.find((a) => a.id === value);
+    if (!selected) return;
+    setGeneralToAddressId(selected.id);
+    const toName = getGeneralRecipientName(selected, letterLocale);
+    const toAddress = addressHtmlBreaksToNewlines(
+      formatAddressMasterMultiline(selected, letterLocale),
+    );
+    setGeneralFields((prev) => ({
+      ...prev,
+      toName,
+      toAddress,
+      to: syncGeneralToBlock(toName, toAddress),
+    }));
+    if (fieldErrors.to || fieldErrors.toName || fieldErrors.toAddress) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        to: undefined,
+        toName: undefined,
+        toAddress: undefined,
+      }));
+    }
+  };
+
   // Prefill ward recipient with the issue-type officer once addresses load.
   const defaultWardToAppliedRef = useRef(false);
   useEffect(() => {
@@ -2122,12 +2245,40 @@ export function LetterGeneration({
     const preferred = findWardOfficerAddress(
       addresses,
       resolveWardIssueType(wardFields.issueType),
+      activeLetterDate,
     );
     if (!preferred) return;
     defaultWardToAppliedRef.current = true;
     handleWardToAddressSelect(preferred.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addresses, wardFields.issueType]);
+
+  // Clear master selection ids that fall outside the letter date window.
+  // Keep filled address text so mid-edit content is not wiped.
+  useEffect(() => {
+    setAddressSelections((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      (Object.keys(prev) as Array<keyof AddressSelectionState>).forEach((key) => {
+        const id = prev[key];
+        if (!id) return;
+        const row = addresses.find((address) => address.id === id);
+        if (!row || !isAddressVisibleForLetterDate(row, activeLetterDate)) {
+          next[key] = null;
+          changed = true;
+        }
+      });
+      if (!changed) return prev;
+      addressSelectionsRef.current = next;
+      return next;
+    });
+    setGeneralToAddressId((prev) => {
+      if (!prev) return prev;
+      const row = addresses.find((address) => address.id === prev);
+      if (!row || !isAddressVisibleForLetterDate(row, activeLetterDate)) return null;
+      return prev;
+    });
+  }, [addresses, activeLetterDate]);
 
   const refreshLetterMasters = async () => {
     setLetterMastersLoading(true);
@@ -2371,6 +2522,37 @@ export function LetterGeneration({
     [mastersForActive],
   );
 
+  const generalToAddressComboboxOptions = useMemo(() => {
+    const rows = addresses
+      .filter(
+        (address) =>
+          address.isActive && isAddressVisibleForLetterDate(address, activeLetterDate),
+      )
+      .map((address) => {
+        const holder =
+          letterLocale === 'mr'
+            ? address.nameMr.trim() || address.name
+            : address.name.trim() || address.nameMr;
+        const position =
+          letterLocale === 'mr'
+            ? (address.positionTitleMr || address.positionTitleEn || '').trim()
+            : (address.positionTitleEn || address.positionTitleMr || '').trim();
+        return {
+          value: address.id,
+          label: position ? `${holder} — ${position}` : holder,
+        };
+      })
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: 'base' }));
+    return [
+      {
+        value: GENERAL_TO_MANUAL_VALUE,
+        label: t('letterGeneration.addresses.manualEntry'),
+        pinned: true,
+      },
+      ...rows,
+    ];
+  }, [addresses, activeLetterDate, letterLocale, t]);
+
   const activeLetterMaster = useMemo(() => {
     if (selectedLetterMasterId) {
       const selected = mastersForActive.find((m) => m.id === selectedLetterMasterId);
@@ -2549,9 +2731,11 @@ export function LetterGeneration({
     setWardFields(coercePrefix);
   }, []);
 
-  // Beneficiary flow: document type is derived from letter family (school/income/domicile/ration → General, else Department).
+  // Beneficiary flow: non-general letters lock document type to letter family.
+  // General letters keep a selectable document type (default still from family).
   useEffect(() => {
     if (!lockFixedFields) return;
+    if (resolveLetterFormBase(activeTab) === 'general') return;
     const nextPrefix = documentTypeForLetterType(activeTab);
     const patchPrefix = <T extends { referencePrefix: string }>(prev: T): T =>
       prev.referencePrefix === nextPrefix
@@ -2769,7 +2953,9 @@ export function LetterGeneration({
     };
 
     if (formTab === 'general') {
-      requireField(errors, 'to', generalFields.to, requiredMsg);
+      requireField(errors, 'toName', generalFields.toName, requiredMsg);
+      // `to` is derived from toName+toAddress; requiring it would let name-only pass.
+      requireField(errors, 'toAddress', generalFields.toAddress, requiredMsg);
       requireField(errors, 'subject', generalFields.subject, requiredMsg);
       requireField(errors, 'paragraphs', generalFields.paragraphs, requiredMsg);
     } else if (formTab === 'fees') {
@@ -3378,6 +3564,7 @@ export function LetterGeneration({
       fromRationOffice: null,
       toRationOffice: null,
     });
+    setGeneralToAddressId(null);
     setManualAddressParts({
       school: createEmptyAddressParts(),
       applicant: createEmptyAddressParts(),
@@ -3398,11 +3585,11 @@ export function LetterGeneration({
     void refreshReferenceSequence(defaultReferencePrefix(letterLocale), {
       force: true,
     });
-    const preferredRationOffice = findDefaultRationOfficeAddress(addresses);
+    const preferredRationOffice = findDefaultRationOfficeAddress(addresses, activeLetterDate);
     if (preferredRationOffice) {
       handleRationOfficeAddressSelect(preferredRationOffice.id);
     }
-    const preferredOffice = findDefaultOfficeAddress(addresses);
+    const preferredOffice = findDefaultOfficeAddress(addresses, activeLetterDate);
     if (preferredOffice) {
       handleOfficeAddressSelect(preferredOffice.id);
     }
@@ -3411,7 +3598,11 @@ export function LetterGeneration({
       activeTab,
       service?.serviceName,
     );
-    const preferredWardTo = findWardOfficerAddress(addresses, clearedWardIssue);
+    const preferredWardTo = findWardOfficerAddress(
+      addresses,
+      clearedWardIssue,
+      activeLetterDate,
+    );
     if (preferredWardTo) {
       defaultWardToAppliedRef.current = true;
       handleWardToAddressSelect(preferredWardTo.id);
@@ -3715,7 +3906,12 @@ export function LetterGeneration({
   const renderCommonFields = <T extends CommonLetterFields>(
     fields: T,
     setFields: React.Dispatch<React.SetStateAction<T>>,
-  ) => (
+  ) => {
+    // Beneficiary flow: document type is selectable only for general letters.
+    const canSelectDocumentType =
+      !lockFixedFields || formTab === 'general';
+
+    return (
     <>
       <div className="grid gap-4 sm:grid-cols-2">
         <FieldGroup
@@ -3723,19 +3919,7 @@ export function LetterGeneration({
           required
           error={fieldErrors.referencePrefix}
         >
-          {lockFixedFields ? (
-            <Input
-              value={documentTypeLabel(
-                coerceDocumentType(fields.referencePrefix) ??
-                  fields.referencePrefix,
-                letterLocale,
-                documentTypes,
-              )}
-              readOnly
-              disabled
-              aria-required
-            />
-          ) : (
+          {canSelectDocumentType ? (
             <Combobox
               value={
                 coerceDocumentType(fields.referencePrefix) ??
@@ -3756,6 +3940,18 @@ export function LetterGeneration({
               options={documentTypeComboboxOptions}
               placeholder={lt('letterGeneration.placeholders.referencePrefix')}
               aria-invalid={!!fieldErrors.referencePrefix}
+              aria-required
+            />
+          ) : (
+            <Input
+              value={documentTypeLabel(
+                coerceDocumentType(fields.referencePrefix) ??
+                  fields.referencePrefix,
+                letterLocale,
+                documentTypes,
+              )}
+              readOnly
+              disabled
               aria-required
             />
           )}
@@ -3819,7 +4015,8 @@ export function LetterGeneration({
         </FieldGroup>
       </div>
     </>
-  );
+    );
+  };
 
   return (
     <div className="flex flex-col gap-4 md:gap-6">
@@ -4063,6 +4260,27 @@ export function LetterGeneration({
                     {resolveTypeLabel(activeTab)}
                   </div>
                 </FieldGroup>
+                {formTab === 'general' ? (
+                  <FieldGroup label={lt('letterGeneration.fields.paperSize')}>
+                    <Select
+                      value={paperSizeDraft}
+                      onValueChange={(value: LetterPaperSize) =>
+                        setPaperSizeDraft(value)
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LETTER_PAPER_SIZES.map((size) => (
+                          <SelectItem key={size} value={size}>
+                            {t(`letterGeneration.paperSize.options.${size}`)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FieldGroup>
+                ) : null}
                 {mastersForActive.length > 1 ? (
                   <FieldGroup label={t('letterGeneration.templates.selectTemplate')}>
                     <Combobox
@@ -4094,20 +4312,95 @@ export function LetterGeneration({
                       <FieldGroup
                         label={lt('letterGeneration.fields.to')}
                         required
-                        error={fieldErrors.to}
                       >
-                        <LocaleTextarea
-                          locale={letterLocale}
-                          value={generalFields.to}
-                          onValueChange={(to) => {
-                            setGeneralFields({ ...generalFields, to });
-                            if (fieldErrors.to) {
-                              setFieldErrors((prev) => ({ ...prev, to: undefined }));
+                        <div className="space-y-2">
+                          <Combobox
+                            value={generalToAddressId ?? GENERAL_TO_MANUAL_VALUE}
+                            onValueChange={handleGeneralToAddressSelect}
+                            options={generalToAddressComboboxOptions}
+                            placeholder={lt(
+                              'letterGeneration.addresses.selectPlaceholder',
+                            )}
+                            emptyMessage={lt('letterGeneration.addresses.empty')}
+                            aria-invalid={
+                              !!fieldErrors.toName ||
+                              !!fieldErrors.toAddress ||
+                              !!fieldErrors.to
                             }
-                          }}
-                          rows={4}
-                          required
-                        />
+                          />
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">
+                              {lt('letterGeneration.addresses.columns.holder')} *
+                            </Label>
+                            <LocaleTextInput
+                              locale={letterLocale}
+                              value={generalFields.toName}
+                              onValueChange={(toName) => {
+                                if (generalToAddressId) setGeneralToAddressId(null);
+                                setGeneralFields({
+                                  ...generalFields,
+                                  toName,
+                                  to: syncGeneralToBlock(
+                                    toName,
+                                    generalFields.toAddress,
+                                  ),
+                                });
+                                if (fieldErrors.toName || fieldErrors.to) {
+                                  setFieldErrors((prev) => ({
+                                    ...prev,
+                                    toName: undefined,
+                                    to: undefined,
+                                  }));
+                                }
+                              }}
+                              placeholder={lt(
+                                'letterGeneration.placeholders.toName',
+                              )}
+                              required
+                              aria-invalid={!!fieldErrors.toName}
+                            />
+                            {fieldErrors.toName ? (
+                              <p className="text-xs text-destructive">
+                                {fieldErrors.toName}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">
+                              {lt('letterGeneration.fields.address')} *
+                            </Label>
+                            <LocaleTextarea
+                              locale={letterLocale}
+                              value={generalFields.toAddress}
+                              onValueChange={(toAddress) => {
+                                if (generalToAddressId) setGeneralToAddressId(null);
+                                setGeneralFields({
+                                  ...generalFields,
+                                  toAddress,
+                                  to: syncGeneralToBlock(
+                                    generalFields.toName,
+                                    toAddress,
+                                  ),
+                                });
+                                if (fieldErrors.toAddress || fieldErrors.to) {
+                                  setFieldErrors((prev) => ({
+                                    ...prev,
+                                    toAddress: undefined,
+                                    to: undefined,
+                                  }));
+                                }
+                              }}
+                              rows={4}
+                              required
+                              aria-invalid={!!fieldErrors.toAddress}
+                            />
+                            {fieldErrors.toAddress || fieldErrors.to ? (
+                              <p className="text-xs text-destructive">
+                                {fieldErrors.toAddress ?? fieldErrors.to}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
                       </FieldGroup>
                       <FieldGroup
                         label={lt('letterGeneration.fields.subject')}
@@ -4192,6 +4485,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.school}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.school}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('school', parts)
@@ -4281,6 +4575,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.school}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.school}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('school', parts)
@@ -4408,6 +4703,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.applicant}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('applicant', parts)
@@ -4448,6 +4744,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.school}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.school}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('school', parts)
@@ -4575,6 +4872,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.applicant}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('applicant', parts)
@@ -4758,6 +5056,7 @@ export function LetterGeneration({
                           locale={letterLocale}
                           selectedAddressId={addressSelections.applicant}
                           addresses={addresses}
+                          letterDate={activeLetterDate}
                           addressParts={manualAddressParts.applicant}
                           onAddressPartsChange={(parts) =>
                             handleManualAddressPartsChange('applicant', parts)
@@ -4801,6 +5100,7 @@ export function LetterGeneration({
                               locale={letterLocale}
                               selectedAddressId={addressSelections.fromRationOffice}
                               addresses={addresses}
+                              letterDate={activeLetterDate}
                               addressParts={manualAddressParts.fromRationOffice}
                               onAddressPartsChange={(parts) =>
                                 handleManualAddressPartsChange('fromRationOffice', parts)
@@ -4838,6 +5138,7 @@ export function LetterGeneration({
                               locale={letterLocale}
                               selectedAddressId={addressSelections.toRationOffice}
                               addresses={addresses}
+                              letterDate={activeLetterDate}
                               addressParts={manualAddressParts.toRationOffice}
                               onAddressPartsChange={(parts) =>
                                 handleManualAddressPartsChange('toRationOffice', parts)
@@ -5008,6 +5309,7 @@ export function LetterGeneration({
                           locale={letterLocale}
                           selectedAddressId={addressSelections.rationOffice}
                           addresses={addresses}
+                          letterDate={activeLetterDate}
                           addressParts={manualAddressParts.rationOffice}
                           onAddressPartsChange={(parts) =>
                             handleManualAddressPartsChange('rationOffice', parts)
@@ -5127,6 +5429,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.applicant}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('applicant', parts)
@@ -5144,6 +5447,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.office}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.office}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('office', parts)
@@ -5317,6 +5621,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.applicant}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('applicant', parts)
@@ -5334,6 +5639,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.office}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.office}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('office', parts)
@@ -5404,7 +5710,11 @@ export function LetterGeneration({
                               ...prev,
                               duration: undefined,
                             }));
-                            const preferred = findWardOfficerAddress(addresses, issueType);
+                            const preferred = findWardOfficerAddress(
+                              addresses,
+                              issueType,
+                              activeLetterDate,
+                            );
                             if (preferred) {
                               setWardFields((prev) => ({
                                 ...prev,
@@ -5441,6 +5751,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.to}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.to}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('to', parts)
@@ -5639,8 +5950,12 @@ export function LetterGeneration({
                         {t('letterGeneration.paperSize.label', {
                           size: activePaperLabel,
                         })}
-                        {' · '}
-                        {t('letterGeneration.paperSize.hint')}
+                        {formTab === 'general' ? (
+                          <>
+                            {' · '}
+                            {t('letterGeneration.paperSize.hint')}
+                          </>
+                        ) : null}
                       </p>
                     </div>
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">

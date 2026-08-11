@@ -84,7 +84,11 @@ type AddressFormState = {
   positionId: string;
   isActive: boolean;
   sortOrder: string;
+  startDate: string;
+  endDate: string;
 };
+
+const DEFAULT_ADDRESS_START_DATE = '2026-01-01';
 
 const EMPTY_FORM: AddressFormState = {
   name: '',
@@ -95,7 +99,22 @@ const EMPTY_FORM: AddressFormState = {
   positionId: '',
   isActive: true,
   sortOrder: '0',
+  startDate: DEFAULT_ADDRESS_START_DATE,
+  endDate: '',
 };
+
+function formatAddressDateRangeLabel(
+  address: Pick<AddressMasterRow, 'startDate' | 'endDate'>,
+  t: (key: string, values?: Record<string, string>) => string,
+): string | null {
+  const start = address.startDate?.trim() || '';
+  const end = address.endDate?.trim() || '';
+  if (!end) return null;
+  if (start) {
+    return t('letterGeneration.addresses.dateRangeBetween', { start, end });
+  }
+  return t('letterGeneration.addresses.dateRangeUntil', { end });
+}
 
 async function translateAddressText(
   text: string,
@@ -123,6 +142,8 @@ export function AddressMasterManager({
   onRefresh,
 }: AddressMasterManagerProps) {
   const { t, locale } = useTranslations();
+  const tRef = useRef(t);
+  tRef.current = t;
   const [formCardOpen, setFormCardOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<AddressFormState>(EMPTY_FORM);
@@ -170,11 +191,11 @@ export function AddressMasterManager({
       setBlocks((blocksJson?.blocks ?? []) as AddressBlockOption[]);
     } catch (error) {
       console.error(error);
-      toast.error(t('letterGeneration.addresses.fetchError'));
+      toast.error(tRef.current('letterGeneration.addresses.fetchError'));
     } finally {
       setMastersLoading(false);
     }
-  }, [t]);
+  }, []);
 
   useEffect(() => {
     void refreshMasters();
@@ -312,6 +333,8 @@ export function AddressMasterManager({
       positionId: address.positionId || '',
       isActive: address.isActive,
       sortOrder: String(address.sortOrder),
+      startDate: address.startDate || '',
+      endDate: address.endDate || '',
     });
 
     const formElement = document.getElementById('address-form');
@@ -396,6 +419,14 @@ export function AddressMasterManager({
       toast.error(t('letterGeneration.addresses.validationRequired'));
       return;
     }
+    if (
+      form.startDate &&
+      form.endDate &&
+      form.startDate > form.endDate
+    ) {
+      toast.error(t('letterGeneration.addresses.dateRangeInvalid'));
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -420,6 +451,8 @@ export function AddressMasterManager({
         positionId: form.positionId,
         isActive: form.isActive,
         sortOrder: Number(toWesternDigits(form.sortOrder)) || 0,
+        startDate: form.startDate || DEFAULT_ADDRESS_START_DATE,
+        endDate: form.endDate || null,
       };
 
       const res = editingId
@@ -532,13 +565,13 @@ export function AddressMasterManager({
           id="address-form-header"
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1">
-              <CardTitle className="text-lg">
+            <div className="min-w-0 space-y-1">
+              <CardTitle className="text-base sm:text-lg">
                 {editingId
                   ? t('letterGeneration.addresses.editTitle')
                   : t('letterGeneration.addresses.addTitle')}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm">
                 {t('letterGeneration.addresses.formDescription')}
               </CardDescription>
             </div>
@@ -556,11 +589,12 @@ export function AddressMasterManager({
             aria-labelledby="address-form-header"
             className="space-y-4 p-4 sm:p-6"
           >
-            <div className="flex justify-end">
+            <div className="flex justify-stretch sm:justify-end">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                className="w-full sm:w-auto"
                 onClick={() => void handleAutoTranslate()}
                 disabled={isSaving || isTranslating}
               >
@@ -700,11 +734,51 @@ export function AddressMasterManager({
               </div>
             </div>
 
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={handleCancelEdit}>
+            <div className="space-y-3 rounded-md border p-3">
+              <p className="text-muted-foreground text-xs">
+                {t('letterGeneration.addresses.dateRangeHint')}
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="address-start-date">
+                    {t('letterGeneration.addresses.columns.startDate')}
+                  </Label>
+                  <Input
+                    id="address-start-date"
+                    type="date"
+                    value={form.startDate}
+                    onChange={(event) =>
+                      setForm({ ...form, startDate: event.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="address-end-date">
+                    {t('letterGeneration.addresses.columns.endDate')}
+                  </Label>
+                  <Input
+                    id="address-end-date"
+                    type="date"
+                    value={form.endDate}
+                    onChange={(event) =>
+                      setForm({ ...form, endDate: event.target.value })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={handleCancelEdit}
+              >
                 {t('common.cancel')}
               </Button>
               <Button
+                className="w-full sm:w-auto"
                 onClick={() => void handleSave()}
                 disabled={isSaving || isTranslating || mastersLoading}
               >
@@ -813,16 +887,145 @@ export function AddressMasterManager({
                 </div>
               ) : (
                 <>
-                  <div className="overflow-x-auto">
+                  {/* Mobile card list */}
+                  <div className="space-y-3 md:hidden">
+                    {paginatedAddresses.map((address) => {
+                      const typeLabel = ADDRESS_TYPES.includes(
+                        address.addressType as AddressType,
+                      )
+                        ? t(`letterGeneration.addresses.types.${address.addressType}`)
+                        : address.typeLabelEn || address.addressType;
+                      const rangeLabel = formatAddressDateRangeLabel(address, t);
+                      return (
+                        <div
+                          key={address.id}
+                          className="space-y-3 rounded-lg border p-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <p className="font-medium break-words">{address.name}</p>
+                              {address.nameMr.trim() ? (
+                                <p
+                                  className="text-muted-foreground text-xs break-words"
+                                  lang="mr"
+                                >
+                                  {address.nameMr}
+                                </p>
+                              ) : null}
+                            </div>
+                            <div className="flex shrink-0 gap-1">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => openEditForm(address)}
+                              >
+                                <Pencil className="size-4" />
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                onClick={() => requestDelete(address.id)}
+                                disabled={deletingId === address.id}
+                              >
+                                {deletingId === address.id ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="size-4" />
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                          <dl className="grid gap-2 text-sm">
+                            <div>
+                              <dt className="text-muted-foreground text-xs">
+                                {t('letterGeneration.addresses.columns.type')}
+                              </dt>
+                              <dd>{typeLabel}</dd>
+                            </div>
+                            <div>
+                              <dt className="text-muted-foreground text-xs">
+                                {t('letterGeneration.addresses.columns.position')}
+                              </dt>
+                              <dd className="break-words">
+                                {address.positionTitleEn ||
+                                  address.positionTitleMr ||
+                                  '—'}
+                                {address.positionCode ? (
+                                  <span className="text-muted-foreground text-xs">
+                                    {' '}
+                                    ({address.positionCode})
+                                  </span>
+                                ) : null}
+                              </dd>
+                            </div>
+                            <div>
+                              <dt className="text-muted-foreground text-xs">
+                                {t('letterGeneration.addresses.columns.english')}
+                              </dt>
+                              <dd className="whitespace-pre-wrap break-words">
+                                {formatAddressMaster(address, 'en')}
+                              </dd>
+                            </div>
+                            {formatAddressMaster(address, 'mr') ? (
+                              <div>
+                                <dt className="text-muted-foreground text-xs">
+                                  {t('letterGeneration.addresses.columns.marathi')}
+                                </dt>
+                                <dd
+                                  className="whitespace-pre-wrap break-words"
+                                  lang="mr"
+                                >
+                                  {formatAddressMaster(address, 'mr')}
+                                </dd>
+                              </div>
+                            ) : null}
+                            <div>
+                              <dt className="text-muted-foreground text-xs">
+                                {t('letterGeneration.addresses.columns.active')}
+                              </dt>
+                              <dd>
+                                {address.isActive
+                                  ? t('letterGeneration.addresses.activeYes')
+                                  : t('letterGeneration.addresses.activeNo')}
+                                {rangeLabel ? (
+                                  <span className="text-muted-foreground text-xs">
+                                    {' '}
+                                    · {rangeLabel}
+                                  </span>
+                                ) : null}
+                              </dd>
+                            </div>
+                          </dl>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Desktop table */}
+                  <div className="hidden overflow-x-auto md:block">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>{t('letterGeneration.addresses.columns.holder')}</TableHead>
-                          <TableHead>{t('letterGeneration.addresses.columns.type')}</TableHead>
-                          <TableHead>{t('letterGeneration.addresses.columns.position')}</TableHead>
-                          <TableHead>{t('letterGeneration.addresses.columns.english')}</TableHead>
-                          <TableHead>{t('letterGeneration.addresses.columns.marathi')}</TableHead>
-                          <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
+                          <TableHead>
+                            {t('letterGeneration.addresses.columns.holder')}
+                          </TableHead>
+                          <TableHead>
+                            {t('letterGeneration.addresses.columns.type')}
+                          </TableHead>
+                          <TableHead>
+                            {t('letterGeneration.addresses.columns.position')}
+                          </TableHead>
+                          <TableHead>
+                            {t('letterGeneration.addresses.columns.english')}
+                          </TableHead>
+                          <TableHead>
+                            {t('letterGeneration.addresses.columns.marathi')}
+                          </TableHead>
+                          <TableHead>
+                            {t('letterGeneration.addresses.columns.active')}
+                          </TableHead>
                           <TableHead className="text-right">
                             {t('letterGeneration.savedLetters.columns.actions')}
                           </TableHead>
@@ -834,18 +1037,27 @@ export function AddressMasterManager({
                             <TableCell className="font-medium">
                               <div>{address.name}</div>
                               {address.nameMr.trim() ? (
-                                <div className="text-muted-foreground text-xs" lang="mr">
+                                <div
+                                  className="text-muted-foreground text-xs"
+                                  lang="mr"
+                                >
                                   {address.nameMr}
                                 </div>
                               ) : null}
                             </TableCell>
                             <TableCell>
-                              {ADDRESS_TYPES.includes(address.addressType as AddressType)
-                                ? t(`letterGeneration.addresses.types.${address.addressType}`)
+                              {ADDRESS_TYPES.includes(
+                                address.addressType as AddressType,
+                              )
+                                ? t(
+                                    `letterGeneration.addresses.types.${address.addressType}`,
+                                  )
                                 : address.typeLabelEn || address.addressType}
                             </TableCell>
                             <TableCell className="max-w-[180px] whitespace-pre-wrap text-sm">
-                              {address.positionTitleEn || address.positionTitleMr || '—'}
+                              {address.positionTitleEn ||
+                                address.positionTitleMr ||
+                                '—'}
                               {address.positionCode ? (
                                 <div className="text-muted-foreground text-xs">
                                   {address.positionCode}
@@ -859,9 +1071,22 @@ export function AddressMasterManager({
                               {formatAddressMaster(address, 'mr')}
                             </TableCell>
                             <TableCell>
-                              {address.isActive
-                                ? t('letterGeneration.addresses.activeYes')
-                                : t('letterGeneration.addresses.activeNo')}
+                              <div>
+                                {address.isActive
+                                  ? t('letterGeneration.addresses.activeYes')
+                                  : t('letterGeneration.addresses.activeNo')}
+                              </div>
+                              {(() => {
+                                const rangeLabel = formatAddressDateRangeLabel(
+                                  address,
+                                  t,
+                                );
+                                return rangeLabel ? (
+                                  <div className="text-muted-foreground text-xs">
+                                    {rangeLabel}
+                                  </div>
+                                ) : null;
+                              })()}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">

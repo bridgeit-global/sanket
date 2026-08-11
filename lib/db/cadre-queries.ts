@@ -1337,6 +1337,23 @@ export async function getCadreMemberById(
   return card ?? null;
 }
 
+/** Exact EPIC match — used when expanding visitor cards linked to a voter. */
+export async function getCadreMembersByEpicNumber(
+  epicNumber: string,
+): Promise<CadreMemberCard[]> {
+  const epic = epicNumber.trim().toUpperCase();
+  if (!epic) return [];
+
+  const { data, error } = await supabase
+    .from(TABLES.cadreMember)
+    .select('*')
+    .eq('epic_number', epic)
+    .eq('is_active', true)
+    .order('person_name', { ascending: true });
+  throwOnSupabaseError(error, 'Failed to load cadre members by EPIC');
+  return buildMemberCards((data ?? []).map(mapCadreMemberRow));
+}
+
 export type CadreMemberPostInput = {
   positionId: string;
   /** Wing this post is assigned under (must be one of the member's verticals). */

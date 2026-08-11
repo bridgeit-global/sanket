@@ -5,6 +5,12 @@ import { Loader2, Pencil } from 'lucide-react';
 import { toast } from '@/components/toast';
 
 import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -150,126 +156,202 @@ export function AddressTypesManager() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label>{t('letterGeneration.addresses.typesTab.code')}</Label>
-          <Input
-            value={form.code}
-            onChange={(e) => setForm({ ...form, code: e.target.value })}
-            disabled={Boolean(editingId)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label>{t('letterGeneration.addresses.columns.sortOrder')}</Label>
-          <Input
-            value={form.sortOrder}
-            onChange={(e) => setForm({ ...form, sortOrder: e.target.value.replace(/\D/g, '') })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label>{t('letterGeneration.addresses.english')}</Label>
-          <Input
-            value={form.labelEn}
-            onChange={(e) => setForm({ ...form, labelEn: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label>{t('letterGeneration.addresses.marathi')}</Label>
-          <Input
-            value={form.labelMr}
-            lang="mr"
-            onChange={(e) => setForm({ ...form, labelMr: e.target.value })}
-          />
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="type-active"
-          checked={form.isActive}
-          onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-        />
-        <Label htmlFor="type-active">{t('letterGeneration.addresses.activeYes')}</Label>
-      </div>
-      <div className="flex gap-2">
-        <Button type="button" onClick={() => void save()} disabled={saving}>
-          {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-          {editingId
-            ? t('letterGeneration.addresses.save')
-            : t('letterGeneration.addresses.create')}
-        </Button>
-        {editingId ? (
-          <Button type="button" variant="outline" onClick={reset}>
-            {t('common.cancel')}
-          </Button>
-        ) : null}
-      </div>
+    <div className="flex flex-col gap-4 md:gap-6">
+      <Card>
+        <CardContent className="space-y-4 p-4 sm:p-6">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>{t('letterGeneration.addresses.typesTab.code')}</Label>
+              <Input
+                value={form.code}
+                onChange={(e) => setForm({ ...form, code: e.target.value })}
+                disabled={Boolean(editingId)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('letterGeneration.addresses.columns.sortOrder')}</Label>
+              <Input
+                value={form.sortOrder}
+                onChange={(e) =>
+                  setForm({ ...form, sortOrder: e.target.value.replace(/\D/g, '') })
+                }
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('letterGeneration.addresses.english')}</Label>
+              <Input
+                value={form.labelEn}
+                onChange={(e) => setForm({ ...form, labelEn: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('letterGeneration.addresses.marathi')}</Label>
+              <Input
+                value={form.labelMr}
+                lang="mr"
+                onChange={(e) => setForm({ ...form, labelMr: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="type-active"
+              checked={form.isActive}
+              onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+            />
+            <Label htmlFor="type-active">
+              {t('letterGeneration.addresses.activeYes')}
+            </Label>
+          </div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={() => void save()}
+              disabled={saving}
+            >
+              {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+              {editingId
+                ? t('letterGeneration.addresses.typesTab.save')
+                : t('letterGeneration.addresses.typesTab.create')}
+            </Button>
+            {editingId ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={reset}
+              >
+                {t('common.cancel')}
+              </Button>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
 
-      {loading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          {t('common.loading')}
-        </div>
-      ) : totalItems === 0 ? (
-        <div className="py-6 text-sm text-muted-foreground">
-          {t('letterGeneration.addresses.manageTypesHint')}
-        </div>
-      ) : (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('letterGeneration.addresses.typesTab.code')}</TableHead>
-                <TableHead>{t('letterGeneration.addresses.english')}</TableHead>
-                <TableHead>{t('letterGeneration.addresses.marathi')}</TableHead>
-                <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedItems.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>{row.code}</TableCell>
-                  <TableCell>{row.labelEn}</TableCell>
-                  <TableCell lang="mr">{row.labelMr || '—'}</TableCell>
-                  <TableCell>
-                    {row.isActive
-                      ? t('letterGeneration.addresses.activeYes')
-                      : t('letterGeneration.addresses.activeNo')}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditingId(row.id);
-                        setForm({
-                          code: row.code,
-                          labelEn: row.labelEn,
-                          labelMr: row.labelMr,
-                          sortOrder: String(row.sortOrder),
-                          isActive: row.isActive,
-                        });
-                      }}
-                    >
-                      <Pencil className="size-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <TablePagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            pageSize={pageSize}
-            totalItems={totalItems}
-            onPageChange={handlePageChange}
-            onPageSizeChange={handlePageSizeChange}
-          />
-        </>
-      )}
+      <Card>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">
+            {t('letterGeneration.addresses.tabs.types')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 p-4 sm:p-6">
+          {loading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              {t('common.loading')}
+            </div>
+          ) : totalItems === 0 ? (
+            <div className="py-6 text-sm text-muted-foreground">
+              {t('letterGeneration.addresses.manageTypesHint')}
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3 md:hidden">
+                {paginatedItems.map((row) => (
+                  <div key={row.id} className="space-y-2 rounded-lg border p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium break-words">{row.labelEn}</p>
+                        {row.labelMr ? (
+                          <p
+                            className="text-muted-foreground text-xs break-words"
+                            lang="mr"
+                          >
+                            {row.labelMr}
+                          </p>
+                        ) : null}
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          {row.code} ·{' '}
+                          {row.isActive
+                            ? t('letterGeneration.addresses.activeYes')
+                            : t('letterGeneration.addresses.activeNo')}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={() => {
+                          setEditingId(row.id);
+                          setForm({
+                            code: row.code,
+                            labelEn: row.labelEn,
+                            labelMr: row.labelMr,
+                            sortOrder: String(row.sortOrder),
+                            isActive: row.isActive,
+                          });
+                        }}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        {t('letterGeneration.addresses.typesTab.code')}
+                      </TableHead>
+                      <TableHead>{t('letterGeneration.addresses.english')}</TableHead>
+                      <TableHead>{t('letterGeneration.addresses.marathi')}</TableHead>
+                      <TableHead>
+                        {t('letterGeneration.addresses.columns.active')}
+                      </TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedItems.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell>{row.code}</TableCell>
+                        <TableCell>{row.labelEn}</TableCell>
+                        <TableCell lang="mr">{row.labelMr || '—'}</TableCell>
+                        <TableCell>
+                          {row.isActive
+                            ? t('letterGeneration.addresses.activeYes')
+                            : t('letterGeneration.addresses.activeNo')}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingId(row.id);
+                              setForm({
+                                code: row.code,
+                                labelEn: row.labelEn,
+                                labelMr: row.labelMr,
+                                sortOrder: String(row.sortOrder),
+                                isActive: row.isActive,
+                              });
+                            }}
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <TablePagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+              />
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -369,113 +451,209 @@ export function AddressBlocksManager() {
   };
 
   return (
-    <div className="space-y-4">
-      <BilingualAddressFields parts={parts} onPartsChange={(patch) => setParts((p) => ({ ...p, ...patch }))} />
-      <div className="space-y-1.5 max-w-xs">
-        <Label>{t('letterGeneration.addresses.columns.sortOrder')}</Label>
-        <Input
-          value={sortOrder}
-          onChange={(e) => setSortOrder(e.target.value.replace(/\D/g, ''))}
-        />
-      </div>
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="block-active"
-          checked={isActive}
-          onChange={(e) => setIsActive(e.target.checked)}
-        />
-        <Label htmlFor="block-active">{t('letterGeneration.addresses.activeYes')}</Label>
-      </div>
-      <div className="flex gap-2">
-        <Button type="button" onClick={() => void save()} disabled={saving}>
-          {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-          {editingId
-            ? t('letterGeneration.addresses.save')
-            : t('letterGeneration.addresses.create')}
-        </Button>
-        {editingId ? (
-          <Button type="button" variant="outline" onClick={reset}>
-            {t('common.cancel')}
-          </Button>
-        ) : null}
-      </div>
-      {loading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          {t('common.loading')}
-        </div>
-      ) : totalItems === 0 ? (
-        <div className="py-6 text-sm text-muted-foreground">
-          {t('letterGeneration.addresses.manageAddressesHint')}
-        </div>
-      ) : (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('letterGeneration.addresses.columns.english')}</TableHead>
-                <TableHead>{t('letterGeneration.addresses.columns.marathi')}</TableHead>
-                <TableHead>{t('letterGeneration.addresses.columns.sortOrder')}</TableHead>
-                <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedItems.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell className="max-w-[280px] whitespace-pre-wrap text-sm">
-                    {formatAddressMaster(row, 'en')}
-                  </TableCell>
-                  <TableCell className="max-w-[280px] whitespace-pre-wrap text-sm" lang="mr">
-                    {formatAddressMaster(row, 'mr')}
-                  </TableCell>
-                  <TableCell>{row.sortOrder}</TableCell>
-                  <TableCell>
-                    {row.isActive
-                      ? t('letterGeneration.addresses.activeYes')
-                      : t('letterGeneration.addresses.activeNo')}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditingId(row.id);
-                        setParts({
-                          line1En: row.line1En,
-                          line1Mr: row.line1Mr,
-                          line2En: row.line2En,
-                          line2Mr: row.line2Mr,
-                          line3En: row.line3En,
-                          line3Mr: row.line3Mr,
-                          cityEn: row.cityEn,
-                          cityMr: row.cityMr,
-                          stateEn: row.stateEn,
-                          stateMr: row.stateMr,
-                          pincode: row.pincode,
-                        });
-                        setSortOrder(String(row.sortOrder));
-                        setIsActive(row.isActive);
-                      }}
-                    >
-                      <Pencil className="size-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <TablePagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            pageSize={pageSize}
-            totalItems={totalItems}
-            onPageChange={handlePageChange}
-            onPageSizeChange={handlePageSizeChange}
+    <div className="flex flex-col gap-4 md:gap-6">
+      <Card>
+        <CardContent className="space-y-4 p-4 sm:p-6">
+          <BilingualAddressFields
+            parts={parts}
+            onPartsChange={(patch) => setParts((p) => ({ ...p, ...patch }))}
           />
-        </>
-      )}
+          <div className="max-w-full space-y-1.5 sm:max-w-xs">
+            <Label>{t('letterGeneration.addresses.columns.sortOrder')}</Label>
+            <Input
+              value={sortOrder}
+              onChange={(e) => setSortOrder(e.target.value.replace(/\D/g, ''))}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="block-active"
+              checked={isActive}
+              onChange={(e) => setIsActive(e.target.checked)}
+            />
+            <Label htmlFor="block-active">
+              {t('letterGeneration.addresses.activeYes')}
+            </Label>
+          </div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={() => void save()}
+              disabled={saving}
+            >
+              {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+              {editingId
+                ? t('letterGeneration.addresses.blocksTab.save')
+                : t('letterGeneration.addresses.blocksTab.create')}
+            </Button>
+            {editingId ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={reset}
+              >
+                {t('common.cancel')}
+              </Button>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">
+            {t('letterGeneration.addresses.tabs.addresses')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 p-4 sm:p-6">
+          {loading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              {t('common.loading')}
+            </div>
+          ) : totalItems === 0 ? (
+            <div className="py-6 text-sm text-muted-foreground">
+              {t('letterGeneration.addresses.manageAddressesHint')}
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3 md:hidden">
+                {paginatedItems.map((row) => (
+                  <div key={row.id} className="space-y-2 rounded-lg border p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 space-y-1 text-sm">
+                        <p className="whitespace-pre-wrap break-words">
+                          {formatAddressMaster(row, 'en')}
+                        </p>
+                        {formatAddressMaster(row, 'mr') ? (
+                          <p
+                            className="text-muted-foreground whitespace-pre-wrap break-words text-xs"
+                            lang="mr"
+                          >
+                            {formatAddressMaster(row, 'mr')}
+                          </p>
+                        ) : null}
+                        <p className="text-muted-foreground text-xs">
+                          {t('letterGeneration.addresses.columns.sortOrder')}:{' '}
+                          {row.sortOrder} ·{' '}
+                          {row.isActive
+                            ? t('letterGeneration.addresses.activeYes')
+                            : t('letterGeneration.addresses.activeNo')}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={() => {
+                          setEditingId(row.id);
+                          setParts({
+                            line1En: row.line1En,
+                            line1Mr: row.line1Mr,
+                            line2En: row.line2En,
+                            line2Mr: row.line2Mr,
+                            line3En: row.line3En,
+                            line3Mr: row.line3Mr,
+                            cityEn: row.cityEn,
+                            cityMr: row.cityMr,
+                            stateEn: row.stateEn,
+                            stateMr: row.stateMr,
+                            pincode: row.pincode,
+                          });
+                          setSortOrder(String(row.sortOrder));
+                          setIsActive(row.isActive);
+                        }}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        {t('letterGeneration.addresses.columns.english')}
+                      </TableHead>
+                      <TableHead>
+                        {t('letterGeneration.addresses.columns.marathi')}
+                      </TableHead>
+                      <TableHead>
+                        {t('letterGeneration.addresses.columns.sortOrder')}
+                      </TableHead>
+                      <TableHead>
+                        {t('letterGeneration.addresses.columns.active')}
+                      </TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedItems.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell className="max-w-[280px] whitespace-pre-wrap text-sm">
+                          {formatAddressMaster(row, 'en')}
+                        </TableCell>
+                        <TableCell
+                          className="max-w-[280px] whitespace-pre-wrap text-sm"
+                          lang="mr"
+                        >
+                          {formatAddressMaster(row, 'mr')}
+                        </TableCell>
+                        <TableCell>{row.sortOrder}</TableCell>
+                        <TableCell>
+                          {row.isActive
+                            ? t('letterGeneration.addresses.activeYes')
+                            : t('letterGeneration.addresses.activeNo')}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingId(row.id);
+                              setParts({
+                                line1En: row.line1En,
+                                line1Mr: row.line1Mr,
+                                line2En: row.line2En,
+                                line2Mr: row.line2Mr,
+                                line3En: row.line3En,
+                                line3Mr: row.line3Mr,
+                                cityEn: row.cityEn,
+                                cityMr: row.cityMr,
+                                stateEn: row.stateEn,
+                                stateMr: row.stateMr,
+                                pincode: row.pincode,
+                              });
+                              setSortOrder(String(row.sortOrder));
+                              setIsActive(row.isActive);
+                            }}
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <TablePagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+              />
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -576,129 +754,211 @@ export function PositionsManager() {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label>{t('letterGeneration.addresses.english')}</Label>
-          <Input
-            value={form.titleEn}
-            onChange={(e) => setForm({ ...form, titleEn: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label>{t('letterGeneration.addresses.marathi')}</Label>
-          <Input
-            value={form.titleMr}
-            lang="mr"
-            onChange={(e) => setForm({ ...form, titleMr: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label>{t('letterGeneration.addresses.columns.positionCode')}</Label>
-          <Input
-            value={form.code}
-            onChange={(e) => setForm({ ...form, code: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label>{t('letterGeneration.addresses.columns.sortOrder')}</Label>
-          <Input
-            value={form.sortOrder}
-            onChange={(e) => setForm({ ...form, sortOrder: e.target.value.replace(/\D/g, '') })}
-          />
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <Checkbox
-          id="position-active"
-          checked={form.isActive}
-          onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-        />
-        <Label htmlFor="position-active">{t('letterGeneration.addresses.activeYes')}</Label>
-      </div>
-      <div className="flex gap-2">
-        <Button type="button" onClick={() => void save()} disabled={saving}>
-          {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-          {editingId
-            ? t('letterGeneration.addresses.save')
-            : t('letterGeneration.addresses.create')}
-        </Button>
-        {editingId ? (
-          <Button type="button" variant="outline" onClick={reset}>
-            {t('common.cancel')}
-          </Button>
-        ) : null}
-      </div>
-      {loading ? (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-          {t('common.loading')}
-        </div>
-      ) : totalItems === 0 ? (
-        <div className="py-6 text-sm text-muted-foreground">
-          {t('letterGeneration.addresses.managePositionsHint')}
-        </div>
-      ) : (
-        <>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t('letterGeneration.addresses.columns.position')}</TableHead>
-                <TableHead>{t('letterGeneration.addresses.columns.positionCode')}</TableHead>
-                <TableHead>{t('letterGeneration.addresses.columns.active')}</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {paginatedItems.map((row) => (
-                <TableRow key={row.id}>
-                  <TableCell>
-                    <div>{row.titleEn}</div>
-                    {row.titleMr ? (
-                      <div className="text-muted-foreground text-xs" lang="mr">
-                        {row.titleMr}
+    <div className="flex flex-col gap-4 md:gap-6">
+      <Card>
+        <CardContent className="space-y-4 p-4 sm:p-6">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>{t('letterGeneration.addresses.english')}</Label>
+              <Input
+                value={form.titleEn}
+                onChange={(e) => setForm({ ...form, titleEn: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('letterGeneration.addresses.marathi')}</Label>
+              <Input
+                value={form.titleMr}
+                lang="mr"
+                onChange={(e) => setForm({ ...form, titleMr: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('letterGeneration.addresses.columns.positionCode')}</Label>
+              <Input
+                value={form.code}
+                onChange={(e) => setForm({ ...form, code: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>{t('letterGeneration.addresses.columns.sortOrder')}</Label>
+              <Input
+                value={form.sortOrder}
+                onChange={(e) =>
+                  setForm({ ...form, sortOrder: e.target.value.replace(/\D/g, '') })
+                }
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="position-active"
+              checked={form.isActive}
+              onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+            />
+            <Label htmlFor="position-active">
+              {t('letterGeneration.addresses.activeYes')}
+            </Label>
+          </div>
+          <div className="flex flex-col-reverse gap-2 sm:flex-row">
+            <Button
+              type="button"
+              className="w-full sm:w-auto"
+              onClick={() => void save()}
+              disabled={saving}
+            >
+              {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
+              {editingId
+                ? t('letterGeneration.addresses.positionsTab.save')
+                : t('letterGeneration.addresses.positionsTab.create')}
+            </Button>
+            {editingId ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={reset}
+              >
+                {t('common.cancel')}
+              </Button>
+            ) : null}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="p-4 sm:p-6">
+          <CardTitle className="text-base sm:text-lg">
+            {t('letterGeneration.addresses.tabs.positions')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 p-4 sm:p-6">
+          {loading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              {t('common.loading')}
+            </div>
+          ) : totalItems === 0 ? (
+            <div className="py-6 text-sm text-muted-foreground">
+              {t('letterGeneration.addresses.managePositionsHint')}
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3 md:hidden">
+                {paginatedItems.map((row) => (
+                  <div key={row.id} className="space-y-2 rounded-lg border p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-medium break-words">{row.titleEn}</p>
+                        {row.titleMr ? (
+                          <p
+                            className="text-muted-foreground text-xs break-words"
+                            lang="mr"
+                          >
+                            {row.titleMr}
+                          </p>
+                        ) : null}
+                        <p className="text-muted-foreground mt-1 text-xs">
+                          {row.code || '—'} ·{' '}
+                          {row.isActive
+                            ? t('letterGeneration.addresses.activeYes')
+                            : t('letterGeneration.addresses.activeNo')}
+                        </p>
                       </div>
-                    ) : null}
-                  </TableCell>
-                  <TableCell>{row.code || '—'}</TableCell>
-                  <TableCell>
-                    {row.isActive
-                      ? t('letterGeneration.addresses.activeYes')
-                      : t('letterGeneration.addresses.activeNo')}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        setEditingId(row.id);
-                        setForm({
-                          titleEn: row.titleEn,
-                          titleMr: row.titleMr,
-                          code: row.code || '',
-                          sortOrder: String(row.sortOrder),
-                          isActive: row.isActive,
-                        });
-                      }}
-                    >
-                      <Pencil className="size-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <TablePagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            pageSize={pageSize}
-            totalItems={totalItems}
-            onPageChange={handlePageChange}
-            onPageSizeChange={handlePageSizeChange}
-          />
-        </>
-      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        className="shrink-0"
+                        onClick={() => {
+                          setEditingId(row.id);
+                          setForm({
+                            titleEn: row.titleEn,
+                            titleMr: row.titleMr,
+                            code: row.code || '',
+                            sortOrder: String(row.sortOrder),
+                            isActive: row.isActive,
+                          });
+                        }}
+                      >
+                        <Pencil className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="hidden overflow-x-auto md:block">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>
+                        {t('letterGeneration.addresses.columns.position')}
+                      </TableHead>
+                      <TableHead>
+                        {t('letterGeneration.addresses.columns.positionCode')}
+                      </TableHead>
+                      <TableHead>
+                        {t('letterGeneration.addresses.columns.active')}
+                      </TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedItems.map((row) => (
+                      <TableRow key={row.id}>
+                        <TableCell>
+                          <div>{row.titleEn}</div>
+                          {row.titleMr ? (
+                            <div
+                              className="text-muted-foreground text-xs"
+                              lang="mr"
+                            >
+                              {row.titleMr}
+                            </div>
+                          ) : null}
+                        </TableCell>
+                        <TableCell>{row.code || '—'}</TableCell>
+                        <TableCell>
+                          {row.isActive
+                            ? t('letterGeneration.addresses.activeYes')
+                            : t('letterGeneration.addresses.activeNo')}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setEditingId(row.id);
+                              setForm({
+                                titleEn: row.titleEn,
+                                titleMr: row.titleMr,
+                                code: row.code || '',
+                                sortOrder: String(row.sortOrder),
+                                isActive: row.isActive,
+                              });
+                            }}
+                          >
+                            <Pencil className="size-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <TablePagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                totalItems={totalItems}
+                onPageChange={handlePageChange}
+                onPageSizeChange={handlePageSizeChange}
+              />
+            </>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

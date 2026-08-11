@@ -159,7 +159,12 @@ export type DomicileLetterFields = CommonLetterFields & {
 };
 
 export type GeneralLetterFields = CommonLetterFields & {
+  /** Combined recipient block (name + address) for letter templates. */
   to: string;
+  /** Holder / recipient name shown above the address. */
+  toName: string;
+  /** Address lines only (without holder name). */
+  toAddress: string;
   subject: string;
   /** One paragraph per line. */
   paragraphs: string;

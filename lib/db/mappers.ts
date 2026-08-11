@@ -402,6 +402,8 @@ export function mapAddressMasterRow(row: Row): AddressMaster {
     positionTitleEn: String(positionRow?.title_en ?? positionRow?.titleEn ?? ''),
     positionTitleMr: String(positionRow?.title_mr ?? positionRow?.titleMr ?? ''),
     positionCode: toStringOrNull(positionRow?.code),
+    startDate: toStringOrNull(row.start_date ?? row.startDate),
+    endDate: toStringOrNull(row.end_date ?? row.endDate),
     isActive: Boolean(row.is_active ?? row.isActive ?? true),
     sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),

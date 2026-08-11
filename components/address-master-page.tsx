@@ -55,27 +55,29 @@ export function AddressMasterPage() {
         title={t('letterGeneration.addresses.title')}
         description={t('letterGeneration.addresses.description')}
         actions={
-          <Button variant="outline" asChild>
+          <Button variant="outline" className="w-full sm:w-auto" asChild>
             <Link href={backHref}>
-              <ArrowLeft className="mr-2 size-4" />
-              {t('letterGeneration.addresses.backToLetterGeneration')}
+              <ArrowLeft className="mr-2 size-4 shrink-0" />
+              <span className="truncate">
+                {t('letterGeneration.addresses.backToLetterGeneration')}
+              </span>
             </Link>
           </Button>
         }
       />
 
-      <Tabs defaultValue="entries" className="w-full">
-        <TabsList className="flex h-auto flex-wrap justify-start gap-1">
-          <TabsTrigger value="entries">
+      <Tabs defaultValue="entries" className="w-full min-w-0">
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:inline-flex sm:w-auto sm:flex-wrap sm:justify-start">
+          <TabsTrigger value="entries" className="w-full sm:w-auto">
             {t('letterGeneration.addresses.tabs.entries')}
           </TabsTrigger>
-          <TabsTrigger value="types">
+          <TabsTrigger value="types" className="w-full sm:w-auto">
             {t('letterGeneration.addresses.tabs.types')}
           </TabsTrigger>
-          <TabsTrigger value="addresses">
+          <TabsTrigger value="addresses" className="w-full sm:w-auto">
             {t('letterGeneration.addresses.tabs.addresses')}
           </TabsTrigger>
-          <TabsTrigger value="positions">
+          <TabsTrigger value="positions" className="w-full sm:w-auto">
             {t('letterGeneration.addresses.tabs.positions')}
           </TabsTrigger>
         </TabsList>

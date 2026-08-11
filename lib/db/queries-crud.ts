@@ -3778,6 +3778,8 @@ export async function createAddressMaster({
   positionId,
   isActive = true,
   sortOrder = 0,
+  startDate = null,
+  endDate = null,
   createdBy,
 }: {
   name: string;
@@ -3802,6 +3804,8 @@ export async function createAddressMaster({
   positionId?: string;
   isActive?: boolean;
   sortOrder?: number;
+  startDate?: string | null;
+  endDate?: string | null;
   createdBy?: string | null;
 }): Promise<AddressMaster> {
   try {
@@ -3845,6 +3849,8 @@ export async function createAddressMaster({
           positionId: resolvedPositionId,
           isActive,
           sortOrder,
+          startDate: startDate || '2026-01-01',
+          endDate: endDate || null,
           createdBy: createdBy || null,
           updatedBy: createdBy || null,
           createdAt: now,
@@ -3885,6 +3891,8 @@ export async function updateAddressMaster({
   positionId,
   isActive,
   sortOrder,
+  startDate,
+  endDate,
   updatedBy,
 }: {
   id: string;
@@ -3910,6 +3918,8 @@ export async function updateAddressMaster({
   positionId?: string;
   isActive: boolean;
   sortOrder: number;
+  startDate?: string | null;
+  endDate?: string | null;
   updatedBy?: string | null;
 }): Promise<AddressMaster> {
   try {
@@ -3962,6 +3972,11 @@ export async function updateAddressMaster({
       });
     }
 
+    const resolvedStartDate =
+      startDate !== undefined ? startDate || null : existing.startDate;
+    const resolvedEndDate =
+      endDate !== undefined ? endDate || null : existing.endDate;
+
     const { data, error } = await supabase
       .from(TABLES.addressMaster)
       .update(
@@ -3973,6 +3988,8 @@ export async function updateAddressMaster({
           positionId: resolvedPositionId,
           isActive,
           sortOrder,
+          startDate: resolvedStartDate,
+          endDate: resolvedEndDate,
           updatedBy: updatedBy || null,
           updatedAt: now,
         }),
