@@ -8,6 +8,14 @@ import {
 import { isAddressType } from '@/lib/letters/address-types';
 import { hasRequiredAddressFields } from '@/lib/letters/format-address-master';
 
+function parseOptionalIsoDate(value: unknown): string | null {
+  const raw = String(value ?? '').trim();
+  if (!raw) return null;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const d = new Date(`${raw}T00:00:00`);
+  return Number.isNaN(d.getTime()) ? null : raw;
+}
+
 function parseAddressBody(body: Record<string, unknown> | null | undefined) {
   const {
     name,
@@ -32,6 +40,8 @@ function parseAddressBody(body: Record<string, unknown> | null | undefined) {
     pincode,
     isActive,
     sortOrder,
+    startDate,
+    endDate,
   } = body ?? {};
 
   const parts = {
@@ -70,6 +80,8 @@ function parseAddressBody(body: Record<string, unknown> | null | undefined) {
     ...parts,
     isActive: isActive !== false,
     sortOrder: Number.isFinite(Number(sortOrder)) ? Number(sortOrder) : 0,
+    startDate: parseOptionalIsoDate(startDate),
+    endDate: parseOptionalIsoDate(endDate),
     hasRequiredFields,
     hasLinkedMasters,
   };
@@ -138,6 +150,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid address type' }, { status: 400 });
     }
 
+    if (
+      parsed.startDate &&
+      parsed.endDate &&
+      parsed.startDate > parsed.endDate
+    ) {
+      return NextResponse.json(
+        { error: 'Start date must be on or before end date' },
+        { status: 400 },
+      );
+    }
+
     const address = await createAddressMaster({
       name: parsed.name,
       nameMr: parsed.nameMr,
@@ -161,6 +184,8 @@ export async function POST(request: NextRequest) {
       pincode: parsed.pincode,
       isActive: parsed.isActive,
       sortOrder: parsed.sortOrder,
+      startDate: parsed.startDate,
+      endDate: parsed.endDate,
       createdBy: session.user.id,
     });
 

@@ -1,4 +1,5 @@
 import type { AddressType } from '@/lib/letters/address-types';
+import { isAddressVisibleForLetterDate } from '@/lib/letters/address-date-visibility';
 import type { AddressMasterAddressParts } from '@/lib/letters/format-address-master';
 import {
   DEFAULT_OFFICE_ADDRESS,
@@ -127,10 +128,15 @@ export function findDefaultOfficeAddress<
     addressType: string;
     pincode: string;
     isActive?: boolean;
+    startDate?: string | null;
+    endDate?: string | null;
   },
->(addresses: T[]): T | undefined {
+>(addresses: T[], letterDate?: string): T | undefined {
   const active = addresses.filter(
-    (row) => row.addressType === 'office' && row.isActive !== false,
+    (row) =>
+      row.addressType === 'office' &&
+      row.isActive !== false &&
+      isAddressVisibleForLetterDate(row, letterDate),
   );
   return (
     active.find((row) => row.name === DEFAULT_OFFICE_NAME) ??
@@ -145,11 +151,15 @@ export function findDefaultRationOfficeAddress<
     addressType: string;
     pincode: string;
     isActive?: boolean;
+    startDate?: string | null;
+    endDate?: string | null;
   },
->(addresses: T[]): T | undefined {
+>(addresses: T[], letterDate?: string): T | undefined {
   const active = addresses.filter(
     (row) =>
-      row.addressType === 'ration_office' && row.isActive !== false,
+      row.addressType === 'ration_office' &&
+      row.isActive !== false &&
+      isAddressVisibleForLetterDate(row, letterDate),
   );
   return (
     active.find((row) => row.name === DEFAULT_RATION_OFFICE_NAME) ??

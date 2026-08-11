@@ -84,7 +84,11 @@ type AddressFormState = {
   positionId: string;
   isActive: boolean;
   sortOrder: string;
+  startDate: string;
+  endDate: string;
 };
+
+const DEFAULT_ADDRESS_START_DATE = '2026-01-01';
 
 const EMPTY_FORM: AddressFormState = {
   name: '',
@@ -95,7 +99,22 @@ const EMPTY_FORM: AddressFormState = {
   positionId: '',
   isActive: true,
   sortOrder: '0',
+  startDate: DEFAULT_ADDRESS_START_DATE,
+  endDate: '',
 };
+
+function formatAddressDateRangeLabel(
+  address: Pick<AddressMasterRow, 'startDate' | 'endDate'>,
+  t: (key: string, values?: Record<string, string>) => string,
+): string | null {
+  const start = address.startDate?.trim() || '';
+  const end = address.endDate?.trim() || '';
+  if (!end) return null;
+  if (start) {
+    return t('letterGeneration.addresses.dateRangeBetween', { start, end });
+  }
+  return t('letterGeneration.addresses.dateRangeUntil', { end });
+}
 
 async function translateAddressText(
   text: string,
@@ -314,6 +333,8 @@ export function AddressMasterManager({
       positionId: address.positionId || '',
       isActive: address.isActive,
       sortOrder: String(address.sortOrder),
+      startDate: address.startDate || '',
+      endDate: address.endDate || '',
     });
 
     const formElement = document.getElementById('address-form');
@@ -398,6 +419,14 @@ export function AddressMasterManager({
       toast.error(t('letterGeneration.addresses.validationRequired'));
       return;
     }
+    if (
+      form.startDate &&
+      form.endDate &&
+      form.startDate > form.endDate
+    ) {
+      toast.error(t('letterGeneration.addresses.dateRangeInvalid'));
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -422,6 +451,8 @@ export function AddressMasterManager({
         positionId: form.positionId,
         isActive: form.isActive,
         sortOrder: Number(toWesternDigits(form.sortOrder)) || 0,
+        startDate: form.startDate || DEFAULT_ADDRESS_START_DATE,
+        endDate: form.endDate || null,
       };
 
       const res = editingId
@@ -702,6 +733,40 @@ export function AddressMasterManager({
               </div>
             </div>
 
+            <div className="space-y-3 rounded-md border p-3">
+              <p className="text-muted-foreground text-xs">
+                {t('letterGeneration.addresses.dateRangeHint')}
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <Label htmlFor="address-start-date">
+                    {t('letterGeneration.addresses.columns.startDate')}
+                  </Label>
+                  <Input
+                    id="address-start-date"
+                    type="date"
+                    value={form.startDate}
+                    onChange={(event) =>
+                      setForm({ ...form, startDate: event.target.value })
+                    }
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="address-end-date">
+                    {t('letterGeneration.addresses.columns.endDate')}
+                  </Label>
+                  <Input
+                    id="address-end-date"
+                    type="date"
+                    value={form.endDate}
+                    onChange={(event) =>
+                      setForm({ ...form, endDate: event.target.value })
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={handleCancelEdit}>
                 {t('common.cancel')}
@@ -861,9 +926,22 @@ export function AddressMasterManager({
                               {formatAddressMaster(address, 'mr')}
                             </TableCell>
                             <TableCell>
-                              {address.isActive
-                                ? t('letterGeneration.addresses.activeYes')
-                                : t('letterGeneration.addresses.activeNo')}
+                              <div>
+                                {address.isActive
+                                  ? t('letterGeneration.addresses.activeYes')
+                                  : t('letterGeneration.addresses.activeNo')}
+                              </div>
+                              {(() => {
+                                const rangeLabel = formatAddressDateRangeLabel(
+                                  address,
+                                  t,
+                                );
+                                return rangeLabel ? (
+                                  <div className="text-muted-foreground text-xs">
+                                    {rangeLabel}
+                                  </div>
+                                ) : null;
+                              })()}
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex justify-end gap-2">

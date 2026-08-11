@@ -858,8 +858,15 @@
         "english": "English Address",
         "marathi": "Marathi Address",
         "active": "Active",
-        "sortOrder": "Sort Order"
+        "sortOrder": "Sort Order",
+        "startDate": "Start date",
+        "endDate": "End date",
+        "dateRange": "Visible dates"
       },
+      "dateRangeHint": "Leave end date empty to always show this entry in letter pickers. When end date is set, it appears only for letter dates in the start–end range.",
+      "dateRangeInvalid": "Start date must be on or before end date",
+      "dateRangeUntil": "Until {end}",
+      "dateRangeBetween": "{start} – {end}",
       "fields": {
         "line1": "Line 1",
         "line2": "Line 2",

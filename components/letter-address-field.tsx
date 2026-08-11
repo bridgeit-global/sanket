@@ -5,6 +5,7 @@ import { useCallback, useRef } from 'react';
 import { Combobox } from '@/components/ui/combobox';
 import { StructuredAddressFields } from '@/components/structured-address-fields';
 import type { AddressType } from '@/lib/letters/address-types';
+import { isAddressVisibleForLetterDate } from '@/lib/letters/address-date-visibility';
 import { letterMessage } from '@/lib/letters/letter-messages';
 import {
   EMPTY_ADDRESS_PARTS,
@@ -43,6 +44,8 @@ export type AddressMasterRow = {
   positionTitleEn?: string;
   positionTitleMr?: string;
   positionCode?: string | null;
+  startDate?: string | null;
+  endDate?: string | null;
   isActive: boolean;
   sortOrder: number;
 };
@@ -56,6 +59,8 @@ type LetterAddressFieldProps = {
   addressParts: AddressMasterAddressParts;
   onAddressPartsChange: (parts: AddressMasterAddressParts) => void;
   onSelectedAddressIdChange: (id: string | null) => void;
+  /** Letter form date (display `dd/mm/yyyy`) used to filter date-visible masters. */
+  letterDate?: string;
   pincodeError?: string;
   required?: boolean;
   error?: string;
@@ -82,6 +87,7 @@ export function LetterAddressField({
   addressParts,
   onAddressPartsChange,
   onSelectedAddressIdChange,
+  letterDate,
   pincodeError,
   required,
   error,
@@ -150,7 +156,10 @@ export function LetterAddressField({
   }
 
   const filteredAddresses = addresses.filter(
-    (address) => address.isActive && address.addressType === addressType,
+    (address) =>
+      address.isActive &&
+      address.addressType === addressType &&
+      isAddressVisibleForLetterDate(address, letterDate),
   );
 
   const handleSelectChange = (nextValue: string) => {
@@ -218,10 +227,16 @@ export function LetterAddressField({
 export function findDefaultAddress(
   addresses: AddressMasterRow[],
   addressType: AddressType,
+  letterDate?: string,
 ): AddressMasterRow | null {
   return (
     addresses
-      .filter((address) => address.isActive && address.addressType === addressType)
+      .filter(
+        (address) =>
+          address.isActive &&
+          address.addressType === addressType &&
+          isAddressVisibleForLetterDate(address, letterDate),
+      )
       .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))[0] ?? null
   );
 }

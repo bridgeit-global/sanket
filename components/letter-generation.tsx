@@ -159,6 +159,7 @@ import {
   type AddressMasterAddressParts,
 } from '@/lib/letters/format-address-master';
 import { isMinisterAddressType } from '@/lib/letters/address-types';
+import { isAddressVisibleForLetterDate } from '@/lib/letters/address-date-visibility';
 import {
   findDefaultOfficeAddress,
   findDefaultRationOfficeAddress,
@@ -929,13 +930,15 @@ function formatWardToWithAddress(
 function findWardOfficerAddress(
   addresses: AddressMasterRow[],
   issueType: ReturnType<typeof resolveWardIssueType>,
+  letterDate?: string,
 ): AddressMasterRow | undefined {
   const seedName = getWardIssueOfficerSeedName(issueType);
   return addresses.find(
     (row) =>
       row.addressType === 'office' &&
       row.isActive !== false &&
-      row.name === seedName,
+      row.name === seedName &&
+      isAddressVisibleForLetterDate(row, letterDate),
   );
 }
 
@@ -1222,6 +1225,30 @@ export function LetterGeneration({
   const [generalToAddressId, setGeneralToAddressId] = useState<string | null>(null);
   const addressSelectionsRef = useRef(addressSelections);
   addressSelectionsRef.current = addressSelections;
+  const activeLetterDate = useMemo(
+    () =>
+      getFieldsForLetterType(activeTab, {
+        generalFields,
+        feesFields,
+        schoolAdmissionFields,
+        schoolTransferFields,
+        rationFields,
+        incomeFields,
+        domicileFields,
+        wardFields,
+      }).date,
+    [
+      activeTab,
+      domicileFields,
+      generalFields,
+      feesFields,
+      incomeFields,
+      rationFields,
+      schoolAdmissionFields,
+      schoolTransferFields,
+      wardFields,
+    ],
+  );
   const [manualAddressParts, setManualAddressParts] = useState<ManualAddressParts>(() => ({
     school: createEmptyAddressParts(),
     applicant: createEmptyAddressParts(),
@@ -1971,7 +1998,7 @@ export function LetterGeneration({
       defaultRationOfficeAppliedRef.current = true;
       return;
     }
-    const preferred = findDefaultRationOfficeAddress(addresses);
+    const preferred = findDefaultRationOfficeAddress(addresses, activeLetterDate);
     if (!preferred) return;
     defaultRationOfficeAppliedRef.current = true;
     handleRationOfficeAddressSelect(preferred.id);
@@ -2081,7 +2108,7 @@ export function LetterGeneration({
       defaultOfficeAppliedRef.current = true;
       return;
     }
-    const preferred = findDefaultOfficeAddress(addresses);
+    const preferred = findDefaultOfficeAddress(addresses, activeLetterDate);
     if (!preferred) return;
     defaultOfficeAppliedRef.current = true;
     handleOfficeAddressSelect(preferred.id);
@@ -2145,12 +2172,40 @@ export function LetterGeneration({
     const preferred = findWardOfficerAddress(
       addresses,
       resolveWardIssueType(wardFields.issueType),
+      activeLetterDate,
     );
     if (!preferred) return;
     defaultWardToAppliedRef.current = true;
     handleWardToAddressSelect(preferred.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [addresses, wardFields.issueType]);
+
+  // Clear master selection ids that fall outside the letter date window.
+  // Keep filled address text so mid-edit content is not wiped.
+  useEffect(() => {
+    setAddressSelections((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      (Object.keys(prev) as Array<keyof AddressSelectionState>).forEach((key) => {
+        const id = prev[key];
+        if (!id) return;
+        const row = addresses.find((address) => address.id === id);
+        if (!row || !isAddressVisibleForLetterDate(row, activeLetterDate)) {
+          next[key] = null;
+          changed = true;
+        }
+      });
+      if (!changed) return prev;
+      addressSelectionsRef.current = next;
+      return next;
+    });
+    setGeneralToAddressId((prev) => {
+      if (!prev) return prev;
+      const row = addresses.find((address) => address.id === prev);
+      if (!row || !isAddressVisibleForLetterDate(row, activeLetterDate)) return null;
+      return prev;
+    });
+  }, [addresses, activeLetterDate]);
 
   const refreshLetterMasters = async () => {
     setLetterMastersLoading(true);
@@ -2396,7 +2451,10 @@ export function LetterGeneration({
 
   const generalToAddressComboboxOptions = useMemo(() => {
     const rows = addresses
-      .filter((address) => address.isActive)
+      .filter(
+        (address) =>
+          address.isActive && isAddressVisibleForLetterDate(address, activeLetterDate),
+      )
       .map((address) => {
         const holder =
           letterLocale === 'mr'
@@ -2420,7 +2478,7 @@ export function LetterGeneration({
       },
       ...rows,
     ];
-  }, [addresses, letterLocale, t]);
+  }, [addresses, activeLetterDate, letterLocale, t]);
 
   const activeLetterMaster = useMemo(() => {
     if (selectedLetterMasterId) {
@@ -3452,11 +3510,11 @@ export function LetterGeneration({
     void refreshReferenceSequence(defaultReferencePrefix(letterLocale), {
       force: true,
     });
-    const preferredRationOffice = findDefaultRationOfficeAddress(addresses);
+    const preferredRationOffice = findDefaultRationOfficeAddress(addresses, activeLetterDate);
     if (preferredRationOffice) {
       handleRationOfficeAddressSelect(preferredRationOffice.id);
     }
-    const preferredOffice = findDefaultOfficeAddress(addresses);
+    const preferredOffice = findDefaultOfficeAddress(addresses, activeLetterDate);
     if (preferredOffice) {
       handleOfficeAddressSelect(preferredOffice.id);
     }
@@ -3465,7 +3523,11 @@ export function LetterGeneration({
       activeTab,
       service?.serviceName,
     );
-    const preferredWardTo = findWardOfficerAddress(addresses, clearedWardIssue);
+    const preferredWardTo = findWardOfficerAddress(
+      addresses,
+      clearedWardIssue,
+      activeLetterDate,
+    );
     if (preferredWardTo) {
       defaultWardToAppliedRef.current = true;
       handleWardToAddressSelect(preferredWardTo.id);
@@ -4289,6 +4351,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.school}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.school}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('school', parts)
@@ -4378,6 +4441,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.school}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.school}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('school', parts)
@@ -4505,6 +4569,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.applicant}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('applicant', parts)
@@ -4545,6 +4610,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.school}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.school}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('school', parts)
@@ -4672,6 +4738,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.applicant}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('applicant', parts)
@@ -4855,6 +4922,7 @@ export function LetterGeneration({
                           locale={letterLocale}
                           selectedAddressId={addressSelections.applicant}
                           addresses={addresses}
+                          letterDate={activeLetterDate}
                           addressParts={manualAddressParts.applicant}
                           onAddressPartsChange={(parts) =>
                             handleManualAddressPartsChange('applicant', parts)
@@ -4898,6 +4966,7 @@ export function LetterGeneration({
                               locale={letterLocale}
                               selectedAddressId={addressSelections.fromRationOffice}
                               addresses={addresses}
+                              letterDate={activeLetterDate}
                               addressParts={manualAddressParts.fromRationOffice}
                               onAddressPartsChange={(parts) =>
                                 handleManualAddressPartsChange('fromRationOffice', parts)
@@ -4935,6 +5004,7 @@ export function LetterGeneration({
                               locale={letterLocale}
                               selectedAddressId={addressSelections.toRationOffice}
                               addresses={addresses}
+                              letterDate={activeLetterDate}
                               addressParts={manualAddressParts.toRationOffice}
                               onAddressPartsChange={(parts) =>
                                 handleManualAddressPartsChange('toRationOffice', parts)
@@ -5105,6 +5175,7 @@ export function LetterGeneration({
                           locale={letterLocale}
                           selectedAddressId={addressSelections.rationOffice}
                           addresses={addresses}
+                          letterDate={activeLetterDate}
                           addressParts={manualAddressParts.rationOffice}
                           onAddressPartsChange={(parts) =>
                             handleManualAddressPartsChange('rationOffice', parts)
@@ -5224,6 +5295,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.applicant}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('applicant', parts)
@@ -5241,6 +5313,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.office}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.office}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('office', parts)
@@ -5414,6 +5487,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.applicant}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.applicant}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('applicant', parts)
@@ -5431,6 +5505,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.office}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.office}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('office', parts)
@@ -5501,7 +5576,11 @@ export function LetterGeneration({
                               ...prev,
                               duration: undefined,
                             }));
-                            const preferred = findWardOfficerAddress(addresses, issueType);
+                            const preferred = findWardOfficerAddress(
+                              addresses,
+                              issueType,
+                              activeLetterDate,
+                            );
                             if (preferred) {
                               setWardFields((prev) => ({
                                 ...prev,
@@ -5538,6 +5617,7 @@ export function LetterGeneration({
                         locale={letterLocale}
                         selectedAddressId={addressSelections.to}
                         addresses={addresses}
+                        letterDate={activeLetterDate}
                         addressParts={manualAddressParts.to}
                         onAddressPartsChange={(parts) =>
                           handleManualAddressPartsChange('to', parts)
