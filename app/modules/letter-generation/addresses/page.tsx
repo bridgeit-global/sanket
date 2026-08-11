@@ -19,7 +19,7 @@ export default async function AddressMasterRoutePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-7xl p-4 sm:py-8">
+      <div className="container mx-auto max-w-7xl p-3 sm:p-4 sm:py-8">
         <Suspense fallback={null}>
           <AddressMasterPage />
         </Suspense>

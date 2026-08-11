@@ -17,18 +17,18 @@ export function ModulePageHeader({
   className = '' 
 }: ModulePageHeaderProps) {
   return (
-    <div className={`flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between no-print ${className}`}>
-      <div className="flex items-center gap-3">
+    <div className={`flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between no-print ${className}`}>
+      <div className="flex min-w-0 items-start gap-3">
         <SidebarToggle />
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl md:text-3xl">{title}</h1>
           {description && (
-            <p className="text-muted-foreground mt-1">{description}</p>
+            <p className="text-muted-foreground mt-1 text-sm sm:text-base">{description}</p>
           )}
         </div>
       </div>
       {actions && (
-        <div className="flex items-center gap-2">
+        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
           {actions}
         </div>
       )}
