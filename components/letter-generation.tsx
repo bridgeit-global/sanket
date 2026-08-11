@@ -2954,12 +2954,8 @@ export function LetterGeneration({
 
     if (formTab === 'general') {
       requireField(errors, 'toName', generalFields.toName, requiredMsg);
-      requireField(
-        errors,
-        'toAddress',
-        generalFields.toAddress || generalFields.to,
-        requiredMsg,
-      );
+      // `to` is derived from toName+toAddress; requiring it would let name-only pass.
+      requireField(errors, 'toAddress', generalFields.toAddress, requiredMsg);
       requireField(errors, 'subject', generalFields.subject, requiredMsg);
       requireField(errors, 'paragraphs', generalFields.paragraphs, requiredMsg);
     } else if (formTab === 'fees') {
