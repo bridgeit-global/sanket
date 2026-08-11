@@ -550,10 +550,60 @@ function generalDefaults(locale: LetterLocale): GeneralLetterFields {
   return {
     ...commonDefaults(locale, 'general'),
     to: '',
+    toName: '',
+    toAddress: '',
     subject: '',
     paragraphs: '',
     signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(locale)),
   };
+}
+
+function getGeneralRecipientName(
+  address: Pick<
+    AddressMasterRow,
+    | 'name'
+    | 'nameMr'
+    | 'addressType'
+    | 'typeLabelEn'
+    | 'typeLabelMr'
+    | 'positionTitleEn'
+    | 'positionTitleMr'
+  >,
+  locale: LetterLocale,
+): string {
+  const holder = getAddressMasterName(address, locale);
+  if (!isMinisterAddressType(address.addressType)) return holder;
+  const typeLabel =
+    locale === 'mr'
+      ? (address.typeLabelMr || address.typeLabelEn || '').trim()
+      : (address.typeLabelEn || address.typeLabelMr || '').trim();
+  const position =
+    locale === 'mr'
+      ? (address.positionTitleMr || address.positionTitleEn || '').trim()
+      : (address.positionTitleEn || address.positionTitleMr || '').trim();
+  return [holder, typeLabel, position].filter(Boolean).join(', ');
+}
+
+function addressHtmlBreaksToNewlines(value: string): string {
+  return value.replace(/<br\s*\/?>/gi, '\n');
+}
+
+function addressNewlinesToHtmlBreaks(value: string): string {
+  return value
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter((line, index, lines) => line.length > 0 || (index > 0 && index < lines.length - 1))
+    .join('<br>');
+}
+
+function syncGeneralToBlock(toName: string, toAddress: string): string {
+  return combineNameAndAddress(
+    toName,
+    addressNewlinesToHtmlBreaks(toAddress),
+    ',<br>',
+    { boldName: true },
+  );
 }
 
 function wardDefaults(
@@ -1624,17 +1674,29 @@ export function LetterGeneration({
     });
     const nextParagraphRows = paragraphRowsRef.current.map((row) => filterText(row));
     setParagraphRows(nextParagraphRows.length > 0 ? nextParagraphRows : ['']);
-    setGeneralFields((prev) => ({
-      ...prev,
-      referencePrefix: nextPrefix(prev.referencePrefix),
-      referenceNo: nextReferenceNo(prev.referenceNo),
-      signatory: nextSignatory(prev.signatory),
-      date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
-      to: filterText(prev.to),
-      subject: filterText(prev.subject),
-      paragraphs: formatTextRows(nextParagraphRows),
-      signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(letterLocale)),
-    }));
+    setGeneralFields((prev) => {
+      const toName = filterText(prev.toName);
+      // Legacy general letters only stored combined `to`; split into address when name is empty.
+      const rawAddress =
+        prev.toAddress ||
+        (!prev.toName.trim()
+          ? addressHtmlBreaksToNewlines(prev.to).replace(/<[^>]+>/g, '')
+          : '');
+      const toAddress = filterText(rawAddress);
+      return {
+        ...prev,
+        referencePrefix: nextPrefix(prev.referencePrefix),
+        referenceNo: nextReferenceNo(prev.referenceNo),
+        signatory: nextSignatory(prev.signatory),
+        date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+        toName,
+        toAddress,
+        to: syncGeneralToBlock(toName, toAddress),
+        subject: filterText(prev.subject),
+        paragraphs: formatTextRows(nextParagraphRows),
+        signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(letterLocale)),
+      };
+    });
 
     applyMasterAddressToFields(addresses, addressSelections, letterLocale, {
       setFeesFields,
@@ -2152,12 +2214,23 @@ export function LetterGeneration({
     const selected = addresses.find((a) => a.id === value);
     if (!selected) return;
     setGeneralToAddressId(selected.id);
+    const toName = getGeneralRecipientName(selected, letterLocale);
+    const toAddress = addressHtmlBreaksToNewlines(
+      formatAddressMasterMultiline(selected, letterLocale),
+    );
     setGeneralFields((prev) => ({
       ...prev,
-      to: formatWardToWithAddress(selected, letterLocale),
+      toName,
+      toAddress,
+      to: syncGeneralToBlock(toName, toAddress),
     }));
-    if (fieldErrors.to) {
-      setFieldErrors((prev) => ({ ...prev, to: undefined }));
+    if (fieldErrors.to || fieldErrors.toName || fieldErrors.toAddress) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        to: undefined,
+        toName: undefined,
+        toAddress: undefined,
+      }));
     }
   };
 
@@ -2880,7 +2953,13 @@ export function LetterGeneration({
     };
 
     if (formTab === 'general') {
-      requireField(errors, 'to', generalFields.to, requiredMsg);
+      requireField(errors, 'toName', generalFields.toName, requiredMsg);
+      requireField(
+        errors,
+        'toAddress',
+        generalFields.toAddress || generalFields.to,
+        requiredMsg,
+      );
       requireField(errors, 'subject', generalFields.subject, requiredMsg);
       requireField(errors, 'paragraphs', generalFields.paragraphs, requiredMsg);
     } else if (formTab === 'fees') {
@@ -4237,7 +4316,6 @@ export function LetterGeneration({
                       <FieldGroup
                         label={lt('letterGeneration.fields.to')}
                         required
-                        error={fieldErrors.to}
                       >
                         <div className="space-y-2">
                           <Combobox
@@ -4248,24 +4326,84 @@ export function LetterGeneration({
                               'letterGeneration.addresses.selectPlaceholder',
                             )}
                             emptyMessage={lt('letterGeneration.addresses.empty')}
-                            aria-invalid={!!fieldErrors.to}
+                            aria-invalid={
+                              !!fieldErrors.toName ||
+                              !!fieldErrors.toAddress ||
+                              !!fieldErrors.to
+                            }
                           />
-                          <LocaleTextarea
-                            locale={letterLocale}
-                            value={generalFields.to}
-                            onValueChange={(to) => {
-                              if (generalToAddressId) setGeneralToAddressId(null);
-                              setGeneralFields({ ...generalFields, to });
-                              if (fieldErrors.to) {
-                                setFieldErrors((prev) => ({
-                                  ...prev,
-                                  to: undefined,
-                                }));
-                              }
-                            }}
-                            rows={4}
-                            required
-                          />
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">
+                              {lt('letterGeneration.addresses.columns.holder')} *
+                            </Label>
+                            <LocaleTextInput
+                              locale={letterLocale}
+                              value={generalFields.toName}
+                              onValueChange={(toName) => {
+                                if (generalToAddressId) setGeneralToAddressId(null);
+                                setGeneralFields({
+                                  ...generalFields,
+                                  toName,
+                                  to: syncGeneralToBlock(
+                                    toName,
+                                    generalFields.toAddress,
+                                  ),
+                                });
+                                if (fieldErrors.toName || fieldErrors.to) {
+                                  setFieldErrors((prev) => ({
+                                    ...prev,
+                                    toName: undefined,
+                                    to: undefined,
+                                  }));
+                                }
+                              }}
+                              placeholder={lt(
+                                'letterGeneration.placeholders.toName',
+                              )}
+                              required
+                              aria-invalid={!!fieldErrors.toName}
+                            />
+                            {fieldErrors.toName ? (
+                              <p className="text-xs text-destructive">
+                                {fieldErrors.toName}
+                              </p>
+                            ) : null}
+                          </div>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs">
+                              {lt('letterGeneration.fields.address')} *
+                            </Label>
+                            <LocaleTextarea
+                              locale={letterLocale}
+                              value={generalFields.toAddress}
+                              onValueChange={(toAddress) => {
+                                if (generalToAddressId) setGeneralToAddressId(null);
+                                setGeneralFields({
+                                  ...generalFields,
+                                  toAddress,
+                                  to: syncGeneralToBlock(
+                                    generalFields.toName,
+                                    toAddress,
+                                  ),
+                                });
+                                if (fieldErrors.toAddress || fieldErrors.to) {
+                                  setFieldErrors((prev) => ({
+                                    ...prev,
+                                    toAddress: undefined,
+                                    to: undefined,
+                                  }));
+                                }
+                              }}
+                              rows={4}
+                              required
+                              aria-invalid={!!fieldErrors.toAddress}
+                            />
+                            {fieldErrors.toAddress || fieldErrors.to ? (
+                              <p className="text-xs text-destructive">
+                                {fieldErrors.toAddress ?? fieldErrors.to}
+                              </p>
+                            ) : null}
+                          </div>
                         </div>
                       </FieldGroup>
                       <FieldGroup
