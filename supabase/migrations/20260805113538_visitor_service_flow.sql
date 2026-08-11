@@ -18,8 +18,47 @@ ALTER TABLE public."Visitor"
   DROP COLUMN IF EXISTS programme_event_id,
   DROP COLUMN IF EXISTS visit_date;
 
-ALTER TABLE public."Visitor"
-  RENAME COLUMN contact_number TO mobile_number;
+-- Idempotent: prod/local may already lack contact_number or already have mobile_number.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'Visitor'
+      AND column_name = 'contact_number'
+  ) AND NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'Visitor'
+      AND column_name = 'mobile_number'
+  ) THEN
+    ALTER TABLE public."Visitor"
+      RENAME COLUMN contact_number TO mobile_number;
+  ELSIF NOT EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'Visitor'
+      AND column_name = 'mobile_number'
+  ) THEN
+    ALTER TABLE public."Visitor"
+      ADD COLUMN mobile_number character varying(20) NOT NULL DEFAULT '';
+    ALTER TABLE public."Visitor"
+      ALTER COLUMN mobile_number DROP DEFAULT;
+  ELSIF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'Visitor'
+      AND column_name = 'contact_number'
+  ) THEN
+    -- Both columns exist: keep mobile_number, drop legacy contact_number.
+    ALTER TABLE public."Visitor"
+      DROP COLUMN contact_number;
+  END IF;
+END $$;
 
 ALTER TABLE public."Visitor"
   ADD COLUMN IF NOT EXISTS voter_id character varying(20);
