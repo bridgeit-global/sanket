@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { parseManageFiltersFromSearchParams } from '@/lib/operator/manage-url-params';
 
 type VisitorWorkflowProps = {
-  initialTab?: 'visitor' | 'create' | 'tasks' | 'manage';
+  initialTab?: 'visitor' | 'meeting-lineup' | 'create' | 'tasks' | 'manage';
   initialTaskId?: string;
   initialTaskManageState?: ReturnType<typeof parseManageFiltersFromSearchParams>;
 };
@@ -32,9 +32,10 @@ const VisitorWorkflow = dynamic(
 function resolveVisitorTab(
   tab: string | undefined,
   hasTaskDeepLink: boolean,
-): 'visitor' | 'create' | 'tasks' {
+): 'visitor' | 'meeting-lineup' | 'tasks' {
   if (hasTaskDeepLink || tab === 'tasks' || tab === 'manage') return 'tasks';
-  if (tab === 'create' || tab === 'visitor') return tab;
+  if (tab === 'meeting-lineup' || tab === 'create') return 'meeting-lineup';
+  if (tab === 'visitor') return tab;
   return 'visitor';
 }
 

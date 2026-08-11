@@ -117,12 +117,16 @@ export async function GET(
       relatedVotersData,
       cadreMembers,
       votingHistory,
+      relatedVotingHistories,
     ] = await Promise.all([
       getVoterBeneficiaryServices(voter.epicNumber),
       getVoterMobileNumbersByEpicNumbers(allEpicNumbers),
       getRelatedVotersServicesAndEvents(relatedVoters),
       getCadreMembersByEpicNumber(epic),
       getVoterVotingHistory(epic),
+      Promise.all(
+        relatedVoters.map((rv) => getVoterVotingHistory(rv.epicNumber)),
+      ),
     ]);
 
     const voterMobileNumbers = mobileNumbersMap.get(voter.epicNumber) || [];
@@ -130,9 +134,10 @@ export async function GET(
     const dailyProgrammeEvents =
       await getVoterDailyProgrammeEvents(contactNumbers);
 
-    const relatedVotersWithMobileNumbers = relatedVoters.map((rv) => ({
+    const relatedVotersWithMobileNumbers = relatedVoters.map((rv, index) => ({
       ...rv,
       mobileNumbers: mobileNumbersMap.get(rv.epicNumber) || [],
+      votingHistory: relatedVotingHistories[index] ?? [],
     }));
 
     const serviceIds = new Set<string>();

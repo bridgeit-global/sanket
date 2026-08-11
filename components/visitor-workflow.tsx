@@ -57,7 +57,7 @@ import {
   type AadhaarQrData,
 } from '@/lib/aadhaar/decode-qr-payload';
 
-type WorkflowTab = 'visitor' | 'create' | 'tasks';
+type WorkflowTab = 'visitor' | 'meeting-lineup' | 'tasks';
 
 type IndividualServiceRow = {
   id: string;
@@ -120,20 +120,17 @@ type AttachmentSummary = {
   createdAt: string | Date;
 };
 
-type RelatedVoterRow = VoterMaster & {
-  mobileNumbers?: Array<{ mobileNumber: string; sortOrder: number }>;
-};
-
 type VotingHistoryRow = {
   epicNumber: string;
   electionId: string;
   hasVoted: boolean | null;
-  boothName: string | null;
-  boothAddress: string | null;
-  boothNo: string | null;
-  srNo: string | null;
   electionYear: number | null;
   electionType: string | null;
+};
+
+type RelatedVoterRow = VoterMaster & {
+  mobileNumbers?: Array<{ mobileNumber: string; sortOrder: number }>;
+  votingHistory?: VotingHistoryRow[];
 };
 
 type VisitorVoterDetails = {
@@ -268,7 +265,9 @@ function extractTokenFromQrPayload(payload: string): string | null {
 }
 
 function normalizeInitialTab(tab?: string): WorkflowTab {
-  if (tab === 'create' || tab === 'visitor') return tab;
+  if (tab === 'visitor') return tab;
+  // Prefer meeting-lineup; accept legacy ?tab=create deep links.
+  if (tab === 'meeting-lineup' || tab === 'create') return 'meeting-lineup';
   // Legacy ?tab=manage and ?tab=tasks both open Manage Tasks.
   if (tab === 'tasks' || tab === 'manage') return 'tasks';
   return 'visitor';
@@ -351,7 +350,8 @@ export function VisitorWorkflow({
   const [programmeId, setProgrammeId] = useState(() => readStoredLinkedProgramme());
   const [programmesLoaded, setProgrammesLoaded] = useState(false);
 
-  // Create Service tab
+  // Meeting Line Up tab — filters collapsed by default; visitor lineup always visible
+  const [createServiceFiltersOpen, setCreateServiceFiltersOpen] = useState(false);
   const [selectedVisitor, setSelectedVisitor] = useState<VisitorRow | null>(null);
   const [pendingServiceName, setPendingServiceName] = useState('');
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
@@ -460,14 +460,6 @@ export function VisitorWorkflow({
   function handleProgrammeChange(value: string) {
     setProgrammeId(value);
     writeStoredLinkedProgramme(value);
-    setCreatePickerPage(1);
-    if (
-      selectedVisitor &&
-      value &&
-      (selectedVisitor.programmeId ?? '') !== value
-    ) {
-      setSelectedVisitor(null);
-    }
   }
 
   const loadCreatePickerVisitors = useCallback(
@@ -478,7 +470,6 @@ export function VisitorWorkflow({
       name?: string;
       createdFrom?: string;
       createdTo?: string;
-      programmeId?: string;
       page?: number;
       limit?: number;
     }): Promise<VisitorRow[]> => {
@@ -490,8 +481,6 @@ export function VisitorWorkflow({
         const name = overrides?.name ?? createFilterName;
         const createdFrom = overrides?.createdFrom ?? createFilterCreatedFrom;
         const createdTo = overrides?.createdTo ?? createFilterCreatedTo;
-        const programme =
-          overrides?.programmeId !== undefined ? overrides.programmeId : programmeId;
         const page = overrides?.page ?? createPickerPage;
         const limit = overrides?.limit ?? createPickerPageSize;
 
@@ -502,7 +491,6 @@ export function VisitorWorkflow({
         if (name) params.set('name', name);
         if (createdFrom) params.set('createdFrom', createdFrom);
         if (createdTo) params.set('createdTo', createdTo);
-        if (programme) params.set('programmeId', programme);
         params.set('page', String(page));
         params.set('limit', String(limit));
 
@@ -533,20 +521,19 @@ export function VisitorWorkflow({
       createFilterName,
       createFilterCreatedFrom,
       createFilterCreatedTo,
-      programmeId,
       createPickerPage,
       createPickerPageSize,
     ],
   );
 
   useEffect(() => {
-    if (tab === 'create') {
+    if (tab === 'meeting-lineup') {
       void loadCreatePickerVisitors();
     }
   }, [tab, loadCreatePickerVisitors]);
 
   useEffect(() => {
-    if (tab !== 'create') return;
+    if (tab !== 'meeting-lineup') return;
     const handle = window.setTimeout(() => {
       const nextToken = createFilterTokenInput.trim();
       const nextMobileRaw = createFilterMobileInput.trim();
@@ -1349,7 +1336,7 @@ export function VisitorWorkflow({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           serviceNames: servicesToCreate,
-          programmeId: programmeId || null,
+          programmeId: selectedVisitor.programmeId || null,
           notes: notes.trim() || null,
         }),
       });
@@ -1437,8 +1424,8 @@ export function VisitorWorkflow({
           <span className="sm:hidden">{t('visitor.tabs.visitorShort')}</span>
         </Button>
         <Button
-          variant={tab === 'create' ? 'default' : 'ghost'}
-          onClick={() => switchTab('create')}
+          variant={tab === 'meeting-lineup' ? 'default' : 'ghost'}
+          onClick={() => switchTab('meeting-lineup')}
           className="flex-1 text-sm sm:text-base"
         >
           <span className="hidden sm:inline">{t('visitor.tabs.createService')}</span>
@@ -1516,7 +1503,7 @@ export function VisitorWorkflow({
                         createdAt: createdVisitorSnapshot.createdAt,
                         services: [],
                       });
-                      switchTab('create');
+                      switchTab('meeting-lineup');
                     }}
                   >
                     {t('visitor.create.addServicesNext')}
@@ -1760,7 +1747,7 @@ export function VisitorWorkflow({
         </>
       )}
 
-      {tab === 'create' && (
+      {tab === 'meeting-lineup' && (
         <>
           <QrScannerDialog
             open={showTokenQrScanner}
@@ -1769,134 +1756,208 @@ export function VisitorWorkflow({
             title={t('visitor.manage.actions.scanTokenQrTitle')}
             description={t('visitor.manage.actions.scanTokenQrDescription')}
           />
-          <Card>
-            <CardHeader>
-              <CardTitle>{t('visitor.create.serviceTitle')}</CardTitle>
-              <CardDescription className="text-sm">
-                {t('visitor.create.serviceDescription')}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2 border-b pb-4">
-                <Label>{t('visitor.form.programme')}</Label>
-                <Combobox
-                  options={programmeOptions}
-                  value={programmeId}
-                  onValueChange={handleProgrammeChange}
-                  placeholder={t('visitor.form.programmePlaceholder')}
-                  disabled={loadingMeta}
-                />
+          <Card id="create-service-form">
+            <CardHeader className="p-4 sm:p-6" id="create-service-form-header">
+              <div className="min-w-0 space-y-1">
+                <CardTitle className="text-base sm:text-lg">
+                  {t('visitor.create.serviceTitle')}
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  {t('visitor.create.serviceDescription')}
+                </CardDescription>
               </div>
-
+            </CardHeader>
+            <CardContent
+              id="create-service-form-content"
+              aria-labelledby="create-service-form-header"
+              className="space-y-6"
+            >
               <div className="space-y-3">
-                <div className="space-y-1">
-                  <Label>{t('visitor.form.selectVisitor')}</Label>
-                  <p className="text-sm text-muted-foreground">
-                    {t('visitor.form.selectVisitorHelp')}
-                  </p>
-                </div>
-
-                <div className="space-y-4 rounded-lg border p-3 sm:p-4">
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="create-visitor-created-from-filter">
-                        {t('visitor.manage.filters.createdFrom')}
-                      </Label>
-                      <Input
-                        id="create-visitor-created-from-filter"
-                        type="date"
-                        value={createFilterCreatedFrom}
-                        max={createFilterCreatedTo || undefined}
-                        onChange={(e) => {
-                          setCreateFilterCreatedFrom(e.target.value);
-                          setCreatePickerPage(1);
-                        }}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="create-visitor-created-to-filter">
-                        {t('visitor.manage.filters.createdTo')}
-                      </Label>
-                      <Input
-                        id="create-visitor-created-to-filter"
-                        type="date"
-                        value={createFilterCreatedTo}
-                        min={createFilterCreatedFrom || undefined}
-                        onChange={(e) => {
-                          setCreateFilterCreatedTo(e.target.value);
-                          setCreatePickerPage(1);
-                        }}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="create-visitor-token-filter">
-                        {t('visitor.manage.filters.token')}
-                      </Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="create-visitor-token-filter"
-                          placeholder={t('visitor.manage.filters.enterToken')}
-                          value={createFilterTokenInput}
-                          onChange={(e) => setCreateFilterTokenInput(e.target.value)}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="shrink-0"
-                          title={t('visitor.manage.actions.scanTokenQr')}
-                          onClick={() => setShowTokenQrScanner(true)}
-                        >
-                          <QrCode className="h-4 w-4" />
-                        </Button>
+                <div className="overflow-hidden rounded-lg border">
+                  <div
+                    className="cursor-pointer select-none p-3 transition-colors hover:bg-muted/50 sm:p-4"
+                    onClick={() => setCreateServiceFiltersOpen((open) => !open)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setCreateServiceFiltersOpen((open) => !open);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={createServiceFiltersOpen}
+                    aria-controls="create-service-filters-content"
+                    id="create-service-filters-header"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 space-y-1">
+                        <Label className="cursor-pointer text-sm font-medium">
+                          {t('visitor.form.selectVisitor')}
+                        </Label>
+                        <p className="text-sm text-muted-foreground">
+                          {t('visitor.form.selectVisitorHelp')}
+                        </p>
                       </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="create-visitor-name-filter">
-                        {t('visitor.manage.filters.name')}
-                      </Label>
-                      <Input
-                        id="create-visitor-name-filter"
-                        placeholder={t('visitor.manage.filters.enterName')}
-                        value={createFilterNameInput}
-                        onChange={(e) => setCreateFilterNameInput(e.target.value)}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="create-visitor-mobile-filter">
-                        {t('visitor.manage.filters.mobileNumber')}
-                      </Label>
-                      <Input
-                        id="create-visitor-mobile-filter"
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        autoComplete="tel"
-                        maxLength={10}
-                        placeholder={t('visitor.manage.filters.enterMobile')}
-                        value={createFilterMobileInput}
-                        onChange={(e) =>
-                          setCreateFilterMobileInput(
-                            e.target.value.replace(/\D/g, '').slice(0, 10),
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="create-visitor-voter-filter">
-                        {t('visitor.manage.filters.voterId')}
-                      </Label>
-                      <Input
-                        id="create-visitor-voter-filter"
-                        placeholder={t('visitor.manage.filters.enterVoterId')}
-                        value={createFilterVoterIdInput}
-                        onChange={(e) => setCreateFilterVoterIdInput(e.target.value)}
-                        className="font-mono uppercase"
-                        spellCheck={false}
-                        autoCapitalize="characters"
-                      />
+                      {createServiceFiltersOpen ? (
+                        <ChevronUp
+                          className="mt-1 size-5 shrink-0 text-muted-foreground"
+                          aria-hidden
+                        />
+                      ) : (
+                        <ChevronDown
+                          className="mt-1 size-5 shrink-0 text-muted-foreground"
+                          aria-hidden
+                        />
+                      )}
                     </div>
                   </div>
 
+                  {createServiceFiltersOpen ? (
+                    <div
+                      id="create-service-filters-content"
+                      aria-labelledby="create-service-filters-header"
+                      className="space-y-4 border-t p-3 sm:p-4"
+                    >
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="create-visitor-created-from-filter">
+                            {t('visitor.manage.filters.createdFrom')}
+                          </Label>
+                          <Input
+                            id="create-visitor-created-from-filter"
+                            type="date"
+                            value={createFilterCreatedFrom}
+                            max={createFilterCreatedTo || undefined}
+                            onChange={(e) => {
+                              setCreateFilterCreatedFrom(e.target.value);
+                              setCreatePickerPage(1);
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="create-visitor-created-to-filter">
+                            {t('visitor.manage.filters.createdTo')}
+                          </Label>
+                          <Input
+                            id="create-visitor-created-to-filter"
+                            type="date"
+                            value={createFilterCreatedTo}
+                            min={createFilterCreatedFrom || undefined}
+                            onChange={(e) => {
+                              setCreateFilterCreatedTo(e.target.value);
+                              setCreatePickerPage(1);
+                            }}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="create-visitor-token-filter">
+                            {t('visitor.manage.filters.token')}
+                          </Label>
+                          <div className="flex gap-2">
+                            <Input
+                              id="create-visitor-token-filter"
+                              placeholder={t('visitor.manage.filters.enterToken')}
+                              value={createFilterTokenInput}
+                              onChange={(e) => setCreateFilterTokenInput(e.target.value)}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="shrink-0"
+                              title={t('visitor.manage.actions.scanTokenQr')}
+                              onClick={() => setShowTokenQrScanner(true)}
+                            >
+                              <QrCode className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="create-visitor-name-filter">
+                            {t('visitor.manage.filters.name')}
+                          </Label>
+                          <Input
+                            id="create-visitor-name-filter"
+                            placeholder={t('visitor.manage.filters.enterName')}
+                            value={createFilterNameInput}
+                            onChange={(e) => setCreateFilterNameInput(e.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="create-visitor-mobile-filter">
+                            {t('visitor.manage.filters.mobileNumber')}
+                          </Label>
+                          <Input
+                            id="create-visitor-mobile-filter"
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            autoComplete="tel"
+                            maxLength={10}
+                            placeholder={t('visitor.manage.filters.enterMobile')}
+                            value={createFilterMobileInput}
+                            onChange={(e) =>
+                              setCreateFilterMobileInput(
+                                e.target.value.replace(/\D/g, '').slice(0, 10),
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label htmlFor="create-visitor-voter-filter">
+                            {t('visitor.manage.filters.voterId')}
+                          </Label>
+                          <Input
+                            id="create-visitor-voter-filter"
+                            placeholder={t('visitor.manage.filters.enterVoterId')}
+                            value={createFilterVoterIdInput}
+                            onChange={(e) => setCreateFilterVoterIdInput(e.target.value)}
+                            className="font-mono uppercase"
+                            spellCheck={false}
+                            autoCapitalize="characters"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end">
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            const applied = applyCreatePickerFiltersFromInputs();
+                            if (!applied) return;
+                            void loadCreatePickerVisitors({
+                              ...applied,
+                              page: 1,
+                            });
+                          }}
+                          disabled={loadingCreatePicker}
+                          className="w-full sm:w-auto"
+                        >
+                          {loadingCreatePicker ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              {t('visitor.manage.actions.searching')}
+                            </>
+                          ) : (
+                            <>
+                              <Search className="mr-2 h-4 w-4" />
+                              {t('visitor.manage.actions.search')}
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={clearCreatePickerFilters}
+                          className="w-full sm:w-auto"
+                        >
+                          {t('visitor.manage.actions.clearFilters')}
+                        </Button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div className="space-y-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <p className="text-sm text-muted-foreground">
                       {t('visitor.manage.filters.showing', {
@@ -1904,63 +1965,28 @@ export function VisitorWorkflow({
                         total: createPickerTotal,
                       })}
                     </p>
-                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                      <Button
-                        type="button"
-                        onClick={() => {
-                          const applied = applyCreatePickerFiltersFromInputs();
-                          if (!applied) return;
-                          void loadCreatePickerVisitors({
-                            ...applied,
-                            page: 1,
-                          });
-                        }}
-                        disabled={loadingCreatePicker}
-                        className="w-full sm:w-auto"
-                      >
-                        {loadingCreatePicker ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            {t('visitor.manage.actions.searching')}
-                          </>
-                        ) : (
-                          <>
-                            <Search className="mr-2 h-4 w-4" />
-                            {t('visitor.manage.actions.search')}
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={clearCreatePickerFilters}
-                        className="w-full sm:w-auto"
-                      >
-                        {t('visitor.manage.actions.clearFilters')}
-                      </Button>
-                      {createPickerVisitors.length > 0 ? (
-                        <>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={expandAllVisitorCards}
-                            className="w-full sm:w-auto"
-                          >
-                            <ChevronDown className="mr-2 h-4 w-4" />
-                            {t('visitor.manage.expandAll')}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={collapseAllVisitorCards}
-                            className="w-full sm:w-auto"
-                          >
-                            <ChevronUp className="mr-2 h-4 w-4" />
-                            {t('visitor.manage.collapseAll')}
-                          </Button>
-                        </>
-                      ) : null}
-                    </div>
+                    {createPickerVisitors.length > 0 ? (
+                      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={expandAllVisitorCards}
+                          className="w-full sm:w-auto"
+                        >
+                          <ChevronDown className="mr-2 h-4 w-4" />
+                          {t('visitor.manage.expandAll')}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={collapseAllVisitorCards}
+                          className="w-full sm:w-auto"
+                        >
+                          <ChevronUp className="mr-2 h-4 w-4" />
+                          {t('visitor.manage.collapseAll')}
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
 
                   {loadingCreatePicker && createPickerVisitors.length === 0 ? (
@@ -2117,18 +2143,18 @@ export function VisitorWorkflow({
                                               </p>
                                             </div>
                                             <div className="flex flex-wrap items-center gap-2">
-                                              <Badge
-                                                variant={
-                                                  service.status === 'cancelled'
-                                                    ? 'destructive'
-                                                    : service.status === 'converted'
-                                                      ? 'default'
+                                              {service.status !== 'converted' ? (
+                                                <Badge
+                                                  variant={
+                                                    service.status === 'cancelled'
+                                                      ? 'destructive'
                                                       : 'secondary'
-                                                }
-                                                className="w-fit shrink-0 capitalize"
-                                              >
-                                                {t(`visitor.status.${service.status}`)}
-                                              </Badge>
+                                                  }
+                                                  className="w-fit shrink-0 capitalize"
+                                                >
+                                                  {t(`visitor.status.${service.status}`)}
+                                                </Badge>
+                                              ) : null}
                                               {service.canChangeService ? (
                                                 <Button
                                                   type="button"
@@ -2291,79 +2317,55 @@ export function VisitorWorkflow({
                                           {details.votingHistory.map((record) => (
                                             <li
                                               key={`${record.epicNumber}-${record.electionId}`}
-                                              className="space-y-1 rounded-lg border bg-muted/10 px-3 py-2.5"
+                                              className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/10 px-3 py-2.5"
                                             >
-                                              <div className="flex flex-wrap items-center gap-2">
-                                                <p className="text-sm font-medium">
-                                                  {record.electionType &&
-                                                  record.electionYear
-                                                    ? t(
-                                                        'visitor.manage.electionLabel',
-                                                        {
-                                                          type: record.electionType,
-                                                          year: record.electionYear,
-                                                        },
-                                                      )
-                                                    : record.electionId}
-                                                </p>
-                                                <Badge
-                                                  variant={
-                                                    record.hasVoted
-                                                      ? 'default'
-                                                      : 'secondary'
-                                                  }
-                                                >
-                                                  {record.hasVoted
-                                                    ? t('visitor.manage.voted')
-                                                    : t('visitor.manage.notVoted')}
-                                                </Badge>
-                                              </div>
-                                              <p className="text-xs text-muted-foreground">
-                                                {[
-                                                  record.boothNo
-                                                    ? `${t('visitor.manage.booth')}: ${record.boothNo}`
-                                                    : null,
-                                                  record.srNo
-                                                    ? `${t('visitor.manage.serialNumber')}: ${record.srNo}`
-                                                    : null,
-                                                  record.boothName,
-                                                ]
-                                                  .filter(Boolean)
-                                                  .join(' · ')}
+                                              <p className="text-sm font-medium">
+                                                {record.electionType &&
+                                                record.electionYear
+                                                  ? t(
+                                                      'visitor.manage.electionLabel',
+                                                      {
+                                                        type: record.electionType,
+                                                        year: record.electionYear,
+                                                      },
+                                                    )
+                                                  : record.electionId}
                                               </p>
-                                              {record.boothAddress ? (
-                                                <p className="text-xs text-muted-foreground">
-                                                  {record.boothAddress}
-                                                </p>
-                                              ) : null}
+                                              <Badge
+                                                variant={
+                                                  record.hasVoted
+                                                    ? 'default'
+                                                    : 'secondary'
+                                                }
+                                              >
+                                                {record.hasVoted
+                                                  ? t('visitor.manage.voted')
+                                                  : t('visitor.manage.notVoted')}
+                                              </Badge>
                                             </li>
                                           ))}
                                         </ul>
                                       )}
                                     </section>
 
-                                    <section className="space-y-2">
-                                      <div className="flex flex-wrap items-center justify-between gap-2">
-                                        <p className="text-xs font-medium text-muted-foreground">
-                                          {t('visitor.manage.cadreHierarchy')}
-                                        </p>
-                                        <Button
-                                          type="button"
-                                          size="sm"
-                                          variant="link"
-                                          className="h-auto p-0"
-                                          asChild
-                                        >
-                                          <Link href="/modules/hierarchy">
-                                            {t('visitor.manage.openHierarchy')}
-                                          </Link>
-                                        </Button>
-                                      </div>
-                                      {details.cadreMembers.length === 0 ? (
-                                        <p className="text-sm text-muted-foreground">
-                                          {t('visitor.manage.notInCadre')}
-                                        </p>
-                                      ) : (
+                                    {details.cadreMembers.length > 0 ? (
+                                      <section className="space-y-2">
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                          <p className="text-xs font-medium text-muted-foreground">
+                                            {t('visitor.manage.cadreHierarchy')}
+                                          </p>
+                                          <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="link"
+                                            className="h-auto p-0"
+                                            asChild
+                                          >
+                                            <Link href="/modules/hierarchy">
+                                              {t('visitor.manage.openHierarchy')}
+                                            </Link>
+                                          </Button>
+                                        </div>
                                         <ul className="space-y-2">
                                           {details.cadreMembers.map((member) => (
                                             <li
@@ -2381,14 +2383,6 @@ export function VisitorWorkflow({
                                               {member.personPhone ? (
                                                 <p className="text-xs text-muted-foreground">
                                                   {member.personPhone}
-                                                </p>
-                                              ) : null}
-                                              {member.verticals.length > 0 ? (
-                                                <p className="text-xs text-muted-foreground">
-                                                  {t('visitor.manage.verticals')}:{' '}
-                                                  {member.verticals
-                                                    .map((vert) => vert.name)
-                                                    .join(', ')}
                                                 </p>
                                               ) : null}
                                               {member.posts.length > 0 ? (
@@ -2434,8 +2428,8 @@ export function VisitorWorkflow({
                                             </li>
                                           ))}
                                         </ul>
-                                      )}
-                                    </section>
+                                      </section>
+                                    ) : null}
 
                                     <section className="space-y-2">
                                       <p className="text-xs font-medium text-muted-foreground">
@@ -2597,6 +2591,8 @@ export function VisitorWorkflow({
                                                 .length ?? 0) +
                                               (relatedBundle?.services.community.length ??
                                                 0);
+                                            const relatedVotingHistory =
+                                              rv.votingHistory ?? [];
                                             return (
                                               <li
                                                 key={rv.epicNumber}
@@ -2632,6 +2628,47 @@ export function VisitorWorkflow({
                                                       count: relatedServiceCount,
                                                     })}
                                                   </p>
+                                                ) : null}
+                                                {relatedVotingHistory.length > 0 ? (
+                                                  <ul className="mt-2 space-y-1.5">
+                                                    {relatedVotingHistory.map(
+                                                      (record) => (
+                                                        <li
+                                                          key={`${record.epicNumber}-${record.electionId}`}
+                                                          className="flex flex-wrap items-center gap-2"
+                                                        >
+                                                          <p className="text-xs font-medium">
+                                                            {record.electionType &&
+                                                            record.electionYear
+                                                              ? t(
+                                                                  'visitor.manage.electionLabel',
+                                                                  {
+                                                                    type: record.electionType,
+                                                                    year: record.electionYear,
+                                                                  },
+                                                                )
+                                                              : record.electionId}
+                                                          </p>
+                                                          <Badge
+                                                            variant={
+                                                              record.hasVoted
+                                                                ? 'default'
+                                                                : 'secondary'
+                                                            }
+                                                            className="text-[10px]"
+                                                          >
+                                                            {record.hasVoted
+                                                              ? t(
+                                                                  'visitor.manage.voted',
+                                                                )
+                                                              : t(
+                                                                  'visitor.manage.notVoted',
+                                                                )}
+                                                          </Badge>
+                                                        </li>
+                                                      ),
+                                                    )}
+                                                  </ul>
                                                 ) : null}
                                               </li>
                                             );
