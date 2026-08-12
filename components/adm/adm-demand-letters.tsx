@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FileText, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from '@/components/toast';
 import { Button } from '@/components/ui/button';
@@ -58,7 +58,7 @@ export function AdmDemandLetters({
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
-  const loadLetters = useCallback(async () => {
+  const loadLetters = useCallback(async (signal?: AbortSignal) => {
     try {
       setLoading(true);
       const params = new URLSearchParams();
@@ -68,6 +68,7 @@ export function AdmDemandLetters({
       const qs = params.toString();
       const response = await fetch(
         qs ? `/api/adm/demand-letters?${qs}` : '/api/adm/demand-letters',
+        { signal },
       );
       if (!response.ok) {
         throw new Error('Failed to load demand letters');
@@ -75,20 +76,39 @@ export function AdmDemandLetters({
       const data = (await response.json()) as AdmDemandLetter[];
       setLetters(data);
     } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
       console.error('Error loading demand letters:', error);
       toast.error(t('adm.demandLetters.failedToLoad'));
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
-  }, [titleFilter, fromDate, toDate, t]);
+    // `t` is recreated every render by useTranslations — do not list it here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [titleFilter, fromDate, toDate]);
 
   useEffect(() => {
-    loadLetters();
+    const controller = new AbortController();
+    loadLetters(controller.signal);
+    return () => controller.abort();
   }, [loadLetters]);
 
   useEffect(() => {
     setPage(1);
   }, [titleFilter, fromDate, toDate]);
+
+  const paginationOptions = useMemo(
+    () => ({
+      page,
+      pageSize,
+      onPageChange: setPage,
+      onPageSizeChange: setPageSize,
+    }),
+    [page, pageSize],
+  );
 
   const {
     paginatedItems,
@@ -97,12 +117,7 @@ export function AdmDemandLetters({
     pageSize: currentPageSize,
     handlePageChange,
     handlePageSizeChange,
-  } = usePagination(letters, 10, {
-    page,
-    pageSize,
-    onPageChange: setPage,
-    onPageSizeChange: setPageSize,
-  });
+  } = usePagination(letters, 10, paginationOptions);
 
   const resetForm = () => {
     setFormTitle('');
