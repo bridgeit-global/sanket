@@ -1,0 +1,37 @@
+---
+description: Never drop or delete database rows, tables, or schema in migrations or agent work
+alwaysApply: true
+---
+
+# Database: never drop anything
+
+Do **not** delete or drop database data or schema as part of migrations, seeds, scripts, or agent work.
+
+## Forbidden
+
+- `DELETE FROM …` against application tables (including “cleanup” of legacy/unused seed rows)
+- `TRUNCATE`
+- `DROP TABLE` / `DROP VIEW` / `DROP TYPE` / `DROP COLUMN` / destructive `ALTER … DROP`
+- Cascade deletes used to clear legacy catalogs
+- Wipe-and-replace seeds that remove existing rows
+
+## Required instead
+
+- Prefer `INSERT … ON CONFLICT DO UPDATE` / `DO NOTHING` (upsert) and additive schema changes
+- Leave obsolete rows in place; new seeds add the canonical set alongside them
+- If a column is obsolete, leave it unused unless the user **explicitly** asks to drop it
+- Application soft-deletes / user-initiated deletes via product APIs are fine; this rule is about migrations, seeds, and agent-driven DB changes
+
+## Examples
+
+```sql
+-- BAD
+DELETE FROM "public"."AdmFundingCategory" WHERE code IN ('MLA-FUND', 'GYM-ISSUE');
+DROP TABLE IF EXISTS "public"."LegacyThing";
+
+-- GOOD
+INSERT INTO "public"."AdmFundingCategory" ("code", "name", "display_order")
+VALUES ('MLA-1', 'MLA-1', 0)
+ON CONFLICT ("code") DO UPDATE
+SET name = EXCLUDED.name, display_order = EXCLUDED.display_order, updated_at = now();
+```

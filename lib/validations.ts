@@ -87,6 +87,15 @@ export const admDocumentLinkSchema = z.object({
 
 export type AdmDocumentLinkData = z.infer<typeof admDocumentLinkSchema>;
 
+export const admDemandLetterSchema = z.object({
+  title: z.string().trim().min(1, 'Title is required').max(500),
+  letterDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be yyyy-MM-dd'),
+});
+
+export type AdmDemandLetterData = z.infer<typeof admDemandLetterSchema>;
+
 export const projectDocumentKindSchema = z.enum([
   'approval_pdf',
   'sanction_letter',

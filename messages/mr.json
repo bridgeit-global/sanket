@@ -1452,7 +1452,39 @@
     "photosRemove": "काढा",
     "photosUploading": "अपलोड होत आहे...",
     "photosPending": "फोटो प्रलंबित",
-    "milestones": "मैलाचे दगड"
+    "milestones": "मैलाचे दगड",
+    "tabs": {
+      "funds": "निधी",
+      "demandLetters": "मागणी पत्रे"
+    },
+    "demandLetters": {
+      "add": "मागणी पत्र जोडा",
+      "date": "दिनांक",
+      "title": "शीर्षक",
+      "document": "दस्तऐवज",
+      "actions": "क्रिया",
+      "filterTitle": "शीर्षक",
+      "filterTitlePlaceholder": "शीर्षकानुसार फिल्टर करा...",
+      "fromDate": "पासून दिनांक",
+      "toDate": "पर्यंत दिनांक",
+      "titlePlaceholder": "उदा. अभिमा भाग १",
+      "fileHint": "PDF किंवा ऑफिस/प्रतिमा फाइल, कमाल २५MB",
+      "upload": "अपलोड",
+      "loading": "मागणी पत्रे लोड होत आहेत...",
+      "empty": "अद्याप मागणी पत्रे नाहीत.",
+      "noMatch": "आपल्या फिल्टरशी जुळणारी मागणी पत्रे नाहीत.",
+      "viewDocument": "दस्तऐवज पहा",
+      "delete": "मागणी पत्र हटवा",
+      "deleteDescription": "हे मागणी पत्र आणि त्याचा अपलोड केलेला दस्तऐवज हटवायचा का?",
+      "titleRequired": "शीर्षक आवश्यक आहे",
+      "dateRequired": "दिनांक आवश्यक आहे",
+      "fileRequired": "दस्तऐवज फाइल आवश्यक आहे",
+      "uploadedSuccess": "मागणी पत्र अपलोड झाले",
+      "deletedSuccess": "मागणी पत्र हटवले",
+      "failedToLoad": "मागणी पत्रे लोड करण्यात अयशस्वी",
+      "failedToUpload": "मागणी पत्र अपलोड करण्यात अयशस्वी",
+      "failedToDelete": "मागणी पत्र हटवण्यात अयशस्वी"
+    }
   },
   "dataExport": {
     "title": "डेटा एक्सपोर्ट",

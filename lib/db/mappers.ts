@@ -60,6 +60,7 @@ import type {
   AdmFundRecord,
   AdmFundAllocation,
   AdmDocument,
+  AdmDemandLetter,
   ProjectGroundMedia,
   ProjectApprovalStatus,
   ProjectNocStatus,
@@ -810,6 +811,20 @@ export function mapAdmDocumentRow(row: Row): AdmDocument {
     attachmentFileName: toStringOrNull(
       row.attachment_file_name ?? row.attachmentFileName,
     ),
+  };
+}
+
+export function mapAdmDemandLetterRow(row: Row): AdmDemandLetter {
+  return {
+    id: String(row.id),
+    letterDate: formatDateField(row.letter_date ?? row.letterDate),
+    title: String(row.title ?? ''),
+    fileName: String(row.file_name ?? row.fileName ?? ''),
+    fileSizeKb: Number(row.file_size_kb ?? row.fileSizeKb ?? 0),
+    fileUrl: String(row.file_url ?? row.fileUrl ?? ''),
+    uploadedBy: String(row.uploaded_by ?? row.uploadedBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
   };
 }
 

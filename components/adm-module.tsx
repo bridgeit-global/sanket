@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { toast } from '@/components/toast';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { AdmSkeleton } from '@/components/module-skeleton';
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -19,9 +20,11 @@ import type {
 import {
   buildAdmSearchParams,
   parseAdmFiltersFromSearchParams,
+  type AdmTab,
 } from '@/lib/adm/url-params';
 import { AdmProfileBanner } from './adm/adm-profile-banner';
 import { AdmFundsList } from './adm/adm-funds-list';
+import { AdmDemandLetters } from './adm/adm-demand-letters';
 import type { AdmProjectOption } from './adm/adm-fund-detail';
 
 export function AdmModule() {
@@ -37,6 +40,10 @@ export function AdmModule() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState(urlState.search);
   const [focusFundId, setFocusFundId] = useState(urlState.fund);
+  const [activeTab, setActiveTab] = useState<AdmTab>(urlState.tab);
+  const [dlTitle, setDlTitle] = useState(urlState.dlTitle);
+  const [dlFrom, setDlFrom] = useState(urlState.dlFrom);
+  const [dlTo, setDlTo] = useState(urlState.dlTo);
 
   const [deleteFundId, setDeleteFundId] = useState<string | null>(null);
   const [deleteAllocation, setDeleteAllocation] =
@@ -52,13 +59,27 @@ export function AdmModule() {
         {
           fund: updates.fund ?? focusFundId,
           search: updates.search ?? searchTerm,
+          tab: updates.tab ?? activeTab,
+          dlTitle: updates.dlTitle ?? dlTitle,
+          dlFrom: updates.dlFrom ?? dlFrom,
+          dlTo: updates.dlTo ?? dlTo,
         },
         new URLSearchParams(searchParams.toString()),
       );
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
-    [router, pathname, searchParams, focusFundId, searchTerm],
+    [
+      router,
+      pathname,
+      searchParams,
+      focusFundId,
+      searchTerm,
+      activeTab,
+      dlTitle,
+      dlFrom,
+      dlTo,
+    ],
   );
 
   useEffect(() => {
@@ -107,9 +128,30 @@ export function AdmModule() {
     }
   };
 
+  const handleTabChange = (value: string) => {
+    const tab = value === 'demand-letters' ? 'demand-letters' : 'funds';
+    setActiveTab(tab);
+    syncUrl({ tab });
+  };
+
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
     syncUrl({ search: value });
+  };
+
+  const handleDemandLetterFiltersChange = (updates: {
+    title?: string;
+    from?: string;
+    to?: string;
+  }) => {
+    if (updates.title !== undefined) setDlTitle(updates.title);
+    if (updates.from !== undefined) setDlFrom(updates.from);
+    if (updates.to !== undefined) setDlTo(updates.to);
+    syncUrl({
+      dlTitle: updates.title ?? dlTitle,
+      dlFrom: updates.from ?? dlFrom,
+      dlTo: updates.to ?? dlTo,
+    });
   };
 
   const handleSelectFund = (fundId: string) => {
@@ -348,38 +390,69 @@ export function AdmModule() {
 
       <AdmProfileBanner />
 
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          value={searchTerm}
-          onChange={(e) => handleSearchChange(e.target.value)}
-          placeholder={
-            focusFundId ? t('adm.searchFundsPlaceholder') : t('adm.searchPlaceholder')
-          }
-          className="min-h-11 pl-9"
-        />
-      </div>
+      <Tabs
+        value={activeTab}
+        onValueChange={handleTabChange}
+        className="space-y-4"
+      >
+        <TabsList className="h-10 w-full rounded-xl sm:w-auto">
+          <TabsTrigger value="funds" className="flex-1 rounded-lg sm:flex-none">
+            {t('adm.tabs.funds')}
+          </TabsTrigger>
+          <TabsTrigger
+            value="demand-letters"
+            className="flex-1 rounded-lg sm:flex-none"
+          >
+            {t('adm.tabs.demandLetters')}
+          </TabsTrigger>
+        </TabsList>
 
-      <AdmFundsList
-        categories={categories}
-        funds={funds}
-        searchTerm={searchTerm}
-        selectedFundId={focusFundId}
-        projects={projects}
-        onSelectFund={handleSelectFund}
-        onBackToList={handleBackToList}
-        onCreateFund={handleCreateFund}
-        onUpdateFund={handleUpdateFund}
-        onDeleteFund={(id) => setDeleteFundId(id)}
-        onAddAllocation={handleAddAllocation}
-        onCreateProject={handleCreateProject}
-        onUpdateAllocation={handleUpdateAllocation}
-        onDeleteAllocation={(a) => setDeleteAllocation(a)}
-        onUploadDocument={handleUploadDocument}
-        onDeleteDocument={(fundRecordId, document) =>
-          setDeleteDocument({ fundRecordId, document })
-        }
-      />
+        <TabsContent value="funds" className="space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              placeholder={
+                focusFundId
+                  ? t('adm.searchFundsPlaceholder')
+                  : t('adm.searchPlaceholder')
+              }
+              className="min-h-11 pl-9"
+            />
+          </div>
+
+          <AdmFundsList
+            categories={categories}
+            funds={funds}
+            searchTerm={searchTerm}
+            selectedFundId={focusFundId}
+            projects={projects}
+            onSelectFund={handleSelectFund}
+            onBackToList={handleBackToList}
+            onCreateFund={handleCreateFund}
+            onUpdateFund={handleUpdateFund}
+            onDeleteFund={(id) => setDeleteFundId(id)}
+            onAddAllocation={handleAddAllocation}
+            onCreateProject={handleCreateProject}
+            onUpdateAllocation={handleUpdateAllocation}
+            onDeleteAllocation={(a) => setDeleteAllocation(a)}
+            onUploadDocument={handleUploadDocument}
+            onDeleteDocument={(fundRecordId, document) =>
+              setDeleteDocument({ fundRecordId, document })
+            }
+          />
+        </TabsContent>
+
+        <TabsContent value="demand-letters" className="space-y-4">
+          <AdmDemandLetters
+            titleFilter={dlTitle}
+            fromDate={dlFrom}
+            toDate={dlTo}
+            onFiltersChange={handleDemandLetterFiltersChange}
+          />
+        </TabsContent>
+      </Tabs>
 
       <ConfirmDialog
         open={Boolean(deleteFundId)}

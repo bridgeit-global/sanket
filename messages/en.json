@@ -1452,7 +1452,39 @@
     "photosRemove": "Remove",
     "photosUploading": "Uploading...",
     "photosPending": "Photos pending",
-    "milestones": "Milestones"
+    "milestones": "Milestones",
+    "tabs": {
+      "funds": "Funds",
+      "demandLetters": "Demand Letters"
+    },
+    "demandLetters": {
+      "add": "Add Demand Letter",
+      "date": "Date",
+      "title": "Title",
+      "document": "Document",
+      "actions": "Actions",
+      "filterTitle": "Title",
+      "filterTitlePlaceholder": "Filter by title...",
+      "fromDate": "From date",
+      "toDate": "To date",
+      "titlePlaceholder": "e.g. Abhima Part 1",
+      "fileHint": "PDF or office/image file, max 25MB",
+      "upload": "Upload",
+      "loading": "Loading demand letters...",
+      "empty": "No demand letters yet.",
+      "noMatch": "No demand letters match your filters.",
+      "viewDocument": "View document",
+      "delete": "Delete Demand Letter",
+      "deleteDescription": "Delete this demand letter and its uploaded document?",
+      "titleRequired": "Title is required",
+      "dateRequired": "Date is required",
+      "fileRequired": "Document file is required",
+      "uploadedSuccess": "Demand letter uploaded",
+      "deletedSuccess": "Demand letter deleted",
+      "failedToLoad": "Failed to load demand letters",
+      "failedToUpload": "Failed to upload demand letter",
+      "failedToDelete": "Failed to delete demand letter"
+    }
   },
   "dataExport": {
     "title": "Data Export",

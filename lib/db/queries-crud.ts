@@ -31,6 +31,7 @@ import {
   mapAdmFundRecordRow,
   mapAdmFundAllocationRow,
   mapAdmDocumentRow,
+  mapAdmDemandLetterRow,
   mapProjectAttachmentRow,
   mapProjectGroundMediaRow,
   mapRegisterAttachmentRow,
@@ -88,6 +89,7 @@ import type {
   AdmFundAllocation,
   AdmFundAllocationWithProject,
   AdmDocument,
+  AdmDemandLetter,
   AdmFundingCategoryWithFunds,
   AdmFundRecordWithDetails,
   ProjectAttachment,
@@ -7359,6 +7361,134 @@ export async function deleteAdmDocument(id: string): Promise<boolean> {
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to delete ADM document');
+  }
+}
+
+// ─── ADM demand letters ──────────────────────────────────────────────────────
+
+export async function listAdmDemandLetters({
+  title,
+  from,
+  to,
+}: {
+  title?: string;
+  from?: string;
+  to?: string;
+} = {}): Promise<AdmDemandLetter[]> {
+  try {
+    let query = supabase
+      .from(TABLES.admDemandLetter)
+      .select('*')
+      .order('letter_date', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    const trimmedTitle = title?.trim();
+    if (trimmedTitle) {
+      query = query.ilike('title', `%${trimmedTitle}%`);
+    }
+    if (from) {
+      query = query.gte('letter_date', from);
+    }
+    if (to) {
+      query = query.lte('letter_date', to);
+    }
+
+    const { data, error } = await query;
+    throwOnSupabaseError(error, 'Failed to list ADM demand letters');
+    return (data ?? []).map(mapAdmDemandLetterRow);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to list ADM demand letters',
+    );
+  }
+}
+
+export async function getAdmDemandLetterById(
+  id: string,
+): Promise<AdmDemandLetter | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.admDemandLetter)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get ADM demand letter');
+    return data ? mapAdmDemandLetterRow(data) : null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get ADM demand letter',
+    );
+  }
+}
+
+export async function createAdmDemandLetter({
+  id,
+  letterDate,
+  title,
+  fileName,
+  fileSizeKb,
+  fileUrl,
+  uploadedBy,
+}: {
+  id?: string;
+  letterDate: string;
+  title: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl: string;
+  uploadedBy: string;
+}): Promise<AdmDemandLetter> {
+  try {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Demand letter title is required',
+      );
+    }
+
+    const { data, error } = await supabase
+      .from(TABLES.admDemandLetter)
+      .insert({
+        ...(id ? { id } : {}),
+        letter_date: letterDate,
+        title: trimmedTitle,
+        file_name: fileName,
+        file_size_kb: fileSizeKb,
+        file_url: fileUrl,
+        uploaded_by: uploadedBy,
+      })
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create ADM demand letter');
+    return mapAdmDemandLetterRow(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create ADM demand letter',
+    );
+  }
+}
+
+export async function deleteAdmDemandLetter(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from(TABLES.admDemandLetter)
+      .delete()
+      .eq('id', id);
+    throwOnSupabaseError(error, 'Failed to delete ADM demand letter');
+    return true;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete ADM demand letter',
+    );
   }
 }
 

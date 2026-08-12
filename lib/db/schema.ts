@@ -65,6 +65,7 @@ export const TABLES = {
   admFundRecord: 'AdmFundRecord',
   admFundAllocation: 'AdmFundAllocation',
   admDocument: 'AdmDocument',
+  admDemandLetter: 'AdmDemandLetter',
   projectGroundMedia: 'ProjectGroundMedia',
   shortUrl: 'ShortUrl',
 } as const;
@@ -957,6 +958,19 @@ export type AdmFundingCategoryWithFunds = AdmFundingCategory & {
   fundRecords: AdmFundRecordWithDetails[];
   allocatedBudget: number;
   totalBudget: number;
+};
+
+export type AdmDemandLetter = {
+  id: string;
+  /** IST calendar day as `yyyy-MM-dd`. */
+  letterDate: string;
+  title: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl: string;
+  uploadedBy: string;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export type CadreMemberWhatsApp = {
