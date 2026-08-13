@@ -123,6 +123,39 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   ${CLOSING}
 </div>`,
 
+  'college-admission': `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>दि. <span class="var">{{date}}</span></div>
+  </div>
+प्रति,<br>
+  <div class="address">
+    प्राचार्य,<br>
+    <span class="var" style="font-weight: bold;">{{collegeName}}</span>,<br>
+    <span style="font-weight: normal;">{{collegeAddress}}</span>
+  </div>
+  <div class="subject">
+    <span style="font-weight: normal;">विषय:</span> <span class="var">{{studentName}}</span> या विद्यार्थ्यास <span class="var">{{courseName}}</span> अभ्यासक्रमाच्या <span class="var">{{yearOrClass}}</span> मध्ये प्रवेश मिळण्याबाबत शिफारस.
+  </div>
+  <div class="salutation">
+    महोदय,
+  </div>
+  <p class="paragraph">
+    सदर पत्राद्वारे आपणास विनंती करण्यात येत आहे की, <span class="var">{{parentName}}</span>, रा. <span style="font-weight: normal;">{{address}}</span> यांचे पाल्य <span class="var">{{studentName}}</span> यास आपल्या महाविद्यालयात <span class="var">{{courseName}}</span> अभ्यासक्रमाच्या <span class="var">{{yearOrClass}}</span> मध्ये प्रवेश मिळण्याकरिता आपणाकडे शिफारस करण्यात येत आहे.
+  </p>
+  <p class="paragraph">
+    सदर विद्यार्थ्यास उच्च शिक्षणाची आवड असून, पुढील शैक्षणिक प्रगतीसाठी योग्य व दर्जेदार शैक्षणिक वातावरण मिळणे आवश्यक आहे. आपल्या महाविद्यालयात <span class="var">{{courseName}}</span> अभ्यासक्रमाच्या <span class="var">{{yearOrClass}}</span> मध्ये प्रवेश मिळाल्यास सदर विद्यार्थ्याच्या पुढील शिक्षणास व शैक्षणिक प्रगतीस निश्चितच मदत होईल.
+  </p>
+  <p class="paragraph">
+    <span class="var">{{reasonText}}</span>
+  </p>
+  <p class="paragraph">
+    तरी उपलब्ध जागा, प्रवेशासंबंधी प्रचलित नियम, पात्रता निकष व आवश्यक कागदपत्रांची पडताळणी करून सदर विद्यार्थ्यास आपल्या महाविद्यालयात <span class="var">{{courseName}}</span> अभ्यासक्रमाच्या <span class="var">{{yearOrClass}}</span> मध्ये प्रवेश देण्याबाबत सहानुभूतीपूर्वक व नियमानुसार आवश्यक ती कार्यवाही करण्यात यावी, ही विनंती.
+  </p>
+  ${CLOSING}
+</div>`,
+
   'school-transfer': `<div class="letter-content" style="${ROOT}">
   <style>${LETTER_STYLE}</style>
   <div class="top-row">

@@ -23,6 +23,10 @@ const BASE_TEMPLATE_NAMES: Record<
     en: 'School New Admission',
     mr: 'शाळा नवीन प्रवेश शिफारस',
   },
+  'college-admission': {
+    en: 'College New Admission',
+    mr: 'महाविद्यालय नवीन प्रवेश शिफारस',
+  },
   'school-transfer': {
     en: 'School Transfer Admission',
     mr: 'शाळा स्थानांतरण प्रवेश शिफारस',

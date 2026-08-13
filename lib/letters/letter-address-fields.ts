@@ -51,6 +51,18 @@ export function getDefaultLetterAddressTypeLinks(): LetterAddressTypeLinkSeed[] 
       sortOrder: 2,
     },
     {
+      letterType: 'college-admission',
+      addressField: 'school',
+      addressType: 'school',
+      sortOrder: 1,
+    },
+    {
+      letterType: 'college-admission',
+      addressField: 'applicant',
+      addressType: 'general',
+      sortOrder: 2,
+    },
+    {
       letterType: 'school-transfer',
       addressField: 'school',
       addressType: 'school',

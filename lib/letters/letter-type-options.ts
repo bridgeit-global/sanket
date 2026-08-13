@@ -40,6 +40,7 @@ export function documentTypeForLetterType(
   if (
     base === 'fees' ||
     base === 'school-admission' ||
+    base === 'college-admission' ||
     base === 'school-transfer' ||
     base === 'income' ||
     base === 'domicile' ||
@@ -108,7 +109,8 @@ const SERVICE_NAME_TO_LETTER_TYPE: Array<{ match: string; letterType: string }> 
   { match: 'school college new admission', letterType: 'school-admission' },
   { match: 'school new admission', letterType: 'school-admission' },
   { match: 'school admission', letterType: 'school-admission' },
-  { match: 'college admission', letterType: 'school-admission' },
+  { match: 'college admission', letterType: 'college-admission' },
+  { match: 'college new admission', letterType: 'college-admission' },
   {
     match: 'school / college transfer admission',
     letterType: 'school-transfer',
@@ -179,6 +181,9 @@ export function resolveLetterTypeFromServiceName(
 
   // Loose token heuristics for slight name variants.
   if (/\bfees?\b/.test(key) && /\bconcession\b/.test(key)) return 'fees';
+  if (/\badmission\b/.test(key) && /\bcollege\b/.test(key) && !/\bschool\b/.test(key)) {
+    return 'college-admission';
+  }
   if (/\badmission\b/.test(key) && /\b(school|college)\b/.test(key)) {
     return 'school-admission';
   }

@@ -27,6 +27,7 @@ import type {
   LetterType,
   PersonGender,
   RationLetterFields,
+  CollegeAdmissionLetterFields,
   SchoolAdmissionLetterFields,
   SchoolTransferLetterFields,
   WardLetterFields,
@@ -231,6 +232,13 @@ export function buildRenderFields(
       ...base,
       ...schoolFields,
       schoolAddress: formatAddressSoftWrapHtml(schoolFields.schoolAddress),
+    };
+  } else if (formType === 'college-admission') {
+    const collegeFields = fields as CollegeAdmissionLetterFields;
+    renderFields = {
+      ...base,
+      ...collegeFields,
+      collegeAddress: formatAddressSoftWrapHtml(collegeFields.collegeAddress),
     };
   } else if (formType === 'school-transfer') {
     const schoolFields = fields as SchoolTransferLetterFields;

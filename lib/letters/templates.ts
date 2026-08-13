@@ -39,6 +39,7 @@ export const LETTER_TYPES = [
   'general',
   'fees',
   'school-admission',
+  'college-admission',
   'school-transfer',
   'ration-new',
   'ration-add-members',
@@ -105,6 +106,17 @@ export type SchoolAdmissionLetterFields = CommonLetterFields & {
   schoolName: string;
   schoolAddress: string;
   standard: string;
+  studentName: string;
+  parentName: string;
+  address: string;
+  reasonText: string;
+};
+
+export type CollegeAdmissionLetterFields = CommonLetterFields & {
+  collegeName: string;
+  collegeAddress: string;
+  courseName: string;
+  yearOrClass: string;
   studentName: string;
   parentName: string;
   address: string;
@@ -188,6 +200,7 @@ export type LetterFields =
   | GeneralLetterFields
   | FeesLetterFields
   | SchoolAdmissionLetterFields
+  | CollegeAdmissionLetterFields
   | SchoolTransferLetterFields
   | RationLetterFields
   | IncomeLetterFields

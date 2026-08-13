@@ -42,6 +42,17 @@ const KNOWN_PLACEHOLDERS_BY_FORM: Partial<
     'address',
     'reasonText',
   ],
+  'college-admission': [
+    ...COMMON_PLACEHOLDER_KEYS,
+    'collegeName',
+    'collegeAddress',
+    'courseName',
+    'yearOrClass',
+    'studentName',
+    'parentName',
+    'address',
+    'reasonText',
+  ],
   'school-transfer': [
     ...COMMON_PLACEHOLDER_KEYS,
     'schoolName',

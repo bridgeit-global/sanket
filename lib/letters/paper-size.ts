@@ -48,6 +48,7 @@ export function getDefaultLetterPaperSize(
       return 'a4';
     case 'fees':
     case 'school-admission':
+    case 'college-admission':
     case 'school-transfer':
     case 'income':
     case 'domicile':

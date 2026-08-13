@@ -92,6 +92,7 @@ import {
   type LetterType,
   type PersonGender,
   type RationLetterFields,
+  type CollegeAdmissionLetterFields,
   type SchoolAdmissionLetterFields,
   type SchoolTransferLetterFields,
   type WardLetterFields,
@@ -284,6 +285,7 @@ function getFieldsForLetterType(
     generalFields: GeneralLetterFields;
     feesFields: FeesLetterFields;
     schoolAdmissionFields: SchoolAdmissionLetterFields;
+    collegeAdmissionFields: CollegeAdmissionLetterFields;
     schoolTransferFields: SchoolTransferLetterFields;
     rationFields: RationLetterFields;
     incomeFields: IncomeLetterFields;
@@ -299,6 +301,8 @@ function getFieldsForLetterType(
       return fields.feesFields;
     case 'school-admission':
       return fields.schoolAdmissionFields;
+    case 'college-admission':
+      return fields.collegeAdmissionFields;
     case 'school-transfer':
       return fields.schoolTransferFields;
     case 'income':
@@ -482,6 +486,20 @@ function schoolAdmissionDefaults(locale: LetterLocale): SchoolAdmissionLetterFie
     schoolName: '',
     schoolAddress: '',
     standard: '',
+    studentName: '',
+    parentName: '',
+    address: '',
+    reasonText: '',
+  };
+}
+
+function collegeAdmissionDefaults(locale: LetterLocale): CollegeAdmissionLetterFields {
+  return {
+    ...commonDefaults(locale, 'college-admission'),
+    collegeName: '',
+    collegeAddress: '',
+    courseName: '',
+    yearOrClass: '',
     studentName: '',
     parentName: '',
     address: '',
@@ -1011,6 +1029,7 @@ function applyMasterAddressToFields(
   setters: {
     setFeesFields: Dispatch<SetStateAction<FeesLetterFields>>;
     setSchoolAdmissionFields: Dispatch<SetStateAction<SchoolAdmissionLetterFields>>;
+    setCollegeAdmissionFields: Dispatch<SetStateAction<CollegeAdmissionLetterFields>>;
     setSchoolTransferFields: Dispatch<SetStateAction<SchoolTransferLetterFields>>;
     setRationFields: Dispatch<SetStateAction<RationLetterFields>>;
     setIncomeFields: Dispatch<SetStateAction<IncomeLetterFields>>;
@@ -1039,6 +1058,10 @@ function applyMasterAddressToFields(
       ...prev,
       schoolAddress: schoolText,
     }));
+    setters.setCollegeAdmissionFields((prev) => ({
+      ...prev,
+      collegeAddress: schoolText,
+    }));
     setters.setSchoolTransferFields((prev) => ({
       ...prev,
       schoolAddress: schoolText,
@@ -1047,6 +1070,7 @@ function applyMasterAddressToFields(
 
   if (applicantText) {
     setters.setSchoolAdmissionFields((prev) => ({ ...prev, address: applicantText }));
+    setters.setCollegeAdmissionFields((prev) => ({ ...prev, address: applicantText }));
     setters.setSchoolTransferFields((prev) => ({ ...prev, address: applicantText }));
     setters.setRationFields((prev) => ({ ...prev, address: applicantText }));
     setters.setIncomeFields((prev) => ({ ...prev, address: applicantText }));
@@ -1220,6 +1244,8 @@ export function LetterGeneration({
   paragraphRowsRef.current = paragraphRows;
   const [schoolAdmissionFields, setSchoolAdmissionFields] =
     useState<SchoolAdmissionLetterFields>(() => schoolAdmissionDefaults('mr'));
+  const [collegeAdmissionFields, setCollegeAdmissionFields] =
+    useState<CollegeAdmissionLetterFields>(() => collegeAdmissionDefaults('mr'));
   const [schoolTransferFields, setSchoolTransferFields] =
     useState<SchoolTransferLetterFields>(() => schoolTransferDefaults('mr'));
   const [rationFields, setRationFields] = useState<RationLetterFields>(() =>
@@ -1281,6 +1307,7 @@ export function LetterGeneration({
         generalFields,
         feesFields,
         schoolAdmissionFields,
+        collegeAdmissionFields,
         schoolTransferFields,
         rationFields,
         incomeFields,
@@ -1295,6 +1322,7 @@ export function LetterGeneration({
       incomeFields,
       rationFields,
       schoolAdmissionFields,
+      collegeAdmissionFields,
       schoolTransferFields,
       wardFields,
     ],
@@ -1494,6 +1522,7 @@ export function LetterGeneration({
     setFeesFields((prev) => ({ ...prev, ...patch }));
     setGeneralFields((prev) => ({ ...prev, ...patch }));
     setSchoolAdmissionFields((prev) => ({ ...prev, ...patch }));
+    setCollegeAdmissionFields((prev) => ({ ...prev, ...patch }));
     setSchoolTransferFields((prev) => ({ ...prev, ...patch }));
     setRationFields((prev) => ({ ...prev, ...patch }));
     setIncomeFields((prev) => ({ ...prev, ...patch }));
@@ -1568,6 +1597,19 @@ export function LetterGeneration({
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       schoolName: filterText(prev.schoolName),
       standard: filterText(prev.standard),
+      studentName: filterText(prev.studentName),
+      parentName: filterText(prev.parentName),
+      reasonText: filterText(prev.reasonText),
+    }));
+    setCollegeAdmissionFields((prev) => ({
+      ...prev,
+      referencePrefix: nextPrefix(prev.referencePrefix),
+      referenceNo: nextReferenceNo(prev.referenceNo),
+      signatory: nextSignatory(prev.signatory),
+      date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+      collegeName: filterText(prev.collegeName),
+      courseName: filterText(prev.courseName),
+      yearOrClass: filterText(prev.yearOrClass),
       studentName: filterText(prev.studentName),
       parentName: filterText(prev.parentName),
       reasonText: filterText(prev.reasonText),
@@ -1701,6 +1743,7 @@ export function LetterGeneration({
     applyMasterAddressToFields(addresses, addressSelections, letterLocale, {
       setFeesFields,
       setSchoolAdmissionFields,
+      setCollegeAdmissionFields,
       setSchoolTransferFields,
       setRationFields,
       setIncomeFields,
@@ -1714,6 +1757,7 @@ export function LetterGeneration({
       if (text.trim()) {
         setFeesFields((prev) => ({ ...prev, schoolAddress: text }));
         setSchoolAdmissionFields((prev) => ({ ...prev, schoolAddress: text }));
+        setCollegeAdmissionFields((prev) => ({ ...prev, collegeAddress: text }));
         setSchoolTransferFields((prev) => ({ ...prev, schoolAddress: text }));
       }
     }
@@ -1725,6 +1769,7 @@ export function LetterGeneration({
       );
       if (text.trim()) {
         setSchoolAdmissionFields((prev) => ({ ...prev, address: text }));
+        setCollegeAdmissionFields((prev) => ({ ...prev, address: text }));
         setSchoolTransferFields((prev) => ({ ...prev, address: text }));
         setRationFields((prev) => ({ ...prev, address: text }));
         setIncomeFields((prev) => ({ ...prev, address: text }));
@@ -1843,10 +1888,12 @@ export function LetterGeneration({
         case 'school':
           setFeesFields((prev) => ({ ...prev, schoolAddress: value }));
           setSchoolAdmissionFields((prev) => ({ ...prev, schoolAddress: value }));
+          setCollegeAdmissionFields((prev) => ({ ...prev, collegeAddress: value }));
           setSchoolTransferFields((prev) => ({ ...prev, schoolAddress: value }));
           break;
         case 'applicant':
           setSchoolAdmissionFields((prev) => ({ ...prev, address: value }));
+          setCollegeAdmissionFields((prev) => ({ ...prev, address: value }));
           setSchoolTransferFields((prev) => ({ ...prev, address: value }));
           setRationFields((prev) => ({ ...prev, address: value }));
           setIncomeFields((prev) => ({ ...prev, address: value }));
@@ -1961,11 +2008,13 @@ export function LetterGeneration({
   const applySchoolAddressText = (text: string) => {
     setFeesFields((prev) => ({ ...prev, schoolAddress: text }));
     setSchoolAdmissionFields((prev) => ({ ...prev, schoolAddress: text }));
+    setCollegeAdmissionFields((prev) => ({ ...prev, collegeAddress: text }));
     setSchoolTransferFields((prev) => ({ ...prev, schoolAddress: text }));
   };
 
   const applyApplicantAddressText = (text: string) => {
     setSchoolAdmissionFields((prev) => ({ ...prev, address: text }));
+    setCollegeAdmissionFields((prev) => ({ ...prev, address: text }));
     setSchoolTransferFields((prev) => ({ ...prev, address: text }));
     setRationFields((prev) => ({ ...prev, address: text }));
     setIncomeFields((prev) => ({ ...prev, address: text }));
@@ -1982,6 +2031,7 @@ export function LetterGeneration({
         if (schoolName) {
           setFeesFields((prev) => ({ ...prev, schoolName }));
           setSchoolAdmissionFields((prev) => ({ ...prev, schoolName }));
+          setCollegeAdmissionFields((prev) => ({ ...prev, collegeName: schoolName }));
           setSchoolTransferFields((prev) => ({ ...prev, schoolName }));
         }
       }
@@ -1994,6 +2044,7 @@ export function LetterGeneration({
       // Manual entry starts blank — don't carry over the previous name.
       setFeesFields((prev) => ({ ...prev, schoolName: '' }));
       setSchoolAdmissionFields((prev) => ({ ...prev, schoolName: '' }));
+      setCollegeAdmissionFields((prev) => ({ ...prev, collegeName: '' }));
       setSchoolTransferFields((prev) => ({ ...prev, schoolName: '' }));
       seedManualAddressPartsFromText('school', seedText);
     }
@@ -2480,6 +2531,9 @@ export function LetterGeneration({
     setSchoolAdmissionFields((prev) =>
       prev.schoolName?.trim() ? prev : { ...prev, schoolName },
     );
+    setCollegeAdmissionFields((prev) =>
+      prev.collegeName?.trim() ? prev : { ...prev, collegeName: schoolName },
+    );
     setSchoolTransferFields((prev) =>
       prev.schoolName?.trim() ? prev : { ...prev, schoolName },
     );
@@ -2620,6 +2674,7 @@ export function LetterGeneration({
         generalFields,
         feesFields,
         schoolAdmissionFields,
+        collegeAdmissionFields,
         schoolTransferFields,
         rationFields,
         incomeFields,
@@ -2648,6 +2703,7 @@ export function LetterGeneration({
     generalFields,
     feesFields,
     schoolAdmissionFields,
+    collegeAdmissionFields,
     schoolTransferFields,
     rationFields,
     incomeFields,
@@ -2683,6 +2739,7 @@ export function LetterGeneration({
         generalFields,
         feesFields,
         schoolAdmissionFields,
+        collegeAdmissionFields,
         schoolTransferFields,
         rationFields,
         incomeFields,
@@ -2700,6 +2757,7 @@ export function LetterGeneration({
       incomeFields,
       rationFields,
       schoolAdmissionFields,
+      collegeAdmissionFields,
       schoolTransferFields,
       wardFields,
     ],
@@ -2724,6 +2782,7 @@ export function LetterGeneration({
     setFeesFields(coercePrefix);
     setGeneralFields(coercePrefix);
     setSchoolAdmissionFields(coercePrefix);
+    setCollegeAdmissionFields(coercePrefix);
     setSchoolTransferFields(coercePrefix);
     setRationFields(coercePrefix);
     setIncomeFields(coercePrefix);
@@ -2744,6 +2803,7 @@ export function LetterGeneration({
     setFeesFields(patchPrefix);
     setGeneralFields(patchPrefix);
     setSchoolAdmissionFields(patchPrefix);
+    setCollegeAdmissionFields(patchPrefix);
     setSchoolTransferFields(patchPrefix);
     setRationFields(patchPrefix);
     setIncomeFields(patchPrefix);
@@ -2856,6 +2916,21 @@ export function LetterGeneration({
           });
         },
       );
+      setCollegeAdmissionFields((prev) =>
+        prev.parentName.trim()
+          ? prev
+          : { ...prev, parentName: voterPrefillName },
+      );
+      void applyNameMarathiIfUnchanged(
+        'college-admission.parentName',
+        voterPrefillName,
+        (translated, trimmed) => {
+          setCollegeAdmissionFields((prev) => {
+            if (prev.parentName.trim() !== trimmed) return prev;
+            return { ...prev, parentName: translated };
+          });
+        },
+      );
       setSchoolTransferFields((prev) =>
         prev.parentName.trim()
           ? prev
@@ -2881,6 +2956,9 @@ export function LetterGeneration({
     }
     if (voterPrefillAddress) {
       setSchoolAdmissionFields((prev) =>
+        prev.address.trim() ? prev : { ...prev, address: voterPrefillAddress },
+      );
+      setCollegeAdmissionFields((prev) =>
         prev.address.trim() ? prev : { ...prev, address: voterPrefillAddress },
       );
       setSchoolTransferFields((prev) =>
@@ -2970,6 +3048,14 @@ export function LetterGeneration({
       requireField(errors, 'parentName', schoolAdmissionFields.parentName, requiredMsg);
       requireAddress('school', schoolAdmissionFields.schoolAddress);
       requireAddress('applicant', schoolAdmissionFields.address);
+    } else if (formTab === 'college-admission') {
+      requireField(errors, 'collegeName', collegeAdmissionFields.collegeName, requiredMsg);
+      requireField(errors, 'courseName', collegeAdmissionFields.courseName, requiredMsg);
+      requireField(errors, 'yearOrClass', collegeAdmissionFields.yearOrClass, requiredMsg);
+      requireField(errors, 'studentName', collegeAdmissionFields.studentName, requiredMsg);
+      requireField(errors, 'parentName', collegeAdmissionFields.parentName, requiredMsg);
+      requireAddress('school', collegeAdmissionFields.collegeAddress);
+      requireAddress('applicant', collegeAdmissionFields.address);
     } else if (formTab === 'school-transfer') {
       requireField(errors, 'schoolName', schoolTransferFields.schoolName, requiredMsg);
       requireField(errors, 'standard', schoolTransferFields.standard, requiredMsg);
@@ -3307,17 +3393,21 @@ export function LetterGeneration({
             ? feesFields.schoolAddress
             : formTab === 'school-admission'
               ? schoolAdmissionFields.schoolAddress
-              : formTab === 'school-transfer'
-                ? schoolTransferFields.schoolAddress
-                : '') ?? '';
+              : formTab === 'college-admission'
+                ? collegeAdmissionFields.collegeAddress
+                : formTab === 'school-transfer'
+                  ? schoolTransferFields.schoolAddress
+                  : '') ?? '';
         const schoolNameValue =
           (formTab === 'fees'
             ? feesFields.schoolName
             : formTab === 'school-admission'
               ? schoolAdmissionFields.schoolName
-              : formTab === 'school-transfer'
-                ? schoolTransferFields.schoolName
-                : '') ?? '';
+              : formTab === 'college-admission'
+                ? collegeAdmissionFields.collegeName
+                : formTab === 'school-transfer'
+                  ? schoolTransferFields.schoolName
+                  : '') ?? '';
 
         if (schoolAddressText.trim() && schoolNameValue.trim()) {
           const created = await createAddressMasterFromManualEntry({
@@ -3540,6 +3630,7 @@ export function LetterGeneration({
     setFeesFields(feesDefaults(letterLocale));
     setGeneralFields(generalDefaults(letterLocale));
     setSchoolAdmissionFields(schoolAdmissionDefaults(letterLocale));
+    setCollegeAdmissionFields(collegeAdmissionDefaults(letterLocale));
     setSchoolTransferFields(schoolTransferDefaults(letterLocale));
     setRationFields(rationDefaults(letterLocale));
     setIncomeFields(incomeDefaults(letterLocale));
@@ -4725,6 +4816,195 @@ export function LetterGeneration({
                           onValueChange={(reasonText) => {
                             setSchoolAdmissionFields({
                               ...schoolAdmissionFields,
+                              reasonText,
+                            });
+                            if (fieldErrors.reasonText) {
+                              setFieldErrors((prev) => ({ ...prev, reasonText: undefined }));
+                            }
+                          }}
+                          rows={3}
+                        />
+                      </FieldGroup>
+                    </TabsContent>
+
+                    <TabsContent value="college-admission" className="mt-0 space-y-4">
+                      {renderCommonFields(collegeAdmissionFields, setCollegeAdmissionFields)}
+                      <LetterAddressField
+                        label={letterLocale === 'mr' ? 'महाविद्यालय पत्ता' : 'College Address'}
+                        addressType={addressTypeForField('school')}
+                        locale={letterLocale}
+                        selectedAddressId={addressSelections.school}
+                        addresses={addresses}
+                        letterDate={activeLetterDate}
+                        addressParts={manualAddressParts.school}
+                        onAddressPartsChange={(parts) =>
+                          handleManualAddressPartsChange('school', parts)
+                        }
+                        pincodeError={addressPincodeErrors.school}
+                        error={fieldErrors.schoolAddress}
+                        required
+                        nameLabel={letterLocale === 'mr' ? 'महाविद्यालय नाव' : 'College Name'}
+                        namePlaceholder={
+                          letterLocale === 'mr'
+                            ? 'महाविद्यालय नाव टाइप करा'
+                            : 'Type college name'
+                        }
+                        nameValue={collegeAdmissionFields.collegeName}
+                        nameRequired
+                        nameError={fieldErrors.collegeName}
+                        onNameChange={(value) => {
+                          setCollegeAdmissionFields((prev) => ({
+                            ...prev,
+                            collegeName: value,
+                          }));
+                          if (fieldErrors.collegeName) {
+                            setFieldErrors((prev) => ({ ...prev, collegeName: undefined }));
+                          }
+                        }}
+                        onSelectedAddressIdChange={(id) =>
+                          handleSchoolAddressSelect(id, collegeAdmissionFields.collegeAddress)
+                        }
+                      />
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.courseName')}
+                          required
+                          error={fieldErrors.courseName}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
+                            value={collegeAdmissionFields.courseName}
+                            onValueChange={(courseName) => {
+                              setCollegeAdmissionFields({
+                                ...collegeAdmissionFields,
+                                courseName,
+                              });
+                              if (fieldErrors.courseName) {
+                                setFieldErrors((prev) => ({ ...prev, courseName: undefined }));
+                              }
+                            }}
+                            required
+                          />
+                        </FieldGroup>
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.yearOrClass')}
+                          required
+                          error={fieldErrors.yearOrClass}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
+                            value={collegeAdmissionFields.yearOrClass}
+                            onValueChange={(yearOrClass) => {
+                              setCollegeAdmissionFields({
+                                ...collegeAdmissionFields,
+                                yearOrClass,
+                              });
+                              if (fieldErrors.yearOrClass) {
+                                setFieldErrors((prev) => ({ ...prev, yearOrClass: undefined }));
+                              }
+                            }}
+                            required
+                          />
+                        </FieldGroup>
+                      </div>
+                      <FieldGroup
+                        label={lt('letterGeneration.fields.studentName')}
+                        required
+                        error={fieldErrors.studentName}
+                      >
+                        <LocaleTextInput
+                          locale={letterLocale}
+                          value={collegeAdmissionFields.studentName}
+                          onValueChange={(studentName) => {
+                            bumpNameTranslateReqId('college-admission.studentName');
+                            setCollegeAdmissionFields({
+                              ...collegeAdmissionFields,
+                              studentName,
+                            });
+                            if (fieldErrors.studentName) {
+                              setFieldErrors((prev) => ({
+                                ...prev,
+                                studentName: undefined,
+                              }));
+                            }
+                          }}
+                          onBlur={() => {
+                            void applyNameMarathiIfUnchanged(
+                              'college-admission.studentName',
+                              collegeAdmissionFields.studentName,
+                              (translated, trimmed) => {
+                                setCollegeAdmissionFields((prev) => {
+                                  if (prev.studentName.trim() !== trimmed) return prev;
+                                  return { ...prev, studentName: translated };
+                                });
+                              },
+                            );
+                          }}
+                          required
+                        />
+                      </FieldGroup>
+                      <FieldGroup
+                        label={lt('letterGeneration.fields.parentName')}
+                        required
+                        error={fieldErrors.parentName}
+                      >
+                        <LocaleTextInput
+                          locale={letterLocale}
+                          value={collegeAdmissionFields.parentName}
+                          onValueChange={(parentName) => {
+                            bumpNameTranslateReqId('college-admission.parentName');
+                            setCollegeAdmissionFields({
+                              ...collegeAdmissionFields,
+                              parentName,
+                            });
+                            if (fieldErrors.parentName) {
+                              setFieldErrors((prev) => ({ ...prev, parentName: undefined }));
+                            }
+                          }}
+                          onBlur={() => {
+                            void applyNameMarathiIfUnchanged(
+                              'college-admission.parentName',
+                              collegeAdmissionFields.parentName,
+                              (translated, trimmed) => {
+                                setCollegeAdmissionFields((prev) => {
+                                  if (prev.parentName.trim() !== trimmed) return prev;
+                                  return { ...prev, parentName: translated };
+                                });
+                              },
+                            );
+                          }}
+                          required
+                        />
+                      </FieldGroup>
+                      <LetterAddressField
+                        label={lt('letterGeneration.fields.address')}
+                        addressType={addressTypeForField('applicant')}
+                        entryMode="structured"
+                        locale={letterLocale}
+                        selectedAddressId={addressSelections.applicant}
+                        addresses={addresses}
+                        letterDate={activeLetterDate}
+                        addressParts={manualAddressParts.applicant}
+                        onAddressPartsChange={(parts) =>
+                          handleManualAddressPartsChange('applicant', parts)
+                        }
+                        pincodeError={addressPincodeErrors.applicant}
+                        error={fieldErrors.applicantAddress}
+                        required
+                        onSelectedAddressIdChange={(id) =>
+                          handleApplicantAddressSelect(id, collegeAdmissionFields.address)
+                        }
+                      />
+                      <FieldGroup
+                        label={lt('letterGeneration.fields.reasonText')}
+                        error={fieldErrors.reasonText}
+                      >
+                        <LocaleTextarea
+                          locale={letterLocale}
+                          value={collegeAdmissionFields.reasonText}
+                          onValueChange={(reasonText) => {
+                            setCollegeAdmissionFields({
+                              ...collegeAdmissionFields,
                               reasonText,
                             });
                             if (fieldErrors.reasonText) {
