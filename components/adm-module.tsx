@@ -381,18 +381,6 @@ export function AdmModule() {
 
       <section className="space-y-4">
         <h2 className="text-lg font-semibold tracking-tight">
-          {t('adm.tabs.demandLetters')}
-        </h2>
-        <AdmDemandLetters
-          titleFilter={dlTitle}
-          fromDate={dlFrom}
-          toDate={dlTo}
-          onFiltersChange={handleDemandLetterFiltersChange}
-        />
-      </section>
-
-      <section className="space-y-4">
-        <h2 className="text-lg font-semibold tracking-tight">
           {t('adm.tabs.funds')}
         </h2>
         <div className="relative">
@@ -430,6 +418,20 @@ export function AdmModule() {
           }
         />
       </section>
+
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-semibold tracking-tight">
+          {t('adm.tabs.demandLetters')}
+        </h2>
+        <AdmDemandLetters
+          titleFilter={dlTitle}
+          fromDate={dlFrom}
+          toDate={dlTo}
+          onFiltersChange={handleDemandLetterFiltersChange}
+        />
+      </section>
+
 
       <ConfirmDialog
         open={Boolean(deleteFundId)}
