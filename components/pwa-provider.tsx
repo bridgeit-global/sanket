@@ -6,78 +6,101 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { emitAppNotificationsUpdated } from '@/components/notification-bell';
 import { Button } from '@/components/ui/button';
-import { useTranslations } from '@/hooks/use-translations';
 
-function ServiceWorkerUpdatePrompt() {
-  const { t } = useTranslations();
-  const toastShownRef = useRef(false);
-  const hadControllerRef = useRef(
-    typeof navigator !== 'undefined' &&
-      'serviceWorker' in navigator &&
-      Boolean(navigator.serviceWorker.controller),
-  );
+const CURRENT_COMMIT_SHA = process.env.NEXT_PUBLIC_APP_COMMIT_SHA || '';
+
+const VERSION_CHECK_INTERVAL_MS = 60_000;
+const SW_ACTIVATE_TIMEOUT_MS = 3_000;
+
+function VersionCheck() {
+  const reloadingRef = useRef(false);
 
   useEffect(() => {
-    if (!('serviceWorker' in navigator)) return;
+    if (!CURRENT_COMMIT_SHA) return;
 
-    const showUpdatePrompt = () => {
-      if (toastShownRef.current) return;
-      toastShownRef.current = true;
+    let intervalId: number | undefined;
 
-      toast(t('pwa.updateAvailable'), {
-        description: t('pwa.updateDescription'),
-        duration: Number.POSITIVE_INFINITY,
-        action: {
-          label: t('common.refresh'),
-          onClick: () => window.location.reload(),
-        },
-      });
-    };
+    const reloadForNewVersion = () => {
+      if (reloadingRef.current) return;
+      reloadingRef.current = true;
 
-    const onControllerChange = () => {
-      if (!hadControllerRef.current) {
-        hadControllerRef.current = true;
-        return;
-      }
-      showUpdatePrompt();
-    };
-
-    const watchForUpdates = async () => {
-      const registration = await navigator.serviceWorker.ready;
-
-      if (registration.waiting && navigator.serviceWorker.controller) {
-        showUpdatePrompt();
+      if (intervalId !== undefined) {
+        window.clearInterval(intervalId);
+        intervalId = undefined;
       }
 
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing;
-        if (!newWorker) return;
+      const reload = () => window.location.reload();
 
-        newWorker.addEventListener('statechange', () => {
-          if (
-            newWorker.state === 'installed' &&
-            navigator.serviceWorker.controller
-          ) {
-            showUpdatePrompt();
+      const waitForSwThenReload = async () => {
+        try {
+          if (!('serviceWorker' in navigator)) {
+            reload();
+            return;
           }
-        });
-      });
+
+          const registration = await navigator.serviceWorker.getRegistration();
+          if (!registration) {
+            reload();
+            return;
+          }
+
+          const controllerChanged = new Promise<void>((resolve) => {
+            navigator.serviceWorker.addEventListener(
+              'controllerchange',
+              () => resolve(),
+              { once: true },
+            );
+          });
+
+          await registration.update();
+
+          await Promise.race([
+            controllerChanged,
+            new Promise<void>((resolve) => {
+              window.setTimeout(resolve, SW_ACTIVATE_TIMEOUT_MS);
+            }),
+          ]);
+
+          reload();
+        } catch {
+          reload();
+        }
+      };
+
+      void waitForSwThenReload();
+    };
+
+    const checkForUpdate = async () => {
+      try {
+        const response = await fetch('/api/version', { cache: 'no-store' });
+        if (!response.ok) return;
+        const data = (await response.json()) as { sha?: string | null };
+        if (data.sha && data.sha !== CURRENT_COMMIT_SHA) {
+          reloadForNewVersion();
+        }
+      } catch {
+        // Ignore transient network errors; the next poll will retry.
+      }
     };
 
     const onVisibilityChange = () => {
       if (document.visibilityState !== 'visible') return;
-      void navigator.serviceWorker.ready.then((registration) => registration.update());
+      void checkForUpdate();
     };
 
-    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
     document.addEventListener('visibilitychange', onVisibilityChange);
-    void watchForUpdates();
+    intervalId = window.setInterval(() => {
+      void checkForUpdate();
+    }, VERSION_CHECK_INTERVAL_MS);
 
     return () => {
-      navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
       document.removeEventListener('visibilitychange', onVisibilityChange);
+      if (intervalId !== undefined) {
+        window.clearInterval(intervalId);
+        intervalId = undefined;
+      }
     };
-  }, [t]);
+  }, []);
 
   return null;
 }
@@ -179,7 +202,7 @@ export function PwaProvider({ children }: { children: ReactNode }) {
 
   return (
     <SerwistProvider swUrl="/sw.js">
-      <ServiceWorkerUpdatePrompt />
+      <VersionCheck />
       {children}
     </SerwistProvider>
   );

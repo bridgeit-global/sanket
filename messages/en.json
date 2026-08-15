@@ -2152,10 +2152,7 @@
       "escalationFailed": "Failed to escalate request"
     }
   },
-  "pwa": {
-    "updateAvailable": "Update available",
-    "updateDescription": "A new version of eOffice is ready. Refresh to apply it."
-  },
+  "pwa": {},
   "visitor": {
     "title": "Visitor",
     "subtitle": "Register visitors, create services, and manage service tokens",

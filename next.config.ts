@@ -19,6 +19,10 @@ const nextConfig: NextConfig = {
   },
   env: {
     NEXT_PUBLIC_APP_VERSION: packageJson.version,
+    NEXT_PUBLIC_APP_COMMIT_SHA:
+      process.env.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA ??
+      process.env.VERCEL_GIT_COMMIT_SHA ??
+      '',
   },
 };
 
