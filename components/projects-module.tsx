@@ -411,9 +411,6 @@ export function ProjectsModule() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>{t('projects.projectList')}</CardTitle>
-            <span className="text-sm text-muted-foreground">
-              {t('projects.projectsCount', { filtered: filteredProjects.length.toString(), total: projects.length.toString() })}
-            </span>
           </div>
         </CardHeader>
         <CardContent>

@@ -1308,7 +1308,6 @@
     "saveChanges": "Save Changes",
     "cancel": "Cancel",
     "projectList": "Project List",
-    "projectsCount": "{filtered} of {total} projects",
     "searchPlaceholder": "Search by name, ward, or type...",
     "filterByStatus": "Filter by status",
     "allStatuses": "All Statuses",

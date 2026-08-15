@@ -1308,7 +1308,6 @@
     "saveChanges": "बदल साठवा",
     "cancel": "रद्द करा",
     "projectList": "प्रकल्प यादी",
-    "projectsCount": "{filtered} पैकी {total} प्रकल्प",
     "searchPlaceholder": "नाव, वॉर्ड किंवा प्रकारानुसार शोधा...",
     "filterByStatus": "स्थितीनुसार फिल्टर करा",
     "allStatuses": "सर्व स्थिती",

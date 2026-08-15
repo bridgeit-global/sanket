@@ -6586,6 +6586,10 @@ export async function getDashboardCounts(todayStr: string): Promise<{
       pgSql`
       SELECT COUNT(*)::int AS count FROM "MlaProject"
       WHERE status = 'In Progress'
+        AND NOT EXISTS (
+          SELECT 1 FROM "AdmFundAllocation" af
+          WHERE af.project_id = "MlaProject".id
+        )
     `,
     ]);
 
