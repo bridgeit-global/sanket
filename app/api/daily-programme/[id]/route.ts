@@ -66,7 +66,7 @@ export async function PUT(
     const body = await request.json();
     const updateData: any = {};
 
-    if (body.date) updateData.date = new Date(body.date);
+    if (body.date) updateData.date = body.date;
     if (body.startTime !== undefined) updateData.startTime = body.startTime;
     if (body.endTime !== undefined) updateData.endTime = body.endTime;
     if (body.title !== undefined) updateData.title = body.title;
@@ -75,8 +75,8 @@ export async function PUT(
     if (body.attended !== undefined) updateData.attended = body.attended;
     if (body.programmeType !== undefined) updateData.programmeType = body.programmeType;
     if (body.sortOrder !== undefined) updateData.sortOrder = body.sortOrder;
-    if (body.startDate !== undefined) updateData.startDate = body.startDate ? new Date(body.startDate) : null;
-    if (body.endDate !== undefined) updateData.endDate = body.endDate ? new Date(body.endDate) : null;
+    if (body.startDate !== undefined) updateData.startDate = body.startDate || null;
+    if (body.endDate !== undefined) updateData.endDate = body.endDate || null;
 
     const updated = await updateDailyProgrammeItem(id, updateData, session.user.id);
     if (!updated) {

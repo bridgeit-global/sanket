@@ -3,8 +3,7 @@ import dynamic from 'next/dynamic';
 import { auth } from '@/app/(auth)/auth';
 import { redirect } from 'next/navigation';
 import { hasModuleAccess, getDailyProgrammeItemsWithAttachments } from '@/lib/db/queries';
-import { startOfToday } from 'date-fns';
-import { format } from 'date-fns';
+import { getTodayDateStringIST } from '@/lib/ist-date';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Dynamically import the large DailyProgramme component for code splitting
@@ -27,10 +26,9 @@ async function DailyProgrammeDataLoader({
 }: {
   userRole: string;
 }) {
-  // Prefetch initial data for today's date range
-  const today = startOfToday();
-  const todayStr = format(today, 'yyyy-MM-dd');
-  
+  // Prefetch initial data for today's date range (Asia/Kolkata calendar day)
+  const todayStr = getTodayDateStringIST();
+
   const initialItems = await getDailyProgrammeItemsWithAttachments({
     startDate: todayStr,
     endDate: todayStr,

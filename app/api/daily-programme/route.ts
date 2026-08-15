@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
     }
 
     const item = await createDailyProgrammeItem({
-      date: new Date(date),
+      date,
       startTime,
       endTime,
       title,
@@ -103,8 +103,8 @@ export async function POST(request: NextRequest) {
       remarks,
       programmeType,
       sortOrder,
-      startDate: startDate ? new Date(startDate) : null,
-      endDate: endDate ? new Date(endDate) : null,
+      startDate: startDate || null,
+      endDate: endDate || null,
       createdBy: session.user.id,
     });
 

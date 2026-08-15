@@ -6539,13 +6539,41 @@ export async function getDashboardCounts(todayStr: string): Promise<{
     await Promise.all([
       pgSql`
       SELECT * FROM "DailyProgramme"
-      WHERE date = ${todayStr}
+      WHERE (
+          start_date IS NOT NULL
+          AND end_date IS NOT NULL
+          AND start_date < end_date
+          AND start_date <= ${todayStr}
+          AND end_date >= ${todayStr}
+        )
+        OR (
+          NOT (
+            start_date IS NOT NULL
+            AND end_date IS NOT NULL
+            AND start_date < end_date
+          )
+          AND date = ${todayStr}
+        )
       ORDER BY start_time ASC
       LIMIT 5
     `,
       pgSql`
       SELECT COUNT(*)::int AS count FROM "DailyProgramme"
-      WHERE date = ${todayStr}
+      WHERE (
+          start_date IS NOT NULL
+          AND end_date IS NOT NULL
+          AND start_date < end_date
+          AND start_date <= ${todayStr}
+          AND end_date >= ${todayStr}
+        )
+        OR (
+          NOT (
+            start_date IS NOT NULL
+            AND end_date IS NOT NULL
+            AND start_date < end_date
+          )
+          AND date = ${todayStr}
+        )
     `,
       pgSql`
       SELECT COUNT(*)::int AS count FROM "RegisterEntry"
