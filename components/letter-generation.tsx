@@ -499,7 +499,6 @@ function collegeAdmissionDefaults(locale: LetterLocale): CollegeAdmissionLetterF
     collegeName: '',
     collegeAddress: '',
     courseName: '',
-    yearOrClass: '',
     studentName: '',
     parentName: '',
     address: '',
@@ -1609,7 +1608,6 @@ export function LetterGeneration({
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       collegeName: filterText(prev.collegeName),
       courseName: filterText(prev.courseName),
-      yearOrClass: filterText(prev.yearOrClass),
       studentName: filterText(prev.studentName),
       parentName: filterText(prev.parentName),
       reasonText: filterText(prev.reasonText),
@@ -3051,7 +3049,6 @@ export function LetterGeneration({
     } else if (formTab === 'college-admission') {
       requireField(errors, 'collegeName', collegeAdmissionFields.collegeName, requiredMsg);
       requireField(errors, 'courseName', collegeAdmissionFields.courseName, requiredMsg);
-      requireField(errors, 'yearOrClass', collegeAdmissionFields.yearOrClass, requiredMsg);
       requireField(errors, 'studentName', collegeAdmissionFields.studentName, requiredMsg);
       requireField(errors, 'parentName', collegeAdmissionFields.parentName, requiredMsg);
       requireAddress('school', collegeAdmissionFields.collegeAddress);
@@ -4865,48 +4862,26 @@ export function LetterGeneration({
                           handleSchoolAddressSelect(id, collegeAdmissionFields.collegeAddress)
                         }
                       />
-                      <div className="grid gap-4 sm:grid-cols-2">
-                        <FieldGroup
-                          label={lt('letterGeneration.fields.courseName')}
+                      <FieldGroup
+                        label={lt('letterGeneration.fields.courseName')}
+                        required
+                        error={fieldErrors.courseName}
+                      >
+                        <LocaleTextInput
+                          locale={letterLocale}
+                          value={collegeAdmissionFields.courseName}
+                          onValueChange={(courseName) => {
+                            setCollegeAdmissionFields({
+                              ...collegeAdmissionFields,
+                              courseName,
+                            });
+                            if (fieldErrors.courseName) {
+                              setFieldErrors((prev) => ({ ...prev, courseName: undefined }));
+                            }
+                          }}
                           required
-                          error={fieldErrors.courseName}
-                        >
-                          <LocaleTextInput
-                            locale={letterLocale}
-                            value={collegeAdmissionFields.courseName}
-                            onValueChange={(courseName) => {
-                              setCollegeAdmissionFields({
-                                ...collegeAdmissionFields,
-                                courseName,
-                              });
-                              if (fieldErrors.courseName) {
-                                setFieldErrors((prev) => ({ ...prev, courseName: undefined }));
-                              }
-                            }}
-                            required
-                          />
-                        </FieldGroup>
-                        <FieldGroup
-                          label={lt('letterGeneration.fields.yearOrClass')}
-                          required
-                          error={fieldErrors.yearOrClass}
-                        >
-                          <LocaleTextInput
-                            locale={letterLocale}
-                            value={collegeAdmissionFields.yearOrClass}
-                            onValueChange={(yearOrClass) => {
-                              setCollegeAdmissionFields({
-                                ...collegeAdmissionFields,
-                                yearOrClass,
-                              });
-                              if (fieldErrors.yearOrClass) {
-                                setFieldErrors((prev) => ({ ...prev, yearOrClass: undefined }));
-                              }
-                            }}
-                            required
-                          />
-                        </FieldGroup>
-                      </div>
+                        />
+                      </FieldGroup>
                       <FieldGroup
                         label={lt('letterGeneration.fields.studentName')}
                         required

@@ -116,7 +116,6 @@ export type CollegeAdmissionLetterFields = CommonLetterFields & {
   collegeName: string;
   collegeAddress: string;
   courseName: string;
-  yearOrClass: string;
   studentName: string;
   parentName: string;
   address: string;

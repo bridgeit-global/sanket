@@ -136,22 +136,22 @@ To,<br>
     <span style="font-weight: normal;">{{collegeAddress}}</span>
   </div>
   <div class="subject">
-    <span style="font-weight: normal;">Subject:</span> Recommendation for admission of student <span class="var">{{studentName}}</span> to <span class="var">{{yearOrClass}}</span> of the <span class="var">{{courseName}}</span> course.
+    <span style="font-weight: normal;">Subject:</span> Recommendation for admission of student <span class="var">{{studentName}}</span> to the <span class="var">{{courseName}}</span> course.
   </div>
   <div class="salutation">
     Sir/Madam,
   </div>
   <p class="paragraph">
-    Through this letter, <span class="var">{{studentName}}</span>, child of <span class="var">{{parentName}}</span>, residing at <span style="font-weight: normal;">{{address}}</span>, is hereby recommended to you for admission to <span class="var">{{yearOrClass}}</span> of the <span class="var">{{courseName}}</span> course at your college.
+    Through this letter, <span class="var">{{studentName}}</span>, child of <span class="var">{{parentName}}</span>, residing at <span style="font-weight: normal;">{{address}}</span>, is hereby recommended to you for admission to the <span class="var">{{courseName}}</span> course at your college.
   </p>
   <p class="paragraph">
-    The said student has an interest in higher education, and a proper, quality academic environment is necessary for further educational progress. Admission to <span class="var">{{yearOrClass}}</span> of the <span class="var">{{courseName}}</span> course at your college will certainly help the student's further studies and academic progress.
+    The said student has an interest in higher education, and a proper, quality academic environment is necessary for further educational progress. Admission to the <span class="var">{{courseName}}</span> course at your college will certainly help the student's further studies and academic progress.
   </p>
   <p class="paragraph">
     <span class="var">{{reasonText}}</span>
   </p>
   <p class="paragraph">
-    Kindly verify the availability of seats, prevailing admission rules, eligibility criteria, and required documents, and take necessary action sympathetically and as per rules to grant admission to <span class="var">{{yearOrClass}}</span> of the <span class="var">{{courseName}}</span> course at your college to the said student.
+    Kindly verify the availability of seats, prevailing admission rules, eligibility criteria, and required documents, and take necessary action sympathetically and as per rules to grant admission to the <span class="var">{{courseName}}</span> course at your college to the said student.
   </p>
   ${CLOSING}
 </div>`,

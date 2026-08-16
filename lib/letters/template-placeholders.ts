@@ -47,7 +47,6 @@ const KNOWN_PLACEHOLDERS_BY_FORM: Partial<
     'collegeName',
     'collegeAddress',
     'courseName',
-    'yearOrClass',
     'studentName',
     'parentName',
     'address',
