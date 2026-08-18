@@ -54,7 +54,7 @@ export const EN_TEMPLATE_HTML: Record<LetterType, string> = {
   <div class="recipient">{{toBlock}}</div>
   <div class="subject"><span style="font-weight: normal;">Subject:</span> <span class="var">{{subject}}</span></div>
   {{paragraphsBlock}}
-  <div class="letter-closing">{{signatureBlock}}</div>
+  ${CLOSING}
 </div>`,
 
   fees: `<div class="letter-content" style="${ROOT}">
