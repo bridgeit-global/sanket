@@ -418,6 +418,51 @@ To,<br>
   ${CLOSING}
 </div>`,
 
+  'medical-assistance': `<div class="letter-content" style="white-space: normal; font-family: inherit; font-size: 14px; line-height: 1.65; color: #000; margin: 20px; font-weight: normal;">
+  <style>
+    .var { font-weight: bold; }
+    .top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .recipient { margin-left: 28px; margin-bottom: 14px; font-weight: normal; max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: normal; }
+    .subject { display: flex; align-items: flex-start; margin-bottom: 14px; }
+    .subject-label { flex: 0 0 72px; white-space: nowrap; font-weight: normal; }
+    .subject-text { flex: 1; text-align: justify; font-weight: bold; }
+    .salutation { margin-bottom: 12px; font-weight: normal; }
+    .paragraph { text-align: justify; text-indent: 28px; padding: 0; margin-bottom: 12px; font-weight: normal; }
+    .paragraph:last-of-type { margin-bottom: 0; }
+    .right-tab { text-align: right; padding-right: 36px; margin-top: 25px; font-weight: normal; }
+    .right-tab-sign { text-align: right; padding-right: 28px; margin-top: 30px; font-weight: bold; }
+  </style>
+  <div class="top-row">
+    <div>Ref. No. <span class="var">{{referencePrefix}}/{{referenceNo}}</span></div>
+    <div>Date: <span class="var">{{date}}</span></div>
+  </div>
+  <div>To,</div>
+  <div class="recipient">
+    Medical Superintendent / Dean,<br>
+    <span class="var">{{hospitalName}}</span>,<br>
+    {{hospitalAddress}}
+  </div>
+  <div class="subject">
+    <div class="subject-label">Subject:</div>
+    <div class="subject-text">
+      Regarding meeting the cost of medical treatment of {{fullName}} from the poor patient fund.
+    </div>
+  </div>
+  <div class="salutation">
+    Sir/Madam,
+  </div>
+  <p class="paragraph">
+    <span class="var">{{salutation}} {{fullName}}</span>, aged <span class="var">{{age}}</span> years, residing at {{address}}, is being referred to you for medical treatment. They have <span class="var">{{ailment}}</span> and urgently require <span class="var">{{treatment}}</span>. Currently, treatment of <span class="var">{{salutation}} {{fullName}}</span> is underway at your hospital.
+  </p>
+  <p class="paragraph">
+    Their financial condition is extremely poor, and they are unable to bear the cost of the said medical treatment.
+  </p>
+  <p class="paragraph">
+    Therefore, I request that the cost of their medical treatment be met from the poor patient fund.
+  </p>
+  ${CLOSING}
+</div>`,
+
   ward: WARD_TEMPLATE_HTML,
   ...Object.fromEntries(
     WARD_LETTER_TYPES.map((type) => [type, wardIssueTemplateHtml(type)]),

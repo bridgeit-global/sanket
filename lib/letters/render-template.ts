@@ -25,6 +25,7 @@ import type {
   LetterFields,
   LetterLocale,
   LetterType,
+  MedicalAssistanceLetterFields,
   PersonGender,
   RationLetterFields,
   CollegeAdmissionLetterFields,
@@ -236,6 +237,14 @@ export function buildRenderFields(
       officeName: domicileFields.officeName,
       officeAddress: formatAddressSoftWrapHtml(domicileFields.officeAddress),
       reason,
+    };
+  } else if (formType === 'medical-assistance') {
+    const medicalFields = fields as MedicalAssistanceLetterFields;
+    renderFields = {
+      ...base,
+      ...medicalFields,
+      age: toLocaleDigits(toWesternDigits(medicalFields.age ?? '').replace(/\D/g, ''), locale),
+      hospitalAddress: formatAddressSoftWrapHtml(medicalFields.hospitalAddress),
     };
   } else if (formType === 'school-admission') {
     const schoolFields = fields as SchoolAdmissionLetterFields;

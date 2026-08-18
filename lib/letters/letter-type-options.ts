@@ -45,6 +45,7 @@ export function documentTypeForLetterType(
     base === 'income' ||
     base === 'domicile' ||
     base === 'identity' ||
+    base === 'medical-assistance' ||
     base.startsWith('ration-')
   ) {
     return 'General';
@@ -139,6 +140,10 @@ const SERVICE_NAME_TO_LETTER_TYPE: Array<{ match: string; letterType: string }> 
     letterType: 'income',
   },
   { match: 'identity card', letterType: 'identity' },
+  { match: 'medical assistance', letterType: 'medical-assistance' },
+  { match: 'medical aid', letterType: 'medical-assistance' },
+  { match: 'cancer-related assistance', letterType: 'medical-assistance' },
+  { match: 'cancer related assistance', letterType: 'medical-assistance' },
   { match: 'request letter', letterType: 'general' },
   { match: 'handover letter request', letterType: 'general' },
   { match: 'ward letter', letterType: 'ward' },
@@ -209,6 +214,12 @@ export function resolveLetterTypeFromServiceName(
   if (/\bincome\b/.test(key)) return 'income';
   if (/\bdomicile\b/.test(key)) return 'domicile';
   if (/\bidentity card\b/.test(key) || /\bolkhaptra\b/.test(key)) return 'identity';
+  if (/\bmedical\b/.test(key) && /\b(assistance|aid)\b/.test(key)) {
+    return 'medical-assistance';
+  }
+  if (/\bcancer\b/.test(key) && /\bassistance\b/.test(key)) {
+    return 'medical-assistance';
+  }
   // Former "Ward – …" services were renamed to "BMC – …"; both open the ward form.
   if (/\bward\b/.test(key) || /^bmc\s*-/.test(key)) return 'ward';
 

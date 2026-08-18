@@ -146,6 +146,18 @@ const KNOWN_PLACEHOLDERS_BY_FORM: Partial<
     'genderPronounSubject',
     'reason',
   ],
+  'medical-assistance': [
+    ...COMMON_PLACEHOLDER_KEYS,
+    'gender',
+    'salutation',
+    'hospitalName',
+    'hospitalAddress',
+    'fullName',
+    'age',
+    'address',
+    'ailment',
+    'treatment',
+  ],
   ward: [
     ...COMMON_PLACEHOLDER_KEYS,
     'issueType',

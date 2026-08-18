@@ -1077,6 +1077,7 @@
       "income": "Income Certificate",
       "domicile": "Domicile Certificate",
       "identity": "Identity Card",
+      "medical-assistance": "Medical Assistance Recommendation",
       "ward": "Ward Letter",
       "general": "General Letter",
       "ration": "Ration Card (All)"
@@ -1137,7 +1138,12 @@
       "contactNo": "Contact Number",
       "location": "Location / Landmark",
       "duration": "Duration",
-      "toName": "Officer / Office Name"
+      "toName": "Officer / Office Name",
+      "hospitalName": "Hospital Name",
+      "hospitalAddress": "Hospital Address",
+      "age": "Age",
+      "ailment": "Ailment / Condition",
+      "treatment": "Required Treatment"
     },
     "customFields": {
       "title": "Template fields",
@@ -1164,7 +1170,9 @@
       "duration": "e.g. 3 days",
       "toName": "Type officer / office name",
       "reason": "e.g. for a bank account / job",
-      "contactNo": "e.g. 9876543210"
+      "contactNo": "e.g. 9876543210",
+      "ailment": "e.g. kidney ailment",
+      "treatment": "e.g. kidney transplant"
     },
     "gender": {
       "male": "Male",

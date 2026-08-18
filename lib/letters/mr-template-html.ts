@@ -418,6 +418,39 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   ${CLOSING}
 </div>`,
 
+  'medical-assistance': `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>संदर्भ क्र. <span class="var">{{referencePrefix}}/{{referenceNo}}</span></div>
+    <div>दि. <span class="var">{{date}}</span></div>
+  </div>
+  <div>प्रति,</div>
+  <div class="recipient">
+    वैद्यकीय अधीक्षक / अधिष्ठाता,<br>
+    <span class="var">{{hospitalName}}</span>,<br>
+    {{hospitalAddress}}
+  </div>
+  <div class="subject">
+    <div class="subject-label">विषय:</div>
+    <div class="subject-text">
+      {{fullName}} यांच्या वैद्यकीय उपचाराचा खर्च गरीब सहायता निधीतून करण्याबाबत.
+    </div>
+  </div>
+  <div class="salutation">
+    महोदय/महोदया,
+  </div>
+  <p class="paragraph">
+    <span class="var">{{salutation}} {{fullName}}</span>, वय वर्षे <span class="var">{{age}}</span>, रा. {{address}}, यांना वैद्यकीय उपचारासाठी आपणाकडे पाठवीत आहे. त्यांना <span class="var">{{ailment}}</span> हा आजार असून तातडीने <span class="var">{{treatment}}</span> करण्याची आवश्यकता आहे. सध्या <span class="var">{{salutation}} {{fullName}}</span> यांच्यावर आपल्या रुग्णालयात उपचार सुरू आहेत.
+  </p>
+  <p class="paragraph">
+    त्यांची आर्थिक परिस्थिती अत्यंत हलाखीची असून सदर वैद्यकीय उपचारांचा खर्च करणे त्यांना शक्य नाही.
+  </p>
+  <p class="paragraph">
+    तरी, कृपया त्यांच्या वैद्यकीय उपचाराचा खर्च गरीब सहायता निधीतून करण्यात यावा, ही विनंती.
+  </p>
+  ${CLOSING}
+</div>`,
+
   ward: WARD_TEMPLATE_HTML,
   ...Object.fromEntries(
     WARD_LETTER_TYPES.map((type) => [type, wardIssueTemplateHtml(type)]),

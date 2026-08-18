@@ -48,6 +48,7 @@ export const LETTER_TYPES = [
   'income',
   'domicile',
   'identity',
+  'medical-assistance',
   /** @deprecated Prefer specific ward-* letter types */
   'ward',
   ...WARD_LETTER_TYPES,
@@ -172,6 +173,18 @@ export type DomicileLetterFields = CommonLetterFields & {
   reason?: string;
 };
 
+export type MedicalAssistanceLetterFields = CommonLetterFields & {
+  gender: PersonGender;
+  salutation: string;
+  hospitalName: string;
+  hospitalAddress: string;
+  fullName: string;
+  age: string;
+  address: string;
+  ailment: string;
+  treatment: string;
+};
+
 export type GeneralLetterFields = CommonLetterFields & {
   /** Combined recipient block (name + address) for letter templates. */
   to: string;
@@ -207,6 +220,7 @@ export type LetterFields =
   | RationLetterFields
   | IncomeLetterFields
   | DomicileLetterFields
+  | MedicalAssistanceLetterFields
   | WardLetterFields;
 
 export const DEFAULT_SIGNATORY: Record<LetterLocale, string> = {

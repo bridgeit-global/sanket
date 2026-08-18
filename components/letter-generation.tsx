@@ -90,6 +90,7 @@ import {
   type IncomeLetterFields,
   type LetterLocale,
   type LetterType,
+  type MedicalAssistanceLetterFields,
   type PersonGender,
   type RationLetterFields,
   type CollegeAdmissionLetterFields,
@@ -290,6 +291,7 @@ function getFieldsForLetterType(
     rationFields: RationLetterFields;
     incomeFields: IncomeLetterFields;
     domicileFields: DomicileLetterFields;
+    medicalAssistanceFields: MedicalAssistanceLetterFields;
     wardFields: WardLetterFields;
   },
 ) {
@@ -310,6 +312,8 @@ function getFieldsForLetterType(
     case 'domicile':
     case 'identity':
       return fields.domicileFields;
+    case 'medical-assistance':
+      return fields.medicalAssistanceFields;
     case 'ward':
       return fields.wardFields;
     default:
@@ -562,6 +566,21 @@ function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
     officeAddress: '',
     aadhaarNo: '',
     reason: '',
+  };
+}
+
+function medicalAssistanceDefaults(locale: LetterLocale): MedicalAssistanceLetterFields {
+  return {
+    ...commonDefaults(locale, 'medical-assistance'),
+    gender: 'male',
+    salutation: resolveSalutation(locale, 'male'),
+    hospitalName: '',
+    hospitalAddress: '',
+    fullName: '',
+    age: '',
+    address: '',
+    ailment: '',
+    treatment: '',
   };
 }
 
@@ -1035,6 +1054,7 @@ function applyMasterAddressToFields(
     setRationFields: Dispatch<SetStateAction<RationLetterFields>>;
     setIncomeFields: Dispatch<SetStateAction<IncomeLetterFields>>;
     setDomicileFields: Dispatch<SetStateAction<DomicileLetterFields>>;
+    setMedicalAssistanceFields: Dispatch<SetStateAction<MedicalAssistanceLetterFields>>;
     setWardFields: Dispatch<SetStateAction<WardLetterFields>>;
   },
 ) {
@@ -1067,6 +1087,10 @@ function applyMasterAddressToFields(
       ...prev,
       schoolAddress: schoolText,
     }));
+    setters.setMedicalAssistanceFields((prev) => ({
+      ...prev,
+      hospitalAddress: schoolText,
+    }));
   }
 
   if (applicantText) {
@@ -1076,6 +1100,7 @@ function applyMasterAddressToFields(
     setters.setRationFields((prev) => ({ ...prev, address: applicantText }));
     setters.setIncomeFields((prev) => ({ ...prev, address: applicantText }));
     setters.setDomicileFields((prev) => ({ ...prev, address: applicantText }));
+    setters.setMedicalAssistanceFields((prev) => ({ ...prev, address: applicantText }));
   }
 
   if (rationOfficeText) {
@@ -1263,6 +1288,8 @@ export function LetterGeneration({
   const [domicileFields, setDomicileFields] = useState<DomicileLetterFields>(
     () => domicileDefaults('mr'),
   );
+  const [medicalAssistanceFields, setMedicalAssistanceFields] =
+    useState<MedicalAssistanceLetterFields>(() => medicalAssistanceDefaults('mr'));
   const [wardFields, setWardFields] = useState<WardLetterFields>(() =>
     wardDefaults(
       'mr',
@@ -1313,11 +1340,13 @@ export function LetterGeneration({
         rationFields,
         incomeFields,
         domicileFields,
+        medicalAssistanceFields,
         wardFields,
       }).date,
     [
       activeTab,
       domicileFields,
+      medicalAssistanceFields,
       generalFields,
       feesFields,
       incomeFields,
@@ -1686,6 +1715,19 @@ export function LetterGeneration({
       aadhaarNo: normalizeAadhaarNo(prev.aadhaarNo),
       reason: filterText(prev.reason ?? ''),
     }));
+    setMedicalAssistanceFields((prev) => ({
+      ...prev,
+      referencePrefix: nextPrefix(prev.referencePrefix),
+      referenceNo: nextReferenceNo(prev.referenceNo),
+      signatory: nextSignatory(prev.signatory),
+      date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+      salutation: resolveSalutation(letterLocale, prev.gender),
+      hospitalName: filterText(prev.hospitalName),
+      fullName: filterText(prev.fullName),
+      age: toLocaleDigits(normalizeFamilyMemberAge(prev.age), letterLocale),
+      ailment: filterText(prev.ailment),
+      treatment: filterText(prev.treatment),
+    }));
     setWardFields((prev) => {
       const issueType = resolveWardIssueType(prev.issueType);
       const prevDefaultTo = getDefaultWardToAddress(issueType, prevLocale);
@@ -1749,6 +1791,7 @@ export function LetterGeneration({
       setRationFields,
       setIncomeFields,
       setDomicileFields,
+      setMedicalAssistanceFields,
       setWardFields,
     });
 
@@ -1760,6 +1803,7 @@ export function LetterGeneration({
         setSchoolAdmissionFields((prev) => ({ ...prev, schoolAddress: text }));
         setCollegeAdmissionFields((prev) => ({ ...prev, collegeAddress: text }));
         setSchoolTransferFields((prev) => ({ ...prev, schoolAddress: text }));
+        setMedicalAssistanceFields((prev) => ({ ...prev, hospitalAddress: text }));
       }
     }
     if (!addressSelections.applicant) {
@@ -1775,6 +1819,7 @@ export function LetterGeneration({
         setRationFields((prev) => ({ ...prev, address: text }));
         setIncomeFields((prev) => ({ ...prev, address: text }));
         setDomicileFields((prev) => ({ ...prev, address: text }));
+        setMedicalAssistanceFields((prev) => ({ ...prev, address: text }));
       }
     }
     if (!addressSelections.rationOffice) {
@@ -1891,6 +1936,7 @@ export function LetterGeneration({
           setSchoolAdmissionFields((prev) => ({ ...prev, schoolAddress: value }));
           setCollegeAdmissionFields((prev) => ({ ...prev, collegeAddress: value }));
           setSchoolTransferFields((prev) => ({ ...prev, schoolAddress: value }));
+          setMedicalAssistanceFields((prev) => ({ ...prev, hospitalAddress: value }));
           break;
         case 'applicant':
           setSchoolAdmissionFields((prev) => ({ ...prev, address: value }));
@@ -1899,6 +1945,7 @@ export function LetterGeneration({
           setRationFields((prev) => ({ ...prev, address: value }));
           setIncomeFields((prev) => ({ ...prev, address: value }));
           setDomicileFields((prev) => ({ ...prev, address: value }));
+          setMedicalAssistanceFields((prev) => ({ ...prev, address: value }));
           break;
         case 'rationOffice':
           setRationFields((prev) => ({ ...prev, rationOfficeAddress: value }));
@@ -2011,6 +2058,7 @@ export function LetterGeneration({
     setSchoolAdmissionFields((prev) => ({ ...prev, schoolAddress: text }));
     setCollegeAdmissionFields((prev) => ({ ...prev, collegeAddress: text }));
     setSchoolTransferFields((prev) => ({ ...prev, schoolAddress: text }));
+    setMedicalAssistanceFields((prev) => ({ ...prev, hospitalAddress: text }));
   };
 
   const applyApplicantAddressText = (text: string) => {
@@ -2020,6 +2068,7 @@ export function LetterGeneration({
     setRationFields((prev) => ({ ...prev, address: text }));
     setIncomeFields((prev) => ({ ...prev, address: text }));
     setDomicileFields((prev) => ({ ...prev, address: text }));
+    setMedicalAssistanceFields((prev) => ({ ...prev, address: text }));
   };
 
   const handleSchoolAddressSelect = (id: string | null, seedText = '') => {
@@ -2034,6 +2083,7 @@ export function LetterGeneration({
           setSchoolAdmissionFields((prev) => ({ ...prev, schoolName }));
           setCollegeAdmissionFields((prev) => ({ ...prev, collegeName: schoolName }));
           setSchoolTransferFields((prev) => ({ ...prev, schoolName }));
+          setMedicalAssistanceFields((prev) => ({ ...prev, hospitalName: schoolName }));
         }
       }
       const text = getAddressTextFromMaster(addresses, id, letterLocale, true);
@@ -2047,6 +2097,7 @@ export function LetterGeneration({
       setSchoolAdmissionFields((prev) => ({ ...prev, schoolName: '' }));
       setCollegeAdmissionFields((prev) => ({ ...prev, collegeName: '' }));
       setSchoolTransferFields((prev) => ({ ...prev, schoolName: '' }));
+      setMedicalAssistanceFields((prev) => ({ ...prev, hospitalName: '' }));
       seedManualAddressPartsFromText('school', seedText);
     }
   };
@@ -2538,6 +2589,9 @@ export function LetterGeneration({
     setSchoolTransferFields((prev) =>
       prev.schoolName?.trim() ? prev : { ...prev, schoolName },
     );
+    setMedicalAssistanceFields((prev) =>
+      prev.hospitalName?.trim() ? prev : { ...prev, hospitalName: schoolName },
+    );
   }, [addressSelections.school, addresses, letterLocale]);
 
   useEffect(() => {
@@ -2680,6 +2734,7 @@ export function LetterGeneration({
         rationFields,
         incomeFields,
         domicileFields,
+        medicalAssistanceFields,
         wardFields,
       }),
       ...customPlaceholderValues,
@@ -2709,6 +2764,7 @@ export function LetterGeneration({
     rationFields,
     incomeFields,
     domicileFields,
+    medicalAssistanceFields,
     wardFields,
     customPlaceholderValues,
     activeTemplateHtml,
@@ -2745,6 +2801,7 @@ export function LetterGeneration({
         rationFields,
         incomeFields,
         domicileFields,
+        medicalAssistanceFields,
         wardFields,
       }),
       ...customPlaceholderValues,
@@ -2753,6 +2810,7 @@ export function LetterGeneration({
       activeTab,
       customPlaceholderValues,
       domicileFields,
+      medicalAssistanceFields,
       generalFields,
       feesFields,
       incomeFields,
@@ -2788,6 +2846,7 @@ export function LetterGeneration({
     setRationFields(coercePrefix);
     setIncomeFields(coercePrefix);
     setDomicileFields(coercePrefix);
+    setMedicalAssistanceFields(coercePrefix);
     setWardFields(coercePrefix);
   }, []);
 
@@ -2809,6 +2868,7 @@ export function LetterGeneration({
     setRationFields(patchPrefix);
     setIncomeFields(patchPrefix);
     setDomicileFields(patchPrefix);
+    setMedicalAssistanceFields(patchPrefix);
     setWardFields(patchPrefix);
     referenceNumberAutoRef.current = true;
   }, [activeTab, lockFixedFields]);
@@ -2902,6 +2962,19 @@ export function LetterGeneration({
           });
         },
       );
+      setMedicalAssistanceFields((prev) =>
+        prev.fullName.trim() ? prev : { ...prev, fullName: voterPrefillName },
+      );
+      void applyNameMarathiIfUnchanged(
+        'medical-assistance.fullName',
+        voterPrefillName,
+        (translated, trimmed) => {
+          setMedicalAssistanceFields((prev) => {
+            if (prev.fullName.trim() !== trimmed) return prev;
+            return { ...prev, fullName: translated };
+          });
+        },
+      );
       setSchoolAdmissionFields((prev) =>
         prev.parentName.trim()
           ? prev
@@ -2972,6 +3045,9 @@ export function LetterGeneration({
         prev.address.trim() ? prev : { ...prev, address: voterPrefillAddress },
       );
       setDomicileFields((prev) =>
+        prev.address.trim() ? prev : { ...prev, address: voterPrefillAddress },
+      );
+      setMedicalAssistanceFields((prev) =>
         prev.address.trim() ? prev : { ...prev, address: voterPrefillAddress },
       );
       seedManualAddressPartsFromText('applicant', voterPrefillAddress);
@@ -3114,6 +3190,15 @@ export function LetterGeneration({
         requireField(errors, 'officeName', domicileFields.officeName, requiredMsg);
         requireAddress('office', domicileFields.officeAddress);
       }
+    } else if (formTab === 'medical-assistance') {
+      requireField(errors, 'hospitalName', medicalAssistanceFields.hospitalName, requiredMsg);
+      requireField(errors, 'salutation', medicalAssistanceFields.salutation, requiredMsg);
+      requireField(errors, 'fullName', medicalAssistanceFields.fullName, requiredMsg);
+      requireField(errors, 'age', medicalAssistanceFields.age, requiredMsg);
+      requireField(errors, 'ailment', medicalAssistanceFields.ailment, requiredMsg);
+      requireField(errors, 'treatment', medicalAssistanceFields.treatment, requiredMsg);
+      requireAddress('school', medicalAssistanceFields.hospitalAddress);
+      requireAddress('applicant', medicalAssistanceFields.address);
     } else if (formTab === 'ward') {
       requireField(errors, 'toName', wardFields.toName, requiredMsg);
       requireAddress('to', wardFields.to);
@@ -3157,6 +3242,7 @@ export function LetterGeneration({
     const fields = (letter.fields ?? {}) as Record<string, unknown>;
     const candidates = [
       fields.schoolName,
+      fields.hospitalName,
       fields.toName,
       fields.officeName,
       fields.officeAddress,
@@ -3400,8 +3486,10 @@ export function LetterGeneration({
               ? schoolAdmissionFields.schoolAddress
               : formTab === 'college-admission'
                 ? collegeAdmissionFields.collegeAddress
-                : formTab === 'school-transfer'
-                  ? schoolTransferFields.schoolAddress
+              : formTab === 'school-transfer'
+                ? schoolTransferFields.schoolAddress
+                : formTab === 'medical-assistance'
+                  ? medicalAssistanceFields.hospitalAddress
                   : '') ?? '';
         const schoolNameValue =
           (formTab === 'fees'
@@ -3412,7 +3500,9 @@ export function LetterGeneration({
                 ? collegeAdmissionFields.collegeName
                 : formTab === 'school-transfer'
                   ? schoolTransferFields.schoolName
-                  : '') ?? '';
+                  : formTab === 'medical-assistance'
+                    ? medicalAssistanceFields.hospitalName
+                    : '') ?? '';
 
         if (schoolAddressText.trim() && schoolNameValue.trim()) {
           const created = await createAddressMasterFromManualEntry({
@@ -3640,6 +3730,7 @@ export function LetterGeneration({
     setRationFields(rationDefaults(letterLocale));
     setIncomeFields(incomeDefaults(letterLocale));
     setDomicileFields(domicileDefaults(letterLocale));
+    setMedicalAssistanceFields(medicalAssistanceDefaults(letterLocale));
     setWardFields(
       wardDefaults(
         letterLocale,
@@ -5987,6 +6078,245 @@ export function LetterGeneration({
                           />
                         </FieldGroup>
                       ) : null}
+                    </TabsContent>
+
+                    <TabsContent value="medical-assistance" className="mt-0 space-y-4">
+                      {renderCommonFields(medicalAssistanceFields, setMedicalAssistanceFields)}
+                      <LetterAddressField
+                        label={lt('letterGeneration.fields.hospitalAddress')}
+                        addressType={addressTypeForField('school')}
+                        locale={letterLocale}
+                        selectedAddressId={addressSelections.school}
+                        addresses={addresses}
+                        letterDate={activeLetterDate}
+                        addressParts={manualAddressParts.school}
+                        onAddressPartsChange={(parts) =>
+                          handleManualAddressPartsChange('school', parts)
+                        }
+                        pincodeError={addressPincodeErrors.school}
+                        error={fieldErrors.schoolAddress}
+                        required
+                        nameLabel={lt('letterGeneration.fields.hospitalName')}
+                        namePlaceholder={
+                          letterLocale === 'mr'
+                            ? 'हॉस्पिटल नाव टाइप करा'
+                            : 'Type hospital name'
+                        }
+                        nameValue={medicalAssistanceFields.hospitalName}
+                        nameRequired
+                        nameError={fieldErrors.hospitalName}
+                        onNameChange={(value) => {
+                          setMedicalAssistanceFields((prev) => ({
+                            ...prev,
+                            hospitalName: value,
+                          }));
+                          if (fieldErrors.hospitalName) {
+                            setFieldErrors((prev) => ({
+                              ...prev,
+                              hospitalName: undefined,
+                            }));
+                          }
+                        }}
+                        onSelectedAddressIdChange={(id) =>
+                          handleSchoolAddressSelect(
+                            id,
+                            medicalAssistanceFields.hospitalAddress,
+                          )
+                        }
+                      />
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <FieldGroup label={lt('letterGeneration.fields.gender')} required>
+                          <Select
+                            value={medicalAssistanceFields.gender}
+                            onValueChange={(value: PersonGender) =>
+                              setMedicalAssistanceFields((prev) => ({
+                                ...prev,
+                                gender: value,
+                                salutation: resolveSalutation(letterLocale, value),
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="male">
+                                {lt('letterGeneration.gender.male')}
+                              </SelectItem>
+                              <SelectItem value="female">
+                                {lt('letterGeneration.gender.female')}
+                              </SelectItem>
+                              <SelectItem value="other">
+                                {lt('letterGeneration.gender.other')}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FieldGroup>
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.salutation')}
+                          required
+                          error={fieldErrors.salutation}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
+                            value={medicalAssistanceFields.salutation}
+                            onValueChange={(salutation) => {
+                              setMedicalAssistanceFields({
+                                ...medicalAssistanceFields,
+                                salutation,
+                              });
+                              if (fieldErrors.salutation) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  salutation: undefined,
+                                }));
+                              }
+                            }}
+                            required
+                          />
+                        </FieldGroup>
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.fullName')}
+                          required
+                          error={fieldErrors.fullName}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
+                            value={medicalAssistanceFields.fullName}
+                            onValueChange={(fullName) => {
+                              bumpNameTranslateReqId('medical-assistance.fullName');
+                              setMedicalAssistanceFields({
+                                ...medicalAssistanceFields,
+                                fullName,
+                              });
+                              if (fieldErrors.fullName) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  fullName: undefined,
+                                }));
+                              }
+                            }}
+                            onBlur={() => {
+                              void applyNameMarathiIfUnchanged(
+                                'medical-assistance.fullName',
+                                medicalAssistanceFields.fullName,
+                                (translated, trimmed) => {
+                                  setMedicalAssistanceFields((prev) => {
+                                    if (prev.fullName.trim() !== trimmed) return prev;
+                                    return { ...prev, fullName: translated };
+                                  });
+                                },
+                              );
+                            }}
+                            required
+                          />
+                        </FieldGroup>
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.age')}
+                          required
+                          error={fieldErrors.age}
+                        >
+                          <Input
+                            value={
+                              medicalAssistanceFields.age
+                                ? toLocaleDigits(
+                                    medicalAssistanceFields.age,
+                                    letterLocale,
+                                  )
+                                : ''
+                            }
+                            onChange={(e) => {
+                              setMedicalAssistanceFields({
+                                ...medicalAssistanceFields,
+                                age: normalizeFamilyMemberAge(e.target.value),
+                              });
+                              if (fieldErrors.age) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  age: undefined,
+                                }));
+                              }
+                            }}
+                            inputMode="numeric"
+                            placeholder={lt(
+                              'letterGeneration.placeholders.familyMemberAge',
+                            )}
+                            required
+                          />
+                        </FieldGroup>
+                      </div>
+                      <LetterAddressField
+                        label={lt('letterGeneration.fields.address')}
+                        addressType={addressTypeForField('applicant')}
+                        entryMode="structured"
+                        locale={letterLocale}
+                        selectedAddressId={addressSelections.applicant}
+                        addresses={addresses}
+                        letterDate={activeLetterDate}
+                        addressParts={manualAddressParts.applicant}
+                        onAddressPartsChange={(parts) =>
+                          handleManualAddressPartsChange('applicant', parts)
+                        }
+                        pincodeError={addressPincodeErrors.applicant}
+                        error={fieldErrors.applicantAddress}
+                        required
+                        onSelectedAddressIdChange={(id) =>
+                          handleApplicantAddressSelect(
+                            id,
+                            medicalAssistanceFields.address,
+                          )
+                        }
+                      />
+                      <FieldGroup
+                        label={lt('letterGeneration.fields.ailment')}
+                        required
+                        error={fieldErrors.ailment}
+                      >
+                        <LocaleTextInput
+                          locale={letterLocale}
+                          value={medicalAssistanceFields.ailment}
+                          onValueChange={(ailment) => {
+                            setMedicalAssistanceFields({
+                              ...medicalAssistanceFields,
+                              ailment,
+                            });
+                            if (fieldErrors.ailment) {
+                              setFieldErrors((prev) => ({
+                                ...prev,
+                                ailment: undefined,
+                              }));
+                            }
+                          }}
+                          placeholder={lt('letterGeneration.placeholders.ailment')}
+                          required
+                        />
+                      </FieldGroup>
+                      <FieldGroup
+                        label={lt('letterGeneration.fields.treatment')}
+                        required
+                        error={fieldErrors.treatment}
+                      >
+                        <LocaleTextInput
+                          locale={letterLocale}
+                          value={medicalAssistanceFields.treatment}
+                          onValueChange={(treatment) => {
+                            setMedicalAssistanceFields({
+                              ...medicalAssistanceFields,
+                              treatment,
+                            });
+                            if (fieldErrors.treatment) {
+                              setFieldErrors((prev) => ({
+                                ...prev,
+                                treatment: undefined,
+                              }));
+                            }
+                          }}
+                          placeholder={lt(
+                            'letterGeneration.placeholders.treatment',
+                          )}
+                          required
+                        />
+                      </FieldGroup>
                     </TabsContent>
 
                     <TabsContent value="ward" className="mt-0 space-y-4">
