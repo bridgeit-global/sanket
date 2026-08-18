@@ -262,7 +262,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     सदर पत्रासोबत अर्जदार <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, रा. <span style="font-weight: normal;">{{address}}</span> यांना त्यांच्या शिधापत्रिकेत कुटुंबातील सदस्यांची नावे समाविष्ट करण्याकरिता आपणाकडे पाठवीत आहोत.
   </p>
   <p class="paragraph">
-    अर्जदाराकडील शिधापत्रिका क्रमांक <span class="var">{{rationCardNo}}</span> असून, खालील सदस्यांची नावे सदर शिधापत्रिकेत समाविष्ट करण्याबाबत विनंती करण्यात येत आहे:
+    अर्जदाराकडील शिधापत्रिका क्रमांक <span class="var">{{rationCardNo}}</span> असून, त्यांनी खालील सदस्यांची नावे सदर शिधापत्रिकेत समाविष्ट करण्याबाबत विनंती करण्यात येत आहे:
   </p>
   <p class="member-list">
     <span class="var">{{familyMembersBlock}}</span>
@@ -291,7 +291,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     सदर पत्रासोबत अर्जदार <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, रा. <span style="font-weight: normal;">{{address}}</span> यांना त्यांच्या शिधापत्रिकेतून कुटुंबातील सदस्यांची नावे वगळण्याकरिता आपणाकडे पाठवीत आहोत.
   </p>
   <p class="paragraph">
-    अर्जदाराकडील शिधापत्रिका क्रमांक <span class="var">{{rationCardNo}}</span> असून, खालील सदस्यांची नावे सदर शिधापत्रिकेतून वगळण्याबाबत विनंती करण्यात येत आहे:
+    अर्जदाराकडील शिधापत्रिका क्रमांक <span class="var">{{rationCardNo}}</span> असून, त्यांनी खालील सदस्यांची नावे सदर शिधापत्रिकेतून वगळण्याबाबत विनंती करण्यात येत आहे:
   </p>
   <p class="member-list">
     <span class="var">{{familyMembersBlock}}</span>
