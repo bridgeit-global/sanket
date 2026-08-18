@@ -561,6 +561,7 @@ function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
     officeName: '',
     officeAddress: '',
     aadhaarNo: '',
+    reason: '',
   };
 }
 
@@ -1683,6 +1684,7 @@ export function LetterGeneration({
       salutation: resolveSalutation(letterLocale, prev.gender),
       fullName: filterText(prev.fullName),
       aadhaarNo: normalizeAadhaarNo(prev.aadhaarNo),
+      reason: filterText(prev.reason ?? ''),
     }));
     setWardFields((prev) => {
       const issueType = resolveWardIssueType(prev.issueType);
@@ -5959,6 +5961,20 @@ export function LetterGeneration({
                           required
                         />
                       </FieldGroup>
+                      {activeTab === 'identity' ? (
+                        <FieldGroup
+                          label={`${lt('letterGeneration.fields.reason')} (${lt('common.optional')})`}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
+                            value={domicileFields.reason ?? ''}
+                            onValueChange={(reason) => {
+                              setDomicileFields({ ...domicileFields, reason });
+                            }}
+                            placeholder={lt('letterGeneration.placeholders.reason')}
+                          />
+                        </FieldGroup>
+                      ) : null}
                     </TabsContent>
 
                     <TabsContent value="ward" className="mt-0 space-y-4">

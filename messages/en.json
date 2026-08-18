@@ -1119,6 +1119,7 @@
       "toRationOffice": "To Ration Office",
       "officeAddress": "Office Address",
       "aadhaarNo": "Aadhaar Number",
+      "reason": "Reason",
       "annualIncome": "Annual Income (₹)",
       "letterType": "Letter Type",
       "letterLanguage": "Letter Language",
@@ -1162,6 +1163,7 @@
       "location": "e.g. near XYZ chowk",
       "duration": "e.g. 3 days",
       "toName": "Type officer / office name",
+      "reason": "e.g. for a bank account / job",
       "contactNo": "e.g. 9876543210"
     },
     "gender": {

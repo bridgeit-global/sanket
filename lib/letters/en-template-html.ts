@@ -412,6 +412,7 @@ To,<br>
   <p class="paragraph">
     <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, residing at <span style="font-weight: normal;">{{address}}</span>, has been residing at the said residential address for a long period. The applicant's Aadhaar number is <span class="var">{{aadhaarNo}}</span>, and a photocopy is attached.
   </p>
+  {{reasonBlock}}
   <div class="right-tab-sign">
     (<span class="var">{{signatory}}</span>)
   </div>

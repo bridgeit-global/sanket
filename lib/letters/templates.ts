@@ -168,6 +168,8 @@ export type DomicileLetterFields = CommonLetterFields & {
   officeName: string;
   officeAddress: string;
   aadhaarNo: string;
+  /** Optional identity-letter reason; omitted from the body when empty. */
+  reason?: string;
 };
 
 export type GeneralLetterFields = CommonLetterFields & {

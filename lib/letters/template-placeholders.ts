@@ -144,6 +144,8 @@ const KNOWN_PLACEHOLDERS_BY_FORM: Partial<
     'address',
     'aadhaarNo',
     'genderPronounSubject',
+    'reason',
+    'reasonBlock',
   ],
   ward: [
     ...COMMON_PLACEHOLDER_KEYS,
