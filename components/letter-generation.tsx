@@ -1557,6 +1557,7 @@ export function LetterGeneration({
     setRationFields((prev) => ({ ...prev, ...patch }));
     setIncomeFields((prev) => ({ ...prev, ...patch }));
     setDomicileFields((prev) => ({ ...prev, ...patch }));
+    setMedicalAssistanceFields((prev) => ({ ...prev, ...patch }));
     setWardFields((prev) => ({ ...prev, ...patch }));
   }, []);
 

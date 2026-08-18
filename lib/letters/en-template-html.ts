@@ -433,7 +433,7 @@ To,<br>
     .right-tab-sign { text-align: right; padding-right: 28px; margin-top: 30px; font-weight: bold; }
   </style>
   <div class="top-row">
-    <div>Ref. No. <span class="var">{{referencePrefix}}/{{referenceNo}}</span></div>
+    <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
     <div>Date: <span class="var">{{date}}</span></div>
   </div>
   <div>To,</div>

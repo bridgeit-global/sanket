@@ -421,7 +421,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   'medical-assistance': `<div class="letter-content" style="${ROOT}">
   <style>${LETTER_STYLE}</style>
   <div class="top-row">
-    <div>संदर्भ क्र. <span class="var">{{referencePrefix}}/{{referenceNo}}</span></div>
+    <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
     <div>दि. <span class="var">{{date}}</span></div>
   </div>
   <div>प्रति,</div>
