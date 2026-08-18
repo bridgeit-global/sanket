@@ -131,6 +131,7 @@ export function buildThermalTicketText(data: ThermalReceiptData): string {
     separator,
     ...formatFreeText('Hon. MLA Sana Malik Shaikh', width),
     ...formatFreeText('Anushakti Nagar Constituency', width),
+    ...formatFreeText('Tel: 022-4604 1633', width),
     separator,
     'TOKEN NO',
     getTokenSuffix(data.token),
