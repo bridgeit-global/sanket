@@ -133,6 +133,22 @@ function formatSignatureBlock(signatureParagraphs: string): string {
     .join('');
 }
 
+function formatAadhaarForLetter(aadhaarNo: string, locale: LetterLocale): string {
+  const digits = toWesternDigits(aadhaarNo).replace(/\D/g, '');
+  const grouped = digits.replace(/(\d{4})(?=\d)/g, '$1 ');
+  return toLocaleDigits(grouped, locale);
+}
+
+function formatIdentityReasonBlock(reason: string, locale: LetterLocale): string {
+  const trimmed = reason.trim();
+  if (!trimmed) return '';
+  const escaped = escapeHtmlText(trimmed);
+  if (locale === 'mr') {
+    return `<p class="paragraph">सदरचे ओळखपत्र त्यांना त्यांच्या विनंतीनुसार <span class="var">${escaped}</span> देण्यात येत आहे.</p>`;
+  }
+  return `<p class="paragraph">This identity card is being issued to them at their request <span class="var">${escaped}</span>.</p>`;
+}
+
 function resolveGenderTokens(gender: PersonGender | undefined, locale: LetterLocale) {
   const resolvedGender: PersonGender = gender ?? 'other';
   if (locale === 'mr') {
@@ -214,17 +230,24 @@ export function buildRenderFields(
       officeName: incomeFields.officeName,
       officeAddress: formatAddressSoftWrapHtml(incomeFields.officeAddress),
     };
-  } else if (formType === 'domicile') {
+  } else if (formType === 'domicile' || formType === 'identity') {
     const domicileFields = fields as DomicileLetterFields;
+    const reason = (domicileFields.reason ?? '').trim();
     renderFields = {
       ...base,
       ...resolveGenderTokens(domicileFields.gender, locale),
-      aadhaarNo: toLocaleDigits(
-        toWesternDigits(domicileFields.aadhaarNo).replace(/\D/g, ''),
-        locale,
-      ),
+      aadhaarNo:
+        formType === 'identity'
+          ? formatAadhaarForLetter(domicileFields.aadhaarNo, locale)
+          : toLocaleDigits(
+              toWesternDigits(domicileFields.aadhaarNo).replace(/\D/g, ''),
+              locale,
+            ),
       officeName: domicileFields.officeName,
       officeAddress: formatAddressSoftWrapHtml(domicileFields.officeAddress),
+      reason,
+      reasonBlock:
+        formType === 'identity' ? formatIdentityReasonBlock(reason, locale) : '',
     };
   } else if (formType === 'school-admission') {
     const schoolFields = fields as SchoolAdmissionLetterFields;

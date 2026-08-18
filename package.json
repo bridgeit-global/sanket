@@ -16,6 +16,7 @@
     "db:seed:addresses": "npx tsx scripts/seed-address-master.ts",
     "db:seed:services": "npx tsx scripts/seed-service-catalog.ts",
     "db:seed:adm-mla": "npx tsx scripts/seed-adm-mla-pdfs.ts",
+    "letters:export-templates": "npx tsx scripts/export-letter-templates-pdf.ts",
     "test": "export PLAYWRIGHT=True && pnpm exec playwright test"
   },
   "dependencies": {

@@ -44,6 +44,7 @@ export function documentTypeForLetterType(
     base === 'school-transfer' ||
     base === 'income' ||
     base === 'domicile' ||
+    base === 'identity' ||
     base.startsWith('ration-')
   ) {
     return 'General';
@@ -133,6 +134,11 @@ const SERVICE_NAME_TO_LETTER_TYPE: Array<{ match: string; letterType: string }> 
   { match: 'ration donation', letterType: 'ration-new' },
   { match: 'income certificate', letterType: 'income' },
   { match: 'domicile certificate', letterType: 'domicile' },
+  {
+    match: 'identity card and income certificate',
+    letterType: 'income',
+  },
+  { match: 'identity card', letterType: 'identity' },
   { match: 'request letter', letterType: 'general' },
   { match: 'handover letter request', letterType: 'general' },
   { match: 'ward letter', letterType: 'ward' },
@@ -202,6 +208,7 @@ export function resolveLetterTypeFromServiceName(
   }
   if (/\bincome\b/.test(key)) return 'income';
   if (/\bdomicile\b/.test(key)) return 'domicile';
+  if (/\bidentity card\b/.test(key) || /\bolkhaptra\b/.test(key)) return 'identity';
   // Former "Ward – …" services were renamed to "BMC – …"; both open the ward form.
   if (/\bward\b/.test(key) || /^bmc\s*-/.test(key)) return 'ward';
 

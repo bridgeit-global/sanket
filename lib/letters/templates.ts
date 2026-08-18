@@ -47,6 +47,7 @@ export const LETTER_TYPES = [
   'ration-transfer',
   'income',
   'domicile',
+  'identity',
   /** @deprecated Prefer specific ward-* letter types */
   'ward',
   ...WARD_LETTER_TYPES,
@@ -116,7 +117,6 @@ export type CollegeAdmissionLetterFields = CommonLetterFields & {
   collegeName: string;
   collegeAddress: string;
   courseName: string;
-  yearOrClass: string;
   studentName: string;
   parentName: string;
   address: string;
@@ -168,6 +168,8 @@ export type DomicileLetterFields = CommonLetterFields & {
   officeName: string;
   officeAddress: string;
   aadhaarNo: string;
+  /** Optional identity-letter reason; omitted from the body when empty. */
+  reason?: string;
 };
 
 export type GeneralLetterFields = CommonLetterFields & {

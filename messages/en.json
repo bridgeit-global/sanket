@@ -1076,6 +1076,7 @@
       "ration-transfer": "Ration Card — Transfer",
       "income": "Income Certificate",
       "domicile": "Domicile Certificate",
+      "identity": "Identity Card",
       "ward": "Ward Letter",
       "general": "General Letter",
       "ration": "Ration Card (All)"
@@ -1095,7 +1096,6 @@
       "collegeName": "College Name",
       "collegeAddress": "College Address",
       "courseName": "Course Name",
-      "yearOrClass": "Year / Class",
       "standard": "Standard / Class",
       "studentName": "Student Name",
       "parentName": "Parent / Guardian Name",
@@ -1119,6 +1119,7 @@
       "toRationOffice": "To Ration Office",
       "officeAddress": "Office Address",
       "aadhaarNo": "Aadhaar Number",
+      "reason": "Reason",
       "annualIncome": "Annual Income (₹)",
       "letterType": "Letter Type",
       "letterLanguage": "Letter Language",
@@ -1149,7 +1150,6 @@
       "date": "e.g. 05.12.2025",
       "standard": "e.g. 10th",
       "courseName": "e.g. B.Sc. / B.Com.",
-      "yearOrClass": "e.g. First Year",
       "salutation": "e.g. Mr. / Mrs.",
       "familyMemberName": "e.g. Abdul Rashid",
       "familyMemberRelation": "e.g. Mother / Father / Daughter",
@@ -1163,6 +1163,7 @@
       "location": "e.g. near XYZ chowk",
       "duration": "e.g. 3 days",
       "toName": "Type officer / office name",
+      "reason": "e.g. for a bank account / job",
       "contactNo": "e.g. 9876543210"
     },
     "gender": {

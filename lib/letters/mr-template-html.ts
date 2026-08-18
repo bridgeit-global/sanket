@@ -1,4 +1,12 @@
-import { WARD_LETTER_TYPES, type LetterType } from '@/lib/letters/templates';
+import {
+  WARD_LETTER_TYPES,
+  type LetterType,
+  wardIssueTypeFromLetterType,
+} from '@/lib/letters/templates';
+import {
+  wardIssueParagraphsHtml,
+  wardIssueSubjectHtml,
+} from '@/lib/letters/ward-issue-presets';
 
 /** Shared layout CSS from the fees concession Marathi letter. */
 const LETTER_STYLE = `
@@ -16,6 +24,7 @@ const LETTER_STYLE = `
     .letter-closing { text-align: right; }
     .letter-closing .signature-line { text-align: right; }
     .recipient-bottom { margin-top: 25px; font-weight: normal; max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: normal; }
+    .letter-title { text-align: center; font-weight: bold; font-size: 16px; margin: 16px 0 20px; text-decoration: underline; }
 `;
 
 const ROOT =
@@ -44,6 +53,28 @@ const WARD_TEMPLATE_HTML = `<div class="letter-content" style="${ROOT}">
   ${CLOSING}
 </div>`;
 
+function wardIssueTemplateHtml(
+  letterType: (typeof WARD_LETTER_TYPES)[number],
+): string {
+  const issueType = wardIssueTypeFromLetterType(letterType);
+  if (!issueType) return WARD_TEMPLATE_HTML;
+  return `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>दि. <span class="var">{{date}}</span></div>
+  </div>
+प्रति,<br>
+  <div class="address">{{toBlock}}</div>
+  <div class="subject"><span style="font-weight: normal;">विषय:</span> ${wardIssueSubjectHtml(issueType, 'mr')}</div>
+  <div class="salutation">
+    महोदय,
+  </div>
+  ${wardIssueParagraphsHtml(issueType, 'mr')}
+  ${CLOSING}
+</div>`;
+}
+
 export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   general: `<div class="letter-content" style="${ROOT}">
   <style>${LETTER_STYLE}</style>
@@ -54,7 +85,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   <div class="recipient">{{toBlock}}</div>
   <div class="subject"><span style="font-weight: normal;">विषय:</span> <span class="var">{{subject}}</span></div>
   {{paragraphsBlock}}
-  <div class="letter-closing">{{signatureBlock}}</div>
+  ${CLOSING}
 </div>`,
 
   fees: `<div class="letter-content" style="${ROOT}">
@@ -136,22 +167,22 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <span style="font-weight: normal;">{{collegeAddress}}</span>
   </div>
   <div class="subject">
-    <span style="font-weight: normal;">विषय:</span> <span class="var">{{studentName}}</span> या विद्यार्थ्यास <span class="var">{{courseName}}</span> अभ्यासक्रमाच्या <span class="var">{{yearOrClass}}</span> मध्ये प्रवेश मिळण्याबाबत शिफारस.
+    <span style="font-weight: normal;">विषय:</span> <span class="var">{{studentName}}</span> या विद्यार्थ्यास <span class="var">{{courseName}}</span> अभ्यासक्रमात प्रवेश मिळण्याबाबत शिफारस.
   </div>
   <div class="salutation">
     महोदय,
   </div>
   <p class="paragraph">
-    सदर पत्राद्वारे आपणास विनंती करण्यात येत आहे की, <span class="var">{{parentName}}</span>, रा. <span style="font-weight: normal;">{{address}}</span> यांचे पाल्य <span class="var">{{studentName}}</span> यास आपल्या महाविद्यालयात <span class="var">{{courseName}}</span> अभ्यासक्रमाच्या <span class="var">{{yearOrClass}}</span> मध्ये प्रवेश मिळण्याकरिता आपणाकडे शिफारस करण्यात येत आहे.
+    सदर पत्राद्वारे आपणास विनंती करण्यात येत आहे की, <span class="var">{{parentName}}</span>, रा. <span style="font-weight: normal;">{{address}}</span> यांचे पाल्य <span class="var">{{studentName}}</span> यास आपल्या महाविद्यालयात <span class="var">{{courseName}}</span> अभ्यासक्रमात प्रवेश मिळण्याकरिता आपणाकडे शिफारस करण्यात येत आहे.
   </p>
   <p class="paragraph">
-    सदर विद्यार्थ्यास उच्च शिक्षणाची आवड असून, पुढील शैक्षणिक प्रगतीसाठी योग्य व दर्जेदार शैक्षणिक वातावरण मिळणे आवश्यक आहे. आपल्या महाविद्यालयात <span class="var">{{courseName}}</span> अभ्यासक्रमाच्या <span class="var">{{yearOrClass}}</span> मध्ये प्रवेश मिळाल्यास सदर विद्यार्थ्याच्या पुढील शिक्षणास व शैक्षणिक प्रगतीस निश्चितच मदत होईल.
+    सदर विद्यार्थ्यास उच्च शिक्षणाची आवड असून, पुढील शैक्षणिक प्रगतीसाठी योग्य व दर्जेदार शैक्षणिक वातावरण मिळणे आवश्यक आहे. आपल्या महाविद्यालयात <span class="var">{{courseName}}</span> अभ्यासक्रमात प्रवेश मिळाल्यास सदर विद्यार्थ्याच्या पुढील शिक्षणास व शैक्षणिक प्रगतीस निश्चितच मदत होईल.
   </p>
   <p class="paragraph">
     <span class="var">{{reasonText}}</span>
   </p>
   <p class="paragraph">
-    तरी उपलब्ध जागा, प्रवेशासंबंधी प्रचलित नियम, पात्रता निकष व आवश्यक कागदपत्रांची पडताळणी करून सदर विद्यार्थ्यास आपल्या महाविद्यालयात <span class="var">{{courseName}}</span> अभ्यासक्रमाच्या <span class="var">{{yearOrClass}}</span> मध्ये प्रवेश देण्याबाबत सहानुभूतीपूर्वक व नियमानुसार आवश्यक ती कार्यवाही करण्यात यावी, ही विनंती.
+    तरी उपलब्ध जागा, प्रवेशासंबंधी प्रचलित नियम, पात्रता निकष व आवश्यक कागदपत्रांची पडताळणी करून सदर विद्यार्थ्यास आपल्या महाविद्यालयात <span class="var">{{courseName}}</span> अभ्यासक्रमात प्रवेश देण्याबाबत सहानुभूतीपूर्वक व नियमानुसार आवश्यक ती कार्यवाही करण्यात यावी, ही विनंती.
   </p>
   ${CLOSING}
 </div>`,
@@ -231,7 +262,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     सदर पत्रासोबत अर्जदार <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, रा. <span style="font-weight: normal;">{{address}}</span> यांना त्यांच्या शिधापत्रिकेत कुटुंबातील सदस्यांची नावे समाविष्ट करण्याकरिता आपणाकडे पाठवीत आहोत.
   </p>
   <p class="paragraph">
-    अर्जदाराकडील शिधापत्रिका क्रमांक <span class="var">{{rationCardNo}}</span> असून, खालील सदस्यांची नावे सदर शिधापत्रिकेत समाविष्ट करण्याबाबत विनंती करण्यात येत आहे:
+    अर्जदाराकडील शिधापत्रिका क्रमांक <span class="var">{{rationCardNo}}</span> असून, त्यांनी खालील सदस्यांची नावे सदर शिधापत्रिकेत समाविष्ट करण्याबाबत विनंती करण्यात येत आहे:
   </p>
   <p class="member-list">
     <span class="var">{{familyMembersBlock}}</span>
@@ -260,7 +291,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     सदर पत्रासोबत अर्जदार <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, रा. <span style="font-weight: normal;">{{address}}</span> यांना त्यांच्या शिधापत्रिकेतून कुटुंबातील सदस्यांची नावे वगळण्याकरिता आपणाकडे पाठवीत आहोत.
   </p>
   <p class="paragraph">
-    अर्जदाराकडील शिधापत्रिका क्रमांक <span class="var">{{rationCardNo}}</span> असून, खालील सदस्यांची नावे सदर शिधापत्रिकेतून वगळण्याबाबत विनंती करण्यात येत आहे:
+    अर्जदाराकडील शिधापत्रिका क्रमांक <span class="var">{{rationCardNo}}</span> असून, त्यांनी खालील सदस्यांची नावे सदर शिधापत्रिकेतून वगळण्याबाबत विनंती करण्यात येत आहे:
   </p>
   <p class="member-list">
     <span class="var">{{familyMembersBlock}}</span>
@@ -292,7 +323,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     अर्जदाराकडील शिधापत्रिका क्रमांक <span class="var">{{rationCardNo}}</span> असून, सदर शिधापत्रिका <span class="var">{{fromRationOffice}}</span> येथून <span class="var">{{toRationOffice}}</span> येथे हस्तांतरित करण्याबाबत विनंती करण्यात येत आहे.
   </p>
   <p class="paragraph">
-    अर्जदाराच्या निवासस्थानात बदल झाल्यामुळे / क्षेत्र बदल झाल्यामुळे सदर शिधापत्रिका संबंधित नवीन शिधावाटप कार्यालयाच्या कार्यक्षेत्रात वर्ग करणे आवश्यक आहे.
+    अर्जदाराच्या निवासस्थानात बदल झाल्यामुळे / क्षेत्रात बदल झाल्यामुळे सदर शिधापत्रिका संबंधित नवीन शिधावाटप कार्यालयाच्या कार्यक्षेत्रात वर्ग करणे आवश्यक आहे.
   </p>
   <p class="member-list">
     <span class="var">{{familyMembersBlock}}</span>
@@ -336,7 +367,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     सदर प्रमाणपत्र / शिफारसपत्र अर्जदाराच्या विनंतीनुसार देण्यात येत आहे.
   </p>
   <p class="paragraph">
-    तरी सदर अर्जदाराकडे असलेल्या पुरावादर्शक कागदपत्रांची पडताळणी करून उत्पन्न प्रमाणपत्र देण्याबाबत नियमानुसार आवश्यक ती कार्यवाही करण्यात यावी, ही विनंती.
+    तरी सदर अर्जदाराकडे असलेल्या पुरावादर्शक कागदपत्रांची पडताळणी करून त्यांना उत्पन्न प्रमाणपत्र देण्याबाबत नियमानुसार आवश्यक ती कार्यवाही करण्यात यावी, ही विनंती.
   </p>
   ${CLOSING}
 </div>`,
@@ -371,8 +402,22 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   ${CLOSING}
 </div>`,
 
+  identity: `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>दि. <span class="var">{{date}}</span></div>
+  </div>
+  <div class="letter-title">ओळखपत्र</div>
+  <p class="paragraph">
+    <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span> रा. <span style="font-weight: normal;">{{address}}</span>. <span class="var">{{genderPronounSubject}}</span> रहिवासी पत्त्यावर अनेक दिवसांपासून वास्तव्य करीत असून यांचा आधार क्र. <span class="var">{{aadhaarNo}}</span> आहे, छायांकित प्रत जोडली आहे.
+  </p>
+  {{reasonBlock}}
+  ${CLOSING}
+</div>`,
+
   ward: WARD_TEMPLATE_HTML,
   ...Object.fromEntries(
-    WARD_LETTER_TYPES.map((type) => [type, WARD_TEMPLATE_HTML]),
+    WARD_LETTER_TYPES.map((type) => [type, wardIssueTemplateHtml(type)]),
   ),
 } as Record<LetterType, string>;

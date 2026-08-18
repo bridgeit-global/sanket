@@ -394,7 +394,7 @@ export const WARD_ISSUE_PRESETS: Record<WardIssueType, WardIssuePreset> = {
     paragraphs: {
       mr: [
         '{{complainantName}}, संपर्क क्र. {{contactNo}} यांच्याकडून {{location}} येथे वाहने भरधाव वेगाने ये-जा करीत असल्याने पादचारी व स्थानिक नागरिकांच्या सुरक्षिततेस धोका निर्माण होत असल्याबाबत निवेदन प्राप्त झाले आहे. सदर ठिकाणी यापूर्वी अपघात अथवा अपघातसदृश घटना घडल्याचेही निदर्शनास आणून देण्यात आले आहे.',
-        'तरी संबंधित अधिकाऱ्यांनी सदर ठिकाणाची तातडीने पाहणी करावी. रस्त्याची रुंदी, वाहतुकीची स्थिती, पादचाऱ्यांची वर्दळ तसेच शाळा, धार्मिक स्थळ, बाजारपेठ अथवा निवासी परिसराची निकटता विचारात घेऊन तांत्रिक निकष व आवश्यक परवानगीप्रमाणे गतिरोधक बसविण्याची कार्यवाही करण्यात यावी.',
+        'तरी संबंधित अधिकाऱ्यांनी सदर ठिकाणाची तातडीने पाहणी करावी. रस्त्याची रुंदी, वाहतुकीची स्थिती, पादचाऱ्यांची वर्दळ तसेच शाळा, धार्मिक स्थळ, बाजारपेठ अथवा निवासी परिसराची निकटता विचारात घेऊन तांत्रिक निकष व आवश्यक परवानगीनुसार गतिरोधक बसविण्याची कार्यवाही करण्यात यावी.',
         'गतिरोधक बसविताना त्यावर आवश्यक पांढरे पट्टे, रिफ्लेक्टर तसेच पूर्वसूचना देणारे वाहतूक चिन्ह लावण्यात यावे.',
         'संबंधित अधिकाऱ्यांनी तक्रारदाराशी वरील संपर्क क्रमांकावर समन्वय साधून प्रस्तावित ठिकाणाची पाहणी करावी. केलेल्या कार्यवाहीचा अहवाल छायाचित्रांसह माझ्या कार्यालयास कळविण्यात यावा.',
       ],
@@ -561,4 +561,32 @@ export function buildWardParagraphs(
   return WARD_ISSUE_PRESETS[issueType].paragraphs[locale]
     .map((paragraph) => substituteTokens(paragraph, values))
     .join('\n');
+}
+
+/** Wrap `{{location}}` etc. so they stay editable in LetterMaster HTML. */
+export function wrapWardTemplateVars(text: string): string {
+  return text.replace(
+    /\{\{(location|complainantName|contactNo|duration)\}\}/g,
+    '<span class="var">{{$1}}</span>',
+  );
+}
+
+export function wardIssueSubjectHtml(
+  issueType: WardIssueType,
+  locale: LetterLocale,
+): string {
+  return wrapWardTemplateVars(WARD_ISSUE_PRESETS[issueType].subject[locale]);
+}
+
+export function wardIssueParagraphsHtml(
+  issueType: WardIssueType,
+  locale: LetterLocale,
+): string {
+  return WARD_ISSUE_PRESETS[issueType].paragraphs[locale]
+    .map(
+      (paragraph) => `<p class="paragraph">
+    ${wrapWardTemplateVars(paragraph)}
+  </p>`,
+    )
+    .join('\n  ');
 }

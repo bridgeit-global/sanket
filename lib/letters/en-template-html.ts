@@ -1,4 +1,12 @@
-import { WARD_LETTER_TYPES, type LetterType } from '@/lib/letters/templates';
+import {
+  WARD_LETTER_TYPES,
+  type LetterType,
+  wardIssueTypeFromLetterType,
+} from '@/lib/letters/templates';
+import {
+  wardIssueParagraphsHtml,
+  wardIssueSubjectHtml,
+} from '@/lib/letters/ward-issue-presets';
 
 /** Shared layout CSS matching the fees concession Marathi letter. */
 const LETTER_STYLE = `
@@ -16,6 +24,7 @@ const LETTER_STYLE = `
     .letter-closing { text-align: right; }
     .letter-closing .signature-line { text-align: right; }
     .recipient-bottom { margin-top: 25px; font-weight: normal; max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: normal; }
+    .letter-title { text-align: center; font-weight: bold; font-size: 16px; margin: 16px 0 20px; text-decoration: underline; }
 `;
 
 const ROOT =
@@ -44,6 +53,28 @@ To,<br>
   ${CLOSING}
 </div>`;
 
+function wardIssueTemplateHtml(
+  letterType: (typeof WARD_LETTER_TYPES)[number],
+): string {
+  const issueType = wardIssueTypeFromLetterType(letterType);
+  if (!issueType) return WARD_TEMPLATE_HTML;
+  return `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>Date: <span class="var">{{date}}</span></div>
+  </div>
+To,<br>
+  <div class="address">{{toBlock}}</div>
+  <div class="subject"><span style="font-weight: normal;">Subject:</span> ${wardIssueSubjectHtml(issueType, 'en')}</div>
+  <div class="salutation">
+    Sir/Madam,
+  </div>
+  ${wardIssueParagraphsHtml(issueType, 'en')}
+  ${CLOSING}
+</div>`;
+}
+
 export const EN_TEMPLATE_HTML: Record<LetterType, string> = {
   general: `<div class="letter-content" style="${ROOT}">
   <style>${LETTER_STYLE}</style>
@@ -54,7 +85,7 @@ export const EN_TEMPLATE_HTML: Record<LetterType, string> = {
   <div class="recipient">{{toBlock}}</div>
   <div class="subject"><span style="font-weight: normal;">Subject:</span> <span class="var">{{subject}}</span></div>
   {{paragraphsBlock}}
-  <div class="letter-closing">{{signatureBlock}}</div>
+  ${CLOSING}
 </div>`,
 
   fees: `<div class="letter-content" style="${ROOT}">
@@ -136,22 +167,22 @@ To,<br>
     <span style="font-weight: normal;">{{collegeAddress}}</span>
   </div>
   <div class="subject">
-    <span style="font-weight: normal;">Subject:</span> Recommendation for admission of student <span class="var">{{studentName}}</span> to <span class="var">{{yearOrClass}}</span> of the <span class="var">{{courseName}}</span> course.
+    <span style="font-weight: normal;">Subject:</span> Recommendation for admission of student <span class="var">{{studentName}}</span> to the <span class="var">{{courseName}}</span> course.
   </div>
   <div class="salutation">
     Sir/Madam,
   </div>
   <p class="paragraph">
-    Through this letter, <span class="var">{{studentName}}</span>, child of <span class="var">{{parentName}}</span>, residing at <span style="font-weight: normal;">{{address}}</span>, is hereby recommended to you for admission to <span class="var">{{yearOrClass}}</span> of the <span class="var">{{courseName}}</span> course at your college.
+    Through this letter, <span class="var">{{studentName}}</span>, child of <span class="var">{{parentName}}</span>, residing at <span style="font-weight: normal;">{{address}}</span>, is hereby recommended to you for admission to the <span class="var">{{courseName}}</span> course at your college.
   </p>
   <p class="paragraph">
-    The said student has an interest in higher education, and a proper, quality academic environment is necessary for further educational progress. Admission to <span class="var">{{yearOrClass}}</span> of the <span class="var">{{courseName}}</span> course at your college will certainly help the student's further studies and academic progress.
+    The said student has an interest in higher education, and a proper, quality academic environment is necessary for further educational progress. Admission to the <span class="var">{{courseName}}</span> course at your college will certainly help the student's further studies and academic progress.
   </p>
   <p class="paragraph">
     <span class="var">{{reasonText}}</span>
   </p>
   <p class="paragraph">
-    Kindly verify the availability of seats, prevailing admission rules, eligibility criteria, and required documents, and take necessary action sympathetically and as per rules to grant admission to <span class="var">{{yearOrClass}}</span> of the <span class="var">{{courseName}}</span> course at your college to the said student.
+    Kindly verify the availability of seats, prevailing admission rules, eligibility criteria, and required documents, and take necessary action sympathetically and as per rules to grant admission to the <span class="var">{{courseName}}</span> course at your college to the said student.
   </p>
   ${CLOSING}
 </div>`,
@@ -371,8 +402,22 @@ To,<br>
   ${CLOSING}
 </div>`,
 
+  identity: `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>Date: <span class="var">{{date}}</span></div>
+  </div>
+  <div class="letter-title">Identity Card</div>
+  <p class="paragraph">
+    <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, residing at <span style="font-weight: normal;">{{address}}</span>, has been residing at the said residential address for a long period. The applicant's Aadhaar number is <span class="var">{{aadhaarNo}}</span>, and a photocopy is attached.
+  </p>
+  {{reasonBlock}}
+  ${CLOSING}
+</div>`,
+
   ward: WARD_TEMPLATE_HTML,
   ...Object.fromEntries(
-    WARD_LETTER_TYPES.map((type) => [type, WARD_TEMPLATE_HTML]),
+    WARD_LETTER_TYPES.map((type) => [type, wardIssueTemplateHtml(type)]),
   ),
 } as Record<LetterType, string>;

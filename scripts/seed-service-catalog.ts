@@ -13,6 +13,11 @@ import { resolveLetterTypeFromServiceName } from '../lib/letters/letter-type-opt
 dotenv.config({ path: '.env.local.prod' });
 dotenv.config();
 
+/** Catalog names whose letter type must stay linked even if previously set. */
+const FORCE_LETTER_TYPE_BY_NAME: Record<string, string> = {
+  'Identity Card': 'identity',
+};
+
 type SeedService = {
   category: string;
   name: string;
@@ -79,20 +84,29 @@ async function main() {
         })
         .eq('id', existingId);
       if (error) throw error;
-      // Only fill letter_type when missing so manual manage links are preserved.
-      const { error: letterTypeError } = await supabase
-        .from('ServiceCatalog')
-        .update({ letter_type: inferredLetterType, updated_at: now })
-        .eq('id', existingId)
-        .is('letter_type', null);
-      if (letterTypeError) throw letterTypeError;
+      const forcedLetterType = FORCE_LETTER_TYPE_BY_NAME[item.name];
+      if (forcedLetterType) {
+        const { error: forceError } = await supabase
+          .from('ServiceCatalog')
+          .update({ letter_type: forcedLetterType, updated_at: now })
+          .eq('id', existingId);
+        if (forceError) throw forceError;
+      } else {
+        // Only fill letter_type when missing so manual manage links are preserved.
+        const { error: letterTypeError } = await supabase
+          .from('ServiceCatalog')
+          .update({ letter_type: inferredLetterType, updated_at: now })
+          .eq('id', existingId)
+          .is('letter_type', null);
+        if (letterTypeError) throw letterTypeError;
+      }
       updated += 1;
     } else {
       const { error } = await supabase.from('ServiceCatalog').insert({
         name: item.name,
         category: item.category,
         sort_order: item.sortOrder,
-        letter_type: inferredLetterType,
+        letter_type: FORCE_LETTER_TYPE_BY_NAME[item.name] ?? inferredLetterType,
         is_active: true,
         created_at: now,
         updated_at: now,
