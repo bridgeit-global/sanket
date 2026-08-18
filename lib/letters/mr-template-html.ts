@@ -413,9 +413,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span> रा. <span style="font-weight: normal;">{{address}}</span>. <span class="var">{{genderPronounSubject}}</span> रहिवासी पत्त्यावर अनेक दिवसांपासून वास्तव्य करीत असून यांचा आधार क्र. <span class="var">{{aadhaarNo}}</span> आहे, छायांकित प्रत जोडली आहे.
   </p>
   {{reasonBlock}}
-  <div class="right-tab-sign">
-    (<span class="var">{{signatory}}</span>)
-  </div>
+  ${CLOSING}
 </div>`,
 
   ward: WARD_TEMPLATE_HTML,
