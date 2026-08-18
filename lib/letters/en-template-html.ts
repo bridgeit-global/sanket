@@ -14,7 +14,7 @@ const LETTER_STYLE = `
     .top-row { display: flex; margin-bottom: 12px; justify-content: space-between; }
     .address { margin-left: 28px; margin-bottom: 12px; font-weight: normal; max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: normal; }
     .recipient { margin-left: 28px; margin-bottom: 12px; font-weight: normal; max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: normal; }
-    .subject { font-weight: bold; margin-bottom: 12px; }
+    .subject { font-weight: bold; margin-bottom: 12px; text-align: justify; }
     .salutation { font-weight: normal; }
     .paragraph { text-align: justify; text-indent: 28px; padding: 0; font-weight: normal; }
     .paragraph:last-of-type { margin-bottom: 0; }
@@ -423,9 +423,7 @@ To,<br>
     .var { font-weight: bold; }
     .top-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
     .recipient { margin-left: 28px; margin-bottom: 14px; font-weight: normal; max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: normal; }
-    .subject { display: flex; align-items: flex-start; margin-bottom: 14px; }
-    .subject-label { flex: 0 0 72px; white-space: nowrap; font-weight: normal; }
-    .subject-text { flex: 1; text-align: justify; font-weight: bold; }
+    .subject { text-align: justify; padding-left: 28px; font-weight: bold; margin-bottom: 14px; }
     .salutation { margin-bottom: 12px; font-weight: normal; }
     .paragraph { text-align: justify; text-indent: 28px; padding: 0; margin-bottom: 12px; font-weight: normal; }
     .paragraph:last-of-type { margin-bottom: 0; }
@@ -443,10 +441,7 @@ To,<br>
     {{hospitalAddress}}
   </div>
   <div class="subject">
-    <div class="subject-label">Subject:</div>
-    <div class="subject-text">
-      Regarding meeting the cost of medical treatment of {{fullName}} from the poor patient fund.
-    </div>
+    <span style="font-weight: normal;">Subject:</span> Regarding meeting the cost of medical treatment of {{fullName}} from the poor patient fund.
   </div>
   <div class="salutation">
     Sir/Madam,
