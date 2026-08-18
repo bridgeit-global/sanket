@@ -3107,6 +3107,9 @@ export function LetterGeneration({
       requireField(errors, 'fullName', domicileFields.fullName, requiredMsg);
       requireField(errors, 'aadhaarNo', domicileFields.aadhaarNo, requiredMsg);
       requireAddress('applicant', domicileFields.address);
+      if (formTab === 'identity') {
+        requireField(errors, 'reason', domicileFields.reason ?? '', requiredMsg);
+      }
       if (formTab === 'domicile') {
         requireField(errors, 'officeName', domicileFields.officeName, requiredMsg);
         requireAddress('office', domicileFields.officeAddress);
@@ -5963,15 +5966,24 @@ export function LetterGeneration({
                       </FieldGroup>
                       {activeTab === 'identity' ? (
                         <FieldGroup
-                          label={`${lt('letterGeneration.fields.reason')} (${lt('common.optional')})`}
+                          label={lt('letterGeneration.fields.reason')}
+                          required
+                          error={fieldErrors.reason}
                         >
                           <LocaleTextInput
                             locale={letterLocale}
                             value={domicileFields.reason ?? ''}
                             onValueChange={(reason) => {
                               setDomicileFields({ ...domicileFields, reason });
+                              if (fieldErrors.reason) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  reason: undefined,
+                                }));
+                              }
                             }}
                             placeholder={lt('letterGeneration.placeholders.reason')}
+                            required
                           />
                         </FieldGroup>
                       ) : null}

@@ -412,7 +412,9 @@ To,<br>
   <p class="paragraph">
     <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, residing at <span style="font-weight: normal;">{{address}}</span>, has been residing at the said residential address for a long period. The applicant's Aadhaar number is <span class="var">{{aadhaarNo}}</span>, and a photocopy is attached.
   </p>
-  {{reasonBlock}}
+  <p class="paragraph">
+    This identity card is being issued to them at their request <span class="var">{{reason}}</span>.
+  </p>
   ${CLOSING}
 </div>`,
 

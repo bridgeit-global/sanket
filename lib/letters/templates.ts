@@ -168,7 +168,7 @@ export type DomicileLetterFields = CommonLetterFields & {
   officeName: string;
   officeAddress: string;
   aadhaarNo: string;
-  /** Optional identity-letter reason; omitted from the body when empty. */
+  /** Identity-letter reason shown in the second paragraph. */
   reason?: string;
 };
 
