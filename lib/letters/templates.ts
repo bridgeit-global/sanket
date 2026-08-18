@@ -47,6 +47,7 @@ export const LETTER_TYPES = [
   'ration-transfer',
   'income',
   'domicile',
+  'identity',
   /** @deprecated Prefer specific ward-* letter types */
   'ward',
   ...WARD_LETTER_TYPES,

@@ -24,6 +24,7 @@ const LETTER_STYLE = `
     .letter-closing { text-align: right; }
     .letter-closing .signature-line { text-align: right; }
     .recipient-bottom { margin-top: 25px; font-weight: normal; max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: normal; }
+    .letter-title { text-align: center; font-weight: bold; font-size: 16px; margin: 16px 0 20px; text-decoration: underline; }
 `;
 
 const ROOT =
@@ -399,6 +400,21 @@ To,<br>
     Kindly verify the supporting documents available with the applicant and take necessary action as per rules for issuing the domicile / residence certificate.
   </p>
   ${CLOSING}
+</div>`,
+
+  identity: `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>Date: <span class="var">{{date}}</span></div>
+  </div>
+  <div class="letter-title">Identity Card</div>
+  <p class="paragraph">
+    <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, residing at <span style="font-weight: normal;">{{address}}</span>, has been residing at the said residential address for a long period. The applicant's Aadhaar number is <span class="var">{{aadhaarNo}}</span>, and a photocopy is attached.
+  </p>
+  <div class="right-tab-sign">
+    (<span class="var">{{signatory}}</span>)
+  </div>
 </div>`,
 
   ward: WARD_TEMPLATE_HTML,

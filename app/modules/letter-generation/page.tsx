@@ -83,6 +83,8 @@ export default async function LetterGenerationPage({
     (!initialLetterType || initialLetterType === 'ward')
   ) {
     initialLetterType = inferredType;
+  } else if (!initialLetterType && inferredType !== 'general') {
+    initialLetterType = inferredType;
   }
 
   const isAdmin = await isUserAdmin(session.user.id);

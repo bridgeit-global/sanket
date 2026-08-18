@@ -136,6 +136,15 @@ const KNOWN_PLACEHOLDERS_BY_FORM: Partial<
     'aadhaarNo',
     'genderPronounSubject',
   ],
+  identity: [
+    ...COMMON_PLACEHOLDER_KEYS,
+    'gender',
+    'salutation',
+    'fullName',
+    'address',
+    'aadhaarNo',
+    'genderPronounSubject',
+  ],
   ward: [
     ...COMMON_PLACEHOLDER_KEYS,
     'issueType',

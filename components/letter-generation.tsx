@@ -308,6 +308,7 @@ function getFieldsForLetterType(
     case 'income':
       return fields.incomeFields;
     case 'domicile':
+    case 'identity':
       return fields.domicileFields;
     case 'ward':
       return fields.wardFields;
@@ -3099,13 +3100,15 @@ export function LetterGeneration({
       requireField(errors, 'officeName', incomeFields.officeName, requiredMsg);
       requireAddress('applicant', incomeFields.address);
       requireAddress('office', incomeFields.officeAddress);
-    } else if (formTab === 'domicile') {
+    } else if (formTab === 'domicile' || formTab === 'identity') {
       requireField(errors, 'salutation', domicileFields.salutation, requiredMsg);
       requireField(errors, 'fullName', domicileFields.fullName, requiredMsg);
       requireField(errors, 'aadhaarNo', domicileFields.aadhaarNo, requiredMsg);
-      requireField(errors, 'officeName', domicileFields.officeName, requiredMsg);
       requireAddress('applicant', domicileFields.address);
-      requireAddress('office', domicileFields.officeAddress);
+      if (formTab === 'domicile') {
+        requireField(errors, 'officeName', domicileFields.officeName, requiredMsg);
+        requireAddress('office', domicileFields.officeAddress);
+      }
     } else if (formTab === 'ward') {
       requireField(errors, 'toName', wardFields.toName, requiredMsg);
       requireAddress('to', wardFields.to);
@@ -4289,7 +4292,13 @@ export function LetterGeneration({
             aria-labelledby="letter-generator-header"
             className="p-4 sm:p-6"
           >
-            <Tabs value={formTab} onValueChange={(value) => setActiveTab(value)}>
+            <Tabs
+              value={formTab === 'identity' ? 'domicile' : formTab}
+              onValueChange={(value) => {
+                if (formTab === 'identity') return;
+                setActiveTab(value);
+              }}
+            >
               {!letterTypeReady ? (
                 <Card className="mb-6 border-amber-500/40 bg-amber-500/5">
                   <CardHeader className="p-4 sm:p-6">
@@ -5888,39 +5897,41 @@ export function LetterGeneration({
                           handleApplicantAddressSelect(id, domicileFields.address)
                         }
                       />
-                      <LetterAddressField
-                        label={lt('letterGeneration.fields.officeAddress')}
-                        addressType={addressTypeForField('office')}
-                        locale={letterLocale}
-                        selectedAddressId={addressSelections.office}
-                        addresses={addresses}
-                        letterDate={activeLetterDate}
-                        addressParts={manualAddressParts.office}
-                        onAddressPartsChange={(parts) =>
-                          handleManualAddressPartsChange('office', parts)
-                        }
-                        pincodeError={addressPincodeErrors.office}
-                        error={fieldErrors.officeAddress}
-                        required
-                        nameLabel={letterLocale === 'mr' ? 'कार्यालय नाव' : 'Office Name'}
-                        namePlaceholder={
-                          letterLocale === 'mr'
-                            ? 'कार्यालय नाव टाइप करा'
-                            : 'Type office name'
-                        }
-                        nameValue={domicileFields.officeName}
-                        nameRequired
-                        nameError={fieldErrors.officeName}
-                        onNameChange={(value) => {
-                          setDomicileFields((prev) => ({ ...prev, officeName: value }));
-                          if (fieldErrors.officeName) {
-                            setFieldErrors((prev) => ({ ...prev, officeName: undefined }));
+                      {activeTab === 'identity' ? null : (
+                        <LetterAddressField
+                          label={lt('letterGeneration.fields.officeAddress')}
+                          addressType={addressTypeForField('office')}
+                          locale={letterLocale}
+                          selectedAddressId={addressSelections.office}
+                          addresses={addresses}
+                          letterDate={activeLetterDate}
+                          addressParts={manualAddressParts.office}
+                          onAddressPartsChange={(parts) =>
+                            handleManualAddressPartsChange('office', parts)
                           }
-                        }}
-                        onSelectedAddressIdChange={(id) =>
-                          handleOfficeAddressSelect(id, domicileFields.officeAddress)
-                        }
-                      />
+                          pincodeError={addressPincodeErrors.office}
+                          error={fieldErrors.officeAddress}
+                          required
+                          nameLabel={letterLocale === 'mr' ? 'कार्यालय नाव' : 'Office Name'}
+                          namePlaceholder={
+                            letterLocale === 'mr'
+                              ? 'कार्यालय नाव टाइप करा'
+                              : 'Type office name'
+                          }
+                          nameValue={domicileFields.officeName}
+                          nameRequired
+                          nameError={fieldErrors.officeName}
+                          onNameChange={(value) => {
+                            setDomicileFields((prev) => ({ ...prev, officeName: value }));
+                            if (fieldErrors.officeName) {
+                              setFieldErrors((prev) => ({ ...prev, officeName: undefined }));
+                            }
+                          }}
+                          onSelectedAddressIdChange={(id) =>
+                            handleOfficeAddressSelect(id, domicileFields.officeAddress)
+                          }
+                        />
+                      )}
                       <FieldGroup
                         label={lt('letterGeneration.fields.aadhaarNo')}
                         required

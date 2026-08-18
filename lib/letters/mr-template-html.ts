@@ -24,6 +24,7 @@ const LETTER_STYLE = `
     .letter-closing { text-align: right; }
     .letter-closing .signature-line { text-align: right; }
     .recipient-bottom { margin-top: 25px; font-weight: normal; max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: normal; }
+    .letter-title { text-align: center; font-weight: bold; font-size: 16px; margin: 16px 0 20px; text-decoration: underline; }
 `;
 
 const ROOT =
@@ -399,6 +400,21 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     तरी सदर अर्जदाराकडे असलेल्या पुरावादर्शक कागदपत्रांची पडताळणी करून अधिवास / रहिवासी प्रमाणपत्र देण्याबाबत नियमानुसार आवश्यक ती कार्यवाही करण्यात यावी, ही विनंती.
   </p>
   ${CLOSING}
+</div>`,
+
+  identity: `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>दि. <span class="var">{{date}}</span></div>
+  </div>
+  <div class="letter-title">ओळखपत्र</div>
+  <p class="paragraph">
+    <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span> रा. <span style="font-weight: normal;">{{address}}</span>. <span class="var">{{genderPronounSubject}}</span> रहिवासी पत्त्यावर अनेक दिवसांपासून वास्तव्य करीत असून यांचा आधार क्र. <span class="var">{{aadhaarNo}}</span> आहे, छायांकित प्रत जोडली आहे.
+  </p>
+  <div class="right-tab-sign">
+    (<span class="var">{{signatory}}</span>)
+  </div>
 </div>`,
 
   ward: WARD_TEMPLATE_HTML,

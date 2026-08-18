@@ -30,7 +30,7 @@ export const LETTER_PAPER_BOTTOM_MARGIN_MM: Record<LetterPaperSize, number> = {
 /**
  * Default paper size by letter type:
  * - Ration Card → B5
- * - Small subjects (fees, income, domicile) → A5
+ * - Small subjects (fees, income, domicile, identity) → A5
  * - VIP / remaining → A4
  */
 export function getDefaultLetterPaperSize(
@@ -52,6 +52,7 @@ export function getDefaultLetterPaperSize(
     case 'school-transfer':
     case 'income':
     case 'domicile':
+    case 'identity':
       return 'a5';
     default:
       return 'a4';
