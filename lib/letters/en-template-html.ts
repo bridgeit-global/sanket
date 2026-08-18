@@ -1,4 +1,12 @@
-import { WARD_LETTER_TYPES, type LetterType } from '@/lib/letters/templates';
+import {
+  WARD_LETTER_TYPES,
+  type LetterType,
+  wardIssueTypeFromLetterType,
+} from '@/lib/letters/templates';
+import {
+  wardIssueParagraphsHtml,
+  wardIssueSubjectHtml,
+} from '@/lib/letters/ward-issue-presets';
 
 /** Shared layout CSS matching the fees concession Marathi letter. */
 const LETTER_STYLE = `
@@ -43,6 +51,28 @@ To,<br>
   {{paragraphsBlock}}
   ${CLOSING}
 </div>`;
+
+function wardIssueTemplateHtml(
+  letterType: (typeof WARD_LETTER_TYPES)[number],
+): string {
+  const issueType = wardIssueTypeFromLetterType(letterType);
+  if (!issueType) return WARD_TEMPLATE_HTML;
+  return `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>Date: <span class="var">{{date}}</span></div>
+  </div>
+To,<br>
+  <div class="address">{{toBlock}}</div>
+  <div class="subject"><span style="font-weight: normal;">Subject:</span> ${wardIssueSubjectHtml(issueType, 'en')}</div>
+  <div class="salutation">
+    Sir/Madam,
+  </div>
+  ${wardIssueParagraphsHtml(issueType, 'en')}
+  ${CLOSING}
+</div>`;
+}
 
 export const EN_TEMPLATE_HTML: Record<LetterType, string> = {
   general: `<div class="letter-content" style="${ROOT}">
@@ -373,6 +403,6 @@ To,<br>
 
   ward: WARD_TEMPLATE_HTML,
   ...Object.fromEntries(
-    WARD_LETTER_TYPES.map((type) => [type, WARD_TEMPLATE_HTML]),
+    WARD_LETTER_TYPES.map((type) => [type, wardIssueTemplateHtml(type)]),
   ),
 } as Record<LetterType, string>;

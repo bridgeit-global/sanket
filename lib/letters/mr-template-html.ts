@@ -1,4 +1,12 @@
-import { WARD_LETTER_TYPES, type LetterType } from '@/lib/letters/templates';
+import {
+  WARD_LETTER_TYPES,
+  type LetterType,
+  wardIssueTypeFromLetterType,
+} from '@/lib/letters/templates';
+import {
+  wardIssueParagraphsHtml,
+  wardIssueSubjectHtml,
+} from '@/lib/letters/ward-issue-presets';
 
 /** Shared layout CSS from the fees concession Marathi letter. */
 const LETTER_STYLE = `
@@ -43,6 +51,28 @@ const WARD_TEMPLATE_HTML = `<div class="letter-content" style="${ROOT}">
   {{paragraphsBlock}}
   ${CLOSING}
 </div>`;
+
+function wardIssueTemplateHtml(
+  letterType: (typeof WARD_LETTER_TYPES)[number],
+): string {
+  const issueType = wardIssueTypeFromLetterType(letterType);
+  if (!issueType) return WARD_TEMPLATE_HTML;
+  return `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>दि. <span class="var">{{date}}</span></div>
+  </div>
+प्रति,<br>
+  <div class="address">{{toBlock}}</div>
+  <div class="subject"><span style="font-weight: normal;">विषय:</span> ${wardIssueSubjectHtml(issueType, 'mr')}</div>
+  <div class="salutation">
+    महोदय,
+  </div>
+  ${wardIssueParagraphsHtml(issueType, 'mr')}
+  ${CLOSING}
+</div>`;
+}
 
 export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   general: `<div class="letter-content" style="${ROOT}">
@@ -373,6 +403,6 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
 
   ward: WARD_TEMPLATE_HTML,
   ...Object.fromEntries(
-    WARD_LETTER_TYPES.map((type) => [type, WARD_TEMPLATE_HTML]),
+    WARD_LETTER_TYPES.map((type) => [type, wardIssueTemplateHtml(type)]),
   ),
 } as Record<LetterType, string>;

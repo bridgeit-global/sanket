@@ -562,3 +562,31 @@ export function buildWardParagraphs(
     .map((paragraph) => substituteTokens(paragraph, values))
     .join('\n');
 }
+
+/** Wrap `{{location}}` etc. so they stay editable in LetterMaster HTML. */
+export function wrapWardTemplateVars(text: string): string {
+  return text.replace(
+    /\{\{(location|complainantName|contactNo|duration)\}\}/g,
+    '<span class="var">{{$1}}</span>',
+  );
+}
+
+export function wardIssueSubjectHtml(
+  issueType: WardIssueType,
+  locale: LetterLocale,
+): string {
+  return wrapWardTemplateVars(WARD_ISSUE_PRESETS[issueType].subject[locale]);
+}
+
+export function wardIssueParagraphsHtml(
+  issueType: WardIssueType,
+  locale: LetterLocale,
+): string {
+  return WARD_ISSUE_PRESETS[issueType].paragraphs[locale]
+    .map(
+      (paragraph) => `<p class="paragraph">
+    ${wrapWardTemplateVars(paragraph)}
+  </p>`,
+    )
+    .join('\n  ');
+}
