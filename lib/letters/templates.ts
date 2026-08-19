@@ -48,6 +48,7 @@ export const LETTER_TYPES = [
   'income',
   'domicile',
   'identity',
+  'medical-assistance',
   /** @deprecated Prefer specific ward-* letter types */
   'ward',
   ...WARD_LETTER_TYPES,
@@ -168,8 +169,20 @@ export type DomicileLetterFields = CommonLetterFields & {
   officeName: string;
   officeAddress: string;
   aadhaarNo: string;
-  /** Optional identity-letter reason; omitted from the body when empty. */
+  /** Identity-letter reason shown in the second paragraph. */
   reason?: string;
+};
+
+export type MedicalAssistanceLetterFields = CommonLetterFields & {
+  gender: PersonGender;
+  salutation: string;
+  hospitalName: string;
+  hospitalAddress: string;
+  fullName: string;
+  age: string;
+  address: string;
+  ailment: string;
+  treatment: string;
 };
 
 export type GeneralLetterFields = CommonLetterFields & {
@@ -207,6 +220,7 @@ export type LetterFields =
   | RationLetterFields
   | IncomeLetterFields
   | DomicileLetterFields
+  | MedicalAssistanceLetterFields
   | WardLetterFields;
 
 export const DEFAULT_SIGNATORY: Record<LetterLocale, string> = {

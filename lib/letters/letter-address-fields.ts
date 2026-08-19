@@ -149,6 +149,18 @@ export function getDefaultLetterAddressTypeLinks(): LetterAddressTypeLinkSeed[] 
       addressType: 'general',
       sortOrder: 1,
     },
+    {
+      letterType: 'medical-assistance',
+      addressField: 'school',
+      addressType: 'school',
+      sortOrder: 1,
+    },
+    {
+      letterType: 'medical-assistance',
+      addressField: 'applicant',
+      addressType: 'general',
+      sortOrder: 2,
+    },
     { letterType: 'ward', addressField: 'to', addressType: 'office', sortOrder: 1 },
     ...WARD_LETTER_TYPES.map((letterType) => ({
       letterType,

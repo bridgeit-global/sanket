@@ -47,6 +47,10 @@ const BASE_TEMPLATE_NAMES: Record<
   income: { en: 'Income Certificate', mr: 'उत्पन्न प्रमाणपत्र' },
   domicile: { en: 'Domicile Certificate', mr: 'अधिवास प्रमाणपत्र' },
   identity: { en: 'Identity Card', mr: 'ओळखपत्र' },
+  'medical-assistance': {
+    en: 'Medical Assistance Recommendation',
+    mr: 'वैद्यकीय सहायता शिफारस',
+  },
   ward: { en: 'Ward Letter', mr: 'प्रभाग पत्र' },
 };
 

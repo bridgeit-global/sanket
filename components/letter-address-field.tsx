@@ -3,6 +3,7 @@
 import { useCallback, useRef } from 'react';
 
 import { Combobox } from '@/components/ui/combobox';
+import { Input } from '@/components/ui/input';
 import { StructuredAddressFields } from '@/components/structured-address-fields';
 import type { AddressType } from '@/lib/letters/address-types';
 import { isAddressVisibleForLetterDate } from '@/lib/letters/address-date-visibility';
@@ -65,11 +66,10 @@ type LetterAddressFieldProps = {
   required?: boolean;
   error?: string;
   /**
-   * `select` — pick from address master (default).
+   * `select` — pick from address master, or enter name + address manually.
    * `structured` — type address in the letter locale (used for voter/applicant).
    */
   entryMode?: 'select' | 'structured';
-  /** @deprecated Manual name entry removed; kept for call-site compatibility. */
   nameLabel?: string;
   namePlaceholder?: string;
   nameValue?: string;
@@ -77,6 +77,8 @@ type LetterAddressFieldProps = {
   nameRequired?: boolean;
   nameError?: string;
 };
+
+const MANUAL_ADDRESS_VALUE = '__manual__';
 
 export function LetterAddressField({
   label,
@@ -92,6 +94,12 @@ export function LetterAddressField({
   required,
   error,
   entryMode = 'select',
+  nameLabel,
+  namePlaceholder,
+  nameValue,
+  onNameChange,
+  nameRequired,
+  nameError,
 }: LetterAddressFieldProps) {
   const at = (key: string) => letterMessage(locale, key);
   const addressPartsRef = useRef(addressParts);
@@ -163,6 +171,10 @@ export function LetterAddressField({
   );
 
   const handleSelectChange = (nextValue: string) => {
+    if (!nextValue || nextValue === MANUAL_ADDRESS_VALUE) {
+      if (selectedAddressId) onSelectedAddressIdChange(null);
+      return;
+    }
     const selected = filteredAddresses.find((address) => address.id === nextValue);
     if (!selected) return;
 
@@ -182,24 +194,32 @@ export function LetterAddressField({
     });
   };
 
-  const comboboxOptions = filteredAddresses.map((address) => {
-    const holder =
-      locale === 'mr'
-        ? address.nameMr.trim() || address.name
-        : address.name.trim() || address.nameMr;
-    const position =
-      locale === 'mr'
-        ? (address.positionTitleMr || address.positionTitleEn || '').trim()
-        : (address.positionTitleEn || address.positionTitleMr || '').trim();
-    return {
-      value: address.id,
-      label: position ? `${holder} — ${position}` : holder,
-    };
-  });
+  const comboboxOptions = [
+    {
+      value: MANUAL_ADDRESS_VALUE,
+      label: at('letterGeneration.addresses.manualEntry'),
+      pinned: true,
+    },
+    ...filteredAddresses.map((address) => {
+      const holder =
+        locale === 'mr'
+          ? address.nameMr.trim() || address.name
+          : address.name.trim() || address.nameMr;
+      const position =
+        locale === 'mr'
+          ? (address.positionTitleMr || address.positionTitleEn || '').trim()
+          : (address.positionTitleEn || address.positionTitleMr || '').trim();
+      return {
+        value: address.id,
+        label: position ? `${holder} — ${position}` : holder,
+      };
+    }),
+  ];
 
   const selectedAddress = selectedAddressId
     ? filteredAddresses.find((address) => address.id === selectedAddressId)
     : null;
+  const showNameField = Boolean(onNameChange);
 
   return (
     <div className="space-y-2">
@@ -209,16 +229,44 @@ export function LetterAddressField({
       </label>
       <Combobox
         options={comboboxOptions}
-        value={selectedAddressId ?? ''}
+        value={selectedAddressId ?? MANUAL_ADDRESS_VALUE}
         onValueChange={handleSelectChange}
         placeholder={at('letterGeneration.addresses.selectPlaceholder')}
         emptyMessage={at('letterGeneration.addresses.empty')}
+        aria-invalid={!!error || !!nameError}
       />
       {selectedAddress ? (
         <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
           {formatAddressMaster(selectedAddress, locale, { pincodeDisplay: 'full' })}
         </div>
-      ) : null}
+      ) : (
+        <>
+          {showNameField ? (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium">
+                {nameLabel ?? at('letterGeneration.addresses.columns.holder')}
+                {nameRequired ? ' *' : null}
+              </label>
+              <Input
+                value={nameValue ?? ''}
+                onChange={(e) => onNameChange?.(e.target.value)}
+                placeholder={namePlaceholder}
+                required={nameRequired}
+                aria-invalid={!!nameError}
+              />
+              {nameError ? (
+                <p className="text-xs text-destructive">{nameError}</p>
+              ) : null}
+            </div>
+          ) : null}
+          <StructuredAddressFields
+            locale={locale}
+            parts={addressParts}
+            onPartsChange={updateAddressParts}
+            pincodeError={pincodeError}
+          />
+        </>
+      )}
       {error ? <p className="text-xs text-destructive">{error}</p> : null}
     </div>
   );

@@ -14,7 +14,9 @@ const LETTER_STYLE = `
     .top-row { display: flex; margin-bottom: 12px; justify-content: space-between; }
     .address { margin-left: 28px; margin-bottom: 12px; font-weight: normal; max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: normal; }
     .recipient { margin-left: 28px; margin-bottom: 12px; font-weight: normal; max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: normal; }
-    .subject { font-weight: bold; margin-bottom: 12px; }
+    .subject { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 12px; }
+    .subject-label { flex: 0 0 auto; white-space: nowrap; font-weight: normal; }
+    .subject-text { flex: 1; text-align: left; font-weight: bold; }
     .salutation { font-weight: normal; }
     .paragraph { text-align: justify; text-indent: 28px; padding: 0; font-weight: normal; }
     .paragraph:last-of-type { margin-bottom: 0; }
@@ -37,6 +39,10 @@ const CLOSING = `<div class="right-tab">
     (<span class="var">{{signatory}}</span>)
   </div>`;
 
+function subjectHtml(body: string): string {
+  return `<div class="subject"><span class="subject-label">विषय:</span><span class="subject-text">${body}</span></div>`;
+}
+
 const WARD_TEMPLATE_HTML = `<div class="letter-content" style="${ROOT}">
   <style>${LETTER_STYLE}</style>
   <div class="top-row">
@@ -45,7 +51,7 @@ const WARD_TEMPLATE_HTML = `<div class="letter-content" style="${ROOT}">
   </div>
 प्रति,<br>
   <div class="address">{{toBlock}}</div>
-  <div class="subject"><span style="font-weight: normal;">विषय:</span> <span class="var">{{subject}}</span></div>
+  ${subjectHtml('<span class="var">{{subject}}</span>')}
   <div class="salutation">
     महोदय,
   </div>
@@ -66,7 +72,7 @@ function wardIssueTemplateHtml(
   </div>
 प्रति,<br>
   <div class="address">{{toBlock}}</div>
-  <div class="subject"><span style="font-weight: normal;">विषय:</span> ${wardIssueSubjectHtml(issueType, 'mr')}</div>
+  ${subjectHtml(wardIssueSubjectHtml(issueType, 'mr'))}
   <div class="salutation">
     महोदय,
   </div>
@@ -83,7 +89,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <div>दि. <span class="var">{{date}}</span></div>
   </div>
   <div class="recipient">{{toBlock}}</div>
-  <div class="subject"><span style="font-weight: normal;">विषय:</span> <span class="var">{{subject}}</span></div>
+  ${subjectHtml('<span class="var">{{subject}}</span>')}
   {{paragraphsBlock}}
   ${CLOSING}
 </div>`,
@@ -100,9 +106,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <span class="var" style="font-weight: bold;">{{schoolName}}</span>,<br>
     <span style="font-weight: normal;">{{schoolAddress}}</span>
   </div>
-  <div class="subject">
-    <span style="font-weight: normal;">विषय:</span> <span class="var">{{standard}}</span> मधील <span class="var">{{studentName}}</span> या विद्यार्थ्यास शुल्क सवलतीसाठी विनंती
-  </div>
+  ${subjectHtml('<span class="var">{{standard}}</span> मधील <span class="var">{{studentName}}</span> या विद्यार्थ्यास शुल्क सवलतीसाठी विनंती')}
   <div class="salutation">
     महोदय/महोदया,
   </div>
@@ -133,9 +137,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <span class="var" style="font-weight: bold;">{{schoolName}}</span>,<br>
     <span style="font-weight: normal;">{{schoolAddress}}</span>
   </div>
-  <div class="subject">
-    <span style="font-weight: normal;">विषय:</span> <span class="var">{{studentName}}</span> या विद्यार्थ्यास इयत्ता <span class="var">{{standard}}</span> मध्ये प्रवेश मिळण्याबाबत शिफारस.
-  </div>
+  ${subjectHtml('<span class="var">{{studentName}}</span> या विद्यार्थ्यास इयत्ता <span class="var">{{standard}}</span> मध्ये प्रवेश मिळण्याबाबत शिफारस.')}
   <div class="salutation">
     महोदय/महोदया,
   </div>
@@ -166,9 +168,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <span class="var" style="font-weight: bold;">{{collegeName}}</span>,<br>
     <span style="font-weight: normal;">{{collegeAddress}}</span>
   </div>
-  <div class="subject">
-    <span style="font-weight: normal;">विषय:</span> <span class="var">{{studentName}}</span> या विद्यार्थ्यास <span class="var">{{courseName}}</span> अभ्यासक्रमात प्रवेश मिळण्याबाबत शिफारस.
-  </div>
+  ${subjectHtml('<span class="var">{{studentName}}</span> या विद्यार्थ्यास <span class="var">{{courseName}}</span> अभ्यासक्रमात प्रवेश मिळण्याबाबत शिफारस.')}
   <div class="salutation">
     महोदय,
   </div>
@@ -199,9 +199,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <span class="var" style="font-weight: bold;">{{schoolName}}</span>,<br>
     <span style="font-weight: normal;">{{schoolAddress}}</span>
   </div>
-  <div class="subject">
-    <span style="font-weight: normal;">विषय:</span> <span class="var">{{studentName}}</span> या विद्यार्थ्यास इयत्ता <span class="var">{{standard}}</span> मध्ये स्थानांतरणाद्वारे प्रवेश मिळण्याबाबत शिफारस.
-  </div>
+  ${subjectHtml('<span class="var">{{studentName}}</span> या विद्यार्थ्यास इयत्ता <span class="var">{{standard}}</span> मध्ये स्थानांतरणाद्वारे प्रवेश मिळण्याबाबत शिफारस.')}
   <div class="salutation">
     महोदय/महोदया,
   </div>
@@ -226,9 +224,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
     <div>दि. <span class="var">{{date}}</span></div>
   </div>
-  <div class="subject">
-    <span style="font-weight: normal;">विषय:</span> नवीन शिधापत्रिका मिळण्याबाबत.
-  </div>
+  ${subjectHtml('नवीन शिधापत्रिका मिळण्याबाबत.')}
   <p class="paragraph">
     सदर पत्रासोबत अर्जदार <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, रा. <span style="font-weight: normal;">{{address}}</span> यांना नवीन शिधापत्रिका मिळण्याकरिता आपणाकडे पाठवीत आहोत.
   </p>
@@ -255,9 +251,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
     <div>दि. <span class="var">{{date}}</span></div>
   </div>
-  <div class="subject">
-    <span style="font-weight: normal;">विषय:</span> शिधापत्रिकेत नाव समाविष्ट करण्याबाबत.
-  </div>
+  ${subjectHtml('शिधापत्रिकेत नाव समाविष्ट करण्याबाबत.')}
   <p class="paragraph">
     सदर पत्रासोबत अर्जदार <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, रा. <span style="font-weight: normal;">{{address}}</span> यांना त्यांच्या शिधापत्रिकेत कुटुंबातील सदस्यांची नावे समाविष्ट करण्याकरिता आपणाकडे पाठवीत आहोत.
   </p>
@@ -284,9 +278,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
     <div>दि. <span class="var">{{date}}</span></div>
   </div>
-  <div class="subject">
-    <span style="font-weight: normal;">विषय:</span> शिधापत्रिकेतून नाव वगळण्याबाबत.
-  </div>
+  ${subjectHtml('शिधापत्रिकेतून नाव वगळण्याबाबत.')}
   <p class="paragraph">
     सदर पत्रासोबत अर्जदार <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, रा. <span style="font-weight: normal;">{{address}}</span> यांना त्यांच्या शिधापत्रिकेतून कुटुंबातील सदस्यांची नावे वगळण्याकरिता आपणाकडे पाठवीत आहोत.
   </p>
@@ -313,9 +305,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
     <div>दि. <span class="var">{{date}}</span></div>
   </div>
-  <div class="subject">
-    <span style="font-weight: normal;">विषय:</span> शिधापत्रिका एका शिधावाटप कार्यालयातून दुसऱ्या शिधावाटप कार्यालयात हस्तांतरित करण्याबाबत.
-  </div>
+  ${subjectHtml('शिधापत्रिका एका शिधावाटप कार्यालयातून दुसऱ्या शिधावाटप कार्यालयात हस्तांतरित करण्याबाबत.')}
   <p class="paragraph">
     सदर पत्रासोबत अर्जदार <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, रा. <span style="font-weight: normal;">{{address}}</span> यांना त्यांच्या शिधापत्रिकेचे हस्तांतरण करण्याकरिता आपणाकडे पाठवीत आहोत.
   </p>
@@ -351,9 +341,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <span class="var" style="font-weight: bold;">{{officeName}}</span>,<br>
     <span style="font-weight: normal;">{{officeAddress}}</span>
   </div>
-  <div class="subject">
-    <span style="font-weight: normal;">विषय:</span> <span class="var">{{fullName}}</span> यांना उत्पन्न प्रमाणपत्र मिळण्याबाबत.
-  </div>
+  ${subjectHtml('<span class="var">{{fullName}}</span> यांना उत्पन्न प्रमाणपत्र मिळण्याबाबत.')}
   <div class="salutation">
     महोदय/महोदया,
   </div>
@@ -384,9 +372,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <span class="var" style="font-weight: bold;">{{officeName}}</span>,<br>
     <span style="font-weight: normal;">{{officeAddress}}</span>
   </div>
-  <div class="subject">
-    <span style="font-weight: normal;">विषय:</span> <span class="var">{{fullName}}</span> यांना अधिवास / रहिवासी प्रमाणपत्र मिळण्याबाबत.
-  </div>
+  ${subjectHtml('<span class="var">{{fullName}}</span> यांना अधिवास / रहिवासी प्रमाणपत्र मिळण्याबाबत.')}
   <div class="salutation">
     महोदय/महोदया,
   </div>
@@ -412,7 +398,37 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   <p class="paragraph">
     <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span> रा. <span style="font-weight: normal;">{{address}}</span>. <span class="var">{{genderPronounSubject}}</span> रहिवासी पत्त्यावर अनेक दिवसांपासून वास्तव्य करीत असून यांचा आधार क्र. <span class="var">{{aadhaarNo}}</span> आहे, छायांकित प्रत जोडली आहे.
   </p>
-  {{reasonBlock}}
+  <p class="paragraph">
+    सदरचे ओळखपत्र त्यांना त्यांच्या विनंतीनुसार <span class="var">{{reason}}</span> देण्यात येत आहे.
+  </p>
+  ${CLOSING}
+</div>`,
+
+  'medical-assistance': `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>दि. <span class="var">{{date}}</span></div>
+  </div>
+  <div>प्रति,</div>
+  <div class="recipient">
+    वैद्यकीय अधीक्षक / अधिष्ठाता,<br>
+    <span class="var">{{hospitalName}}</span>,<br>
+    {{hospitalAddress}}
+  </div>
+  ${subjectHtml('{{fullName}} यांच्या वैद्यकीय उपचाराचा खर्च गरीब सहायता निधीतून करण्याबाबत.')}
+  <div class="salutation">
+    महोदय/महोदया,
+  </div>
+  <p class="paragraph">
+    <span class="var">{{salutation}} {{fullName}}</span>, वय वर्षे <span class="var">{{age}}</span>, रा. {{address}}, यांना वैद्यकीय उपचारासाठी आपणाकडे पाठवीत आहे. त्यांना <span class="var">{{ailment}}</span> हा आजार असून तातडीने <span class="var">{{treatment}}</span> करण्याची आवश्यकता आहे. सध्या <span class="var">{{salutation}} {{fullName}}</span> यांच्यावर आपल्या रुग्णालयात उपचार सुरू आहेत.
+  </p>
+  <p class="paragraph">
+    त्यांची आर्थिक परिस्थिती अत्यंत हलाखीची असून सदर वैद्यकीय उपचारांचा खर्च करणे त्यांना शक्य नाही.
+  </p>
+  <p class="paragraph">
+    तरी, कृपया त्यांच्या वैद्यकीय उपचाराचा खर्च गरीब सहायता निधीतून करण्यात यावा, ही विनंती.
+  </p>
   ${CLOSING}
 </div>`,
 
