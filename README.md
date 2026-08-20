@@ -30,7 +30,7 @@
   - Component primitives from [Radix UI](https://radix-ui.com) for accessibility and flexibility
 - Data Persistence
   - [Supabase Postgres](https://supabase.com) for saving chat history and user data
-  - [Vercel Blob](https://vercel.com/storage/blob) for efficient file storage
+  - [Supabase Storage](https://supabase.com/docs/guides/storage) for file uploads
 - [Auth.js](https://authjs.dev)
   - Simple and secure authentication
 

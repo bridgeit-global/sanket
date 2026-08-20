@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { put } from '@vercel/blob';
 import { auth } from '@/app/(auth)/auth';
 import {
   createExportJob,
@@ -12,6 +11,9 @@ import {
   getVoterMobileNumbersByEpicNumbers,
 } from '@/lib/db/queries';
 import { format } from 'date-fns';
+import {
+  uploadAppFile,
+} from '@/lib/storage/app-uploads';
 
 // GET - List export jobs for current user
 export async function GET(request: NextRequest) {
@@ -227,10 +229,12 @@ async function processExport(
       processedRecords: exportData.length,
     });
 
-    // Upload to Vercel Blob
-    const blob = await put(`exports/${fileName}`, fileContent, {
-      access: 'public',
+    const exportPath = `exports/${fileName}`;
+    const uploaded = await uploadAppFile({
+      path: exportPath,
+      body: fileContent,
       contentType,
+      upsert: true,
     });
 
     // Calculate file size
@@ -245,7 +249,7 @@ async function processExport(
       status: 'completed',
       progress: 100,
       processedRecords: exportData.length,
-      fileUrl: blob.url,
+      fileUrl: uploaded.url,
       fileName,
       fileSizeKb,
     });

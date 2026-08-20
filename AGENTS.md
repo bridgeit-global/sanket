@@ -27,5 +27,6 @@ Verify DB: `pnpm db:verify`.
 ### Gotchas
 
 - New users from `/register` have **no role** and land on `/modules/profile` (“No role assigned”). Module access is permission-gated in the DB.
-- Redis / Vercel Blob / Brave Search / WhatsApp worker / VAPID are optional; core auth + most modules work without them.
+- Redis / Brave Search / WhatsApp worker / VAPID are optional; core auth + most modules work without them.
+- **File storage:** always Supabase Storage (`supabase.storage`). Do not use Vercel Blob (`@vercel/blob` / `BLOB_READ_WRITE_TOKEN`) for new or migrated uploads.
 - After a VM reboot: start `dockerd`, then `supabase start`, ensure `.env.local` still matches `supabase status -o env`, then `pnpm dev`.

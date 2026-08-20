@@ -1,6 +1,9 @@
-import { put } from '@vercel/blob';
 import { type NextRequest, NextResponse } from 'next/server';
 import { requireHierarchyAccess } from '@/lib/hierarchy/auth';
+import {
+  buildAppUploadPath,
+  uploadAppFile,
+} from '@/lib/storage/app-uploads';
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
@@ -33,16 +36,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const filename = `whatsapp-messages/${Date.now()}-${file.name}`;
-    const blob = await put(filename, await file.arrayBuffer(), {
-      access: 'public',
+    const path = buildAppUploadPath('whatsapp-messages', file.name);
+    const uploaded = await uploadAppFile({
+      path,
+      body: await file.arrayBuffer(),
       contentType: file.type,
     });
 
     return NextResponse.json({
       success: true,
       image: {
-        url: blob.url,
+        url: uploaded.url,
         fileName: file.name,
         mimeType: file.type,
       },

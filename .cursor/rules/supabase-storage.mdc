@@ -1,0 +1,50 @@
+---
+description: Always use Supabase Storage for file uploads (never Vercel Blob or other object stores)
+alwaysApply: true
+---
+
+# File storage: Supabase Storage only
+
+All file uploads, downloads, deletes, and signed/public URLs MUST use **Supabase Storage** via `supabase.storage` from `@/lib/supabase/server` (or the browser client when appropriate).
+
+## Forbidden
+
+- `@vercel/blob` (`put`, `del`, `list`, `head`, `copy`)
+- Any other object store (S3 SDK direct, Cloudflare R2, Uploadthing, etc.) unless the user explicitly asks
+- Storing long-lived public third-party blob URLs as the source of truth for new uploads
+
+## Required
+
+- Create or reuse a named bucket (migration: `INSERT INTO storage.buckets … ON CONFLICT DO NOTHING`)
+- Default public app uploads go in **`app-uploads`** via `@/lib/storage/app-uploads` (`uploadAppFile`, `removeStoredPublicUrl`)
+- Prefer **private** buckets for anything with PII that must not be world-readable (`letters`, `sir-profiles`); serve via signed URLs or an authenticated download API
+- Persist **`storage_path`** (and bucket when not implied) in the DB when using private buckets — not only a public URL
+- Check upload/download errors; use upsert only when replacing a known path
+- Storage upsert needs INSERT + SELECT + UPDATE policies when RLS applies to non–service-role clients
+
+## Canonical pattern
+
+```typescript
+// GOOD — public app uploads
+import { buildAppUploadPath, uploadAppFile } from '@/lib/storage/app-uploads';
+
+const path = buildAppUploadPath('register/entry-id', file.name);
+const { url } = await uploadAppFile({
+  path,
+  body: await file.arrayBuffer(),
+  contentType: file.type,
+});
+
+// GOOD — private (letters / SIR)
+import { supabase } from '@/lib/supabase/server';
+await supabase.storage.from('letters').upload(storagePath, fileBuffer, {
+  contentType: 'application/pdf',
+  upsert: true,
+});
+
+// BAD
+import { put } from '@vercel/blob';
+await put(filename, fileBuffer, { access: 'public' });
+```
+
+Never add `@vercel/blob` or other object stores. Data still on Blob URLs can be moved with `pnpm storage:migrate-blob`.

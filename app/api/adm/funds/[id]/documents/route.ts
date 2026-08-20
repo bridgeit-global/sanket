@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { put, del } from '@vercel/blob';
 import { auth } from '@/app/(auth)/auth';
 import {
   getAdmFundRecordById,
@@ -10,6 +9,11 @@ import {
   deleteAdmDocument,
   hasModuleAccess,
 } from '@/lib/db/queries';
+import {
+  buildAppUploadPath,
+  removeStoredPublicUrl,
+  uploadAppFile,
+} from '@/lib/storage/app-uploads';
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -104,9 +108,10 @@ export async function POST(
       );
     }
 
-    const filename = `adm/funds/${id}/${Date.now()}-${file.name}`;
-    const blob = await put(filename, await file.arrayBuffer(), {
-      access: 'public',
+    const path = buildAppUploadPath(`adm/funds/${id}`, file.name);
+    const uploaded = await uploadAppFile({
+      path,
+      body: await file.arrayBuffer(),
       contentType: file.type,
     });
 
@@ -114,7 +119,7 @@ export async function POST(
       fundRecordId: id,
       fileName: file.name,
       fileSizeKb: Math.round(file.size / 1024),
-      fileUrl: blob.url,
+      fileUrl: uploaded.url,
       kind,
       label,
       uploadedBy: session.user.id,
@@ -161,13 +166,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
 
-    if (existing.fileUrl) {
-      try {
-        await del(existing.fileUrl);
-      } catch {
-        // non-fatal
-      }
-    }
+    await removeStoredPublicUrl(existing.fileUrl);
 
     await deleteAdmDocument(documentId);
     return NextResponse.json({ success: true });

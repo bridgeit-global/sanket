@@ -16,6 +16,7 @@
     "db:seed:addresses": "npx tsx scripts/seed-address-master.ts",
     "db:seed:services": "npx tsx scripts/seed-service-catalog.ts",
     "db:seed:adm-mla": "npx tsx scripts/seed-adm-mla-pdfs.ts",
+    "storage:migrate-blob": "npx tsx scripts/migrate-vercel-blob-to-supabase.ts",
     "letters:export-templates": "npx tsx scripts/export-letter-templates-pdf.ts",
     "test": "export PLAYWRIGHT=True && pnpm exec playwright test"
   },
@@ -51,7 +52,6 @@
     "@supabase/supabase-js": "^2.108.1",
     "@tanstack/react-virtual": "^3.13.23",
     "@vercel/analytics": "^1.5.0",
-    "@vercel/blob": "^0.24.1",
     "@vercel/functions": "^2.0.0",
     "@vercel/otel": "^1.12.0",
     "@zxing/browser": "^0.1.5",
@@ -121,6 +121,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "@types/web-push": "^3.6.4",
+    "@vercel/blob": "^0.24.1",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.5",
     "eslint-config-prettier": "^9.1.0",

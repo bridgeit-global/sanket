@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { put, del } from '@vercel/blob';
 import { auth } from '@/app/(auth)/auth';
 import {
   getDailyProgrammeItemById,
@@ -10,6 +9,11 @@ import {
   getDailyProgrammeAttachmentById,
 } from '@/lib/db/queries';
 import { hasModuleAccess } from '@/lib/db/queries';
+import {
+  buildAppUploadPath,
+  removeStoredPublicUrl,
+  uploadAppFile,
+} from '@/lib/storage/app-uploads';
 
 // Allowed file types for document uploads
 const ALLOWED_MIME_TYPES = [
@@ -109,12 +113,10 @@ export async function POST(
       );
     }
 
-    // Upload to Vercel Blob
-    const filename = `daily-programme/${id}/${Date.now()}-${file.name}`;
-    const fileBuffer = await file.arrayBuffer();
-
-    const blob = await put(filename, fileBuffer, {
-      access: 'public',
+    const path = buildAppUploadPath(`daily-programme/${id}`, file.name);
+    const uploaded = await uploadAppFile({
+      path,
+      body: await file.arrayBuffer(),
       contentType: file.type,
     });
 
@@ -123,7 +125,7 @@ export async function POST(
       programmeId: id,
       fileName: file.name,
       fileSizeKb: Math.round(file.size / 1024),
-      fileUrl: blob.url,
+      fileUrl: uploaded.url,
     });
 
     return NextResponse.json(attachment, { status: 201 });
@@ -189,15 +191,7 @@ export async function DELETE(
       );
     }
 
-    // Delete from Vercel Blob if URL exists
-    if (attachment.fileUrl) {
-      try {
-        await del(attachment.fileUrl);
-      } catch (blobError) {
-        console.error('Error deleting from blob storage:', blobError);
-        // Continue with database deletion even if blob deletion fails
-      }
-    }
+    await removeStoredPublicUrl(attachment.fileUrl);
 
     // Delete from database
     await deleteDailyProgrammeAttachment(attachmentId);

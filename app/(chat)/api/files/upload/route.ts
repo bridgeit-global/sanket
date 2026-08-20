@@ -1,8 +1,11 @@
-import { put } from '@vercel/blob';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { auth } from '@/app/(auth)/auth';
+import {
+  buildAppUploadPath,
+  uploadAppFile,
+} from '@/lib/storage/app-uploads';
 
 // Use Blob instead of File since File is not available in Node.js environment
 const FileSchema = z.object({
@@ -49,14 +52,23 @@ export async function POST(request: Request) {
     // Get filename from formData since Blob doesn't have name property
     const filename = (formData.get('file') as File).name;
     const fileBuffer = await file.arrayBuffer();
+    const path = buildAppUploadPath('chat', filename);
 
     try {
-      const data = await put(`${filename}`, fileBuffer, {
-        access: 'public',
+      const data = await uploadAppFile({
+        path,
+        body: fileBuffer,
+        contentType: file.type || 'application/octet-stream',
       });
 
-      return NextResponse.json(data);
+      // Keep Vercel Blob-shaped fields used by multimodal-input / letterheads.
+      return NextResponse.json({
+        url: data.url,
+        pathname: data.path,
+        contentType: data.contentType,
+      });
     } catch (error) {
+      console.error('Chat file upload failed:', error);
       return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
     }
   } catch (error) {

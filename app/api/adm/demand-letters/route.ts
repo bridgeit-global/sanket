@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { put } from '@vercel/blob';
 import { auth } from '@/app/(auth)/auth';
 import {
   createAdmDemandLetter,
@@ -8,6 +7,10 @@ import {
   listAdmDemandLetters,
 } from '@/lib/db/queries';
 import { admDemandLetterSchema } from '@/lib/validations';
+import {
+  buildAppUploadPath,
+  uploadAppFile,
+} from '@/lib/storage/app-uploads';
 
 const ALLOWED_MIME_TYPES = [
   'application/pdf',
@@ -113,9 +116,13 @@ export async function POST(request: NextRequest) {
     }
 
     const letterId = crypto.randomUUID();
-    const filename = `adm/demand-letters/${letterId}/${Date.now()}-${file.name}`;
-    const blob = await put(filename, await file.arrayBuffer(), {
-      access: 'public',
+    const path = buildAppUploadPath(
+      `adm/demand-letters/${letterId}`,
+      file.name,
+    );
+    const uploaded = await uploadAppFile({
+      path,
+      body: await file.arrayBuffer(),
       contentType: file.type,
     });
 
@@ -125,7 +132,7 @@ export async function POST(request: NextRequest) {
       title: parsed.data.title,
       fileName: file.name,
       fileSizeKb: Math.round(file.size / 1024),
-      fileUrl: blob.url,
+      fileUrl: uploaded.url,
       uploadedBy: session.user.id,
     });
 

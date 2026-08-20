@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { put, del } from '@vercel/blob';
 import { auth } from '@/app/(auth)/auth';
 import {
   getRegisterEntryById,
@@ -11,6 +10,11 @@ import {
 import { hasModuleAccess } from '@/lib/db/queries';
 import { isUserAdmin } from '@/lib/db/cadre-queries';
 import { canAccessInwardRegister } from '@/lib/register/access';
+import {
+  buildAppUploadPath,
+  removeStoredPublicUrl,
+  uploadAppFile,
+} from '@/lib/storage/app-uploads';
 
 async function canAccessEntry(
   userId: string,
@@ -116,12 +120,10 @@ export async function POST(
       );
     }
 
-    // Upload to Vercel Blob
-    const filename = `register/${id}/${Date.now()}-${file.name}`;
-    const fileBuffer = await file.arrayBuffer();
-
-    const blob = await put(filename, fileBuffer, {
-      access: 'public',
+    const path = buildAppUploadPath(`register/${id}`, file.name);
+    const uploaded = await uploadAppFile({
+      path,
+      body: await file.arrayBuffer(),
       contentType: file.type,
     });
 
@@ -130,7 +132,7 @@ export async function POST(
       entryId: id,
       fileName: file.name,
       fileSizeKb: Math.round(file.size / 1024),
-      fileUrl: blob.url,
+      fileUrl: uploaded.url,
     });
 
     return NextResponse.json(attachment, { status: 201 });
@@ -199,15 +201,7 @@ export async function DELETE(
       );
     }
 
-    // Delete from Vercel Blob if URL exists
-    if (attachment.fileUrl) {
-      try {
-        await del(attachment.fileUrl);
-      } catch (blobError) {
-        console.error('Error deleting from blob storage:', blobError);
-        // Continue with database deletion even if blob deletion fails
-      }
-    }
+    await removeStoredPublicUrl(attachment.fileUrl);
 
     // Delete from database
     await deleteRegisterAttachment(attachmentId);

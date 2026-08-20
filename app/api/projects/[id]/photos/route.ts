@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { put, del } from '@vercel/blob';
 import { auth } from '@/app/(auth)/auth';
 import {
   getProjectById,
@@ -10,6 +9,11 @@ import {
   deleteProjectGroundMedia,
   hasModuleAccess,
 } from '@/lib/db/queries';
+import {
+  buildAppUploadPath,
+  removeStoredPublicUrl,
+  uploadAppFile,
+} from '@/lib/storage/app-uploads';
 
 const ALLOWED_MIME_TYPES = [
   'image/jpeg',
@@ -107,16 +111,20 @@ export async function POST(
     const existing = await getProjectGroundMedia(id);
     const sameTypeCount = existing.filter((m) => m.photoType === photoType).length;
 
-    const filename = `projects/${id}/ground/${photoType}-${Date.now()}-${file.name}`;
-    const blob = await put(filename, await file.arrayBuffer(), {
-      access: 'public',
+    const path = buildAppUploadPath(
+      `projects/${id}/ground`,
+      `${photoType}-${file.name}`,
+    );
+    const uploaded = await uploadAppFile({
+      path,
+      body: await file.arrayBuffer(),
       contentType: file.type,
     });
 
     const media = await createProjectGroundMedia({
       projectId: id,
       photoType,
-      fileUrl: blob.url,
+      fileUrl: uploaded.url,
       fileName: file.name,
       sortOrder: sameTypeCount,
     });
@@ -159,11 +167,7 @@ export async function DELETE(
       return NextResponse.json({ error: 'Photo not found' }, { status: 404 });
     }
 
-    try {
-      await del(existing.fileUrl);
-    } catch {
-      // non-fatal
-    }
+    await removeStoredPublicUrl(existing.fileUrl);
 
     await deleteProjectGroundMedia(mediaId);
     return NextResponse.json({ success: true });

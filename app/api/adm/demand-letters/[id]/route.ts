@@ -1,12 +1,12 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { del } from '@vercel/blob';
 import { auth } from '@/app/(auth)/auth';
 import {
   deleteAdmDemandLetter,
   getAdmDemandLetterById,
   hasModuleAccess,
 } from '@/lib/db/queries';
+import { removeStoredPublicUrl } from '@/lib/storage/app-uploads';
 
 export async function DELETE(
   _request: NextRequest,
@@ -33,13 +33,7 @@ export async function DELETE(
       );
     }
 
-    if (existing.fileUrl) {
-      try {
-        await del(existing.fileUrl);
-      } catch {
-        // non-fatal
-      }
-    }
+    await removeStoredPublicUrl(existing.fileUrl);
 
     await deleteAdmDemandLetter(id);
     return NextResponse.json({ success: true });

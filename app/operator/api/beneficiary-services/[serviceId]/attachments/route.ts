@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { put, del } from '@vercel/blob';
 import { auth } from '@/app/(auth)/auth';
 import {
   getBeneficiaryServiceById,
@@ -8,6 +7,11 @@ import {
   createBeneficiaryServiceAttachment,
   deleteBeneficiaryServiceAttachment,
 } from '@/lib/db/queries';
+import {
+  buildAppUploadPath,
+  removeStoredPublicUrl,
+  uploadAppFile,
+} from '@/lib/storage/app-uploads';
 
 // Allowed file types for document / image uploads
 const ALLOWED_MIME_TYPES = [
@@ -132,11 +136,13 @@ export async function POST(
       );
     }
 
-    const filename = `beneficiary-services/${serviceId}/${Date.now()}-${file.name}`;
-    const fileBuffer = await file.arrayBuffer();
-
-    const blob = await put(filename, fileBuffer, {
-      access: 'public',
+    const path = buildAppUploadPath(
+      `beneficiary-services/${serviceId}`,
+      file.name,
+    );
+    const uploaded = await uploadAppFile({
+      path,
+      body: await file.arrayBuffer(),
       contentType: file.type || 'application/octet-stream',
     });
 
@@ -144,7 +150,7 @@ export async function POST(
       serviceId,
       fileName: file.name,
       fileSizeKb: Math.round(file.size / 1024),
-      fileUrl: blob.url,
+      fileUrl: uploaded.url,
       performedBy: session?.user?.id,
     });
 
@@ -196,13 +202,7 @@ export async function DELETE(
       );
     }
 
-    if (attachment.fileUrl) {
-      try {
-        await del(attachment.fileUrl);
-      } catch (blobError) {
-        console.error('Error deleting from blob storage:', blobError);
-      }
-    }
+    await removeStoredPublicUrl(attachment.fileUrl);
 
     await deleteBeneficiaryServiceAttachment(attachmentId);
 
