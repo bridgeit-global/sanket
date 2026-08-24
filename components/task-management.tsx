@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Combobox } from '@/components/ui/combobox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/components/toast';
 import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
@@ -57,6 +58,41 @@ interface ServiceCatalogOption {
     id: string;
     name: string;
     category: string | null;
+}
+
+function buildServiceFilterOptions(
+    services: ServiceCatalogOption[],
+    allLabel: string,
+): Array<{ value: string; label: string; disabled?: boolean }> {
+    const groups = new Map<string, ServiceCatalogOption[]>();
+    const sorted = [...services].sort((a, b) => {
+        const catA = a.category?.trim() || 'Other';
+        const catB = b.category?.trim() || 'Other';
+        if (catA !== catB) return catA.localeCompare(catB);
+        return a.name.localeCompare(b.name);
+    });
+
+    for (const service of sorted) {
+        const category = service.category?.trim() || 'Other';
+        const list = groups.get(category) ?? [];
+        list.push(service);
+        groups.set(category, list);
+    }
+
+    const options: Array<{ value: string; label: string; disabled?: boolean }> = [
+        { value: 'all', label: allLabel },
+    ];
+    for (const [category, rows] of groups) {
+        options.push({
+            value: `__category__${category}`,
+            label: category,
+            disabled: true,
+        });
+        for (const service of rows) {
+            options.push({ value: service.name, label: service.name });
+        }
+    }
+    return options;
 }
 
 interface AssignableUser {
@@ -1100,6 +1136,10 @@ export function TaskManagement({
         }
     };
 
+    const serviceFilterOptions = useMemo(
+        () => buildServiceFilterOptions(serviceCatalog, t('taskManagement.filters.allServices')),
+        [serviceCatalog, t],
+    );
 
     return (
         <div className="space-y-6">
@@ -1129,7 +1169,9 @@ export function TaskManagement({
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                             <div>
                                 <Label htmlFor="service-name-filter">{t('taskManagement.filters.serviceName')}</Label>
-                                <Select
+                                <Combobox
+                                    id="service-name-filter"
+                                    options={serviceFilterOptions}
                                     value={filterServiceName}
                                     onValueChange={(value) => {
                                         setFilterServiceName(value);
@@ -1139,33 +1181,9 @@ export function TaskManagement({
                                             page: 1,
                                         }, true);
                                     }}
-                                >
-                                    <SelectTrigger>
-                                        <SelectValue placeholder={t('taskManagement.filters.allServices')} />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="all">{t('taskManagement.filters.allServices')}</SelectItem>
-                                        {(() => {
-                                            const groups = new Map<string, ServiceCatalogOption[]>();
-                                            for (const service of serviceCatalog) {
-                                                const key = service.category?.trim() || 'Other';
-                                                const list = groups.get(key) ?? [];
-                                                list.push(service);
-                                                groups.set(key, list);
-                                            }
-                                            return Array.from(groups.entries()).map(([category, services]) => (
-                                                <SelectGroup key={category}>
-                                                    <SelectLabel>{category}</SelectLabel>
-                                                    {services.map((service) => (
-                                                        <SelectItem key={service.id} value={service.name}>
-                                                            {service.name}
-                                                        </SelectItem>
-                                                    ))}
-                                                </SelectGroup>
-                                            ));
-                                        })()}
-                                    </SelectContent>
-                                </Select>
+                                    placeholder={t('taskManagement.filters.searchServices')}
+                                    emptyMessage={t('taskManagement.filters.noServicesFound')}
+                                />
                             </div>
 
                             <div>

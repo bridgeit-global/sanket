@@ -2056,6 +2056,8 @@
       "enterVoterId": "Enter voter ID...",
       "serviceName": "Service Name",
       "allServices": "All Services",
+      "searchServices": "Search services...",
+      "noServicesFound": "No services found",
       "allTasks": "All Tasks",
       "allPriorities": "All Priorities",
       "assignedTo": "Assigned To",

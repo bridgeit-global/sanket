@@ -2058,6 +2058,8 @@
       "enterVoterId": "मतदार आयडी प्रविष्ट करा...",
       "serviceName": "सेवेचे नाव",
       "allServices": "सर्व सेवा",
+      "searchServices": "सेवा शोधा...",
+      "noServicesFound": "सेवा सापडल्या नाहीत",
       "allTasks": "सर्व कार्ये",
       "allPriorities": "सर्व प्राधान्ये",
       "assignedTo": "नियुक्त",

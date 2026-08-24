@@ -64,15 +64,36 @@ export function Combobox({
 
     // Filter options based on search query (pinned options always remain visible).
     // Category/section headers are browse-only — hide them while typing so search
-    // results show matching selectable options only.
+    // results show matching selectable options only. A category header match
+    // includes every service in that group (so "education" finds those services).
     const filteredOptions = React.useMemo(() => {
         if (!searchQuery.trim()) return options;
         const query = searchQuery.toLowerCase();
-        return options.filter(
-            (opt) =>
-                !opt.disabled &&
-                (opt.pinned || opt.label.toLowerCase().includes(query)),
-        );
+        const matches = (opt: ComboboxOption) =>
+            opt.pinned === true || opt.label.toLowerCase().includes(query);
+
+        const result: ComboboxOption[] = [];
+        let i = 0;
+        while (i < options.length) {
+            const opt = options[i];
+            if (opt.disabled) {
+                const children: ComboboxOption[] = [];
+                let j = i + 1;
+                while (j < options.length && !options[j].disabled) {
+                    children.push(options[j]);
+                    j += 1;
+                }
+                const matchingChildren = matches(opt)
+                    ? children.filter((child) => !child.disabled)
+                    : children.filter((child) => !child.disabled && matches(child));
+                result.push(...matchingChildren);
+                i = j;
+            } else {
+                if (matches(opt)) result.push(opt);
+                i += 1;
+            }
+        }
+        return result;
     }, [options, searchQuery]);
 
     const trimmedQuery = searchQuery.trim();
@@ -217,7 +238,7 @@ export function Combobox({
                     aria-invalid={ariaInvalid}
                     aria-required={ariaRequired}
                     className={cn(
-                        'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
+                        'flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 pr-8 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50',
                         !selectedOption && open && 'text-muted-foreground',
                         inputClassName,
                     )}
