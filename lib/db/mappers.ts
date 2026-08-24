@@ -62,6 +62,7 @@ import type {
   AdmDocument,
   AdmDemandLetter,
   ProjectGroundMedia,
+  ProjectGroundMediaPhotoType,
   ProjectApprovalStatus,
   ProjectNocStatus,
   ProjectPhysicalStatus,
@@ -832,7 +833,7 @@ export function mapProjectGroundMediaRow(row: Row): ProjectGroundMedia {
   return {
     id: String(row.id),
     projectId: String(row.project_id ?? row.projectId),
-    photoType: (row.photo_type ?? row.photoType) as 'before' | 'after',
+    photoType: (row.photo_type ?? row.photoType) as ProjectGroundMediaPhotoType,
     fileUrl: String(row.file_url ?? row.fileUrl),
     fileName: String(row.file_name ?? row.fileName),
     sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),

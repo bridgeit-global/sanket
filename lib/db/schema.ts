@@ -623,10 +623,28 @@ export type ProjectAttachment = {
   registerFromTo?: string | null;
 };
 
+export const PROJECT_GROUND_MEDIA_PHOTO_TYPES = [
+  'before',
+  'after',
+  'bhoomi_pujan',
+  'lokarpan',
+] as const;
+
+export type ProjectGroundMediaPhotoType =
+  (typeof PROJECT_GROUND_MEDIA_PHOTO_TYPES)[number];
+
+export function isProjectGroundMediaPhotoType(
+  value: string,
+): value is ProjectGroundMediaPhotoType {
+  return (PROJECT_GROUND_MEDIA_PHOTO_TYPES as readonly string[]).includes(
+    value,
+  );
+}
+
 export type ProjectGroundMedia = {
   id: string;
   projectId: string;
-  photoType: 'before' | 'after';
+  photoType: ProjectGroundMediaPhotoType;
   fileUrl: string;
   fileName: string;
   sortOrder: number;

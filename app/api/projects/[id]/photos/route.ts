@@ -14,6 +14,7 @@ import {
   removeStoredPublicUrl,
   uploadAppFile,
 } from '@/lib/storage/app-uploads';
+import { isProjectGroundMediaPhotoType } from '@/lib/db/schema';
 
 const ALLOWED_MIME_TYPES = [
   'image/jpeg',
@@ -87,9 +88,12 @@ export async function POST(
       return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
     }
 
-    if (photoType !== 'before' && photoType !== 'after') {
+    if (!isProjectGroundMediaPhotoType(photoType)) {
       return NextResponse.json(
-        { error: 'Photo type must be "before" or "after"' },
+        {
+          error:
+            'Photo type must be "before", "after", "bhoomi_pujan", or "lokarpan"',
+        },
         { status: 400 },
       );
     }

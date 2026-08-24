@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import Image from 'next/image';
-import { FileText, Plus, Trash2, Upload, X } from 'lucide-react';
+import { FileText, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,9 +21,15 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslations } from '@/hooks/use-translations';
 import { AdmMilestoneRow } from '@/components/adm/adm-milestone-row';
+import {
+  ProjectPhotoGallery,
+  type ProjectPhotoItem,
+} from '@/components/projects/project-photo-gallery';
+import { toast } from '@/components/toast';
 import type {
   ProjectAttachment,
   ProjectGroundMedia,
+  ProjectGroundMediaPhotoType,
   ProjectDocumentKind,
   ProjectPhysicalStatus,
   ProjectApprovalStatus,
@@ -79,13 +85,11 @@ export function ProjectDetailExtras({
 }: ProjectDetailExtrasProps) {
   const { t } = useTranslations();
   const docInputRef = useRef<HTMLInputElement>(null);
-  const beforeInputRef = useRef<HTMLInputElement>(null);
-  const afterInputRef = useRef<HTMLInputElement>(null);
   const [docKind, setDocKind] = useState<ProjectDocumentKind>('supporting');
   const [uploadingDoc, setUploadingDoc] = useState(false);
-  const [uploadingBefore, setUploadingBefore] = useState(false);
-  const [uploadingAfter, setUploadingAfter] = useState(false);
-  const [lightboxPhoto, setLightboxPhoto] = useState<ProjectGroundMedia | null>(
+  const [uploadingType, setUploadingType] =
+    useState<ProjectGroundMediaPhotoType | null>(null);
+  const [lightboxPhoto, setLightboxPhoto] = useState<ProjectPhotoItem | null>(
     null,
   );
 
@@ -106,6 +110,10 @@ export function ProjectDetailExtras({
 
   const beforePhotos = groundMedia.filter((m) => m.photoType === 'before');
   const afterPhotos = groundMedia.filter((m) => m.photoType === 'after');
+  const bhoomiPujanPhotos = groundMedia.filter(
+    (m) => m.photoType === 'bhoomi_pujan',
+  );
+  const lokarpanPhotos = groundMedia.filter((m) => m.photoType === 'lokarpan');
 
   const latestByGroup = new Map<string, ProjectAttachment>();
   for (const doc of documents) {
@@ -150,9 +158,11 @@ export function ProjectDetailExtras({
     await onRefresh();
   };
 
-  const uploadPhoto = async (type: 'before' | 'after', file: File) => {
-    const setUploading = type === 'before' ? setUploadingBefore : setUploadingAfter;
-    setUploading(true);
+  const uploadPhoto = async (
+    type: ProjectGroundMediaPhotoType,
+    file: File,
+  ) => {
+    setUploadingType(type);
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -166,21 +176,29 @@ export function ProjectDetailExtras({
         throw new Error(data.error || 'Upload failed');
       }
       await onRefresh();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : t('adm.failedToSave'));
     } finally {
-      setUploading(false);
+      setUploadingType(null);
     }
   };
 
   const deletePhoto = async (mediaId: string) => {
-    const res = await fetch(
-      `/api/projects/${projectId}/photos?mediaId=${mediaId}`,
-      { method: 'DELETE' },
-    );
-    if (!res.ok) {
-      const data = await res.json();
-      throw new Error(data.error || 'Delete failed');
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/photos?mediaId=${mediaId}`,
+        { method: 'DELETE' },
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Delete failed');
+      }
+      await onRefresh();
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t('adm.failedToDelete'),
+      );
     }
-    await onRefresh();
   };
 
   return (
@@ -230,7 +248,21 @@ export function ProjectDetailExtras({
                   bhoomiPujanDate: date || null,
                 })
               }
-            />
+            >
+              <div className="space-y-2">
+                <ProjectPhotoGallery
+                  title={t('projects.photosBhoomiPujan')}
+                  photos={bhoomiPujanPhotos}
+                  uploading={uploadingType === 'bhoomi_pujan'}
+                  onUpload={(file) => uploadPhoto('bhoomi_pujan', file)}
+                  onDelete={deletePhoto}
+                  onOpen={setLightboxPhoto}
+                  addLabel={t('projects.addPhoto')}
+                  emptyLabel={t('projects.photosPending')}
+                  deleteAriaLabel={t('adm.delete')}
+                />
+              </div>
+            </AdmMilestoneRow>
             <AdmMilestoneRow
               id={`project-lokarpan-${projectId}`}
               label={t('adm.milestoneLokarpan')}
@@ -251,7 +283,21 @@ export function ProjectDetailExtras({
                   lokarpanDate: date || null,
                 })
               }
-            />
+            >
+              <div className="space-y-2">
+                <ProjectPhotoGallery
+                  title={t('projects.photosLokarpan')}
+                  photos={lokarpanPhotos}
+                  uploading={uploadingType === 'lokarpan'}
+                  onUpload={(file) => uploadPhoto('lokarpan', file)}
+                  onDelete={deletePhoto}
+                  onOpen={setLightboxPhoto}
+                  addLabel={t('projects.addPhoto')}
+                  emptyLabel={t('projects.photosPending')}
+                  deleteAriaLabel={t('adm.delete')}
+                />
+              </div>
+            </AdmMilestoneRow>
           </div>
         </CardContent>
       </Card>
@@ -263,87 +309,24 @@ export function ProjectDetailExtras({
         <CardContent className="grid gap-6 md:grid-cols-2">
           {(['before', 'after'] as const).map((type) => {
             const photos = type === 'before' ? beforePhotos : afterPhotos;
-            const uploading = type === 'before' ? uploadingBefore : uploadingAfter;
-            const inputRef = type === 'before' ? beforeInputRef : afterInputRef;
             return (
-              <div key={type} className="space-y-3">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm font-medium">
-                    {type === 'before'
-                      ? t('projects.photosBefore')
-                      : t('projects.photosAfter')}
-                  </p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    className="min-h-11 w-full sm:min-h-9 sm:w-auto"
-                    disabled={uploading}
-                    onClick={() => inputRef.current?.click()}
-                  >
-                    <Plus className="mr-1 h-3.5 w-3.5" />
-                    {t('projects.addPhoto')}
-                  </Button>
-                  <input
-                    ref={inputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (file) await uploadPhoto(type, file);
-                      e.target.value = '';
-                    }}
-                  />
-                </div>
-                {photos.length === 0 ? (
-                  <div className="flex min-h-24 flex-col items-center justify-center gap-2 rounded-md border border-dashed border-border bg-muted/20 p-4 text-center">
-                    <p className="text-sm font-medium text-muted-foreground">
-                      {t('projects.photosPending')}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {photos.map((photo) => (
-                      <div
-                        key={photo.id}
-                        className="overflow-hidden rounded-md border border-border"
-                      >
-                        <button
-                          type="button"
-                          className="relative block aspect-[4/3] w-full bg-muted/40"
-                          onClick={() => setLightboxPhoto(photo)}
-                          aria-label={photo.fileName}
-                        >
-                          <Image
-                            src={photo.fileUrl}
-                            alt={photo.fileName}
-                            fill
-                            className="object-contain"
-                            unoptimized
-                            sizes="(max-width: 640px) 100vw, 50vw"
-                          />
-                        </button>
-                        <div className="flex items-center justify-between gap-2 border-t border-border px-2 py-1.5">
-                          <p className="min-w-0 truncate text-xs text-muted-foreground">
-                            {photo.fileName}
-                          </p>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            className="min-h-9 shrink-0 text-destructive hover:text-destructive"
-                            onClick={() => deletePhoto(photo.id)}
-                            aria-label={t('adm.delete')}
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <ProjectPhotoGallery
+                key={type}
+                title={
+                  type === 'before'
+                    ? t('projects.photosBefore')
+                    : t('projects.photosAfter')
+                }
+                titleClassName="text-sm font-medium"
+                photos={photos}
+                uploading={uploadingType === type}
+                onUpload={(file) => uploadPhoto(type, file)}
+                onDelete={deletePhoto}
+                onOpen={setLightboxPhoto}
+                addLabel={t('projects.addPhoto')}
+                emptyLabel={t('projects.photosPending')}
+                deleteAriaLabel={t('adm.delete')}
+              />
             );
           })}
         </CardContent>

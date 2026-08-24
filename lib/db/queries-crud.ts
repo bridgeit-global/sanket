@@ -94,6 +94,7 @@ import type {
   AdmFundRecordWithDetails,
   ProjectAttachment,
   ProjectGroundMedia,
+  ProjectGroundMediaPhotoType,
   ProjectDocumentKind,
   RegisterAttachment,
   RegisterEntry,
@@ -7673,7 +7674,7 @@ export async function createProjectGroundMedia({
   sortOrder,
 }: {
   projectId: string;
-  photoType: 'before' | 'after';
+  photoType: ProjectGroundMediaPhotoType;
   fileUrl: string;
   fileName: string;
   sortOrder?: number;

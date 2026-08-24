@@ -483,9 +483,6 @@ export function AdmFundRecordCard({
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 space-y-1">
-                      <p className="font-mono text-xs text-muted-foreground">
-                        {allocation.workCode || '—'}
-                      </p>
                       <Link
                         href={`/modules/projects/${allocation.projectId}`}
                         className="inline-flex items-start gap-1 font-medium text-primary hover:underline"
@@ -503,17 +500,6 @@ export function AdmFundRecordCard({
                       {t(physicalStatusKey(allocation.projectPhysicalStatus))}
                     </Badge>
                   </div>
-
-                  <dl className="grid grid-cols-1 gap-y-2 text-sm">
-                    <div className="min-w-0">
-                      <dt className="text-xs text-muted-foreground">
-                        {t('adm.recommendation')}
-                      </dt>
-                      <dd className="break-words">
-                        {allocation.mlaRecommendationRef || '—'}
-                      </dd>
-                    </div>
-                  </dl>
 
                   <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                     <div className="min-w-0 flex-1 space-y-1">
@@ -556,18 +542,12 @@ export function AdmFundRecordCard({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="whitespace-nowrap">
-                      {t('adm.workCode')}
-                    </TableHead>
                     <TableHead>{t('adm.projectName')}</TableHead>
                     <TableHead className="whitespace-nowrap">
                       {t('adm.location')}
                     </TableHead>
                     <TableHead className="whitespace-nowrap">
                       {t('adm.physicalStatus')}
-                    </TableHead>
-                    <TableHead className="whitespace-nowrap">
-                      {t('adm.recommendation')}
                     </TableHead>
                     <TableHead className="whitespace-nowrap">
                       {t('adm.allocatedBudget')}
@@ -581,9 +561,6 @@ export function AdmFundRecordCard({
                 <TableBody>
                   {fund.allocations.map((allocation) => (
                     <TableRow key={allocation.id}>
-                      <TableCell className="whitespace-nowrap font-mono text-xs">
-                        {allocation.workCode || '—'}
-                      </TableCell>
                       <TableCell>
                         <Link
                           href={`/modules/projects/${allocation.projectId}`}
@@ -604,9 +581,6 @@ export function AdmFundRecordCard({
                             physicalStatusKey(allocation.projectPhysicalStatus),
                           )}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[10rem] truncate text-xs text-muted-foreground">
-                        {allocation.mlaRecommendationRef || '—'}
                       </TableCell>
                       <TableCell>
                         <Input
