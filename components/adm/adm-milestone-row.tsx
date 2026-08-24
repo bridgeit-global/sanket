@@ -27,8 +27,8 @@ export function AdmMilestoneRow({
   const { t } = useTranslations();
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
+    <div className="flex min-w-0 items-center justify-between gap-2 sm:gap-3">
+      <div className="flex min-w-0 items-center gap-2">
         <Checkbox
           id={id}
           checked={checked}
@@ -46,7 +46,7 @@ export function AdmMilestoneRow({
         value={date}
         onChange={(e) => onDateChange(e.target.value)}
         disabled={!checked}
-        className="min-h-11 w-full"
+        className="h-11 min-h-11 w-auto max-w-full shrink-0"
         aria-label={`${label} ${t('adm.milestones')}`}
       />
     </div>

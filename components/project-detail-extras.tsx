@@ -229,7 +229,7 @@ export function ProjectDetailExtras({
           <div className="space-y-3">
             <p className="text-sm font-medium">{t('projects.milestones')}</p>
             <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-3">
+              <div className="min-w-0 space-y-3">
                 <AdmMilestoneRow
                   id={`project-bhoomi-${projectId}`}
                   label={t('adm.milestoneBhoomiPujan')}
@@ -266,7 +266,7 @@ export function ProjectDetailExtras({
                   showLabel={t('projects.showPhotos')}
                 />
               </div>
-              <div className="space-y-3">
+              <div className="min-w-0 space-y-3">
                 <AdmMilestoneRow
                   id={`project-lokarpan-${projectId}`}
                   label={t('adm.milestoneLokarpan')}
