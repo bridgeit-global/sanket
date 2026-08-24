@@ -22,7 +22,7 @@ const LETTER_STYLE = `
     .paragraph:last-of-type { margin-bottom: 0; }
     .member-list { text-align: left; text-indent: 0; padding: 0; font-weight: normal; }
     .right-tab { text-align: right; padding-right: 36px; font-weight: normal; }
-    .right-tab-sign { text-align: right; padding-right: 28px; margin-top: 30px; font-weight: bold; }
+    .right-tab-sign { text-align: right; padding-right: 28px; margin-top: 40px; font-weight: bold; }
     .letter-closing { text-align: right; }
     .letter-closing .signature-line { text-align: right; }
     .recipient-bottom { margin-top: 25px; font-weight: normal; max-width: 100%; white-space: normal; overflow-wrap: anywhere; word-break: normal; }

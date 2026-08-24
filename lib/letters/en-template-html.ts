@@ -429,7 +429,7 @@ To,<br>
     .paragraph { text-align: justify; text-indent: 28px; padding: 0; margin-bottom: 12px; font-weight: normal; }
     .paragraph:last-of-type { margin-bottom: 0; }
     .right-tab { text-align: right; padding-right: 36px; margin-top: 25px; font-weight: normal; }
-    .right-tab-sign { text-align: right; padding-right: 28px; margin-top: 30px; font-weight: bold; }
+    .right-tab-sign { text-align: right; padding-right: 28px; margin-top: 40px; font-weight: bold; }
   </style>
   <div class="top-row">
     <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>

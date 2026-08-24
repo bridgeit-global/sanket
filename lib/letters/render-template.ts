@@ -135,7 +135,11 @@ function formatSignatureBlock(signatureParagraphs: string): string {
     .map((text, index) => {
       const isLast = index === lines.length - 1;
       const className = isLast ? 'right-tab-sign' : 'right-tab';
-      return `<div class="${className} signature-line">${escapeHtmlText(text)}</div>`;
+      const spacer =
+        isLast && lines.length > 1
+          ? '<div class="right-tab signature-line">&nbsp;</div><div class="right-tab signature-line">&nbsp;</div>'
+          : '';
+      return `${spacer}<div class="${className} signature-line">${escapeHtmlText(text)}</div>`;
     })
     .join('');
 }
