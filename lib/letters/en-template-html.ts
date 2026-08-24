@@ -84,6 +84,9 @@ export const EN_TEMPLATE_HTML: Record<LetterType, string> = {
   </div>
   <div class="recipient">{{toBlock}}</div>
   <div class="subject"><span style="font-weight: normal;">Subject:</span> <span class="var">{{subject}}</span></div>
+  <div class="salutation">
+    Sir/Madam,
+  </div>
   {{paragraphsBlock}}
   ${CLOSING}
 </div>`,
