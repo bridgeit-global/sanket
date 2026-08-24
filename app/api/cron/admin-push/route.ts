@@ -41,7 +41,8 @@ export async function GET(request: NextRequest) {
   }).format(now);
 
   try {
-    // daysAhead=0 → only today; high limit so the count is not capped at the dashboard list size
+    // daysAhead=0 → only today; high limit so the count is not capped at the dashboard list size.
+    // Count is unique voters (same EPIC merged), matching the dashboard birthday list.
     const todaysBirthdays = await getUpcomingCadreBirthdays(0, 10_000);
     const birthdayCount = todaysBirthdays.length;
 

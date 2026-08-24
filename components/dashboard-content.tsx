@@ -85,7 +85,7 @@ function UpcomingBirthdaysList({
           const dateLabel = format(parseISO(item.nextBirthday), 'd MMM');
           return (
             <li
-              key={item.memberId}
+              key={item.epicNumber || item.memberId}
               className="flex items-start justify-between gap-3"
             >
               <div className="min-w-0 flex-1">

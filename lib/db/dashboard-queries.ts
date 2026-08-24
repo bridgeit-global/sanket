@@ -158,6 +158,105 @@ function nextBirthdayOccurrence(
   };
 }
 
+function normalizeEpic(epic: string): string {
+  return epic.trim().toUpperCase();
+}
+
+function uniquePhones(phones: string[]): string[] {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+  for (const phone of phones) {
+    if (seen.has(phone)) continue;
+    seen.add(phone);
+    unique.push(phone);
+  }
+  return unique;
+}
+
+function mergeWings(
+  current: Array<{ id: string; name: string }>,
+  incoming: Array<{ id: string; name: string }>,
+): Array<{ id: string; name: string }> {
+  const seen = new Set(current.map((wing) => wing.id));
+  const merged = [...current];
+  for (const wing of incoming) {
+    if (seen.has(wing.id)) continue;
+    seen.add(wing.id);
+    merged.push(wing);
+  }
+  return merged;
+}
+
+function mergePostLabels(
+  current: string | null,
+  incoming: string | null,
+): string | null {
+  const labels: string[] = [];
+  const seen = new Set<string>();
+  for (const label of [current, incoming]) {
+    const trimmed = label?.trim() ?? '';
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    labels.push(trimmed);
+  }
+  return labels.length > 0 ? labels.join(' · ') : null;
+}
+
+function preferPersonName(current: string, incoming: string): string {
+  const a = current.trim();
+  const b = incoming.trim();
+  if (!a) return b;
+  if (!b) return a;
+  return b.length > a.length ? b : a;
+}
+
+/** One birthday card per voter ID; wings/posts/phones from every linked cadre member. */
+function mergeBirthdaysByEpic(
+  rows: UpcomingCadreBirthday[],
+): UpcomingCadreBirthday[] {
+  const byEpic = new Map<string, UpcomingCadreBirthday>();
+
+  for (const row of rows) {
+    const epicNumber = normalizeEpic(row.epicNumber);
+    const existing = byEpic.get(epicNumber);
+    if (!existing) {
+      byEpic.set(epicNumber, {
+        ...row,
+        epicNumber,
+        phones: [...row.phones],
+        wings: [...row.wings],
+      });
+      continue;
+    }
+
+    const personName = preferPersonName(existing.personName, row.personName);
+    const useIncomingMember =
+      personName === row.personName.trim() &&
+      personName !== existing.personName.trim();
+
+    byEpic.set(epicNumber, {
+      memberId: useIncomingMember ? row.memberId : existing.memberId,
+      personName,
+      personPhone: existing.personPhone || row.personPhone,
+      phones: uniquePhones([...existing.phones, ...row.phones]),
+      epicNumber,
+      dob: existing.dob,
+      nextBirthday: existing.nextBirthday,
+      daysUntil: existing.daysUntil,
+      turningAge: existing.turningAge ?? row.turningAge,
+      primaryPostLabel: mergePostLabels(
+        existing.primaryPostLabel,
+        row.primaryPostLabel,
+      ),
+      wings: mergeWings(existing.wings, row.wings),
+    });
+  }
+
+  return [...byEpic.values()];
+}
+
 export async function getUpcomingCadreBirthdays(
   daysAhead: number = BIRTHDAY_WINDOW_DAYS,
   limit: number = BIRTHDAY_LIST_LIMIT,
@@ -177,7 +276,13 @@ export async function getUpcomingCadreBirthdays(
   if (members.length === 0) return [];
 
   const epicNumbers = [
-    ...new Set(members.map((row) => String(row.epic_number).trim())),
+    ...new Set(
+      members.flatMap((row) => {
+        const raw = String(row.epic_number).trim();
+        const normalized = normalizeEpic(raw);
+        return raw === normalized ? [raw] : [raw, normalized];
+      }),
+    ),
   ];
 
   const voterByEpic = new Map<string, { fullName: string; dob: string }>();
@@ -193,7 +298,7 @@ export async function getUpcomingCadreBirthdays(
     for (const row of votersRes.data ?? []) {
       const dob = row.dob != null ? String(row.dob).trim() : '';
       if (!dob) continue;
-      voterByEpic.set(String(row.epic_number), {
+      voterByEpic.set(normalizeEpic(String(row.epic_number)), {
         fullName: String(row.full_name ?? ''),
         dob,
       });
@@ -201,7 +306,7 @@ export async function getUpcomingCadreBirthdays(
   }
 
   const membersWithDob = members.filter((row) =>
-    voterByEpic.has(String(row.epic_number).trim()),
+    voterByEpic.has(normalizeEpic(String(row.epic_number))),
   );
   if (membersWithDob.length === 0) return [];
 
@@ -351,7 +456,13 @@ export async function getUpcomingCadreBirthdays(
 
   const voterMobilesByEpic = new Map<string, string[]>();
   const epicsWithDob = [
-    ...new Set(membersWithDob.map((row) => String(row.epic_number).trim())),
+    ...new Set(
+      membersWithDob.flatMap((row) => {
+        const raw = String(row.epic_number).trim();
+        const normalized = normalizeEpic(raw);
+        return raw === normalized ? [raw] : [raw, normalized];
+      }),
+    ),
   ];
   for (const chunk of chunkIds(epicsWithDob, EPIC_FETCH_CHUNK)) {
     const mobilesRes = await supabase
@@ -361,7 +472,7 @@ export async function getUpcomingCadreBirthdays(
       .order('sort_order', { ascending: true });
     throwOnSupabaseError(mobilesRes.error, 'Failed to load voter mobiles for birthdays');
     for (const row of mobilesRes.data ?? []) {
-      const epic = String(row.epic_number);
+      const epic = normalizeEpic(String(row.epic_number));
       const mobile = row.mobile_number != null ? String(row.mobile_number).trim() : '';
       if (!mobile) continue;
       const list = voterMobilesByEpic.get(epic) ?? [];
@@ -374,7 +485,7 @@ export async function getUpcomingCadreBirthdays(
   const results: UpcomingCadreBirthday[] = [];
 
   for (const row of membersWithDob) {
-    const epicNumber = String(row.epic_number).trim();
+    const epicNumber = normalizeEpic(String(row.epic_number));
     const voter = voterByEpic.get(epicNumber);
     if (!voter) continue;
 
@@ -435,12 +546,13 @@ export async function getUpcomingCadreBirthdays(
     });
   }
 
-  results.sort((a, b) => {
+  const uniquePeople = mergeBirthdaysByEpic(results);
+  uniquePeople.sort((a, b) => {
     if (a.daysUntil !== b.daysUntil) return a.daysUntil - b.daysUntil;
     return a.personName.localeCompare(b.personName);
   });
 
-  return results.slice(0, limit);
+  return uniquePeople.slice(0, limit);
 }
 
 export async function getDashboardData(): Promise<DashboardData> {
