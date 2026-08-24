@@ -228,30 +228,32 @@ export function ProjectDetailExtras({
           </div>
           <div className="space-y-3">
             <p className="text-sm font-medium">{t('projects.milestones')}</p>
-            <AdmMilestoneRow
-              id={`project-bhoomi-${projectId}`}
-              label={t('adm.milestoneBhoomiPujan')}
-              sublabel={t('adm.milestoneBhoomiPujanMr')}
-              checked={bhoomiPujanDone}
-              date={bhoomiPujanDate ?? ''}
-              onCheckedChange={(checked) =>
-                onPatchProject({
-                  bhoomiPujanDone: checked,
-                  bhoomiPujanDate: checked
-                    ? bhoomiPujanDate || new Date().toISOString().slice(0, 10)
-                    : null,
-                })
-              }
-              onDateChange={(date) =>
-                onPatchProject({
-                  bhoomiPujanDone: true,
-                  bhoomiPujanDate: date || null,
-                })
-              }
-            >
-              <div className="space-y-2">
+            <div className="grid gap-6 md:grid-cols-2">
+              <div className="space-y-3">
+                <AdmMilestoneRow
+                  id={`project-bhoomi-${projectId}`}
+                  label={t('adm.milestoneBhoomiPujan')}
+                  sublabel={t('adm.milestoneBhoomiPujanMr')}
+                  checked={bhoomiPujanDone}
+                  date={bhoomiPujanDate ?? ''}
+                  onCheckedChange={(checked) =>
+                    onPatchProject({
+                      bhoomiPujanDone: checked,
+                      bhoomiPujanDate: checked
+                        ? bhoomiPujanDate || new Date().toISOString().slice(0, 10)
+                        : null,
+                    })
+                  }
+                  onDateChange={(date) =>
+                    onPatchProject({
+                      bhoomiPujanDone: true,
+                      bhoomiPujanDate: date || null,
+                    })
+                  }
+                />
                 <ProjectPhotoGallery
                   title={t('projects.photosBhoomiPujan')}
+                  titleClassName="text-sm font-medium"
                   photos={bhoomiPujanPhotos}
                   uploading={uploadingType === 'bhoomi_pujan'}
                   onUpload={(file) => uploadPhoto('bhoomi_pujan', file)}
@@ -260,33 +262,35 @@ export function ProjectDetailExtras({
                   addLabel={t('projects.addPhoto')}
                   emptyLabel={t('projects.photosPending')}
                   deleteAriaLabel={t('adm.delete')}
+                  hideLabel={t('projects.hidePhotos')}
+                  showLabel={t('projects.showPhotos')}
                 />
               </div>
-            </AdmMilestoneRow>
-            <AdmMilestoneRow
-              id={`project-lokarpan-${projectId}`}
-              label={t('adm.milestoneLokarpan')}
-              sublabel={t('adm.milestoneLokarpanMr')}
-              checked={lokarpanDone}
-              date={lokarpanDate ?? ''}
-              onCheckedChange={(checked) =>
-                onPatchProject({
-                  lokarpanDone: checked,
-                  lokarpanDate: checked
-                    ? lokarpanDate || new Date().toISOString().slice(0, 10)
-                    : null,
-                })
-              }
-              onDateChange={(date) =>
-                onPatchProject({
-                  lokarpanDone: true,
-                  lokarpanDate: date || null,
-                })
-              }
-            >
-              <div className="space-y-2">
+              <div className="space-y-3">
+                <AdmMilestoneRow
+                  id={`project-lokarpan-${projectId}`}
+                  label={t('adm.milestoneLokarpan')}
+                  sublabel={t('adm.milestoneLokarpanMr')}
+                  checked={lokarpanDone}
+                  date={lokarpanDate ?? ''}
+                  onCheckedChange={(checked) =>
+                    onPatchProject({
+                      lokarpanDone: checked,
+                      lokarpanDate: checked
+                        ? lokarpanDate || new Date().toISOString().slice(0, 10)
+                        : null,
+                    })
+                  }
+                  onDateChange={(date) =>
+                    onPatchProject({
+                      lokarpanDone: true,
+                      lokarpanDate: date || null,
+                    })
+                  }
+                />
                 <ProjectPhotoGallery
                   title={t('projects.photosLokarpan')}
+                  titleClassName="text-sm font-medium"
                   photos={lokarpanPhotos}
                   uploading={uploadingType === 'lokarpan'}
                   onUpload={(file) => uploadPhoto('lokarpan', file)}
@@ -295,9 +299,11 @@ export function ProjectDetailExtras({
                   addLabel={t('projects.addPhoto')}
                   emptyLabel={t('projects.photosPending')}
                   deleteAriaLabel={t('adm.delete')}
+                  hideLabel={t('projects.hidePhotos')}
+                  showLabel={t('projects.showPhotos')}
                 />
               </div>
-            </AdmMilestoneRow>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -326,6 +332,8 @@ export function ProjectDetailExtras({
                 addLabel={t('projects.addPhoto')}
                 emptyLabel={t('projects.photosPending')}
                 deleteAriaLabel={t('adm.delete')}
+                hideLabel={t('projects.hidePhotos')}
+                showLabel={t('projects.showPhotos')}
               />
             );
           })}

@@ -1384,6 +1384,8 @@
     "photosPending": "Photos pending",
     "photosBhoomiPujan": "Bhoomi Pujan photos",
     "photosLokarpan": "Udghatan photos",
+    "hidePhotos": "Hide photos",
+    "showPhotos": "Show photos",
     "documentUploadedSuccess": "Document uploaded",
     "documentDeletedSuccess": "Document deleted",
     "photoUploadedSuccess": "Photo uploaded",
