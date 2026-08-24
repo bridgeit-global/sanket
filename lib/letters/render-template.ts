@@ -107,6 +107,12 @@ function formatMultilineHtmlBlock(text: string): string {
   return formatAddressSoftWrapHtml(text);
 }
 
+function formatSalutationBlock(salutation: string | undefined): string {
+  const text = (salutation ?? '').trim();
+  if (!text) return '';
+  return `<div class="salutation">${escapeHtmlText(text)}</div>`;
+}
+
 function formatParagraphsBlock(paragraphs: string): string {
   return paragraphs
     .replace(/\r\n?/g, '\n')
@@ -190,7 +196,9 @@ export function buildRenderFields(
       ...base,
       to: generalFields.to,
       subject: generalFields.subject,
+      salutation: generalFields.salutation ?? '',
       toBlock: formatMultilineHtmlBlock(generalFields.to),
+      salutationBlock: formatSalutationBlock(generalFields.salutation),
       paragraphsBlock: formatParagraphsBlock(generalFields.paragraphs),
       signatureBlock: formatSignatureBlock(generalFields.signatureParagraphs),
     };

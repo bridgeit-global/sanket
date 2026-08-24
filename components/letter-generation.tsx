@@ -78,6 +78,7 @@ import { useTranslations } from '@/hooks/use-translations';
 import {
   buildLetterBody,
   DEFAULT_SIGNATORY,
+  DEFAULT_GENERAL_SALUTATION,
   isLetterType,
   isSpecificWardLetterType,
   isWardLetterType,
@@ -591,6 +592,7 @@ function generalDefaults(locale: LetterLocale): GeneralLetterFields {
     toName: '',
     toAddress: '',
     subject: '',
+    salutation: DEFAULT_GENERAL_SALUTATION[locale],
     paragraphs: '',
     signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(locale)),
   };
@@ -1779,6 +1781,10 @@ export function LetterGeneration({
         toAddress,
         to: syncGeneralToBlock(toName, toAddress),
         subject: filterText(prev.subject),
+        salutation:
+          prev.salutation.trim() === DEFAULT_GENERAL_SALUTATION[prevLocale]
+            ? DEFAULT_GENERAL_SALUTATION[letterLocale]
+            : filterText(prev.salutation),
         paragraphs: formatTextRows(nextParagraphRows),
         signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(letterLocale)),
       };
@@ -4611,6 +4617,20 @@ export function LetterGeneration({
                             }
                           }}
                           required
+                        />
+                      </FieldGroup>
+                      <FieldGroup
+                        label={lt('letterGeneration.fields.salutation')}
+                      >
+                        <LocaleTextInput
+                          locale={letterLocale}
+                          value={generalFields.salutation}
+                          onValueChange={(salutation) => {
+                            setGeneralFields({ ...generalFields, salutation });
+                          }}
+                          placeholder={lt(
+                            'letterGeneration.placeholders.generalSalutation',
+                          )}
                         />
                       </FieldGroup>
                       <FieldGroup

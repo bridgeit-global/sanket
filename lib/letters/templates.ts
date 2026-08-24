@@ -193,6 +193,8 @@ export type GeneralLetterFields = CommonLetterFields & {
   /** Address lines only (without holder name). */
   toAddress: string;
   subject: string;
+  /** Greeting after the subject. Optional; empty omits it from the letter. */
+  salutation: string;
   /** One paragraph per line. */
   paragraphs: string;
   /** One signature line per line. */
@@ -226,6 +228,11 @@ export type LetterFields =
 export const DEFAULT_SIGNATORY: Record<LetterLocale, string> = {
   mr: 'सना मलिक शेख',
   en: 'Sana Malik Shaikh',
+};
+
+export const DEFAULT_GENERAL_SALUTATION: Record<LetterLocale, string> = {
+  mr: 'महोदय/महोदया,',
+  en: 'Sir/Madam,',
 };
 
 export const DEFAULT_RATION_OFFICE_ADDRESS: Record<LetterLocale, string> = {

@@ -1157,6 +1157,7 @@
       "standard": "e.g. 10th",
       "courseName": "e.g. B.Sc. / B.Com.",
       "salutation": "e.g. Mr. / Mrs.",
+      "generalSalutation": "e.g. Sir/Madam",
       "familyMemberName": "e.g. Abdul Rashid",
       "familyMemberRelation": "e.g. Mother / Father / Daughter",
       "familyMemberAge": "e.g. 34",
