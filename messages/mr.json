@@ -1365,6 +1365,8 @@
     "fundAllocations": "ADM निधी वाटप",
     "noFundAllocations": "अद्याप कोणत्याही ADM निधीशी जोडलेले नाही.",
     "viewAdmFund": "ADM मध्ये पहा",
+    "backToProjects": "प्रकल्पांकडे परत जा",
+    "backToAdmFund": "निधीकडे परत जा",
     "documentRepository": "दस्तऐवज संग्रह",
     "documentKind": "दस्तऐवज प्रकार",
     "kindApprovalPdf": "अधिकृत मंजुरी PDF",

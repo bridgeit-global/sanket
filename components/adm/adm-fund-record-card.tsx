@@ -44,9 +44,13 @@ import type {
   AdmFundRecordWithDetails,
   AdmFundAllocationWithProject,
   AdmDocument,
+  MlaProject,
+  ProjectApprovalStatus,
+  ProjectNocStatus,
 } from '@/lib/db/schema';
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/toast';
+import { ADM_URL_PARAMS } from '@/lib/adm/url-params';
 import { AdmCroreAmountInput } from './adm-crore-amount-input';
 import { ProjectHierarchyGeoPickers } from '@/components/projects/project-hierarchy-geo-pickers';
 import { formatProjectHierarchyLocation } from '@/lib/projects/hierarchy-geo';
@@ -55,6 +59,26 @@ import { AdmProjectGroundPhotos } from './adm-project-ground-photos';
 export interface AdmProjectOption {
   id: string;
   name: string;
+}
+
+export type AdmCreateProjectValues = {
+  name: string;
+  department?: string;
+  allocatedBudget: number;
+  ward?: string;
+  wardGeoId?: string | null;
+  boothNo?: string | null;
+  status?: MlaProject['status'];
+  estimatedCost?: number;
+  approvalStatus?: ProjectApprovalStatus;
+  nocRequired?: boolean;
+  nocStatus?: ProjectNocStatus;
+  remarks?: string | null;
+};
+
+function projectDetailHref(projectId: string, fundId: string): string {
+  const params = new URLSearchParams({ [ADM_URL_PARAMS.fund]: fundId });
+  return `/modules/projects/${projectId}?${params.toString()}`;
 }
 
 function locationLabel(allocation: AdmFundAllocationWithProject): string {
@@ -88,14 +112,7 @@ interface AdmFundRecordCardProps {
   ) => Promise<void>;
   onCreateProject: (
     fundRecordId: string,
-    values: {
-      name: string;
-      department?: string;
-      allocatedBudget: number;
-      ward?: string;
-      wardGeoId?: string | null;
-      boothNo?: string | null;
-    },
+    values: AdmCreateProjectValues,
   ) => Promise<void>;
   onUpdateAllocation: (id: string, allocatedBudget: number) => Promise<void>;
   onDeleteAllocation: (allocation: AdmFundAllocationWithProject) => void;
@@ -142,7 +159,31 @@ export function AdmFundRecordCard({
   const [newProjectBoothNo, setNewProjectBoothNo] = useState<string | null>(
     null,
   );
+  const [newProjectStatus, setNewProjectStatus] =
+    useState<MlaProject['status']>('Concept');
+  const [newProjectEstimatedCost, setNewProjectEstimatedCost] = useState(0);
+  const [newProjectApprovalStatus, setNewProjectApprovalStatus] =
+    useState<ProjectApprovalStatus>('Pending');
+  const [newProjectNocRequired, setNewProjectNocRequired] = useState(false);
+  const [newProjectNocStatus, setNewProjectNocStatus] =
+    useState<ProjectNocStatus>('NotRequired');
+  const [newProjectRemarks, setNewProjectRemarks] = useState('');
   const [creatingProject, setCreatingProject] = useState(false);
+
+  const resetCreateProjectForm = () => {
+    setNewProjectName('');
+    setNewProjectDepartment('');
+    setNewProjectBudget(0);
+    setNewProjectWard('');
+    setNewProjectWardGeoId(null);
+    setNewProjectBoothNo(null);
+    setNewProjectStatus('Concept');
+    setNewProjectEstimatedCost(0);
+    setNewProjectApprovalStatus('Pending');
+    setNewProjectNocRequired(false);
+    setNewProjectNocStatus('NotRequired');
+    setNewProjectRemarks('');
+  };
 
   const isOverallocated = fund.allocatedBudget > fund.budget;
   const allocatedProjectIds = new Set(fund.allocations.map((a) => a.projectId));
@@ -191,14 +232,15 @@ export function AdmFundRecordCard({
         ward: newProjectWard || undefined,
         wardGeoId: newProjectWardGeoId,
         boothNo: newProjectBoothNo,
+        status: newProjectStatus,
+        estimatedCost: newProjectEstimatedCost,
+        approvalStatus: newProjectApprovalStatus,
+        nocRequired: newProjectNocRequired,
+        nocStatus: newProjectNocStatus,
+        remarks: newProjectRemarks.trim() || null,
       });
       setCreateProjectOpen(false);
-      setNewProjectName('');
-      setNewProjectDepartment('');
-      setNewProjectBudget(0);
-      setNewProjectWard('');
-      setNewProjectWardGeoId(null);
-      setNewProjectBoothNo(null);
+      resetCreateProjectForm();
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : t('adm.failedToSave'),
@@ -484,7 +526,7 @@ export function AdmFundRecordCard({
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0 space-y-1">
                       <Link
-                        href={`/modules/projects/${allocation.projectId}`}
+                        href={projectDetailHref(allocation.projectId, fund.id)}
                         className="inline-flex items-start gap-1 font-medium text-primary hover:underline"
                       >
                         <span className="break-words">
@@ -542,7 +584,7 @@ export function AdmFundRecordCard({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{t('adm.projectName')}</TableHead>
+                    <TableHead className="min-w-[16rem]">{t('adm.projectName')}</TableHead>
                     <TableHead className="whitespace-nowrap">
                       {t('adm.location')}
                     </TableHead>
@@ -561,15 +603,15 @@ export function AdmFundRecordCard({
                 <TableBody>
                   {fund.allocations.map((allocation) => (
                     <TableRow key={allocation.id}>
-                      <TableCell>
+                      <TableCell className="align-top max-w-md">
                         <Link
-                          href={`/modules/projects/${allocation.projectId}`}
-                          className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+                          href={projectDetailHref(allocation.projectId, fund.id)}
+                          className="flex items-start gap-1 font-medium text-primary hover:underline"
                         >
-                          <span className="max-w-[18rem] truncate">
+                          <span className="min-w-0 whitespace-normal break-words">
                             {allocation.projectName}
                           </span>
-                          <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                          <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                         </Link>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
@@ -661,7 +703,7 @@ export function AdmFundRecordCard({
       </div>
 
       <Dialog open={createProjectOpen} onOpenChange={setCreateProjectOpen}>
-        <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-md overflow-y-auto">
+        <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t('adm.createProject')}</DialogTitle>
           </DialogHeader>
@@ -696,6 +738,130 @@ export function AdmFundRecordCard({
                 setNewProjectWard(geo.ward);
               }}
             />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>{t('projects.status')}</Label>
+                <Select
+                  value={newProjectStatus}
+                  onValueChange={(value: MlaProject['status']) =>
+                    setNewProjectStatus(value)
+                  }
+                >
+                  <SelectTrigger className="min-h-11">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Concept">
+                      {t('projects.concept')}
+                    </SelectItem>
+                    <SelectItem value="Proposal">
+                      {t('projects.proposal')}
+                    </SelectItem>
+                    <SelectItem value="In Progress">
+                      {t('projects.inProgress')}
+                    </SelectItem>
+                    <SelectItem value="Completed">
+                      {t('projects.completed')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('projects.estimatedCost')}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={newProjectEstimatedCost || ''}
+                  onChange={(e) =>
+                    setNewProjectEstimatedCost(
+                      Number.parseInt(e.target.value, 10) || 0,
+                    )
+                  }
+                  className="min-h-11"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>{t('projects.approvalStatus')}</Label>
+                <Select
+                  value={newProjectApprovalStatus}
+                  onValueChange={(value: ProjectApprovalStatus) =>
+                    setNewProjectApprovalStatus(value)
+                  }
+                >
+                  <SelectTrigger className="min-h-11">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pending">
+                      {t('projects.approvalPending')}
+                    </SelectItem>
+                    <SelectItem value="Approved">
+                      {t('projects.approvalApproved')}
+                    </SelectItem>
+                    <SelectItem value="Rejected">
+                      {t('projects.approvalRejected')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('projects.nocRequired')}</Label>
+                <Select
+                  value={newProjectNocRequired ? 'yes' : 'no'}
+                  onValueChange={(value) => {
+                    const required = value === 'yes';
+                    setNewProjectNocRequired(required);
+                    setNewProjectNocStatus(
+                      required ? 'Pending' : 'NotRequired',
+                    );
+                  }}
+                >
+                  <SelectTrigger className="min-h-11">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="yes">{t('projects.yes')}</SelectItem>
+                    <SelectItem value="no">{t('projects.no')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>{t('projects.nocStatus')}</Label>
+                <Select
+                  value={newProjectNocStatus}
+                  onValueChange={(value: ProjectNocStatus) =>
+                    setNewProjectNocStatus(value)
+                  }
+                  disabled={!newProjectNocRequired}
+                >
+                  <SelectTrigger className="min-h-11">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NotRequired">
+                      {t('projects.nocNotRequired')}
+                    </SelectItem>
+                    <SelectItem value="Pending">
+                      {t('projects.nocPending')}
+                    </SelectItem>
+                    <SelectItem value="Obtained">
+                      {t('projects.nocObtained')}
+                    </SelectItem>
+                    <SelectItem value="Rejected">
+                      {t('projects.nocRejected')}
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <Label>{t('projects.remarks')}</Label>
+                <Input
+                  value={newProjectRemarks}
+                  onChange={(e) => setNewProjectRemarks(e.target.value)}
+                  className="min-h-11"
+                />
+              </div>
+            </div>
             <div className="space-y-2">
               <Label>{t('adm.allocatedBudget')}</Label>
               <Input

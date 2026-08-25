@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +44,8 @@ import { ProjectsSkeleton } from '@/components/module-skeleton';
 import { RegisterAttachmentDialog } from '@/components/register-attachment-dialog';
 import { ProjectHierarchyGeoPickers } from '@/components/projects/project-hierarchy-geo-pickers';
 import { LimitedFormField } from '@/components/ui/limited-form-field';
+import { useTranslations } from '@/hooks/use-translations';
+import { ADM_URL_PARAMS } from '@/lib/adm/url-params';
 import {
   REGISTER_ENTRY_FIELD_LIMITS,
   registerEntryFormSchema,
@@ -118,8 +120,19 @@ interface ProjectDetailProps {
   projectId: string;
 }
 
+const FUND_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function admFundBackHref(fundId: string | null): string | null {
+  if (!fundId || !FUND_ID_RE.test(fundId)) return null;
+  return `/modules/adm?${ADM_URL_PARAMS.fund}=${encodeURIComponent(fundId)}`;
+}
+
 export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { t } = useTranslations();
+  const admBackHref = admFundBackHref(searchParams.get(ADM_URL_PARAMS.fund));
   const [project, setProject] = useState<Project | null>(null);
   const [entries, setEntries] = useState<RegisterEntry[]>([]);
   const [documentTypes, setDocumentTypes] = useState<DocumentTypeMasterRow[]>([]);
@@ -258,7 +271,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         });
       } else if (response.status === 404) {
         toast.error('Project not found');
-        router.push('/modules/projects');
+        router.push(admBackHref ?? '/modules/projects');
       }
     } catch (error) {
       console.error('Error loading project:', error);
@@ -715,10 +728,10 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.push('/modules/projects')}
+          onClick={() => router.push(admBackHref ?? '/modules/projects')}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Projects
+          {admBackHref ? t('projects.backToAdmFund') : t('projects.backToProjects')}
         </Button>
       </div>
 

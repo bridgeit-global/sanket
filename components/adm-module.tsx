@@ -23,7 +23,7 @@ import {
 import { AdmProfileBanner } from './adm/adm-profile-banner';
 import { AdmFundsList } from './adm/adm-funds-list';
 import { AdmDemandLetters } from './adm/adm-demand-letters';
-import type { AdmProjectOption } from './adm/adm-fund-detail';
+import type { AdmCreateProjectValues, AdmProjectOption } from './adm/adm-fund-detail';
 
 export function AdmModule() {
   const router = useRouter();
@@ -256,14 +256,7 @@ export function AdmModule() {
 
   const handleCreateProject = async (
     fundRecordId: string,
-    values: {
-      name: string;
-      department?: string;
-      allocatedBudget: number;
-      ward?: string;
-      wardGeoId?: string | null;
-      boothNo?: string | null;
-    },
+    values: AdmCreateProjectValues,
   ) => {
     const response = await fetch('/api/adm/projects', {
       method: 'POST',
@@ -274,7 +267,12 @@ export function AdmModule() {
         ward: values.ward,
         wardGeoId: values.wardGeoId,
         boothNo: values.boothNo,
-        status: 'Concept',
+        status: values.status ?? 'Concept',
+        estimatedCost: values.estimatedCost,
+        approvalStatus: values.approvalStatus,
+        nocRequired: values.nocRequired,
+        nocStatus: values.nocStatus,
+        remarks: values.remarks,
         fundRecordId,
         allocatedBudget: values.allocatedBudget,
       }),

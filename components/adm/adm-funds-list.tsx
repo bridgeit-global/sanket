@@ -32,7 +32,7 @@ import {
   getCurrentFinancialYear,
 } from '@/lib/adm/financial-year';
 import { AdmCroreAmountInput } from './adm-crore-amount-input';
-import { AdmFundDetail, type AdmProjectOption } from './adm-fund-detail';
+import { AdmFundDetail, type AdmCreateProjectValues, type AdmProjectOption } from './adm-fund-detail';
 import { AdmFundSummaryRow } from './adm-fund-summary-row';
 
 interface AdmFundsListProps {
@@ -61,14 +61,7 @@ interface AdmFundsListProps {
   ) => Promise<void>;
   onCreateProject: (
     fundRecordId: string,
-    values: {
-      name: string;
-      department?: string;
-      allocatedBudget: number;
-      ward?: string;
-      wardGeoId?: string | null;
-      boothNo?: string | null;
-    },
+    values: AdmCreateProjectValues,
   ) => Promise<void>;
   onUpdateAllocation: (id: string, allocatedBudget: number) => Promise<void>;
   onDeleteAllocation: (allocation: AdmFundAllocationWithProject) => void;

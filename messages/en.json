@@ -1365,6 +1365,8 @@
     "fundAllocations": "ADM Fund Allocations",
     "noFundAllocations": "Not linked to any ADM fund yet.",
     "viewAdmFund": "View in ADM",
+    "backToProjects": "Back to Projects",
+    "backToAdmFund": "Back to Fund",
     "documentRepository": "Document Repository",
     "documentKind": "Document Type",
     "kindApprovalPdf": "Official Approval PDF",

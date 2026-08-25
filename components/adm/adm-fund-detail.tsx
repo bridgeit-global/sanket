@@ -10,6 +10,7 @@ import type {
 } from '@/lib/db/schema';
 import {
   AdmFundRecordCard,
+  type AdmCreateProjectValues,
   type AdmProjectOption,
 } from './adm-fund-record-card';
 
@@ -29,14 +30,7 @@ interface AdmFundDetailProps {
   ) => Promise<void>;
   onCreateProject: (
     fundRecordId: string,
-    values: {
-      name: string;
-      department?: string;
-      allocatedBudget: number;
-      ward?: string;
-      wardGeoId?: string | null;
-      boothNo?: string | null;
-    },
+    values: AdmCreateProjectValues,
   ) => Promise<void>;
   onUpdateAllocation: (id: string, allocatedBudget: number) => Promise<void>;
   onDeleteAllocation: (allocation: AdmFundAllocationWithProject) => void;
@@ -48,7 +42,7 @@ interface AdmFundDetailProps {
   onDeleteDocument: (fundRecordId: string, document: AdmDocument) => void;
 }
 
-export type { AdmProjectOption };
+export type { AdmCreateProjectValues, AdmProjectOption };
 
 export function AdmFundDetail({
   fund,
