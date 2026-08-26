@@ -55,6 +55,8 @@ import {
 import type { LeadershipEntry } from './leadership-section';
 import {
   EMPTY_CANVAS_DATA,
+  mergeCanvasScopeData,
+  type CanvasLoadScope,
   type HierarchyCanvasData,
 } from '@/lib/hierarchy/canvas-data';
 import { getMemberDisplayName } from '@/lib/hierarchy/geo-attribution';
@@ -495,18 +497,27 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
     };
   }, [config?.positions]);
 
+  const loadedCanvasWardsRef = useRef(new Set<string>());
+  const loadedCanvasBoothsRef = useRef(new Set<string>());
+  const [canvasChunkLoading, setCanvasChunkLoading] = useState(false);
+  const [canvasChunkError, setCanvasChunkError] = useState<string | null>(null);
+
   const loadCanvasData = useCallback(
     async (nextVerticalId: string, signal?: AbortSignal) => {
-      const params = new URLSearchParams({
-        constituencyId: DEFAULT_CONSTITUENCY_ID,
-        verticalId: nextVerticalId,
-        includeCanvas: '1',
-      });
-      for (const wardId of wardGeoIds) {
-        params.append('wardGeoId', wardId);
-      }
+      loadedCanvasWardsRef.current = new Set();
+      loadedCanvasBoothsRef.current = new Set();
+      setCanvasChunkError(null);
 
-      const res = await fetch(`/api/hierarchy/leaders?${params}`, { signal });
+      const res = await fetch('/api/hierarchy/canvas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          constituencyId: DEFAULT_CONSTITUENCY_ID,
+          verticalId: nextVerticalId,
+          scope: 'taluka',
+        }),
+        signal,
+      });
       if (!res.ok) {
         throw new Error(`Failed to load canvas (${res.status})`);
       }
@@ -514,7 +525,70 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       if (signal?.aborted) return;
       setCanvasData(data.canvas ?? EMPTY_CANVAS_DATA);
     },
-    [wardGeoIds],
+    [],
+  );
+
+  const loadCanvasScope = useCallback(
+    async (scope: CanvasLoadScope) => {
+      if (scope.level === 'taluka' || !canvasVerticalId) return;
+
+      const wardGeoId = scope.wardGeoId;
+      const boothKey =
+        scope.level === 'booth' ? `${scope.wardGeoId}:${scope.boothNo}` : '';
+      const needsWard = !loadedCanvasWardsRef.current.has(wardGeoId);
+      const needsBooth =
+        scope.level === 'booth' && !loadedCanvasBoothsRef.current.has(boothKey);
+      if (!needsWard && !needsBooth) return;
+
+      setCanvasChunkLoading(true);
+      setCanvasChunkError(null);
+      try {
+        const fetchScope = async (nextScope: CanvasLoadScope) => {
+          const res = await fetch('/api/hierarchy/canvas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              constituencyId: DEFAULT_CONSTITUENCY_ID,
+              verticalId: canvasVerticalId,
+              scope: nextScope.level,
+              wardGeoId:
+                nextScope.level === 'taluka' ? undefined : nextScope.wardGeoId,
+              boothNo: nextScope.level === 'booth' ? nextScope.boothNo : undefined,
+            }),
+          });
+          if (!res.ok) {
+            throw new Error(`Failed to load canvas (${res.status})`);
+          }
+          const data = (await res.json()) as { canvas?: HierarchyCanvasData };
+          if (!data.canvas) return;
+          setCanvasData((current) =>
+            mergeCanvasScopeData(current, data.canvas as HierarchyCanvasData, nextScope),
+          );
+          if (nextScope.level === 'ward') {
+            loadedCanvasWardsRef.current.add(nextScope.wardGeoId);
+          }
+          if (nextScope.level === 'booth') {
+            loadedCanvasBoothsRef.current.add(
+              `${nextScope.wardGeoId}:${nextScope.boothNo}`,
+            );
+          }
+        };
+
+        if (needsWard) {
+          await fetchScope({ level: 'ward', wardGeoId });
+        }
+        if (needsBooth && scope.level === 'booth') {
+          await fetchScope(scope);
+        }
+      } catch (err) {
+        setCanvasChunkError(
+          err instanceof Error ? err.message : t('hierarchyModule.refreshHierarchyFailed'),
+        );
+      } finally {
+        setCanvasChunkLoading(false);
+      }
+    },
+    [canvasVerticalId, t],
   );
 
   const ensureReferenceCounts = useCallback(async () => {
@@ -541,6 +615,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
   const refresh = useCallback(async () => {
     setLoadError(null);
     setPagedListMembers([]);
+    setScopeLoading(true);
     try {
       await loadInitial();
       if (showCanvas && canvasVerticalId) {
@@ -575,6 +650,8 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
       setLoadError(
         err instanceof Error ? err.message : t('hierarchyModule.refreshHierarchyFailed'),
       );
+    } finally {
+      setScopeLoading(false);
     }
   }, [
     loadInitial,
@@ -1233,12 +1310,19 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
         ) : showCanvas ? (
           <>
             {verticalSelect}
+            {canvasChunkError ? (
+              <p className="text-sm text-destructive">{canvasChunkError}</p>
+            ) : null}
             <HierarchyCanvasView
               canvasData={canvasData}
               verticalName={canvasVerticalName}
               maxGeoLevel={canvasMaxGeoLevel}
               wardOptions={wardOptions}
               committeeRoles={canvasCommitteeRoles}
+              chunkLoading={canvasChunkLoading}
+              onScopeChange={(scope) => {
+                void loadCanvasScope(scope);
+              }}
             />
           </>
         ) : isGlobalSearch ? (

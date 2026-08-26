@@ -136,6 +136,60 @@ export function collectCanvasMemberIds(data: HierarchyCanvasData): Set<string> {
   return ids;
 }
 
+export type CanvasLoadScope =
+  | { level: 'taluka' }
+  | { level: 'ward'; wardGeoId: string }
+  | { level: 'booth'; wardGeoId: string; boothNo: string };
+
+export function mergeCanvasScopeData(
+  current: HierarchyCanvasData,
+  incoming: HierarchyCanvasData,
+  scope: CanvasLoadScope,
+): HierarchyCanvasData {
+  if (scope.level === 'taluka') return incoming;
+
+  if (scope.level === 'ward') {
+    const incomingWard = incoming.wards.find(
+      (ward) => ward.wardGeoId === scope.wardGeoId,
+    );
+    if (!incomingWard) return current;
+    const hasWard = current.wards.some((ward) => ward.wardGeoId === scope.wardGeoId);
+    return {
+      ...current,
+      wards: hasWard
+        ? current.wards.map((ward) =>
+            ward.wardGeoId === scope.wardGeoId ? incomingWard : ward,
+          )
+        : [...current.wards, incomingWard],
+    };
+  }
+
+  const incomingWard = incoming.wards.find(
+    (ward) => ward.wardGeoId === scope.wardGeoId,
+  );
+  const incomingBooth = incomingWard?.booths.find(
+    (booth) => booth.boothNo === scope.boothNo,
+  );
+  if (!incomingBooth) return current;
+
+  return {
+    ...current,
+    wards: current.wards.map((ward) => {
+      if (ward.wardGeoId !== scope.wardGeoId) return ward;
+      const hasBooth = ward.booths.some((booth) => booth.boothNo === scope.boothNo);
+      return {
+        ...ward,
+        adhyaksh: incomingWard?.adhyaksh ?? ward.adhyaksh,
+        booths: hasBooth
+          ? ward.booths.map((booth) =>
+              booth.boothNo === scope.boothNo ? incomingBooth : booth,
+            )
+          : [...ward.booths, incomingBooth],
+      };
+    }),
+  };
+}
+
 export function hydrateCanvasData(
   data: HierarchyCanvasData,
   membersById: Map<string, CadreMemberCard>,

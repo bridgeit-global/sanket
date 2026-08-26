@@ -32,11 +32,11 @@ import {
   getMemberDisplayName,
   getMemberPhone,
 } from '@/lib/hierarchy/geo-attribution';
-import type { HierarchyCanvasData } from '@/lib/hierarchy/canvas-data';
-import { extractWardNumber } from '@/lib/hierarchy/member-list';
 import type { CadreConfig } from '@/lib/hierarchy/types';
 import type { CadreMaxGeoLevel } from '@/lib/hierarchy/wing-depth';
+import { extractWardNumber } from '@/lib/hierarchy/member-list';
 import { buildRoleSlots, type RoleSlot } from '@/lib/hierarchy/role-slots';
+import type { CanvasLoadScope, HierarchyCanvasData } from '@/lib/hierarchy/canvas-data';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 
@@ -433,6 +433,8 @@ interface HierarchyCanvasViewProps {
   maxGeoLevel: CadreMaxGeoLevel;
   wardOptions: CadreConfig['geoUnits'];
   committeeRoles: CanvasCommitteeRoles;
+  chunkLoading?: boolean;
+  onScopeChange?: (scope: CanvasLoadScope) => void;
 }
 
 export function HierarchyCanvasView({
@@ -441,6 +443,8 @@ export function HierarchyCanvasView({
   maxGeoLevel,
   wardOptions,
   committeeRoles,
+  chunkLoading = false,
+  onScopeChange,
 }: HierarchyCanvasViewProps) {
   const { t } = useTranslations();
   const includeBooths = maxGeoLevel === 'booth';
@@ -565,15 +569,24 @@ export function HierarchyCanvasView({
 
   const goToTaluka = useCallback(() => {
     setFocus({ level: 'taluka' });
-  }, []);
+    onScopeChange?.({ level: 'taluka' });
+  }, [onScopeChange]);
 
-  const goToWard = useCallback((wardGeoId: string) => {
-    setFocus({ level: 'ward', wardGeoId });
-  }, []);
+  const goToWard = useCallback(
+    (wardGeoId: string) => {
+      setFocus({ level: 'ward', wardGeoId });
+      onScopeChange?.({ level: 'ward', wardGeoId });
+    },
+    [onScopeChange],
+  );
 
-  const goToBooth = useCallback((wardGeoId: string, boothNo: string) => {
-    setFocus({ level: 'booth', wardGeoId, boothNo });
-  }, []);
+  const goToBooth = useCallback(
+    (wardGeoId: string, boothNo: string) => {
+      setFocus({ level: 'booth', wardGeoId, boothNo });
+      onScopeChange?.({ level: 'booth', wardGeoId, boothNo });
+    },
+    [onScopeChange],
+  );
 
   const goBack = useCallback(() => {
     setFocus((current) => {
@@ -1067,6 +1080,14 @@ export function HierarchyCanvasView({
             {renderContent()}
           </div>
         </div>
+        {chunkLoading ? (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/40">
+            <div className="flex items-center gap-2 rounded-full border border-border bg-background/90 px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+              <div className="size-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              {t('hierarchyModule.loadingHierarchy')}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <p className="text-center text-xs text-muted-foreground">

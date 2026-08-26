@@ -1,9 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
-import {
-  getCadreConfig,
-  getCadreHierarchyCanvasData,
-  getCadreHierarchyLeaders,
-} from '@/lib/db/cadre-queries';
+import { getCadreConfig, getCadreHierarchyLeaders } from '@/lib/db/cadre-queries';
 import { requireHierarchyAccess } from '@/lib/hierarchy/auth';
 
 export async function GET(request: NextRequest) {
@@ -15,36 +11,24 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const constituencyId = searchParams.get('constituencyId') ?? '172';
   const verticalId = searchParams.get('verticalId')?.trim() ?? '';
-  const wardGeoIds = searchParams
-    .getAll('wardGeoId')
-    .map((id) => id.trim())
-    .filter(Boolean);
-  const includeCanvas = searchParams.get('includeCanvas') === '1';
 
   if (!verticalId) {
     return NextResponse.json({ error: 'verticalId is required' }, { status: 400 });
   }
 
   try {
+    const config = await getCadreConfig();
+    const wardGeoIds = config.geoUnits
+      .filter((unit) => unit.type === 'ward' && unit.isActive)
+      .map((unit) => unit.id);
+
     const leaders = await getCadreHierarchyLeaders({
       constituencyId,
       verticalId,
       wardGeoIds,
     });
 
-    if (!includeCanvas) {
-      return NextResponse.json({ success: true, leaders });
-    }
-
-    const config = await getCadreConfig();
-    const canvas = await getCadreHierarchyCanvasData({
-      constituencyId,
-      verticalId,
-      wardGeoIds,
-      geoUnits: config.geoUnits,
-    });
-
-    return NextResponse.json({ success: true, leaders, canvas });
+    return NextResponse.json({ success: true, leaders });
   } catch (error) {
     console.error('Hierarchy leaders failed:', error);
     const message =

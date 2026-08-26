@@ -37,6 +37,7 @@ import {
   collectCanvasMemberIds,
   hydrateCanvasData,
   resolveHierarchyCanvasData,
+  type CanvasLoadScope,
   type HierarchyCanvasData,
 } from '@/lib/hierarchy/canvas-data';
 import {
@@ -45,8 +46,10 @@ import {
   type HierarchyLeaders,
 } from '@/lib/hierarchy/leaders';
 import {
+  extractBoothNumber,
   getBoothGeoUnits,
   normalizeBoothScopedPostGeo,
+  resolveBoothGeoId,
   type GeoUnitMeta,
 } from '@/lib/hierarchy/booth-geo-units';
 import {
@@ -530,6 +533,28 @@ async function fetchAllColumnValues(
   return values;
 }
 
+async function fetchAllRows<T>(
+  fetchPage: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: T[] | null; error: PostgrestError | null }>,
+  errorMessage: string,
+): Promise<T[]> {
+  const rows: T[] = [];
+  let from = 0;
+
+  for (;;) {
+    const { data, error } = await fetchPage(from, from + SUPABASE_ROW_PAGE_SIZE - 1);
+    throwOnSupabaseError(error, errorMessage);
+    const batch = data ?? [];
+    if (batch.length) rows.push(...batch);
+    if (batch.length < SUPABASE_ROW_PAGE_SIZE) break;
+    from += SUPABASE_ROW_PAGE_SIZE;
+  }
+
+  return rows;
+}
+
 /** Fetch rows with `.in()` in chunks to stay under Supabase/undici header limits (~16KB). */
 async function selectByIdsInChunks<T>(
   ids: string[],
@@ -546,6 +571,165 @@ async function selectByIdsInChunks<T>(
     if (data?.length) rows.push(...data);
   }
   return rows;
+}
+
+async function fetchActiveCadreMembersByIds(
+  ids: string[],
+  constituencyId: string,
+  errorMessage: string,
+): Promise<CadreMember[]> {
+  const uniqueIds = [...new Set(ids.filter(Boolean))];
+  const rows = await selectByIdsInChunks(
+    uniqueIds,
+    (chunk) =>
+      supabase
+        .from(TABLES.cadreMember)
+        .select('*')
+        .in('id', chunk)
+        .eq('is_active', true)
+        .or(`constituency_id.eq.${constituencyId},constituency_id.is.null`),
+    errorMessage,
+  );
+  return rows.map(mapCadreMemberRow);
+}
+
+const TALUKA_CANVAS_LEVELS = ['taluka', 'taluka_committee', 'ward'];
+const WARD_CANVAS_LEVELS = ['ward', 'ward_committee', 'booth'];
+const BOOTH_CANVAS_LEVELS = ['booth', 'booth_committee', 'booth_bla'];
+
+async function getPositionIdsForLevelKeys(levelKeys: string[]): Promise<string[]> {
+  if (levelKeys.length === 0) return [];
+  const { data: levels, error: levelsError } = await supabase
+    .from(TABLES.cadrePositionLevel)
+    .select('id')
+    .in('key', levelKeys);
+  throwOnSupabaseError(levelsError, 'Failed to load position levels');
+  const levelIds = [...new Set((levels ?? []).map((row) => String(row.id)))];
+  if (levelIds.length === 0) return [];
+
+  const positions = await selectByIdsInChunks<{ id: string | number }>(
+    levelIds,
+    (chunk) =>
+      supabase
+        .from(TABLES.cadrePosition)
+        .select('id')
+        .in('level_id', chunk)
+        .eq('is_active', true),
+    'Failed to load positions for levels',
+  );
+  return [...new Set(positions.map((row) => String(row.id)))];
+}
+
+async function fetchBoothGeoIdsForWard(wardGeoId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from(TABLES.cadreGeographicUnit)
+    .select('id')
+    .eq('type', 'booth')
+    .eq('parent_id', wardGeoId);
+  throwOnSupabaseError(error, 'Failed to load ward booth units');
+  return (data ?? []).map((row) => String(row.id));
+}
+
+async function fetchBoothGeoIdForWardBooth(
+  wardGeoId: string,
+  boothNo: string,
+): Promise<string | undefined> {
+  const { data, error } = await supabase
+    .from(TABLES.cadreGeographicUnit)
+    .select('id, name')
+    .eq('type', 'booth')
+    .eq('parent_id', wardGeoId);
+  throwOnSupabaseError(error, 'Failed to load ward booth units');
+  const match = (data ?? []).find(
+    (row) => extractBoothNumber(String(row.name)) === boothNo,
+  );
+  return match ? String(match.id) : undefined;
+}
+
+async function fetchPostRowsForVerticalPositions(filters: {
+  verticalId: string;
+  positionIds: string[];
+  geoIds?: string[];
+  boothNo?: string;
+  boothGeoId?: string;
+}): Promise<Record<string, unknown>[]> {
+  if (filters.positionIds.length === 0) return [];
+
+  const geoChunks =
+    filters.geoIds && filters.geoIds.length > 0
+      ? chunkIds([...new Set(filters.geoIds.filter(Boolean))], POST_FETCH_CHUNK)
+      : [null];
+  const rows: Record<string, unknown>[] = [];
+
+  for (const positionChunk of chunkIds(filters.positionIds, POST_FETCH_CHUNK)) {
+    for (const geoChunk of geoChunks) {
+      const page = await fetchAllRows<Record<string, unknown>>(
+        (from, to) => {
+          let query = supabase
+            .from(TABLES.cadreMemberPost)
+            .select('*')
+            .eq('vertical_id', filters.verticalId)
+            .in('position_id', positionChunk);
+
+          if (geoChunk) {
+            query = query.in('ward_geo_id', geoChunk);
+          }
+
+          if (filters.boothNo && filters.boothGeoId) {
+            query = query.or(
+              `booth_no.eq.${filters.boothNo},ward_geo_id.eq.${filters.boothGeoId}`,
+            );
+          } else if (filters.boothNo) {
+            query = query.eq('booth_no', filters.boothNo);
+          }
+
+          return query.order('id', { ascending: true }).range(from, to);
+        },
+        'Failed to load hierarchy posts',
+      );
+      rows.push(...page);
+    }
+  }
+
+  return rows;
+}
+
+async function hydrateCanvasFromPostRows(options: {
+  postRows: Record<string, unknown>[];
+  constituencyId: string;
+  verticalId: string;
+  wardGeoIds: string[];
+  geoUnits: CadreConfig['geoUnits'];
+  includeBooths: boolean;
+  empty: HierarchyCanvasData;
+}): Promise<HierarchyCanvasData> {
+  if (options.postRows.length === 0) return options.empty;
+
+  const postsByMember = await mapPostRowsToDetails(options.postRows);
+  const stubMembers = buildStubMembersFromPosts(
+    postsByMember,
+    options.verticalId,
+  );
+  const resolved = resolveHierarchyCanvasData(
+    stubMembers,
+    options.verticalId,
+    options.wardGeoIds,
+    options.geoUnits,
+    options.constituencyId,
+    { includeBooths: options.includeBooths },
+  );
+
+  const hydrateIds = collectCanvasMemberIds(resolved);
+  if (hydrateIds.size === 0) return resolved;
+
+  const memberRows = await fetchActiveCadreMembersByIds(
+    Array.from(hydrateIds),
+    options.constituencyId,
+    'Failed to load hierarchy canvas members',
+  );
+  const hydratedMembers = await buildMemberCards(memberRows);
+  const byId = new Map(hydratedMembers.map((member) => [member.id, member]));
+  return hydrateCanvasData(resolved, byId);
 }
 
 async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard[]> {
@@ -1967,19 +2151,6 @@ function mapPostRowToDetail(
   return normalizeBoothScopedPostGeo(post, geoMeta);
 }
 
-async function fetchPostRowsForMemberIds(memberIds: string[]) {
-  const rows: Record<string, unknown>[] = [];
-  for (const chunk of chunkIds(memberIds, POST_FETCH_CHUNK)) {
-    const { data, error } = await supabase
-      .from(TABLES.cadreMemberPost)
-      .select('*')
-      .in('member_id', chunk);
-    throwOnSupabaseError(error, 'Failed to load member posts');
-    rows.push(...(data ?? []));
-  }
-  return rows;
-}
-
 async function mapPostRowsToDetails(
   postRows: Record<string, unknown>[],
 ): Promise<Map<string, CadreMemberPostDetail[]>> {
@@ -2207,20 +2378,11 @@ export async function getCadreMembersForWardScope(
   const memberIds = [...memberIdSet];
   if (memberIds.length === 0) return [];
 
-  const memberRows: ReturnType<typeof mapCadreMemberRow>[] = [];
-  for (const chunk of chunkIds(memberIds, POST_FETCH_CHUNK)) {
-    const { data, error } = await supabase
-      .from(TABLES.cadreMember)
-      .select('*')
-      .in('id', chunk)
-      .eq('is_active', true)
-      .or(`constituency_id.eq.${constituencyId},constituency_id.is.null`);
-    throwOnSupabaseError(error, 'Failed to load ward members');
-    for (const row of data ?? []) {
-      memberRows.push(mapCadreMemberRow(row));
-    }
-  }
-
+  const memberRows = await fetchActiveCadreMembersByIds(
+    memberIds,
+    constituencyId,
+    'Failed to load ward members',
+  );
   return buildMemberCards(memberRows);
 }
 
@@ -2231,10 +2393,34 @@ export async function getCadreCommitteeMembers(filters: {
   wardGeoId?: string;
   boothNo?: string;
 }): Promise<CadreMemberCard[]> {
-  const memberIds = await resolveCadreMemberIdsForVertical(filters.verticalId);
-  if (!memberIds) return [];
+  const positionIds = await getPositionIdsForLevelKeys([filters.committeeLevel]);
+  if (positionIds.length === 0) return [];
 
-  const postRows = await fetchPostRowsForMemberIds(memberIds);
+  let geoIds: string[] | undefined;
+  let boothGeoId: string | undefined;
+  if (filters.committeeLevel === 'ward_committee' && filters.wardGeoId) {
+    geoIds = [filters.wardGeoId];
+  } else if (
+    filters.committeeLevel === 'booth_committee' &&
+    filters.wardGeoId &&
+    filters.boothNo
+  ) {
+    boothGeoId = await fetchBoothGeoIdForWardBooth(
+      filters.wardGeoId,
+      filters.boothNo,
+    );
+  }
+
+  const postRows = await fetchPostRowsForVerticalPositions({
+    verticalId: filters.verticalId,
+    positionIds,
+    geoIds,
+    boothNo:
+      filters.committeeLevel === 'booth_committee' ? filters.boothNo : undefined,
+    boothGeoId,
+  });
+  if (postRows.length === 0) return [];
+
   const postsByMember = await mapPostRowsToDetails(postRows);
   const committeeMemberIds = new Set<string>();
 
@@ -2257,19 +2443,11 @@ export async function getCadreCommitteeMembers(filters: {
 
   if (committeeMemberIds.size === 0) return [];
 
-  const memberRows: ReturnType<typeof mapCadreMemberRow>[] = [];
-  for (const chunk of chunkIds([...committeeMemberIds], POST_FETCH_CHUNK)) {
-    const { data, error } = await supabase
-      .from(TABLES.cadreMember)
-      .select('*')
-      .in('id', chunk)
-      .eq('is_active', true)
-      .or(`constituency_id.eq.${filters.constituencyId},constituency_id.is.null`);
-    throwOnSupabaseError(error, 'Failed to load committee members');
-    for (const row of data ?? []) {
-      memberRows.push(mapCadreMemberRow(row));
-    }
-  }
+  const memberRows = await fetchActiveCadreMembersByIds(
+    [...committeeMemberIds],
+    filters.constituencyId,
+    'Failed to load committee members',
+  );
   return buildMemberCards(memberRows);
 }
 
@@ -2283,12 +2461,19 @@ export async function getCadreHierarchyLeaders(filters: {
     member: null,
   }));
 
-  const memberIds = await resolveCadreMemberIdsForVertical(filters.verticalId);
-  if (!memberIds) {
+  const positionIds = await getPositionIdsForLevelKeys(['taluka', 'ward']);
+  if (positionIds.length === 0) {
     return { talukaAdhyaksh: null, wardHeads: emptyWardHeads };
   }
 
-  const postRows = await fetchPostRowsForMemberIds(memberIds);
+  const postRows = await fetchPostRowsForVerticalPositions({
+    verticalId: filters.verticalId,
+    positionIds,
+  });
+  if (postRows.length === 0) {
+    return { talukaAdhyaksh: null, wardHeads: emptyWardHeads };
+  }
+
   const postsByMember = await mapPostRowsToDetails(postRows);
   const stubMembers = buildStubMembersFromPosts(postsByMember, filters.verticalId);
   const resolved = resolveHierarchyLeaders(stubMembers, filters.wardGeoIds);
@@ -2303,16 +2488,12 @@ export async function getCadreHierarchyLeaders(filters: {
     return { talukaAdhyaksh: null, wardHeads: emptyWardHeads };
   }
 
-  const { data, error } = await supabase
-    .from(TABLES.cadreMember)
-    .select('*')
-    .in('id', Array.from(leaderIds))
-    .eq('is_active', true)
-    .or(
-      `constituency_id.eq.${filters.constituencyId},constituency_id.is.null`,
-    );
-  throwOnSupabaseError(error, 'Failed to load hierarchy leaders');
-  const leaderMembers = await buildMemberCards((data ?? []).map(mapCadreMemberRow));
+  const leaderRows = await fetchActiveCadreMembersByIds(
+    Array.from(leaderIds),
+    filters.constituencyId,
+    'Failed to load hierarchy leaders',
+  );
+  const leaderMembers = await buildMemberCards(leaderRows);
   const byId = new Map(leaderMembers.map((member) => [member.id, member]));
 
   return {
@@ -2331,7 +2512,9 @@ export async function getCadreHierarchyCanvasData(filters: {
   verticalId: string;
   wardGeoIds: string[];
   geoUnits: CadreConfig['geoUnits'];
+  scope?: CanvasLoadScope;
 }): Promise<HierarchyCanvasData> {
+  const scope: CanvasLoadScope = filters.scope ?? { level: 'taluka' };
   const emptyWards = filters.wardGeoIds.map((wardGeoId) => ({
     wardGeoId,
     adhyaksh: null,
@@ -2339,6 +2522,12 @@ export async function getCadreHierarchyCanvasData(filters: {
     committeeTotal: 0,
     booths: [],
   }));
+  const empty: HierarchyCanvasData = {
+    talukaAdhyaksh: null,
+    talukaCommitteeMembers: [],
+    talukaCommitteeTotal: 0,
+    wards: emptyWards,
+  };
 
   const { data: verticalRow, error: verticalError } = await supabase
     .from(TABLES.cadreVertical)
@@ -2346,46 +2535,72 @@ export async function getCadreHierarchyCanvasData(filters: {
     .eq('id', filters.verticalId)
     .maybeSingle();
   throwOnSupabaseError(verticalError, 'Failed to load vertical depth');
-  const includeBooths = String(verticalRow?.max_geo_level ?? 'ward') === 'booth';
+  const verticalIncludesBooths =
+    String(verticalRow?.max_geo_level ?? 'ward') === 'booth';
 
-  const memberIds = await resolveCadreMemberIdsForVertical(filters.verticalId);
-  if (!memberIds) {
-    return {
-      talukaAdhyaksh: null,
-      talukaCommitteeMembers: [],
-      talukaCommitteeTotal: 0,
-      wards: emptyWards,
-    };
+  if (scope.level === 'taluka') {
+    const positionIds = await getPositionIdsForLevelKeys(TALUKA_CANVAS_LEVELS);
+    const postRows = await fetchPostRowsForVerticalPositions({
+      verticalId: filters.verticalId,
+      positionIds,
+    });
+    return hydrateCanvasFromPostRows({
+      postRows,
+      constituencyId: filters.constituencyId,
+      verticalId: filters.verticalId,
+      wardGeoIds: filters.wardGeoIds,
+      geoUnits: filters.geoUnits,
+      includeBooths: verticalIncludesBooths,
+      empty,
+    });
   }
 
-  const postRows = await fetchPostRowsForMemberIds(memberIds);
-  const postsByMember = await mapPostRowsToDetails(postRows);
-  const stubMembers = buildStubMembersFromPosts(postsByMember, filters.verticalId);
-  const resolved = resolveHierarchyCanvasData(
-    stubMembers,
-    filters.verticalId,
-    filters.wardGeoIds,
+  if (scope.level === 'ward') {
+    const boothGeoIds = verticalIncludesBooths
+      ? await fetchBoothGeoIdsForWard(scope.wardGeoId)
+      : [];
+    const positionIds = await getPositionIdsForLevelKeys(WARD_CANVAS_LEVELS);
+    const postRows = await fetchPostRowsForVerticalPositions({
+      verticalId: filters.verticalId,
+      positionIds,
+      geoIds: [scope.wardGeoId, ...boothGeoIds],
+    });
+    return hydrateCanvasFromPostRows({
+      postRows,
+      constituencyId: filters.constituencyId,
+      verticalId: filters.verticalId,
+      wardGeoIds: [scope.wardGeoId],
+      geoUnits: filters.geoUnits,
+      includeBooths: verticalIncludesBooths,
+      empty: {
+        ...empty,
+        wards: emptyWards.filter((ward) => ward.wardGeoId === scope.wardGeoId),
+      },
+    });
+  }
+
+  const boothGeoId = resolveBoothGeoId(
     filters.geoUnits,
-    filters.constituencyId,
-    { includeBooths },
+    scope.wardGeoId,
+    scope.boothNo,
   );
-
-  const hydrateIds = collectCanvasMemberIds(resolved);
-  if (hydrateIds.size === 0) {
-    return resolved;
-  }
-
-  const { data, error } = await supabase
-    .from(TABLES.cadreMember)
-    .select('*')
-    .in('id', Array.from(hydrateIds))
-    .eq('is_active', true)
-    .or(
-      `constituency_id.eq.${filters.constituencyId},constituency_id.is.null`,
-    );
-  throwOnSupabaseError(error, 'Failed to load hierarchy canvas members');
-  const hydratedMembers = await buildMemberCards((data ?? []).map(mapCadreMemberRow));
-  const byId = new Map(hydratedMembers.map((member) => [member.id, member]));
-
-  return hydrateCanvasData(resolved, byId);
+  const positionIds = await getPositionIdsForLevelKeys(BOOTH_CANVAS_LEVELS);
+  const postRows = await fetchPostRowsForVerticalPositions({
+    verticalId: filters.verticalId,
+    positionIds,
+    boothNo: scope.boothNo,
+    boothGeoId: boothGeoId || undefined,
+  });
+  return hydrateCanvasFromPostRows({
+    postRows,
+    constituencyId: filters.constituencyId,
+    verticalId: filters.verticalId,
+    wardGeoIds: [scope.wardGeoId],
+    geoUnits: filters.geoUnits,
+    includeBooths: true,
+    empty: {
+      ...empty,
+      wards: emptyWards.filter((ward) => ward.wardGeoId === scope.wardGeoId),
+    },
+  });
 }
