@@ -37,6 +37,20 @@ const CLOSING = `<div class="right-tab">
     (<span class="var">{{signatory}}</span>)
   </div>`;
 
+const RATION_RECIPIENT_TOP = `To,<br>
+  <div class="address">
+    <span class="var" style="font-weight: bold;">Rationing Officer,</span><br>
+    <span style="font-weight: normal;">{{rationOfficeAddress}}</span>
+  </div>`;
+
+const RATION_CLOSING = `<div class="right-tab">
+    Yours faithfully,
+  </div>
+  <div class="right-tab">&nbsp;</div>
+  <div class="right-tab-sign">
+    (<span class="var">{{signatory}}</span>)
+  </div>`;
+
 const WARD_TEMPLATE_HTML = `<div class="letter-content" style="${ROOT}">
   <style>${LETTER_STYLE}</style>
   <div class="top-row">
@@ -227,6 +241,7 @@ To,<br>
     <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
     <div>Date: <span class="var">{{date}}</span></div>
   </div>
+  ${RATION_RECIPIENT_TOP}
   <div class="subject">
     <span style="font-weight: normal;">Subject:</span> Regarding issuance of a new ration card.
   </div>
@@ -242,12 +257,7 @@ To,<br>
   <p class="paragraph">
     Kindly verify the supporting documents available with the applicant and take necessary action as per rules for approving a new ration card.
   </p>
-  ${CLOSING}
-  <div class="recipient-bottom">
-    To,<br>
-    Rationing Officer,<br>
-    <span style="font-weight: normal;">{{rationOfficeAddress}}</span>
-  </div>
+  ${RATION_CLOSING}
 </div>`,
 
   'ration-add-members': `<div class="letter-content" style="${ROOT}">
@@ -256,6 +266,7 @@ To,<br>
     <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
     <div>Date: <span class="var">{{date}}</span></div>
   </div>
+  ${RATION_RECIPIENT_TOP}
   <div class="subject">
     <span style="font-weight: normal;">Subject:</span> Regarding addition of names to ration card.
   </div>
@@ -271,12 +282,7 @@ To,<br>
   <p class="paragraph">
     Kindly verify the supporting documents available with the applicant and take necessary action as per rules for adding the said members' names to the ration card.
   </p>
-  ${CLOSING}
-  <div class="recipient-bottom">
-    To,<br>
-    Rationing Officer,<br>
-    <span style="font-weight: normal;">{{rationOfficeAddress}}</span>
-  </div>
+  ${RATION_CLOSING}
 </div>`,
 
   'ration-delete-members': `<div class="letter-content" style="${ROOT}">
@@ -285,6 +291,7 @@ To,<br>
     <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
     <div>Date: <span class="var">{{date}}</span></div>
   </div>
+  ${RATION_RECIPIENT_TOP}
   <div class="subject">
     <span style="font-weight: normal;">Subject:</span> Regarding deletion of names from ration card.
   </div>
@@ -300,12 +307,7 @@ To,<br>
   <p class="paragraph">
     Kindly verify the supporting documents available with the applicant and take necessary action as per rules for deleting the said members' names from the ration card.
   </p>
-  ${CLOSING}
-  <div class="recipient-bottom">
-    To,<br>
-    Rationing Officer,<br>
-    <span style="font-weight: normal;">{{rationOfficeAddress}}</span>
-  </div>
+  ${RATION_CLOSING}
 </div>`,
 
   'ration-transfer': `<div class="letter-content" style="${ROOT}">
@@ -314,6 +316,7 @@ To,<br>
     <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
     <div>Date: <span class="var">{{date}}</span></div>
   </div>
+  ${RATION_RECIPIENT_TOP}
   <div class="subject">
     <span style="font-weight: normal;">Subject:</span> Regarding transfer of ration card from one rationing office to another.
   </div>
@@ -332,12 +335,7 @@ To,<br>
   <p class="paragraph">
     Kindly verify the supporting documents available with the applicant and take necessary action as per rules for transferring the said ration card to <span class="var">{{toRationOffice}}</span>.
   </p>
-  ${CLOSING}
-  <div class="recipient-bottom">
-    To,<br>
-    Rationing Officer,<br>
-    <span style="font-weight: normal;">{{rationOfficeAddress}}</span>
-  </div>
+  ${RATION_CLOSING}
 </div>`,
 
   income: `<div class="letter-content" style="${ROOT}">

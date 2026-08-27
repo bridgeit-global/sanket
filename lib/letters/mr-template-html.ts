@@ -39,6 +39,20 @@ const CLOSING = `<div class="right-tab">
     (<span class="var">{{signatory}}</span>)
   </div>`;
 
+const RATION_RECIPIENT_TOP = `प्रति,<br>
+  <div class="address">
+    <span class="var" style="font-weight: bold;">शिधावाटप अधिकारी,</span><br>
+    <span style="font-weight: normal;">{{rationOfficeAddress}}</span>
+  </div>`;
+
+const RATION_CLOSING = `<div class="right-tab">
+    आपली विश्वासू,
+  </div>
+  <div class="right-tab">&nbsp;</div>
+  <div class="right-tab-sign">
+    (<span class="var">{{signatory}}</span>)
+  </div>`;
+
 function subjectHtml(body: string): string {
   return `<div class="subject"><span class="subject-label">विषय:</span><span class="subject-text">${body}</span></div>`;
 }
@@ -225,6 +239,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
     <div>दि. <span class="var">{{date}}</span></div>
   </div>
+  ${RATION_RECIPIENT_TOP}
   ${subjectHtml('नवीन शिधापत्रिका मिळण्याबाबत.')}
   <p class="paragraph">
     सदर पत्रासोबत अर्जदार <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, रा. <span style="font-weight: normal;">{{address}}</span> यांना नवीन शिधापत्रिका मिळण्याकरिता आपणाकडे पाठवीत आहोत.
@@ -238,12 +253,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   <p class="paragraph">
     तरी अर्जदाराकडे असलेल्या पुरावादर्शक कागदपत्रांची पडताळणी करून नवीन शिधापत्रिका मंजूर करण्याबाबत नियमानुसार आवश्यक ती कार्यवाही करण्यात यावी, ही विनंती.
   </p>
-  ${CLOSING}
-  <div class="recipient-bottom">
-    प्रति,<br>
-    शिधावाटप अधिकारी,<br>
-    <span style="font-weight: normal;">{{rationOfficeAddress}}</span>
-  </div>
+  ${RATION_CLOSING}
 </div>`,
 
   'ration-add-members': `<div class="letter-content" style="${ROOT}">
@@ -252,6 +262,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
     <div>दि. <span class="var">{{date}}</span></div>
   </div>
+  ${RATION_RECIPIENT_TOP}
   ${subjectHtml('शिधापत्रिकेत नाव समाविष्ट करण्याबाबत.')}
   <p class="paragraph">
     सदर पत्रासोबत अर्जदार <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, रा. <span style="font-weight: normal;">{{address}}</span> यांना त्यांच्या शिधापत्रिकेत कुटुंबातील सदस्यांची नावे समाविष्ट करण्याकरिता आपणाकडे पाठवीत आहोत.
@@ -265,12 +276,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   <p class="paragraph">
     तरी अर्जदाराकडे असलेल्या पुरावादर्शक कागदपत्रांची पडताळणी करून सदर सदस्यांची नावे शिधापत्रिकेत समाविष्ट करण्याबाबत नियमानुसार आवश्यक ती कार्यवाही करण्यात यावी, ही विनंती.
   </p>
-  ${CLOSING}
-  <div class="recipient-bottom">
-    प्रति,<br>
-    शिधावाटप अधिकारी,<br>
-    <span style="font-weight: normal;">{{rationOfficeAddress}}</span>
-  </div>
+  ${RATION_CLOSING}
 </div>`,
 
   'ration-delete-members': `<div class="letter-content" style="${ROOT}">
@@ -279,6 +285,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
     <div>दि. <span class="var">{{date}}</span></div>
   </div>
+  ${RATION_RECIPIENT_TOP}
   ${subjectHtml('शिधापत्रिकेतून नाव वगळण्याबाबत.')}
   <p class="paragraph">
     सदर पत्रासोबत अर्जदार <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, रा. <span style="font-weight: normal;">{{address}}</span> यांना त्यांच्या शिधापत्रिकेतून कुटुंबातील सदस्यांची नावे वगळण्याकरिता आपणाकडे पाठवीत आहोत.
@@ -292,12 +299,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   <p class="paragraph">
     तरी अर्जदाराकडे असलेल्या पुरावादर्शक कागदपत्रांची पडताळणी करून सदर सदस्यांची नावे शिधापत्रिकेतून वगळण्याबाबत नियमानुसार आवश्यक ती कार्यवाही करण्यात यावी, ही विनंती.
   </p>
-  ${CLOSING}
-  <div class="recipient-bottom">
-    प्रति,<br>
-    शिधावाटप अधिकारी,<br>
-    <span style="font-weight: normal;">{{rationOfficeAddress}}</span>
-  </div>
+  ${RATION_CLOSING}
 </div>`,
 
   'ration-transfer': `<div class="letter-content" style="${ROOT}">
@@ -306,6 +308,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
     <div>दि. <span class="var">{{date}}</span></div>
   </div>
+  ${RATION_RECIPIENT_TOP}
   ${subjectHtml('शिधापत्रिका एका शिधावाटप कार्यालयातून दुसऱ्या शिधावाटप कार्यालयात हस्तांतरित करण्याबाबत.')}
   <p class="paragraph">
     सदर पत्रासोबत अर्जदार <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, रा. <span style="font-weight: normal;">{{address}}</span> यांना त्यांच्या शिधापत्रिकेचे हस्तांतरण करण्याकरिता आपणाकडे पाठवीत आहोत.
@@ -322,12 +325,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   <p class="paragraph">
     तरी अर्जदाराकडे असलेल्या पुरावादर्शक कागदपत्रांची पडताळणी करून सदर शिधापत्रिका <span class="var">{{toRationOffice}}</span> येथे हस्तांतरित करण्याबाबत नियमानुसार आवश्यक ती कार्यवाही करण्यात यावी, ही विनंती.
   </p>
-  ${CLOSING}
-  <div class="recipient-bottom">
-    प्रति,<br>
-    शिधावाटप अधिकारी,<br>
-    <span style="font-weight: normal;">{{rationOfficeAddress}}</span>
-  </div>
+  ${RATION_CLOSING}
 </div>`,
 
   income: `<div class="letter-content" style="${ROOT}">
