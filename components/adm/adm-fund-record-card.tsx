@@ -67,7 +67,9 @@ export type AdmCreateProjectValues = {
   allocatedBudget: number;
   ward?: string;
   wardGeoId?: string | null;
+  wardGeoIds?: string[];
   boothNo?: string | null;
+  boothNos?: string[];
   status?: MlaProject['status'];
   estimatedCost?: number;
   approvalStatus?: ProjectApprovalStatus;
@@ -83,8 +85,10 @@ function projectDetailHref(projectId: string, fundId: string): string {
 
 function locationLabel(allocation: AdmFundAllocationWithProject): string {
   return formatProjectHierarchyLocation({
+    wardGeoNames: allocation.projectWardGeoNames,
     wardGeoName: allocation.projectWardGeoName,
     ward: allocation.projectWard,
+    boothNos: allocation.projectBoothNos,
     boothNo: allocation.projectBoothNo,
   });
 }
@@ -153,12 +157,10 @@ export function AdmFundRecordCard({
   const [newProjectDepartment, setNewProjectDepartment] = useState('');
   const [newProjectBudget, setNewProjectBudget] = useState(0);
   const [newProjectWard, setNewProjectWard] = useState('');
-  const [newProjectWardGeoId, setNewProjectWardGeoId] = useState<string | null>(
-    null,
+  const [newProjectWardGeoIds, setNewProjectWardGeoIds] = useState<string[]>(
+    [],
   );
-  const [newProjectBoothNo, setNewProjectBoothNo] = useState<string | null>(
-    null,
-  );
+  const [newProjectBoothNos, setNewProjectBoothNos] = useState<string[]>([]);
   const [newProjectStatus, setNewProjectStatus] =
     useState<MlaProject['status']>('Concept');
   const [newProjectEstimatedCost, setNewProjectEstimatedCost] = useState(0);
@@ -175,8 +177,8 @@ export function AdmFundRecordCard({
     setNewProjectDepartment('');
     setNewProjectBudget(0);
     setNewProjectWard('');
-    setNewProjectWardGeoId(null);
-    setNewProjectBoothNo(null);
+    setNewProjectWardGeoIds([]);
+    setNewProjectBoothNos([]);
     setNewProjectStatus('Concept');
     setNewProjectEstimatedCost(0);
     setNewProjectApprovalStatus('Pending');
@@ -230,8 +232,8 @@ export function AdmFundRecordCard({
         department: newProjectDepartment.trim() || undefined,
         allocatedBudget: newProjectBudget,
         ward: newProjectWard || undefined,
-        wardGeoId: newProjectWardGeoId,
-        boothNo: newProjectBoothNo,
+        wardGeoIds: newProjectWardGeoIds,
+        boothNos: newProjectBoothNos,
         status: newProjectStatus,
         estimatedCost: newProjectEstimatedCost,
         approvalStatus: newProjectApprovalStatus,
@@ -730,11 +732,11 @@ export function AdmFundRecordCard({
               />
             </div>
             <ProjectHierarchyGeoPickers
-              wardGeoId={newProjectWardGeoId}
-              boothNo={newProjectBoothNo}
+              wardGeoIds={newProjectWardGeoIds}
+              boothNos={newProjectBoothNos}
               onChange={(geo) => {
-                setNewProjectWardGeoId(geo.wardGeoId);
-                setNewProjectBoothNo(geo.boothNo);
+                setNewProjectWardGeoIds(geo.wardGeoIds);
+                setNewProjectBoothNos(geo.boothNos);
                 setNewProjectWard(geo.ward);
               }}
             />

@@ -3,12 +3,15 @@ import {
   isValidIndianMobile,
   normalizeIndianMobileDigits,
 } from '@/lib/indian-mobile';
+import { normalizeProjectGeoSelection } from '@/lib/projects/hierarchy-geo';
 
 // Project form validation
 export const projectFormSchema = z
   .object({
     name: z.string().min(1, 'Project name is required').max(255, 'Project name is too long'),
-    ward: z.string().max(100, 'Ward name is too long').optional(),
+    ward: z.string().max(5000, 'Ward name is too long').optional(),
+    wardGeoIds: z.array(z.string().uuid('Invalid ward')).optional(),
+    boothNos: z.array(z.string().max(10)).optional(),
     wardGeoId: z.string().uuid('Invalid ward').optional().nullable(),
     boothNo: z.string().max(10).optional().nullable(),
     type: z.string().max(100, 'Type is too long').optional(),
@@ -43,6 +46,13 @@ export const projectFormSchema = z
         path: ['lokarpanDate'],
       });
     }
+  })
+  .transform((data) => {
+    const geo = normalizeProjectGeoSelection(data);
+    return {
+      ...data,
+      ...geo,
+    };
   });
 
 export type ProjectFormData = z.infer<typeof projectFormSchema>;

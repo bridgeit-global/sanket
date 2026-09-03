@@ -43,6 +43,7 @@ import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ProjectsSkeleton } from '@/components/module-skeleton';
 import { RegisterAttachmentDialog } from '@/components/register-attachment-dialog';
 import { ProjectHierarchyGeoPickers } from '@/components/projects/project-hierarchy-geo-pickers';
+import { normalizeProjectGeoSelection } from '@/lib/projects/hierarchy-geo';
 import { LimitedFormField } from '@/components/ui/limited-form-field';
 import { useTranslations } from '@/hooks/use-translations';
 import { ADM_URL_PARAMS } from '@/lib/adm/url-params';
@@ -96,7 +97,9 @@ interface Project {
   name: string;
   ward?: string;
   wardGeoId?: string | null;
+  wardGeoIds?: string[];
   boothNo?: string | null;
+  boothNos?: string[];
   type?: string;
   status: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
   department?: string | null;
@@ -128,6 +131,30 @@ function admFundBackHref(fundId: string | null): string | null {
   return `/modules/adm?${ADM_URL_PARAMS.fund}=${encodeURIComponent(fundId)}`;
 }
 
+function projectFormValues(project: Project) {
+  const geo = normalizeProjectGeoSelection(project);
+  return {
+    name: project.name,
+    ward: project.ward || '',
+    wardGeoIds: geo.wardGeoIds,
+    boothNos: geo.boothNos,
+    type: project.type || '',
+    status: project.status,
+    department: project.department || '',
+    category: project.category || '',
+    estimatedCost: project.estimatedCost || 0,
+    approvalStatus: project.approvalStatus || 'Pending',
+    nocRequired: project.nocRequired || false,
+    nocStatus: project.nocStatus || 'NotRequired',
+    remarks: project.remarks || '',
+    physicalStatus: project.physicalStatus || 'WNS',
+    bhoomiPujanDone: project.bhoomiPujanDone || false,
+    bhoomiPujanDate: project.bhoomiPujanDate || null,
+    lokarpanDone: project.lokarpanDone || false,
+    lokarpanDate: project.lokarpanDate || null,
+  };
+}
+
 export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -146,8 +173,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const [projectForm, setProjectForm] = useState({
     name: '',
     ward: '',
-    wardGeoId: null as string | null,
-    boothNo: null as string | null,
+    wardGeoIds: [] as string[],
+    boothNos: [] as string[],
     type: '',
     status: 'Concept' as Project['status'],
     department: '',
@@ -249,26 +276,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         setEntries(data.registerEntries || []);
         setDocuments(data.documents || []);
         setGroundMedia(data.groundMedia || []);
-        setProjectForm({
-          name: data.name,
-          ward: data.ward || '',
-          wardGeoId: data.wardGeoId ?? null,
-          boothNo: data.boothNo ?? null,
-          type: data.type || '',
-          status: data.status,
-          department: data.department || '',
-          category: data.category || '',
-          estimatedCost: data.estimatedCost || 0,
-          approvalStatus: data.approvalStatus || 'Pending',
-          nocRequired: data.nocRequired || false,
-          nocStatus: data.nocStatus || 'NotRequired',
-          remarks: data.remarks || '',
-          physicalStatus: data.physicalStatus || 'WNS',
-          bhoomiPujanDone: data.bhoomiPujanDone || false,
-          bhoomiPujanDate: data.bhoomiPujanDate || null,
-          lokarpanDone: data.lokarpanDone || false,
-          lokarpanDate: data.lokarpanDate || null,
-        });
+        setProjectForm(projectFormValues(data));
       } else if (response.status === 404) {
         toast.error('Project not found');
         router.push(admBackHref ?? '/modules/projects');
@@ -289,8 +297,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       const projectData = {
         ...projectForm,
         ward: projectForm.ward || undefined,
-        wardGeoId: projectForm.wardGeoId,
-        boothNo: projectForm.boothNo,
+        wardGeoIds: projectForm.wardGeoIds,
+        boothNos: projectForm.boothNos,
       };
 
       const response = await fetch(`/api/projects/${projectId}`, {
@@ -761,26 +769,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 size="sm"
                 onClick={() => {
                   if (project) {
-                    setProjectForm({
-                      name: project.name,
-                      ward: project.ward || '',
-                      wardGeoId: project.wardGeoId ?? null,
-                      boothNo: project.boothNo ?? null,
-                      type: project.type || '',
-                      status: project.status,
-                      department: project.department || '',
-                      category: project.category || '',
-                      estimatedCost: project.estimatedCost || 0,
-                      approvalStatus: project.approvalStatus || 'Pending',
-                      nocRequired: project.nocRequired || false,
-                      nocStatus: project.nocStatus || 'NotRequired',
-                      remarks: project.remarks || '',
-                      physicalStatus: project.physicalStatus || 'WNS',
-                      bhoomiPujanDone: project.bhoomiPujanDone || false,
-                      bhoomiPujanDate: project.bhoomiPujanDate || null,
-                      lokarpanDone: project.lokarpanDone || false,
-                      lokarpanDate: project.lokarpanDate || null,
-                    });
+                    setProjectForm(projectFormValues(project));
                   }
                   setEditingProject(!editingProject);
                 }}
@@ -807,13 +796,13 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               </div>
               <div className="space-y-2 md:col-span-2">
                 <ProjectHierarchyGeoPickers
-                  wardGeoId={projectForm.wardGeoId}
-                  boothNo={projectForm.boothNo}
+                  wardGeoIds={projectForm.wardGeoIds}
+                  boothNos={projectForm.boothNos}
                   onChange={(geo) =>
                     setProjectForm((prev) => ({
                       ...prev,
-                      wardGeoId: geo.wardGeoId,
-                      boothNo: geo.boothNo,
+                      wardGeoIds: geo.wardGeoIds,
+                      boothNos: geo.boothNos,
                       ward: geo.ward,
                     }))
                   }
@@ -871,26 +860,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                   variant="outline"
                   onClick={() => {
                     if (project) {
-                      setProjectForm({
-                        name: project.name,
-                        ward: project.ward || '',
-                        wardGeoId: project.wardGeoId ?? null,
-                        boothNo: project.boothNo ?? null,
-                        type: project.type || '',
-                        status: project.status,
-                        department: project.department || '',
-                        category: project.category || '',
-                        estimatedCost: project.estimatedCost || 0,
-                        approvalStatus: project.approvalStatus || 'Pending',
-                        nocRequired: project.nocRequired || false,
-                        nocStatus: project.nocStatus || 'NotRequired',
-                        remarks: project.remarks || '',
-                        physicalStatus: project.physicalStatus || 'WNS',
-                        bhoomiPujanDone: project.bhoomiPujanDone || false,
-                        bhoomiPujanDate: project.bhoomiPujanDate || null,
-                        lokarpanDone: project.lokarpanDone || false,
-                        lokarpanDate: project.lokarpanDate || null,
-                      });
+                      setProjectForm(projectFormValues(project));
                     }
                     setEditingProject(false);
                   }}

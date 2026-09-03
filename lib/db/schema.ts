@@ -582,7 +582,9 @@ export type MlaProject = {
   name: string;
   ward: string | null;
   wardGeoId: string | null;
+  wardGeoIds: string[];
   boothNo: string | null;
+  boothNos: string[];
   type: string | null;
   status: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
   department: string | null;
@@ -933,8 +935,11 @@ export type AdmFundAllocationWithProject = AdmFundAllocation & {
   projectVillage: string | null;
   projectWard: string | null;
   projectWardGeoId: string | null;
+  projectWardGeoIds: string[];
   projectBoothNo: string | null;
+  projectBoothNos: string[];
   projectWardGeoName: string | null;
+  projectWardGeoNames: string[];
   projectPhysicalStatus: ProjectPhysicalStatus;
   projectEstimatedCost: number;
   projectApprovalStatus: ProjectApprovalStatus;

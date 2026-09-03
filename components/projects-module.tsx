@@ -34,13 +34,16 @@ import {
   parseProjectsFiltersFromSearchParams,
 } from '@/lib/projects/url-params';
 import { ProjectHierarchyGeoPickers } from '@/components/projects/project-hierarchy-geo-pickers';
+import { normalizeProjectGeoSelection } from '@/lib/projects/hierarchy-geo';
 
 interface Project {
   id: string;
   name: string;
   ward?: string;
   wardGeoId?: string | null;
+  wardGeoIds?: string[];
   boothNo?: string | null;
+  boothNos?: string[];
   type?: string;
   status: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
   department?: string | null;
@@ -61,8 +64,8 @@ export function ProjectsModule() {
   const [form, setForm] = useState({
     name: '',
     ward: '',
-    wardGeoId: null as string | null,
-    boothNo: null as string | null,
+    wardGeoIds: [] as string[],
+    boothNos: [] as string[],
     type: '',
     status: 'Concept' as Project['status'],
     department: '',
@@ -125,8 +128,8 @@ export function ProjectsModule() {
     const formData = {
       ...form,
       ward: form.ward || undefined,
-      wardGeoId: form.wardGeoId,
-      boothNo: form.boothNo,
+      wardGeoIds: form.wardGeoIds,
+      boothNos: form.boothNos,
     };
 
     // Validate form
@@ -175,12 +178,13 @@ export function ProjectsModule() {
   };
 
   const handleEdit = (project: Project) => {
+    const geo = normalizeProjectGeoSelection(project);
     setEditingId(project.id);
     setForm({
       name: project.name,
       ward: project.ward || '',
-      wardGeoId: project.wardGeoId ?? null,
-      boothNo: project.boothNo ?? null,
+      wardGeoIds: geo.wardGeoIds,
+      boothNos: geo.boothNos,
       type: project.type || '',
       status: project.status,
       department: project.department || '',
@@ -224,8 +228,8 @@ export function ProjectsModule() {
     setForm({
       name: '',
       ward: '',
-      wardGeoId: null,
-      boothNo: null,
+      wardGeoIds: [],
+      boothNos: [],
       type: '',
       status: 'Concept',
       department: '',
@@ -297,13 +301,13 @@ export function ProjectsModule() {
             </div>
             <div className="space-y-2 md:col-span-2">
               <ProjectHierarchyGeoPickers
-                wardGeoId={form.wardGeoId}
-                boothNo={form.boothNo}
+                wardGeoIds={form.wardGeoIds}
+                boothNos={form.boothNos}
                 onChange={(geo) =>
                   setForm((prev) => ({
                     ...prev,
-                    wardGeoId: geo.wardGeoId,
-                    boothNo: geo.boothNo,
+                    wardGeoIds: geo.wardGeoIds,
+                    boothNos: geo.boothNos,
                     ward: geo.ward,
                   }))
                 }

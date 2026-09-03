@@ -91,7 +91,13 @@ function filterFunds(
           (a.workCode?.toLowerCase().includes(q) ?? false) ||
           (a.projectWard?.toLowerCase().includes(q) ?? false) ||
           (a.projectWardGeoName?.toLowerCase().includes(q) ?? false) ||
+          (a.projectWardGeoNames?.some((name) =>
+            name.toLowerCase().includes(q),
+          ) ?? false) ||
           (a.projectBoothNo?.toLowerCase().includes(q) ?? false) ||
+          (a.projectBoothNos?.some((booth) =>
+            booth.toLowerCase().includes(q),
+          ) ?? false) ||
           (a.projectDepartment?.toLowerCase().includes(q) ?? false),
       ),
   );

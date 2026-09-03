@@ -93,6 +93,18 @@ export async function PUT(
     const validation = validateForm(projectFormSchema, {
       name: body.name ?? existing.name,
       ward: body.ward ?? existing.ward ?? undefined,
+      wardGeoIds:
+        body.wardGeoIds !== undefined
+          ? body.wardGeoIds
+          : body.wardGeoId !== undefined
+            ? undefined
+            : existing.wardGeoIds,
+      boothNos:
+        body.boothNos !== undefined
+          ? body.boothNos
+          : body.boothNo !== undefined
+            ? undefined
+            : existing.boothNos,
       wardGeoId:
         body.wardGeoId !== undefined ? body.wardGeoId : existing.wardGeoId,
       boothNo: body.boothNo !== undefined ? body.boothNo : existing.boothNo,
@@ -123,7 +135,9 @@ export async function PUT(
       ...validation.data,
       ward: validation.data.ward ?? null,
       wardGeoId: validation.data.wardGeoId ?? null,
+      wardGeoIds: validation.data.wardGeoIds,
       boothNo: validation.data.boothNo ?? null,
+      boothNos: validation.data.boothNos,
       type: validation.data.type ?? null,
       department: validation.data.department ?? null,
       category: validation.data.category ?? null,

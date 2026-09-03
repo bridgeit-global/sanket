@@ -89,6 +89,20 @@ function toStringOrNull(value: unknown): string | null {
   return String(value);
 }
 
+function toStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of value) {
+    if (item == null) continue;
+    const trimmed = String(item).trim();
+    if (!trimmed || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(trimmed);
+  }
+  return out;
+}
+
 /** Normalize DB date/timestamptz values to `yyyy-MM-dd` for API responses. */
 function formatDateField(value: unknown): string {
   if (value == null) return '';
@@ -687,12 +701,26 @@ export function mapDailyProgrammeAttachmentRow(row: Row): DailyProgrammeAttachme
 }
 
 export function mapMlaProjectRow(row: Row): MlaProject {
+  const wardGeoIds = toStringArray(row.ward_geo_ids ?? row.wardGeoIds);
+  const boothNos = toStringArray(row.booth_nos ?? row.boothNos);
+  const scalarWardGeoId = toStringOrNull(row.ward_geo_id ?? row.wardGeoId);
+  const scalarBoothNo = toStringOrNull(row.booth_no ?? row.boothNo);
+  const resolvedWardGeoIds =
+    wardGeoIds.length > 0
+      ? wardGeoIds
+      : scalarWardGeoId
+        ? [scalarWardGeoId]
+        : [];
+  const resolvedBoothNos =
+    boothNos.length > 0 ? boothNos : scalarBoothNo ? [scalarBoothNo] : [];
   return {
     id: String(row.id),
     name: String(row.name),
     ward: toStringOrNull(row.ward),
-    wardGeoId: toStringOrNull(row.ward_geo_id ?? row.wardGeoId),
-    boothNo: toStringOrNull(row.booth_no ?? row.boothNo),
+    wardGeoId: resolvedWardGeoIds[0] ?? null,
+    wardGeoIds: resolvedWardGeoIds,
+    boothNo: resolvedBoothNos[0] ?? null,
+    boothNos: resolvedBoothNos,
     type: toStringOrNull(row.type),
     status: row.status as MlaProject['status'],
     department: toStringOrNull(row.department),

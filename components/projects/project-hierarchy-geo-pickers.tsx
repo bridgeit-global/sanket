@@ -2,29 +2,21 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  SELECT_NONE_VALUE,
-  fromOptionalSelectValue,
-  isValidSelectItemValue,
-  toOptionalSelectValue,
-} from '@/lib/hierarchy/select-utils';
+import { CheckboxMultiSelect } from '@/components/ui/checkbox-multi-select';
+import { isValidSelectItemValue } from '@/lib/hierarchy/select-utils';
 import type { CadreConfig } from '@/lib/hierarchy/types';
 import {
-  boothOptionsForWard,
+  boothOptionsForWards,
   buildProjectWardDisplay,
   PROJECT_HIERARCHY_CONSTITUENCY_ID,
+  retainValidBoothNos,
   wardOptionsFromGeoUnits,
 } from '@/lib/projects/hierarchy-geo';
 import { useTranslations } from '@/hooks/use-translations';
 
 export type ProjectHierarchyGeoValue = {
+  wardGeoIds: string[];
+  boothNos: string[];
   wardGeoId: string | null;
   boothNo: string | null;
   /** Denormalized display string for legacy `ward` column */
@@ -32,16 +24,16 @@ export type ProjectHierarchyGeoValue = {
 };
 
 interface ProjectHierarchyGeoPickersProps {
-  wardGeoId: string | null;
-  boothNo: string | null;
+  wardGeoIds: string[];
+  boothNos: string[];
   onChange: (value: ProjectHierarchyGeoValue) => void;
   disabled?: boolean;
   className?: string;
 }
 
 export function ProjectHierarchyGeoPickers({
-  wardGeoId,
-  boothNo,
+  wardGeoIds,
+  boothNos,
   onChange,
   disabled = false,
   className,
@@ -86,22 +78,42 @@ export function ProjectHierarchyGeoPickers({
   );
 
   const boothOptions = useMemo(() => {
-    const options = boothOptionsForWard(
+    const options = boothOptionsForWards(
       geoUnits,
-      wardGeoId,
+      wardGeoIds,
       PROJECT_HIERARCHY_CONSTITUENCY_ID,
     );
-    if (boothNo && !options.some((b) => b.boothNo === boothNo)) {
-      return [{ boothNo, label: `Booth ${boothNo}` }, ...options];
-    }
-    return options;
-  }, [geoUnits, wardGeoId, boothNo]);
+    const extra = boothNos.filter(
+      (boothNo) => !options.some((option) => option.boothNo === boothNo),
+    );
+    if (extra.length === 0) return options;
+    return [
+      ...extra.map((boothNo) => ({ boothNo, label: `Booth ${boothNo}` })),
+      ...options,
+    ];
+  }, [geoUnits, wardGeoIds, boothNos]);
 
-  const emit = (nextWardGeoId: string | null, nextBoothNo: string | null) => {
+  const emit = (nextWardGeoIds: string[], nextBoothNos: string[]) => {
+    const catalog = boothOptionsForWards(
+      geoUnits,
+      nextWardGeoIds,
+      PROJECT_HIERARCHY_CONSTITUENCY_ID,
+    );
+    const wardsUnchanged =
+      nextWardGeoIds.length === wardGeoIds.length &&
+      nextWardGeoIds.every((id) => wardGeoIds.includes(id));
+    const extras = wardsUnchanged
+      ? boothNos
+          .filter((boothNo) => !catalog.some((option) => option.boothNo === boothNo))
+          .map((boothNo) => ({ boothNo }))
+      : [];
+    const nextBooths = retainValidBoothNos(nextBoothNos, [...extras, ...catalog]);
     onChange({
-      wardGeoId: nextWardGeoId,
-      boothNo: nextBoothNo,
-      ward: buildProjectWardDisplay(geoUnits, nextWardGeoId, nextBoothNo),
+      wardGeoIds: nextWardGeoIds,
+      boothNos: nextBooths,
+      wardGeoId: nextWardGeoIds[0] ?? null,
+      boothNo: nextBooths[0] ?? null,
+      ward: buildProjectWardDisplay(geoUnits, nextWardGeoIds, nextBooths),
     });
   };
 
@@ -109,63 +121,47 @@ export function ProjectHierarchyGeoPickers({
     <div className={className ?? 'grid gap-3 sm:grid-cols-2'}>
       <div className="space-y-2">
         <Label>{t('projects.ward')}</Label>
-        <Select
-          value={toOptionalSelectValue(wardGeoId ?? '')}
-          onValueChange={(v) => {
-            const nextWard = fromOptionalSelectValue(v) || null;
-            emit(nextWard, null);
-          }}
+        <CheckboxMultiSelect
+          options={wardUnits.map((ward) => ({
+            value: ward.id,
+            label: ward.name,
+          }))}
+          selected={wardGeoIds}
+          onChange={(next) => emit(next, boothNos)}
           disabled={disabled || loading}
-        >
-          <SelectTrigger className="min-h-11 w-full">
-            <SelectValue
-              placeholder={
-                loading
-                  ? t('common.loading')
-                  : loadError
-                    ? t('projects.geoLoadFailed')
-                    : t('projects.selectWard')
-              }
-            />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={SELECT_NONE_VALUE}>{t('common.none')}</SelectItem>
-            {wardUnits.map((w) => (
-              <SelectItem key={w.id} value={w.id}>
-                {w.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          loading={loading}
+          placeholder={
+            loading
+              ? t('common.loading')
+              : loadError
+                ? t('projects.geoLoadFailed')
+                : t('projects.selectWard')
+          }
+          searchPlaceholder={t('projects.searchWards')}
+          emptyMessage={t('projects.noWardOptions')}
+        />
       </div>
       <div className="space-y-2">
         <Label>{t('projects.booth')}</Label>
-        <Select
-          value={toOptionalSelectValue(boothNo ?? '')}
-          onValueChange={(v) => {
-            const nextBooth = fromOptionalSelectValue(v) || null;
-            emit(wardGeoId, nextBooth);
-          }}
-          disabled={disabled || loading || !wardGeoId}
-        >
-          <SelectTrigger className="min-h-11 w-full">
-            <SelectValue
-              placeholder={
-                wardGeoId
-                  ? t('projects.selectBooth')
-                  : t('projects.selectWardFirst')
-              }
-            />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={SELECT_NONE_VALUE}>{t('common.none')}</SelectItem>
-            {boothOptions.map((b) => (
-              <SelectItem key={b.boothNo} value={b.boothNo}>
-                {b.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <CheckboxMultiSelect
+          options={boothOptions.map((booth) => ({
+            value: booth.boothNo,
+            label: booth.label,
+          }))}
+          selected={boothNos}
+          onChange={(next) => emit(wardGeoIds, next)}
+          disabled={disabled || loading || wardGeoIds.length === 0}
+          loading={loading}
+          placeholder={
+            loading
+              ? t('common.loading')
+              : wardGeoIds.length > 0
+                ? t('projects.selectBooth')
+                : t('projects.selectWardFirst')
+          }
+          searchPlaceholder={t('projects.searchBooths')}
+          emptyMessage={t('projects.noBoothOptions')}
+        />
       </div>
     </div>
   );

@@ -57,6 +57,7 @@ import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
 import type { ArtifactKind } from '@/components/artifact';
 import { ChatSDKError } from '../errors';
+import { normalizeProjectGeoSelection } from '@/lib/projects/hierarchy-geo';
 import { normalizeEpicNumber } from '@/lib/epic/normalize-epic';
 import { notifyPush, sendPushToUser } from '@/lib/push/send';
 import type {
@@ -5324,7 +5325,9 @@ export async function createProject({
   name,
   ward,
   wardGeoId,
+  wardGeoIds,
   boothNo,
+  boothNos,
   type,
   status,
   department,
@@ -5346,7 +5349,9 @@ export async function createProject({
   name: string;
   ward?: string;
   wardGeoId?: string | null;
+  wardGeoIds?: string[] | null;
   boothNo?: string | null;
+  boothNos?: string[] | null;
   type?: string;
   status?: 'Concept' | 'Proposal' | 'In Progress' | 'Completed';
   department?: string | null;
@@ -5367,14 +5372,22 @@ export async function createProject({
 }): Promise<MlaProject> {
   try {
     const now = new Date().toISOString();
+    const geo = normalizeProjectGeoSelection({
+      wardGeoIds,
+      boothNos,
+      wardGeoId,
+      boothNo,
+    });
     const { data, error } = await supabase
       .from(TABLES.mlaProject)
       .insert(
         toSnakeCaseKeys({
           name,
           ward: ward || null,
-          wardGeoId: wardGeoId ?? null,
-          boothNo: boothNo ?? null,
+          wardGeoId: geo.wardGeoId,
+          wardGeoIds: geo.wardGeoIds,
+          boothNo: geo.boothNo,
+          boothNos: geo.boothNos,
           type: type || null,
           status: status || 'Concept',
           department: department ?? null,
@@ -5497,7 +5510,31 @@ export async function updateProject(
   data: Partial<Omit<MlaProject, 'id' | 'createdBy' | 'createdAt'>>,
 ): Promise<MlaProject | null> {
   try {
-    const snakePatch = toSnakeCaseKeys({ ...data, updatedAt: new Date().toISOString() });
+    const geoTouched =
+      data.wardGeoIds !== undefined ||
+      data.boothNos !== undefined ||
+      data.wardGeoId !== undefined ||
+      data.boothNo !== undefined;
+    const geo = geoTouched
+      ? normalizeProjectGeoSelection({
+          wardGeoIds: data.wardGeoIds,
+          boothNos: data.boothNos,
+          wardGeoId: data.wardGeoId,
+          boothNo: data.boothNo,
+        })
+      : null;
+    const snakePatch = toSnakeCaseKeys({
+      ...data,
+      ...(geo
+        ? {
+            wardGeoId: geo.wardGeoId,
+            wardGeoIds: geo.wardGeoIds,
+            boothNo: geo.boothNo,
+            boothNos: geo.boothNos,
+          }
+        : {}),
+      updatedAt: new Date().toISOString(),
+    });
     const { data: updated, error } = await supabase
       .from(TABLES.mlaProject)
       .update(snakePatch)
@@ -6652,9 +6689,13 @@ export async function getAdmDashboard(): Promise<AdmFundingCategoryWithFunds[]> 
 
     const wardGeoIds = [
       ...new Set(
-        [...projectById.values()]
-          .map((p) => p.wardGeoId)
-          .filter((id): id is string => Boolean(id)),
+        [...projectById.values()].flatMap((p) =>
+          p.wardGeoIds.length > 0
+            ? p.wardGeoIds
+            : p.wardGeoId
+              ? [p.wardGeoId]
+              : [],
+        ),
       ),
     ];
     const wardGeoNameById = new Map<string, string>();
@@ -6718,10 +6759,19 @@ export async function getAdmDashboard(): Promise<AdmFundingCategoryWithFunds[]> 
         projectVillage: project?.village ?? null,
         projectWard: project?.ward ?? null,
         projectWardGeoId: project?.wardGeoId ?? null,
+        projectWardGeoIds: project?.wardGeoIds ?? [],
         projectBoothNo: project?.boothNo ?? null,
-        projectWardGeoName: project?.wardGeoId
-          ? (wardGeoNameById.get(project.wardGeoId) ?? null)
-          : null,
+        projectBoothNos: project?.boothNos ?? [],
+        projectWardGeoNames: (project?.wardGeoIds ?? [])
+          .map((id) => wardGeoNameById.get(id))
+          .filter((name): name is string => Boolean(name)),
+        projectWardGeoName: (project?.wardGeoIds ?? [])
+          .map((id) => wardGeoNameById.get(id))
+          .filter((name): name is string => Boolean(name))
+          .join(', ') ||
+          (project?.wardGeoId
+            ? (wardGeoNameById.get(project.wardGeoId) ?? null)
+            : null),
         projectPhysicalStatus: project?.physicalStatus ?? 'WNS',
         projectEstimatedCost: project?.estimatedCost ?? 0,
         projectApprovalStatus: project?.approvalStatus ?? 'Pending',
