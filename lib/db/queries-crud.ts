@@ -2376,6 +2376,7 @@ export async function createDailyProgrammeItem({
   location,
   remarks,
   programmeType,
+  person,
   sortOrder,
   startDate,
   endDate,
@@ -2388,6 +2389,7 @@ export async function createDailyProgrammeItem({
   location: string;
   remarks?: string;
   programmeType?: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
+  person?: DailyProgramme['person'];
   sortOrder?: number;
   startDate?: Date | string | null;
   endDate?: Date | string | null;
@@ -2406,6 +2408,7 @@ export async function createDailyProgrammeItem({
           location,
           remarks: remarks || null,
           programmeType: programmeType ?? 'CONSTITUENCY',
+          person: person === 'NAWAB' ? 'NAWAB' : 'SANA',
           sortOrder: sortOrder ?? 1,
           startDate: startDate ? formatDateToString(startDate) : null,
           endDate: endDate ? formatDateToString(endDate) : null,

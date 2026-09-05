@@ -679,6 +679,7 @@ export function mapDailyProgrammeRow(row: Row): DailyProgramme {
     remarks: toStringOrNull(row.remarks),
     attended: toBoolOrNull(row.attended),
     programmeType: (row.programme_type ?? row.programmeType) as DailyProgramme['programmeType'],
+    person: ((row.person as DailyProgramme['person'] | null) === 'NAWAB' ? 'NAWAB' : 'SANA'),
     sortOrder: Number(row.sort_order ?? row.sortOrder ?? 1),
     startDate: formatDateFieldOrNull(row.start_date ?? row.startDate),
     endDate: formatDateFieldOrNull(row.end_date ?? row.endDate),

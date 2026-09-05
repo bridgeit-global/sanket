@@ -927,6 +927,7 @@ export type Database = {
           end_time: string | null
           id: string
           location: string
+          person: string
           programme_type: string
           remarks: string | null
           sort_order: number
@@ -945,6 +946,7 @@ export type Database = {
           end_time?: string | null
           id?: string
           location: string
+          person?: string
           programme_type?: string
           remarks?: string | null
           sort_order?: number
@@ -963,6 +965,7 @@ export type Database = {
           end_time?: string | null
           id?: string
           location?: string
+          person?: string
           programme_type?: string
           remarks?: string | null
           sort_order?: number

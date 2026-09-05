@@ -37,7 +37,15 @@ import {
   buildDailyProgrammeSearchParams,
   parseDailyProgrammeFiltersFromSearchParams,
 } from '@/lib/daily-programme/url-params';
+import {
+  DEFAULT_DAILY_PROGRAMME_PERSON,
+  getDailyProgrammePersonLabelKey,
+  getDailyProgrammePrintNameKey,
+  parseDailyProgrammePerson,
+  type DailyProgrammePerson,
+} from '@/lib/daily-programme/persons';
 import { exportElementToPdf } from '@/lib/pdf/export-element-to-pdf';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   closestCenter,
   DndContext,
@@ -78,6 +86,7 @@ interface ProgrammeItem {
   remarks?: string | null;
   attended?: boolean | null;
   programmeType?: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY' | null;
+  person?: DailyProgrammePerson | null;
   sortOrder?: number | null;
   createdBy?: string | null;
   updatedBy?: string | null;
@@ -167,6 +176,22 @@ function formatTimeTo12Hour(time24: string, locale: 'en' | 'mr'): string {
   });
 
   return formatter.format(date);
+}
+
+function createEmptyForm(person: DailyProgrammePerson = DEFAULT_DAILY_PROGRAMME_PERSON) {
+  const today = format(new Date(), 'yyyy-MM-dd');
+  return {
+    date: today,
+    startDate: today,
+    endDate: today,
+    startTime: '',
+    endTime: '',
+    title: '',
+    location: '',
+    remarks: '',
+    programmeType: 'CONSTITUENCY' as 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY',
+    person,
+  };
 }
 
 function getDefaultDateRange() {
@@ -544,12 +569,13 @@ export function DailyProgramme({
   const pdfHostRef = useRef<HTMLDivElement | null>(null);
 
   const syncProgrammeUrl = useCallback(
-    (updates: { start?: string; end?: string; type?: string }) => {
+    (updates: { start?: string; end?: string; type?: string; person?: DailyProgrammePerson }) => {
       const params = buildDailyProgrammeSearchParams(
         {
           start: updates.start,
           end: updates.end,
           type: updates.type as 'ALL' | 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY' | undefined,
+          person: updates.person,
         },
         new URLSearchParams(searchParams.toString()),
       );
@@ -581,17 +607,12 @@ export function DailyProgramme({
     return initialDateRange || getDefaultDateRange();
   });
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [form, setForm] = useState({
-    date: format(new Date(), 'yyyy-MM-dd'),
-    startDate: format(new Date(), 'yyyy-MM-dd'),
-    endDate: format(new Date(), 'yyyy-MM-dd'),
-    startTime: '',
-    endTime: '',
-    title: '',
-    location: '',
-    remarks: '',
-    programmeType: 'CONSTITUENCY' as 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY',
-  });
+  const [selectedPerson, setSelectedPerson] = useState<DailyProgrammePerson>(
+    urlFilters.person ?? DEFAULT_DAILY_PROGRAMME_PERSON,
+  );
+  const [form, setForm] = useState(() =>
+    createEmptyForm(urlFilters.person ?? DEFAULT_DAILY_PROGRAMME_PERSON),
+  );
 
   // Delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -644,6 +665,7 @@ export function DailyProgramme({
     const grouped: Record<string, ProgrammeItem[]> = {};
     expandedItems
       .filter((item) => {
+        if (parseDailyProgrammePerson(item.person) !== selectedPerson) return false;
         if (programmeTypeFilter === 'ALL') return true;
         return (item.programmeType ?? 'CONSTITUENCY') === programmeTypeFilter;
       })
@@ -657,7 +679,7 @@ export function DailyProgramme({
         }
       });
     return grouped;
-  }, [expandedItems, programmeTypeFilter]);
+  }, [expandedItems, programmeTypeFilter, selectedPerson]);
 
   const filteredDateEntries = useMemo(() => {
     return Object.entries(itemsByDate)
@@ -810,6 +832,7 @@ export function DailyProgramme({
             location: form.location,
             remarks: form.remarks,
             programmeType: form.programmeType,
+            person: form.person,
             startDate: form.startDate,
             endDate: form.endDate,
           }),
@@ -819,17 +842,9 @@ export function DailyProgramme({
           toast.success(t('dailyProgramme.programmeItemUpdatedSuccess'));
           await loadItems();
           setEditingId(null);
-          setForm({
-            date: format(new Date(), 'yyyy-MM-dd'),
-            startDate: format(new Date(), 'yyyy-MM-dd'),
-            endDate: format(new Date(), 'yyyy-MM-dd'),
-            startTime: '',
-            endTime: '',
-            title: '',
-            location: '',
-            remarks: '',
-            programmeType: 'CONSTITUENCY',
-          });
+          setSelectedPerson(form.person);
+          syncProgrammeUrl({ person: form.person });
+          setForm(createEmptyForm(form.person));
         } else {
           toast.error(t('dailyProgramme.failedToUpdateProgrammeItem'));
         }
@@ -846,6 +861,7 @@ export function DailyProgramme({
             location: form.location,
             remarks: form.remarks,
             programmeType: form.programmeType,
+            person: form.person,
             startDate: form.startDate,
             endDate: form.endDate,
           }),
@@ -854,18 +870,9 @@ export function DailyProgramme({
         if (response.ok) {
           toast.success(t('dailyProgramme.programmeItemAddedSuccess'));
           await loadItems();
-
-          setForm({
-            date: format(new Date(), 'yyyy-MM-dd'),
-            startDate: format(new Date(), 'yyyy-MM-dd'),
-            endDate: format(new Date(), 'yyyy-MM-dd'),
-            startTime: '',
-            endTime: '',
-            title: '',
-            location: '',
-            remarks: '',
-            programmeType: 'CONSTITUENCY',
-          });
+          setSelectedPerson(form.person);
+          syncProgrammeUrl({ person: form.person });
+          setForm(createEmptyForm(form.person));
         } else {
           toast.error(t('dailyProgramme.failedToAddProgrammeItem'));
         }
@@ -887,6 +894,9 @@ export function DailyProgramme({
       normalizedStartDate <= normalizedEndDate &&
       (normalizedStartDate !== normalizedEndDate),
     );
+    const person = parseDailyProgrammePerson(item.person);
+    setSelectedPerson(person);
+    syncProgrammeUrl({ person });
     setForm({
       date: normalizedDate,
       startDate: normalizedStartDate || normalizedDate,
@@ -897,6 +907,7 @@ export function DailyProgramme({
       location: item.location,
       remarks: item.remarks || '',
       programmeType: (item.programmeType ?? 'CONSTITUENCY') as 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY',
+      person,
     });
 
     // Scroll to form
@@ -908,17 +919,7 @@ export function DailyProgramme({
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setForm({
-      date: format(new Date(), 'yyyy-MM-dd'),
-      startDate: format(new Date(), 'yyyy-MM-dd'),
-      endDate: format(new Date(), 'yyyy-MM-dd'),
-      startTime: '',
-      endTime: '',
-      title: '',
-      location: '',
-      remarks: '',
-      programmeType: 'CONSTITUENCY',
-    });
+    setForm(createEmptyForm(selectedPerson));
   };
 
   const sensors = useSensors(
@@ -1021,9 +1022,10 @@ export function DailyProgramme({
       dateRangeString = `until_${endFormatted}`;
     }
 
+    const personLabel = t(getDailyProgrammePersonLabelKey(selectedPerson)).replace(/\s+/g, '-');
     const fileName = dateRangeString
-      ? `${t('dailyProgramme.title')}-${dateRangeString}`
-      : t('dailyProgramme.title');
+      ? `${t('dailyProgramme.title')}-${personLabel}-${dateRangeString}`
+      : `${t('dailyProgramme.title')}-${personLabel}`;
 
     setIsExportingPdf(true);
     try {
@@ -1034,7 +1036,7 @@ export function DailyProgramme({
         orientation: 'portrait',
         marginMm: 10,
         header: {
-          lines: [t('dailyProgramme.mlaName'), t('dailyProgramme.printHeaderTitle'), headerDateRange].filter(Boolean),
+          lines: [t(getDailyProgrammePrintNameKey(selectedPerson)), t('dailyProgramme.printHeaderTitle'), headerDateRange].filter(Boolean),
           heightMm: 30,
           drawRule: true,
         },
@@ -1062,6 +1064,36 @@ export function DailyProgramme({
     setDateRange({ start, end });
     syncProgrammeUrl({ start, end });
   };
+
+  const handlePersonTabChange = (value: string) => {
+    const person = parseDailyProgrammePerson(value);
+    setSelectedPerson(person);
+    syncProgrammeUrl({ person });
+    if (editingId && form.person !== person) {
+      setEditingId(null);
+      setForm(createEmptyForm(person));
+      return;
+    }
+    setForm((prev) => ({ ...prev, person }));
+  };
+
+  const personEventCounts = useMemo(() => {
+    const counts: Record<DailyProgrammePerson, number> = { SANA: 0, NAWAB: 0 };
+    for (const item of expandedItems) {
+      const dateKey = item.date ? normalizeDate(item.date) : null;
+      if (!dateKey) continue;
+      if (dateRange.start && dateKey < dateRange.start) continue;
+      if (dateRange.end && dateKey > dateRange.end) continue;
+      if (
+        programmeTypeFilter !== 'ALL' &&
+        (item.programmeType ?? 'CONSTITUENCY') !== programmeTypeFilter
+      ) {
+        continue;
+      }
+      counts[parseDailyProgrammePerson(item.person)] += 1;
+    }
+    return counts;
+  }, [expandedItems, dateRange.start, dateRange.end, programmeTypeFilter]);
 
   const handleAttendanceChange = async (item: ProgrammeItem, attended: boolean | null) => {
     try {
@@ -1159,7 +1191,29 @@ export function DailyProgramme({
         description={t('dailyProgramme.description')}
       />
 
-      <div className="space-y-6">
+      <Tabs
+        value={selectedPerson}
+        onValueChange={handlePersonTabChange}
+        className="w-full min-w-0"
+      >
+        <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1">
+          {(['SANA', 'NAWAB'] as const).map((person) => (
+            <TabsTrigger
+              key={person}
+              value={person}
+              className="min-h-11 w-full whitespace-normal px-3 py-2 text-center"
+            >
+              <span className="flex flex-wrap items-center justify-center gap-2">
+                <span>{t(getDailyProgrammePersonLabelKey(person))}</span>
+                <span className="rounded-full bg-background/80 px-2 py-0.5 text-xs text-muted-foreground">
+                  {personEventCounts[person]}
+                </span>
+              </span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+
+        <div className="mt-4 space-y-6">
         <Card className="no-print" id="programme-form">
           <CardHeader
             className="cursor-pointer select-none hover:bg-muted/50 transition-colors rounded-t-lg"
@@ -1177,9 +1231,14 @@ export function DailyProgramme({
             id="programme-form-header"
           >
             <div className="flex items-center justify-between gap-2">
-              <CardTitle className="text-base sm:text-lg">
-                {editingId ? t('dailyProgramme.editProgramme') : t('dailyProgramme.createDailyProgramme')}
-              </CardTitle>
+              <div className="min-w-0">
+                <CardTitle className="text-base sm:text-lg">
+                  {editingId ? t('dailyProgramme.editProgramme') : t('dailyProgramme.createDailyProgramme')}
+                </CardTitle>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t(getDailyProgrammePersonLabelKey(selectedPerson))}
+                </p>
+              </div>
               {formCardOpen ? (
                 <ChevronUp className="size-5 shrink-0 text-muted-foreground" aria-hidden />
               ) : (
@@ -1560,8 +1619,8 @@ export function DailyProgramme({
             )}
           </CardContent>
         </Card>
-
-      </div>
+        </div>
+      </Tabs>
 
       {/* Offscreen PDF layout (used for DOM->PDF capture, matches the provided screenshot) */}
       <div

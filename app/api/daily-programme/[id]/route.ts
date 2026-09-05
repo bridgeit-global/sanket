@@ -74,6 +74,7 @@ export async function PUT(
     if (body.remarks !== undefined) updateData.remarks = body.remarks;
     if (body.attended !== undefined) updateData.attended = body.attended;
     if (body.programmeType !== undefined) updateData.programmeType = body.programmeType;
+    if (body.person === 'SANA' || body.person === 'NAWAB') updateData.person = body.person;
     if (body.sortOrder !== undefined) updateData.sortOrder = body.sortOrder;
     if (body.startDate !== undefined) updateData.startDate = body.startDate || null;
     if (body.endDate !== undefined) updateData.endDate = body.endDate || null;

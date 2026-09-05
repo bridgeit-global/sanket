@@ -539,6 +539,8 @@ export type UserModulePermission = {
   updatedAt: Date;
 };
 
+export type DailyProgrammePerson = 'SANA' | 'NAWAB';
+
 export type DailyProgramme = {
   id: string;
   date: string;
@@ -549,6 +551,7 @@ export type DailyProgramme = {
   remarks: string | null;
   attended: boolean | null;
   programmeType: 'CONSTITUENCY' | 'OUTSIDE_CONSTITUENCY';
+  person: DailyProgrammePerson;
   sortOrder: number;
   startDate: string | null;
   endDate: string | null;

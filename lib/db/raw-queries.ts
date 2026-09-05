@@ -1175,6 +1175,7 @@ export async function getDailyProgrammeItems({
         dp.remarks,
         dp.attended,
         dp.programme_type,
+        dp.person,
         dp.sort_order,
         dp.start_date,
         dp.end_date,
