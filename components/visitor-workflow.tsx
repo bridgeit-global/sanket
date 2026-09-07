@@ -96,6 +96,7 @@ type VisitorRow = {
   token: string;
   location: string | null;
   programmeId: string | null;
+  serviceName?: string | null;
   createdAt: string | Date;
   services: VisitorServiceRow[];
 };
@@ -1254,13 +1255,13 @@ export function VisitorWorkflow({
       const res = await fetch('/api/visitor', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // Confirmation service name is print-only — omit from API so no beneficiary service is created.
         body: JSON.stringify({
           name: trimmedName,
           mobileNumber: trimmedMobile,
           voterId: effectiveVoterId,
           location: trimmedLocation,
           programmeId: programmeId || null,
+          serviceName: trimmedServiceName,
         }),
       });
       const json = await res.json();
@@ -1273,6 +1274,7 @@ export function VisitorWorkflow({
         token: string;
         programmeId?: string | null;
         createdAt?: string | Date;
+        serviceName?: string | null;
       };
       setCreatedVisitToken(visitor.token);
       setCreatedVisitorSnapshot({
@@ -1282,7 +1284,7 @@ export function VisitorWorkflow({
         token: visitor.token,
         programmeId: visitor.programmeId ?? (programmeId || null),
         createdAt: visitor.createdAt ?? new Date().toISOString(),
-        serviceName: trimmedServiceName,
+        serviceName: visitor.serviceName ?? trimmedServiceName,
       });
       setShowPhoneUpdate(false);
       setPendingVisitConfirm(null);
@@ -1457,6 +1459,11 @@ export function VisitorWorkflow({
                   <p className="mt-2 break-all font-mono text-xl font-bold tracking-wide text-green-900 sm:text-2xl">
                     {createdVisitToken}
                   </p>
+                  {createdVisitorSnapshot.serviceName ? (
+                    <p className="mt-2 text-sm font-medium text-green-800">
+                      {t('visitor.form.service')}: {createdVisitorSnapshot.serviceName}
+                    </p>
+                  ) : null}
                   <p className="mt-2 text-sm text-green-700">{t('visitor.create.saveToken')}</p>
                   <Button
                     type="button"
@@ -1500,6 +1507,7 @@ export function VisitorWorkflow({
                         token: createdVisitorSnapshot.token,
                         location: null,
                         programmeId: createdVisitorSnapshot.programmeId,
+                        serviceName: createdVisitorSnapshot.serviceName,
                         createdAt: createdVisitorSnapshot.createdAt,
                         services: [],
                       });
@@ -2026,6 +2034,11 @@ export function VisitorWorkflow({
                                       {v.location}
                                     </p>
                                   ) : null}
+                                  {v.serviceName ? (
+                                    <p className="text-sm font-medium">
+                                      {t('visitor.form.service')}: {v.serviceName}
+                                    </p>
+                                  ) : null}
                                   <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
                                     <Badge variant="secondary">
                                       {t('visitor.manage.serviceCount', {
@@ -2046,7 +2059,9 @@ export function VisitorWorkflow({
                                       void shareVisitorThermalTicket({
                                         token: v.token,
                                         createdAt: v.createdAt,
-                                        serviceName: t('visitor.create.visitTokenLabel'),
+                                        serviceName:
+                                          v.serviceName?.trim() ||
+                                          t('visitor.create.visitTokenLabel'),
                                         name: v.name,
                                         mobile: v.mobileNumber,
                                       })
@@ -2098,6 +2113,11 @@ export function VisitorWorkflow({
                                     <p className="text-sm text-muted-foreground">
                                       {t('visitor.form.programme')}:{' '}
                                       {visitProgrammeTitle ?? v.programmeId}
+                                    </p>
+                                  ) : null}
+                                  {v.serviceName ? (
+                                    <p className="text-sm">
+                                      {t('visitor.form.service')}: {v.serviceName}
                                     </p>
                                   ) : null}
                                   <p className="text-xs font-medium text-muted-foreground">
@@ -2768,7 +2788,9 @@ export function VisitorWorkflow({
                           void shareVisitorThermalTicket({
                             token: selectedVisitor.token,
                             createdAt: selectedVisitor.createdAt,
-                            serviceName: t('visitor.create.visitTokenLabel'),
+                            serviceName:
+                              selectedVisitor.serviceName?.trim() ||
+                              t('visitor.create.visitTokenLabel'),
                             name: selectedVisitor.name,
                             mobile: selectedVisitor.mobileNumber,
                           })
@@ -2832,6 +2854,9 @@ export function VisitorWorkflow({
                     <DialogDescription>
                       {selectedVisitor.name} · {selectedVisitor.token} ·{' '}
                       {selectedVisitor.mobileNumber}
+                      {selectedVisitor.serviceName
+                        ? ` · ${selectedVisitor.serviceName}`
+                        : ''}
                     </DialogDescription>
                   </DialogHeader>
 

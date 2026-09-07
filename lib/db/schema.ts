@@ -422,6 +422,8 @@ export type Visitor = {
   token: string;
   location: string | null;
   programmeId: string | null;
+  /** Visit-level service for print token and lineup; not a beneficiary service. */
+  serviceName: string | null;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;

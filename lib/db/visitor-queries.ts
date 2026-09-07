@@ -102,6 +102,7 @@ export async function createVisitor({
   voterId,
   location,
   programmeId,
+  serviceName,
   createdBy,
 }: {
   name: string;
@@ -109,6 +110,7 @@ export async function createVisitor({
   voterId?: string | null;
   location?: string | null;
   programmeId?: string | null;
+  serviceName?: string | null;
   createdBy: string;
 }): Promise<Visitor> {
   try {
@@ -121,6 +123,7 @@ export async function createVisitor({
     }
 
     const mobile = normalizeIndianMobileDigits(mobileNumber);
+    const trimmedServiceName = serviceName?.trim() || null;
     for (let attempt = 0; attempt < TOKEN_UNIQUE_RETRIES; attempt += 1) {
       const now = new Date().toISOString();
       const token = await generateVisitorToken(trimmedProgramme);
@@ -134,6 +137,7 @@ export async function createVisitor({
             token,
             location: location?.trim() || null,
             programmeId: trimmedProgramme,
+            serviceName: trimmedServiceName,
             createdBy,
             createdAt: now,
             updatedAt: now,
@@ -160,6 +164,7 @@ export async function findOrCreateVisitor({
   voterId,
   location,
   programmeId,
+  serviceName,
   createdBy,
 }: {
   name: string;
@@ -167,6 +172,7 @@ export async function findOrCreateVisitor({
   voterId?: string | null;
   location?: string | null;
   programmeId?: string | null;
+  serviceName?: string | null;
   createdBy: string;
 }): Promise<Visitor> {
   try {
@@ -174,6 +180,7 @@ export async function findOrCreateVisitor({
     const trimmedVoter = voterId?.trim().toUpperCase() || null;
     const trimmedLocation = location?.trim() || null;
     const trimmedProgramme = programmeId?.trim() || null;
+    const trimmedServiceName = serviceName?.trim() || null;
 
     if (trimmedProgramme) {
       const programme = await getDailyProgrammeItemById(trimmedProgramme);
@@ -196,6 +203,7 @@ export async function findOrCreateVisitor({
             mobileNumber: mobile,
             voterId: trimmedVoter ?? existing.voterId,
             location: trimmedLocation ?? existing.location,
+            serviceName: trimmedServiceName ?? existing.serviceName,
             // Keep original programme + visit token for this day/event.
             updatedAt: now,
           }),
@@ -254,6 +262,7 @@ export async function findOrCreateVisitor({
       voterId: trimmedVoter,
       location: trimmedLocation,
       programmeId: trimmedProgramme,
+      serviceName: trimmedServiceName,
       createdBy,
     });
   } catch (error) {
@@ -534,6 +543,23 @@ export async function listVisitors({
       visitorIdsFromServices = Array.from(
         new Set((serviceRows ?? []).map((row) => String(row.visitor_id)).filter(Boolean)),
       );
+
+      if (trimmedServiceName && !trimmedStatus) {
+        const { data: visitServiceRows, error: visitServiceError } = await supabase
+          .from(TABLES.visitor)
+          .select('id')
+          .eq('service_name', trimmedServiceName);
+        throwOnSupabaseError(
+          visitServiceError,
+          'Failed to filter visitors by visit service name',
+        );
+        visitorIdsFromServices = Array.from(
+          new Set([
+            ...visitorIdsFromServices,
+            ...(visitServiceRows ?? []).map((row) => String(row.id)).filter(Boolean),
+          ]),
+        );
+      }
 
       if (visitorIdsFromServices.length === 0) {
         return {

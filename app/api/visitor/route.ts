@@ -103,6 +103,8 @@ export async function POST(request: NextRequest) {
       typeof voterId === 'string' && voterId.trim() ? voterId.trim().toUpperCase() : null;
     const trimmedLocation =
       typeof location === 'string' && location.trim() ? location.trim() : null;
+    const trimmedVisitServiceName =
+      typeof serviceName === 'string' && serviceName.trim() ? serviceName.trim() : null;
 
     // Outsider (no voter ID) must provide location.
     if (!trimmedVoterId && !trimmedLocation) {
@@ -112,12 +114,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Singular serviceName is stored on Visitor (print token + lineup).
+    // serviceNames creates linked VisitorService / beneficiary records.
     const resolvedServiceNames = Array.from(
       new Set(
-        [
-          ...(Array.isArray(serviceNames) ? serviceNames : []),
-          ...(typeof serviceName === 'string' ? [serviceName] : []),
-        ]
+        (Array.isArray(serviceNames) ? serviceNames : [])
           .map((s) => (typeof s === 'string' ? s.trim() : ''))
           .filter(Boolean),
       ),
@@ -130,6 +131,7 @@ export async function POST(request: NextRequest) {
       location: trimmedLocation,
       programmeId:
         programmeId != null && programmeId !== '' ? String(programmeId) : null,
+      serviceName: trimmedVisitServiceName,
       createdBy: session.user.id,
     });
 

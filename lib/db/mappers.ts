@@ -581,6 +581,7 @@ export function mapVisitorRow(row: Row): Visitor {
     token: String(row.token ?? ''),
     location: toStringOrNull(row.location),
     programmeId: toStringOrNull(row.programme_id ?? row.programmeId),
+    serviceName: toStringOrNull(row.service_name ?? row.serviceName),
     createdBy: String(row.created_by ?? row.createdBy),
     // Visitor timestamps are `timestamp without time zone` (UTC wall-clock).
     createdAt: parseUtcTimestamp(row.created_at ?? row.createdAt),

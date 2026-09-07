@@ -2041,6 +2041,7 @@ export type Database = {
           mobile_number: string
           name: string
           programme_id: string | null
+          service_name: string | null
           token: string
           updated_at: string
           voter_id: string | null
@@ -2053,6 +2054,7 @@ export type Database = {
           mobile_number: string
           name: string
           programme_id?: string | null
+          service_name?: string | null
           token: string
           updated_at?: string
           voter_id?: string | null
@@ -2065,6 +2067,7 @@ export type Database = {
           mobile_number?: string
           name?: string
           programme_id?: string | null
+          service_name?: string | null
           token?: string
           updated_at?: string
           voter_id?: string | null
