@@ -2226,10 +2226,10 @@
       "tokenLabel": "Visitor service token",
       "tokensLabel": "Visitor service tokens",
       "confirmTitle": "Confirm visit details",
-      "confirmDescription": "Review the contact numbers, optionally add a service, then confirm to generate the visit token.",
+      "confirmDescription": "Review the contact numbers, enter a service name, then confirm to generate the visit token.",
       "confirmGenerateToken": "Confirm & generate visit token",
       "serviceForPrintPlaceholder": "Enter service name…",
-      "serviceForPrintHelp": "Optional. Saved with the visit, printed on the thermal ticket, and shown in the meeting line up.",
+      "serviceForPrintHelp": "Required. Saved with the visit, printed on the thermal ticket, and shown in the meeting line up. Maximum 100 characters.",
       "noSecondaryMobile": "Not provided"
     },
     "manage": {
@@ -2372,6 +2372,8 @@
       "locationRequired": "Location is required for outsider visitors",
       "visitorRequired": "Select a visitor first",
       "serviceRequired": "At least one service is required",
+      "visitServiceRequired": "Service name is required",
+      "visitServiceMaxLength": "Service name must be at most 100 characters",
       "serviceDuplicate": "This service is already added",
       "invalidTokenQr": "Could not read a visit token from that QR code",
       "create": "Failed to create visitor",

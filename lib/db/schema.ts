@@ -429,6 +429,8 @@ export type Visitor = {
   updatedAt: Date;
 };
 
+export const VISITOR_SERVICE_NAME_MAX_LENGTH = 100;
+
 export type VisitorServiceStatus = 'pending' | 'converted' | 'cancelled';
 
 export type VisitorService = {

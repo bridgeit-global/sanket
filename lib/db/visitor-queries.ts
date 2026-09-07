@@ -13,6 +13,7 @@ import {
 } from '@/lib/db/mappers';
 import {
   TABLES,
+  VISITOR_SERVICE_NAME_MAX_LENGTH,
   type BeneficiaryService,
   type Visitor,
   type VisitorService,
@@ -123,7 +124,8 @@ export async function createVisitor({
     }
 
     const mobile = normalizeIndianMobileDigits(mobileNumber);
-    const trimmedServiceName = serviceName?.trim() || null;
+    const trimmedServiceName =
+      serviceName?.trim().slice(0, VISITOR_SERVICE_NAME_MAX_LENGTH) || null;
     for (let attempt = 0; attempt < TOKEN_UNIQUE_RETRIES; attempt += 1) {
       const now = new Date().toISOString();
       const token = await generateVisitorToken(trimmedProgramme);
@@ -180,7 +182,8 @@ export async function findOrCreateVisitor({
     const trimmedVoter = voterId?.trim().toUpperCase() || null;
     const trimmedLocation = location?.trim() || null;
     const trimmedProgramme = programmeId?.trim() || null;
-    const trimmedServiceName = serviceName?.trim() || null;
+    const trimmedServiceName =
+      serviceName?.trim().slice(0, VISITOR_SERVICE_NAME_MAX_LENGTH) || null;
 
     if (trimmedProgramme) {
       const programme = await getDailyProgrammeItemById(trimmedProgramme);

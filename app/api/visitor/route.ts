@@ -6,6 +6,7 @@ import {
 } from '@/lib/db/queries';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { requireVisitorSession } from '@/lib/visitor/auth';
+import { VISITOR_SERVICE_NAME_MAX_LENGTH } from '@/lib/db/schema';
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -104,9 +105,17 @@ export async function POST(request: NextRequest) {
     const trimmedLocation =
       typeof location === 'string' && location.trim() ? location.trim() : null;
     const trimmedVisitServiceName =
-      typeof serviceName === 'string' && serviceName.trim() ? serviceName.trim() : null;
+      typeof serviceName === 'string' ? serviceName.trim() : '';
 
-    // Outsider (no voter ID) must provide location.
+    if (!trimmedVisitServiceName) {
+      return NextResponse.json({ error: 'Service name is required' }, { status: 400 });
+    }
+    if (trimmedVisitServiceName.length > VISITOR_SERVICE_NAME_MAX_LENGTH) {
+      return NextResponse.json(
+        { error: `Service name must be at most ${VISITOR_SERVICE_NAME_MAX_LENGTH} characters` },
+        { status: 400 },
+      );
+    }
     if (!trimmedVoterId && !trimmedLocation) {
       return NextResponse.json(
         { error: 'Location is required for outsider visitors' },

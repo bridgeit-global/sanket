@@ -30,10 +30,11 @@ import { VoterSearchPanel } from '@/components/voter-search-panel';
 import { formatDisplayDateIST, formatDisplayDateTimeIST } from '@/lib/ist-date';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
-import type {
-  BeneficiaryService,
-  VoterMaster,
-  VoterWithPartNo,
+import {
+  VISITOR_SERVICE_NAME_MAX_LENGTH,
+  type BeneficiaryService,
+  type VoterMaster,
+  type VoterWithPartNo,
 } from '@/lib/db/schema';
 import type { CadreMemberCard } from '@/lib/hierarchy/types';
 import type { ManageFilterState } from '@/lib/operator/manage-url-params';
@@ -1231,7 +1232,7 @@ export function VisitorWorkflow({
     const effectiveVoterId =
       params.voterId?.trim().toUpperCase() || null;
     const trimmedLocation = params.location?.trim() || null;
-    const trimmedServiceName = params.serviceName?.trim() || null;
+    const trimmedServiceName = params.serviceName?.trim() || '';
 
     if (!trimmedName) {
       toast({ type: 'error', description: t('visitor.errors.nameRequired') });
@@ -1245,6 +1246,16 @@ export function VisitorWorkflow({
     }
     if (!effectiveVoterId && !trimmedLocation) {
       toast({ type: 'error', description: t('visitor.errors.locationRequired') });
+      setCreatingVisitor(false);
+      return false;
+    }
+    if (!trimmedServiceName) {
+      toast({ type: 'error', description: t('visitor.errors.visitServiceRequired') });
+      setCreatingVisitor(false);
+      return false;
+    }
+    if (trimmedServiceName.length > VISITOR_SERVICE_NAME_MAX_LENGTH) {
+      toast({ type: 'error', description: t('visitor.errors.visitServiceMaxLength') });
       setCreatingVisitor(false);
       return false;
     }
@@ -1312,6 +1323,7 @@ export function VisitorWorkflow({
       mobileNumber,
       voterId: null,
       location,
+      serviceName: visitConfirmServiceName,
     });
   }
 
@@ -1561,14 +1573,20 @@ export function VisitorWorkflow({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="visit-confirm-service">
-                    {t('visitor.form.service')}
+                    {t('visitor.form.service')} <span className="text-red-500">*</span>
                   </Label>
                   <Input
                     id="visit-confirm-service"
                     value={visitConfirmServiceName}
-                    onChange={(e) => setVisitConfirmServiceName(e.target.value)}
+                    onChange={(e) =>
+                      setVisitConfirmServiceName(
+                        e.target.value.slice(0, VISITOR_SERVICE_NAME_MAX_LENGTH),
+                      )
+                    }
                     placeholder={t('visitor.create.serviceForPrintPlaceholder')}
                     autoComplete="off"
+                    required
+                    maxLength={VISITOR_SERVICE_NAME_MAX_LENGTH}
                   />
                   <p className="text-xs text-muted-foreground sm:text-sm">
                     {t('visitor.create.serviceForPrintHelp')}
@@ -1577,6 +1595,7 @@ export function VisitorWorkflow({
                 <div className="flex flex-col gap-3 sm:flex-row">
                   <Button
                     className="flex-1"
+                    disabled={!visitConfirmServiceName.trim()}
                     onClick={() => {
                       void createVisitor({
                         name: pendingVisitConfirm.name,
@@ -1718,6 +1737,27 @@ export function VisitorWorkflow({
                           required
                         />
                       </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="visitor-outsider-service">
+                          {t('visitor.form.service')} <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="visitor-outsider-service"
+                          value={visitConfirmServiceName}
+                          onChange={(e) =>
+                            setVisitConfirmServiceName(
+                              e.target.value.slice(0, VISITOR_SERVICE_NAME_MAX_LENGTH),
+                            )
+                          }
+                          placeholder={t('visitor.create.serviceForPrintPlaceholder')}
+                          autoComplete="off"
+                          required
+                          maxLength={VISITOR_SERVICE_NAME_MAX_LENGTH}
+                        />
+                        <p className="text-xs text-muted-foreground sm:text-sm">
+                          {t('visitor.create.serviceForPrintHelp')}
+                        </p>
+                      </div>
                     </div>
 
                     <Button
@@ -1726,7 +1766,8 @@ export function VisitorWorkflow({
                         creatingVisitor ||
                         !name.trim() ||
                         !isValidIndianMobile(mobileNumber) ||
-                        !location.trim()
+                        !location.trim() ||
+                        !visitConfirmServiceName.trim()
                       }
                       className="w-full sm:w-auto"
                     >
