@@ -10,10 +10,59 @@ export const PROJECT_HIERARCHY_CONSTITUENCY_ID = '172';
 /** Catalog name for the overall constituency ward option. */
 export const OVERALL_PROJECT_WARD_NAME = '172 - Anushakti Nagar';
 
+/** Used when the overall AC option is injected in the UI and has no catalog geo unit. */
+export const OVERALL_PROJECT_WARD_MANUAL_ID = '__overall_172__';
+
 export function isOverallProjectWard(
   unit: { name?: string | null } | null | undefined,
 ): boolean {
   return (unit?.name?.trim() ?? '') === OVERALL_PROJECT_WARD_NAME;
+}
+
+export function isOverallProjectWardId(id: string | null | undefined): boolean {
+  return (id?.trim() ?? '') === OVERALL_PROJECT_WARD_MANUAL_ID;
+}
+
+export function findOverallProjectWard(
+  geoUnits: CadreConfig['geoUnits'],
+): CadreConfig['geoUnits'][number] | null {
+  return (
+    geoUnits.find((unit) => unit.type === 'ward' && isOverallProjectWard(unit)) ??
+    null
+  );
+}
+
+/** Catalog geo id when present; otherwise the create-form manual sentinel. */
+export function overallProjectWardOptionId(
+  geoUnits: CadreConfig['geoUnits'],
+): string {
+  return findOverallProjectWard(geoUnits)?.id ?? OVERALL_PROJECT_WARD_MANUAL_ID;
+}
+
+export function withManualOverallProjectWard(
+  geoUnits: CadreConfig['geoUnits'],
+): CadreConfig['geoUnits'] {
+  if (findOverallProjectWard(geoUnits)) return geoUnits;
+  return [
+    {
+      id: OVERALL_PROJECT_WARD_MANUAL_ID,
+      type: 'ward',
+      name: OVERALL_PROJECT_WARD_NAME,
+      parentId: null,
+      acNo: PROJECT_HIERARCHY_CONSTITUENCY_ID,
+      sortOrder: -1,
+      isActive: true,
+    },
+    ...geoUnits,
+  ];
+}
+
+export function sanitizeProjectWardGeoIds(
+  wardGeoIds: string[] | null | undefined,
+): string[] {
+  return uniqueStrings(wardGeoIds ?? []).filter(
+    (id) => !isOverallProjectWardId(id),
+  );
 }
 
 function uniqueStrings(values: Array<string | null | undefined>): string[] {
@@ -107,11 +156,13 @@ export function buildProjectWardDisplay(
   const ids = uniqueStrings(Array.isArray(wardGeoIds) ? wardGeoIds : [wardGeoIds]);
   const booths = uniqueStrings(Array.isArray(boothNos) ? boothNos : [boothNos]);
   const wardNames = ids
-    .map(
-      (id) =>
+    .map((id) => {
+      if (isOverallProjectWardId(id)) return OVERALL_PROJECT_WARD_NAME;
+      return (
         geoUnits.find((g) => g.id === id && g.type === 'ward')?.name?.trim() ||
-        null,
-    )
+        null
+      );
+    })
     .filter((name): name is string => Boolean(name));
   const boothLabels = booths.map(formatBoothLabel).filter(Boolean);
   return [...wardNames, ...boothLabels].join(', ');
@@ -157,9 +208,9 @@ export function boothOptionsForWards(
   const selectedWards = geoUnits.filter(
     (g) => g.type === 'ward' && ids.includes(g.id),
   );
-  const includeAllBooths = selectedWards.some((ward) =>
-    isOverallProjectWard(ward),
-  );
+  const includeAllBooths =
+    ids.some((id) => isOverallProjectWardId(id)) ||
+    selectedWards.some((ward) => isOverallProjectWard(ward));
 
   const boothUnits = includeAllBooths
     ? getBoothGeoUnits(geoUnits, constituencyId)

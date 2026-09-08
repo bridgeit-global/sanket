@@ -8,9 +8,13 @@ import type { CadreConfig } from '@/lib/hierarchy/types';
 import {
   boothOptionsForWards,
   buildProjectWardDisplay,
+  isOverallProjectWard,
+  overallProjectWardOptionId,
   PROJECT_HIERARCHY_CONSTITUENCY_ID,
   retainValidBoothNos,
+  sanitizeProjectWardGeoIds,
   wardOptionsFromGeoUnits,
+  withManualOverallProjectWard,
 } from '@/lib/projects/hierarchy-geo';
 import { useTranslations } from '@/hooks/use-translations';
 
@@ -29,6 +33,8 @@ interface ProjectHierarchyGeoPickersProps {
   onChange: (value: ProjectHierarchyGeoValue) => void;
   disabled?: boolean;
   className?: string;
+  /** Show hardcoded "172 - Anushakti Nagar" (create form only). */
+  includeOverallWard?: boolean;
 }
 
 export function ProjectHierarchyGeoPickers({
@@ -37,6 +43,7 @@ export function ProjectHierarchyGeoPickers({
   onChange,
   disabled = false,
   className,
+  includeOverallWard = false,
 }: ProjectHierarchyGeoPickersProps) {
   const { t } = useTranslations();
   const [geoUnits, setGeoUnits] = useState<CadreConfig['geoUnits']>([]);
@@ -69,17 +76,30 @@ export function ProjectHierarchyGeoPickers({
     };
   }, []);
 
-  const wardUnits = useMemo(
+  const overallWardId = overallProjectWardOptionId(geoUnits);
+  const unitsForOptions = useMemo(
     () =>
-      wardOptionsFromGeoUnits(geoUnits, PROJECT_HIERARCHY_CONSTITUENCY_ID).filter(
-        (g) => isValidSelectItemValue(g.id),
-      ),
-    [geoUnits],
+      includeOverallWard || wardGeoIds.includes(overallWardId)
+        ? withManualOverallProjectWard(geoUnits)
+        : geoUnits,
+    [geoUnits, includeOverallWard, overallWardId, wardGeoIds],
   );
+
+  const wardUnits = useMemo(() => {
+    const catalog = wardOptionsFromGeoUnits(
+      unitsForOptions,
+      PROJECT_HIERARCHY_CONSTITUENCY_ID,
+    ).filter((g) => isValidSelectItemValue(g.id));
+    const overall = catalog.find((ward) => isOverallProjectWard(ward));
+    const others = catalog.filter((ward) => !isOverallProjectWard(ward));
+    const selectedHasOverall = wardGeoIds.includes(overallWardId);
+    if (!includeOverallWard && !selectedHasOverall) return others;
+    return overall ? [overall, ...others] : others;
+  }, [unitsForOptions, includeOverallWard, overallWardId, wardGeoIds]);
 
   const boothOptions = useMemo(() => {
     const options = boothOptionsForWards(
-      geoUnits,
+      unitsForOptions,
       wardGeoIds,
       PROJECT_HIERARCHY_CONSTITUENCY_ID,
     );
@@ -91,11 +111,11 @@ export function ProjectHierarchyGeoPickers({
       ...extra.map((boothNo) => ({ boothNo, label: `Booth ${boothNo}` })),
       ...options,
     ];
-  }, [geoUnits, wardGeoIds, boothNos]);
+  }, [unitsForOptions, wardGeoIds, boothNos]);
 
   const emit = (nextWardGeoIds: string[], nextBoothNos: string[]) => {
     const catalog = boothOptionsForWards(
-      geoUnits,
+      unitsForOptions,
       nextWardGeoIds,
       PROJECT_HIERARCHY_CONSTITUENCY_ID,
     );
@@ -108,12 +128,13 @@ export function ProjectHierarchyGeoPickers({
           .map((boothNo) => ({ boothNo }))
       : [];
     const nextBooths = retainValidBoothNos(nextBoothNos, [...extras, ...catalog]);
+    const persistableWardGeoIds = sanitizeProjectWardGeoIds(nextWardGeoIds);
     onChange({
       wardGeoIds: nextWardGeoIds,
       boothNos: nextBooths,
-      wardGeoId: nextWardGeoIds[0] ?? null,
+      wardGeoId: persistableWardGeoIds[0] ?? null,
       boothNo: nextBooths[0] ?? null,
-      ward: buildProjectWardDisplay(geoUnits, nextWardGeoIds, nextBooths),
+      ward: buildProjectWardDisplay(unitsForOptions, nextWardGeoIds, nextBooths),
     });
   };
 

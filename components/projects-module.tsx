@@ -34,7 +34,10 @@ import {
   parseProjectsFiltersFromSearchParams,
 } from '@/lib/projects/url-params';
 import { ProjectHierarchyGeoPickers } from '@/components/projects/project-hierarchy-geo-pickers';
-import { normalizeProjectGeoSelection } from '@/lib/projects/hierarchy-geo';
+import {
+  normalizeProjectGeoSelection,
+  sanitizeProjectWardGeoIds,
+} from '@/lib/projects/hierarchy-geo';
 
 interface Project {
   id: string;
@@ -128,7 +131,7 @@ export function ProjectsModule() {
     const formData = {
       ...form,
       ward: form.ward || undefined,
-      wardGeoIds: form.wardGeoIds,
+      wardGeoIds: sanitizeProjectWardGeoIds(form.wardGeoIds),
       boothNos: form.boothNos,
     };
 
@@ -306,6 +309,7 @@ export function ProjectsModule() {
               <ProjectHierarchyGeoPickers
                 wardGeoIds={form.wardGeoIds}
                 boothNos={form.boothNos}
+                includeOverallWard={!editingId}
                 onChange={(geo) =>
                   setForm((prev) => ({
                     ...prev,
