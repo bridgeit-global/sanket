@@ -1,8 +1,8 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
-import { FileText, Trash2, Upload } from 'lucide-react';
+import { FileText, Loader2, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +26,7 @@ import {
   type ProjectPhotoItem,
 } from '@/components/projects/project-photo-gallery';
 import { toast } from '@/components/toast';
+import { getTodayDateStringIST } from '@/lib/ist-date';
 import type {
   ProjectAttachment,
   ProjectGroundMedia,
@@ -71,6 +72,33 @@ const DOC_KINDS: ProjectDocumentKind[] = [
   'request_letter',
 ];
 
+const EXECUTION_PHOTO_TYPES = ['bhoomi_pujan', 'lokarpan'] as const;
+const GROUND_PHOTO_TYPES = ['before', 'after'] as const;
+const PHOTO_QUEUE_TYPES = [
+  ...GROUND_PHOTO_TYPES,
+  ...EXECUTION_PHOTO_TYPES,
+] as const;
+
+type PendingPhoto = {
+  localId: string;
+  file: File;
+  previewUrl: string;
+};
+
+function emptyPendingAdds(): Record<
+  ProjectGroundMediaPhotoType,
+  PendingPhoto[]
+> {
+  return { before: [], after: [], bhoomi_pujan: [], lokarpan: [] };
+}
+
+function emptyPendingDeletes(): Record<
+  ProjectGroundMediaPhotoType,
+  string[]
+> {
+  return { before: [], after: [], bhoomi_pujan: [], lokarpan: [] };
+}
+
 export function ProjectDetailExtras({
   projectId,
   physicalStatus,
@@ -87,10 +115,75 @@ export function ProjectDetailExtras({
   const docInputRef = useRef<HTMLInputElement>(null);
   const [docKind, setDocKind] = useState<ProjectDocumentKind>('supporting');
   const [uploadingDoc, setUploadingDoc] = useState(false);
-  const [uploadingType, setUploadingType] =
-    useState<ProjectGroundMediaPhotoType | null>(null);
   const [lightboxPhoto, setLightboxPhoto] = useState<ProjectPhotoItem | null>(
     null,
+  );
+  const [savingExecution, setSavingExecution] = useState(false);
+  const [savingGround, setSavingGround] = useState(false);
+  const [pendingPhotoAdds, setPendingPhotoAdds] =
+    useState(emptyPendingAdds);
+  const [pendingPhotoDeletes, setPendingPhotoDeletes] =
+    useState(emptyPendingDeletes);
+  const pendingPhotoAddsRef = useRef(pendingPhotoAdds);
+  pendingPhotoAddsRef.current = pendingPhotoAdds;
+  const [executionDraft, setExecutionDraft] = useState({
+    physicalStatus,
+    bhoomiPujanDone,
+    bhoomiPujanDate,
+    lokarpanDone,
+    lokarpanDate,
+  });
+
+  useEffect(() => {
+    setExecutionDraft((prev) => {
+      const dirty =
+        prev.physicalStatus !== physicalStatus ||
+        prev.bhoomiPujanDone !== bhoomiPujanDone ||
+        (prev.bhoomiPujanDate || null) !== (bhoomiPujanDate || null) ||
+        prev.lokarpanDone !== lokarpanDone ||
+        (prev.lokarpanDate || null) !== (lokarpanDate || null);
+      if (dirty) return prev;
+      return {
+        physicalStatus,
+        bhoomiPujanDone,
+        bhoomiPujanDate,
+        lokarpanDone,
+        lokarpanDate,
+      };
+    });
+  }, [
+    physicalStatus,
+    bhoomiPujanDone,
+    bhoomiPujanDate,
+    lokarpanDone,
+    lokarpanDate,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      for (const type of PHOTO_QUEUE_TYPES) {
+        for (const photo of pendingPhotoAddsRef.current[type]) {
+          URL.revokeObjectURL(photo.previewUrl);
+        }
+      }
+    };
+  }, []);
+
+  const executionFieldsDirty = useMemo(
+    () =>
+      executionDraft.physicalStatus !== physicalStatus ||
+      executionDraft.bhoomiPujanDone !== bhoomiPujanDone ||
+      (executionDraft.bhoomiPujanDate || null) !== (bhoomiPujanDate || null) ||
+      executionDraft.lokarpanDone !== lokarpanDone ||
+      (executionDraft.lokarpanDate || null) !== (lokarpanDate || null),
+    [
+      executionDraft,
+      physicalStatus,
+      bhoomiPujanDone,
+      bhoomiPujanDate,
+      lokarpanDone,
+      lokarpanDate,
+    ],
   );
 
   const kindLabel = (kind: ProjectDocumentKind) => {
@@ -108,12 +201,37 @@ export function ProjectDetailExtras({
     }
   };
 
-  const beforePhotos = groundMedia.filter((m) => m.photoType === 'before');
-  const afterPhotos = groundMedia.filter((m) => m.photoType === 'after');
-  const bhoomiPujanPhotos = groundMedia.filter(
-    (m) => m.photoType === 'bhoomi_pujan',
-  );
-  const lokarpanPhotos = groundMedia.filter((m) => m.photoType === 'lokarpan');
+  const photosByType = (type: ProjectGroundMediaPhotoType) =>
+    groundMedia.filter((m) => m.photoType === type);
+
+  const photosDirty = (types: readonly ProjectGroundMediaPhotoType[]) =>
+    types.some(
+      (type) =>
+        pendingPhotoAdds[type].length > 0 ||
+        pendingPhotoDeletes[type].length > 0,
+    );
+
+  const executionPhotosDirty = photosDirty(EXECUTION_PHOTO_TYPES);
+  const executionDirty = executionFieldsDirty || executionPhotosDirty;
+  const groundDirty = photosDirty(GROUND_PHOTO_TYPES);
+
+  const visiblePhotos = (
+    type: ProjectGroundMediaPhotoType,
+  ): ProjectPhotoItem[] => {
+    const existing = photosByType(type)
+      .filter((photo) => !pendingPhotoDeletes[type].includes(photo.id))
+      .map((photo) => ({
+        id: photo.id,
+        fileUrl: photo.fileUrl,
+        fileName: photo.fileName,
+      }));
+    const pending = pendingPhotoAdds[type].map((photo) => ({
+      id: photo.localId,
+      fileUrl: photo.previewUrl,
+      fileName: photo.file.name,
+    }));
+    return [...existing, ...pending];
+  };
 
   const latestByGroup = new Map<string, ProjectAttachment>();
   for (const doc of documents) {
@@ -158,46 +276,176 @@ export function ProjectDetailExtras({
     await onRefresh();
   };
 
-  const uploadPhoto = async (
+  const postPhoto = async (
     type: ProjectGroundMediaPhotoType,
     file: File,
   ) => {
-    setUploadingType(type);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('type', type);
-      const res = await fetch(`/api/projects/${projectId}/photos`, {
-        method: 'POST',
-        body: formData,
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Upload failed');
-      }
-      await onRefresh();
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : t('adm.failedToSave'));
-    } finally {
-      setUploadingType(null);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', type);
+    const res = await fetch(`/api/projects/${projectId}/photos`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || 'Upload failed');
     }
   };
 
-  const deletePhoto = async (mediaId: string) => {
-    try {
-      const res = await fetch(
-        `/api/projects/${projectId}/photos?mediaId=${mediaId}`,
-        { method: 'DELETE' },
-      );
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Delete failed');
+  const removePhoto = async (mediaId: string) => {
+    const res = await fetch(
+      `/api/projects/${projectId}/photos?mediaId=${mediaId}`,
+      { method: 'DELETE' },
+    );
+    if (!res.ok) {
+      const data = await res.json();
+      throw new Error(data.error || 'Delete failed');
+    }
+  };
+
+  const queuePhotoUpload = async (
+    type: ProjectGroundMediaPhotoType,
+    files: File[],
+  ) => {
+    if (files.length === 0) return;
+    const additions = files.map((file) => ({
+      localId: `local-${crypto.randomUUID()}`,
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }));
+    setPendingPhotoAdds((prev) => ({
+      ...prev,
+      [type]: [...prev[type], ...additions],
+    }));
+  };
+
+  const queuePhotoDelete = async (
+    type: ProjectGroundMediaPhotoType,
+    mediaId: string,
+  ) => {
+    const local = pendingPhotoAdds[type].find(
+      (photo) => photo.localId === mediaId,
+    );
+    if (local) {
+      URL.revokeObjectURL(local.previewUrl);
+      setPendingPhotoAdds((prev) => ({
+        ...prev,
+        [type]: prev[type].filter((photo) => photo.localId !== mediaId),
+      }));
+      return;
+    }
+    setPendingPhotoDeletes((prev) => ({
+      ...prev,
+      [type]: prev[type].includes(mediaId)
+        ? prev[type]
+        : [...prev[type], mediaId],
+    }));
+  };
+
+  const persistQueuedPhotos = async (
+    types: readonly ProjectGroundMediaPhotoType[],
+  ) => {
+    let failed = false;
+    const nextAdds: Record<ProjectGroundMediaPhotoType, PendingPhoto[]> = {
+      before: [...pendingPhotoAdds.before],
+      after: [...pendingPhotoAdds.after],
+      bhoomi_pujan: [...pendingPhotoAdds.bhoomi_pujan],
+      lokarpan: [...pendingPhotoAdds.lokarpan],
+    };
+    const nextDeletes: Record<ProjectGroundMediaPhotoType, string[]> = {
+      before: [...pendingPhotoDeletes.before],
+      after: [...pendingPhotoDeletes.after],
+      bhoomi_pujan: [...pendingPhotoDeletes.bhoomi_pujan],
+      lokarpan: [...pendingPhotoDeletes.lokarpan],
+    };
+
+    for (const type of types) {
+      const kept: PendingPhoto[] = [];
+      for (const photo of nextAdds[type]) {
+        if (failed) {
+          kept.push(photo);
+          continue;
+        }
+        try {
+          await postPhoto(type, photo.file);
+          URL.revokeObjectURL(photo.previewUrl);
+        } catch (error) {
+          failed = true;
+          kept.push(photo);
+          toast.error(
+            error instanceof Error ? error.message : t('adm.failedToSave'),
+          );
+        }
       }
-      await onRefresh();
+      nextAdds[type] = kept;
+    }
+
+    for (const type of types) {
+      const keptDeletes: string[] = [];
+      for (const mediaId of nextDeletes[type]) {
+        if (failed) {
+          keptDeletes.push(mediaId);
+          continue;
+        }
+        try {
+          await removePhoto(mediaId);
+        } catch (error) {
+          failed = true;
+          keptDeletes.push(mediaId);
+          toast.error(
+            error instanceof Error ? error.message : t('adm.failedToDelete'),
+          );
+        }
+      }
+      nextDeletes[type] = keptDeletes;
+    }
+
+    setPendingPhotoAdds(nextAdds);
+    setPendingPhotoDeletes(nextDeletes);
+    return !failed;
+  };
+
+  const saveExecution = async () => {
+    if (!executionDirty || savingExecution) return;
+    setSavingExecution(true);
+    try {
+      if (executionFieldsDirty) {
+        await onPatchProject({
+          physicalStatus: executionDraft.physicalStatus,
+          bhoomiPujanDone: executionDraft.bhoomiPujanDone,
+          bhoomiPujanDate: executionDraft.bhoomiPujanDate,
+          lokarpanDone: executionDraft.lokarpanDone,
+          lokarpanDate: executionDraft.lokarpanDate,
+        });
+      }
+      if (executionPhotosDirty) {
+        const photosOk = await persistQueuedPhotos(EXECUTION_PHOTO_TYPES);
+        await onRefresh();
+        if (photosOk && !executionFieldsDirty) {
+          toast.success(t('common.success'));
+        }
+      }
     } catch (error) {
       toast.error(
-        error instanceof Error ? error.message : t('adm.failedToDelete'),
+        error instanceof Error ? error.message : t('adm.failedToSave'),
       );
+    } finally {
+      setSavingExecution(false);
+    }
+  };
+
+  const saveGroundMedia = async () => {
+    if (!groundDirty || savingGround) return;
+    setSavingGround(true);
+    try {
+      const photosOk = await persistQueuedPhotos(GROUND_PHOTO_TYPES);
+      await onRefresh();
+      if (photosOk) {
+        toast.success(t('common.success'));
+      }
+    } finally {
+      setSavingGround(false);
     }
   };
 
@@ -211,9 +459,12 @@ export function ProjectDetailExtras({
           <div className="space-y-2">
             <Label>{t('projects.physicalStatus')}</Label>
             <Select
-              value={physicalStatus}
+              value={executionDraft.physicalStatus}
               onValueChange={(value: ProjectPhysicalStatus) =>
-                onPatchProject({ physicalStatus: value })
+                setExecutionDraft((prev) => ({
+                  ...prev,
+                  physicalStatus: value,
+                }))
               }
             >
               <SelectTrigger className="min-h-11 w-full sm:w-72">
@@ -234,33 +485,35 @@ export function ProjectDetailExtras({
                   id={`project-bhoomi-${projectId}`}
                   label={t('adm.milestoneBhoomiPujan')}
                   sublabel={t('adm.milestoneBhoomiPujanMr')}
-                  checked={bhoomiPujanDone}
-                  date={bhoomiPujanDate ?? ''}
+                  checked={executionDraft.bhoomiPujanDone}
+                  date={executionDraft.bhoomiPujanDate ?? ''}
                   onCheckedChange={(checked) =>
-                    onPatchProject({
+                    setExecutionDraft((prev) => ({
+                      ...prev,
                       bhoomiPujanDone: checked,
                       bhoomiPujanDate: checked
-                        ? bhoomiPujanDate || new Date().toISOString().slice(0, 10)
+                        ? prev.bhoomiPujanDate || getTodayDateStringIST()
                         : null,
-                    })
+                    }))
                   }
                   onDateChange={(date) =>
-                    onPatchProject({
+                    setExecutionDraft((prev) => ({
+                      ...prev,
                       bhoomiPujanDone: true,
                       bhoomiPujanDate: date || null,
-                    })
+                    }))
                   }
                 />
                 <ProjectPhotoGallery
                   title={t('projects.photosBhoomiPujan')}
                   titleClassName="text-sm font-medium"
-                  photos={bhoomiPujanPhotos}
-                  uploading={uploadingType === 'bhoomi_pujan'}
-                  onUpload={(file) => uploadPhoto('bhoomi_pujan', file)}
-                  onDelete={deletePhoto}
+                  photos={visiblePhotos('bhoomi_pujan')}
+                  uploading={savingExecution}
+                  onUpload={(files) => queuePhotoUpload('bhoomi_pujan', files)}
+                  onDelete={(id) => queuePhotoDelete('bhoomi_pujan', id)}
                   onOpen={setLightboxPhoto}
-                  addLabel={t('projects.addPhoto')}
                   emptyLabel={t('projects.photosPending')}
+                  dropLabel={t('projects.dropPhotos')}
                   deleteAriaLabel={t('adm.delete')}
                   hideLabel={t('projects.hidePhotos')}
                   showLabel={t('projects.showPhotos')}
@@ -271,39 +524,54 @@ export function ProjectDetailExtras({
                   id={`project-lokarpan-${projectId}`}
                   label={t('adm.milestoneLokarpan')}
                   sublabel={t('adm.milestoneLokarpanMr')}
-                  checked={lokarpanDone}
-                  date={lokarpanDate ?? ''}
+                  checked={executionDraft.lokarpanDone}
+                  date={executionDraft.lokarpanDate ?? ''}
                   onCheckedChange={(checked) =>
-                    onPatchProject({
+                    setExecutionDraft((prev) => ({
+                      ...prev,
                       lokarpanDone: checked,
                       lokarpanDate: checked
-                        ? lokarpanDate || new Date().toISOString().slice(0, 10)
+                        ? prev.lokarpanDate || getTodayDateStringIST()
                         : null,
-                    })
+                    }))
                   }
                   onDateChange={(date) =>
-                    onPatchProject({
+                    setExecutionDraft((prev) => ({
+                      ...prev,
                       lokarpanDone: true,
                       lokarpanDate: date || null,
-                    })
+                    }))
                   }
                 />
                 <ProjectPhotoGallery
                   title={t('projects.photosLokarpan')}
                   titleClassName="text-sm font-medium"
-                  photos={lokarpanPhotos}
-                  uploading={uploadingType === 'lokarpan'}
-                  onUpload={(file) => uploadPhoto('lokarpan', file)}
-                  onDelete={deletePhoto}
+                  photos={visiblePhotos('lokarpan')}
+                  uploading={savingExecution}
+                  onUpload={(files) => queuePhotoUpload('lokarpan', files)}
+                  onDelete={(id) => queuePhotoDelete('lokarpan', id)}
                   onOpen={setLightboxPhoto}
-                  addLabel={t('projects.addPhoto')}
                   emptyLabel={t('projects.photosPending')}
+                  dropLabel={t('projects.dropPhotos')}
                   deleteAriaLabel={t('adm.delete')}
                   hideLabel={t('projects.hidePhotos')}
                   showLabel={t('projects.showPhotos')}
                 />
               </div>
             </div>
+          </div>
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              className="min-h-11"
+              disabled={!executionDirty || savingExecution}
+              onClick={() => void saveExecution()}
+            >
+              {savingExecution ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              {t('common.save')}
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -312,10 +580,9 @@ export function ProjectDetailExtras({
         <CardHeader>
           <CardTitle className="text-base">{t('projects.groundMedia')}</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-6 md:grid-cols-2">
-          {(['before', 'after'] as const).map((type) => {
-            const photos = type === 'before' ? beforePhotos : afterPhotos;
-            return (
+        <CardContent className="space-y-4">
+          <div className="grid gap-6 md:grid-cols-2">
+            {(['before', 'after'] as const).map((type) => (
               <ProjectPhotoGallery
                 key={type}
                 title={
@@ -324,19 +591,32 @@ export function ProjectDetailExtras({
                     : t('projects.photosAfter')
                 }
                 titleClassName="text-sm font-medium"
-                photos={photos}
-                uploading={uploadingType === type}
-                onUpload={(file) => uploadPhoto(type, file)}
-                onDelete={deletePhoto}
+                photos={visiblePhotos(type)}
+                uploading={savingGround}
+                onUpload={(files) => queuePhotoUpload(type, files)}
+                onDelete={(id) => queuePhotoDelete(type, id)}
                 onOpen={setLightboxPhoto}
-                addLabel={t('projects.addPhoto')}
                 emptyLabel={t('projects.photosPending')}
+                dropLabel={t('projects.dropPhotos')}
                 deleteAriaLabel={t('adm.delete')}
                 hideLabel={t('projects.hidePhotos')}
                 showLabel={t('projects.showPhotos')}
               />
-            );
-          })}
+            ))}
+          </div>
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              className="min-h-11"
+              disabled={!groundDirty || savingGround}
+              onClick={() => void saveGroundMedia()}
+            >
+              {savingGround ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : null}
+              {t('common.save')}
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
