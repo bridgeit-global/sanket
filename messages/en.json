@@ -89,6 +89,7 @@
       "description": "Export voter data in various formats"
     },
     "projects": {
+      "projectForm": "Project Form",
       "label": "Projects",
       "description": "Track and manage constituency projects"
     },
@@ -1306,6 +1307,7 @@
     "title": "Constituency Projects",
     "description": "Manage and track constituency development projects",
     "projectName": "Project name",
+    "projectForm": "Project Form",
     "wardBeat": "Ward / Beat",
     "ward": "Ward",
     "booth": "Booth",

@@ -287,6 +287,9 @@ export function ProjectsModule() {
         description={t('projects.description')}
       />
       <Card>
+        <CardHeader>
+          <CardTitle>{t('projects.projectForm')}</CardTitle>
+        </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-5">
             <div className="space-y-2 md:col-span-2">
@@ -557,7 +560,7 @@ export function ProjectsModule() {
         variant="destructive"
         onConfirm={confirmDeleteProject}
       />
-    </div>
+    </div >
   );
 }
 
