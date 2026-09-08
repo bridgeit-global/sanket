@@ -62,6 +62,7 @@ interface ProjectDetailExtrasProps {
   groundMedia: ProjectGroundMedia[];
   onPatchProject: (patch: Record<string, unknown>) => Promise<void>;
   onRefresh: () => Promise<void>;
+  onUnsavedChange?: (dirty: boolean) => void;
 }
 
 const DOC_KINDS: ProjectDocumentKind[] = [
@@ -110,6 +111,7 @@ export function ProjectDetailExtras({
   groundMedia,
   onPatchProject,
   onRefresh,
+  onUnsavedChange,
 }: ProjectDetailExtrasProps) {
   const { t } = useTranslations();
   const docInputRef = useRef<HTMLInputElement>(null);
@@ -214,6 +216,10 @@ export function ProjectDetailExtras({
   const executionPhotosDirty = photosDirty(EXECUTION_PHOTO_TYPES);
   const executionDirty = executionFieldsDirty || executionPhotosDirty;
   const groundDirty = photosDirty(GROUND_PHOTO_TYPES);
+
+  useEffect(() => {
+    onUnsavedChange?.(executionDirty || groundDirty);
+  }, [executionDirty, groundDirty, onUnsavedChange]);
 
   const visiblePhotos = (
     type: ProjectGroundMediaPhotoType,

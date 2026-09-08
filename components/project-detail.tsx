@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -211,6 +211,13 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
   const [entryFormErrors, setEntryFormErrors] = useState<Record<string, string>>({});
+  const [extrasDirty, setExtrasDirty] = useState(false);
+  const [pendingUnsavedAction, setPendingUnsavedAction] = useState<
+    { type: 'navigate'; href: string } | { type: 'close-editor' } | null
+  >(null);
+  const pendingUnsavedActionRef = useRef(pendingUnsavedAction);
+  pendingUnsavedActionRef.current = pendingUnsavedAction;
+  const bypassUnsavedGuardRef = useRef(false);
 
   // Attachment dialog
   const [attachmentDialogEntry, setAttachmentDialogEntry] = useState<RegisterEntry | null>(null);
@@ -289,6 +296,116 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       setLoading(false);
     }
   };
+
+  const projectFormDirty = useMemo(() => {
+    if (!editingProject || !project) return false;
+    return JSON.stringify(projectForm) !== JSON.stringify(projectFormValues(project));
+  }, [editingProject, project, projectForm]);
+
+  const hasUnsavedChanges = projectFormDirty || extrasDirty;
+
+  const handleExtrasDirtyChange = useCallback((dirty: boolean) => {
+    setExtrasDirty(dirty);
+  }, []);
+
+  const closeProjectEditor = useCallback(() => {
+    if (project) {
+      setProjectForm(projectFormValues(project));
+    }
+    setEditingProject(false);
+  }, [project]);
+
+  const requestNavigate = useCallback(
+    (href: string) => {
+      if (!hasUnsavedChanges || bypassUnsavedGuardRef.current) {
+        router.push(href);
+        return;
+      }
+      setPendingUnsavedAction({ type: 'navigate', href });
+    },
+    [hasUnsavedChanges, router],
+  );
+
+  const requestCloseProjectEditor = useCallback(() => {
+    if (!projectFormDirty) {
+      closeProjectEditor();
+      return;
+    }
+    setPendingUnsavedAction({ type: 'close-editor' });
+  }, [projectFormDirty, closeProjectEditor]);
+
+  const confirmUnsavedAction = useCallback(() => {
+    const action = pendingUnsavedActionRef.current;
+    setPendingUnsavedAction(null);
+    if (action?.type === 'navigate') {
+      bypassUnsavedGuardRef.current = true;
+      router.push(action.href);
+      return;
+    }
+    if (action?.type === 'close-editor') {
+      closeProjectEditor();
+    }
+  }, [router, closeProjectEditor]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (bypassUnsavedGuardRef.current) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+
+    const onDocumentClick = (event: MouseEvent) => {
+      if (bypassUnsavedGuardRef.current) return;
+      if (event.defaultPrevented || event.button !== 0) return;
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const anchor = target.closest('a');
+      if (!anchor) return;
+      if (anchor.target && anchor.target !== '_self') return;
+      if (anchor.hasAttribute('download')) return;
+
+      const href = anchor.getAttribute('href');
+      if (
+        !href ||
+        href.startsWith('#') ||
+        href.startsWith('mailto:') ||
+        href.startsWith('tel:') ||
+        href.startsWith('javascript:')
+      ) {
+        return;
+      }
+
+      const url = new URL(href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      if (
+        url.pathname === window.location.pathname &&
+        url.search === window.location.search
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      setPendingUnsavedAction({
+        type: 'navigate',
+        href: `${url.pathname}${url.search}${url.hash}`,
+      });
+    };
+
+    window.addEventListener('beforeunload', onBeforeUnload);
+    document.addEventListener('click', onDocumentClick, true);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      document.removeEventListener('click', onDocumentClick, true);
+    };
+  }, [hasUnsavedChanges]);
 
   const handleUpdateProject = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -737,7 +854,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => router.push(admBackHref ?? '/modules/projects')}
+          onClick={() => requestNavigate(admBackHref ?? '/modules/projects')}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           {admBackHref ? t('projects.backToAdmFund') : t('projects.backToProjects')}
@@ -769,10 +886,14 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 variant="outline"
                 size="sm"
                 onClick={() => {
+                  if (editingProject) {
+                    requestCloseProjectEditor();
+                    return;
+                  }
                   if (project) {
                     setProjectForm(projectFormValues(project));
                   }
-                  setEditingProject(!editingProject);
+                  setEditingProject(true);
                 }}
               >
                 <Edit className="mr-2 h-4 w-4" />
@@ -859,12 +980,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => {
-                    if (project) {
-                      setProjectForm(projectFormValues(project));
-                    }
-                    setEditingProject(false);
-                  }}
+                  onClick={requestCloseProjectEditor}
                 >
                   Cancel
                 </Button>
@@ -899,6 +1015,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
             }
           }}
           onRefresh={loadProject}
+          onUnsavedChange={handleExtrasDirtyChange}
         />
       </div>
 
@@ -1423,6 +1540,27 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         cancelText="Cancel"
         variant="destructive"
         onConfirm={confirmDeleteEntry}
+      />
+
+      <ConfirmDialog
+        open={pendingUnsavedAction !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingUnsavedAction(null);
+        }}
+        title={t('projects.unsavedChangesTitle')}
+        description={
+          pendingUnsavedAction?.type === 'close-editor'
+            ? t('projects.unsavedChangesDiscardDescription')
+            : t('projects.unsavedChangesLeaveDescription')
+        }
+        confirmText={
+          pendingUnsavedAction?.type === 'close-editor'
+            ? t('projects.discardChanges')
+            : t('projects.leaveWithoutSaving')
+        }
+        cancelText={t('projects.keepEditing')}
+        variant="destructive"
+        onConfirm={confirmUnsavedAction}
       />
 
       {/* Attachment Dialog */}
