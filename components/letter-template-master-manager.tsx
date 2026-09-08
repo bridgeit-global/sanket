@@ -15,6 +15,7 @@ import {
 import { toast } from '@/components/toast';
 
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { formatDisplayDateTimeIST } from '@/lib/ist-date';
 import { LetterPreview } from '@/components/letter-preview';
 import { Button } from '@/components/ui/button';
 import {
@@ -118,7 +119,7 @@ function FieldGroup({
 function formatUpdatedAt(value: string | Date): string {
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleString();
+  return formatDisplayDateTimeIST(date);
 }
 
 function emptyFormFor(

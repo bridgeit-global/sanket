@@ -18,6 +18,7 @@ import {
 import { PhoneUpdateForm, type MobileNumberEntry } from '@/components/phone-update-form';
 import { TaskManagement } from '@/components/task-management';
 import { useTranslations } from '@/hooks/use-translations';
+import { formatDisplayDateTimeIST } from '@/lib/ist-date';
 import { Share2, FileText } from 'lucide-react';
 import { AadhaarQrScanButton, AadhaarQrScannerDialog } from '@/components/aadhaar-qr-scanner-dialog';
 import { EpicQrScanButton, EpicQrScannerDialog } from '@/components/epic-qr-scanner-dialog';
@@ -1224,7 +1225,7 @@ export function BeneficiaryManagement({
                                         </div>
                                         <div className="summary-item">
                                             <Label className="text-sm font-medium">{t('operator.completion.createdAt')}</Label>
-                                            <p>{new Date(createdService.createdAt).toLocaleString()}</p>
+                                            <p>{formatDisplayDateTimeIST(createdService.createdAt)}</p>
                                         </div>
                                     </div>
                                 </div>

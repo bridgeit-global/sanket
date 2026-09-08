@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -1342,9 +1343,8 @@ export function TaskManagement({
                                 <Label htmlFor="created-from-filter">
                                     {t('taskManagement.filters.createdFrom')}
                                 </Label>
-                                <Input
+                                <DmyDateInput
                                     id="created-from-filter"
-                                    type="date"
                                     value={filterCreatedFrom}
                                     max={filterCreatedTo || undefined}
                                     onChange={(e) => {
@@ -1360,9 +1360,8 @@ export function TaskManagement({
                                 <Label htmlFor="created-to-filter">
                                     {t('taskManagement.filters.createdTo')}
                                 </Label>
-                                <Input
+                                <DmyDateInput
                                     id="created-to-filter"
-                                    type="date"
                                     value={filterCreatedTo}
                                     min={filterCreatedFrom || undefined}
                                     onChange={(e) => {

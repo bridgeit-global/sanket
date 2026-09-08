@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
+import { DmyDateInput } from './ui/dmy-date-input';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -918,9 +919,8 @@ export function AddBeneficiaryServiceForm({
 
                     <div className="space-y-2">
                         <Label htmlFor="expectedDate">Expected Completion</Label>
-                        <Input
+                        <DmyDateInput
                             id="expectedDate"
-                            type="date"
                             value={serviceDetails.expectedCompletionDate || ''}
                             onChange={(e) => setServiceDetails(prev => ({ ...prev, expectedCompletionDate: e.target.value }))}
                         />

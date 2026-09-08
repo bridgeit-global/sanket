@@ -10,6 +10,7 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useTranslations } from '@/hooks/use-translations';
+import { formatDisplayDateIST } from '@/lib/ist-date';
 import { PersonalInformation } from '@/components/voter-profile/personal-information';
 import { ContactInformation } from '@/components/voter-profile/contact-information';
 import { LocationInformation } from '@/components/voter-profile/location-information';
@@ -285,17 +286,17 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                       </div>
                       <div>
                         <span className="font-medium text-muted-foreground">{t('voterProfile.fields.created')}</span>
-                        <p className="mt-1">{new Date(service.createdAt).toLocaleDateString()}</p>
+                        <p className="mt-1">{formatDisplayDateIST(service.createdAt)}</p>
                       </div>
                       {service.completedAt && (
                         <div>
                           <span className="font-medium text-muted-foreground">{t('voterProfile.fields.completed')}</span>
-                          <p className="mt-1">{new Date(service.completedAt).toLocaleDateString()}</p>
+                          <p className="mt-1">{formatDisplayDateIST(service.completedAt)}</p>
                         </div>
                       )}
                       <div>
                         <span className="font-medium text-muted-foreground">{t('voterProfile.fields.updated')}</span>
-                        <p className="mt-1">{new Date(service.updatedAt).toLocaleDateString()}</p>
+                        <p className="mt-1">{formatDisplayDateIST(service.updatedAt)}</p>
                       </div>
                     </div>
                     {service.notes && (
@@ -340,17 +341,17 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                       </div>
                       <div>
                         <span className="font-medium text-muted-foreground">{t('voterProfile.fields.created')}</span>
-                        <p className="mt-1">{new Date(service.createdAt).toLocaleDateString()}</p>
+                        <p className="mt-1">{formatDisplayDateIST(service.createdAt)}</p>
                       </div>
                       {service.completedAt && (
                         <div>
                           <span className="font-medium text-muted-foreground">{t('voterProfile.fields.completed')}</span>
-                          <p className="mt-1">{new Date(service.completedAt).toLocaleDateString()}</p>
+                          <p className="mt-1">{formatDisplayDateIST(service.completedAt)}</p>
                         </div>
                       )}
                       <div>
                         <span className="font-medium text-muted-foreground">{t('voterProfile.fields.updated')}</span>
-                        <p className="mt-1">{new Date(service.updatedAt).toLocaleDateString()}</p>
+                        <p className="mt-1">{formatDisplayDateIST(service.updatedAt)}</p>
                       </div>
                     </div>
                     {service.notes && (
@@ -401,7 +402,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                     <div>
                       <span className="font-medium text-muted-foreground">{t('voterProfile.fields.date')}</span>
-                      <p className="mt-1">{new Date(event.date).toLocaleDateString()}</p>
+                      <p className="mt-1">{formatDisplayDateIST(event.date)}</p>
                     </div>
                     <div>
                       <span className="font-medium text-muted-foreground">{t('voterProfile.fields.time')}</span>
@@ -487,7 +488,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                                         </div>
                                       </div>
                                       <div className="text-xs text-muted-foreground">
-                                        {t('voterProfile.fields.token')} {service.token} | {t('voterProfile.fields.created')} {new Date(service.createdAt).toLocaleDateString()}
+                                        {t('voterProfile.fields.token')} {service.token} | {t('voterProfile.fields.created')} {formatDisplayDateIST(service.createdAt)}
                                       </div>
                                     </div>
                                   ))}
@@ -514,7 +515,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                                         </div>
                                       </div>
                                       <div className="text-xs text-muted-foreground">
-                                        {t('voterProfile.fields.token')} {service.token} | {t('voterProfile.fields.created')} {new Date(service.createdAt).toLocaleDateString()}
+                                        {t('voterProfile.fields.token')} {service.token} | {t('voterProfile.fields.created')} {formatDisplayDateIST(service.createdAt)}
                                       </div>
                                     </div>
                                   ))}
@@ -545,7 +546,7 @@ export function VoterProfile({ epicNumber }: VoterProfileProps) {
                                     )}
                                   </div>
                                   <div className="text-xs text-muted-foreground">
-                                    {new Date(event.date).toLocaleDateString()} | {event.startTime}{event.endTime ? ` - ${event.endTime}` : ''} | {event.location}
+                                    {formatDisplayDateIST(event.date)} | {event.startTime}{event.endTime ? ` - ${event.endTime}` : ''} | {event.location}
                                   </div>
                                 </div>
                               ))}

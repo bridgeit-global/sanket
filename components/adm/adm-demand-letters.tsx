@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FileText, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from '@/components/toast';
 import { Button } from '@/components/ui/button';
+import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -213,9 +214,8 @@ export function AdmDemandLetters({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="dl-from">{t('adm.demandLetters.fromDate')}</Label>
-            <Input
+            <DmyDateInput
               id="dl-from"
-              type="date"
               value={fromDate}
               onChange={(e) => onFiltersChange({ from: e.target.value })}
               className="min-h-11"
@@ -223,9 +223,8 @@ export function AdmDemandLetters({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="dl-to">{t('adm.demandLetters.toDate')}</Label>
-            <Input
+            <DmyDateInput
               id="dl-to"
-              type="date"
               value={toDate}
               onChange={(e) => onFiltersChange({ to: e.target.value })}
               className="min-h-11"
@@ -345,9 +344,8 @@ export function AdmDemandLetters({
           <div className="grid gap-4 py-2">
             <div className="space-y-1.5">
               <Label htmlFor="dl-date">{t('adm.demandLetters.date')}</Label>
-              <Input
+              <DmyDateInput
                 id="dl-date"
-                type="date"
                 value={formDate}
                 onChange={(e) => setFormDate(e.target.value)}
                 className="min-h-11"

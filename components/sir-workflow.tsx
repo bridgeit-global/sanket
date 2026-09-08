@@ -5,6 +5,7 @@ import Form from 'next/form';
 import { ArrowLeft, LogOut, Plus, Search, Trash2 } from 'lucide-react';
 import { signOutAction } from '@/app/(auth)/actions';
 import { Button } from '@/components/ui/button';
+import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -480,9 +481,8 @@ export function SirWorkflow() {
               <Label htmlFor="sir-dob">
                 {t('sir.dob')} {!hadDob && <span className="text-red-500">*</span>}
               </Label>
-              <Input
+              <DmyDateInput
                 id="sir-dob"
-                type="date"
                 value={dob}
                 max={maxDobDate}
                 onChange={(e) => {

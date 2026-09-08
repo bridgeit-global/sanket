@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -338,9 +339,8 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="dob">Date of Birth</Label>
-                  <Input
+                  <DmyDateInput
                     id="dob"
-                    type="date"
                     value={formData.dob}
                     onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
                   />

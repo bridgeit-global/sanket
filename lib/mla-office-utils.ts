@@ -1,5 +1,7 @@
 // Helper utilities for MLA e-Office modules
 
+import { formatDisplayDateIST } from '@/lib/ist-date';
+
 /**
  * Format amount in Indian Rupees
  */
@@ -24,15 +26,10 @@ export function formatTime(time: string): string {
 }
 
 /**
- * Format date for display
+ * Format date for display as `dd-mm-yyyy` (IST).
  */
 export function formatDate(date: Date | string): string {
-  const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toLocaleDateString('en-IN', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  });
+  return formatDisplayDateIST(date);
 }
 
 /**

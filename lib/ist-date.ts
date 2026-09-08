@@ -166,16 +166,19 @@ export function parseFlexibleDateToYmd(value: string): string | null {
   return null;
 }
 
-/** Display date as `dd-mm-yyyy` in Asia/Kolkata. */
+/**
+ * Display date as `dd-mm-yyyy` in Asia/Kolkata.
+ * Built from calendar parts — never `toLocaleDateString()`, which follows the
+ * OS short-date order on Windows (mm-dd-yyyy) even with `en-GB` / `en-IN`.
+ */
 export function formatDisplayDateIST(value: string | Date | number): string {
-  return parseInstant(value)
-    .toLocaleDateString('en-GB', {
-      timeZone: APP_TIMEZONE,
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    })
-    .replace(/\//g, '-');
+  if (typeof value === 'string') {
+    const ymd = parseFlexibleDateToYmd(value);
+    if (ymd) return formatYmdAsDmy(ymd);
+  }
+  const date = parseInstant(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return formatYmdAsDmy(formatYmd(getCalendarYmd(date)));
 }
 
 /** Display date+time as `dd-mm-yyyy hh:mm am/pm` in Asia/Kolkata. */

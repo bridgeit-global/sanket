@@ -2,7 +2,7 @@
 
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { useTranslations } from '@/hooks/use-translations';
 
 interface AdmMilestoneRowProps {
@@ -41,8 +41,7 @@ export function AdmMilestoneRow({
           )}
         </Label>
       </div>
-      <Input
-        type="date"
+      <DmyDateInput
         value={date}
         onChange={(e) => onDateChange(e.target.value)}
         disabled={!checked}

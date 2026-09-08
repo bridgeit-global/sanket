@@ -2,6 +2,7 @@
 
 import { FileText } from 'lucide-react';
 import type { VoterMaster } from '@/lib/db/schema';
+import { formatDisplayDateIST } from '@/lib/ist-date';
 
 interface PersonalInformationProps {
     voter: VoterMaster;
@@ -33,11 +34,7 @@ export function PersonalInformation({ voter }: PersonalInformationProps) {
                     <div>
                         <label className="text-sm font-medium text-muted-foreground">Date of Birth</label>
                         <p className="text-base">
-                            {new Date(voter.dob).toLocaleDateString(undefined, {
-                                year: 'numeric',
-                                month: 'short',
-                                day: '2-digit',
-                            })}
+                            {formatDisplayDateIST(voter.dob)}
                         </p>
                     </div>
                 )}

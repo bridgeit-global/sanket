@@ -8,6 +8,7 @@ import { useTranslations } from '@/hooks/use-translations';
 import { SidebarToggle } from '@/components/sidebar-toggle';
 import { TablePagination } from '@/components/table-pagination';
 import { Button } from '@/components/ui/button';
+import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -1872,9 +1873,8 @@ export function VisitorWorkflow({
                           <Label htmlFor="create-visitor-created-from-filter">
                             {t('visitor.manage.filters.createdFrom')}
                           </Label>
-                          <Input
+                          <DmyDateInput
                             id="create-visitor-created-from-filter"
-                            type="date"
                             value={createFilterCreatedFrom}
                             max={createFilterCreatedTo || undefined}
                             onChange={(e) => {
@@ -1887,9 +1887,8 @@ export function VisitorWorkflow({
                           <Label htmlFor="create-visitor-created-to-filter">
                             {t('visitor.manage.filters.createdTo')}
                           </Label>
-                          <Input
+                          <DmyDateInput
                             id="create-visitor-created-to-filter"
-                            type="date"
                             value={createFilterCreatedTo}
                             min={createFilterCreatedFrom || undefined}
                             onChange={(e) => {

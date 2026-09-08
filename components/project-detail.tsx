@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -995,9 +996,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="entry-date">Date *</Label>
-                  <Input
+                  <DmyDateInput
                     id="entry-date"
-                    type="date"
                     value={entryForm.date}
                     onChange={(e) => setEntryForm({ ...entryForm, date: e.target.value })}
                     required
@@ -1322,9 +1322,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-date">Date *</Label>
-                <Input
+                <DmyDateInput
                   id="edit-date"
-                  type="date"
                   value={entryForm.date}
                   onChange={(e) => setEntryForm({ ...entryForm, date: e.target.value })}
                   required

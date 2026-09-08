@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -789,9 +790,8 @@ export function RegisterModule({
             </div>
             <div className="space-y-2 md:col-span-1">
               <Label htmlFor="date">{t('common.date')}</Label>
-              <Input
+              <DmyDateInput
                 id="date"
-                type="date"
                 value={form.date}
                 onChange={(e) => setForm({ ...form, date: e.target.value })}
                 required
@@ -991,18 +991,16 @@ export function RegisterModule({
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
               <div className="space-y-2">
                 <Label htmlFor="startDate" className="text-xs text-muted-foreground">Start Date</Label>
-                <Input
+                <DmyDateInput
                   id="startDate"
-                  type="date"
                   value={filters.startDate}
                   onChange={(e) => updateFilters({ ...filters, startDate: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="endDate" className="text-xs text-muted-foreground">End Date</Label>
-                <Input
+                <DmyDateInput
                   id="endDate"
-                  type="date"
                   value={filters.endDate}
                   onChange={(e) => updateFilters({ ...filters, endDate: e.target.value })}
                 />
@@ -1294,9 +1292,8 @@ export function RegisterModule({
               </div>
               <div className="space-y-2">
                 <Label htmlFor="edit-date">Date *</Label>
-                <Input
+                <DmyDateInput
                   id="edit-date"
-                  type="date"
                   value={form.date}
                   onChange={(e) => setForm({ ...form, date: e.target.value })}
                   required

@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
+import { formatDisplayDateIST } from '@/lib/ist-date';
 
 export type ThermalReceiptData = {
   token: string;
@@ -122,7 +123,7 @@ export function buildThermalTicketText(data: ThermalReceiptData): string {
   const width = Math.max(16, Math.min(60, Math.floor(rawWidth)));
   const separator = '-'.repeat(width);
   const date = new Date(data.createdAt);
-  const dateString = date.toLocaleDateString('en-GB');
+  const dateString = formatDisplayDateIST(date);
   const timeString = date
     .toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })
     .toUpperCase();

@@ -50,6 +50,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Combobox } from '@/components/ui/combobox';
+import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -187,6 +188,13 @@ import {
   toLocaleDigits,
   toWesternDigits,
 } from '@/lib/locale-digits';
+import {
+  formatDisplayDateIST,
+  formatDisplayDateTimeIST,
+  formatYmdAsDmy,
+  getTodayDateStringIST,
+  parseFlexibleDateToYmd,
+} from '@/lib/ist-date';
 import { cn } from '@/lib/utils';
 
 type SavedLetterTypeFilter = string;
@@ -343,40 +351,22 @@ function isLetterWithinDateRange(
 }
 
 function todayDisplay(letterLocale: LetterLocale) {
-  return new Date().toLocaleDateString(letterLocale === 'mr' ? 'mr-IN' : 'en-IN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+  return formatIsoForLocaleDisplay(getTodayDateStringIST(), letterLocale);
 }
 
 function todayIsoDate() {
-  const d = new Date();
-  const yyyy = String(d.getFullYear());
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
+  return getTodayDateStringIST();
 }
 
 function formatIsoForLocaleDisplay(iso: string, locale: LetterLocale) {
   if (!iso) return '';
-  const d = new Date(`${iso}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toLocaleDateString(locale === 'mr' ? 'mr-IN' : 'en-IN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+  const ymd = parseFlexibleDateToYmd(iso);
+  if (!ymd) return '';
+  return toLocaleDigits(formatYmdAsDmy(ymd).replace(/-/g, '/'), locale);
 }
 
 function tryParseDisplayToIso(displayValue: string): string | null {
-  // Best-effort parse for values like "09/07/2026" (ASCII digits).
-  const m = displayValue.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (!m) return null;
-  const [, dd, mm, yyyy] = m;
-  const iso = `${yyyy}-${mm.padStart(2, '0')}-${dd.padStart(2, '0')}`;
-  const d = new Date(`${iso}T00:00:00`);
-  return Number.isNaN(d.getTime()) ? null : iso;
+  return parseFlexibleDateToYmd(toWesternDigits(displayValue));
 }
 
 function LetterDatePicker({
@@ -432,9 +422,8 @@ function LetterDatePicker({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="letterDatePickerValue">Date</Label>
-            <Input
+            <DmyDateInput
               id="letterDatePickerValue"
-              type="date"
               value={tempIso}
               onChange={(e) => setTempIso(e.target.value)}
             />
@@ -4341,10 +4330,7 @@ export function LetterGeneration({
                   {t('letterGeneration.serviceInfo.createdAt')}
                 </dt>
                 <dd className="text-sm font-medium">
-                  {new Date(service.createdAt).toLocaleDateString(
-                    locale === 'mr' ? 'mr-IN' : 'en-IN',
-                    { year: 'numeric', month: 'short', day: 'numeric' },
-                  )}
+                  {formatDisplayDateIST(service.createdAt)}
                 </dd>
               </div>
               {service.description ? (
@@ -6751,7 +6737,7 @@ export function LetterGeneration({
                             </p>
                           </div>
                           <p className="shrink-0 text-xs text-muted-foreground">
-                            {new Date(letter.createdAt).toLocaleString('en-IN')}
+                            {formatDisplayDateTimeIST(letter.createdAt)}
                           </p>
                         </div>
                         {renderSavedLetterActions(letter, 'stack')}
@@ -6795,7 +6781,7 @@ export function LetterGeneration({
                               </span>
                             </TableCell>
                             <TableCell>
-                              {new Date(letter.createdAt).toLocaleString('en-IN')}
+                              {formatDisplayDateTimeIST(letter.createdAt)}
                             </TableCell>
                             <TableCell className="text-right">
                               {renderSavedLetterActions(letter)}

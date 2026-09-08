@@ -3,6 +3,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
+import { formatDisplayDateIST } from '@/lib/ist-date';
 
 interface BeneficiaryInsightsProps {
   toolName: string;
@@ -224,8 +225,8 @@ function BeneficiariesDisplay({ data }: { data: any }) {
                   </Badge>
                 </div>
                 <div className="text-xs text-gray-500 mt-2">
-                  Applied: {new Date(beneficiary.applicationDate).toLocaleDateString()}
-                  {beneficiary.completionDate && ` | Completed: ${new Date(beneficiary.completionDate).toLocaleDateString()}`}
+                  Applied: {formatDisplayDateIST(beneficiary.applicationDate)}
+                  {beneficiary.completionDate && ` | Completed: ${formatDisplayDateIST(beneficiary.completionDate)}`}
                 </div>
               </div>
             ))}
@@ -285,7 +286,7 @@ function BeneficiaryUpdatedDisplay({ data }: { data: any }) {
       <div className="mt-2 space-y-1">
         <p><strong>Status:</strong> {data.beneficiary.status}</p>
         {data.beneficiary.notes && <p><strong>Notes:</strong> {data.beneficiary.notes}</p>}
-        {data.beneficiary.completionDate && <p><strong>Completion Date:</strong> {new Date(data.beneficiary.completionDate).toLocaleDateString()}</p>}
+        {data.beneficiary.completionDate && <p><strong>Completion Date:</strong> {formatDisplayDateIST(data.beneficiary.completionDate)}</p>}
       </div>
     </div>
   );

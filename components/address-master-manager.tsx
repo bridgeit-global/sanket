@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Combobox } from '@/components/ui/combobox';
+import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -743,9 +744,8 @@ export function AddressMasterManager({
                   <Label htmlFor="address-start-date">
                     {t('letterGeneration.addresses.columns.startDate')}
                   </Label>
-                  <Input
+                  <DmyDateInput
                     id="address-start-date"
-                    type="date"
                     value={form.startDate}
                     onChange={(event) =>
                       setForm({ ...form, startDate: event.target.value })
@@ -756,9 +756,8 @@ export function AddressMasterManager({
                   <Label htmlFor="address-end-date">
                     {t('letterGeneration.addresses.columns.endDate')}
                   </Label>
-                  <Input
+                  <DmyDateInput
                     id="address-end-date"
-                    type="date"
                     value={form.endDate}
                     onChange={(event) =>
                       setForm({ ...form, endDate: event.target.value })

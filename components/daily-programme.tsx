@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback, useRef, type CSSProperties }
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -1251,9 +1252,8 @@ export function DailyProgramme({
               <form onSubmit={handleSubmit} className="grid gap-3 sm:grid-cols-2 md:grid-cols-4">
                 <div className="space-y-2">
                   <Label htmlFor="startDate">{t('dailyProgramme.startDate')}</Label>
-                  <Input
+                  <DmyDateInput
                     id="startDate"
-                    type="date"
                     className="min-h-11"
                     value={form.startDate}
                     onChange={(e) => setForm({ ...form, startDate: e.target.value, date: e.target.value })}
@@ -1262,9 +1262,8 @@ export function DailyProgramme({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="endDate">{t('dailyProgramme.endDate')}</Label>
-                  <Input
+                  <DmyDateInput
                     id="endDate"
-                    type="date"
                     className="min-h-11"
                     value={form.endDate}
                     onChange={(e) => setForm({ ...form, endDate: e.target.value })}

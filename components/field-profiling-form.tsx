@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { ArrowLeft, Save, User, Briefcase, MapPin, Heart, Star, Car, Users, MessageSquare, CheckCircle2, Clock } from 'lucide-react';
 import { toast } from '@/components/toast';
+import { formatDisplayDateTimeIST } from '@/lib/ist-date';
 
 interface Voter {
   epicNumber: string;
@@ -248,13 +249,7 @@ export function FieldProfilingForm({ voter, onSave, onCancel }: FieldProfilingFo
           </div>
           {isAlreadyProfiled && voter.profiledAt && (
             <div className="text-xs text-muted-foreground mt-2">
-              Last updated: {new Date(voter.profiledAt).toLocaleDateString('en-IN', {
-                day: 'numeric',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
+              Last updated: {formatDisplayDateTimeIST(voter.profiledAt)}
             </div>
           )}
         </CardHeader>

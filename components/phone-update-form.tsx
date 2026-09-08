@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Calendar } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,11 +11,9 @@ import { useTranslations } from '@/hooks/use-translations';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import {
     formatYmd,
-    formatYmdAsDmy,
     getCalendarYmd,
     parseFlexibleDateToYmd,
 } from '@/lib/ist-date';
-import { cn } from '@/lib/utils';
 import type { VoterWithPartNo } from '@/lib/db/schema';
 
 export interface MobileNumberEntry {
@@ -57,14 +55,14 @@ function getMaxDobDate(): string {
     });
 }
 
-/** Prefill DOB year from age as `01-01-yyyy` (day/month left for the operator to correct). */
+/** Prefill DOB year from age as 1 January of the birth year (day/month left for the operator to correct). */
 function getDobPrefillFromAge(age: number | null | undefined): string {
     if (age == null || !Number.isFinite(age)) return '';
     const wholeAge = Math.floor(age);
     if (wholeAge < 1 || wholeAge > 120) return '';
     const birthYear = getCalendarYmd().year - wholeAge;
     if (birthYear < 1000 || birthYear > 9999) return '';
-    return formatYmdAsDmy(formatYmd({ year: birthYear, month: 1, day: 1 }));
+    return formatYmd({ year: birthYear, month: 1, day: 1 });
 }
 
 export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, onPrevious, onCancel }: PhoneUpdateFormProps) {
@@ -74,7 +72,6 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
     const [dob, setDob] = useState('');
     const [dobError, setDobError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const dobPickerRef = useRef<HTMLInputElement>(null);
 
     const hadDob = Boolean(voter.dob?.trim());
     const maxDobDate = useMemo(() => getMaxDobDate(), []);
@@ -114,7 +111,7 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
         if (hadDob) {
             const existing = voter.dob?.trim() ?? '';
             const parsed = parseFlexibleDateToYmd(existing);
-            setDob(parsed ? formatYmdAsDmy(parsed) : existing);
+            setDob(parsed ?? existing);
         } else {
             setDob(getDobPrefillFromAge(voter.age));
         }
@@ -177,8 +174,6 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
             setIsSubmitting(false);
         }
     };
-
-    const dobIsoValue = parseFlexibleDateToYmd(dob) ?? '';
 
     return (
         <Card>
@@ -277,63 +272,23 @@ export function PhoneUpdateForm({ voter, mobileNumbers, onPhoneUpdate, onSkip, o
                                 <Label htmlFor="phone-update-dob">
                                     {t('phoneUpdate.dob')} <span className="text-red-500">*</span>
                                 </Label>
-                                <div className="relative">
-                                    <Input
-                                        id="phone-update-dob"
-                                        type="text"
-                                        inputMode="numeric"
-                                        autoComplete="bday"
-                                        placeholder={t('phoneUpdate.dobPlaceholder')}
-                                        value={dob}
-                                        onChange={(e) => {
-                                            setDob(e.target.value);
-                                            setDobError(null);
-                                        }}
-                                        onBlur={() => {
-                                            const parsed = parseFlexibleDateToYmd(dob);
-                                            if (parsed) {
-                                                setDob(formatYmdAsDmy(parsed));
-                                            }
-                                        }}
-                                        aria-invalid={Boolean(dobError)}
-                                        className={cn(
-                                            'pr-10 font-mono',
-                                            dobError &&
-                                                'border-red-500 focus-visible:ring-red-500',
-                                        )}
-                                        required
-                                    />
-                                    <button
-                                        type="button"
-                                        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
-                                        aria-label={t('phoneUpdate.dobPick')}
-                                        onClick={() => {
-                                            const picker = dobPickerRef.current;
-                                            if (!picker) return;
-                                            try {
-                                                picker.showPicker();
-                                            } catch {
-                                                picker.click();
-                                            }
-                                        }}
-                                    >
-                                        <Calendar className="h-4 w-4" aria-hidden />
-                                    </button>
-                                    <input
-                                        ref={dobPickerRef}
-                                        type="date"
-                                        tabIndex={-1}
-                                        aria-hidden
-                                        value={dobIsoValue}
-                                        max={maxDobDate}
-                                        onChange={(e) => {
-                                            const next = e.target.value;
-                                            setDob(next ? formatYmdAsDmy(next) : '');
-                                            setDobError(null);
-                                        }}
-                                        className="pointer-events-none absolute h-0 w-0 opacity-0"
-                                    />
-                                </div>
+                                <DmyDateInput
+                                    id="phone-update-dob"
+                                    placeholder={t('phoneUpdate.dobPlaceholder')}
+                                    value={dob}
+                                    max={maxDobDate}
+                                    onChange={(e) => {
+                                        setDob(e.target.value);
+                                        setDobError(null);
+                                    }}
+                                    aria-invalid={Boolean(dobError)}
+                                    className={
+                                        dobError
+                                            ? 'border-red-500 focus-visible:ring-red-500'
+                                            : undefined
+                                    }
+                                    required
+                                />
                                 {dobError ? (
                                     <p className="text-xs text-red-500">{dobError}</p>
                                 ) : (

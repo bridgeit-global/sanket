@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Label } from '@/components/ui/label';
 import { Calendar } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
@@ -92,18 +92,16 @@ export function DateRangePicker({
           <div className="grid gap-3">
             <div className="space-y-2">
               <Label htmlFor="rangeStart">Start date</Label>
-              <Input
+              <DmyDateInput
                 id="rangeStart"
-                type="date"
                 value={tempStart}
                 onChange={(e) => handleStartChange(e.target.value)}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="rangeEnd">End date</Label>
-              <Input
+              <DmyDateInput
                 id="rangeEnd"
-                type="date"
                 value={tempEnd}
                 onChange={(e) => handleEndChange(e.target.value)}
               />
