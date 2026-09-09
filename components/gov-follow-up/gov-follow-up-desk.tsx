@@ -71,7 +71,10 @@ const EMPTY_CATALOGS: GovFollowUpCatalogs = {
 
 const EMPTY_SUMMARY: GovFollowUpSummary = {
   dueToday: 0,
+  upcoming: 0,
   overdue: 0,
+  visits: 0,
+  closed: 0,
   stale7: 0,
   mantralaya: 0,
   bmc: 0,
@@ -425,7 +428,10 @@ export function GovFollowUpDesk() {
   const resultCount = filters.tab === 'visits' ? visitTotal : total;
   const tabCount = (tab: GovFollowUpTab): number | null => {
     if (tab === 'today') return summary.dueToday;
+    if (tab === 'upcoming') return summary.upcoming;
     if (tab === 'overdue') return summary.overdue;
+    if (tab === 'visits') return summary.visits;
+    if (tab === 'closed') return summary.closed;
     return null;
   };
 

@@ -576,7 +576,10 @@ export async function getDashboardData(): Promise<DashboardData> {
     getUpcomingCadreBirthdays(),
     getGovFollowUpSummary().catch(() => ({
       dueToday: 0,
+      upcoming: 0,
       overdue: 0,
+      visits: 0,
+      closed: 0,
       stale7: 0,
       mantralaya: 0,
       bmc: 0,

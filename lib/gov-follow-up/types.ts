@@ -63,7 +63,10 @@ export type GovFollowUpLogInput = {
 
 export type GovFollowUpSummary = {
   dueToday: number;
+  upcoming: number;
   overdue: number;
+  visits: number;
+  closed: number;
   stale7: number;
   mantralaya: number;
   bmc: number;

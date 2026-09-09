@@ -2558,10 +2558,17 @@ export function LetterGeneration({
   );
 
   const followUpLetterTypeOptions = useMemo((): ComboboxOption[] => {
+    const general: ComboboxOption[] = [];
     const bmc: ComboboxOption[] = [];
     const other: ComboboxOption[] = [];
     for (const opt of letterTypeComboboxOptions) {
-      if (opt.value === 'ward' || isWardLetterType(opt.value)) {
+      if (opt.value === 'general') {
+        general.push({
+          ...opt,
+          label: t('letterGeneration.letterTypeGroups.general'),
+          pinned: true,
+        });
+      } else if (opt.value === 'ward' || isWardLetterType(opt.value)) {
         bmc.push({
           ...opt,
           label:
@@ -2574,6 +2581,9 @@ export function LetterGeneration({
       }
     }
     const grouped: ComboboxOption[] = [];
+    if (general.length > 0) {
+      grouped.push(...general);
+    }
     if (bmc.length > 0) {
       grouped.push({
         value: '__group-bmc__',
@@ -2585,7 +2595,7 @@ export function LetterGeneration({
     if (other.length > 0) {
       grouped.push({
         value: '__group-all__',
-        label: t('letterGeneration.letterTypeGroups.all'),
+        label: t('letterGeneration.letterTypeGroups.other'),
         disabled: true,
       });
       grouped.push(...other);

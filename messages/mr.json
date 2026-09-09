@@ -717,9 +717,10 @@
     "printWithLetterhead": "प्रिंट / PDF मध्ये लेटरहेड समाविष्ट करा",
     "printDuplicateWarning": "या मतदार आणि सेवेसाठी आज आधीच पत्र प्रिंट झाले आहे.",
     "letterTypeGroups": {
+      "general": "सामान्य पत्र",
       "bmc": "BMC पत्रे",
       "bmcGeneral": "BMC – नागरी (विषय निवडा)",
-      "all": "सर्व पत्रे"
+      "other": "इतर पत्रे"
     },
     "letterTypes": {
       "addNewOption": "+ नवीन पत्र प्रकार जोडा…",

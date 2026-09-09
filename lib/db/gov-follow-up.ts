@@ -401,7 +401,10 @@ export async function getGovFollowUpSummary(): Promise<GovFollowUpSummary> {
 
   const summary: GovFollowUpSummary = {
     dueToday: 0,
+    upcoming: 0,
     overdue: 0,
+    visits: 0,
+    closed: 0,
     stale7: 0,
     mantralaya: 0,
     bmc: 0,
@@ -425,7 +428,12 @@ export async function getGovFollowUpSummary(): Promise<GovFollowUpSummary> {
     const open = isOpenGovFollowUpStatus(status);
 
     if (open && nextOn === today) summary.dueToday += 1;
+    if (open && nextOn && nextOn > today) summary.upcoming += 1;
     if (open && nextOn && nextOn < today) summary.overdue += 1;
+    if (open && nextOn && nextOn <= today) summary.visits += 1;
+    if (CLOSED.includes(status as (typeof CLOSED)[number])) {
+      summary.closed += 1;
+    }
     if (open) {
       const last = lastOn ?? submitted;
       if (!last || last <= staleCutoff) summary.stale7 += 1;

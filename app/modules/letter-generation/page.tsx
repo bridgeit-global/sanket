@@ -94,9 +94,7 @@ export default async function LetterGenerationPage({
                 .filter(Boolean)
                 .join(' · '),
             }}
-            initialLetterType={
-              matter.departmentCode === 'bmc' ? 'ward' : 'general'
-            }
+            initialLetterType="general"
           />
         </div>
       </div>
