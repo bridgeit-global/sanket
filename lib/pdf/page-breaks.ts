@@ -23,6 +23,31 @@ function toScaledY(
   return round === 'ceil' ? Math.ceil(raw) : Math.floor(raw);
 }
 
+/** Union of cell boxes — `tr.getBoundingClientRect()` can span the whole table. */
+function tableRowBounds(row: HTMLElement): { top: number; bottom: number } | null {
+  const cells = row.querySelectorAll('th, td');
+  let top = Number.POSITIVE_INFINITY;
+  let bottom = Number.NEGATIVE_INFINITY;
+  if (cells.length > 0) {
+    for (const cell of Array.from(cells) as HTMLElement[]) {
+      const r = cell.getBoundingClientRect();
+      if (r.height <= 0) continue;
+      top = Math.min(top, r.top);
+      bottom = Math.max(bottom, r.bottom);
+    }
+  }
+  if (!Number.isFinite(top) || bottom <= top) {
+    const r = row.getBoundingClientRect();
+    if (r.height <= 0) return null;
+    return { top: r.top, bottom: r.bottom };
+  }
+  return { top, bottom };
+}
+
+function isDayHeading(el: HTMLElement): boolean {
+  return Boolean(el.closest('.pdf-day-header, .print-date-header'));
+}
+
 function collectLineRangesPx(
   root: HTMLElement,
   scale: number,
@@ -83,7 +108,8 @@ export function getContentBreakpointsPx(
   for (const row of Array.from(
     root.querySelectorAll('tbody tr'),
   ) as HTMLElement[]) {
-    addBottom(row.getBoundingClientRect().bottom);
+    const bounds = tableRowBounds(row);
+    if (bounds) addBottom(bounds.bottom);
   }
 
   for (const line of collectLineRangesPx(root, scale)) {
@@ -91,11 +117,13 @@ export function getContentBreakpointsPx(
   }
 
   // Block bottoms catch empty spacers / images without text.
+  // Skip day headings — breaking after the date orphans it from its table.
   for (const el of Array.from(
     root.querySelectorAll(
       'p, div, li, h1, h2, h3, h4, h5, h6, tr, img, table, blockquote, pre',
     ),
   ) as HTMLElement[]) {
+    if (isDayHeading(el)) continue;
     const r = el.getBoundingClientRect();
     if (r.height > 0) addBottom(r.bottom);
   }
@@ -131,20 +159,49 @@ export function getAvoidSplitRangesPx(
     });
   };
 
+  const pushCssRange = (topCss: number, bottomCss: number) => {
+    if (!(bottomCss > topCss)) return;
+    ranges.push({
+      top: toScaledY(topCss, rootTop, scale, 'floor'),
+      bottom: toScaledY(bottomCss, rootTop, scale, 'ceil'),
+    });
+  };
+
   for (const el of Array.from(
     root.querySelectorAll('.signature, .letter-closing'),
   ) as HTMLElement[]) {
     pushEl(el);
   }
 
-  // Keep table rows (and day headings) on one page so html2canvas slices
-  // never cut through a cell — e.g. between time and "Constituency".
+  // Keep table rows on one page so slices never cut through a cell.
   for (const el of Array.from(
-    root.querySelectorAll(
-      'tbody tr, thead tr, .pdf-day-header, .print-date-header',
-    ),
+    root.querySelectorAll('tbody tr, thead tr'),
   ) as HTMLElement[]) {
-    pushEl(el);
+    const bounds = tableRowBounds(el);
+    if (bounds) pushCssRange(bounds.top, bounds.bottom);
+  }
+
+  // Date heading + table start must travel together. Otherwise the date sits
+  // alone at the bottom of a page and the table opens on the next page.
+  for (const header of Array.from(
+    root.querySelectorAll('.pdf-day-header, .print-date-header'),
+  ) as HTMLElement[]) {
+    const headerRect = header.getBoundingClientRect();
+    if (headerRect.height <= 0) continue;
+    const block =
+      header.closest('.pdf-day-block, .print-date-section') ??
+      header.parentElement;
+    const table = block?.querySelector('table');
+    const firstBody = table?.querySelector('tbody tr') as HTMLElement | null;
+    const firstHead = table?.querySelector('thead tr') as HTMLElement | null;
+    const endBounds =
+      (firstBody && tableRowBounds(firstBody)) ||
+      (firstHead && tableRowBounds(firstHead)) ||
+      (table ? table.getBoundingClientRect() : headerRect);
+    pushCssRange(
+      headerRect.top,
+      Math.max(headerRect.bottom, endBounds.bottom),
+    );
   }
 
   /**

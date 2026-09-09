@@ -1661,7 +1661,11 @@ export function DailyProgramme({
             });
 
             return (
-              <div key={`pdf:${dateKey}`} style={{ marginBottom: '22px' }}>
+              <div
+                key={`pdf:${dateKey}`}
+                className="pdf-day-block"
+                style={{ marginBottom: '22px' }}
+              >
                 <div className="pdf-day-header">
                   <div className="pdf-day-left">
                     <span aria-hidden>📅</span>

@@ -153,6 +153,13 @@ html.pdf-export .pdf-daily-programme .pdf-day-header {
     margin: 14px 0 10px 0;
     font-weight: 700;
     font-size: 20px;
+    page-break-after: avoid;
+    break-after: avoid;
+}
+
+html.pdf-export .pdf-daily-programme .pdf-day-header + * {
+    page-break-before: avoid;
+    break-before: avoid;
 }
 
 html.pdf-export .pdf-daily-programme .pdf-day-header .pdf-day-left {
