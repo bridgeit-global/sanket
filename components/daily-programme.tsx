@@ -1195,7 +1195,7 @@ export function DailyProgramme({
       <Tabs
         value={selectedPerson}
         onValueChange={handlePersonTabChange}
-        className="w-full min-w-0"
+        className="w-full min-w-0 overflow-visible"
       >
         <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1">
           {(['SANA', 'NAWAB'] as const).map((person) => (
@@ -1213,8 +1213,9 @@ export function DailyProgramme({
             </TabsTrigger>
           ))}
         </TabsList>
+      </Tabs>
 
-        <div className="mt-4 space-y-6">
+      <div className="space-y-6">
         <Card className="no-print" id="programme-form">
           <CardHeader
             className="cursor-pointer select-none hover:bg-muted/50 transition-colors rounded-t-lg"
@@ -1618,14 +1619,13 @@ export function DailyProgramme({
             )}
           </CardContent>
         </Card>
-        </div>
-      </Tabs>
+      </div>
 
       {/* Offscreen PDF layout (used for DOM->PDF capture, matches the provided screenshot) */}
       <div
         ref={pdfHostRef}
         aria-hidden="true"
-        className="pointer-events-none"
+        className="pdf-capture-host pointer-events-none"
         style={{
           position: 'fixed',
           left: '-10000px',
@@ -1634,6 +1634,7 @@ export function DailyProgramme({
           background: '#fff',
           color: '#000',
           padding: '24px',
+          overflow: 'visible',
         }}
       >
         <div className="print-schedule pdf-daily-programme">

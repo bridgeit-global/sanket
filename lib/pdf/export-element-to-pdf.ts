@@ -469,6 +469,14 @@ export async function exportElementToPdf(
       windowHeight: Math.ceil(captureElement.scrollHeight),
       scrollX: 0,
       scrollY: 0,
+      onclone: (_doc, cloned) => {
+        let node: HTMLElement | null = cloned;
+        while (node) {
+          node.style.overflow = 'visible';
+          node.style.maxHeight = 'none';
+          node = node.parentElement;
+        }
+      },
     });
 
     // Convert pixels -> mm at the chosen width.
@@ -484,22 +492,44 @@ export async function exportElementToPdf(
     const contentRoot =
       (captureElement.querySelector('.letter-content') as HTMLElement | null) ??
       captureElement;
-    const domPageHeightPx = getLetterPageContentHeightCssPx(
+    // Letters use letterhead insets only. Daily-programme (and similar) draws a
+    // jsPDF header + footer on every page — those must be subtracted or slices
+    // overflow into "Page X of Y" and cut table rows at the page edge.
+    const letterFirstPx = getLetterPageContentHeightCssPx(
       format,
       pageBackgroundHeaderMm > 0,
       pageBackgroundHeaderMm,
     );
-    const domSubsequentPageHeightPx = getLetterPageContentHeightCssPx(
-      format,
-      false,
-      0,
+    const letterNextPx = getLetterPageContentHeightCssPx(format, false, 0);
+    const cssPxPerMm =
+      captureElement.scrollWidth > 0
+        ? captureElement.scrollWidth / contentWidthMm
+        : 96 / 25.4;
+    const firstAvailableMm = Math.max(
+      1,
+      pageHeightMm - topInsetMm - headerHeightMm - footerHeightMm - marginMm,
     );
+    const nextAvailableMm = Math.max(
+      1,
+      pageHeightMm -
+        continuationTopInsetMm -
+        headerHeightMm -
+        footerHeightMm -
+        marginMm,
+    );
+    const useChromeInsets = hasHeader || hasFooter;
+    const domPageHeightPx = useChromeInsets
+      ? firstAvailableMm * cssPxPerMm
+      : letterFirstPx;
+    const domSubsequentPageHeightPx = useChromeInsets
+      ? nextAvailableMm * cssPxPerMm
+      : letterNextPx;
     const pageStartsDomPx = paginateLetterContentRoot(
       contentRoot,
       domPageHeightPx,
-      letterheadFirstPageOnly &&
-        pageBackgroundHeaderMm > 0 &&
-        Math.abs(domSubsequentPageHeightPx - domPageHeightPx) > 0.5
+      Math.abs(domSubsequentPageHeightPx - domPageHeightPx) > 0.5 &&
+        (useChromeInsets ||
+          (letterheadFirstPageOnly && pageBackgroundHeaderMm > 0))
         ? domSubsequentPageHeightPx
         : undefined,
     );

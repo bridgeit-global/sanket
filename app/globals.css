@@ -103,6 +103,14 @@ html.pdf-export .pdf-daily-programme.print-schedule {
     padding-top: 0 !important;
     font-size: 12pt !important;
     line-height: 1.35 !important;
+    overflow: visible !important;
+}
+
+html.pdf-export .pdf-capture-host,
+html.pdf-export .pdf-daily-programme,
+html.pdf-export .pdf-daily-programme table {
+    overflow: visible !important;
+    max-height: none !important;
 }
 
 html.pdf-export .pdf-daily-programme .pdf-header {
@@ -786,6 +794,11 @@ html.pdf-export .print-schedule thead {
         visibility: hidden;
     }
 
+    /* Offscreen DOM→PDF host must not appear in browser print */
+    .pdf-capture-host {
+        display: none !important;
+    }
+
     /* Reset ancestor overflow/height constraints to prevent clipping across page breaks */
     html,
     body {
@@ -793,6 +806,11 @@ html.pdf-export .print-schedule thead {
         height: auto !important;
         min-height: 0 !important;
         max-height: none !important;
+    }
+
+    [data-radix-tabs-root],
+    [role="tablist"] {
+        overflow: visible !important;
     }
 
     /* Remove overflow clipping on page containers that would prevent multi-page content */
@@ -1260,6 +1278,12 @@ html.pdf-export .print-schedule thead {
         width: 100%;
         margin: 0 !important;
         padding: 0 !important;
+    }
+
+    /* shadcn Table wraps <table> in overflow-auto — that clips rows in print */
+    .print-table-wrapper > div {
+        overflow: visible !important;
+        max-height: none !important;
     }
 
     .print-schedule table {

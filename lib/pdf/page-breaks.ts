@@ -137,6 +137,16 @@ export function getAvoidSplitRangesPx(
     pushEl(el);
   }
 
+  // Keep table rows (and day headings) on one page so html2canvas slices
+  // never cut through a cell — e.g. between time and "Constituency".
+  for (const el of Array.from(
+    root.querySelectorAll(
+      'tbody tr, thead tr, .pdf-day-header, .print-date-header',
+    ),
+  ) as HTMLElement[]) {
+    pushEl(el);
+  }
+
   /**
    * Merge a run of sibling closing/signature rows into one avoid block
    * (includes the large margin between "Yours faithfully," and the name).
