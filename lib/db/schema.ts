@@ -68,6 +68,11 @@ export const TABLES = {
   admDemandLetter: 'AdmDemandLetter',
   projectGroundMedia: 'ProjectGroundMedia',
   shortUrl: 'ShortUrl',
+  govFollowUpDepartment: 'GovFollowUpDepartment',
+  govFollowUpLocation: 'GovFollowUpLocation',
+  govFollowUpSequence: 'GovFollowUpSequence',
+  govFollowUpMatter: 'GovFollowUpMatter',
+  govFollowUpLog: 'GovFollowUpLog',
 } as const;
 
 export type Role = {
@@ -1057,4 +1062,122 @@ export type CadreWhatsAppMessage = {
   createdAt: Date;
   updatedAt: Date;
   processedAt: Date | null;
+};
+
+export type GovFollowUpPriority = 'urgent' | 'high' | 'normal';
+
+export type GovFollowUpStatus =
+  | 'pending'
+  | 'under_process'
+  | 'approval_pending'
+  | 'sanctioned'
+  | 'rejected'
+  | 'closed';
+
+export type GovFollowUpLogKind =
+  | 'submitted'
+  | 'inward'
+  | 'follow_up'
+  | 'file_movement'
+  | 'query'
+  | 'compliance'
+  | 'order'
+  | 'closed'
+  | 'note';
+
+export type GovFollowUpMode =
+  | 'call'
+  | 'visit'
+  | 'whatsapp'
+  | 'email'
+  | 'letter'
+  | 'meeting';
+
+export type GovFollowUpDepartment = {
+  id: string;
+  code: string;
+  name: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type GovFollowUpLocation = {
+  id: string;
+  code: string;
+  name: string;
+  sortOrder: number;
+  isActive: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type GovFollowUpMatter = {
+  id: string;
+  followUpNo: string;
+  subject: string;
+  letterId: string | null;
+  registerEntryId: string | null;
+  beneficiaryServiceId: string | null;
+  projectId: string | null;
+  departmentId: string;
+  locationId: string;
+  officeName: string | null;
+  officerName: string | null;
+  designation: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  deskName: string | null;
+  presentStage: string | null;
+  staffUserId: string | null;
+  dateSubmitted: string;
+  inwardRefNo: string | null;
+  lastFollowUpOn: string | null;
+  lastFollowUpMode: GovFollowUpMode | null;
+  lastResponse: string | null;
+  nextAction: string | null;
+  nextFollowUpOn: string | null;
+  lastLogKind: GovFollowUpLogKind | null;
+  priority: GovFollowUpPriority;
+  status: GovFollowUpStatus;
+  remarks: string | null;
+  createdBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type GovFollowUpMatterListItem = GovFollowUpMatter & {
+  departmentName: string;
+  departmentCode: string;
+  locationName: string;
+  locationCode: string;
+  staffUserName: string | null;
+  letterReferenceNo: string | null;
+  registerRefNo: string | null;
+};
+
+export type GovFollowUpLog = {
+  id: string;
+  matterId: string;
+  occurredOn: string;
+  kind: GovFollowUpLogKind;
+  mode: GovFollowUpMode | null;
+  body: string;
+  departmentId: string | null;
+  locationId: string | null;
+  officeName: string | null;
+  officerName: string | null;
+  designation: string | null;
+  deskName: string | null;
+  presentStage: string | null;
+  nextFollowUpOn: string | null;
+  nextAction: string | null;
+  performedBy: string;
+  performedByName: string | null;
+  createdAt: Date;
+};
+
+export type GovFollowUpMatterDetail = GovFollowUpMatterListItem & {
+  logs: GovFollowUpLog[];
 };

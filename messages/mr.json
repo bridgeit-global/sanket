@@ -101,6 +101,10 @@
       "label": "आवक/जावक नोंद",
       "description": "आवक व जावक पत्रव्यवहार आणि दस्तऐवज व्यवस्थापित करा"
     },
+    "govFollowUp": {
+      "label": "शासकीय फॉलो-अप डेस्क",
+      "description": "शासकीय प्राधिकरणांकडे प्रलंबित बाबी ट्रॅक करा"
+    },
     "inward": {
       "label": "आंतरिक नोंद",
       "description": "आंतरिक पत्रव्यवहार आणि दस्तऐवज व्यवस्थापित करा"
@@ -2394,5 +2398,173 @@
       "convert": "लाभार्थीमध्ये रुपांतर करण्यात अयशस्वी",
       "printTicket": "थर्मल तिकीट प्रिंट करण्यात अयशस्वी"
     }
+  },
+  "govFollowUp": {
+    "title": "शासकीय फॉलो-अप डेस्क",
+    "description": "शासकीय बाब कुठे प्रलंबित आहे, कोण हाताळत आहे आणि पुढील फॉलो-अप कधी आहे.",
+    "newMatter": "नवीन बाब",
+    "searchPlaceholder": "विषय, आयडी, अधिकारी, कार्यालय शोधा…",
+    "todayTitle": "आजच्या शासकीय फॉलो-अप्स — {date}",
+    "empty": "या दृश्यात बाबी नाहीत.",
+    "emptyHint": "नवीन बाब तयार करा, किंवा दुसरे दृश्य / फिल्टर निवडा.",
+    "createDescription": "फाईल कुठे आहे, कोणाकडे आहे आणि पुढील फॉलो-अप कधी आहे ते नोंदवा.",
+    "detailDescription": "बाब स्थिती, इतिहास आणि फॉलो-अप नोंद.",
+    "quickFilters": "जलद फिल्टर",
+    "filterActive": "दाखवत आहे",
+    "clearFilter": "फिल्टर काढा",
+    "browse": "नुसार पहा",
+    "resultsCount": "{count, plural, one {# बाब} other {# बाबी}}",
+    "bodyPlaceholder": "काय सांगितले किंवा केले…",
+    "kpis": {
+      "dueToday": "आज मुदतीच्या",
+      "overdue": "मुदत संपलेल्या",
+      "stale": "७ दिवस अपडेट नाही"
+    },
+    "sections": {
+      "matter": "बाब",
+      "pendingWith": "कुठे प्रलंबित",
+      "plan": "फॉलो-अप योजना",
+      "recordUpdate": "अपडेट नोंदवा",
+      "whereNow": "प्रलंबित ठिकाण बदला"
+    },
+    "failedToLoad": "फॉलो-अप डेस्क लोड करण्यात अयशस्वी",
+    "failedToSave": "बाब जतन करण्यात अयशस्वी",
+    "failedToLog": "फॉलो-अप नोंदवण्यात अयशस्वी",
+    "saved": "बाब जतन झाली",
+    "logged": "फॉलो-अप नोंदवला",
+    "moved": "प्रलंबित ठिकाण अद्ययावत",
+    "closed": "बाब बंद केली",
+    "openExisting": "या पत्रव्यवहारासाठी आधीच एक खुली फॉलो-अप बाब आहे.",
+    "tabs": {
+      "today": "आज",
+      "upcoming": "आगामी",
+      "overdue": "मुदत संपलेली",
+      "by-department": "विभागानुसार",
+      "by-officer": "अधिकार्यानुसार",
+      "by-staff": "कर्मचार्‍यानुसार",
+      "file-movement": "फाईल हालचाल",
+      "visits": "भेटी",
+      "closed": "बंद"
+    },
+    "chips": {
+      "due-today": "आजच्या फॉलो-अप्स",
+      "overdue": "मुदत संपलेल्या फॉलो-अप्स",
+      "stale-7": "७ दिवस अपडेट नाही",
+      "mantralaya": "मंत्रालयात प्रलंबित",
+      "bmc": "BMC कडे प्रलंबित",
+      "sra": "SRA कडे प्रलंबित",
+      "minister": "मंत्र्यांच्या मंजुरीची प्रतीक्षा",
+      "dept-reply": "विभागाच्या उत्तराची प्रतीक्षा",
+      "sanctions": "मंजुरी अपेक्षित",
+      "recently-closed": "अलीकडे बंद"
+    },
+    "columns": {
+      "matter": "बाब",
+      "department": "विभाग",
+      "pendingWith": "प्रलंबित",
+      "lastUpdate": "शेवटचे अपडेट",
+      "todaysAction": "आजची कृती",
+      "nextFollowUp": "पुढील फॉलो-अप",
+      "staff": "आमचे कर्मचारी",
+      "status": "स्थिती",
+      "priority": "प्राधान्य"
+    },
+    "fields": {
+      "followUpNo": "फॉलो-अप आयडी",
+      "subject": "विषय / बाब",
+      "relatedLetter": "संबंधित पत्र",
+      "relatedRegister": "संबंधित फाईल / पत्र",
+      "department": "विभाग",
+      "location": "कार्यालय / परिसर",
+      "officeName": "कार्यालय / प्राधिकरण",
+      "officerName": "अधिकाऱ्याचे नाव",
+      "designation": "पदनाम",
+      "contactPhone": "फोन",
+      "contactEmail": "ईमेल",
+      "deskName": "डेस्क",
+      "presentStage": "सध्याचा टप्पा",
+      "staff": "फॉलो-अप करणारे कर्मचारी",
+      "dateSubmitted": "सादर केल्याची तारीख",
+      "inwardRefNo": "आवक / संदर्भ क्रमांक",
+      "lastFollowUp": "शेवटचा फॉलो-अप",
+      "mode": "फॉलो-अप पद्धत",
+      "lastResponse": "शेवटचा प्रतिसाद",
+      "nextAction": "पुढील कृती",
+      "nextFollowUpOn": "पुढील फॉलो-अप तारीख",
+      "priority": "प्राधान्य",
+      "status": "स्थिती",
+      "remarks": "शेरा",
+      "occurredOn": "तारीख",
+      "kind": "नोंद प्रकार",
+      "body": "काय झाले"
+    },
+    "status": {
+      "pending": "प्रलंबित",
+      "under_process": "प्रक्रियेत",
+      "approval_pending": "मंजुरी प्रलंबित",
+      "sanctioned": "मंजूर",
+      "rejected": "नाकारले",
+      "closed": "बंद"
+    },
+    "priority": {
+      "urgent": "तातडीचे",
+      "high": "उच्च",
+      "normal": "सामान्य"
+    },
+    "mode": {
+      "call": "कॉल",
+      "visit": "भेट",
+      "whatsapp": "WhatsApp",
+      "email": "ईमेल",
+      "letter": "पत्र",
+      "meeting": "बैठक"
+    },
+    "kind": {
+      "submitted": "सादर",
+      "inward": "आवक मिळाली",
+      "follow_up": "फॉलो-अप",
+      "file_movement": "फाईल हालचाल",
+      "query": "प्रश्न / अनुपालन",
+      "compliance": "अनुपालन सादर",
+      "order": "आदेश मिळाला",
+      "closed": "बंद",
+      "note": "टीप"
+    },
+    "actions": {
+      "logFollowUp": "फॉलो-अप नोंदवा",
+      "fileMoved": "फाईल हलली",
+      "closeMatter": "बंद करा",
+      "saveLog": "नोंद जतन करा",
+      "create": "बाब तयार करा",
+      "viewLetter": "पत्र उघडा",
+      "viewRegister": "आवक/जावक उघडा",
+      "unassigned": "नेमणूक नाही"
+    },
+    "history": {
+      "title": "फॉलो-अप इतिहास",
+      "next": "पुढील फॉलो-अप: {date}",
+      "empty": "अद्याप इतिहास नाही."
+    },
+    "visits": {
+      "title": "भेट नियोजन",
+      "pickLocation": "भेट परिसर",
+      "pickDate": "भेटीची तारीख",
+      "headline": "{location} येथे आज {count} बाबींसाठी फॉलो-अप हवा",
+      "none": "या परिसरात मुदतीच्या बाबी नाहीत.",
+      "help": "एका परिसरातील मुदतीच्या आणि उशिराच्या बाबी भेटीसाठी पहा."
+    },
+    "groups": {
+      "all": "सर्व",
+      "empty": "या गटात प्रलंबित बाबी नाहीत.",
+      "title": "फिल्टर"
+    },
+    "pendingWith": "प्रलंबित",
+    "selectDepartment": "विभाग निवडा",
+    "selectLocation": "परिसर निवडा",
+    "selectStaff": "कर्मचारी निवडा",
+    "selectStatus": "स्थिती",
+    "selectPriority": "प्राधान्य",
+    "selectMode": "पद्धत",
+    "startFollowUp": "फॉलो-अप सुरू करा"
   }
 }

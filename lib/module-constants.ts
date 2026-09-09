@@ -132,6 +132,16 @@ export const ALL_MODULES: ModuleDefinition[] = [
     hideFromNav: true,
   },
   {
+    key: 'gov-follow-up',
+    label: 'Government Follow-up Desk',
+    description:
+      'Track matters pending with government authorities and daily follow-ups',
+    route: '/modules/gov-follow-up',
+    icon: 'PhoneCall',
+    category: 'mla-office',
+    defaultRoles: ['admin', 'operator', 'back-office'],
+  },
+  {
     key: 'letter-generation',
     label: 'Letter Generation',
     description: 'Generate official letters in PDF format',
@@ -226,6 +236,7 @@ export const MODULE_DISPLAY_ORDER = [
   'projects',
   'adm',
   'io-register',
+  'gov-follow-up',
   'inward',
   'outward',
   'letter-generation',
@@ -299,6 +310,7 @@ export const MODULE_KEYS = {
   LETTER_GENERATION: 'letter-generation',
   PROJECTS: 'projects',
   ADM: 'adm',
+  GOV_FOLLOW_UP: 'gov-follow-up',
   VOTING_PARTICIPATION: 'voting-participation',
   FIELD_VISITOR: 'field-visitor',
   HIERARCHY: 'hierarchy',

@@ -24,6 +24,7 @@ import {
   Send,
   Trash2,
   X,
+  PhoneCall,
 } from 'lucide-react';
 import { toast } from '@/components/toast';
 
@@ -4060,6 +4061,17 @@ export function LetterGeneration({
           {t('letterGeneration.savedLetters.actions.addToOutward')}
         </Button>
       )}
+      <Button
+        asChild
+        size="sm"
+        variant="outline"
+        className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+      >
+        <Link href={`/modules/gov-follow-up?new=1&letterId=${letter.id}`}>
+          <PhoneCall className="mr-2 size-4" />
+          {t('govFollowUp.startFollowUp')}
+        </Link>
+      </Button>
       {/* <Button
         size="sm"
         variant="outline"
@@ -6870,6 +6882,19 @@ export function LetterGeneration({
                                     )}
                                   </Button>
                                 )}
+                                <Button
+                                  asChild
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full sm:w-auto"
+                                >
+                                  <Link
+                                    href={`/modules/gov-follow-up?new=1&letterId=${selectedSavedLetter.id}`}
+                                  >
+                                    <PhoneCall className="mr-2 size-4" />
+                                    {t('govFollowUp.startFollowUp')}
+                                  </Link>
+                                </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"

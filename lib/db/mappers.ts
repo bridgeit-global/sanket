@@ -67,6 +67,14 @@ import type {
   ProjectNocStatus,
   ProjectPhysicalStatus,
   ProjectDocumentKind,
+  GovFollowUpDepartment,
+  GovFollowUpLocation,
+  GovFollowUpMatter,
+  GovFollowUpLog,
+  GovFollowUpPriority,
+  GovFollowUpStatus,
+  GovFollowUpLogKind,
+  GovFollowUpMode,
 } from './schema';
 import { getDefaultLetterPaperSize } from '@/lib/letters/paper-size';
 import { isAddressType } from '@/lib/letters/address-types';
@@ -1273,6 +1281,104 @@ export function mapCadreWhatsAppMessageRow(row: Row): CadreWhatsAppMessage {
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),
     processedAt: toDateOrNull(row.processed_at ?? row.processedAt),
+  };
+}
+
+export function mapGovFollowUpDepartmentRow(row: Row): GovFollowUpDepartment {
+  return {
+    id: String(row.id),
+    code: String(row.code),
+    name: String(row.name),
+    sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
+    isActive: Boolean(row.is_active ?? row.isActive ?? true),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapGovFollowUpLocationRow(row: Row): GovFollowUpLocation {
+  return {
+    id: String(row.id),
+    code: String(row.code),
+    name: String(row.name),
+    sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
+    isActive: Boolean(row.is_active ?? row.isActive ?? true),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapGovFollowUpMatterRow(row: Row): GovFollowUpMatter {
+  const mode = toStringOrNull(
+    row.last_follow_up_mode ?? row.lastFollowUpMode,
+  );
+  const lastLogKind = toStringOrNull(row.last_log_kind ?? row.lastLogKind);
+  return {
+    id: String(row.id),
+    followUpNo: String(row.follow_up_no ?? row.followUpNo),
+    subject: String(row.subject ?? ''),
+    letterId: toStringOrNull(row.letter_id ?? row.letterId),
+    registerEntryId: toStringOrNull(
+      row.register_entry_id ?? row.registerEntryId,
+    ),
+    beneficiaryServiceId: toStringOrNull(
+      row.beneficiary_service_id ?? row.beneficiaryServiceId,
+    ),
+    projectId: toStringOrNull(row.project_id ?? row.projectId),
+    departmentId: String(row.department_id ?? row.departmentId),
+    locationId: String(row.location_id ?? row.locationId),
+    officeName: toStringOrNull(row.office_name ?? row.officeName),
+    officerName: toStringOrNull(row.officer_name ?? row.officerName),
+    designation: toStringOrNull(row.designation),
+    contactPhone: toStringOrNull(row.contact_phone ?? row.contactPhone),
+    contactEmail: toStringOrNull(row.contact_email ?? row.contactEmail),
+    deskName: toStringOrNull(row.desk_name ?? row.deskName),
+    presentStage: toStringOrNull(row.present_stage ?? row.presentStage),
+    staffUserId: toStringOrNull(row.staff_user_id ?? row.staffUserId),
+    dateSubmitted: String(row.date_submitted ?? row.dateSubmitted ?? ''),
+    inwardRefNo: toStringOrNull(row.inward_ref_no ?? row.inwardRefNo),
+    lastFollowUpOn: toStringOrNull(row.last_follow_up_on ?? row.lastFollowUpOn),
+    lastFollowUpMode: (mode as GovFollowUpMode | null) ?? null,
+    lastResponse: toStringOrNull(row.last_response ?? row.lastResponse),
+    nextAction: toStringOrNull(row.next_action ?? row.nextAction),
+    nextFollowUpOn: toStringOrNull(
+      row.next_follow_up_on ?? row.nextFollowUpOn,
+    ),
+    lastLogKind: (lastLogKind as GovFollowUpLogKind | null) ?? null,
+    priority: String(row.priority ?? 'normal') as GovFollowUpPriority,
+    status: String(row.status ?? 'pending') as GovFollowUpStatus,
+    remarks: toStringOrNull(row.remarks),
+    createdBy: String(row.created_by ?? row.createdBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
+  };
+}
+
+export function mapGovFollowUpLogRow(row: Row): GovFollowUpLog {
+  const mode = toStringOrNull(row.mode);
+  return {
+    id: String(row.id),
+    matterId: String(row.matter_id ?? row.matterId),
+    occurredOn: String(row.occurred_on ?? row.occurredOn ?? ''),
+    kind: String(row.kind) as GovFollowUpLogKind,
+    mode: (mode as GovFollowUpMode | null) ?? null,
+    body: String(row.body ?? ''),
+    departmentId: toStringOrNull(row.department_id ?? row.departmentId),
+    locationId: toStringOrNull(row.location_id ?? row.locationId),
+    officeName: toStringOrNull(row.office_name ?? row.officeName),
+    officerName: toStringOrNull(row.officer_name ?? row.officerName),
+    designation: toStringOrNull(row.designation),
+    deskName: toStringOrNull(row.desk_name ?? row.deskName),
+    presentStage: toStringOrNull(row.present_stage ?? row.presentStage),
+    nextFollowUpOn: toStringOrNull(
+      row.next_follow_up_on ?? row.nextFollowUpOn,
+    ),
+    nextAction: toStringOrNull(row.next_action ?? row.nextAction),
+    performedBy: String(row.performed_by ?? row.performedBy),
+    performedByName: toStringOrNull(
+      row.performed_by_name ?? row.performedByName,
+    ),
+    createdAt: toDate(row.created_at ?? row.createdAt),
   };
 }
 

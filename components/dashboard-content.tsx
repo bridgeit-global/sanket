@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Cake, Phone, Users, ClipboardCheck } from 'lucide-react';
+import { Cake, Phone, Users, ClipboardCheck, PhoneCall } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { useTranslations } from '@/hooks/use-translations';
@@ -298,6 +298,57 @@ export function DashboardContent({ data }: DashboardContentProps) {
           ) : (
             <UpcomingBirthdaysList birthdays={data.upcomingBirthdays} />
           )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <PhoneCall className="h-5 w-5" />
+            {t('govFollowUp.title')}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={() => router.push('/modules/gov-follow-up?tab=today')}
+              className="flex flex-col gap-1 rounded-lg border p-4 text-left transition-colors hover:border-primary/50 hover:bg-muted/50"
+            >
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                {t('govFollowUp.chips.due-today')}
+              </span>
+              <span className="text-2xl font-semibold">
+                {data.govFollowUp.dueToday}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push('/modules/gov-follow-up?tab=overdue')}
+              className="flex flex-col gap-1 rounded-lg border p-4 text-left transition-colors hover:border-primary/50 hover:bg-muted/50"
+            >
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                {t('govFollowUp.chips.overdue')}
+              </span>
+              <span className="text-2xl font-semibold">
+                {data.govFollowUp.overdue}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                router.push('/modules/gov-follow-up?chip=stale-7')
+              }
+              className="flex flex-col gap-1 rounded-lg border p-4 text-left transition-colors hover:border-primary/50 hover:bg-muted/50"
+            >
+              <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                {t('govFollowUp.chips.stale-7')}
+              </span>
+              <span className="text-2xl font-semibold">
+                {data.govFollowUp.stale7}
+              </span>
+            </button>
+          </div>
         </CardContent>
       </Card>
 
