@@ -51,6 +51,7 @@ import {
   GovFollowUpStatusBadge,
   isMatterOverdue,
 } from './matter-status';
+import { govFollowUpLetterGenerationHref } from '@/lib/gov-follow-up/url-params';
 
 export type MatterFormState = {
   subject: string;
@@ -677,34 +678,31 @@ export function GovFollowUpDetailDialog({
             </MetaItem>
           </div>
 
-          {matter.letterId || matter.registerEntryId ? (
-            <div className="flex flex-wrap gap-2">
-              {matter.letterId ? (
-                <Button variant="outline" size="sm" asChild>
-                  <Link
-                    href={`/modules/letter-generation?letterId=${matter.letterId}`}
-                  >
-                    <FileText className="size-3.5" />
-                    {t('govFollowUp.actions.viewLetter')}
-                    {matter.letterReferenceNo
-                      ? ` (${matter.letterReferenceNo})`
-                      : ''}
-                  </Link>
-                </Button>
-              ) : null}
-              {matter.registerEntryId ? (
-                <Button variant="outline" size="sm" asChild>
-                  <Link
-                    href={`/modules/io-register?search=${encodeURIComponent(matter.registerRefNo || matter.subject)}`}
-                  >
-                    <Inbox className="size-3.5" />
-                    {t('govFollowUp.actions.viewRegister')}
-                    {matter.registerRefNo ? ` (${matter.registerRefNo})` : ''}
-                  </Link>
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href={govFollowUpLetterGenerationHref(matter.id)}>
+                <FileText className="size-3.5" />
+                {matter.letterId
+                  ? `${t('govFollowUp.actions.viewLetter')}${
+                      matter.letterReferenceNo
+                        ? ` (${matter.letterReferenceNo})`
+                        : ''
+                    }`
+                  : t('govFollowUp.actions.generateLetter')}
+              </Link>
+            </Button>
+            {matter.registerEntryId ? (
+              <Button variant="outline" size="sm" asChild>
+                <Link
+                  href={`/modules/io-register?search=${encodeURIComponent(matter.registerRefNo || matter.subject)}`}
+                >
+                  <Inbox className="size-3.5" />
+                  {t('govFollowUp.actions.viewRegister')}
+                  {matter.registerRefNo ? ` (${matter.registerRefNo})` : ''}
+                </Link>
+              </Button>
+            ) : null}
+          </div>
 
           <section>
             <h3 className="mb-3 text-sm font-semibold">
@@ -938,6 +936,14 @@ export function GovFollowUpDetailDialog({
           <Button disabled={saving} onClick={() => submit('follow_up')}>
             {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
             {t('govFollowUp.actions.logFollowUp')}
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href={govFollowUpLetterGenerationHref(matter.id)}>
+              <FileText className="size-3.5" />
+              {matter.letterId
+                ? t('govFollowUp.actions.viewLetter')
+                : t('govFollowUp.actions.generateLetter')}
+            </Link>
           </Button>
           <Button
             variant="outline"

@@ -642,6 +642,33 @@ export async function getGovFollowUpMatterById(
   return { ...hydrated, logs };
 }
 
+export async function findMatterByLetterId(
+  letterId: string,
+): Promise<GovFollowUpMatter | null> {
+  const { data, error } = await supabase
+    .from(TABLES.govFollowUpMatter)
+    .select('*')
+    .eq('letter_id', letterId)
+    .order('created_at', { ascending: false })
+    .limit(1);
+  throwOnSupabaseError(error, 'Failed to find follow-up by letter');
+  return data?.[0] ? mapGovFollowUpMatterRow(data[0]) : null;
+}
+
+export async function attachLetterToGovFollowUpMatter(params: {
+  matterId: string;
+  letterId: string;
+}): Promise<void> {
+  const { error } = await supabase
+    .from(TABLES.govFollowUpMatter)
+    .update({
+      letter_id: params.letterId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', params.matterId);
+  throwOnSupabaseError(error, 'Failed to link letter to follow-up matter');
+}
+
 export async function findOpenMatterByLetterId(
   letterId: string,
 ): Promise<GovFollowUpMatter | null> {

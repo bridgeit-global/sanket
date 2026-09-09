@@ -3,11 +3,14 @@ import { redirect } from 'next/navigation';
 import { LetterGeneration } from '@/components/letter-generation';
 import { isUserAdmin } from '@/lib/db/cadre-queries';
 import {
-  hasModuleAccess,
+  findMatterByLetterId,
   getBeneficiaryServiceById,
+  getGovFollowUpMatterById,
+  getLetterById,
   getServiceCatalogByName,
   getVoterByEpicNumber,
   getVoterMobileNumbersByEpicNumbers,
+  hasModuleAccess,
 } from '@/lib/db/queries';
 import { resolveLetterTypeFromServiceName } from '@/lib/letters/letter-type-options';
 import { isSpecificWardLetterType } from '@/lib/letters/templates';
@@ -28,14 +31,75 @@ export default async function LetterGenerationPage({
     redirect('/unauthorized');
   }
 
-  // Letter generation is only reachable from a recorded beneficiary service.
   const params = await searchParams;
-  const beneficiaryServiceId = params.beneficiaryServiceId;
-  if (!beneficiaryServiceId) {
+  let beneficiaryServiceId = params.beneficiaryServiceId;
+  let govFollowUpMatterId = params.govFollowUpMatterId;
+  const letterId = params.letterId;
+
+  if (!beneficiaryServiceId && !govFollowUpMatterId && letterId) {
+    const letter = await getLetterById(letterId);
+    if (letter?.beneficiaryServiceId) {
+      redirect(
+        `/modules/letter-generation?beneficiaryServiceId=${encodeURIComponent(letter.beneficiaryServiceId)}`,
+      );
+    }
+    const matter = await findMatterByLetterId(letterId);
+    if (matter) {
+      redirect(
+        `/modules/letter-generation?govFollowUpMatterId=${encodeURIComponent(matter.id)}`,
+      );
+    }
     redirect('/modules/operator');
   }
 
-  const service = await getBeneficiaryServiceById(beneficiaryServiceId);
+  if (!beneficiaryServiceId && !govFollowUpMatterId) {
+    redirect('/modules/operator');
+  }
+
+  const isAdmin = await isUserAdmin(session.user.id);
+
+  if (govFollowUpMatterId && !beneficiaryServiceId) {
+    const matter = await getGovFollowUpMatterById(govFollowUpMatterId);
+    if (!matter) {
+      redirect('/modules/gov-follow-up');
+    }
+
+    const toName = [matter.officerName, matter.designation]
+      .filter(Boolean)
+      .join(', ');
+    const toAddress = [
+      matter.officeName,
+      matter.deskName,
+      matter.locationName,
+      matter.departmentName,
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    return (
+      <div className="min-h-screen bg-background">
+        <div className="container mx-auto max-w-7xl p-4 sm:py-8">
+          <LetterGeneration
+            isAdmin={isAdmin}
+            govFollowUpMatterId={matter.id}
+            govFollowUpPrefill={{
+              followUpNo: matter.followUpNo,
+              subject: matter.subject,
+              toName,
+              toAddress,
+              departmentName: matter.departmentName,
+              pendingWith: [matter.officerName, matter.officeName]
+                .filter(Boolean)
+                .join(' · '),
+            }}
+            initialLetterType="general"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  const service = await getBeneficiaryServiceById(beneficiaryServiceId as string);
   if (!service) {
     redirect('/modules/operator');
   }
@@ -87,14 +151,13 @@ export default async function LetterGenerationPage({
     initialLetterType = inferredType;
   }
 
-  const isAdmin = await isUserAdmin(session.user.id);
-
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto max-w-7xl p-4 sm:py-8">
         <LetterGeneration
           isAdmin={isAdmin}
           beneficiaryServiceId={beneficiaryServiceId}
+          govFollowUpMatterId={govFollowUpMatterId}
           prefillName={prefillName}
           prefill={{
             name: prefillName,

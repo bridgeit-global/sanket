@@ -33,6 +33,10 @@ export const GOV_FOLLOW_UP_URL_PARAMS = {
 export const GOV_FOLLOW_UP_PAGE_SIZE_OPTIONS = REGISTER_PAGE_SIZE_OPTIONS;
 export const DEFAULT_GOV_FOLLOW_UP_PAGE_SIZE = DEFAULT_REGISTER_PAGE_SIZE;
 
+export function govFollowUpLetterGenerationHref(matterId: string): string {
+  return `/modules/letter-generation?govFollowUpMatterId=${encodeURIComponent(matterId)}`;
+}
+
 export type GovFollowUpFilterState = {
   tab: GovFollowUpTab;
   chip: GovFollowUpChip | '';

@@ -1182,9 +1182,20 @@ export type LetterBeneficiaryPrefill = {
   address?: string;
 };
 
+export type GovFollowUpLetterPrefill = {
+  followUpNo: string;
+  subject: string;
+  toName: string;
+  toAddress: string;
+  departmentName?: string;
+  pendingWith?: string;
+};
+
 export function LetterGeneration({
   isAdmin = false,
   beneficiaryServiceId,
+  govFollowUpMatterId,
+  govFollowUpPrefill,
   prefillName,
   prefill,
   initialLetterType,
@@ -1193,6 +1204,8 @@ export function LetterGeneration({
 }: {
   isAdmin?: boolean;
   beneficiaryServiceId?: string;
+  govFollowUpMatterId?: string;
+  govFollowUpPrefill?: GovFollowUpLetterPrefill;
   /** Beneficiary name shown in the service info card. */
   prefillName?: string;
   /** Voter-derived values seeded into letter form fields. */
@@ -1226,7 +1239,7 @@ export function LetterGeneration({
   );
   /** True once service has a linked type, or operator chose General Letter. */
   const [letterTypeReady, setLetterTypeReady] = useState(
-    () => Boolean(linkedLetterType),
+    () => Boolean(linkedLetterType) || Boolean(govFollowUpMatterId),
   );
   const [letterTypeOptions, setLetterTypeOptions] = useState<LetterTypeOption[]>(
     [],
@@ -1254,9 +1267,19 @@ export function LetterGeneration({
   const [feesFields, setFeesFields] = useState<FeesLetterFields>(() =>
     feesDefaults('mr'),
   );
-  const [generalFields, setGeneralFields] = useState<GeneralLetterFields>(() =>
-    generalDefaults('mr'),
-  );
+  const [generalFields, setGeneralFields] = useState<GeneralLetterFields>(() => {
+    const base = generalDefaults('mr');
+    if (!govFollowUpPrefill) return base;
+    const toName = govFollowUpPrefill.toName.trim();
+    const toAddress = govFollowUpPrefill.toAddress.trim();
+    return {
+      ...base,
+      toName,
+      toAddress,
+      to: syncGeneralToBlock(toName, toAddress),
+      subject: govFollowUpPrefill.subject,
+    };
+  });
   const [paragraphRows, setParagraphRows] = useState<string[]>(() => ['']);
   const paragraphRowsRef = useRef(paragraphRows);
   paragraphRowsRef.current = paragraphRows;
@@ -2433,9 +2456,11 @@ export function LetterGeneration({
   const refreshSavedLetters = async () => {
     setSavedLettersLoading(true);
     try {
-      const query = beneficiaryServiceId
-        ? `/api/letters?limit=50&beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}`
-        : '/api/letters?limit=50';
+      const query = govFollowUpMatterId
+        ? `/api/letters?govFollowUpMatterId=${encodeURIComponent(govFollowUpMatterId)}`
+        : beneficiaryServiceId
+          ? `/api/letters?limit=50&beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}`
+          : '/api/letters?limit=50';
       const res = await fetch(query);
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to fetch letters');
@@ -3623,6 +3648,7 @@ export function LetterGeneration({
           renderedHtml: activeBody,
           paperSize: paperSizeDraft,
           beneficiaryServiceId: beneficiaryServiceId ?? null,
+          govFollowUpMatterId: govFollowUpMatterId ?? null,
         }),
       });
       const json = await res.json();
@@ -4271,6 +4297,71 @@ export function LetterGeneration({
           </Button>
         ) : null}
       </div>
+      {govFollowUpMatterId && govFollowUpPrefill ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="p-4 sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1.5">
+                <CardTitle className="text-base">
+                  {t('letterGeneration.followUpInfo.title')}
+                </CardTitle>
+                <CardDescription>
+                  {t('letterGeneration.followUpInfo.description')}
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" asChild className="shrink-0">
+                <Link
+                  href={`/modules/gov-follow-up?matter=${encodeURIComponent(govFollowUpMatterId)}`}
+                >
+                  <ArrowLeft className="mr-2 size-4" />
+                  {t('letterGeneration.backToFollowUp')}
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('govFollowUp.fields.followUpNo')}
+                </dt>
+                <dd className="text-sm font-medium">
+                  {govFollowUpPrefill.followUpNo}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('govFollowUp.fields.subject')}
+                </dt>
+                <dd className="text-sm font-medium">
+                  {govFollowUpPrefill.subject}
+                </dd>
+              </div>
+              {govFollowUpPrefill.departmentName ? (
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('govFollowUp.fields.department')}
+                  </dt>
+                  <dd className="text-sm font-medium">
+                    {govFollowUpPrefill.departmentName}
+                  </dd>
+                </div>
+              ) : null}
+              {govFollowUpPrefill.pendingWith ? (
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('govFollowUp.pendingWith')}
+                  </dt>
+                  <dd className="text-sm font-medium">
+                    {govFollowUpPrefill.pendingWith}
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {service ? (
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader className="p-4 sm:p-6">

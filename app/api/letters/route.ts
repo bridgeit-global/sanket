@@ -2,7 +2,10 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import {
+  attachLetterToGovFollowUpMatter,
   createLetter,
+  getGovFollowUpMatterById,
+  getLetterById,
   getLetterByReferenceNo,
   getLetters,
   resolveDocumentTypeReferenceForSave,
@@ -47,6 +50,17 @@ export async function GET(request: NextRequest) {
     const limit = Math.max(1, Math.min(200, Number(limitParam ?? 50) || 50));
     const beneficiaryServiceId =
       searchParams.get('beneficiaryServiceId') || undefined;
+    const govFollowUpMatterId =
+      searchParams.get('govFollowUpMatterId') || undefined;
+
+    if (govFollowUpMatterId) {
+      const matter = await getGovFollowUpMatterById(govFollowUpMatterId);
+      if (!matter?.letterId) {
+        return NextResponse.json({ letters: [] });
+      }
+      const letter = await getLetterById(matter.letterId);
+      return NextResponse.json({ letters: letter ? [letter] : [] });
+    }
 
     const letters = await getLetters({ limit, beneficiaryServiceId });
     return NextResponse.json({ letters });
@@ -80,6 +94,7 @@ export async function POST(request: NextRequest) {
       renderedHtml,
       paperSize,
       beneficiaryServiceId,
+      govFollowUpMatterId,
     } = body ?? {};
 
     if (!letterType || !letterLocale || !title || !renderedHtml) {
@@ -89,11 +104,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!beneficiaryServiceId || !String(beneficiaryServiceId).trim()) {
+    const linkedServiceId =
+      beneficiaryServiceId != null && String(beneficiaryServiceId).trim()
+        ? String(beneficiaryServiceId).trim()
+        : '';
+    const linkedMatterId =
+      govFollowUpMatterId != null && String(govFollowUpMatterId).trim()
+        ? String(govFollowUpMatterId).trim()
+        : '';
+
+    if (!linkedServiceId && !linkedMatterId) {
       return NextResponse.json(
-        { error: 'beneficiaryServiceId is required' },
+        { error: 'beneficiaryServiceId or govFollowUpMatterId is required' },
         { status: 400 },
       );
+    }
+
+    if (linkedMatterId) {
+      const matter = await getGovFollowUpMatterById(linkedMatterId);
+      if (!matter) {
+        return NextResponse.json(
+          { error: 'Follow-up matter not found' },
+          { status: 404 },
+        );
+      }
     }
 
     const parsedClientRef = parseReference(
@@ -168,8 +202,15 @@ export async function POST(request: NextRequest) {
       renderedHtml: nextHtml,
       paperSize: resolveLetterPaperSize(paperSize, letterType),
       createdBy: session.user.id,
-      beneficiaryServiceId: String(beneficiaryServiceId),
+      beneficiaryServiceId: linkedServiceId || null,
     });
+
+    if (linkedMatterId) {
+      await attachLetterToGovFollowUpMatter({
+        matterId: linkedMatterId,
+        letterId: letter.id,
+      });
+    }
 
     return NextResponse.json({ letter }, { status: 201 });
   } catch (error) {

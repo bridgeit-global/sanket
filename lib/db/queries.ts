@@ -303,6 +303,8 @@ export {
   getGovFollowUpVisitPlanner,
   getGovFollowUpCatalogs,
   getGovFollowUpMatterById,
+  findMatterByLetterId,
+  attachLetterToGovFollowUpMatter,
   findOpenMatterByLetterId,
   findOpenMatterByRegisterEntryId,
   getGovFollowUpPrefill,
