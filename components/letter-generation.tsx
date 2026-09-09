@@ -50,7 +50,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Combobox } from '@/components/ui/combobox';
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1188,6 +1188,8 @@ export type GovFollowUpLetterPrefill = {
   toName: string;
   toAddress: string;
   departmentName?: string;
+  departmentCode?: string;
+  locationName?: string;
   pendingWith?: string;
 };
 
@@ -1305,12 +1307,28 @@ export function LetterGeneration({
   );
   const [medicalAssistanceFields, setMedicalAssistanceFields] =
     useState<MedicalAssistanceLetterFields>(() => medicalAssistanceDefaults('mr'));
-  const [wardFields, setWardFields] = useState<WardLetterFields>(() =>
-    wardDefaults(
+  const [wardFields, setWardFields] = useState<WardLetterFields>(() => {
+    const base = wardDefaults(
       'mr',
       resolveWardIssueForLetterContext(linkedLetterType, service?.serviceName),
-    ),
-  );
+    );
+    if (!govFollowUpPrefill) return base;
+    const toName = govFollowUpPrefill.toName.trim();
+    const toAddress = govFollowUpPrefill.toAddress.trim();
+    return {
+      ...base,
+      toName: toName || base.toName,
+      to: toAddress
+        ? combineNameAndAddress(
+            toName,
+            addressNewlinesToHtmlBreaks(toAddress),
+            ',<br>',
+            { boldName: true },
+          )
+        : base.to,
+      location: govFollowUpPrefill.locationName?.trim() || base.location,
+    };
+  });
   /** Values for {{placeholders}} in the template that are not on the standard form. */
   const [customPlaceholderValues, setCustomPlaceholderValues] = useState<
     Record<string, string>
@@ -2361,6 +2379,10 @@ export function LetterGeneration({
   const defaultWardToAppliedRef = useRef(false);
   useEffect(() => {
     if (defaultWardToAppliedRef.current) return;
+    if (govFollowUpPrefill?.toName.trim()) {
+      defaultWardToAppliedRef.current = true;
+      return;
+    }
     if (addressSelections.to) {
       defaultWardToAppliedRef.current = true;
       return;
@@ -2534,6 +2556,42 @@ export function LetterGeneration({
       })),
     [letterTypeSelectOptions, letterLocale],
   );
+
+  const followUpLetterTypeOptions = useMemo((): ComboboxOption[] => {
+    const bmc: ComboboxOption[] = [];
+    const other: ComboboxOption[] = [];
+    for (const opt of letterTypeComboboxOptions) {
+      if (opt.value === 'ward' || isWardLetterType(opt.value)) {
+        bmc.push({
+          ...opt,
+          label:
+            opt.value === 'ward'
+              ? t('letterGeneration.letterTypeGroups.bmcGeneral')
+              : opt.label,
+        });
+      } else {
+        other.push(opt);
+      }
+    }
+    const grouped: ComboboxOption[] = [];
+    if (bmc.length > 0) {
+      grouped.push({
+        value: '__group-bmc__',
+        label: t('letterGeneration.letterTypeGroups.bmc'),
+        disabled: true,
+      });
+      grouped.push(...bmc);
+    }
+    if (other.length > 0) {
+      grouped.push({
+        value: '__group-all__',
+        label: t('letterGeneration.letterTypeGroups.all'),
+        disabled: true,
+      });
+      grouped.push(...other);
+    }
+    return grouped;
+  }, [letterTypeComboboxOptions, t]);
 
   const savedLetterTypeFilterOptions = useMemo(
     () => [
@@ -2874,9 +2932,10 @@ export function LetterGeneration({
 
   // Beneficiary flow: non-general letters lock document type to letter family.
   // General letters keep a selectable document type (default still from family).
+  // Follow-up letters also follow the family default when the type changes.
   useEffect(() => {
-    if (!lockFixedFields) return;
-    if (resolveLetterFormBase(activeTab) === 'general') return;
+    if (!lockFixedFields && !govFollowUpMatterId) return;
+    if (lockFixedFields && resolveLetterFormBase(activeTab) === 'general') return;
     const nextPrefix = documentTypeForLetterType(activeTab);
     const patchPrefix = <T extends { referencePrefix: string }>(prev: T): T =>
       prev.referencePrefix === nextPrefix
@@ -2893,7 +2952,7 @@ export function LetterGeneration({
     setMedicalAssistanceFields(patchPrefix);
     setWardFields(patchPrefix);
     referenceNumberAutoRef.current = true;
-  }, [activeTab, lockFixedFields]);
+  }, [activeTab, lockFixedFields, govFollowUpMatterId]);
 
   const bumpNameTranslateReqId = useCallback((fieldKey: string) => {
     nameTranslateReqIdRef.current[fieldKey] =
@@ -4545,9 +4604,25 @@ export function LetterGeneration({
                 <>
               <div className="grid w-full max-w-3xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <FieldGroup label={lt('letterGeneration.fields.letterType')}>
-                  <div className="flex h-10 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">
-                    {resolveTypeLabel(activeTab)}
-                  </div>
+                  {lockFixedFields ? (
+                    <div className="flex h-10 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">
+                      {resolveTypeLabel(activeTab)}
+                    </div>
+                  ) : (
+                    <Combobox
+                      value={activeTab}
+                      onValueChange={(value) => {
+                        if (!value) return;
+                        setActiveTab(value);
+                        setLetterTypeReady(true);
+                      }}
+                      options={followUpLetterTypeOptions}
+                      placeholder={lt(
+                        'letterGeneration.placeholders.letterType',
+                      )}
+                      aria-required
+                    />
+                  )}
                 </FieldGroup>
                 {formTab === 'general' ? (
                   <FieldGroup label={lt('letterGeneration.fields.paperSize')}>

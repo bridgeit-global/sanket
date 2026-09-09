@@ -88,11 +88,15 @@ export default async function LetterGenerationPage({
               toName,
               toAddress,
               departmentName: matter.departmentName,
+              departmentCode: matter.departmentCode,
+              locationName: matter.locationName,
               pendingWith: [matter.officerName, matter.officeName]
                 .filter(Boolean)
                 .join(' · '),
             }}
-            initialLetterType="general"
+            initialLetterType={
+              matter.departmentCode === 'bmc' ? 'ward' : 'general'
+            }
           />
         </div>
       </div>

@@ -716,6 +716,11 @@
     "printPopupBlocked": "Unable to print letter. Please try again.",
     "printWithLetterhead": "Include letterhead when printing / PDF",
     "printDuplicateWarning": "A letter for this voter and service was already printed today.",
+    "letterTypeGroups": {
+      "bmc": "BMC letters",
+      "bmcGeneral": "BMC – Civic (choose issue)",
+      "all": "All letters"
+    },
     "letterTypes": {
       "addNewOption": "+ Add new letter type…",
       "code": "Type code",
