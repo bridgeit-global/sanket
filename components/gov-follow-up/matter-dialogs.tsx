@@ -65,6 +65,7 @@ import {
 } from './matter-status';
 import { govFollowUpLetterGenerationHref } from '@/lib/gov-follow-up/url-params';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { OfficerPicker } from './officer-picker';
 
 export type MatterFormState = {
   subject: string;
@@ -404,6 +405,17 @@ function MatterFields({
 
       <FormSection title={t('govFollowUp.sections.pendingWith')}>
         <div className="grid gap-3 sm:grid-cols-2">
+          <OfficerPicker
+            id={`${idPrefix}-officer`}
+            catalogs={catalogs}
+            officerName={form.officerName}
+            preferWard={
+              departmentCode === 'bmc' ||
+              catalogs.locations.find((loc) => loc.id === form.locationId)
+                ?.code === 'bmc-ward'
+            }
+            onSelect={(value) => set(value)}
+          />
           <Field
             id={`${idPrefix}-office`}
             label={t('govFollowUp.fields.officeName')}
@@ -416,22 +428,6 @@ function MatterFields({
             />
             <datalist id={`${idPrefix}-offices`}>
               {catalogs.offices.map((name) => (
-                <option key={name} value={name} />
-              ))}
-            </datalist>
-          </Field>
-          <Field
-            id={`${idPrefix}-officer`}
-            label={t('govFollowUp.fields.officerName')}
-          >
-            <Input
-              id={`${idPrefix}-officer`}
-              list={`${idPrefix}-officers`}
-              value={form.officerName}
-              onChange={(e) => set({ officerName: e.target.value })}
-            />
-            <datalist id={`${idPrefix}-officers`}>
-              {catalogs.officers.map((name) => (
                 <option key={name} value={name} />
               ))}
             </datalist>
@@ -701,6 +697,8 @@ export function GovFollowUpDetailDialog({
   const [officeName, setOfficeName] = useState('');
   const [officerName, setOfficerName] = useState('');
   const [designation, setDesignation] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
   const [deskName, setDeskName] = useState('');
   const [presentStage, setPresentStage] = useState('');
   const [inwardRefNo, setInwardRefNo] = useState('');
@@ -744,6 +742,8 @@ export function GovFollowUpDetailDialog({
     setOfficeName(draft.officeName);
     setOfficerName(draft.officerName);
     setDesignation(draft.designation);
+    setContactPhone(matter.contactPhone ?? '');
+    setContactEmail(matter.contactEmail ?? '');
     setDeskName(draft.deskName);
     setPresentStage(draft.presentStage);
     setInwardRefNo(draft.inwardRefNo);
@@ -867,6 +867,8 @@ export function GovFollowUpDetailDialog({
       nextAction,
       status: nextStatus,
       inwardRefNo: inwardRefNo || null,
+      contactPhone,
+      contactEmail,
     });
   };
 
@@ -1196,6 +1198,31 @@ export function GovFollowUpDetailDialog({
                       </SelectContent>
                     </Select>
                   </Field>
+                  <OfficerPicker
+                    id="log-officer"
+                    catalogs={catalogs}
+                    officerName={officerName}
+                    preferWard={
+                      logDepartmentCode === 'bmc' ||
+                      catalogs.locations.find((loc) => loc.id === locationId)
+                        ?.code === 'bmc-ward'
+                    }
+                    onSelect={(value) => {
+                      setOfficerName(value.officerName);
+                      if (value.designation !== undefined) {
+                        setDesignation(value.designation);
+                      }
+                      if (value.officeName !== undefined) {
+                        setOfficeName(value.officeName);
+                      }
+                      if (value.contactPhone !== undefined) {
+                        setContactPhone(value.contactPhone);
+                      }
+                      if (value.contactEmail !== undefined) {
+                        setContactEmail(value.contactEmail);
+                      }
+                    }}
+                  />
                   <Field
                     id="log-office"
                     label={t('govFollowUp.fields.officeName')}
@@ -1203,15 +1230,6 @@ export function GovFollowUpDetailDialog({
                     <Input
                       value={officeName}
                       onChange={(e) => setOfficeName(e.target.value)}
-                    />
-                  </Field>
-                  <Field
-                    id="log-officer"
-                    label={t('govFollowUp.fields.officerName')}
-                  >
-                    <Input
-                      value={officerName}
-                      onChange={(e) => setOfficerName(e.target.value)}
                     />
                   </Field>
                   <Field

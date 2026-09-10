@@ -17,6 +17,7 @@ import {
   GOV_FOLLOW_UP_MODULE_KEY,
   GOV_FOLLOW_UP_OPEN_STATUSES,
   isOpenGovFollowUpStatus,
+  GOV_FOLLOW_UP_EXCLUDED_ADDRESS_TYPES,
   locationsForDepartment,
   type GovFollowUpChip,
   type GovFollowUpTab,
@@ -32,28 +33,54 @@ import type {
   GovFollowUpMode,
 } from '@/lib/db/schema';
 import type {
+  GovFollowUpAddressOfficer,
+  GovFollowUpAddressType,
+  GovFollowUpCadreOfficer,
   GovFollowUpCatalogs,
   GovFollowUpGroupRow,
   GovFollowUpLogInput,
   GovFollowUpMatterInput,
   GovFollowUpSummary,
+  GovFollowUpWard,
 } from '@/lib/gov-follow-up/types';
-import { getLetterById, getRegisterEntryById } from '@/lib/db/queries-crud';
+import { getLetterById, getRegisterEntryById, getAddressMasters, getAddressTypeMasters } from '@/lib/db/queries-crud';
+import { getCadreMembersForWardScope } from '@/lib/db/cadre-queries';
+import {
+  getMemberDisplayName,
+  getMemberPhone,
+} from '@/lib/hierarchy/geo-attribution';
 import {
   defaultGovFollowUpLogBody,
   suggestedStatusForLogKind,
 } from '@/lib/gov-follow-up/workflow';
 
 export type {
+  GovFollowUpAddressOfficer,
+  GovFollowUpAddressType,
+  GovFollowUpCadreOfficer,
   GovFollowUpCatalogs,
   GovFollowUpGroupRow,
   GovFollowUpLogInput,
   GovFollowUpMatterInput,
   GovFollowUpSummary,
+  GovFollowUpWard,
 };
 
 const OPEN = [...GOV_FOLLOW_UP_OPEN_STATUSES];
 const CLOSED = [...GOV_FOLLOW_UP_CLOSED_STATUSES];
+const CADRE_CONSTITUENCY_ID = '172';
+const EXCLUDED_ADDRESS_TYPES = new Set<string>(
+  GOV_FOLLOW_UP_EXCLUDED_ADDRESS_TYPES,
+);
+
+function joinOfficeLine(
+  line: string,
+  city: string,
+  fallback: string,
+): string {
+  const parts = [line.trim(), city.trim()].filter(Boolean);
+  return parts.join(', ') || fallback.trim();
+}
 
 export type GovFollowUpListQuery = {
   tab: GovFollowUpTab;
@@ -635,25 +662,139 @@ export async function getGovFollowUpVisitPlanner(options: {
   };
 }
 
+async function listGovFollowUpAddressTypes(): Promise<GovFollowUpAddressType[]> {
+  const types = await getAddressTypeMasters({ activeOnly: true });
+  return types
+    .filter((type) => !EXCLUDED_ADDRESS_TYPES.has(type.code))
+    .map((type) => ({
+      code: type.code,
+      labelEn: type.labelEn,
+      labelMr: type.labelMr,
+    }));
+}
+
+async function listGovFollowUpAddressOfficers(): Promise<
+  GovFollowUpAddressOfficer[]
+> {
+  const addresses = await getAddressMasters({ activeOnly: true });
+  return addresses
+    .filter(
+      (row) =>
+        !EXCLUDED_ADDRESS_TYPES.has(row.addressType) &&
+        (row.holderNameEn.trim() || row.holderNameMr.trim()),
+    )
+    .map((row) => ({
+      id: row.id,
+      typeCode: row.addressType,
+      nameEn: row.holderNameEn.trim() || row.holderNameMr.trim(),
+      nameMr: row.holderNameMr.trim() || row.holderNameEn.trim(),
+      designationEn: row.positionTitleEn.trim(),
+      designationMr: row.positionTitleMr.trim() || row.positionTitleEn.trim(),
+      officeEn: joinOfficeLine(row.line1En, row.cityEn, row.typeLabelEn),
+      officeMr: joinOfficeLine(
+        row.line1Mr || row.line1En,
+        row.cityMr || row.cityEn,
+        row.typeLabelMr || row.typeLabelEn,
+      ),
+    }));
+}
+
+async function listGovFollowUpWards(): Promise<GovFollowUpWard[]> {
+  const { data, error } = await supabase
+    .from(TABLES.cadreGeographicUnit)
+    .select('id, name, sort_order, ac_no, is_active')
+    .eq('type', 'ward')
+    .eq('is_active', true)
+    .order('sort_order', { ascending: true });
+  throwOnSupabaseError(error, 'Failed to load wards');
+
+  return (data ?? [])
+    .filter((row) => {
+      const acNo = String(row.ac_no ?? '').trim();
+      return !acNo || acNo === CADRE_CONSTITUENCY_ID;
+    })
+    .map((row) => ({
+      id: String(row.id),
+      name: String(row.name ?? '').trim(),
+    }))
+    .filter((ward) => ward.name)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+}
+
+function cadreDesignation(
+  posts: Array<{
+    wardGeoId: string | null;
+    isPrimary: boolean;
+    label: string | null;
+    positionName: string;
+  }>,
+  wardGeoId: string,
+): string {
+  const wardPosts = posts.filter((post) => post.wardGeoId === wardGeoId);
+  const post =
+    wardPosts.find((item) => item.isPrimary) ??
+    wardPosts[0] ??
+    posts.find((item) => item.isPrimary) ??
+    posts[0];
+  if (!post) return '';
+  return (post.label || post.positionName).trim();
+}
+
+export async function listGovFollowUpCadreOfficers(
+  wardGeoId: string,
+): Promise<GovFollowUpCadreOfficer[]> {
+  const trimmed = wardGeoId.trim();
+  if (!trimmed) return [];
+
+  const members = await getCadreMembersForWardScope(
+    CADRE_CONSTITUENCY_ID,
+    trimmed,
+  );
+  return members
+    .map((member) => ({
+      id: member.id,
+      name: getMemberDisplayName(member),
+      designation: cadreDesignation(member.posts, trimmed),
+      phone: getMemberPhone(member) ?? member.whatsappPhone,
+      email: member.personEmail,
+    }))
+    .filter((officer) => officer.name && officer.name !== '—')
+    .sort((a, b) =>
+      a.name.localeCompare(b.name, undefined, { numeric: true }),
+    );
+}
+
 export async function getGovFollowUpCatalogs(): Promise<GovFollowUpCatalogs> {
-  const [departments, locations, users, officerRows, officeRows, deskRows] =
-    await Promise.all([
-      listGovFollowUpDepartments(),
-      listGovFollowUpLocations(),
-      listStaffUsers(),
-      supabase
-        .from(TABLES.govFollowUpMatter)
-        .select('officer_name')
-        .not('officer_name', 'is', null),
-      supabase
-        .from(TABLES.govFollowUpMatter)
-        .select('office_name')
-        .not('office_name', 'is', null),
-      supabase
-        .from(TABLES.govFollowUpMatter)
-        .select('desk_name')
-        .not('desk_name', 'is', null),
-    ]);
+  const [
+    departments,
+    locations,
+    users,
+    officerRows,
+    officeRows,
+    deskRows,
+    addressTypes,
+    addressOfficers,
+    wards,
+  ] = await Promise.all([
+    listGovFollowUpDepartments(),
+    listGovFollowUpLocations(),
+    listStaffUsers(),
+    supabase
+      .from(TABLES.govFollowUpMatter)
+      .select('officer_name')
+      .not('officer_name', 'is', null),
+    supabase
+      .from(TABLES.govFollowUpMatter)
+      .select('office_name')
+      .not('office_name', 'is', null),
+    supabase
+      .from(TABLES.govFollowUpMatter)
+      .select('desk_name')
+      .not('desk_name', 'is', null),
+    listGovFollowUpAddressTypes(),
+    listGovFollowUpAddressOfficers(),
+    listGovFollowUpWards(),
+  ]);
 
   throwOnSupabaseError(officerRows.error, 'Failed to load officer typeahead');
   throwOnSupabaseError(officeRows.error, 'Failed to load office typeahead');
@@ -675,6 +816,9 @@ export async function getGovFollowUpCatalogs(): Promise<GovFollowUpCatalogs> {
     officers: uniq((officerRows.data ?? []).map((row) => row.officer_name)),
     offices: uniq((officeRows.data ?? []).map((row) => row.office_name)),
     desks: uniq((deskRows.data ?? []).map((row) => row.desk_name)),
+    addressTypes,
+    addressOfficers,
+    wards,
   };
 }
 

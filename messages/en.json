@@ -2583,6 +2583,29 @@
     "selectStatus": "Status",
     "selectPriority": "Priority",
     "selectMode": "Mode",
-    "startFollowUp": "Start follow-up"
+    "startFollowUp": "Start follow-up",
+    "officerPicker": {
+      "sourceAddress": "Address book",
+      "sourceWard": "Ward cadre",
+      "addressType": "Officer type",
+      "allTypes": "All types",
+      "selectType": "Filter by type",
+      "officer": "Officer",
+      "selectOfficer": "Search officer or type a name",
+      "noOfficers": "No matching officers — type a name to add",
+      "noTypes": "No officer types",
+      "ward": "Ward",
+      "selectWard": "Search ward number or name",
+      "noWards": "No wards found",
+      "member": "Cadre member",
+      "selectMember": "Search member or type a name",
+      "pickWardFirst": "Select a ward first",
+      "noMembers": "No members in this ward — type a name to add",
+      "failedMembers": "Could not load members — type a name to add",
+      "addIfMissing": "If the person is not listed, type their name to add it.",
+      "wardMembers": "{count, plural, one {# member} other {# members}}",
+      "recentOfficers": "Recently used",
+      "addressBook": "Address book"
+    }
   }
 }

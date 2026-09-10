@@ -7,6 +7,36 @@ import type {
   GovFollowUpStatus,
 } from '@/lib/db/schema';
 
+export type GovFollowUpAddressType = {
+  code: string;
+  labelEn: string;
+  labelMr: string;
+};
+
+export type GovFollowUpAddressOfficer = {
+  id: string;
+  typeCode: string;
+  nameEn: string;
+  nameMr: string;
+  designationEn: string;
+  designationMr: string;
+  officeEn: string;
+  officeMr: string;
+};
+
+export type GovFollowUpWard = {
+  id: string;
+  name: string;
+};
+
+export type GovFollowUpCadreOfficer = {
+  id: string;
+  name: string;
+  designation: string;
+  phone: string | null;
+  email: string | null;
+};
+
 export type GovFollowUpCatalogs = {
   departments: GovFollowUpDepartment[];
   locations: GovFollowUpLocation[];
@@ -14,6 +44,9 @@ export type GovFollowUpCatalogs = {
   offices: string[];
   desks: string[];
   users: Array<{ id: string; userId: string }>;
+  addressTypes: GovFollowUpAddressType[];
+  addressOfficers: GovFollowUpAddressOfficer[];
+  wards: GovFollowUpWard[];
 };
 
 export type GovFollowUpMatterInput = {

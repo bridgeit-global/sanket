@@ -2585,6 +2585,29 @@
     "selectStatus": "स्थिती",
     "selectPriority": "प्राधान्य",
     "selectMode": "पद्धत",
-    "startFollowUp": "फॉलो-अप सुरू करा"
+    "startFollowUp": "फॉलो-अप सुरू करा",
+    "officerPicker": {
+      "sourceAddress": "पत्ता नोंद",
+      "sourceWard": "प्रभाग संवर्ग",
+      "addressType": "अधिकारी प्रकार",
+      "allTypes": "सर्व प्रकार",
+      "selectType": "प्रकाराने फिल्टर करा",
+      "officer": "अधिकारी",
+      "selectOfficer": "अधिकारी शोधा किंवा नाव लिहा",
+      "noOfficers": "जुळणारे अधिकारी नाहीत — नाव लिहून जोडा",
+      "noTypes": "अधिकारी प्रकार नाहीत",
+      "ward": "प्रभाग",
+      "selectWard": "प्रभाग क्रमांक किंवा नाव शोधा",
+      "noWards": "प्रभाग सापडले नाहीत",
+      "member": "संवर्ग सदस्य",
+      "selectMember": "सदस्य शोधा किंवा नाव लिहा",
+      "pickWardFirst": "आधी प्रभाग निवडा",
+      "noMembers": "या प्रभागात सदस्य नाहीत — नाव लिहून जोडा",
+      "failedMembers": "सदस्य लोड झाले नाहीत — नाव लिहून जोडा",
+      "addIfMissing": "यादीत नसल्यास नाव लिहून जोडा.",
+      "wardMembers": "{count, plural, one {# सदस्य} other {# सदस्य}}",
+      "recentOfficers": "अलीकडे वापरलेले",
+      "addressBook": "पत्ता नोंद"
+    }
   }
 }

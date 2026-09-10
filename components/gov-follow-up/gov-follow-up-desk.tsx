@@ -67,6 +67,9 @@ const EMPTY_CATALOGS: GovFollowUpCatalogs = {
   offices: [],
   desks: [],
   users: [],
+  addressTypes: [],
+  addressOfficers: [],
+  wards: [],
 };
 
 const EMPTY_SUMMARY: GovFollowUpSummary = {

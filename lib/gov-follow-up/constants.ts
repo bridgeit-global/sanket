@@ -1,5 +1,13 @@
 export const GOV_FOLLOW_UP_MODULE_KEY = 'gov-follow-up';
 
+/** Letter address types that are not government follow-up officers. */
+export const GOV_FOLLOW_UP_EXCLUDED_ADDRESS_TYPES = [
+  'school',
+  'office',
+  'ration_office',
+  'general',
+] as const;
+
 export const GOV_FOLLOW_UP_OPEN_STATUSES = [
   'pending',
   'under_process',
