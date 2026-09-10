@@ -39,6 +39,7 @@ interface TaskVoter {
     age: number | null;
     gender: string | null;
     relationName: string | null;
+    location?: string | null;
 }
 
 interface TaskWithService extends VoterTask {
@@ -46,6 +47,7 @@ interface TaskWithService extends VoterTask {
     voter?: TaskVoter;
     createdByName?: string | null;
     updatedByName?: string | null;
+    isOutsider?: boolean;
 }
 
 interface TaskResponse {
@@ -1480,22 +1482,46 @@ export function TaskManagement({
                                                                     <Badge variant="outline" className="ml-2">
                                                                         {task.service.serviceType === 'community' ? 'Community' : 'Individual'}
                                                                     </Badge>
+                                                                    {task.isOutsider && (
+                                                                        <Badge variant="secondary" className="ml-2">
+                                                                            {t('taskManagement.outsider')}
+                                                                        </Badge>
+                                                                    )}
                                                                     {task.service.token && (
                                                                         <span> | <strong>{t('taskManagement.token')}</strong> {task.service.token}</span>
                                                                     )}
                                                                 </div>
                                                             )}
 
-                                                            {task.voter && (
+                                                            {(task.voter || task.isOutsider) && (
                                                                 <div className="bg-gray-50 p-3 rounded-lg mb-3">
                                                                     <div className="text-sm font-medium text-gray-900 mb-1">
-                                                                        {t('taskManagement.voterInformation')}
+                                                                        {task.isOutsider
+                                                                            ? t('taskManagement.outsiderInformation')
+                                                                            : t('taskManagement.voterInformation')}
                                                                     </div>
                                                                     <div className="text-sm text-gray-700 space-y-1">
-                                                                        <div><strong>{t('taskManagement.name')}</strong> {task.voter.fullName}</div>
-                                                                        <div><strong>{t('taskManagement.voterId')}</strong> {task.voterId}</div>
-                                                                        {task.voter.mobileNoPrimary && (
-                                                                            <div><strong>{t('taskManagement.phone')}</strong> {task.voter.mobileNoPrimary}</div>
+                                                                        <div>
+                                                                            <strong>{t('taskManagement.name')}</strong>{' '}
+                                                                            {task.voter?.fullName || '—'}
+                                                                        </div>
+                                                                        {(task.voterId || task.voter?.epicNumber) && (
+                                                                            <div>
+                                                                                <strong>{t('taskManagement.voterId')}</strong>{' '}
+                                                                                {task.voterId || task.voter?.epicNumber}
+                                                                            </div>
+                                                                        )}
+                                                                        {task.voter?.mobileNoPrimary && (
+                                                                            <div>
+                                                                                <strong>{t('taskManagement.phone')}</strong>{' '}
+                                                                                {task.voter.mobileNoPrimary}
+                                                                            </div>
+                                                                        )}
+                                                                        {task.voter?.location && (
+                                                                            <div>
+                                                                                <strong>{t('taskManagement.location')}</strong>{' '}
+                                                                                {task.voter.location}
+                                                                            </div>
                                                                         )}
                                                                     </div>
                                                                 </div>
@@ -1633,6 +1659,38 @@ export function TaskManagement({
                                     {formatTaskType(selectedTask.taskType)}
                                 </p>
                             </div>
+
+                            {(selectedTask.voter || selectedTask.isOutsider) && (
+                                <div className="rounded-md border bg-muted/30 p-3 space-y-1">
+                                    <p className="text-sm font-medium">
+                                        {selectedTask.isOutsider
+                                            ? t('taskManagement.outsiderInformation')
+                                            : t('taskManagement.voterInformation')}
+                                    </p>
+                                    <p className="text-sm">
+                                        <strong>{t('taskManagement.name')}</strong>{' '}
+                                        {selectedTask.voter?.fullName || '—'}
+                                    </p>
+                                    {(selectedTask.voterId || selectedTask.voter?.epicNumber) && (
+                                        <p className="text-sm">
+                                            <strong>{t('taskManagement.voterId')}</strong>{' '}
+                                            {selectedTask.voterId || selectedTask.voter?.epicNumber}
+                                        </p>
+                                    )}
+                                    {selectedTask.voter?.mobileNoPrimary && (
+                                        <p className="text-sm">
+                                            <strong>{t('taskManagement.phone')}</strong>{' '}
+                                            {selectedTask.voter.mobileNoPrimary}
+                                        </p>
+                                    )}
+                                    {selectedTask.voter?.location && (
+                                        <p className="text-sm">
+                                            <strong>{t('taskManagement.location')}</strong>{' '}
+                                            {selectedTask.voter.location}
+                                        </p>
+                                    )}
+                                </div>
+                            )}
 
                             {selectedTask.serviceId && (
                                 <div className="space-y-3 rounded-md border p-3">

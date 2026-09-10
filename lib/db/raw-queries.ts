@@ -24,6 +24,10 @@ import {
   getBoothWardMap,
 } from '@/lib/ai/data/booth-ward-from-election';
 import { normalizePartNo } from '@/lib/ai/data/form20-172-2024';
+import {
+  parseOutsiderDetails,
+  stripOutsiderDetails,
+} from '@/lib/operator/outsider-details';
 
 export type BasicVoterWithBooth = {
   epicNumber: string;
@@ -2018,6 +2022,101 @@ export async function getRelatedVotersServicesAndEvents(
   }
 }
 
+type TaskPersonFields = {
+  voterId: string;
+  description: string | null;
+  isOutsider: boolean;
+  voter?: {
+    epicNumber: string;
+    fullName: string | null;
+    mobileNoPrimary: string | null;
+    mobileNoSecondary: string | null;
+    age: number | null;
+    gender: string | null;
+    relationName: string | null;
+    location: string | null;
+  };
+};
+
+function resolveTaskPersonFromRow(row: {
+  voter_id?: unknown;
+  service_description?: unknown;
+  voter_name?: unknown;
+  voter_mobile_primary?: unknown;
+  voter_mobile_secondary?: unknown;
+  voter_age?: unknown;
+  voter_gender?: unknown;
+  voter_relation?: unknown;
+  visitor_name?: unknown;
+  visitor_mobile?: unknown;
+  visitor_voter_id?: unknown;
+  visitor_location?: unknown;
+}): TaskPersonFields {
+  const rawDescription =
+    row.service_description != null ? String(row.service_description) : null;
+  const visitorName =
+    row.visitor_name != null ? String(row.visitor_name).trim() : '';
+  const visitorMobile =
+    row.visitor_mobile != null ? String(row.visitor_mobile).trim() : '';
+  const visitorVoterId =
+    row.visitor_voter_id != null ? String(row.visitor_voter_id).trim() : '';
+  const visitorLocation =
+    row.visitor_location != null ? String(row.visitor_location).trim() : '';
+  const isOutsider = !row.voter_id;
+  const outsider = isOutsider ? parseOutsiderDetails(rawDescription) : null;
+  const description = outsider
+    ? stripOutsiderDetails(rawDescription)
+    : rawDescription;
+
+  if (row.voter_id) {
+    return {
+      voterId: String(row.voter_id),
+      description,
+      isOutsider: false,
+      voter: {
+        epicNumber: String(row.voter_id),
+        fullName: row.voter_name != null ? String(row.voter_name) : null,
+        mobileNoPrimary:
+          row.voter_mobile_primary != null
+            ? String(row.voter_mobile_primary)
+            : null,
+        mobileNoSecondary:
+          row.voter_mobile_secondary != null
+            ? String(row.voter_mobile_secondary)
+            : null,
+        age: row.voter_age != null ? Number(row.voter_age) : null,
+        gender: row.voter_gender != null ? String(row.voter_gender) : null,
+        relationName:
+          row.voter_relation != null ? String(row.voter_relation) : null,
+        location: visitorLocation || null,
+      },
+    };
+  }
+
+  const name = visitorName || outsider?.name || '';
+  const mobile = visitorMobile || outsider?.mobile || '';
+  const epic = visitorVoterId || outsider?.voterId || '';
+
+  return {
+    voterId: epic,
+    description,
+    isOutsider: true,
+    voter:
+      name || mobile || epic || visitorLocation
+        ? {
+            epicNumber: epic,
+            fullName: name || null,
+            mobileNoPrimary: mobile || null,
+            mobileNoSecondary: null,
+            age: null,
+            gender: null,
+            relationName: null,
+            location: visitorLocation || null,
+          }
+        : undefined,
+  };
+}
+
 export async function getTasksWithFilters({
   status,
   priority,
@@ -2070,7 +2169,9 @@ export async function getTasksWithFilters({
         age: number | null;
         gender: string | null;
         relationName: string | null;
+        location?: string | null;
       };
+      isOutsider?: boolean;
     }
   >;
   totalCount: number;
@@ -2085,6 +2186,7 @@ export async function getTasksWithFilters({
     const voterIdVal = voterId ?? '';
     const tokenPattern = token ? `%${token}%` : '';
     const mobilePattern = mobileNo ? `%${mobileNo}%` : '';
+    const outsiderVoterIdPattern = voterId ? `%Voter ID: ${voterId}%` : '';
     const serviceNameVal = serviceName ?? '';
     // Use null (not '') for unset dates — postgres.js serializes ::date via
     // Date#toISOString, which throws on empty string (Invalid Date).
@@ -2099,7 +2201,30 @@ export async function getTasksWithFilters({
           AND (${statusVal} = '' OR bs.status = ${statusVal})
           AND (${priorityVal} = '' OR bs.priority = ${priorityVal})
           AND (${assignedToVal}::text IS NULL OR bs.assigned_to = ${assignedToVal})
-          AND (${voterIdVal} = '' OR bs.voter_id = ${voterIdVal})
+          AND (
+            ${voterIdVal} = ''
+            OR bs.voter_id = ${voterIdVal}
+            OR (
+              ${voterIdVal} <> ''
+              AND EXISTS (
+                SELECT 1 FROM "Visitor" v
+                WHERE v.voter_id ILIKE ${voterIdVal}
+                  AND (
+                    v.token = bs.token
+                    OR EXISTS (
+                      SELECT 1 FROM "VisitorService" vs
+                      WHERE vs.beneficiary_service_id = bs.id
+                        AND vs.visitor_id = v.id
+                    )
+                  )
+              )
+            )
+            OR (
+              ${voterIdVal} <> ''
+              AND bs.voter_id IS NULL
+              AND bs.description ILIKE ${outsiderVoterIdPattern}
+            )
+          )
           AND (${tokenPattern} = '' OR bs.token ILIKE ${tokenPattern})
           AND (${serviceNameVal} = '' OR bs.service_name = ${serviceNameVal})
           AND (
@@ -2116,6 +2241,23 @@ export async function getTasksWithFilters({
               SELECT 1 FROM "VoterMobileNumber" vmn
               WHERE vmn.epic_number = bs.voter_id
                 AND vmn.mobile_number ILIKE ${mobilePattern}
+            )
+            OR EXISTS (
+              SELECT 1 FROM "Visitor" v
+              WHERE v.mobile_number ILIKE ${mobilePattern}
+                AND (
+                  v.token = bs.token
+                  OR EXISTS (
+                    SELECT 1 FROM "VisitorService" vs
+                    WHERE vs.beneficiary_service_id = bs.id
+                      AND vs.visitor_id = v.id
+                  )
+                )
+            )
+            OR (
+              ${mobilePattern} <> ''
+              AND bs.voter_id IS NULL
+              AND bs.description ILIKE ${mobilePattern}
             )
           )
       `;
@@ -2150,14 +2292,53 @@ export async function getTasksWithFilters({
           vm.age AS voter_age,
           vm.gender AS voter_gender,
           vm.relation_name AS voter_relation,
+          vis.name AS visitor_name,
+          vis.mobile_number AS visitor_mobile,
+          vis.voter_id AS visitor_voter_id,
+          vis.location AS visitor_location,
           (SELECT u.user_id FROM "User" u WHERE u.id = bs.requested_by LIMIT 1) AS created_by_name
         FROM "BeneficiaryService" bs
         LEFT JOIN "VoterMaster" vm ON bs.voter_id = vm.epic_number
+        LEFT JOIN LATERAL (
+          SELECT v.name, v.mobile_number, v.voter_id, v.location
+          FROM "Visitor" v
+          WHERE v.token = bs.token
+             OR EXISTS (
+               SELECT 1 FROM "VisitorService" vs
+               WHERE vs.beneficiary_service_id = bs.id
+                 AND vs.visitor_id = v.id
+             )
+          ORDER BY CASE WHEN v.token = bs.token THEN 0 ELSE 1 END
+          LIMIT 1
+        ) vis ON true
         WHERE bs.service_type = 'individual'
           AND (${statusVal} = '' OR bs.status = ${statusVal})
           AND (${priorityVal} = '' OR bs.priority = ${priorityVal})
           AND (${assignedToVal}::text IS NULL OR bs.assigned_to = ${assignedToVal})
-          AND (${voterIdVal} = '' OR bs.voter_id = ${voterIdVal})
+          AND (
+            ${voterIdVal} = ''
+            OR bs.voter_id = ${voterIdVal}
+            OR (
+              ${voterIdVal} <> ''
+              AND EXISTS (
+                SELECT 1 FROM "Visitor" v
+                WHERE v.voter_id ILIKE ${voterIdVal}
+                  AND (
+                    v.token = bs.token
+                    OR EXISTS (
+                      SELECT 1 FROM "VisitorService" vs
+                      WHERE vs.beneficiary_service_id = bs.id
+                        AND vs.visitor_id = v.id
+                    )
+                  )
+              )
+            )
+            OR (
+              ${voterIdVal} <> ''
+              AND bs.voter_id IS NULL
+              AND bs.description ILIKE ${outsiderVoterIdPattern}
+            )
+          )
           AND (${tokenPattern} = '' OR bs.token ILIKE ${tokenPattern})
           AND (${serviceNameVal} = '' OR bs.service_name = ${serviceNameVal})
           AND (
@@ -2175,71 +2356,71 @@ export async function getTasksWithFilters({
               WHERE vmn.epic_number = bs.voter_id
                 AND vmn.mobile_number ILIKE ${mobilePattern}
             )
+            OR EXISTS (
+              SELECT 1 FROM "Visitor" v
+              WHERE v.mobile_number ILIKE ${mobilePattern}
+                AND (
+                  v.token = bs.token
+                  OR EXISTS (
+                    SELECT 1 FROM "VisitorService" vs
+                    WHERE vs.beneficiary_service_id = bs.id
+                      AND vs.visitor_id = v.id
+                  )
+                )
+            )
+            OR (
+              ${mobilePattern} <> ''
+              AND bs.voter_id IS NULL
+              AND bs.description ILIKE ${mobilePattern}
+            )
           )
         ORDER BY bs.created_at DESC
         LIMIT ${limit}
         OFFSET ${offset}
       `;
 
-      const tasks = results.map((row) => ({
-        id: String(row.service_id),
-        serviceId: String(row.service_id),
-        voterId: row.voter_id ? String(row.voter_id) : '',
-        taskType: 'service_request',
-        description:
-          row.service_description != null ? String(row.service_description) : null,
-        status: (row.service_status as VoterTask['status']) || 'pending',
-        priority: (row.service_priority as VoterTask['priority']) || 'medium',
-        assignedTo:
-          row.service_assigned_to != null ? String(row.service_assigned_to) : null,
-        createdBy:
-          row.service_requested_by != null
-            ? String(row.service_requested_by)
-            : null,
-        updatedBy: null,
-        createdByName:
-          row.created_by_name != null ? String(row.created_by_name) : null,
-        updatedByName: null,
-        createdAt: (row.service_created_at as Date) || new Date(),
-        updatedAt: (row.service_updated_at as Date) || new Date(),
-        completedAt: (row.service_completed_at as Date) || null,
-        notes: row.service_notes != null ? String(row.service_notes) : null,
-        service: {
+      const tasks = results.map((row) => {
+        const person = resolveTaskPersonFromRow(row);
+        return {
           id: String(row.service_id),
-          serviceType: row.service_type as 'individual' | 'community',
-          serviceName:
-            row.service_name != null ? String(row.service_name) : null,
-          description:
-            row.service_description != null
-              ? String(row.service_description)
+          serviceId: String(row.service_id),
+          voterId: person.voterId,
+          taskType: 'service_request',
+          description: person.description,
+          status: (row.service_status as VoterTask['status']) || 'pending',
+          priority: (row.service_priority as VoterTask['priority']) || 'medium',
+          assignedTo:
+            row.service_assigned_to != null ? String(row.service_assigned_to) : null,
+          createdBy:
+            row.service_requested_by != null
+              ? String(row.service_requested_by)
               : null,
-          status: row.service_status as BeneficiaryService['status'],
-          priority: row.service_priority as BeneficiaryService['priority'],
-          token: row.service_token != null ? String(row.service_token) : null,
-          createdAt: row.service_created_at as Date,
-          updatedAt: row.service_updated_at as Date,
-          completedAt: row.service_completed_at as Date | null,
+          updatedBy: null,
+          createdByName:
+            row.created_by_name != null ? String(row.created_by_name) : null,
+          updatedByName: null,
+          createdAt: (row.service_created_at as Date) || new Date(),
+          updatedAt: (row.service_updated_at as Date) || new Date(),
+          completedAt: (row.service_completed_at as Date) || null,
           notes: row.service_notes != null ? String(row.service_notes) : null,
-        },
-        voter: row.voter_id
-          ? {
-              epicNumber: String(row.voter_id),
-              fullName: row.voter_name != null ? String(row.voter_name) : null,
-              mobileNoPrimary:
-                row.voter_mobile_primary != null
-                  ? String(row.voter_mobile_primary)
-                  : null,
-              mobileNoSecondary:
-                row.voter_mobile_secondary != null
-                  ? String(row.voter_mobile_secondary)
-                  : null,
-              age: row.voter_age != null ? Number(row.voter_age) : null,
-              gender: row.voter_gender != null ? String(row.voter_gender) : null,
-              relationName:
-                row.voter_relation != null ? String(row.voter_relation) : null,
-            }
-          : undefined,
-      }));
+          isOutsider: person.isOutsider,
+          service: {
+            id: String(row.service_id),
+            serviceType: row.service_type as 'individual' | 'community',
+            serviceName:
+              row.service_name != null ? String(row.service_name) : null,
+            description: person.description,
+            status: row.service_status as BeneficiaryService['status'],
+            priority: row.service_priority as BeneficiaryService['priority'],
+            token: row.service_token != null ? String(row.service_token) : null,
+            createdAt: row.service_created_at as Date,
+            updatedAt: row.service_updated_at as Date,
+            completedAt: row.service_completed_at as Date | null,
+            notes: row.service_notes != null ? String(row.service_notes) : null,
+          },
+          voter: person.voter,
+        };
+      });
 
       return { tasks, totalCount, totalPages, currentPage: page };
     }

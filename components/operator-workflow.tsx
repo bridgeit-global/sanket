@@ -19,6 +19,7 @@ import { PhoneUpdateForm, type MobileNumberEntry } from '@/components/phone-upda
 import { TaskManagement } from '@/components/task-management';
 import { useTranslations } from '@/hooks/use-translations';
 import { formatDisplayDateTimeIST } from '@/lib/ist-date';
+import { formatOutsiderDetails } from '@/lib/operator/outsider-details';
 import { Share2, FileText } from 'lucide-react';
 import { AadhaarQrScanButton, AadhaarQrScannerDialog } from '@/components/aadhaar-qr-scanner-dialog';
 import { EpicQrScanButton, EpicQrScannerDialog } from '@/components/epic-qr-scanner-dialog';
@@ -770,8 +771,11 @@ export function BeneficiaryManagement({
         }
 
         const outsiderInfo = isOutsiderTicket
-            ? `Outsider Details - Name: ${trimmedOutsiderName}, Mobile: ${outsiderMobileDigits}${trimmedOutsiderVoterId ? `, Voter ID: ${trimmedOutsiderVoterId}` : ''
-            }`
+            ? formatOutsiderDetails({
+                name: trimmedOutsiderName,
+                mobile: outsiderMobileDigits,
+                voterId: trimmedOutsiderVoterId || undefined,
+            })
             : '';
         const programmeLine =
             serviceData.programmeId && serviceData.programmeLabel
