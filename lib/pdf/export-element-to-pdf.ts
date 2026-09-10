@@ -7,9 +7,12 @@ import {
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
 import {
+  computePageStartOffsetsPx,
   getAvoidSplitRangesPx,
+  getContentBreakpointsPx,
   getLineRangesPx,
   paginateLetterContentRoot,
+  paginateProgrammeTableCanvasPx,
   snapCanvasCutToBlankRow,
 } from '@/lib/pdf/page-breaks';
 
@@ -501,72 +504,105 @@ export async function exportElementToPdf(
       pageBackgroundHeaderMm,
     );
     const letterNextPx = getLetterPageContentHeightCssPx(format, false, 0);
-    const cssPxPerMm =
-      captureElement.scrollWidth > 0
-        ? captureElement.scrollWidth / contentWidthMm
-        : 96 / 25.4;
+    const bottomReserveMm = hasFooter ? footerHeightMm : marginMm;
     const firstAvailableMm = Math.max(
       1,
-      pageHeightMm - topInsetMm - headerHeightMm - footerHeightMm - marginMm,
+      pageHeightMm - topInsetMm - headerHeightMm - bottomReserveMm,
     );
     const nextAvailableMm = Math.max(
       1,
       pageHeightMm -
         continuationTopInsetMm -
         headerHeightMm -
-        footerHeightMm -
-        marginMm,
+        bottomReserveMm,
     );
     const useChromeInsets = hasHeader || hasFooter;
-    const domPageHeightPx = useChromeInsets
-      ? firstAvailableMm * cssPxPerMm
-      : letterFirstPx;
-    const domSubsequentPageHeightPx = useChromeInsets
-      ? nextAvailableMm * cssPxPerMm
-      : letterNextPx;
-    const pageStartsDomPx = paginateLetterContentRoot(
-      contentRoot,
-      domPageHeightPx,
-      Math.abs(domSubsequentPageHeightPx - domPageHeightPx) > 0.5 &&
-        (useChromeInsets ||
-          (letterheadFirstPageOnly && pageBackgroundHeaderMm > 0))
-        ? domSubsequentPageHeightPx
-        : undefined,
+    const cssWidthPx = Math.max(
+      1,
+      contentRoot.getBoundingClientRect().width,
+      contentRoot.scrollWidth,
     );
-    const domAvoidRangesPx = getAvoidSplitRangesPx(contentRoot, 1);
-    const domLineRangesPx = getLineRangesPx(contentRoot, 1);
-    const canvasAvoidRangesPx = domAvoidRangesPx.map((range) => ({
-      top: Math.floor(range.top * domToCanvasScaleY),
-      bottom: Math.ceil(range.bottom * domToCanvasScaleY),
-    }));
-    // Search mostly downward through the inter-line gap (not up through glyphs).
-    const sampleLine = domLineRangesPx[0];
+    // Page budget in canvas-Y px: CSS mm mapping (element width → contentWidthMm)
+    // times the html2canvas Y scale. Using canvas.width here under-fills the page
+    // when the capture's Y scale is larger than its X scale.
+    const cssPxPerMm = cssWidthPx / contentWidthMm;
+    const firstPageCanvasPx = firstAvailableMm * cssPxPerMm * domToCanvasScaleY;
+    const nextPageCanvasPx = nextAvailableMm * cssPxPerMm * domToCanvasScaleY;
+    const isProgrammeTable = Boolean(
+      contentRoot.classList.contains('pdf-daily-programme') ||
+        contentRoot.querySelector('.pdf-day-block'),
+    );
+    const canvasAvoidRangesPx = getAvoidSplitRangesPx(
+      contentRoot,
+      domToCanvasScaleY,
+    );
+    const canvasLineRangesPx = getLineRangesPx(contentRoot, domToCanvasScaleY);
+    const pageStartsCanvasPx = isProgrammeTable
+      ? paginateProgrammeTableCanvasPx({
+          root: contentRoot,
+          scaleY: domToCanvasScaleY,
+          totalHeightPx: canvas.height,
+          pageHeightPx: firstPageCanvasPx,
+          subsequentPageHeightPx:
+            Math.abs(nextPageCanvasPx - firstPageCanvasPx) > 0.5
+              ? nextPageCanvasPx
+              : undefined,
+        })
+      : useChromeInsets
+        ? computePageStartOffsetsPx({
+            totalHeightPx: canvas.height,
+            pageHeightPx: firstPageCanvasPx,
+            subsequentPageHeightPx:
+              Math.abs(nextPageCanvasPx - firstPageCanvasPx) > 0.5
+                ? nextPageCanvasPx
+                : undefined,
+            breakpointsPx: getContentBreakpointsPx(
+              contentRoot,
+              domToCanvasScaleY,
+            ),
+            avoidRangesPx: canvasAvoidRangesPx,
+            lineRangesPx: canvasLineRangesPx,
+          })
+        : paginateLetterContentRoot(
+            contentRoot,
+            letterFirstPx,
+            letterheadFirstPageOnly &&
+              pageBackgroundHeaderMm > 0 &&
+              Math.abs(letterNextPx - letterFirstPx) > 0.5
+              ? letterNextPx
+              : undefined,
+          ).map((y) => y * domToCanvasScaleY);
+
+    const sampleLine = canvasLineRangesPx[0];
     const lineWindow = sampleLine
       ? Math.max(
           12,
-          Math.ceil((sampleLine.bottom - sampleLine.top) * 0.6 * domToCanvasScaleY),
+          Math.ceil((sampleLine.bottom - sampleLine.top) * 0.6),
         )
       : 16;
 
     const pageCutCanvasPx: number[] = [0];
-    for (let i = 1; i < pageStartsDomPx.length; i++) {
+    for (let i = 1; i < pageStartsCanvasPx.length; i++) {
       const prevCut = pageCutCanvasPx[pageCutCanvasPx.length - 1] ?? 0;
-      // ceil so anti-aliased ink just below the DOM cut stays on the previous page.
-      let cutEnd = Math.ceil(pageStartsDomPx[i]! * domToCanvasScaleY);
-      cutEnd = snapCanvasCutToBlankRow({
-        canvas,
-        proposedCutY: cutEnd,
-        minCutY: prevCut + Math.min(40, Math.floor((cutEnd - prevCut) * 0.5)),
-        searchWindowPx: lineWindow,
-        avoidRangesPx: canvasAvoidRangesPx,
-      });
-      for (const range of canvasAvoidRangesPx) {
-        if (
-          cutEnd > range.top + 1 &&
-          cutEnd < range.bottom - 1 &&
-          range.top > prevCut + 1
-        ) {
-          cutEnd = Math.ceil(range.top);
+      const pageMaxSlicePx = i === 1 ? firstPageCanvasPx : nextPageCanvasPx;
+      let cutEnd = Math.ceil(pageStartsCanvasPx[i]!);
+      if (!isProgrammeTable) {
+        cutEnd = snapCanvasCutToBlankRow({
+          canvas,
+          proposedCutY: cutEnd,
+          minCutY: prevCut + Math.min(40, Math.floor((cutEnd - prevCut) * 0.5)),
+          searchWindowPx: lineWindow,
+          avoidRangesPx: canvasAvoidRangesPx,
+        });
+        for (const range of canvasAvoidRangesPx) {
+          if (range.bottom - range.top > pageMaxSlicePx) continue;
+          if (
+            cutEnd > range.top + 1 &&
+            cutEnd < range.bottom - 1 &&
+            range.top > prevCut + 1
+          ) {
+            cutEnd = Math.ceil(range.top);
+          }
         }
       }
       cutEnd = Math.max(prevCut + 1, Math.min(cutEnd, canvas.height));

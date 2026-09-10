@@ -118,12 +118,15 @@ export function getContentBreakpointsPx(
 
   // Block bottoms catch empty spacers / images without text.
   // Skip day headings — breaking after the date orphans it from its table.
+  // Skip nodes inside tables: row bottoms above are the only safe table cuts
+  // (inner divs sit mid-cell and fight with row keep-together).
   for (const el of Array.from(
     root.querySelectorAll(
       'p, div, li, h1, h2, h3, h4, h5, h6, tr, img, table, blockquote, pre',
     ),
   ) as HTMLElement[]) {
     if (isDayHeading(el)) continue;
+    if (el.closest('table') && el.tagName !== 'TABLE') continue;
     const r = el.getBoundingClientRect();
     if (r.height > 0) addBottom(r.bottom);
   }
@@ -136,6 +139,159 @@ export function getLineRangesPx(
   scale = 1,
 ): LineRangePx[] {
   return collectLineRangesPx(root, scale);
+}
+
+type ProgrammePackUnit = {
+  top: number;
+  bottom: number;
+};
+
+/**
+ * Greedy pack for Daily Programme PDFs: put every table row that fits on the
+ * current page. Date heading + column header + first row stay together.
+ * Coordinates are already in canvas (or CSS) px at `scale`.
+ */
+export function paginateProgrammeTableCanvasPx(args: {
+  root: HTMLElement;
+  scaleY: number;
+  totalHeightPx: number;
+  pageHeightPx: number;
+  subsequentPageHeightPx?: number;
+}): number[] {
+  const { root, scaleY, totalHeightPx, pageHeightPx, subsequentPageHeightPx } =
+    args;
+  if (totalHeightPx <= 0 || pageHeightPx <= 0) return [0];
+
+  const rectRoot = root.getBoundingClientRect();
+  const rootTop = rectRoot.top;
+  const toY = (css: number, round: 'floor' | 'ceil') =>
+    toScaledY(css, rootTop, scaleY, round);
+
+  const units: ProgrammePackUnit[] = [];
+  const blocks = Array.from(
+    root.querySelectorAll('.pdf-day-block'),
+  ) as HTMLElement[];
+  const sources = blocks.length > 0 ? blocks : [root];
+
+  for (const block of sources) {
+    const header = block.querySelector(
+      '.pdf-day-header, .print-date-header',
+    ) as HTMLElement | null;
+    const table = block.querySelector('table');
+    const thead = table?.querySelector('thead') as HTMLElement | null;
+    const rows = Array.from(
+      table?.querySelectorAll('tbody tr') ?? [],
+    ) as HTMLElement[];
+
+    const headerTop = header
+      ? toY(header.getBoundingClientRect().top, 'floor')
+      : null;
+    const theadTop = thead
+      ? toY(thead.getBoundingClientRect().top, 'floor')
+      : null;
+
+    const measured = rows
+      .map((row) => tableRowBounds(row))
+      .filter((b): b is { top: number; bottom: number } => b != null);
+    for (let i = 0; i < measured.length; i++) {
+      const next = measured[i + 1];
+      if (next && measured[i]!.bottom > next.top) {
+        measured[i]!.bottom = next.top;
+      }
+    }
+
+    const firstTop = measured[0]?.top ?? 0;
+    const stacked =
+      measured.length <= 1 ||
+      measured.every((b, i) => i === 0 || b.top > firstTop + 2);
+
+    const tableRect = table?.getBoundingClientRect();
+    const theadHeight = thead?.getBoundingClientRect().height ?? 0;
+    const fallbackBodyTop = tableRect ? tableRect.top + theadHeight : 0;
+    const fallbackBodyH = tableRect
+      ? Math.max(0, tableRect.bottom - fallbackBodyTop)
+      : 0;
+    const fallbackRowH =
+      rows.length > 0 && fallbackBodyH > 0 ? fallbackBodyH / rows.length : 0;
+
+    rows.forEach((row, index) => {
+      let rowTop: number;
+      let rowBottom: number;
+      const bounds = stacked ? measured[index] : null;
+      if (bounds && bounds.bottom > bounds.top) {
+        rowTop = toY(bounds.top, 'floor');
+        rowBottom = toY(bounds.bottom, 'ceil');
+      } else {
+        rowTop = toY(fallbackBodyTop + fallbackRowH * index, 'floor');
+        rowBottom = toY(fallbackBodyTop + fallbackRowH * (index + 1), 'ceil');
+      }
+      if (index === 0) {
+        const top = Math.min(
+          headerTop ?? theadTop ?? rowTop,
+          theadTop ?? rowTop,
+          rowTop,
+        );
+        units.push({ top, bottom: rowBottom });
+        return;
+      }
+      units.push({ top: rowTop, bottom: rowBottom });
+    });
+
+    if (rows.length === 0 && header) {
+      const r = header.getBoundingClientRect();
+      units.push({
+        top: toY(r.top, 'floor'),
+        bottom: toY(r.bottom, 'ceil'),
+      });
+    }
+  }
+
+  units.sort((a, b) => a.top - b.top || a.bottom - b.bottom);
+
+  if (units.length === 0) return [0];
+
+  const starts = [0];
+  let pageStart = 0;
+  let pageIndex = 0;
+  let guard = 0;
+  let unitIndex = 0;
+
+  while (pageStart < totalHeightPx && guard < 200) {
+    guard += 1;
+    const pageH =
+      pageIndex === 0 ? pageHeightPx : (subsequentPageHeightPx ?? pageHeightPx);
+    const pageEnd = pageStart + pageH;
+    let lastBottom = pageStart;
+    let placed = false;
+
+    while (unitIndex < units.length) {
+      const unit = units[unitIndex]!;
+      if (unit.bottom <= pageStart + 0.5) {
+        unitIndex += 1;
+        continue;
+      }
+      if (unit.bottom <= pageEnd + 0.5) {
+        lastBottom = Math.max(lastBottom, unit.bottom);
+        placed = true;
+        unitIndex += 1;
+        continue;
+      }
+      if (!placed) {
+        lastBottom = Math.min(totalHeightPx, pageEnd);
+        placed = true;
+      }
+      break;
+    }
+
+    if (!placed || lastBottom <= pageStart) break;
+    pageStart = lastBottom;
+    pageIndex += 1;
+    if (pageStart < totalHeightPx - 1 && unitIndex < units.length) {
+      starts.push(pageStart);
+    }
+  }
+
+  return starts;
 }
 
 /**
@@ -174,15 +330,24 @@ export function getAvoidSplitRangesPx(
   }
 
   // Keep table rows on one page so slices never cut through a cell.
-  for (const el of Array.from(
-    root.querySelectorAll('tbody tr, thead tr'),
-  ) as HTMLElement[]) {
-    const bounds = tableRowBounds(el);
-    if (bounds) pushCssRange(bounds.top, bounds.bottom);
+  // Clamp each row to the next so one bad cell rect cannot swallow the table.
+  const rowBounds = (
+    Array.from(root.querySelectorAll('tbody tr, thead tr')) as HTMLElement[]
+  )
+    .map((row) => tableRowBounds(row))
+    .filter((b): b is { top: number; bottom: number } => b != null)
+    .sort((a, b) => a.top - b.top);
+  for (let i = 0; i < rowBounds.length; i++) {
+    const current = rowBounds[i]!;
+    const next = rowBounds[i + 1];
+    if (next && current.bottom > next.top) current.bottom = next.top;
+    pushCssRange(current.top, current.bottom);
   }
 
   // Date heading + table start must travel together. Otherwise the date sits
   // alone at the bottom of a page and the table opens on the next page.
+  // Never fall back to the whole table — that taller-than-page range would
+  // skip remaining rows and leave a half-empty sheet.
   for (const header of Array.from(
     root.querySelectorAll('.pdf-day-header, .print-date-header'),
   ) as HTMLElement[]) {
@@ -196,11 +361,10 @@ export function getAvoidSplitRangesPx(
     const firstHead = table?.querySelector('thead tr') as HTMLElement | null;
     const endBounds =
       (firstBody && tableRowBounds(firstBody)) ||
-      (firstHead && tableRowBounds(firstHead)) ||
-      (table ? table.getBoundingClientRect() : headerRect);
+      (firstHead && tableRowBounds(firstHead));
     pushCssRange(
       headerRect.top,
-      Math.max(headerRect.bottom, endBounds.bottom),
+      Math.max(headerRect.bottom, endBounds ? endBounds.bottom : headerRect.bottom),
     );
   }
 
@@ -423,8 +587,11 @@ export function pickSliceHeightPx(args: {
 
   // If the default cut would split an avoid-range, prefer ending at its top.
   // Take the earliest such top so nested/overlapping ranges stay intact.
+  // Skip ranges taller than a page — pulling to their top would leave the
+  // rest of the page blank (e.g. row 5 of 10 shoved to the next sheet).
   for (const range of avoidRangesPx) {
     if (range.top >= targetEnd || range.bottom <= targetEnd) continue;
+    if (range.bottom - range.top > maxSliceHeightPx) continue;
     if (range.top > renderedPx) {
       targetEnd = Math.min(targetEnd, range.top);
     }
@@ -474,6 +641,7 @@ export function pickSliceHeightPx(args: {
 
   // Never start the next page inside an avoid-range (e.g. signature gap).
   for (const range of avoidRangesPx) {
+    if (range.bottom - range.top > maxSliceHeightPx) continue;
     if (cutY > range.top + 1 && cutY < range.bottom - 1 && range.top > renderedPx) {
       cutY = range.top;
     }
