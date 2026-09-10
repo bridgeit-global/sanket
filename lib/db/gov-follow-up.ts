@@ -14,8 +14,10 @@ import {
 import {
   addDaysYmd,
   GOV_FOLLOW_UP_CLOSED_STATUSES,
+  GOV_FOLLOW_UP_MODULE_KEY,
   GOV_FOLLOW_UP_OPEN_STATUSES,
   isOpenGovFollowUpStatus,
+  locationsForDepartment,
   type GovFollowUpChip,
   type GovFollowUpTab,
 } from '@/lib/gov-follow-up/constants';
@@ -37,6 +39,10 @@ import type {
   GovFollowUpSummary,
 } from '@/lib/gov-follow-up/types';
 import { getLetterById, getRegisterEntryById } from '@/lib/db/queries-crud';
+import {
+  defaultGovFollowUpLogBody,
+  suggestedStatusForLogKind,
+} from '@/lib/gov-follow-up/workflow';
 
 export type {
   GovFollowUpCatalogs,
@@ -119,41 +125,99 @@ export async function listGovFollowUpDepartments(): Promise<
   return (data ?? []).map(mapGovFollowUpDepartmentRow);
 }
 
-export async function listGovFollowUpLocations(): Promise<GovFollowUpLocation[]> {
+export async function listGovFollowUpLocations(
+  departmentId?: string,
+): Promise<GovFollowUpLocation[]> {
   const { data, error } = await supabase
     .from(TABLES.govFollowUpLocation)
     .select('*')
     .eq('is_active', true)
     .order('sort_order', { ascending: true });
   throwOnSupabaseError(error, 'Failed to list follow-up locations');
-  return (data ?? []).map(mapGovFollowUpLocationRow);
+  const locations = (data ?? []).map(mapGovFollowUpLocationRow);
+  if (!departmentId) return locations;
+
+  const { data: department, error: departmentError } = await supabase
+    .from(TABLES.govFollowUpDepartment)
+    .select('code')
+    .eq('id', departmentId)
+    .maybeSingle();
+  throwOnSupabaseError(departmentError, 'Failed to load follow-up department');
+
+  return locationsForDepartment(locations, departmentId, {
+    departmentCode: department ? String(department.code) : null,
+  });
+}
+
+async function listUserNameById(): Promise<Map<string, string>> {
+  const { data, error } = await supabase
+    .from(TABLES.user)
+    .select('id, user_id');
+  throwOnSupabaseError(error, 'Failed to list users');
+  return new Map(
+    (data ?? []).map((row) => [String(row.id), String(row.user_id ?? '')]),
+  );
 }
 
 async function listStaffUsers(): Promise<Array<{ id: string; userId: string }>> {
-  const { data, error } = await supabase
-    .from(TABLES.user)
-    .select('id, user_id')
-    .order('user_id', { ascending: true });
-  throwOnSupabaseError(error, 'Failed to list staff users');
-  return (data ?? []).map((row) => ({
-    id: String(row.id),
-    userId: String(row.user_id ?? ''),
-  }));
+  const [usersResult, rolePermResult, userPermResult] = await Promise.all([
+    supabase
+      .from(TABLES.user)
+      .select('id, user_id, role_id')
+      .order('user_id', { ascending: true }),
+    supabase
+      .from(TABLES.roleModulePermissions)
+      .select('role_id')
+      .eq('module_key', GOV_FOLLOW_UP_MODULE_KEY)
+      .eq('has_access', true),
+    supabase
+      .from(TABLES.userModulePermissions)
+      .select('userId')
+      .eq('module_key', GOV_FOLLOW_UP_MODULE_KEY)
+      .eq('has_access', true),
+  ]);
+  throwOnSupabaseError(usersResult.error, 'Failed to list staff users');
+  throwOnSupabaseError(
+    rolePermResult.error,
+    'Failed to list follow-up role access',
+  );
+  throwOnSupabaseError(
+    userPermResult.error,
+    'Failed to list follow-up user access',
+  );
+
+  const roleIdsWithAccess = new Set(
+    (rolePermResult.data ?? []).map((row) => String(row.role_id)),
+  );
+  const userIdsWithAccess = new Set(
+    (userPermResult.data ?? []).map((row) => String(row.userId)),
+  );
+
+  return (usersResult.data ?? [])
+    .filter(
+      (row) =>
+        userIdsWithAccess.has(String(row.id)) ||
+        (row.role_id != null &&
+          roleIdsWithAccess.has(String(row.role_id))),
+    )
+    .map((row) => ({
+      id: String(row.id),
+      userId: String(row.user_id ?? ''),
+    }));
 }
 
 async function catalogMaps() {
-  const [departments, locations, users] = await Promise.all([
+  const [departments, locations, userById] = await Promise.all([
     listGovFollowUpDepartments(),
     listGovFollowUpLocations(),
-    listStaffUsers(),
+    listUserNameById(),
   ]);
   return {
     departments,
     locations,
-    users,
     departmentById: new Map(departments.map((d) => [d.id, d])),
     locationById: new Map(locations.map((l) => [l.id, l])),
-    userById: new Map(users.map((u) => [u.id, u.userId])),
+    userById,
   };
 }
 
@@ -490,8 +554,7 @@ export async function listGovFollowUpGroups(
   }
 
   if (by === 'staff') {
-    const users = await listStaffUsers();
-    const userById = new Map(users.map((u) => [u.id, u.userId]));
+    const userById = await listUserNameById();
     return [...counts.entries()]
       .map(([key, count]) => ({
         key,
@@ -637,8 +700,7 @@ export async function getGovFollowUpMatterById(
     .order('created_at', { ascending: true });
   throwOnSupabaseError(logError, 'Failed to load follow-up history');
 
-  const users = await listStaffUsers();
-  const userById = new Map(users.map((u) => [u.id, u.userId]));
+  const userById = await listUserNameById();
   const logs = (logRows ?? []).map((row) => {
     const log = mapGovFollowUpLogRow(row);
     return {
@@ -854,10 +916,14 @@ export async function createGovFollowUpMatter(params: {
   throwOnSupabaseError(error, 'Failed to create follow-up matter');
 
   const matter = mapGovFollowUpMatterRow(data);
-  const inward = emptyToNull(input.inwardRefNo);
-  const body = inward
-    ? `Letter submitted; inward no. ${inward}.`
-    : 'Letter / request submitted.';
+  const departments = await listGovFollowUpDepartments();
+  const departmentName =
+    departments.find((dept) => dept.id === input.departmentId)?.name ?? null;
+  const body = defaultGovFollowUpLogBody('submitted', {
+    departmentName,
+    officeName: input.officeName,
+    inwardRefNo: input.inwardRefNo,
+  });
   await insertLog({
     matterId: matter.id,
     occurredOn: input.dateSubmitted,
@@ -1042,9 +1108,13 @@ export async function addGovFollowUpLog(params: {
     throw new ChatSDKError('not_found:database', 'Follow-up matter not found');
   }
 
-  const nextStatus = params.input.status ?? current.status;
-  const nextFollowUpOn =
-    params.input.nextFollowUpOn !== undefined
+  const kind = params.input.kind;
+  const impliedStatus = suggestedStatusForLogKind(kind);
+  const nextStatus =
+    params.input.status ?? impliedStatus ?? current.status;
+  const nextFollowUpOn = !isOpenGovFollowUpStatus(nextStatus)
+    ? null
+    : params.input.nextFollowUpOn !== undefined
       ? emptyToNull(params.input.nextFollowUpOn)
       : current.nextFollowUpOn;
   if (isOpenGovFollowUpStatus(nextStatus) && !nextFollowUpOn) {
@@ -1080,13 +1150,26 @@ export async function addGovFollowUpLog(params: {
   };
 
   const snapshot = pendingSnapshot(merged);
-  const kind = params.input.kind;
+  const inwardRefNo =
+    params.input.inwardRefNo !== undefined
+      ? emptyToNull(params.input.inwardRefNo)
+      : current.inwardRefNo;
+  const body =
+    params.input.body.trim() ||
+    defaultGovFollowUpLogBody(kind, {
+      departmentName: current.departmentName,
+      officeName: merged.officeName,
+      officerName: merged.officerName,
+      designation: merged.designation,
+      deskName: merged.deskName,
+      inwardRefNo,
+    });
   await insertLog({
     matterId: params.matterId,
     occurredOn: params.input.occurredOn,
     kind,
     mode: params.input.mode,
-    body: params.input.body.trim(),
+    body,
     snapshot,
     nextFollowUpOn,
     nextAction: params.input.nextAction ?? current.nextAction,
@@ -1097,6 +1180,9 @@ export async function addGovFollowUpLog(params: {
   const update: Record<string, unknown> = {
     updated_at: now,
     last_log_kind: kind,
+    last_follow_up_on: params.input.occurredOn,
+    last_follow_up_mode: params.input.mode ?? current.lastFollowUpMode,
+    last_response: body,
     department_id: merged.departmentId,
     location_id: merged.locationId,
     office_name: snapshot.office_name,
@@ -1117,18 +1203,6 @@ export async function addGovFollowUpLog(params: {
   }
   if (params.input.contactEmail !== undefined) {
     update.contact_email = emptyToNull(params.input.contactEmail);
-  }
-
-  if (kind === 'follow_up' || kind === 'query' || kind === 'compliance') {
-    update.last_follow_up_on = params.input.occurredOn;
-    update.last_follow_up_mode = params.input.mode ?? current.lastFollowUpMode;
-    update.last_response = params.input.body.trim();
-  }
-  if (kind === 'closed' || kind === 'order') {
-    if (!params.input.status) {
-      update.status = kind === 'order' ? 'sanctioned' : 'closed';
-      update.next_follow_up_on = null;
-    }
   }
 
   const { error } = await supabase

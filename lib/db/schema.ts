@@ -1077,10 +1077,12 @@ export type GovFollowUpStatus =
 export type GovFollowUpLogKind =
   | 'submitted'
   | 'inward'
+  | 'officer_identified'
   | 'follow_up'
   | 'file_movement'
   | 'query'
   | 'compliance'
+  | 'approval'
   | 'order'
   | 'closed'
   | 'note';
@@ -1109,6 +1111,7 @@ export type GovFollowUpLocation = {
   name: string;
   sortOrder: number;
   isActive: boolean;
+  departmentId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };

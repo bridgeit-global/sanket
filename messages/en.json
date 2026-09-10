@@ -2423,7 +2423,7 @@
     "clearFilter": "Clear filter",
     "browse": "Browse",
     "resultsCount": "{count, plural, one {# matter} other {# matters}}",
-    "bodyPlaceholder": "What was said or done…",
+    "bodyPlaceholder": "What happened — e.g. Spoke to AE; file forwarded to EE.",
     "kpis": {
       "dueToday": "Due today",
       "overdue": "Overdue",
@@ -2434,7 +2434,8 @@
       "pendingWith": "Where it is pending",
       "plan": "Follow-up plan",
       "recordUpdate": "Record an update",
-      "whereNow": "Update pending with"
+      "whereNow": "Update pending with",
+      "workflow": "Workflow"
     },
     "failedToLoad": "Failed to load follow-up desk",
     "failedToSave": "Failed to save matter",
@@ -2529,12 +2530,14 @@
       "meeting": "Meeting"
     },
     "kind": {
-      "submitted": "Submitted",
+      "submitted": "Letter / request submitted",
       "inward": "Inward obtained",
+      "officer_identified": "Officer identified",
       "follow_up": "Follow-up",
       "file_movement": "File movement",
       "query": "Query / compliance",
       "compliance": "Compliance submitted",
+      "approval": "Approval / sanction",
       "order": "Order received",
       "closed": "Closed",
       "note": "Note"
@@ -2550,10 +2553,15 @@
       "viewRegister": "Open I/O register",
       "unassigned": "Unassigned"
     },
+    "unsavedTitle": "Unsaved changes",
+    "unsavedDescription": "You have an unsaved entry. If you close, it will be lost.",
+    "discardChanges": "Discard",
+    "keepEditing": "Keep editing",
     "history": {
       "title": "Follow-up history",
       "next": "Next follow-up: {date}",
-      "empty": "No history yet."
+      "empty": "No history yet.",
+      "createdBy": "Created by"
     },
     "visits": {
       "title": "Visit planner",

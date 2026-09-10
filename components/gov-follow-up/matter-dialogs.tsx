@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { ChevronDown, FileText, Inbox, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -25,14 +25,26 @@ import {
 } from '@/components/ui/select';
 import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
-import { formatDisplayDateIST, getTodayDateStringIST } from '@/lib/ist-date';
+import {
+  formatShortDisplayDateIST,
+  getTodayDateStringIST,
+} from '@/lib/ist-date';
 import {
   GOV_FOLLOW_UP_LOG_KINDS,
   GOV_FOLLOW_UP_MODES,
   GOV_FOLLOW_UP_PRIORITIES,
   GOV_FOLLOW_UP_STATUSES,
   isOpenGovFollowUpStatus,
+  locationsForDepartment,
 } from '@/lib/gov-follow-up/constants';
+import {
+  defaultGovFollowUpLogBody,
+  GOV_FOLLOW_UP_WORKFLOW_KINDS,
+  needsPendingWithFields,
+  suggestedNextLogKind,
+  suggestedStatusForLogKind,
+  workflowStepOf,
+} from '@/lib/gov-follow-up/workflow';
 import type {
   GovFollowUpCatalogs,
   GovFollowUpLogInput,
@@ -52,6 +64,7 @@ import {
   isMatterOverdue,
 } from './matter-status';
 import { govFollowUpLetterGenerationHref } from '@/lib/gov-follow-up/url-params';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 
 export type MatterFormState = {
   subject: string;
@@ -126,6 +139,29 @@ function formToInput(form: MatterFormState): GovFollowUpMatterInput {
   };
 }
 
+type LogDraft = {
+  kind: GovFollowUpLogKind;
+  mode: GovFollowUpMode | '';
+  occurredOn: string;
+  body: string;
+  nextAction: string;
+  nextFollowUpOn: string;
+  status: GovFollowUpStatus;
+  departmentId: string;
+  locationId: string;
+  officeName: string;
+  officerName: string;
+  designation: string;
+  deskName: string;
+  presentStage: string;
+  inwardRefNo: string;
+};
+
+function isSameDraft(a: LogDraft | null, b: LogDraft): boolean {
+  if (a == null) return true;
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
 function Field({
   id,
   label,
@@ -163,6 +199,42 @@ function FormSection({
   );
 }
 
+function WorkflowStepper({
+  current,
+}: {
+  current: GovFollowUpLogKind | null;
+}) {
+  const { t } = useTranslations();
+  const currentStep = workflowStepOf(current);
+  const currentIndex = currentStep
+    ? GOV_FOLLOW_UP_WORKFLOW_KINDS.indexOf(currentStep)
+    : -1;
+  return (
+    <ol className="flex flex-wrap items-center gap-x-1 gap-y-1 text-[11px] leading-tight">
+      {GOV_FOLLOW_UP_WORKFLOW_KINDS.map((step, index) => {
+        const reached = currentIndex >= 0 && index <= currentIndex;
+        const active = step === currentStep;
+        return (
+          <li key={step} className="flex items-center gap-1">
+            {index > 0 ? (
+              <span className="text-muted-foreground">→</span>
+            ) : null}
+            <span
+              className={cn(
+                active && 'text-foreground font-semibold',
+                reached && !active && 'text-foreground',
+                !reached && 'text-muted-foreground',
+              )}
+            >
+              {t(`govFollowUp.kind.${step}`)}
+            </span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 function MatterFields({
   form,
   setForm,
@@ -176,6 +248,17 @@ function MatterFields({
 }) {
   const { t } = useTranslations();
   const set = (patch: Partial<MatterFormState>) => setForm({ ...form, ...patch });
+  const departmentCode = catalogs.departments.find(
+    (dept) => dept.id === form.departmentId,
+  )?.code;
+  const departmentLocations = useMemo(
+    () =>
+      locationsForDepartment(catalogs.locations, form.departmentId, {
+        departmentCode,
+        includeLocationId: form.locationId,
+      }),
+    [catalogs.locations, departmentCode, form.departmentId, form.locationId],
+  );
 
   return (
     <div className="space-y-4">
@@ -202,7 +285,24 @@ function MatterFields({
           >
             <Select
               value={form.departmentId}
-              onValueChange={(value) => set({ departmentId: value })}
+              onValueChange={(value) => {
+                const nextCode = catalogs.departments.find(
+                  (dept) => dept.id === value,
+                )?.code;
+                const allowed = locationsForDepartment(
+                  catalogs.locations,
+                  value,
+                  { departmentCode: nextCode },
+                );
+                const locationId = allowed.some(
+                  (loc) => loc.id === form.locationId,
+                )
+                  ? form.locationId
+                  : allowed.length === 1
+                    ? allowed[0].id
+                    : '';
+                set({ departmentId: value, locationId });
+              }}
             >
               <SelectTrigger id={`${idPrefix}-department`}>
                 <SelectValue placeholder={t('govFollowUp.selectDepartment')} />
@@ -222,14 +322,15 @@ function MatterFields({
             required
           >
             <Select
-              value={form.locationId}
+              value={form.locationId || undefined}
               onValueChange={(value) => set({ locationId: value })}
+              disabled={!form.departmentId}
             >
               <SelectTrigger id={`${idPrefix}-location`}>
                 <SelectValue placeholder={t('govFollowUp.selectLocation')} />
               </SelectTrigger>
               <SelectContent>
-                {catalogs.locations.map((loc) => (
+                {departmentLocations.map((loc) => (
                   <SelectItem key={loc.id} value={loc.id}>
                     {loc.name}
                   </SelectItem>
@@ -477,13 +578,35 @@ export function GovFollowUpCreateDialog({
 }) {
   const { t } = useTranslations();
   const [form, setForm] = useState(initial);
+  const [confirmClose, setConfirmClose] = useState(false);
 
   useEffect(() => {
-    if (open) setForm(initial);
+    if (open) {
+      setForm(initial);
+      setConfirmClose(false);
+    }
   }, [open, initial]);
 
+  const isDirty = JSON.stringify(form) !== JSON.stringify(initial);
+
+  const requestClose = () => {
+    if (saving) return;
+    if (isDirty) {
+      setConfirmClose(true);
+      return;
+    }
+    onOpenChange(false);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (next) onOpenChange(true);
+        else requestClose();
+      }}
+    >
       <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-4 pr-12">
           <DialogTitle>{t('govFollowUp.newMatter')}</DialogTitle>
@@ -500,8 +623,8 @@ export function GovFollowUpCreateDialog({
           />
         </div>
         <DialogFooter className="shrink-0 border-t px-6 py-3 sm:space-x-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {t('common.cancel')}
+          <Button variant="outline" onClick={requestClose}>
+            {t('common.close')}
           </Button>
           <Button
             disabled={
@@ -518,6 +641,20 @@ export function GovFollowUpCreateDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    <ConfirmDialog
+      open={confirmClose}
+      onOpenChange={setConfirmClose}
+      title={t('govFollowUp.unsavedTitle')}
+      description={t('govFollowUp.unsavedDescription')}
+      confirmText={t('govFollowUp.discardChanges')}
+      cancelText={t('govFollowUp.keepEditing')}
+      variant="destructive"
+      onConfirm={() => {
+        setConfirmClose(false);
+        onOpenChange(false);
+      }}
+    />
+    </>
   );
 }
 
@@ -551,7 +688,7 @@ export function GovFollowUpDetailDialog({
   saving: boolean;
   onLog: (input: GovFollowUpLogInput) => Promise<void>;
 }) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const [kind, setKind] = useState<GovFollowUpLogKind>('follow_up');
   const [mode, setMode] = useState<GovFollowUpMode | ''>('call');
   const [occurredOn, setOccurredOn] = useState(getTodayDateStringIST());
@@ -566,30 +703,119 @@ export function GovFollowUpDetailDialog({
   const [designation, setDesignation] = useState('');
   const [deskName, setDeskName] = useState('');
   const [presentStage, setPresentStage] = useState('');
+  const [inwardRefNo, setInwardRefNo] = useState('');
   const [showWhere, setShowWhere] = useState(false);
+  const [baseline, setBaseline] = useState<LogDraft | null>(null);
+  const [confirmClose, setConfirmClose] = useState(false);
 
   useEffect(() => {
     if (!matter || !open) return;
-    setKind('follow_up');
-    setMode('call');
-    setOccurredOn(getTodayDateStringIST());
-    setBody('');
-    setNextAction(matter.nextAction ?? '');
-    setNextFollowUpOn(matter.nextFollowUpOn ?? getTodayDateStringIST());
-    setStatus(matter.status);
-    setDepartmentId(matter.departmentId);
-    setLocationId(matter.locationId);
-    setOfficeName(matter.officeName ?? '');
-    setOfficerName(matter.officerName ?? '');
-    setDesignation(matter.designation ?? '');
-    setDeskName(matter.deskName ?? '');
-    setPresentStage(matter.presentStage ?? '');
-    setShowWhere(false);
+    const nextKind = suggestedNextLogKind(matter.lastLogKind);
+    const nextOccurredOn = getTodayDateStringIST();
+    const nextActionValue = matter.nextAction ?? '';
+    const nextFollowUpValue =
+      matter.nextFollowUpOn ?? getTodayDateStringIST();
+    const draft: LogDraft = {
+      kind: nextKind,
+      mode: 'call',
+      occurredOn: nextOccurredOn,
+      body: '',
+      nextAction: nextActionValue,
+      nextFollowUpOn: nextFollowUpValue,
+      status: matter.status,
+      departmentId: matter.departmentId,
+      locationId: matter.locationId,
+      officeName: matter.officeName ?? '',
+      officerName: matter.officerName ?? '',
+      designation: matter.designation ?? '',
+      deskName: matter.deskName ?? '',
+      presentStage: matter.presentStage ?? '',
+      inwardRefNo: matter.inwardRefNo ?? '',
+    };
+    setKind(draft.kind);
+    setMode(draft.mode);
+    setOccurredOn(draft.occurredOn);
+    setBody(draft.body);
+    setNextAction(draft.nextAction);
+    setNextFollowUpOn(draft.nextFollowUpOn);
+    setStatus(draft.status);
+    setDepartmentId(draft.departmentId);
+    setLocationId(draft.locationId);
+    setOfficeName(draft.officeName);
+    setOfficerName(draft.officerName);
+    setDesignation(draft.designation);
+    setDeskName(draft.deskName);
+    setPresentStage(draft.presentStage);
+    setInwardRefNo(draft.inwardRefNo);
+    setShowWhere(needsPendingWithFields(nextKind));
+    setBaseline(draft);
+    setConfirmClose(false);
   }, [matter, open]);
 
   useEffect(() => {
-    if (kind === 'file_movement') setShowWhere(true);
+    if (needsPendingWithFields(kind)) {
+      setShowWhere(true);
+    }
   }, [kind]);
+
+  const logDepartmentCode = catalogs.departments.find(
+    (dept) => dept.id === departmentId,
+  )?.code;
+  const logLocations = useMemo(
+    () =>
+      locationsForDepartment(catalogs.locations, departmentId, {
+        departmentCode: logDepartmentCode,
+        includeLocationId: locationId,
+      }),
+    [catalogs.locations, departmentId, locationId, logDepartmentCode],
+  );
+
+  const currentDraft: LogDraft = useMemo(
+    () => ({
+      kind,
+      mode,
+      occurredOn,
+      body,
+      nextAction,
+      nextFollowUpOn,
+      status,
+      departmentId,
+      locationId,
+      officeName,
+      officerName,
+      designation,
+      deskName,
+      presentStage,
+      inwardRefNo,
+    }),
+    [
+      kind,
+      mode,
+      occurredOn,
+      body,
+      nextAction,
+      nextFollowUpOn,
+      status,
+      departmentId,
+      locationId,
+      officeName,
+      officerName,
+      designation,
+      deskName,
+      presentStage,
+      inwardRefNo,
+    ],
+  );
+  const isDirty = !isSameDraft(baseline, currentDraft);
+
+  const requestClose = () => {
+    if (saving) return;
+    if (isDirty) {
+      setConfirmClose(true);
+      return;
+    }
+    onOpenChange(false);
+  };
 
   if (!matter) return null;
 
@@ -598,21 +824,36 @@ export function GovFollowUpDetailDialog({
     matter.status,
     getTodayDateStringIST(),
   );
-  const history = [...matter.logs].reverse();
+  const history = matter.logs;
+  const bodyContext = {
+    departmentName: matter.departmentName,
+    officeName,
+    officerName,
+    designation,
+    deskName,
+    inwardRefNo: inwardRefNo || matter.inwardRefNo,
+  };
+
+  const applyKind = (nextKind: GovFollowUpLogKind) => {
+    setKind(nextKind);
+    const statusForKind = suggestedStatusForLogKind(nextKind);
+    if (statusForKind) setStatus(statusForKind);
+  };
 
   const submit = (
     forcedKind?: GovFollowUpLogKind,
     forcedStatus?: GovFollowUpStatus,
   ) => {
     const nextKind = forcedKind ?? kind;
-    const nextStatus = forcedStatus ?? status;
+    const impliedStatus = suggestedStatusForLogKind(nextKind);
+    const nextStatus = forcedStatus ?? impliedStatus ?? status;
     void onLog({
       occurredOn,
       kind: nextKind,
       mode: mode || null,
       body:
         body.trim() ||
-        (nextKind === 'file_movement' ? 'File moved.' : 'Follow-up recorded.'),
+        defaultGovFollowUpLogBody(nextKind, bodyContext),
       departmentId,
       locationId,
       officeName,
@@ -625,11 +866,19 @@ export function GovFollowUpDetailDialog({
         : null,
       nextAction,
       status: nextStatus,
+      inwardRefNo: inwardRefNo || null,
     });
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (next) onOpenChange(true);
+        else requestClose();
+      }}
+    >
       <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col gap-0 overflow-hidden p-0">
         <DialogHeader className="shrink-0 space-y-2 border-b px-6 py-4 pr-12 text-left">
           <div className="text-muted-foreground text-xs font-medium tracking-wide">
@@ -654,10 +903,19 @@ export function GovFollowUpDetailDialog({
                 )}
               >
                 {t('govFollowUp.history.next', {
-                  date: formatDisplayDateIST(matter.nextFollowUpOn),
+                  date: formatShortDisplayDateIST(
+                    matter.nextFollowUpOn,
+                    locale,
+                  ),
                 })}
               </span>
             ) : null}
+          </div>
+          <div className="pt-1">
+            <div className="text-muted-foreground mb-1 text-[10px] font-medium uppercase tracking-wide">
+              {t('govFollowUp.sections.workflow')}
+            </div>
+            <WorkflowStepper current={matter.lastLogKind} />
           </div>
         </DialogHeader>
 
@@ -713,24 +971,43 @@ export function GovFollowUpDetailDialog({
                 {t('govFollowUp.history.empty')}
               </p>
             ) : (
-              <ol className="relative ml-2 space-y-3 border-l-2 border-border">
-                {history.map((log) => (
-                  <li key={log.id} className="relative pl-4">
-                    <span className="bg-primary absolute -left-[5px] top-1.5 size-2 rounded-full" />
-                    <div className="text-sm leading-snug">{log.body}</div>
-                    <div className="text-muted-foreground mt-0.5 text-xs">
-                      {formatDisplayDateIST(log.occurredOn)} ·{' '}
-                      {t(`govFollowUp.kind.${log.kind}`)}
-                      {log.mode ? ` · ${t(`govFollowUp.mode.${log.mode}`)}` : ''}
-                      {log.officerName || log.officeName
-                        ? ` · ${[log.officerName, log.officeName].filter(Boolean).join(', ')}`
-                        : ''}
-                      {log.performedByName ? ` · ${log.performedByName}` : ''}
-                    </div>
-                  </li>
-                ))}
+              <ol className="space-y-2">
+                {history.map((log) => {
+                  const createdByLabel =
+                    log.performedByName ||
+                    catalogs.users.find((user) => user.id === log.performedBy)
+                      ?.userId ||
+                    log.performedBy;
+                  return (
+                    <li key={log.id}>
+                      <p className="text-sm leading-snug">
+                        <span className="font-medium">
+                          {formatShortDisplayDateIST(log.occurredOn, locale)}
+                        </span>
+                        {' — '}
+                        {log.body}
+                      </p>
+                      <p className="text-muted-foreground mt-0.5 text-xs">
+                        {t(`govFollowUp.kind.${log.kind}`)}
+                        {' · '}
+                        {t('govFollowUp.history.createdBy')}: {createdByLabel}
+                      </p>
+                    </li>
+                  );
+                })}
               </ol>
             )}
+            {matter.nextFollowUpOn &&
+            isOpenGovFollowUpStatus(matter.status) ? (
+              <p className="mt-3 text-sm font-medium">
+                {t('govFollowUp.history.next', {
+                  date: formatShortDisplayDateIST(
+                    matter.nextFollowUpOn,
+                    locale,
+                  ),
+                })}
+              </p>
+            ) : null}
           </section>
 
           <FormSection title={t('govFollowUp.sections.recordUpdate')}>
@@ -739,7 +1016,7 @@ export function GovFollowUpDetailDialog({
                 <Select
                   value={kind}
                   onValueChange={(value) =>
-                    setKind(value as GovFollowUpLogKind)
+                    applyKind(value as GovFollowUpLogKind)
                   }
                 >
                   <SelectTrigger id="log-kind">
@@ -754,6 +1031,18 @@ export function GovFollowUpDetailDialog({
                   </SelectContent>
                 </Select>
               </Field>
+              {kind === 'inward' ? (
+                <Field
+                  id="log-inward"
+                  label={t('govFollowUp.fields.inwardRefNo')}
+                >
+                  <Input
+                    id="log-inward"
+                    value={inwardRefNo}
+                    onChange={(e) => setInwardRefNo(e.target.value)}
+                  />
+                </Field>
+              ) : null}
               <Field id="log-mode" label={t('govFollowUp.fields.mode')}>
                 <Select
                   value={mode || '__none__'}
@@ -852,7 +1141,26 @@ export function GovFollowUpDetailDialog({
               {showWhere ? (
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <Field id="log-dept" label={t('govFollowUp.fields.department')}>
-                    <Select value={departmentId} onValueChange={setDepartmentId}>
+                    <Select
+                      value={departmentId}
+                      onValueChange={(value) => {
+                        const nextCode = catalogs.departments.find(
+                          (dept) => dept.id === value,
+                        )?.code;
+                        const allowed = locationsForDepartment(
+                          catalogs.locations,
+                          value,
+                          { departmentCode: nextCode },
+                        );
+                        setDepartmentId(value);
+                        if (allowed.some((loc) => loc.id === locationId)) {
+                          return;
+                        }
+                        setLocationId(
+                          allowed.length === 1 ? allowed[0].id : '',
+                        );
+                      }}
+                    >
                       <SelectTrigger id="log-dept">
                         <SelectValue />
                       </SelectTrigger>
@@ -869,12 +1177,18 @@ export function GovFollowUpDetailDialog({
                     id="log-location"
                     label={t('govFollowUp.fields.location')}
                   >
-                    <Select value={locationId} onValueChange={setLocationId}>
+                    <Select
+                      value={locationId || undefined}
+                      onValueChange={setLocationId}
+                      disabled={!departmentId}
+                    >
                       <SelectTrigger id="log-location">
-                        <SelectValue />
+                        <SelectValue
+                          placeholder={t('govFollowUp.selectLocation')}
+                        />
                       </SelectTrigger>
                       <SelectContent>
-                        {catalogs.locations.map((loc) => (
+                        {logLocations.map((loc) => (
                           <SelectItem key={loc.id} value={loc.id}>
                             {loc.name}
                           </SelectItem>
@@ -933,9 +1247,9 @@ export function GovFollowUpDetailDialog({
         </div>
 
         <div className="flex shrink-0 flex-wrap gap-2 border-t px-6 py-3">
-          <Button disabled={saving} onClick={() => submit('follow_up')}>
+          <Button disabled={saving} onClick={() => submit()}>
             {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
-            {t('govFollowUp.actions.logFollowUp')}
+            {t('govFollowUp.actions.saveLog')}
           </Button>
           <Button variant="outline" asChild>
             <Link href={govFollowUpLetterGenerationHref(matter.id)}>
@@ -947,20 +1261,28 @@ export function GovFollowUpDetailDialog({
           </Button>
           <Button
             variant="outline"
+            className="sm:ml-auto"
             disabled={saving}
-            onClick={() => submit('file_movement')}
+            onClick={requestClose}
           >
-            {t('govFollowUp.actions.fileMoved')}
-          </Button>
-          <Button
-            variant="secondary"
-            disabled={saving}
-            onClick={() => submit('closed', 'closed')}
-          >
-            {t('govFollowUp.actions.closeMatter')}
+            {t('common.close')}
           </Button>
         </div>
       </DialogContent>
     </Dialog>
+    <ConfirmDialog
+      open={confirmClose}
+      onOpenChange={setConfirmClose}
+      title={t('govFollowUp.unsavedTitle')}
+      description={t('govFollowUp.unsavedDescription')}
+      confirmText={t('govFollowUp.discardChanges')}
+      cancelText={t('govFollowUp.keepEditing')}
+      variant="destructive"
+      onConfirm={() => {
+        setConfirmClose(false);
+        onOpenChange(false);
+      }}
+    />
+    </>
   );
 }

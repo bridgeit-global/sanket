@@ -2425,7 +2425,7 @@
     "clearFilter": "फिल्टर काढा",
     "browse": "नुसार पहा",
     "resultsCount": "{count, plural, one {# बाब} other {# बाबी}}",
-    "bodyPlaceholder": "काय सांगितले किंवा केले…",
+    "bodyPlaceholder": "काय झाले — उदा. AE शी बोललो; फाईल EE कडे पाठवली.",
     "kpis": {
       "dueToday": "आज मुदतीच्या",
       "overdue": "मुदत संपलेल्या",
@@ -2436,7 +2436,8 @@
       "pendingWith": "कुठे प्रलंबित",
       "plan": "फॉलो-अप योजना",
       "recordUpdate": "अपडेट नोंदवा",
-      "whereNow": "प्रलंबित ठिकाण बदला"
+      "whereNow": "प्रलंबित ठिकाण बदला",
+      "workflow": "कार्यप्रवाह"
     },
     "failedToLoad": "फॉलो-अप डेस्क लोड करण्यात अयशस्वी",
     "failedToSave": "बाब जतन करण्यात अयशस्वी",
@@ -2531,12 +2532,14 @@
       "meeting": "बैठक"
     },
     "kind": {
-      "submitted": "सादर",
+      "submitted": "पत्र / विनंती सादर",
       "inward": "आवक मिळाली",
+      "officer_identified": "अधिकारी निश्चित",
       "follow_up": "फॉलो-अप",
       "file_movement": "फाईल हालचाल",
       "query": "प्रश्न / अनुपालन",
       "compliance": "अनुपालन सादर",
+      "approval": "मंजुरी / मंजूर",
       "order": "आदेश मिळाला",
       "closed": "बंद",
       "note": "टीप"
@@ -2552,10 +2555,15 @@
       "viewRegister": "आवक/जावक उघडा",
       "unassigned": "नेमणूक नाही"
     },
+    "unsavedTitle": "न साठवलेले बदल",
+    "unsavedDescription": "तुमची नोंद साठवलेली नाही. बंद केल्यास ती गमावली जाईल.",
+    "discardChanges": "रद्द करा",
+    "keepEditing": "संपादन सुरू ठेवा",
     "history": {
       "title": "फॉलो-अप इतिहास",
       "next": "पुढील फॉलो-अप: {date}",
-      "empty": "अद्याप इतिहास नाही."
+      "empty": "अद्याप इतिहास नाही.",
+      "createdBy": "तयार केले"
     },
     "visits": {
       "title": "भेट नियोजन",

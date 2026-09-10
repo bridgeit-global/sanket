@@ -181,6 +181,30 @@ export function formatDisplayDateIST(value: string | Date | number): string {
   return formatYmdAsDmy(formatYmd(getCalendarYmd(date)));
 }
 
+/** Display date as `28 Aug` (or locale equivalent) for IST calendar days. */
+export function formatShortDisplayDateIST(
+  value: string | Date | number,
+  locale: string = 'en',
+): string {
+  let ymd: string | null = null;
+  if (typeof value === 'string') {
+    ymd = parseFlexibleDateToYmd(value);
+  }
+  if (!ymd) {
+    const date = parseInstant(value);
+    if (Number.isNaN(date.getTime())) return '';
+    ymd = formatYmd(getCalendarYmd(date));
+  }
+  const [year, month, day] = ymd.split('-').map(Number);
+  const utc = new Date(Date.UTC(year, month - 1, day));
+  const intlLocale = locale === 'mr' ? 'mr-IN' : 'en-GB';
+  return utc.toLocaleDateString(intlLocale, {
+    timeZone: 'UTC',
+    day: '2-digit',
+    month: 'short',
+  }).replace(/,/g, '');
+}
+
 /** Display date+time as `dd-mm-yyyy hh:mm am/pm` in Asia/Kolkata. */
 export function formatDisplayDateTimeIST(value: string | Date | number): string {
   const date = parseInstant(value);

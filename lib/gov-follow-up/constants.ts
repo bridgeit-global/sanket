@@ -31,10 +31,12 @@ export const GOV_FOLLOW_UP_MODES = [
 export const GOV_FOLLOW_UP_LOG_KINDS = [
   'submitted',
   'inward',
+  'officer_identified',
   'follow_up',
   'file_movement',
   'query',
   'compliance',
+  'approval',
   'order',
   'closed',
   'note',
@@ -114,6 +116,60 @@ export function isGovFollowUpChip(value: string | null): value is GovFollowUpChi
   return (
     value != null && (GOV_FOLLOW_UP_CHIPS as readonly string[]).includes(value)
   );
+}
+
+/** Default Office / campus codes when a location has no department_id yet. */
+export const GOV_FOLLOW_UP_DEPARTMENT_LOCATION_CODES: Record<
+  string,
+  readonly string[]
+> = {
+  bmc: ['bmc-hq', 'bmc-ward'],
+  sra: ['sra'],
+  mhada: ['mhada'],
+  collector: ['collectorate'],
+  police: ['police-hq'],
+  pwd: ['pwd'],
+  home: ['mantralaya'],
+  minority: ['mantralaya'],
+  udd: ['mantralaya'],
+  'social-justice': ['mantralaya'],
+  planning: ['mantralaya'],
+  mantralaya: ['mantralaya'],
+  other: ['other'],
+};
+
+export function locationsForDepartment<
+  T extends { id: string; code: string; departmentId?: string | null },
+>(
+  locations: T[],
+  departmentId: string | null | undefined,
+  options?: {
+    departmentCode?: string | null;
+    includeLocationId?: string | null;
+  },
+): T[] {
+  if (!departmentId) return [];
+  const dedicated = locations.filter(
+    (location) => location.departmentId === departmentId,
+  );
+  const codes = options?.departmentCode
+    ? GOV_FOLLOW_UP_DEPARTMENT_LOCATION_CODES[options.departmentCode]
+    : undefined;
+  const byCode = codes
+    ? locations.filter((location) => codes.includes(location.code))
+    : [];
+  const shared = locations.filter((location) => !location.departmentId);
+  const filtered =
+    dedicated.length > 0 ? dedicated : byCode.length > 0 ? byCode : shared;
+  const includeLocationId = options?.includeLocationId;
+  if (
+    includeLocationId &&
+    !filtered.some((location) => location.id === includeLocationId)
+  ) {
+    const extra = locations.find((location) => location.id === includeLocationId);
+    if (extra) return [...filtered, extra];
+  }
+  return filtered;
 }
 
 export function addDaysYmd(ymd: string, days: number): string {

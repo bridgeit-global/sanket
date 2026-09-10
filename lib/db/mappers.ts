@@ -1303,6 +1303,7 @@ export function mapGovFollowUpLocationRow(row: Row): GovFollowUpLocation {
     name: String(row.name),
     sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
     isActive: Boolean(row.is_active ?? row.isActive ?? true),
+    departmentId: toStringOrNull(row.department_id ?? row.departmentId),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),
   };
