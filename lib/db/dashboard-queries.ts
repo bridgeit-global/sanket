@@ -15,6 +15,8 @@ import {
 } from '@/lib/ist-date';
 import { TABLES } from './schema';
 import { getPhoneUpdateStats, getBeneficiaryServiceStats, getDashboardCounts, getSirActivityStats } from './queries';
+import { getGovFollowUpSummary } from './gov-follow-up';
+import type { GovFollowUpSummary } from '@/lib/gov-follow-up/types';
 import type { SirActivityStats } from './sir-queries';
 
 const BIRTHDAY_WINDOW_DAYS = 7;
@@ -78,6 +80,7 @@ export interface DashboardData {
     };
   };
   sirActivity: SirActivityStats;
+  govFollowUp: GovFollowUpSummary;
   upcoming: Array<{
     id: string;
     date: string;
@@ -564,12 +567,28 @@ export async function getDashboardData(): Promise<DashboardData> {
     beneficiaryServiceStats,
     sirActivity,
     upcomingBirthdays,
+    govFollowUp,
   ] = await Promise.all([
     getDashboardCounts(todayStr),
     getPhoneUpdateStats(),
     getBeneficiaryServiceStats(),
     getSirActivityStats(),
     getUpcomingCadreBirthdays(),
+    getGovFollowUpSummary().catch(() => ({
+      dueToday: 0,
+      upcoming: 0,
+      overdue: 0,
+      visits: 0,
+      closed: 0,
+      stale7: 0,
+      mantralaya: 0,
+      bmc: 0,
+      sra: 0,
+      minister: 0,
+      deptReply: 0,
+      sanctions: 0,
+      recentlyClosed: 0,
+    })),
   ]);
 
   return {
@@ -602,6 +621,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       },
     },
     sirActivity,
+    govFollowUp,
     upcoming: dashboardCounts.programmeItems.slice(0, 3).map((item) => ({
       id: item.id,
       date: item.date,

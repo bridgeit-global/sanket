@@ -285,6 +285,34 @@ export {
   updateUserDetails,
 } from './queries-crud';
 
+export {
+  type GovFollowUpListQuery,
+  type GovFollowUpListResult,
+  type GovFollowUpSummary,
+  type GovFollowUpGroupRow,
+  type GovFollowUpVisitPlanner,
+  type GovFollowUpCatalogs,
+  type GovFollowUpPrefill,
+  type GovFollowUpMatterInput,
+  type GovFollowUpLogInput,
+  listGovFollowUpDepartments,
+  listGovFollowUpLocations,
+  listGovFollowUpMatters,
+  getGovFollowUpSummary,
+  listGovFollowUpGroups,
+  getGovFollowUpVisitPlanner,
+  getGovFollowUpCatalogs,
+  getGovFollowUpMatterById,
+  findMatterByLetterId,
+  attachLetterToGovFollowUpMatter,
+  findOpenMatterByLetterId,
+  findOpenMatterByRegisterEntryId,
+  getGovFollowUpPrefill,
+  createGovFollowUpMatter,
+  updateGovFollowUpMatter,
+  addGovFollowUpLog,
+} from './gov-follow-up';
+
 export { supportsVoterMasterCasteColumn };
 
 export async function getUser(userIdValue: string): Promise<Array<User>> {

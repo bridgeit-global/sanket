@@ -101,6 +101,10 @@
       "label": "I/O Register",
       "description": "Manage inward and outward correspondence and documents"
     },
+    "govFollowUp": {
+      "label": "Government Follow-up Desk",
+      "description": "Track matters pending with government authorities"
+    },
     "inward": {
       "label": "Inward Register",
       "description": "Manage inward correspondence and documents"
@@ -676,6 +680,11 @@
     "title": "Letter Generation",
     "description": "Fill in the details manually and generate official letters as PDF.",
     "backToBeneficiary": "Back to Beneficiary",
+    "backToFollowUp": "Back to follow-up",
+    "followUpInfo": {
+      "title": "Government follow-up",
+      "description": "This letter is for the selected follow-up matter. Save it to attach it to the desk."
+    },
     "serviceInfo": {
       "title": "Beneficiary Service",
       "description": "This letter is being generated for the following recorded service.",
@@ -744,6 +753,12 @@
     "printPopupBlocked": "Unable to print letter. Please try again.",
     "printWithLetterhead": "Include letterhead when printing / PDF",
     "printDuplicateWarning": "A letter for this voter and service was already printed today.",
+    "letterTypeGroups": {
+      "general": "General letter",
+      "bmc": "BMC letters",
+      "bmcGeneral": "BMC – Civic (choose issue)",
+      "other": "Other letters"
+    },
     "letterTypes": {
       "addNewOption": "+ Add new letter type…",
       "code": "Type code",
@@ -2431,6 +2446,206 @@
       "changeServiceRequired": "Select a service",
       "convert": "Failed to convert to beneficiary",
       "printTicket": "Failed to print thermal ticket"
+    }
+  },
+  "govFollowUp": {
+    "title": "Government Follow-up Desk",
+    "description": "Where a government matter is pending, who is handling it, and when the next follow-up is due.",
+    "newMatter": "New matter",
+    "searchPlaceholder": "Search subject, ID, officer, office…",
+    "todayTitle": "Today's Government Follow-ups — {date}",
+    "empty": "No matters in this view.",
+    "emptyHint": "Create a matter, or pick another tab or filter.",
+    "createDescription": "Capture where the file sits, who owns it, and the next follow-up.",
+    "detailDescription": "Matter status, history, and follow-up log.",
+    "quickFilters": "Quick filters",
+    "filterActive": "Showing",
+    "clearFilter": "Clear filter",
+    "browse": "Browse",
+    "resultsCount": "{count, plural, one {# matter} other {# matters}}",
+    "bodyPlaceholder": "What happened — e.g. Spoke to AE; file forwarded to EE.",
+    "kpis": {
+      "dueToday": "Due today",
+      "overdue": "Overdue",
+      "stale": "No update (7 days)"
+    },
+    "sections": {
+      "matter": "Matter",
+      "pendingWith": "Where it is pending",
+      "plan": "Follow-up plan",
+      "recordUpdate": "Record an update",
+      "whereNow": "Update pending with",
+      "workflow": "Workflow"
+    },
+    "failedToLoad": "Failed to load follow-up desk",
+    "failedToSave": "Failed to save matter",
+    "failedToLog": "Failed to log follow-up",
+    "saved": "Matter saved",
+    "logged": "Follow-up recorded",
+    "moved": "Pending with updated",
+    "closed": "Matter closed",
+    "openExisting": "An open follow-up already exists for this correspondence.",
+    "tabs": {
+      "today": "Today",
+      "upcoming": "Upcoming",
+      "overdue": "Overdue",
+      "by-department": "By Department",
+      "by-officer": "By Officer",
+      "by-staff": "By Staff",
+      "file-movement": "File Movement",
+      "visits": "Visits",
+      "closed": "Closed"
+    },
+    "chips": {
+      "due-today": "Follow-ups Due Today",
+      "overdue": "Overdue Follow-ups",
+      "stale-7": "No Update for 7 Days",
+      "mantralaya": "Pending at Mantralaya",
+      "bmc": "Pending at BMC",
+      "sra": "Pending at SRA",
+      "minister": "Awaiting Minister Approval",
+      "dept-reply": "Awaiting Department Reply",
+      "sanctions": "Sanctions Expected",
+      "recently-closed": "Recently Closed"
+    },
+    "columns": {
+      "matter": "Matter",
+      "department": "Department",
+      "pendingWith": "Pending With",
+      "lastUpdate": "Last Update",
+      "todaysAction": "Today's Action",
+      "nextFollowUp": "Next Follow-up",
+      "staff": "Our Staff",
+      "status": "Status",
+      "priority": "Priority"
+    },
+    "fields": {
+      "followUpNo": "Follow-up ID",
+      "subject": "Subject / Matter",
+      "relatedLetter": "Related letter",
+      "relatedRegister": "Related file / letter",
+      "department": "Department",
+      "location": "Office / campus",
+      "officeName": "Office / Authority",
+      "officerName": "Officer name",
+      "designation": "Designation",
+      "contactPhone": "Phone",
+      "contactEmail": "Email",
+      "deskName": "Desk",
+      "presentStage": "Present stage",
+      "staff": "Our staff responsible",
+      "dateSubmitted": "Date submitted",
+      "inwardRefNo": "Inward / reference no.",
+      "lastFollowUp": "Last follow-up date",
+      "mode": "Follow-up mode",
+      "lastResponse": "Last response",
+      "nextAction": "Next action",
+      "nextFollowUpOn": "Next follow-up date",
+      "priority": "Priority",
+      "status": "Status",
+      "remarks": "Remarks",
+      "occurredOn": "Date",
+      "kind": "Entry type",
+      "body": "What happened"
+    },
+    "status": {
+      "pending": "Pending",
+      "under_process": "Under Process",
+      "approval_pending": "Approval Pending",
+      "sanctioned": "Sanctioned",
+      "rejected": "Rejected",
+      "closed": "Closed"
+    },
+    "priority": {
+      "urgent": "Urgent",
+      "high": "High",
+      "normal": "Normal"
+    },
+    "mode": {
+      "call": "Call",
+      "visit": "Visit",
+      "whatsapp": "WhatsApp",
+      "email": "Email",
+      "letter": "Letter",
+      "meeting": "Meeting"
+    },
+    "kind": {
+      "submitted": "Letter / request submitted",
+      "inward": "Inward obtained",
+      "officer_identified": "Officer identified",
+      "follow_up": "Follow-up",
+      "file_movement": "File movement",
+      "query": "Query / compliance",
+      "compliance": "Compliance submitted",
+      "approval": "Approval / sanction",
+      "order": "Order received",
+      "closed": "Closed",
+      "note": "Note"
+    },
+    "actions": {
+      "logFollowUp": "Log follow-up",
+      "fileMoved": "File moved",
+      "closeMatter": "Close",
+      "saveLog": "Save entry",
+      "create": "Create matter",
+      "viewLetter": "Open letter",
+      "generateLetter": "Generate letter",
+      "viewRegister": "Open I/O register",
+      "unassigned": "Unassigned"
+    },
+    "unsavedTitle": "Unsaved changes",
+    "unsavedDescription": "You have an unsaved entry. If you close, it will be lost.",
+    "discardChanges": "Discard",
+    "keepEditing": "Keep editing",
+    "history": {
+      "title": "Follow-up history",
+      "next": "Next follow-up: {date}",
+      "empty": "No history yet.",
+      "createdBy": "Created by"
+    },
+    "visits": {
+      "title": "Visit planner",
+      "pickLocation": "Visit location",
+      "pickDate": "Visit date",
+      "headline": "{count} matters need follow-up at {location} today",
+      "none": "No due or overdue matters at this campus.",
+      "help": "See due and overdue matters at one campus for a visit."
+    },
+    "groups": {
+      "all": "All",
+      "empty": "No pending matters in this group.",
+      "title": "Filter"
+    },
+    "pendingWith": "Pending with",
+    "selectDepartment": "Select department",
+    "selectLocation": "Select campus",
+    "selectStaff": "Select staff",
+    "selectStatus": "Status",
+    "selectPriority": "Priority",
+    "selectMode": "Mode",
+    "startFollowUp": "Start follow-up",
+    "officerPicker": {
+      "sourceAddress": "Address book",
+      "sourceWard": "Ward cadre",
+      "addressType": "Officer type",
+      "allTypes": "All types",
+      "selectType": "Filter by type",
+      "officer": "Officer",
+      "selectOfficer": "Search officer or type a name",
+      "noOfficers": "No matching officers — type a name to add",
+      "noTypes": "No officer types",
+      "ward": "Ward",
+      "selectWard": "Search ward number or name",
+      "noWards": "No wards found",
+      "member": "Cadre member",
+      "selectMember": "Search member or type a name",
+      "pickWardFirst": "Select a ward first",
+      "noMembers": "No members in this ward — type a name to add",
+      "failedMembers": "Could not load members — type a name to add",
+      "addIfMissing": "If the person is not listed, type their name to add it.",
+      "wardMembers": "{count, plural, one {# member} other {# members}}",
+      "recentOfficers": "Recently used",
+      "addressBook": "Address book"
     }
   }
 }

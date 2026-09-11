@@ -24,6 +24,7 @@ import {
   Send,
   Trash2,
   X,
+  PhoneCall,
 } from 'lucide-react';
 import { toast } from '@/components/toast';
 
@@ -49,7 +50,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Combobox } from '@/components/ui/combobox';
+import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
 import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -1181,9 +1182,22 @@ export type LetterBeneficiaryPrefill = {
   address?: string;
 };
 
+export type GovFollowUpLetterPrefill = {
+  followUpNo: string;
+  subject: string;
+  toName: string;
+  toAddress: string;
+  departmentName?: string;
+  departmentCode?: string;
+  locationName?: string;
+  pendingWith?: string;
+};
+
 export function LetterGeneration({
   isAdmin = false,
   beneficiaryServiceId,
+  govFollowUpMatterId,
+  govFollowUpPrefill,
   prefillName,
   prefill,
   initialLetterType,
@@ -1192,6 +1206,8 @@ export function LetterGeneration({
 }: {
   isAdmin?: boolean;
   beneficiaryServiceId?: string;
+  govFollowUpMatterId?: string;
+  govFollowUpPrefill?: GovFollowUpLetterPrefill;
   /** Beneficiary name shown in the service info card. */
   prefillName?: string;
   /** Voter-derived values seeded into letter form fields. */
@@ -1225,7 +1241,7 @@ export function LetterGeneration({
   );
   /** True once service has a linked type, or operator chose General Letter. */
   const [letterTypeReady, setLetterTypeReady] = useState(
-    () => Boolean(linkedLetterType),
+    () => Boolean(linkedLetterType) || Boolean(govFollowUpMatterId),
   );
   const [letterTypeOptions, setLetterTypeOptions] = useState<LetterTypeOption[]>(
     [],
@@ -1253,9 +1269,19 @@ export function LetterGeneration({
   const [feesFields, setFeesFields] = useState<FeesLetterFields>(() =>
     feesDefaults('mr'),
   );
-  const [generalFields, setGeneralFields] = useState<GeneralLetterFields>(() =>
-    generalDefaults('mr'),
-  );
+  const [generalFields, setGeneralFields] = useState<GeneralLetterFields>(() => {
+    const base = generalDefaults('mr');
+    if (!govFollowUpPrefill) return base;
+    const toName = govFollowUpPrefill.toName.trim();
+    const toAddress = govFollowUpPrefill.toAddress.trim();
+    return {
+      ...base,
+      toName,
+      toAddress,
+      to: syncGeneralToBlock(toName, toAddress),
+      subject: govFollowUpPrefill.subject,
+    };
+  });
   const [paragraphRows, setParagraphRows] = useState<string[]>(() => ['']);
   const paragraphRowsRef = useRef(paragraphRows);
   paragraphRowsRef.current = paragraphRows;
@@ -1281,12 +1307,28 @@ export function LetterGeneration({
   );
   const [medicalAssistanceFields, setMedicalAssistanceFields] =
     useState<MedicalAssistanceLetterFields>(() => medicalAssistanceDefaults('mr'));
-  const [wardFields, setWardFields] = useState<WardLetterFields>(() =>
-    wardDefaults(
+  const [wardFields, setWardFields] = useState<WardLetterFields>(() => {
+    const base = wardDefaults(
       'mr',
       resolveWardIssueForLetterContext(linkedLetterType, service?.serviceName),
-    ),
-  );
+    );
+    if (!govFollowUpPrefill) return base;
+    const toName = govFollowUpPrefill.toName.trim();
+    const toAddress = govFollowUpPrefill.toAddress.trim();
+    return {
+      ...base,
+      toName: toName || base.toName,
+      to: toAddress
+        ? combineNameAndAddress(
+            toName,
+            addressNewlinesToHtmlBreaks(toAddress),
+            ',<br>',
+            { boldName: true },
+          )
+        : base.to,
+      location: govFollowUpPrefill.locationName?.trim() || base.location,
+    };
+  });
   /** Values for {{placeholders}} in the template that are not on the standard form. */
   const [customPlaceholderValues, setCustomPlaceholderValues] = useState<
     Record<string, string>
@@ -2337,6 +2379,10 @@ export function LetterGeneration({
   const defaultWardToAppliedRef = useRef(false);
   useEffect(() => {
     if (defaultWardToAppliedRef.current) return;
+    if (govFollowUpPrefill?.toName.trim()) {
+      defaultWardToAppliedRef.current = true;
+      return;
+    }
     if (addressSelections.to) {
       defaultWardToAppliedRef.current = true;
       return;
@@ -2432,9 +2478,11 @@ export function LetterGeneration({
   const refreshSavedLetters = async () => {
     setSavedLettersLoading(true);
     try {
-      const query = beneficiaryServiceId
-        ? `/api/letters?limit=50&beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}`
-        : '/api/letters?limit=50';
+      const query = govFollowUpMatterId
+        ? `/api/letters?govFollowUpMatterId=${encodeURIComponent(govFollowUpMatterId)}`
+        : beneficiaryServiceId
+          ? `/api/letters?limit=50&beneficiaryServiceId=${encodeURIComponent(beneficiaryServiceId)}`
+          : '/api/letters?limit=50';
       const res = await fetch(query);
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to fetch letters');
@@ -2508,6 +2556,52 @@ export function LetterGeneration({
       })),
     [letterTypeSelectOptions, letterLocale],
   );
+
+  const followUpLetterTypeOptions = useMemo((): ComboboxOption[] => {
+    const general: ComboboxOption[] = [];
+    const bmc: ComboboxOption[] = [];
+    const other: ComboboxOption[] = [];
+    for (const opt of letterTypeComboboxOptions) {
+      if (opt.value === 'general') {
+        general.push({
+          ...opt,
+          label: t('letterGeneration.letterTypeGroups.general'),
+          pinned: true,
+        });
+      } else if (opt.value === 'ward' || isWardLetterType(opt.value)) {
+        bmc.push({
+          ...opt,
+          label:
+            opt.value === 'ward'
+              ? t('letterGeneration.letterTypeGroups.bmcGeneral')
+              : opt.label,
+        });
+      } else {
+        other.push(opt);
+      }
+    }
+    const grouped: ComboboxOption[] = [];
+    if (general.length > 0) {
+      grouped.push(...general);
+    }
+    if (bmc.length > 0) {
+      grouped.push({
+        value: '__group-bmc__',
+        label: t('letterGeneration.letterTypeGroups.bmc'),
+        disabled: true,
+      });
+      grouped.push(...bmc);
+    }
+    if (other.length > 0) {
+      grouped.push({
+        value: '__group-all__',
+        label: t('letterGeneration.letterTypeGroups.other'),
+        disabled: true,
+      });
+      grouped.push(...other);
+    }
+    return grouped;
+  }, [letterTypeComboboxOptions, t]);
 
   const savedLetterTypeFilterOptions = useMemo(
     () => [
@@ -2848,9 +2942,10 @@ export function LetterGeneration({
 
   // Beneficiary flow: non-general letters lock document type to letter family.
   // General letters keep a selectable document type (default still from family).
+  // Follow-up letters also follow the family default when the type changes.
   useEffect(() => {
-    if (!lockFixedFields) return;
-    if (resolveLetterFormBase(activeTab) === 'general') return;
+    if (!lockFixedFields && !govFollowUpMatterId) return;
+    if (lockFixedFields && resolveLetterFormBase(activeTab) === 'general') return;
     const nextPrefix = documentTypeForLetterType(activeTab);
     const patchPrefix = <T extends { referencePrefix: string }>(prev: T): T =>
       prev.referencePrefix === nextPrefix
@@ -2867,7 +2962,7 @@ export function LetterGeneration({
     setMedicalAssistanceFields(patchPrefix);
     setWardFields(patchPrefix);
     referenceNumberAutoRef.current = true;
-  }, [activeTab, lockFixedFields]);
+  }, [activeTab, lockFixedFields, govFollowUpMatterId]);
 
   const bumpNameTranslateReqId = useCallback((fieldKey: string) => {
     nameTranslateReqIdRef.current[fieldKey] =
@@ -3622,6 +3717,7 @@ export function LetterGeneration({
           renderedHtml: activeBody,
           paperSize: paperSizeDraft,
           beneficiaryServiceId: beneficiaryServiceId ?? null,
+          govFollowUpMatterId: govFollowUpMatterId ?? null,
         }),
       });
       const json = await res.json();
@@ -4060,6 +4156,17 @@ export function LetterGeneration({
           {t('letterGeneration.savedLetters.actions.addToOutward')}
         </Button>
       )}
+      <Button
+        asChild
+        size="sm"
+        variant="outline"
+        className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+      >
+        <Link href={`/modules/gov-follow-up?new=1&letterId=${letter.id}`}>
+          <PhoneCall className="mr-2 size-4" />
+          {t('govFollowUp.startFollowUp')}
+        </Link>
+      </Button>
       {/* <Button
         size="sm"
         variant="outline"
@@ -4259,6 +4366,71 @@ export function LetterGeneration({
           </Button>
         ) : null}
       </div>
+      {govFollowUpMatterId && govFollowUpPrefill ? (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardHeader className="p-4 sm:p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-1.5">
+                <CardTitle className="text-base">
+                  {t('letterGeneration.followUpInfo.title')}
+                </CardTitle>
+                <CardDescription>
+                  {t('letterGeneration.followUpInfo.description')}
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" asChild className="shrink-0">
+                <Link
+                  href={`/modules/gov-follow-up?matter=${encodeURIComponent(govFollowUpMatterId)}`}
+                >
+                  <ArrowLeft className="mr-2 size-4" />
+                  {t('letterGeneration.backToFollowUp')}
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div>
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('govFollowUp.fields.followUpNo')}
+                </dt>
+                <dd className="text-sm font-medium">
+                  {govFollowUpPrefill.followUpNo}
+                </dd>
+              </div>
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  {t('govFollowUp.fields.subject')}
+                </dt>
+                <dd className="text-sm font-medium">
+                  {govFollowUpPrefill.subject}
+                </dd>
+              </div>
+              {govFollowUpPrefill.departmentName ? (
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('govFollowUp.fields.department')}
+                  </dt>
+                  <dd className="text-sm font-medium">
+                    {govFollowUpPrefill.departmentName}
+                  </dd>
+                </div>
+              ) : null}
+              {govFollowUpPrefill.pendingWith ? (
+                <div>
+                  <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {t('govFollowUp.pendingWith')}
+                  </dt>
+                  <dd className="text-sm font-medium">
+                    {govFollowUpPrefill.pendingWith}
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {service ? (
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader className="p-4 sm:p-6">
@@ -4442,9 +4614,25 @@ export function LetterGeneration({
                 <>
               <div className="grid w-full max-w-3xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <FieldGroup label={lt('letterGeneration.fields.letterType')}>
-                  <div className="flex h-10 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">
-                    {resolveTypeLabel(activeTab)}
-                  </div>
+                  {lockFixedFields ? (
+                    <div className="flex h-10 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">
+                      {resolveTypeLabel(activeTab)}
+                    </div>
+                  ) : (
+                    <Combobox
+                      value={activeTab}
+                      onValueChange={(value) => {
+                        if (!value) return;
+                        setActiveTab(value);
+                        setLetterTypeReady(true);
+                      }}
+                      options={followUpLetterTypeOptions}
+                      placeholder={lt(
+                        'letterGeneration.placeholders.letterType',
+                      )}
+                      aria-required
+                    />
+                  )}
                 </FieldGroup>
                 {formTab === 'general' ? (
                   <FieldGroup label={lt('letterGeneration.fields.paperSize')}>
@@ -6870,6 +7058,19 @@ export function LetterGeneration({
                                     )}
                                   </Button>
                                 )}
+                                <Button
+                                  asChild
+                                  size="sm"
+                                  variant="outline"
+                                  className="w-full sm:w-auto"
+                                >
+                                  <Link
+                                    href={`/modules/gov-follow-up?new=1&letterId=${selectedSavedLetter.id}`}
+                                  >
+                                    <PhoneCall className="mr-2 size-4" />
+                                    {t('govFollowUp.startFollowUp')}
+                                  </Link>
+                                </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"

@@ -21,6 +21,7 @@ import {
   Landmark,
   BookOpenText,
   ClipboardCheck,
+  PhoneCall,
 } from 'lucide-react';
 import { SidebarMenu, SidebarMenuItem } from '@/components/ui/sidebar';
 import type { ModuleDefinition } from '@/lib/module-constants';
@@ -43,6 +44,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   projects: FolderKanban,
   adm: Landmark,
   'io-register': BookOpenText,
+  'gov-follow-up': PhoneCall,
   inward: Inbox,
   outward: Send,
   'letter-generation': FileText,
@@ -66,6 +68,7 @@ const getModuleTranslationKey = (moduleKey: string): string => {
     projects: 'modules.projects.label',
     adm: 'modules.adm.label',
     'io-register': 'modules.ioRegister.label',
+    'gov-follow-up': 'modules.govFollowUp.label',
     inward: 'modules.inward.label',
     outward: 'modules.outward.label',
     'letter-generation': 'modules.letterGeneration.label',

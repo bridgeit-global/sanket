@@ -22,7 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Printer, Paperclip, Search, X, Upload, Edit, Trash2, FileType } from 'lucide-react';
+import { Printer, Paperclip, Search, X, Upload, Edit, Trash2, FileType, PhoneCall } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { RegisterAttachmentDialog } from '@/components/register-attachment-dialog';
@@ -1200,6 +1200,18 @@ export function RegisterModule({
                         </TableCell>
                         <TableCell className="no-print text-right">
                           <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              asChild
+                              title={t('govFollowUp.startFollowUp')}
+                            >
+                              <Link
+                                href={`/modules/gov-follow-up?new=1&registerEntryId=${entry.id}`}
+                              >
+                                <PhoneCall className="h-4 w-4" />
+                              </Link>
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
