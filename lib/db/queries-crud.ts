@@ -980,6 +980,8 @@ export async function createVoter(
       relationName: voterData.relationName || null,
       familyGrouping: voterData.familyGrouping || null,
       houseNumber: voterData.houseNumber || null,
+      localityStreet: voterData.localityStreet || null,
+      townVillage: voterData.townVillage || null,
       religion: voterData.religion || null,
       age: voterData.age || null,
       dob: voterData.dob || null,

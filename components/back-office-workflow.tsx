@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -263,7 +265,7 @@ export function BackOfficeWorkflow() {
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-3">
                     <SidebarToggle />
                     <div>
@@ -271,6 +273,12 @@ export function BackOfficeWorkflow() {
                         <p className="text-muted-foreground mt-2">{t('backOffice.subtitle')}</p>
                     </div>
                 </div>
+                <Button className="w-full sm:w-auto" asChild>
+                    <Link href="/modules/back-office/add-voter">
+                        <UserPlus className="mr-2 size-4" />
+                        {t('backOffice.addVoter.title')}
+                    </Link>
+                </Button>
             </div>
 
             <Card>
