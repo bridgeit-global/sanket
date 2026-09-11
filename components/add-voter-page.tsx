@@ -18,6 +18,10 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { EpicQrScanButton, EpicQrScannerDialog } from '@/components/epic-qr-scanner-dialog';
+import {
+  EpicBarcodeScanButton,
+  EpicBarcodeScannerDialog,
+} from '@/components/epic-barcode-scanner-dialog';
 import { useTranslations } from '@/hooks/use-translations';
 import { ANUSHAKTI_NAGAR_AC_NUMBER } from '@/lib/eci/ac-constants';
 import type { EpicQrData } from '@/lib/epic/decode-qr-payload';
@@ -64,6 +68,7 @@ export function AddVoterPage() {
   const [isAdding, setIsAdding] = useState(false);
   const [result, setResult] = useState<SearchResponse | null>(null);
   const [showEpicScanner, setShowEpicScanner] = useState(false);
+  const [showEpicBarcodeScanner, setShowEpicBarcodeScanner] = useState(false);
 
   const loadCaptcha = useCallback(async () => {
     setIsLoadingCaptcha(true);
@@ -97,6 +102,10 @@ export function AddVoterPage() {
 
   const handleEpicDetected = useCallback((data: EpicQrData) => {
     setEpicNumber(data.epic.toUpperCase());
+  }, []);
+
+  const handleEpicBarcodeDetected = useCallback((epic: string) => {
+    setEpicNumber(epic.toUpperCase());
   }, []);
 
   const handleSearch = async () => {
@@ -233,10 +242,16 @@ export function AddVoterPage() {
               <Label htmlFor="epicNumber">
                 {t('backOffice.voterIdEpicNumber')}
               </Label>
-              <EpicQrScanButton
-                onClick={() => setShowEpicScanner(true)}
-                label={t('backOffice.scanEpicQr')}
-              />
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <EpicQrScanButton
+                  onClick={() => setShowEpicScanner(true)}
+                  label={t('backOffice.scanEpicQr')}
+                />
+                <EpicBarcodeScanButton
+                  onClick={() => setShowEpicBarcodeScanner(true)}
+                  label={t('backOffice.scanEpicBarcode')}
+                />
+              </div>
             </div>
             <Input
               id="epicNumber"
@@ -419,6 +434,14 @@ export function AddVoterPage() {
         onDataDetected={handleEpicDetected}
         title={t('backOffice.epicScannerTitle')}
         description={t('backOffice.epicScannerDescription')}
+        uploadLabel={t('backOffice.uploadEpicPhoto')}
+      />
+      <EpicBarcodeScannerDialog
+        open={showEpicBarcodeScanner}
+        onOpenChange={setShowEpicBarcodeScanner}
+        onEpicDetected={handleEpicBarcodeDetected}
+        title={t('backOffice.epicBarcodeScannerTitle')}
+        description={t('backOffice.epicBarcodeScannerDescription')}
         uploadLabel={t('backOffice.uploadEpicPhoto')}
       />
     </div>
