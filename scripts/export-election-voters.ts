@@ -109,7 +109,7 @@ Options:
     ssl: 'require',
     connection: {
       application_name: 'export-election-voters',
-      statement_timeout: '0',
+      statement_timeout: 0,
     },
   });
 
