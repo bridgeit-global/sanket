@@ -102,6 +102,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
     <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
     <div>दि. <span class="var">{{date}}</span></div>
   </div>
+प्रति,<br>
   <div class="recipient">{{toBlock}}</div>
   ${subjectHtml('<span class="var">{{subject}}</span>')}
   {{salutationBlock}}

@@ -96,6 +96,7 @@ export const EN_TEMPLATE_HTML: Record<LetterType, string> = {
     <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
     <div>Date: <span class="var">{{date}}</span></div>
   </div>
+To,<br>
   <div class="recipient">{{toBlock}}</div>
   <div class="subject"><span style="font-weight: normal;">Subject:</span> <span class="var">{{subject}}</span></div>
   {{salutationBlock}}

@@ -67,6 +67,22 @@ export function wrapLetterWithLetterhead(
   return `${letterhead}${contentHtml}`;
 }
 
+/** Insert "To," / "प्रति," before the recipient block when a general template omitted it. */
+function ensureGeneralRecipientToPrefix(
+  templateHtml: string,
+  locale: LetterLocale,
+): string {
+  if (/(?:^|>|\n)\s*(?:To|प्रति),/m.test(templateHtml)) {
+    return templateHtml;
+  }
+
+  const prefix = locale === 'mr' ? 'प्रति,<br>' : 'To,<br>';
+  return templateHtml.replace(
+    /(<div class="(?:recipient|address)">\{\{toBlock\}\}<\/div>)/,
+    `${prefix}\n  $1`,
+  );
+}
+
 export function renderLetterTemplate(
   templateHtml: string,
   fields: Record<string, string>,
@@ -341,6 +357,11 @@ export function buildRenderedLetterHtml(
   documentTypes?: DocumentTypeLabelSource[],
 ): string {
   const renderFields = buildRenderFields(type, fields, locale, documentTypes);
-  const contentHtml = renderLetterTemplate(templateHtml, renderFields);
+  const formType = resolveLetterFormBase(typeof type === 'string' ? type : 'general');
+  const htmlWithToPrefix =
+    formType === 'general'
+      ? ensureGeneralRecipientToPrefix(templateHtml, locale)
+      : templateHtml;
+  const contentHtml = renderLetterTemplate(htmlWithToPrefix, renderFields);
   return wrapLetterWithLetterhead(contentHtml, letterheadUrl, letterheadMode);
 }
