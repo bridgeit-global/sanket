@@ -64,7 +64,6 @@ import {
 } from '@/components/project-detail-extras';
 import type {
   ProjectAttachment,
-  ProjectGroundMedia,
   ProjectApprovalStatus,
   ProjectNocStatus,
   ProjectPhysicalStatus,
@@ -117,7 +116,6 @@ interface Project {
   lokarpanDate?: string | null;
   registerEntries?: RegisterEntry[];
   documents?: ProjectAttachment[];
-  groundMedia?: ProjectGroundMedia[];
 }
 
 interface ProjectDetailProps {
@@ -193,7 +191,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   });
 
   const [documents, setDocuments] = useState<ProjectAttachment[]>([]);
-  const [groundMedia, setGroundMedia] = useState<ProjectGroundMedia[]>([]);
 
   // Entry form
   const [entryForm, setEntryForm] = useState({
@@ -211,7 +208,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
   const [entryFormErrors, setEntryFormErrors] = useState<Record<string, string>>({});
-  const [extrasDirty, setExtrasDirty] = useState(false);
   const [pendingUnsavedAction, setPendingUnsavedAction] = useState<
     { type: 'navigate'; href: string } | { type: 'close-editor' } | null
   >(null);
@@ -283,7 +279,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         setProject(data);
         setEntries(data.registerEntries || []);
         setDocuments(data.documents || []);
-        setGroundMedia(data.groundMedia || []);
         setProjectForm(projectFormValues(data));
       } else if (response.status === 404) {
         toast.error('Project not found');
@@ -302,11 +297,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     return JSON.stringify(projectForm) !== JSON.stringify(projectFormValues(project));
   }, [editingProject, project, projectForm]);
 
-  const hasUnsavedChanges = projectFormDirty || extrasDirty;
-
-  const handleExtrasDirtyChange = useCallback((dirty: boolean) => {
-    setExtrasDirty(dirty);
-  }, []);
+  const hasUnsavedChanges = projectFormDirty;
 
   const closeProjectEditor = useCallback(() => {
     if (project) {
@@ -994,28 +985,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       <div className="no-print">
         <ProjectDetailExtras
           projectId={projectId}
-          physicalStatus={project.physicalStatus || 'WNS'}
-          bhoomiPujanDone={project.bhoomiPujanDone || false}
-          bhoomiPujanDate={project.bhoomiPujanDate || null}
-          lokarpanDone={project.lokarpanDone || false}
-          lokarpanDate={project.lokarpanDate || null}
           documents={documents}
-          groundMedia={groundMedia}
-          onPatchProject={async (patch) => {
-            const response = await fetch(`/api/projects/${projectId}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...projectForm, ...patch }),
-            });
-            if (response.ok) {
-              await loadProject();
-              toast.success('Project updated successfully');
-            } else {
-              toast.error('Failed to update project');
-            }
-          }}
           onRefresh={loadProject}
-          onUnsavedChange={handleExtrasDirtyChange}
         />
       </div>
 
