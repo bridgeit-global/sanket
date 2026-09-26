@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
   ExternalLink,
@@ -101,6 +101,22 @@ function physicalStatusKey(
   return 'adm.physicalStatusWns';
 }
 
+function formatAllocationSerial(sortOrder: number, locale: string): string {
+  return sortOrder.toLocaleString(locale === 'mr' ? 'mr-IN' : 'en-IN');
+}
+
+function matchesSerialFilter(
+  sortOrder: number,
+  query: string,
+  locale: string,
+): boolean {
+  const q = query.trim();
+  if (!q) return true;
+  return [String(sortOrder), formatAllocationSerial(sortOrder, locale)].some(
+    (value) => value.startsWith(q),
+  );
+}
+
 interface AdmFundRecordCardProps {
   fund: AdmFundRecordWithDetails;
   projects: AdmProjectOption[];
@@ -140,13 +156,14 @@ export function AdmFundRecordCard({
   onUploadDocument,
   onDeleteDocument,
 }: AdmFundRecordCardProps) {
-  const { t } = useTranslations();
+  const { t, locale } = useTranslations();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(false);
   const [financialYear, setFinancialYear] = useState(fund.financialYear);
   const [budget, setBudget] = useState(fund.budget);
   const [saving, setSaving] = useState(false);
 
+  const [serialFilter, setSerialFilter] = useState('');
   const [projectId, setProjectId] = useState('');
   const [allocatedBudget, setAllocatedBudget] = useState(0);
   const [addingAllocation, setAddingAllocation] = useState(false);
@@ -192,6 +209,13 @@ export function AdmFundRecordCard({
   const availableProjects = projects.filter((p) => !allocatedProjectIds.has(p.id));
   const fyOptions = financialYearOptions(financialYear);
   const sourceDocuments = fund.documents.filter((d) => d.kind === 'source_details');
+  const visibleAllocations = fund.allocations.filter((allocation) =>
+    matchesSerialFilter(allocation.sortOrder, serialFilter, locale),
+  );
+
+  useEffect(() => {
+    setSerialFilter('');
+  }, [fund.id]);
 
   const handleSaveFund = async () => {
     setSaving(true);
@@ -504,41 +528,66 @@ export function AdmFundRecordCard({
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t('adm.associatedProjects')}
           </p>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="min-h-11 w-full sm:min-h-9 sm:w-auto"
-            onClick={() => setCreateProjectOpen(true)}
-          >
-            <Plus className="mr-1 h-3.5 w-3.5" />
-            {t('adm.createProject')}
-          </Button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            {fund.allocations.length > 0 ? (
+              <Input
+                type="search"
+                inputMode="numeric"
+                value={serialFilter}
+                onChange={(e) => setSerialFilter(e.target.value)}
+                placeholder={t('adm.filterSerialPlaceholder')}
+                aria-label={t('adm.filterSerial')}
+                className="min-h-11 sm:min-h-9 sm:w-40"
+              />
+            ) : null}
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="min-h-11 w-full sm:min-h-9 sm:w-auto"
+              onClick={() => setCreateProjectOpen(true)}
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              {t('adm.createProject')}
+            </Button>
+          </div>
         </div>
         {fund.allocations.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('adm.noAllocations')}</p>
+        ) : visibleAllocations.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            {t('adm.noAllocationsMatchSerial')}
+          </p>
         ) : (
           <>
             <div className="space-y-3 lg:hidden">
-              {fund.allocations.map((allocation) => (
+              {visibleAllocations.map((allocation) => (
                 <div
                   key={allocation.id}
                   className="space-y-3 rounded-lg border border-border bg-background p-3"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 space-y-1">
-                      <Link
-                        href={projectDetailHref(allocation.projectId, fund.id)}
-                        className="inline-flex items-start gap-1 font-medium text-primary hover:underline"
+                    <div className="flex min-w-0 items-start gap-2">
+                      <span
+                        className="mt-0.5 inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-md bg-muted px-1.5 text-xs font-semibold tabular-nums text-foreground"
+                        title={t('adm.serialNo')}
                       >
-                        <span className="break-words">
-                          {allocation.projectName}
-                        </span>
-                        <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      </Link>
-                      <p className="text-sm text-muted-foreground">
-                        {locationLabel(allocation)}
-                      </p>
+                        {formatAllocationSerial(allocation.sortOrder, locale)}
+                      </span>
+                      <div className="min-w-0 space-y-1">
+                        <Link
+                          href={projectDetailHref(allocation.projectId, fund.id)}
+                          className="inline-flex items-start gap-1 font-medium text-primary hover:underline"
+                        >
+                          <span className="break-words">
+                            {allocation.projectName}
+                          </span>
+                          <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                        </Link>
+                        <p className="text-sm text-muted-foreground">
+                          {locationLabel(allocation)}
+                        </p>
+                      </div>
                     </div>
                     <Badge variant="outline" className="shrink-0 whitespace-nowrap">
                       {t(physicalStatusKey(allocation.projectPhysicalStatus))}
@@ -586,6 +635,9 @@ export function AdmFundRecordCard({
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-16 whitespace-nowrap text-center">
+                      {t('adm.serialNo')}
+                    </TableHead>
                     <TableHead className="min-w-[16rem]">{t('adm.projectName')}</TableHead>
                     <TableHead className="whitespace-nowrap">
                       {t('adm.location')}
@@ -603,8 +655,11 @@ export function AdmFundRecordCard({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {fund.allocations.map((allocation) => (
+                  {visibleAllocations.map((allocation) => (
                     <TableRow key={allocation.id}>
+                      <TableCell className="align-top text-center font-medium tabular-nums">
+                        {formatAllocationSerial(allocation.sortOrder, locale)}
+                      </TableCell>
                       <TableCell className="align-top max-w-md">
                         <Link
                           href={projectDetailHref(allocation.projectId, fund.id)}
