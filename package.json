@@ -18,7 +18,16 @@
     "db:seed:adm-mla": "npx tsx scripts/seed-adm-mla-pdfs.ts",
     "storage:migrate-blob": "npx tsx scripts/migrate-vercel-blob-to-supabase.ts",
     "letters:export-templates": "npx tsx scripts/export-letter-templates-pdf.ts",
-    "test": "export PLAYWRIGHT=True && pnpm exec playwright test"
+    "test": "export PLAYWRIGHT=True && pnpm exec playwright test",
+    "test:unit": "vitest run --config vitest.config.ts",
+    "test:unit:watch": "vitest --config vitest.config.ts",
+    "test:coverage": "vitest run --config vitest.config.ts --coverage",
+    "test:unit:coverage": "pnpm run test:coverage",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:api": "vitest run --config vitest.api.config.ts",
+    "test:component": "vitest run --config vitest.component.config.ts",
+    "test:e2e": "pnpm test",
+    "test:all": "pnpm run test:unit && pnpm run test:integration && pnpm run test:api && pnpm run test:component && pnpm run test:e2e"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.0",
@@ -113,6 +122,9 @@
     "@biomejs/biome": "1.9.4",
     "@playwright/test": "^1.50.1",
     "@tailwindcss/typography": "^0.5.15",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/node": "^22.8.6",
     "@types/pako": "^2.0.4",
     "@types/papaparse": "^5.3.15",
@@ -122,17 +134,20 @@
     "@types/react-dom": "^18",
     "@types/web-push": "^3.6.4",
     "@vercel/blob": "^0.24.1",
+    "@vitest/coverage-v8": "^5.0.1",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.5",
     "eslint-config-prettier": "^9.1.0",
     "eslint-import-resolver-typescript": "^3.6.3",
     "eslint-plugin-tailwindcss": "^3.17.5",
+    "jsdom": "^30.1.0",
     "postcss": "^8",
     "supabase": "^2.109.1",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.19.1",
     "typescript": "^5.6.3",
-    "vercel": "^44.5.0"
+    "vercel": "^44.5.0",
+    "vitest": "^5.0.1"
   },
   "packageManager": "pnpm@9.12.3"
 }

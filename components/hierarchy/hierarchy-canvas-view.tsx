@@ -881,18 +881,35 @@ export function HierarchyCanvasView({
               <p className="text-[10px] font-semibold tracking-[0.12em] text-amber-800 uppercase dark:text-amber-200">
                 {t('hierarchyModule.canvasBlaLabel')}
               </p>
-              <p className="mt-1 text-sm font-semibold">
-                {focusedBooth.bla
-                  ? getMemberDisplayName(focusedBooth.bla)
-                  : '—'}
-              </p>
-              <div className="mt-1.5">
-                <ContactWithCall
-                  phone={
-                    focusedBooth.bla ? getMemberPhone(focusedBooth.bla) : null
-                  }
-                />
-              </div>
+              {focusedBooth.blas && focusedBooth.blas.length > 0 ? (
+                <div className="divide-y divide-amber-200/60 dark:divide-amber-800/60">
+                  {focusedBooth.blas.map((blaMember) => (
+                    <div key={blaMember.id} className="pt-2 first:pt-1">
+                      <p className="text-sm font-semibold">
+                        {getMemberDisplayName(blaMember)}
+                      </p>
+                      <div className="mt-1">
+                        <ContactWithCall phone={getMemberPhone(blaMember)} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <>
+                  <p className="mt-1 text-sm font-semibold">
+                    {focusedBooth.bla
+                      ? getMemberDisplayName(focusedBooth.bla)
+                      : '—'}
+                  </p>
+                  <div className="mt-1.5">
+                    <ContactWithCall
+                      phone={
+                        focusedBooth.bla ? getMemberPhone(focusedBooth.bla) : null
+                      }
+                    />
+                  </div>
+                </>
+              )}
             </div>
           }
           right={

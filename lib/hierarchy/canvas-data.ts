@@ -6,6 +6,7 @@ import {
 } from './member-list';
 import {
   findBoothBlaForVertical,
+  findBoothBlasForVertical,
   findBoothHeadForVertical,
   findTalukaHeadForVertical,
   findWardHeadForVertical,
@@ -18,6 +19,7 @@ export type HierarchyCanvasBooth = {
   boothNo: string;
   adhyaksh: CadreMemberCard | null;
   bla: CadreMemberCard | null;
+  blas?: CadreMemberCard[];
   committeeMembers: CadreMemberCard[];
   committeeTotal: number;
 };
@@ -80,7 +82,8 @@ export function resolveHierarchyCanvasData(
         boothNo,
         verticalId,
       );
-      const bla = findBoothBlaForVertical(members, wardGeoId, boothNo, verticalId);
+      const blas = findBoothBlasForVertical(members, wardGeoId, boothNo, verticalId);
+      const bla = blas[0] ?? null;
       const boothCommitteeAll = filterBoothCommitteeMembers(
         members,
         wardGeoId,
@@ -91,6 +94,7 @@ export function resolveHierarchyCanvasData(
         boothNo,
         adhyaksh: boothAdhyaksh,
         bla,
+        blas,
         committeeMembers: boothCommitteeAll,
         committeeTotal: boothCommitteeAll.length,
       };
@@ -130,6 +134,7 @@ export function collectCanvasMemberIds(data: HierarchyCanvasData): Set<string> {
     for (const booth of ward.booths) {
       add(booth.adhyaksh);
       add(booth.bla);
+      if (booth.blas) addMany(booth.blas);
       addMany(booth.committeeMembers);
     }
   }
@@ -212,6 +217,7 @@ export function hydrateCanvasData(
         boothNo: booth.boothNo,
         adhyaksh: hydrate(booth.adhyaksh),
         bla: hydrate(booth.bla),
+        blas: booth.blas ? hydrateMany(booth.blas) : undefined,
         committeeMembers: hydrateMany(booth.committeeMembers),
         committeeTotal: booth.committeeTotal,
       })),

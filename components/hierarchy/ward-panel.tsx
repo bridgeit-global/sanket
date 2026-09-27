@@ -7,7 +7,9 @@ import { MemberVoterIdField } from './member-voter-id-field';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { getMemberDisplayName } from '@/lib/hierarchy/geo-attribution';
+import { postMatchesBoothScope } from '@/lib/hierarchy/booth-geo-units';
 import {
+  findBoothBlasForVertical,
   findBoothBlaForVertical,
   findBoothHeadForVertical,
   findWardHeadForVertical,
@@ -183,12 +185,41 @@ export function WardPanel({
                   boothNo,
                   vertical.id,
                 );
-                const bla = findBoothBlaForVertical(
+                const blas = findBoothBlasForVertical(
                   members,
                   wardGeoId,
                   boothNo,
                   vertical.id,
                 );
+                const blaBaseLabel =
+                  t('hierarchyModule.canvasBlaLabel') || 'BLA (Booth Level Agent)';
+                const blaEntries =
+                  blas.length > 0
+                    ? blas.map((bla) => {
+                        const post = bla.posts.find(
+                          (p) =>
+                            p.verticalId === vertical.id &&
+                            p.positionLevelKey === 'booth_bla' &&
+                            postMatchesBoothScope(p, wardGeoId, boothNo),
+                        );
+                        return {
+                          key: `${vertical.id}-bla-${bla.id}`,
+                          verticalId: vertical.id,
+                          roleLabel: post?.label?.trim() || blaBaseLabel,
+                          head: bla,
+                          showCommittee: false,
+                        };
+                      })
+                    : [
+                        {
+                          key: `${vertical.id}-bla`,
+                          verticalId: vertical.id,
+                          roleLabel: blaBaseLabel,
+                          head: null,
+                          showCommittee: false,
+                        },
+                      ];
+
                 return [
                   {
                     key: `${vertical.id}-adhyaksh`,
@@ -199,13 +230,7 @@ export function WardPanel({
                     head: adhyaksh,
                     showCommittee: true,
                   },
-                  {
-                    key: `${vertical.id}-bla`,
-                    verticalId: vertical.id,
-                    roleLabel: 'BLA (Booth Level Agent)',
-                    head: bla,
-                    showCommittee: false,
-                  },
+                  ...blaEntries,
                 ];
               });
 
