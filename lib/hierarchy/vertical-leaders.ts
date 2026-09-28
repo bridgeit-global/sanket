@@ -69,13 +69,13 @@ export function findBoothHeadForVertical(
   });
 }
 
-export function findBoothBlaForVertical(
+export function findBoothBlasForVertical(
   members: CadreMemberCard[],
   wardGeoId: string,
   boothNo: string,
   verticalId: string,
-): CadreMemberCard | null {
-  const verticalMembers = members.filter((member) =>
+): CadreMemberCard[] {
+  const matching = members.filter((member) =>
     memberHasPostForVertical(
       member,
       verticalId,
@@ -84,9 +84,35 @@ export function findBoothBlaForVertical(
         postMatchesBoothScope(post, wardGeoId, boothNo),
     ),
   );
-  return findSeniorMemberForGeo(verticalMembers, {
-    scope: 'booth',
-    wardGeoId,
-    boothNo,
+
+  return matching.sort((a, b) => {
+    const postA = a.posts.find(
+      (p) =>
+        p.verticalId === verticalId &&
+        p.positionLevelKey === 'booth_bla' &&
+        postMatchesBoothScope(p, wardGeoId, boothNo),
+    );
+    const postB = b.posts.find(
+      (p) =>
+        p.verticalId === verticalId &&
+        p.positionLevelKey === 'booth_bla' &&
+        postMatchesBoothScope(p, wardGeoId, boothNo),
+    );
+    if (postA && postB) {
+      const orderA = postA.sortOrder ?? 0;
+      const orderB = postB.sortOrder ?? 0;
+      if (orderA !== orderB) return orderA - orderB;
+    }
+    return (a.personName ?? '').localeCompare(b.personName ?? '');
   });
+}
+
+export function findBoothBlaForVertical(
+  members: CadreMemberCard[],
+  wardGeoId: string,
+  boothNo: string,
+  verticalId: string,
+): CadreMemberCard | null {
+  const blas = findBoothBlasForVertical(members, wardGeoId, boothNo, verticalId);
+  return blas[0] ?? null;
 }

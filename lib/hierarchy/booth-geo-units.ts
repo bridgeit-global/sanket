@@ -106,7 +106,11 @@ export function postMatchesBoothScope(
   boothNo: string,
   boothGeoId?: string,
 ): boolean {
-  if (post.wardGeoId === wardGeoId && post.boothNo === boothNo) return true;
+  const boothMatches =
+    post.boothNo === boothNo ||
+    (post.boothNo != null &&
+      Number.parseInt(post.boothNo, 10) === Number.parseInt(boothNo, 10));
+  if (post.wardGeoId === wardGeoId && boothMatches) return true;
   if (boothGeoId && post.wardGeoId === boothGeoId) return true;
   return false;
 }
