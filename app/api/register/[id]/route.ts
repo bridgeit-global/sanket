@@ -94,6 +94,14 @@ export async function PUT(
       refNo: body.refNo !== undefined ? body.refNo || undefined : entry.refNo ?? undefined,
       officer:
         body.officer !== undefined ? body.officer || undefined : entry.officer ?? undefined,
+      assignedPerson:
+        body.assignedPerson !== undefined
+          ? body.assignedPerson || undefined
+          : entry.assignedPerson ?? undefined,
+      assignedPhone:
+        body.assignedPhone !== undefined
+          ? body.assignedPhone || undefined
+          : entry.assignedPhone ?? undefined,
     });
     if (!validation.success) {
       const firstError = Object.values(validation.errors)[0];
@@ -112,6 +120,12 @@ export async function PUT(
     if (body.mode !== undefined) updateData.mode = validation.data.mode || null;
     if (body.refNo !== undefined) updateData.refNo = validation.data.refNo || null;
     if (body.officer !== undefined) updateData.officer = validation.data.officer || null;
+    if (body.assignedPerson !== undefined) {
+      updateData.assignedPerson = validation.data.assignedPerson || null;
+    }
+    if (body.assignedPhone !== undefined) {
+      updateData.assignedPhone = validation.data.assignedPhone || null;
+    }
     if (body.documentType !== undefined) {
       const requestedType = String(body.documentType ?? '').trim();
       if (!requestedType) {

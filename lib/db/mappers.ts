@@ -923,6 +923,8 @@ export function mapRegisterEntryRow(row: Row): RegisterEntry {
     mode: toStringOrNull(row.mode),
     refNo: toStringOrNull(row.ref_no ?? row.refNo),
     officer: toStringOrNull(row.officer),
+    assignedPerson: toStringOrNull(row.assigned_person ?? row.assignedPerson),
+    assignedPhone: toStringOrNull(row.assigned_phone ?? row.assignedPhone),
     createdBy: String(row.created_by ?? row.createdBy),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),

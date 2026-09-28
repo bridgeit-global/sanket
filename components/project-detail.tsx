@@ -88,6 +88,8 @@ interface RegisterEntry {
   mode?: string;
   refNo?: string;
   officer?: string;
+  assignedPerson?: string;
+  assignedPhone?: string;
   createdAt?: string;
   attachments?: Attachment[];
 }
@@ -202,6 +204,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     mode: '',
     refNo: '',
     officer: '',
+    assignedPerson: '',
+    assignedPhone: '',
   });
 
   // Delete confirmation dialog
@@ -449,6 +453,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       mode: entryForm.mode || undefined,
       refNo: entryForm.refNo || undefined,
       officer: entryForm.officer || undefined,
+      assignedPerson: entryForm.assignedPerson || undefined,
+      assignedPhone: entryForm.assignedPhone || undefined,
     });
 
     if (!validation.success) {
@@ -536,6 +542,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           mode: '',
           refNo: '',
           officer: '',
+          assignedPerson: '',
+          assignedPhone: '',
         });
       } else {
         const error = await response.json();
@@ -616,6 +624,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
           mode: entryForm.mode,
           refNo: entryForm.refNo,
           officer: entryForm.officer,
+          assignedPerson: entryForm.assignedPerson,
+          assignedPhone: entryForm.assignedPhone,
         }),
       });
 
@@ -671,6 +681,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       mode: entry.mode || '',
       refNo: entry.refNo || '',
       officer: entry.officer || '',
+      assignedPerson: entry.assignedPerson || '',
+      assignedPhone: entry.assignedPhone || '',
     });
   };
 
@@ -781,6 +793,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                   <th>Mode</th>
                   <th>Ref No</th>
                   <th>Officer</th>
+                  <th>{t('register.assignedPerson')}</th>
+                  <th>{t('register.assignedPhone')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -793,6 +807,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                     <td>{entry.mode || '-'}</td>
                     <td>{entry.refNo || '-'}</td>
                     <td>{entry.officer || '-'}</td>
+                    <td>{entry.assignedPerson || '-'}</td>
+                    <td>{entry.assignedPhone || '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -813,6 +829,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                   <th>Mode</th>
                   <th>Ref No</th>
                   <th>Officer</th>
+                  <th>{t('register.assignedPerson')}</th>
+                  <th>{t('register.assignedPhone')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -825,6 +843,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                     <td>{entry.mode || '-'}</td>
                     <td>{entry.refNo || '-'}</td>
                     <td>{entry.officer || '-'}</td>
+                    <td>{entry.assignedPerson || '-'}</td>
+                    <td>{entry.assignedPhone || '-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -1164,6 +1184,35 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                   />
                 </div>
               </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <LimitedFormField
+                  id="entry-assignedPerson"
+                  label={t('register.assignedPerson')}
+                  placeholder={t('register.assignedPersonPlaceholder')}
+                  value={entryForm.assignedPerson}
+                  maxLength={REGISTER_ENTRY_FIELD_LIMITS.assignedPerson}
+                  error={entryFormErrors.assignedPerson}
+                  onChange={(value) => {
+                    setEntryForm({ ...entryForm, assignedPerson: value });
+                    clearEntryFieldError('assignedPerson');
+                  }}
+                />
+                <LimitedFormField
+                  id="entry-assignedPhone"
+                  label={t('register.assignedPhone')}
+                  placeholder={t('register.assignedPhonePlaceholder')}
+                  value={entryForm.assignedPhone}
+                  maxLength={REGISTER_ENTRY_FIELD_LIMITS.assignedPhone}
+                  error={entryFormErrors.assignedPhone}
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel"
+                  onChange={(value) => {
+                    setEntryForm({ ...entryForm, assignedPhone: value });
+                    clearEntryFieldError('assignedPhone');
+                  }}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="entry-files">Attachments (Optional)</Label>
                 <div className="space-y-2">
@@ -1278,6 +1327,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                           <TableHead>Mode</TableHead>
                           <TableHead>Ref No</TableHead>
                           <TableHead>Officer</TableHead>
+                          <TableHead>{t('register.assignedPerson')}</TableHead>
+                          <TableHead>{t('register.assignedPhone')}</TableHead>
                           <TableHead>Attachments</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -1286,7 +1337,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                         {typeEntries.length === 0 ? (
                           <TableRow>
                             <TableCell
-                              colSpan={9}
+                              colSpan={11}
                               className="text-center text-muted-foreground"
                             >
                               No {documentTypeTabLabel(code)} register entries yet.
@@ -1318,6 +1369,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                               <TableCell>{entry.mode || '-'}</TableCell>
                               <TableCell>{entry.refNo || '-'}</TableCell>
                               <TableCell>{entry.officer || '-'}</TableCell>
+                              <TableCell>{entry.assignedPerson || '-'}</TableCell>
+                              <TableCell>{entry.assignedPhone || '-'}</TableCell>
                               <TableCell>
                                 {entry.attachments && entry.attachments.length > 0 ? (
                                   <Button
@@ -1486,6 +1539,35 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                   }}
                 />
               </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <LimitedFormField
+                id="edit-entry-assignedPerson"
+                label={t('register.assignedPerson')}
+                placeholder={t('register.assignedPersonPlaceholder')}
+                value={entryForm.assignedPerson}
+                maxLength={REGISTER_ENTRY_FIELD_LIMITS.assignedPerson}
+                error={entryFormErrors.assignedPerson}
+                onChange={(value) => {
+                  setEntryForm({ ...entryForm, assignedPerson: value });
+                  clearEntryFieldError('assignedPerson');
+                }}
+              />
+              <LimitedFormField
+                id="edit-entry-assignedPhone"
+                label={t('register.assignedPhone')}
+                placeholder={t('register.assignedPhonePlaceholder')}
+                value={entryForm.assignedPhone}
+                maxLength={REGISTER_ENTRY_FIELD_LIMITS.assignedPhone}
+                error={entryFormErrors.assignedPhone}
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                onChange={(value) => {
+                  setEntryForm({ ...entryForm, assignedPhone: value });
+                  clearEntryFieldError('assignedPhone');
+                }}
+              />
             </div>
             <DialogFooter>
               <Button

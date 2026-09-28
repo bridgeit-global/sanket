@@ -189,7 +189,11 @@
     "printRegister": "Print Register",
     "manageIncoming": "Manage incoming documents and letters",
     "manageOutgoing": "Manage outgoing documents and letters",
-    "manageDocumentTypes": "Manage Document Types"
+    "manageDocumentTypes": "Manage Document Types",
+    "assignedPerson": "Person Assigned To",
+    "assignedPhone": "Phone Number",
+    "assignedPersonPlaceholder": "Name of the person handling this",
+    "assignedPhonePlaceholder": "10-digit mobile number"
   },
   "sir": {
     "title": "Voter Roll - 2024",

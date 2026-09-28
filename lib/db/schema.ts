@@ -676,6 +676,8 @@ export type RegisterEntry = {
   mode: string | null;
   refNo: string | null;
   officer: string | null;
+  assignedPerson: string | null;
+  assignedPhone: string | null;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;

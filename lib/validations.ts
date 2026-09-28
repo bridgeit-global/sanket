@@ -130,6 +130,8 @@ export const REGISTER_ENTRY_FIELD_LIMITS = {
   mode: 255,
   refNo: 255,
   officer: 255,
+  assignedPerson: 255,
+  assignedPhone: 20,
 } as const;
 
 // Register entry form validation
@@ -171,6 +173,27 @@ export const registerEntryFormSchema = z.object({
       `Maximum ${REGISTER_ENTRY_FIELD_LIMITS.officer} characters`,
     )
     .optional(),
+  assignedPerson: z
+    .string()
+    .max(
+      REGISTER_ENTRY_FIELD_LIMITS.assignedPerson,
+      `Maximum ${REGISTER_ENTRY_FIELD_LIMITS.assignedPerson} characters`,
+    )
+    .optional(),
+  assignedPhone: z
+    .string()
+    .max(
+      REGISTER_ENTRY_FIELD_LIMITS.assignedPhone,
+      `Maximum ${REGISTER_ENTRY_FIELD_LIMITS.assignedPhone} characters`,
+    )
+    .optional()
+    .transform((value) => {
+      const trimmed = value?.trim() ?? '';
+      return trimmed ? normalizeIndianMobileDigits(trimmed) : undefined;
+    })
+    .refine((value) => value === undefined || isValidIndianMobile(value), {
+      message: 'Enter a valid 10-digit Indian mobile number',
+    }),
 });
 
 export type RegisterEntryFormData = z.infer<typeof registerEntryFormSchema>;

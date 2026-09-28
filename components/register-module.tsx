@@ -86,6 +86,8 @@ interface RegisterEntry {
   mode?: string;
   refNo?: string;
   officer?: string;
+  assignedPerson?: string;
+  assignedPhone?: string;
   attachments?: Attachment[];
   linkedToAdm?: boolean;
   linkedToProject?: boolean;
@@ -107,6 +109,8 @@ type RegisterFormState = {
   refPrefix: string;
   refNumber: string;
   officer: string;
+  assignedPerson: string;
+  assignedPhone: string;
 };
 
 function createEmptyRegisterForm(
@@ -125,6 +129,8 @@ function createEmptyRegisterForm(
     refPrefix: type === 'outward' ? documentType : '',
     refNumber: '',
     officer: '',
+    assignedPerson: '',
+    assignedPhone: '',
   };
 }
 
@@ -359,6 +365,8 @@ export function RegisterModule({
       mode: form.mode || undefined,
       refNo,
       officer: form.officer || undefined,
+      assignedPerson: form.assignedPerson || undefined,
+      assignedPhone: form.assignedPhone || undefined,
     });
 
     if (!validation.success) {
@@ -392,6 +400,8 @@ export function RegisterModule({
           mode: form.mode || undefined,
           refNo,
           officer: form.officer || undefined,
+          assignedPerson: form.assignedPerson || undefined,
+          assignedPhone: form.assignedPhone || undefined,
           autoSequence: type === 'outward' ? referenceNumberAutoRef.current : undefined,
         }),
       });
@@ -561,6 +571,8 @@ export function RegisterModule({
       refPrefix: type === 'outward' ? documentType : '',
       refNumber: formatReferenceNumberForLocale(parsed.number, letterLocale),
       officer: entry.officer || '',
+      assignedPerson: entry.assignedPerson || '',
+      assignedPhone: entry.assignedPhone || '',
     });
   };
 
@@ -583,6 +595,8 @@ export function RegisterModule({
           mode: form.mode,
           refNo,
           officer: form.officer,
+          assignedPerson: form.assignedPerson,
+          assignedPhone: form.assignedPhone,
         }),
       });
 
@@ -648,6 +662,8 @@ export function RegisterModule({
       (entry.mode || '').toLowerCase().includes(search) ||
       (entry.refNo || '').toLowerCase().includes(search) ||
       (entry.officer || '').toLowerCase().includes(search) ||
+      (entry.assignedPerson || '').toLowerCase().includes(search) ||
+      (entry.assignedPhone || '').toLowerCase().includes(search) ||
       (project?.name || '').toLowerCase().includes(search)
     );
   });
@@ -702,6 +718,8 @@ export function RegisterModule({
                   <th>Mode</th>
                   <th>Ref No.</th>
                   <th>Officer</th>
+                  <th>{t('register.assignedPerson')}</th>
+                  <th>{t('register.assignedPhone')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -721,6 +739,8 @@ export function RegisterModule({
                           : '-'}
                       </td>
                       <td>{entry.officer || '-'}</td>
+                      <td>{entry.assignedPerson || '-'}</td>
+                      <td>{entry.assignedPhone || '-'}</td>
                     </tr>
                   );
                 })}
@@ -907,6 +927,37 @@ export function RegisterModule({
                 onChange={(value) => {
                   setForm({ ...form, officer: value });
                   clearFieldError('officer');
+                }}
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <LimitedFormField
+                id="assignedPerson"
+                label={t('register.assignedPerson')}
+                placeholder={t('register.assignedPersonPlaceholder')}
+                value={form.assignedPerson}
+                maxLength={REGISTER_ENTRY_FIELD_LIMITS.assignedPerson}
+                error={formErrors.assignedPerson}
+                onChange={(value) => {
+                  setForm({ ...form, assignedPerson: value });
+                  clearFieldError('assignedPerson');
+                }}
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <LimitedFormField
+                id="assignedPhone"
+                label={t('register.assignedPhone')}
+                placeholder={t('register.assignedPhonePlaceholder')}
+                value={form.assignedPhone}
+                maxLength={REGISTER_ENTRY_FIELD_LIMITS.assignedPhone}
+                error={formErrors.assignedPhone}
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                onChange={(value) => {
+                  setForm({ ...form, assignedPhone: value });
+                  clearFieldError('assignedPhone');
                 }}
               />
             </div>
@@ -1111,7 +1162,7 @@ export function RegisterModule({
           <div className="relative mb-4">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by sender, subject, project, mode..."
+              placeholder="Search by sender, subject, person, phone, project, mode..."
               value={searchTerm}
               onChange={(e) => {
                 const value = e.target.value;
@@ -1133,6 +1184,8 @@ export function RegisterModule({
                   <TableHead>Mode</TableHead>
                   <TableHead>Ref No.</TableHead>
                   <TableHead>Officer</TableHead>
+                  <TableHead>{t('register.assignedPerson')}</TableHead>
+                  <TableHead>{t('register.assignedPhone')}</TableHead>
                   <TableHead className="no-print">Attachments</TableHead>
                   <TableHead className="no-print text-right">Actions</TableHead>
                 </TableRow>
@@ -1141,7 +1194,7 @@ export function RegisterModule({
                 {paginatedEntries.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={9}
+                      colSpan={11}
                       className="text-center text-muted-foreground"
                     >
                       {entries.length === 0 ? 'No entries yet.' : 'No entries match your search.'}
@@ -1179,6 +1232,8 @@ export function RegisterModule({
                             : '-'}
                         </TableCell>
                         <TableCell>{entry.officer || '-'}</TableCell>
+                        <TableCell>{entry.assignedPerson || '-'}</TableCell>
+                        <TableCell>{entry.assignedPhone || '-'}</TableCell>
                         <TableCell className="no-print">
                           <Button
                             variant="outline"
@@ -1420,6 +1475,35 @@ export function RegisterModule({
                   }}
                 />
               </div>
+            </div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <LimitedFormField
+                id="edit-assignedPerson"
+                label={t('register.assignedPerson')}
+                placeholder={t('register.assignedPersonPlaceholder')}
+                value={form.assignedPerson}
+                maxLength={REGISTER_ENTRY_FIELD_LIMITS.assignedPerson}
+                error={formErrors.assignedPerson}
+                onChange={(value) => {
+                  setForm({ ...form, assignedPerson: value });
+                  clearFieldError('assignedPerson');
+                }}
+              />
+              <LimitedFormField
+                id="edit-assignedPhone"
+                label={t('register.assignedPhone')}
+                placeholder={t('register.assignedPhonePlaceholder')}
+                value={form.assignedPhone}
+                maxLength={REGISTER_ENTRY_FIELD_LIMITS.assignedPhone}
+                error={formErrors.assignedPhone}
+                type="tel"
+                inputMode="numeric"
+                autoComplete="tel"
+                onChange={(value) => {
+                  setForm({ ...form, assignedPhone: value });
+                  clearFieldError('assignedPhone');
+                }}
+              />
             </div>
             <DialogFooter>
               <Button

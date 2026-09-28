@@ -4956,6 +4956,8 @@ export async function createRegisterEntry({
   mode,
   refNo,
   officer,
+  assignedPerson,
+  assignedPhone,
   createdBy,
 }: {
   type: 'inward' | 'outward';
@@ -4967,6 +4969,8 @@ export async function createRegisterEntry({
   mode?: string;
   refNo?: string;
   officer?: string;
+  assignedPerson?: string;
+  assignedPhone?: string;
   createdBy: string;
 }): Promise<RegisterEntry> {
   try {
@@ -4984,6 +4988,8 @@ export async function createRegisterEntry({
           mode: mode || null,
           refNo: refNo || null,
           officer: officer || null,
+          assignedPerson: assignedPerson || null,
+          assignedPhone: assignedPhone || null,
           createdBy,
           createdAt: now,
           updatedAt: now,
@@ -5060,6 +5066,8 @@ export async function getRegisterEntriesWithAttachments({
         re.ref_no ILIKE ${like}
         OR re.subject ILIKE ${like}
         OR re.from_to ILIKE ${like}
+        OR re.assigned_person ILIKE ${like}
+        OR re.assigned_phone ILIKE ${like}
       )`);
     }
 
@@ -5084,6 +5092,8 @@ export async function getRegisterEntriesWithAttachments({
         re.mode,
         re.ref_no,
         re.officer,
+        re.assigned_person,
+        re.assigned_phone,
         re.created_by AS entry_created_by,
         re.created_at AS entry_created_at,
         re.updated_at AS entry_updated_at,
@@ -5117,6 +5127,8 @@ export async function getRegisterEntriesWithAttachments({
             mode: row.mode,
             ref_no: row.ref_no,
             officer: row.officer,
+            assigned_person: row.assigned_person,
+            assigned_phone: row.assigned_phone,
             created_by: row.entry_created_by,
             created_at: row.entry_created_at,
             updated_at: row.entry_updated_at,

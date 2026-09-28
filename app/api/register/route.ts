@@ -120,6 +120,8 @@ export async function POST(request: NextRequest) {
       mode,
       refNo,
       officer,
+      assignedPerson,
+      assignedPhone,
       autoSequence,
     } = body;
 
@@ -187,6 +189,8 @@ export async function POST(request: NextRequest) {
       mode: mode || undefined,
       refNo: resolvedRefNo,
       officer: officer || undefined,
+      assignedPerson: assignedPerson || undefined,
+      assignedPhone: assignedPhone || undefined,
     });
     if (!validation.success) {
       const firstError = Object.values(validation.errors)[0];
@@ -203,6 +207,8 @@ export async function POST(request: NextRequest) {
       mode: validation.data.mode,
       refNo: validation.data.refNo,
       officer: validation.data.officer,
+      assignedPerson: validation.data.assignedPerson,
+      assignedPhone: validation.data.assignedPhone,
       createdBy: session.user.id,
     });
 

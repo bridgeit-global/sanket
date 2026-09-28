@@ -189,7 +189,11 @@
     "printRegister": "नोंद प्रिंट करा",
     "manageIncoming": "आगमन दस्तऐवज आणि पत्रे व्यवस्थापित करा",
     "manageOutgoing": "बाहेर जाणारे दस्तऐवज आणि पत्रे व्यवस्थापित करा",
-    "manageDocumentTypes": "दस्तऐवज प्रकार व्यवस्थापित करा"
+    "manageDocumentTypes": "दस्तऐवज प्रकार व्यवस्थापित करा",
+    "assignedPerson": "नियुक्त व्यक्ती",
+    "assignedPhone": "फोन क्रमांक",
+    "assignedPersonPlaceholder": "हाताळणाऱ्या व्यक्तीचे नाव",
+    "assignedPhonePlaceholder": "१० अंकी मोबाइल क्रमांक"
   },
   "sir": {
     "title": "एसआयआर",

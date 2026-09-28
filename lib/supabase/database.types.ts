@@ -1610,6 +1610,8 @@ export type Database = {
           document_type: string
           from_to: string
           id: string
+          assigned_person: string | null
+          assigned_phone: string | null
           mode: string | null
           officer: string | null
           project_id: string | null
@@ -1619,6 +1621,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          assigned_person?: string | null
+          assigned_phone?: string | null
           created_at?: string
           created_by: string
           date: string
@@ -1634,6 +1638,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          assigned_person?: string | null
+          assigned_phone?: string | null
           created_at?: string
           created_by?: string
           date?: string
