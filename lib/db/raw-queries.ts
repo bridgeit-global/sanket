@@ -2148,6 +2148,7 @@ export async function getTasksWithFilters({
     VoterTask & {
       createdByName?: string | null;
       updatedByName?: string | null;
+      assignedToName?: string | null;
       service?: {
         id: string;
         serviceType: 'individual' | 'community' | null;
@@ -2296,7 +2297,8 @@ export async function getTasksWithFilters({
           vis.mobile_number AS visitor_mobile,
           vis.voter_id AS visitor_voter_id,
           vis.location AS visitor_location,
-          (SELECT u.user_id FROM "User" u WHERE u.id = bs.requested_by LIMIT 1) AS created_by_name
+          (SELECT u.user_id FROM "User" u WHERE u.id = bs.requested_by LIMIT 1) AS created_by_name,
+          (SELECT u.user_id FROM "User" u WHERE u.id = bs.assigned_to LIMIT 1) AS assigned_to_name
         FROM "BeneficiaryService" bs
         LEFT JOIN "VoterMaster" vm ON bs.voter_id = vm.epic_number
         LEFT JOIN LATERAL (
@@ -2399,6 +2401,8 @@ export async function getTasksWithFilters({
           createdByName:
             row.created_by_name != null ? String(row.created_by_name) : null,
           updatedByName: null,
+          assignedToName:
+            row.assigned_to_name != null ? String(row.assigned_to_name) : null,
           createdAt: (row.service_created_at as Date) || new Date(),
           updatedAt: (row.service_updated_at as Date) || new Date(),
           completedAt: (row.service_completed_at as Date) || null,
@@ -2473,6 +2477,7 @@ export async function getTasksWithFilters({
         bs.notes AS service_notes,
         (SELECT u.user_id FROM "User" u WHERE u.id = vt.created_by LIMIT 1) AS created_by_name,
         (SELECT u.user_id FROM "User" u WHERE u.id = vt.updated_by LIMIT 1) AS updated_by_name,
+        (SELECT u.user_id FROM "User" u WHERE u.id = vt.assigned_to LIMIT 1) AS assigned_to_name,
         vm.full_name AS voter_name,
         (
           SELECT vmn.mobile_number FROM "VoterMobileNumber" vmn
@@ -2534,6 +2539,8 @@ export async function getTasksWithFilters({
         row.created_by_name != null ? String(row.created_by_name) : null,
       updatedByName:
         row.updated_by_name != null ? String(row.updated_by_name) : null,
+      assignedToName:
+        row.assigned_to_name != null ? String(row.assigned_to_name) : null,
       service: row.service_id
         ? {
             id: String(row.service_id),

@@ -20,7 +20,6 @@ export async function GET(_request: NextRequest) {
       .map((user) => ({
         id: user.id,
         userId: user.userId,
-        roleName: user.roleInfo?.name ?? null,
       }));
 
     return NextResponse.json({ users: assignable });

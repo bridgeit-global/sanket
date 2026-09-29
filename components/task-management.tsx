@@ -47,6 +47,7 @@ interface TaskWithService extends VoterTask {
     voter?: TaskVoter;
     createdByName?: string | null;
     updatedByName?: string | null;
+    assignedToName?: string | null;
     isOutsider?: boolean;
 }
 
@@ -101,7 +102,6 @@ function buildServiceFilterOptions(
 interface AssignableUser {
     id: string;
     userId: string;
-    roleName: string | null;
 }
 
 interface TaskHistoryEntry {
@@ -1261,14 +1261,11 @@ export function TaskManagement({
                                                 options.unshift({
                                                     id: filterAssignedTo,
                                                     userId: filterAssignedTo,
-                                                    roleName: null,
                                                 });
                                             }
                                             return options.map((user) => (
                                                 <SelectItem key={user.id} value={user.id}>
-                                                    {user.roleName
-                                                        ? `${user.userId} (${user.roleName})`
-                                                        : user.userId}
+                                                    {user.userId}
                                                 </SelectItem>
                                             ));
                                         })()}
@@ -1537,9 +1534,9 @@ export function TaskManagement({
                                                                 )}
                                                                 <span>
                                                                     <strong>{t('taskManagement.assignedTo')}</strong>{' '}
-                                                                    {assignableUsers.find((u) => u.id === task.assignedTo)?.userId
-                                                                        || task.assignedTo
-                                                                        || t('taskManagement.noAssignee')}
+                                                                    {task.assignedToName
+                                                                        || assignableUsers.find((u) => u.id === task.assignedTo)?.userId
+                                                                        || (task.assignedTo ? '—' : t('taskManagement.noAssignee'))}
                                                                 </span>
                                                                 {task.updatedAt !== task.createdAt && (
                                                                     <span>
@@ -1835,15 +1832,12 @@ export function TaskManagement({
                                             ) {
                                                 options.unshift({
                                                     id: selectedTask.assignedTo,
-                                                    userId: selectedTask.assignedTo,
-                                                    roleName: null,
+                                                    userId: selectedTask.assignedToName || selectedTask.assignedTo,
                                                 });
                                             }
                                             return options.map((user) => (
                                                 <SelectItem key={user.id} value={user.id}>
-                                                    {user.roleName
-                                                        ? `${user.userId} (${user.roleName})`
-                                                        : user.userId}
+                                                    {user.userId}
                                                 </SelectItem>
                                             ));
                                         })()}
