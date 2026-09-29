@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
     if (birthdayCount === 0) {
       return NextResponse.json({
         ok: true,
-        target: 'user_id=admin',
+        target: 'role=admin',
         sentTo: 0,
         userIds: [],
         birthdayCount: 0,
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      target: 'user_id=admin',
+      target: 'role=admin',
       sentTo: userIds.length,
       userIds,
       birthdayCount,

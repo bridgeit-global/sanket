@@ -5,7 +5,7 @@ import webpush from 'web-push';
 import {
   deleteStaleSubscriptions,
   getPushSubscriptionsForUser,
-  getSubscribedTestAdminUserIds,
+  getAdminRoleUserIds,
   getUserIdsWithModuleAccess,
 } from '@/lib/push/subscriptions';
 import type { PushNotificationPayload } from '@/lib/push/types';
@@ -107,11 +107,11 @@ export async function sendPushToModule(
   await sendPushToUsers(userIds, payload, options);
 }
 
-/** Test: notify login user `admin` (in-app always; web push if subscribed). */
+/** Notify every user with the admin role (in-app always; web push if subscribed). */
 export async function sendPushToSubscribedAdmins(
   payload: PushNotificationPayload,
 ): Promise<string[]> {
-  const userIds = await getSubscribedTestAdminUserIds();
+  const userIds = await getAdminRoleUserIds();
   await sendPushToUsers(userIds, payload);
   return userIds;
 }

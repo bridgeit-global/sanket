@@ -134,17 +134,22 @@ export async function deleteStaleSubscriptions(endpoints: string[]) {
   throwOnSupabaseError(error, 'Failed to delete stale subscriptions');
 }
 
-/**
- * Test helper: the single login user `user_id = 'admin'` (in-app inbox +
- * web push when subscribed).
- */
-export async function getSubscribedTestAdminUserIds(): Promise<string[]> {
-  const { data: user, error: userError } = await supabase
+/** Every user assigned the `admin` role. */
+export async function getAdminRoleUserIds(): Promise<string[]> {
+  const { data: roles, error: roleError } = await supabase
+    .from(TABLES.role)
+    .select('id')
+    .eq('name', 'admin');
+  throwOnSupabaseError(roleError, 'Failed to get admin role');
+
+  const roleIds = (roles ?? []).map((role) => String(role.id));
+  if (roleIds.length === 0) return [];
+
+  const { data: users, error: userError } = await supabase
     .from(TABLES.user)
     .select('id')
-    .eq('user_id', 'admin')
-    .maybeSingle();
-  throwOnSupabaseError(userError, 'Failed to get admin user');
-  if (!user) return [];
-  return [String(user.id)];
+    .in('role_id', roleIds);
+  throwOnSupabaseError(userError, 'Failed to get admin role users');
+
+  return [...new Set((users ?? []).map((user) => String(user.id)))];
 }
