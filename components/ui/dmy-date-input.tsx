@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { formatYmdAsDmy, parseFlexibleDateToYmd } from '@/lib/ist-date';
@@ -56,7 +56,6 @@ export function DmyDateInput({
   tabIndex,
   ...rest
 }: DmyDateInputProps) {
-  const pickerRef = useRef<HTMLInputElement>(null);
   const [focused, setFocused] = useState(false);
   const [text, setText] = useState(() => toDisplay(value));
 
@@ -89,14 +88,22 @@ export function DmyDateInput({
     emitChange(parsed, onChange, onValueChange);
   };
 
-  const openPicker = () => {
+  const openPicker = (event: React.MouseEvent<HTMLInputElement>) => {
     if (disabled || readOnly) return;
-    const picker = pickerRef.current;
-    if (!picker) return;
+    const picker = event.currentTarget;
+    const rect = picker.getBoundingClientRect();
+    if (rect.top < 0 || rect.bottom > window.innerHeight) {
+      picker.scrollIntoView({ block: 'center', inline: 'nearest' });
+    }
+    // A transparent calendar glyph does not open the overlay on several phones.
+    // showPicker() from this tap does, and the input is a real on-screen box
+    // so the dialog is anchored where the user can see it.
+    if (typeof picker.showPicker !== 'function') return;
     try {
       picker.showPicker();
+      event.preventDefault();
     } catch {
-      picker.click();
+      // Older iOS rejects showPicker(). Leave the click alone so the tap opens the wheel.
     }
   };
 
@@ -138,33 +145,33 @@ export function DmyDateInput({
           commitText(text);
         }}
       />
-      <button
-        type="button"
-        disabled={disabled || readOnly}
-        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
-        aria-label="Choose date"
-        tabIndex={-1}
-        onClick={openPicker}
+      <div
+        className={cn(
+          'absolute inset-y-0 right-0 z-10 w-10',
+          (disabled || readOnly) && 'pointer-events-none opacity-50',
+        )}
       >
-        <Calendar className="h-4 w-4" aria-hidden />
-      </button>
-      <input
-        ref={pickerRef}
-        type="date"
-        tabIndex={-1}
-        aria-hidden
-        disabled={disabled || readOnly}
-        value={isoValue}
-        min={minIso}
-        max={maxIso}
-        onChange={(event) => {
-          const next = event.target.value;
-          setText(next ? formatYmdAsDmy(next) : '');
-          emitChange(next, onChange, onValueChange);
-        }}
-        lang="en-IN"
-        className="pointer-events-none absolute h-0 w-0 opacity-0"
-      />
+        <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-muted-foreground">
+          <Calendar className="h-4 w-4" aria-hidden />
+        </span>
+        <input
+          type="date"
+          tabIndex={-1}
+          aria-label="Choose date"
+          disabled={disabled || readOnly}
+          value={isoValue}
+          min={minIso}
+          max={maxIso}
+          onChange={(event) => {
+            const next = event.target.value;
+            setText(next ? formatYmdAsDmy(next) : '');
+            emitChange(next, onChange, onValueChange);
+          }}
+          onClick={openPicker}
+          lang="en-IN"
+          className="dmy-date-native"
+        />
+      </div>
     </div>
   );
 }

@@ -505,6 +505,58 @@ html.pdf-export .print-schedule thead {
     input[type='checkbox']:not(.sr-only) {
         accent-color: hsl(var(--primary));
     }
+
+    /*
+     * Date overlay anchor for DmyDateInput.
+     * A 0×0 or opacity:0 input makes the native picker invisible or off-screen
+     * on some Android WebViews and iOS. Keep a real box at opacity 1, force a
+     * light picker (dark-mode pages otherwise paint dates the same colour as
+     * the dialog), and hide only the in-field chrome.
+     */
+    .dmy-date-native {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        box-sizing: border-box;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: transparent;
+        caret-color: transparent;
+        cursor: pointer;
+        font-size: 16px;
+        opacity: 1;
+        color-scheme: light;
+    }
+
+    .dmy-date-native::-webkit-datetime-edit,
+    .dmy-date-native::-webkit-datetime-edit-fields-wrapper,
+    .dmy-date-native::-webkit-datetime-edit-text,
+    .dmy-date-native::-webkit-datetime-edit-month-field,
+    .dmy-date-native::-webkit-datetime-edit-day-field,
+    .dmy-date-native::-webkit-datetime-edit-year-field {
+        color: transparent;
+        background: transparent;
+    }
+
+    .dmy-date-native::-webkit-calendar-picker-indicator {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        cursor: pointer;
+        background: transparent;
+        opacity: 0;
+    }
+
+    .dmy-date-native:disabled {
+        cursor: not-allowed;
+    }
 }
 
 /* Micro-animations */

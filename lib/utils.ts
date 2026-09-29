@@ -49,10 +49,10 @@ export async function fetchWithErrorHandlers(
 }
 
 export function getLocalStorage(key: string) {
-  if (typeof window !== 'undefined') {
-    return JSON.parse(localStorage.getItem(key) || '[]');
+  if (typeof window === 'undefined' || typeof localStorage?.getItem !== 'function') {
+    return [];
   }
-  return [];
+  return JSON.parse(localStorage.getItem(key) || '[]');
 }
 
 export function generateUUID(): string {
