@@ -19,14 +19,18 @@ export function IoRegister({ isAdmin = false }: { isAdmin?: boolean }) {
       onValueChange={(value) => setTab(value as 'inward' | 'outward')}
       className="w-full"
     >
-      <TabsList className="grid w-full max-w-md grid-cols-2">
-        <TabsTrigger value="inward">{t('register.inward')}</TabsTrigger>
-        <TabsTrigger value="outward">{t('register.outward')}</TabsTrigger>
+      <TabsList className="grid h-auto w-full grid-cols-2 sm:max-w-md">
+        <TabsTrigger value="inward" className="whitespace-normal px-2 py-2 text-center sm:whitespace-nowrap">
+          {t('register.inward')}
+        </TabsTrigger>
+        <TabsTrigger value="outward" className="whitespace-normal px-2 py-2 text-center sm:whitespace-nowrap">
+          {t('register.outward')}
+        </TabsTrigger>
       </TabsList>
-      <TabsContent value="inward" className="mt-6">
+      <TabsContent value="inward" className="mt-4 sm:mt-6">
         <RegisterModule type="inward" />
       </TabsContent>
-      <TabsContent value="outward" className="mt-6">
+      <TabsContent value="outward" className="mt-4 sm:mt-6">
         <RegisterModule type="outward" canDeleteAttachments={isAdmin} />
       </TabsContent>
     </Tabs>

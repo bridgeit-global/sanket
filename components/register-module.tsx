@@ -696,7 +696,7 @@ export function RegisterModule({
   }
 
   return (
-    <div className="flex flex-col gap-4 md:gap-6">
+    <div className="flex min-w-0 flex-col gap-4 md:gap-6">
       {/* Print-only content */}
       <div className="register-print-content hidden">
         <div className="register-print-header">
@@ -770,18 +770,18 @@ export function RegisterModule({
       />
 
       <Card className="no-print">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>{heading}</CardTitle>
-            <Button variant="outline" size="sm" onClick={handlePrint}>
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="text-lg sm:text-2xl">{heading}</CardTitle>
+            <Button variant="outline" size="sm" onClick={handlePrint} className="w-full sm:w-auto">
               <Printer className="mr-2 h-4 w-4" />
               {t('register.printRegister')}
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="grid gap-3 md:grid-cols-6">
-            <div className="space-y-2 md:col-span-1">
+        <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            <div className="space-y-2 xl:col-span-2">
               <Label htmlFor="documentType">
                 {t('letterGeneration.fields.referencePrefix')}
                 {type === 'outward' ? ' *' : ''}
@@ -808,7 +808,7 @@ export function RegisterModule({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 md:col-span-1">
+            <div className="space-y-2 xl:col-span-2">
               <Label htmlFor="date">{t('common.date')}</Label>
               <DmyDateInput
                 id="date"
@@ -817,7 +817,7 @@ export function RegisterModule({
                 required
               />
             </div>
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2 sm:col-span-2 xl:col-span-2">
               <LimitedFormField
                 id="fromTo"
                 label={labelFromTo}
@@ -832,7 +832,7 @@ export function RegisterModule({
                 }}
               />
             </div>
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2 sm:col-span-2 xl:col-span-3">
               <LimitedFormField
                 id="subject"
                 label={t('forms.subject')}
@@ -847,7 +847,7 @@ export function RegisterModule({
                 }}
               />
             </div>
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2 xl:col-span-3">
               <Label htmlFor="project">Project</Label>
               <Select
                 value={form.projectId || 'none'}
@@ -868,7 +868,7 @@ export function RegisterModule({
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2 xl:col-span-2">
               <LimitedFormField
                 id="mode"
                 label="Mode"
@@ -882,7 +882,7 @@ export function RegisterModule({
                 }}
               />
             </div>
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2 xl:col-span-2">
               {type === 'outward' ? (
                 <LimitedFormField
                   id="refNumber"
@@ -916,7 +916,7 @@ export function RegisterModule({
                 />
               )}
             </div>
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2 xl:col-span-2">
               <LimitedFormField
                 id="officer"
                 label="Marked to Officer"
@@ -930,7 +930,7 @@ export function RegisterModule({
                 }}
               />
             </div>
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2 xl:col-span-3">
               <LimitedFormField
                 id="assignedPerson"
                 label={t('register.assignedPerson')}
@@ -944,7 +944,7 @@ export function RegisterModule({
                 }}
               />
             </div>
-            <div className="space-y-2 md:col-span-2">
+            <div className="space-y-2 xl:col-span-3">
               <LimitedFormField
                 id="assignedPhone"
                 label={t('register.assignedPhone')}
@@ -961,7 +961,7 @@ export function RegisterModule({
                 }}
               />
             </div>
-            <div className="space-y-2 md:col-span-6">
+            <div className="space-y-2 sm:col-span-2 xl:col-span-6">
               <Label htmlFor="files">Attachments (Optional)</Label>
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
@@ -996,10 +996,10 @@ export function RegisterModule({
                         key={`${file.name}-${file.size}-${file.lastModified}`}
                         className="flex items-center justify-between text-sm bg-muted p-2 rounded"
                       >
-                        <span className="flex items-center gap-2">
-                          <Paperclip className="h-3 w-3" />
-                          <span className="truncate max-w-xs">{file.name}</span>
-                          <span className="text-muted-foreground">
+                        <span className="flex min-w-0 items-center gap-2">
+                          <Paperclip className="h-3 w-3 shrink-0" />
+                          <span className="truncate">{file.name}</span>
+                          <span className="shrink-0 text-muted-foreground">
                             ({(file.size / 1024).toFixed(1)} KB)
                           </span>
                         </span>
@@ -1018,8 +1018,8 @@ export function RegisterModule({
                 )}
               </div>
             </div>
-            <div className="md:col-span-6 flex justify-end">
-              <Button type="submit" disabled={uploadingFiles}>
+            <div className="flex sm:col-span-2 sm:justify-end xl:col-span-6">
+              <Button type="submit" disabled={uploadingFiles} className="w-full sm:w-auto">
                 {uploadingFiles ? 'Uploading...' : 'Add Entry'}
               </Button>
             </div>
@@ -1028,18 +1028,18 @@ export function RegisterModule({
       </Card>
 
       <Card className="no-print">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <CardTitle>Entries</CardTitle>
+        <CardHeader className="p-4 sm:p-6">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="text-lg sm:text-2xl">Entries</CardTitle>
             <span className="text-sm text-muted-foreground">
               {filteredEntries.length} of {entries.length} entries
             </span>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
           {/* Filters */}
           <div className="mb-4 space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-2">
                 <Label htmlFor="startDate" className="text-xs text-muted-foreground">Start Date</Label>
                 <DmyDateInput
@@ -1173,45 +1173,30 @@ export function RegisterModule({
               className="pl-9"
             />
           </div>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>{labelFromTo}</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Mode</TableHead>
-                  <TableHead>Ref No.</TableHead>
-                  <TableHead>Officer</TableHead>
-                  <TableHead>{t('register.assignedPerson')}</TableHead>
-                  <TableHead>{t('register.assignedPhone')}</TableHead>
-                  <TableHead className="no-print">Attachments</TableHead>
-                  <TableHead className="no-print text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedEntries.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={11}
-                      className="text-center text-muted-foreground"
+          {paginatedEntries.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              {entries.length === 0 ? 'No entries yet.' : 'No entries match your search.'}
+            </p>
+          ) : (
+            <>
+              <div className="space-y-3 xl:hidden">
+                {paginatedEntries.map((entry) => {
+                  const project = projects.find((p) => p.id === entry.projectId);
+                  return (
+                    <div
+                      key={entry.id}
+                      className="space-y-3 rounded-lg border p-3 sm:p-4"
                     >
-                      {entries.length === 0 ? 'No entries yet.' : 'No entries match your search.'}
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedEntries.map((entry) => {
-                    const project = projects.find((p) => p.id === entry.projectId);
-                    return (
-                      <TableRow key={entry.id}>
-                        <TableCell>
-                          {format(new Date(entry.date), 'dd MMM yyyy')}
-                        </TableCell>
-                        <TableCell>{entry.fromTo}</TableCell>
-                        <TableCell className="font-medium">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span>{entry.subject}</span>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-muted-foreground text-xs">
+                            {format(new Date(entry.date), 'dd MMM yyyy')}
+                          </p>
+                          <p className="font-medium break-words">{entry.subject}</p>
+                          <p className="text-muted-foreground text-sm break-words">
+                            {labelFromTo}: {entry.fromTo}
+                          </p>
+                          <div className="mt-1.5 flex flex-wrap gap-1.5">
                             {entry.linkedToAdm && (
                               <Badge variant="outline" className="text-[10px]">
                                 Linked to ADM
@@ -1223,75 +1208,205 @@ export function RegisterModule({
                               </Badge>
                             )}
                           </div>
-                        </TableCell>
-                        <TableCell>{project?.name || '-'}</TableCell>
-                        <TableCell>{entry.mode || '-'}</TableCell>
-                        <TableCell>
-                          {entry.refNo
-                            ? formatReferenceForDisplay(entry.refNo, letterLocale)
-                            : '-'}
-                        </TableCell>
-                        <TableCell>{entry.officer || '-'}</TableCell>
-                        <TableCell>{entry.assignedPerson || '-'}</TableCell>
-                        <TableCell>{entry.assignedPhone || '-'}</TableCell>
-                        <TableCell className="no-print">
+                        </div>
+                        <div className="flex shrink-0 gap-1">
                           <Button
-                            variant="outline"
+                            variant="ghost"
                             size="sm"
-                            className="h-8 gap-1.5"
-                            onClick={() => handleOpenAttachments(entry)}
+                            asChild
+                            title={t('govFollowUp.startFollowUp')}
                           >
-                            <Paperclip className="h-3.5 w-3.5" />
-                            {entry.attachments && entry.attachments.length > 0 ? (
-                              <span className="text-xs">
-                                {entry.attachments.length}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">
-                                Add
-                              </span>
-                            )}
+                            <Link
+                              href={`/modules/gov-follow-up?new=1&registerEntryId=${entry.id}`}
+                            >
+                              <PhoneCall className="h-4 w-4" />
+                            </Link>
                           </Button>
-                        </TableCell>
-                        <TableCell className="no-print text-right">
-                          <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => startEditEntry(entry)}
+                            title="Edit entry"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteEntry(entry.id)}
+                            title="Delete entry"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                      <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+                        <div className="min-w-0">
+                          <dt className="text-muted-foreground text-xs">Project</dt>
+                          <dd className="break-words">{project?.name || '-'}</dd>
+                        </div>
+                        <div className="min-w-0">
+                          <dt className="text-muted-foreground text-xs">Mode</dt>
+                          <dd className="break-words">{entry.mode || '-'}</dd>
+                        </div>
+                        <div className="min-w-0">
+                          <dt className="text-muted-foreground text-xs">Ref No.</dt>
+                          <dd className="break-words">
+                            {entry.refNo
+                              ? formatReferenceForDisplay(entry.refNo, letterLocale)
+                              : '-'}
+                          </dd>
+                        </div>
+                        <div className="min-w-0">
+                          <dt className="text-muted-foreground text-xs">Officer</dt>
+                          <dd className="break-words">{entry.officer || '-'}</dd>
+                        </div>
+                        <div className="min-w-0">
+                          <dt className="text-muted-foreground text-xs">
+                            {t('register.assignedPerson')}
+                          </dt>
+                          <dd className="break-words">{entry.assignedPerson || '-'}</dd>
+                        </div>
+                        <div className="min-w-0">
+                          <dt className="text-muted-foreground text-xs">
+                            {t('register.assignedPhone')}
+                          </dt>
+                          <dd className="break-words">{entry.assignedPhone || '-'}</dd>
+                        </div>
+                      </dl>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 w-full gap-1.5 sm:w-auto"
+                        onClick={() => handleOpenAttachments(entry)}
+                      >
+                        <Paperclip className="h-3.5 w-3.5" />
+                        {entry.attachments && entry.attachments.length > 0 ? (
+                          <span className="text-xs">
+                            {entry.attachments.length === 1
+                              ? '1 attachment'
+                              : `${entry.attachments.length} attachments`}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            Add attachment
+                          </span>
+                        )}
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="hidden overflow-x-auto xl:block">
+                <Table className="w-full min-w-[1080px] table-fixed [&_td]:break-words [&_td]:px-2">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="h-auto w-[8%] whitespace-normal px-2 py-2">Date</TableHead>
+                      <TableHead className="h-auto w-[11%] whitespace-normal px-2 py-2">{labelFromTo}</TableHead>
+                      <TableHead className="h-auto w-[13%] whitespace-normal px-2 py-2">Subject</TableHead>
+                      <TableHead className="h-auto w-[8%] whitespace-normal px-2 py-2">Project</TableHead>
+                      <TableHead className="h-auto w-[8%] whitespace-normal px-2 py-2">Mode</TableHead>
+                      <TableHead className="h-auto w-[8%] whitespace-normal px-2 py-2">Ref No.</TableHead>
+                      <TableHead className="h-auto w-[8%] whitespace-normal px-2 py-2">Officer</TableHead>
+                      <TableHead className="h-auto w-[9%] whitespace-normal px-2 py-2">{t('register.assignedPerson')}</TableHead>
+                      <TableHead className="h-auto w-[8%] whitespace-normal px-2 py-2">{t('register.assignedPhone')}</TableHead>
+                      <TableHead className="no-print h-auto w-[7%] whitespace-normal px-2 py-2">Attachments</TableHead>
+                      <TableHead className="no-print h-auto w-[12%] whitespace-normal px-2 py-2 text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedEntries.map((entry) => {
+                      const project = projects.find((p) => p.id === entry.projectId);
+                      return (
+                        <TableRow key={entry.id}>
+                          <TableCell className="whitespace-nowrap align-top">
+                            {format(new Date(entry.date), 'dd MMM yyyy')}
+                          </TableCell>
+                          <TableCell className="align-top break-words">{entry.fromTo}</TableCell>
+                          <TableCell className="align-top font-medium">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="line-clamp-3 break-words" title={entry.subject}>{entry.subject}</span>
+                              {entry.linkedToAdm && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  Linked to ADM
+                                </Badge>
+                              )}
+                              {entry.linkedToProject && (
+                                <Badge variant="outline" className="text-[10px]">
+                                  Linked to Project
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="align-top break-words">{project?.name || '-'}</TableCell>
+                          <TableCell className="align-top break-words">{entry.mode || '-'}</TableCell>
+                          <TableCell className="align-top break-words">
+                            {entry.refNo
+                              ? formatReferenceForDisplay(entry.refNo, letterLocale)
+                              : '-'}
+                          </TableCell>
+                          <TableCell className="align-top break-words">{entry.officer || '-'}</TableCell>
+                          <TableCell className="align-top break-words">{entry.assignedPerson || '-'}</TableCell>
+                          <TableCell className="align-top break-words">{entry.assignedPhone || '-'}</TableCell>
+                          <TableCell className="no-print align-top">
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
-                              asChild
-                              title={t('govFollowUp.startFollowUp')}
+                              className="h-8 gap-1.5"
+                              onClick={() => handleOpenAttachments(entry)}
                             >
-                              <Link
-                                href={`/modules/gov-follow-up?new=1&registerEntryId=${entry.id}`}
+                              <Paperclip className="h-3.5 w-3.5" />
+                              {entry.attachments && entry.attachments.length > 0 ? (
+                                <span className="text-xs">
+                                  {entry.attachments.length}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">
+                                  Add
+                                </span>
+                              )}
+                            </Button>
+                          </TableCell>
+                          <TableCell className="no-print align-top text-right">
+                            <div className="flex justify-end gap-0.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                asChild
+                                title={t('govFollowUp.startFollowUp')}
                               >
-                                <PhoneCall className="h-4 w-4" />
-                              </Link>
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => startEditEntry(entry)}
-                              title="Edit entry"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteEntry(entry.id)}
-                              title="Delete entry"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                                <Link
+                                  href={`/modules/gov-follow-up?new=1&registerEntryId=${entry.id}`}
+                                >
+                                  <PhoneCall className="h-4 w-4" />
+                                </Link>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => startEditEntry(entry)}
+                                title="Edit entry"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleDeleteEntry(entry.id)}
+                                title="Delete entry"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            </>
+          )}
           {filteredEntries.length > 0 && (
             <TablePagination
               currentPage={currentPage}
@@ -1317,7 +1432,7 @@ export function RegisterModule({
           void refreshReferenceSequence(nextForm.refPrefix, { force: true });
         }
       }}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-h-[90vh] w-[calc(100%-1.5rem)] max-w-2xl overflow-y-auto p-4 sm:w-full sm:p-6">
           <DialogHeader>
             <DialogTitle>Edit Register Entry</DialogTitle>
             <DialogDescription>
@@ -1325,7 +1440,7 @@ export function RegisterModule({
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUpdateEntry} className="space-y-4">
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Type</Label>
                 <Input value={editingEntry?.type} disabled />
@@ -1416,7 +1531,7 @@ export function RegisterModule({
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <LimitedFormField
                   id="edit-mode"
@@ -1430,7 +1545,7 @@ export function RegisterModule({
                   }}
                 />
               </div>
-              <div className="space-y-2 md:col-span-2">
+              <div className="space-y-2">
                 {type === 'outward' ? (
                   <LimitedFormField
                     id="edit-refNumber"
@@ -1476,7 +1591,7 @@ export function RegisterModule({
                 />
               </div>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <LimitedFormField
                 id="edit-assignedPerson"
                 label={t('register.assignedPerson')}
