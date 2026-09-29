@@ -26,10 +26,7 @@ import {
   parseManageFiltersFromSearchParams,
   type ManageFilterState,
 } from '@/lib/operator/manage-url-params';
-import {
-  formatDisplayDateIST,
-  formatDisplayDateTimeIST,
-} from '@/lib/ist-date';
+import { formatDisplayDateTimeIST } from '@/lib/ist-date';
 
 interface TaskVoter {
     epicNumber: string;
@@ -1527,7 +1524,7 @@ export function TaskManagement({
                                                             <div className="text-sm text-muted-foreground flex flex-col sm:flex-row sm:flex-wrap gap-1">
                                                                 <span>
                                                                     <strong>{t('taskManagement.created')}</strong>{' '}
-                                                                    {formatDisplayDateIST(task.createdAt)}
+                                                                    {formatDisplayDateTimeIST(task.createdAt)}
                                                                 </span>
                                                                 {(task.createdByName || task.createdBy) && (
                                                                     <span><strong>Created by:</strong> {task.createdByName || task.createdBy}</span>
@@ -1541,7 +1538,7 @@ export function TaskManagement({
                                                                 {task.updatedAt !== task.createdAt && (
                                                                     <span>
                                                                         <strong>{t('taskManagement.updated')}</strong>{' '}
-                                                                        {formatDisplayDateIST(task.updatedAt)}
+                                                                        {formatDisplayDateTimeIST(task.updatedAt)}
                                                                     </span>
                                                                 )}
                                                                 {(task.updatedByName || task.updatedBy) && (
