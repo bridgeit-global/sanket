@@ -30,6 +30,11 @@ export async function GET(request: NextRequest) {
         const serviceName = searchParams.get('serviceName');
         const createdFrom = searchParams.get('createdFrom');
         const createdTo = searchParams.get('createdTo');
+        const outsiderParam = searchParams.get('outsider');
+        const outsider =
+            outsiderParam === 'outsider' || outsiderParam === 'linked'
+                ? outsiderParam
+                : undefined;
 
         // Validate pagination parameters
         if (page < 1) {
@@ -58,6 +63,7 @@ export async function GET(request: NextRequest) {
             serviceName: serviceName || undefined,
             createdFrom: createdFromVal,
             createdTo: createdToVal,
+            outsider,
         });
 
         return NextResponse.json(result);

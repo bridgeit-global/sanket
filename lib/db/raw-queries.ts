@@ -2130,6 +2130,7 @@ export async function getTasksWithFilters({
   serviceName,
   createdFrom,
   createdTo,
+  outsider,
 }: {
   status?: string;
   priority?: string;
@@ -2143,6 +2144,8 @@ export async function getTasksWithFilters({
   serviceName?: string;
   createdFrom?: string;
   createdTo?: string;
+  /** `outsider` = no voter yet, `linked` = tagged to a voter. Omit for all. */
+  outsider?: 'outsider' | 'linked';
 }): Promise<{
   tasks: Array<
     VoterTask & {
@@ -2193,6 +2196,7 @@ export async function getTasksWithFilters({
     // Date#toISOString, which throws on empty string (Invalid Date).
     const createdFromVal = createdFrom || null;
     const createdToVal = createdTo || null;
+    const personVal = outsider === 'outsider' || outsider === 'linked' ? outsider : '';
 
     if (serviceType === 'individual' || !serviceType) {
       const [countRow] = await pgSql`
@@ -2202,6 +2206,11 @@ export async function getTasksWithFilters({
           AND (${statusVal} = '' OR bs.status = ${statusVal})
           AND (${priorityVal} = '' OR bs.priority = ${priorityVal})
           AND (${assignedToVal}::text IS NULL OR bs.assigned_to = ${assignedToVal})
+          AND (
+            ${personVal} = ''
+            OR (${personVal} = 'outsider' AND bs.voter_id IS NULL)
+            OR (${personVal} = 'linked' AND bs.voter_id IS NOT NULL)
+          )
           AND (
             ${voterIdVal} = ''
             OR bs.voter_id = ${voterIdVal}
@@ -2317,6 +2326,11 @@ export async function getTasksWithFilters({
           AND (${statusVal} = '' OR bs.status = ${statusVal})
           AND (${priorityVal} = '' OR bs.priority = ${priorityVal})
           AND (${assignedToVal}::text IS NULL OR bs.assigned_to = ${assignedToVal})
+          AND (
+            ${personVal} = ''
+            OR (${personVal} = 'outsider' AND bs.voter_id IS NULL)
+            OR (${personVal} = 'linked' AND bs.voter_id IS NOT NULL)
+          )
           AND (
             ${voterIdVal} = ''
             OR bs.voter_id = ${voterIdVal}
@@ -2439,6 +2453,11 @@ export async function getTasksWithFilters({
       WHERE (${statusVal} = '' OR vt.status = ${statusVal})
         AND (${priorityVal} = '' OR vt.priority = ${priorityVal})
         AND (${assignedToVal}::text IS NULL OR vt.assigned_to = ${assignedToVal})
+        AND (
+          ${personVal} = ''
+          OR (${personVal} = 'outsider' AND vt.voter_id IS NULL)
+          OR (${personVal} = 'linked' AND vt.voter_id IS NOT NULL)
+        )
         AND (${voterIdVal} = '' OR vt.voter_id = ${voterIdVal})
         AND (${tokenPattern} = '' OR bs.token ILIKE ${tokenPattern})
         AND (${serviceTypeVal} = '' OR bs.service_type = ${serviceTypeVal})
@@ -2496,6 +2515,11 @@ export async function getTasksWithFilters({
       WHERE (${statusVal} = '' OR vt.status = ${statusVal})
         AND (${priorityVal} = '' OR vt.priority = ${priorityVal})
         AND (${assignedToVal}::text IS NULL OR vt.assigned_to = ${assignedToVal})
+        AND (
+          ${personVal} = ''
+          OR (${personVal} = 'outsider' AND vt.voter_id IS NULL)
+          OR (${personVal} = 'linked' AND vt.voter_id IS NOT NULL)
+        )
         AND (${voterIdVal} = '' OR vt.voter_id = ${voterIdVal})
         AND (${tokenPattern} = '' OR bs.token ILIKE ${tokenPattern})
         AND (${serviceTypeVal} = '' OR bs.service_type = ${serviceTypeVal})

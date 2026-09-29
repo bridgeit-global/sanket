@@ -6,6 +6,7 @@ export const OPERATOR_MANAGE_URL_PARAMS = {
   token: 'token',
   mobile: 'mobile',
   voterId: 'voterId',
+  outsider: 'outsider',
   assignedTo: 'assignedTo',
   createdFrom: 'createdFrom',
   createdTo: 'createdTo',
@@ -24,6 +25,8 @@ export type ManageFilterState = {
   token: string;
   mobile: string;
   voterId: string;
+  /** `all` (default), `outsider`, or `linked`. */
+  outsider: string;
   assignedTo: string;
   createdFrom: string;
   createdTo: string;
@@ -33,6 +36,11 @@ export type ManageFilterState = {
 };
 
 const YMD_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function parseOutsiderFilter(value: string | null | undefined): 'all' | 'outsider' | 'linked' {
+  if (value === 'outsider' || value === 'linked') return value;
+  return 'all';
+}
 
 export function parseManageDateParam(value: string | null): string {
   const trimmed = (value ?? '').trim();
@@ -67,6 +75,7 @@ export function parseManageFiltersFromSearchParams(
     token: get(OPERATOR_MANAGE_URL_PARAMS.token) || '',
     mobile: get(OPERATOR_MANAGE_URL_PARAMS.mobile) || '',
     voterId: get(OPERATOR_MANAGE_URL_PARAMS.voterId) || '',
+    outsider: parseOutsiderFilter(get(OPERATOR_MANAGE_URL_PARAMS.outsider)),
     assignedTo: get(OPERATOR_MANAGE_URL_PARAMS.assignedTo) || 'all',
     createdFrom: parseManageDateParam(get(OPERATOR_MANAGE_URL_PARAMS.createdFrom)),
     createdTo: parseManageDateParam(get(OPERATOR_MANAGE_URL_PARAMS.createdTo)),
@@ -100,6 +109,11 @@ export function buildManageSearchParams(
   setOrDelete(OPERATOR_MANAGE_URL_PARAMS.token, state.token);
   setOrDelete(OPERATOR_MANAGE_URL_PARAMS.mobile, state.mobile);
   setOrDelete(OPERATOR_MANAGE_URL_PARAMS.voterId, state.voterId);
+  setOrDelete(
+    OPERATOR_MANAGE_URL_PARAMS.outsider,
+    state.outsider,
+    state.outsider === 'all' || state.outsider === '',
+  );
   setOrDelete(
     OPERATOR_MANAGE_URL_PARAMS.assignedTo,
     state.assignedTo,

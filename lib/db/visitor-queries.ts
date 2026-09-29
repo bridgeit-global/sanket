@@ -3,6 +3,7 @@ import 'server-only';
 import { supabase } from '@/lib/supabase/server';
 import { throwOnSupabaseError } from '@/lib/db/errors';
 import { ChatSDKError } from '@/lib/errors';
+import { normalizeEpicNumber } from '@/lib/epic/normalize-epic';
 import { getCalendarYmd } from '@/lib/ist-date';
 import { normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import {
@@ -875,6 +876,226 @@ export async function updateVisitorServiceName({
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to update visitor service name',
+    );
+  }
+}
+
+async function requireRollVoterId(voterId: string): Promise<string> {
+  const epic = normalizeEpicNumber(voterId);
+  if (!epic) {
+    throw new ChatSDKError('bad_request:api', 'Voter ID is required');
+  }
+
+  const { data, error } = await supabase
+    .from(TABLES.voterMaster)
+    .select('epic_number')
+    .eq('epic_number', epic)
+    .maybeSingle();
+  throwOnSupabaseError(error, 'Failed to look up voter');
+  if (!data?.epic_number) {
+    throw new ChatSDKError('not_found:database', 'Voter not found on the roll');
+  }
+  return String(data.epic_number);
+}
+
+async function collectVisitBeneficiaryServiceIds(visitor: Visitor): Promise<string[]> {
+  const ids = new Set<string>();
+  const { data: links, error } = await supabase
+    .from(TABLES.visitorService)
+    .select('beneficiary_service_id')
+    .eq('visitor_id', visitor.id);
+  throwOnSupabaseError(error, 'Failed to list visitor services');
+  for (const row of links ?? []) {
+    const serviceId = row.beneficiary_service_id;
+    if (serviceId) ids.add(String(serviceId));
+  }
+
+  if (visitor.token) {
+    const { data: byToken, error: tokenError } = await supabase
+      .from(TABLES.beneficiaryServices)
+      .select('id')
+      .eq('token', visitor.token)
+      .is('voter_id', null);
+    throwOnSupabaseError(tokenError, 'Failed to list visit beneficiary services');
+    for (const row of byToken ?? []) {
+      if (row.id) ids.add(String(row.id));
+    }
+  }
+
+  return [...ids];
+}
+
+async function tagUntaggedBeneficiaryServices({
+  serviceIds,
+  voterId,
+  performedBy,
+}: {
+  serviceIds: string[];
+  voterId: string;
+  performedBy: string;
+}): Promise<string[]> {
+  if (serviceIds.length === 0) return [];
+
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from(TABLES.beneficiaryServices)
+    .update({
+      voter_id: voterId,
+      updated_at: now,
+    })
+    .in('id', serviceIds)
+    .is('voter_id', null)
+    .select('id');
+  throwOnSupabaseError(error, 'Failed to tag beneficiary services to voter');
+
+  const taggedIds = (data ?? []).map((row) => String(row.id));
+  for (const serviceId of taggedIds) {
+    await createBeneficiaryServiceHistoryEntry({
+      serviceId,
+      action: 'voter_tagged',
+      newValue: voterId,
+      performedBy,
+    });
+  }
+  return taggedIds;
+}
+
+async function findVisitorLinkedToService(
+  service: BeneficiaryService,
+): Promise<Visitor | null> {
+  const { data: link, error } = await supabase
+    .from(TABLES.visitorService)
+    .select('visitor_id')
+    .eq('beneficiary_service_id', service.id)
+    .limit(1)
+    .maybeSingle();
+  throwOnSupabaseError(error, 'Failed to find visitor for service');
+  if (link?.visitor_id) {
+    return getVisitorById(String(link.visitor_id));
+  }
+
+  if (!service.token) return null;
+  const { data, error: tokenError } = await supabase
+    .from(TABLES.visitor)
+    .select('*')
+    .eq('token', service.token)
+    .maybeSingle();
+  throwOnSupabaseError(tokenError, 'Failed to find visitor by visit token');
+  return data ? mapVisitorRow(data) : null;
+}
+
+/**
+ * Link an outsider visit to a roll voter. Converted beneficiary services on
+ * that visit that still have no voter are tagged as well.
+ */
+export async function tagVisitorToVoter({
+  visitorId,
+  voterId,
+  performedBy,
+}: {
+  visitorId: string;
+  voterId: string;
+  performedBy: string;
+}): Promise<{ visitor: Visitor; voterId: string; taggedServiceIds: string[] }> {
+  try {
+    const epic = await requireRollVoterId(voterId);
+    const visitor = await getVisitorById(visitorId);
+    if (!visitor) {
+      throw new ChatSDKError('not_found:database', 'Visitor not found');
+    }
+    if (visitor.voterId && visitor.voterId !== epic) {
+      throw new ChatSDKError(
+        'bad_request:api',
+        'Visitor is already tagged to a different voter',
+      );
+    }
+
+    let updatedVisitor = visitor;
+    if (visitor.voterId !== epic) {
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from(TABLES.visitor)
+        .update({
+          voter_id: epic,
+          updated_at: now,
+        })
+        .eq('id', visitorId)
+        .select('*')
+        .single();
+      throwOnSupabaseError(error, 'Failed to tag visitor to voter');
+      updatedVisitor = mapVisitorRow(data);
+    }
+
+    const serviceIds = await collectVisitBeneficiaryServiceIds(updatedVisitor);
+    const taggedServiceIds = await tagUntaggedBeneficiaryServices({
+      serviceIds,
+      voterId: epic,
+      performedBy,
+    });
+
+    return { visitor: updatedVisitor, voterId: epic, taggedServiceIds };
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to tag visitor to voter');
+  }
+}
+
+/**
+ * Tag one outsider beneficiary service to a roll voter. When the service came
+ * from a visitor, the whole visit is tagged so later steps stay on that voter.
+ */
+export async function tagBeneficiaryServiceToVoter({
+  serviceId,
+  voterId,
+  performedBy,
+}: {
+  serviceId: string;
+  voterId: string;
+  performedBy: string;
+}): Promise<{ voterId: string; visitorId: string | null; taggedServiceIds: string[] }> {
+  try {
+    const service = await getBeneficiaryServiceById(serviceId);
+    if (!service) {
+      throw new ChatSDKError('not_found:database', 'Beneficiary service not found');
+    }
+
+    const epic = await requireRollVoterId(voterId);
+    if (service.voterId && service.voterId !== epic) {
+      throw new ChatSDKError(
+        'bad_request:api',
+        'Service is already tagged to a different voter',
+      );
+    }
+
+    const visitor = await findVisitorLinkedToService(service);
+    if (visitor) {
+      const result = await tagVisitorToVoter({
+        visitorId: visitor.id,
+        voterId: epic,
+        performedBy,
+      });
+      return {
+        voterId: result.voterId,
+        visitorId: visitor.id,
+        taggedServiceIds: result.taggedServiceIds,
+      };
+    }
+
+    if (service.voterId === epic) {
+      return { voterId: epic, visitorId: null, taggedServiceIds: [] };
+    }
+
+    const taggedServiceIds = await tagUntaggedBeneficiaryServices({
+      serviceIds: [service.id],
+      voterId: epic,
+      performedBy,
+    });
+    return { voterId: epic, visitorId: null, taggedServiceIds };
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to tag beneficiary service to voter',
     );
   }
 }

@@ -28,6 +28,7 @@ import {
   type MobileNumberEntry,
 } from '@/components/phone-update-form';
 import { VoterSearchPanel } from '@/components/voter-search-panel';
+import { TagVoterDialog } from '@/components/tag-voter-dialog';
 import { formatDisplayDateIST, formatDisplayDateTimeIST } from '@/lib/ist-date';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
@@ -50,6 +51,7 @@ import {
   QrCode,
   Search,
   Share2,
+  UserRoundPlus,
   X,
 } from 'lucide-react';
 import { QrScannerDialog } from '@/components/qr-scanner-dialog';
@@ -390,6 +392,8 @@ export function VisitorWorkflow({
   const [loadingVoterDetailsIds, setLoadingVoterDetailsIds] = useState<
     Set<string>
   >(() => new Set());
+  const [tagVoterVisitor, setTagVoterVisitor] = useState<VisitorRow | null>(null);
+  const [taggingVoter, setTaggingVoter] = useState(false);
   const [serviceBeingChanged, setServiceBeingChanged] = useState<{
     visitorId: string;
     service: VisitorServiceRow;
@@ -1186,6 +1190,48 @@ export function VisitorWorkflow({
         next.delete(visitorId);
         return next;
       });
+    }
+  }
+
+  async function handleTagVisitorToVoter(voter: VoterWithPartNo) {
+    if (!tagVoterVisitor || taggingVoter) return;
+    const epic = voter.epicNumber?.trim().toUpperCase();
+    if (!epic) return;
+
+    const visitorId = tagVoterVisitor.id;
+    setTaggingVoter(true);
+    try {
+      const res = await fetch(`/api/visitor/${encodeURIComponent(visitorId)}/tag-voter`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ voterId: epic }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || t('visitor.manage.tagToVoterFailed'));
+      }
+
+      setCreatePickerVisitors((prev) =>
+        prev.map((row) => (row.id === visitorId ? { ...row, voterId: epic } : row)),
+      );
+      setSelectedVisitor((prev) =>
+        prev && prev.id === visitorId ? { ...prev, voterId: epic } : prev,
+      );
+      setTagVoterVisitor(null);
+      toast({
+        type: 'success',
+        description: t('visitor.manage.tagToVoterSuccess', { voterId: epic }),
+      });
+      void loadVisitorVoterDetails(visitorId);
+    } catch (error) {
+      console.error(error);
+      toast({
+        type: 'error',
+        description:
+          error instanceof Error ? error.message : t('visitor.manage.tagToVoterFailed'),
+      });
+    } finally {
+      setTaggingVoter(false);
     }
   }
 
@@ -2258,9 +2304,23 @@ export function VisitorWorkflow({
                                 </section>
 
                                 {!epic ? (
-                                  <p className="rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground">
-                                    {t('visitor.manage.noEpicLinked')}
-                                  </p>
+                                  <div className="space-y-3 rounded-lg border border-dashed px-3 py-3">
+                                    <p className="text-sm text-muted-foreground">
+                                      {t('visitor.manage.noEpicLinked')}
+                                    </p>
+                                    <p className="text-sm text-muted-foreground">
+                                      {t('visitor.manage.tagToVoterHelp')}
+                                    </p>
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => setTagVoterVisitor(v)}
+                                    >
+                                      <UserRoundPlus className="mr-2 h-4 w-4" />
+                                      {t('visitor.manage.tagToVoter')}
+                                    </Button>
+                                  </div>
                                 ) : detailsLoading && !details ? (
                                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -3133,6 +3193,22 @@ export function VisitorWorkflow({
               ) : null}
             </DialogContent>
           </Dialog>
+          <TagVoterDialog
+            open={Boolean(tagVoterVisitor)}
+            onOpenChange={(open) => {
+              if (!open) setTagVoterVisitor(null);
+            }}
+            title={t('visitor.manage.tagToVoterTitle')}
+            description={
+              tagVoterVisitor
+                ? `${tagVoterVisitor.name} · ${tagVoterVisitor.token}. ${t('visitor.manage.tagToVoterDescription')}`
+                : t('visitor.manage.tagToVoterDescription')
+            }
+            pending={taggingVoter}
+            onSelectVoter={(voter) => {
+              void handleTagVisitorToVoter(voter);
+            }}
+          />
         </>
       )}
 

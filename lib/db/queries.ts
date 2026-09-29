@@ -60,6 +60,8 @@ export {
   listVisitors,
   convertVisitorServiceToBeneficiary,
   updateVisitorServiceName,
+  tagVisitorToVoter,
+  tagBeneficiaryServiceToVoter,
 } from './visitor-queries';
 
 export {

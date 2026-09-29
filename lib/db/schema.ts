@@ -475,7 +475,8 @@ export type BeneficiaryServiceHistoryAction =
   | 'escalated'
   | 'assigned'
   | 'attachment_added'
-  | 'service_name_changed';
+  | 'service_name_changed'
+  | 'voter_tagged';
 
 export type BeneficiaryServiceHistory = {
   id: string;

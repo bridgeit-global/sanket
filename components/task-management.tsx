@@ -15,9 +15,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { toast } from '@/components/toast';
 import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
 import { useTranslations } from '@/hooks/use-translations';
-import type { VoterTask, BeneficiaryService } from '@/lib/db/schema';
+import type { BeneficiaryService, VoterTask, VoterWithPartNo } from '@/lib/db/schema';
 import { TablePagination } from '@/components/table-pagination';
-import { QrCode, Share2, FileText, FileDown, Loader2, Paperclip, Upload, X } from 'lucide-react';
+import { QrCode, Share2, FileText, FileDown, Loader2, Paperclip, Upload, UserRoundPlus, X } from 'lucide-react';
+import { TagVoterDialog } from '@/components/tag-voter-dialog';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { letterPdfDownloadFileName } from '@/lib/letters/pdf-storage';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
@@ -391,6 +392,7 @@ export function TaskManagement({
         token: initialManageState?.token ?? urlFilters.token,
         mobile: initialManageState?.mobile ?? urlFilters.mobile,
         voterId: initialManageState?.voterId ?? urlFilters.voterId,
+        outsider: initialManageState?.outsider ?? urlFilters.outsider,
         assignedTo: initialManageState?.assignedTo ?? urlFilters.assignedTo,
         createdFrom: initialManageState?.createdFrom ?? urlFilters.createdFrom,
         createdTo: initialManageState?.createdTo ?? urlFilters.createdTo,
@@ -423,6 +425,8 @@ export function TaskManagement({
     const [isUpdating, setIsUpdating] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [showEscalationDialog, setShowEscalationDialog] = useState(false);
+    const [tagVoterTask, setTagVoterTask] = useState<TaskWithService | null>(null);
+    const [taggingVoter, setTaggingVoter] = useState(false);
     const [escalationReason, setEscalationReason] = useState('');
     const [escalationPriority, setEscalationPriority] = useState<'high' | 'urgent'>('high');
     const [filterStatus, setFilterStatus] = useState<string>(mergedInitial.status);
@@ -432,6 +436,7 @@ export function TaskManagement({
     const [filterToken, setFilterToken] = useState<string>(mergedInitial.token);
     const [filterMobile, setFilterMobile] = useState<string>(mergedInitial.mobile);
     const [filterVoterId, setFilterVoterId] = useState<string>(mergedInitial.voterId);
+    const [filterOutsider, setFilterOutsider] = useState<string>(mergedInitial.outsider || 'all');
     const [filterCreatedFrom, setFilterCreatedFrom] = useState<string>(
         mergedInitial.createdFrom,
     );
@@ -521,7 +526,7 @@ export function TaskManagement({
         return () => {
             cancelled = true;
         };
-    }, [showTaskDialog, selectedTask?.serviceId, selectedTask?.id]);
+    }, [showTaskDialog, selectedTask?.serviceId, selectedTask?.id, selectedTask?.voterId]);
     const [serviceCatalog, setServiceCatalog] = useState<ServiceCatalogOption[]>([]);
     const [showQrScanner, setShowQrScanner] = useState(false);
     const [pendingAutoFocusToken, setPendingAutoFocusToken] = useState<string | null>(null);
@@ -591,6 +596,7 @@ export function TaskManagement({
                 token: updates.token ?? filterToken,
                 mobile: updates.mobile ?? filterMobile,
                 voterId: updates.voterId ?? filterVoterId,
+                outsider: updates.outsider ?? filterOutsider,
                 assignedTo:
                     updates.assignedTo !== undefined
                         ? updates.assignedTo
@@ -619,6 +625,7 @@ export function TaskManagement({
             filterToken,
             filterMobile,
             filterVoterId,
+            filterOutsider,
             filterAssignedTo,
             filterCreatedFrom,
             filterCreatedTo,
@@ -659,6 +666,9 @@ export function TaskManagement({
             if (filterToken) params.append('token', filterToken);
             if (filterMobile) params.append('mobileNo', filterMobile);
             if (filterVoterId) params.append('voterId', filterVoterId);
+            if (filterOutsider === 'outsider' || filterOutsider === 'linked') {
+                params.append('outsider', filterOutsider);
+            }
             if (filterServiceName && filterServiceName !== 'all') {
                 params.append('serviceName', filterServiceName);
             }
@@ -693,12 +703,69 @@ export function TaskManagement({
         } finally {
             setIsLoading(false);
         }
-    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, filterAssignedTo, filterCreatedFrom, filterCreatedTo, t]);
+    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterOutsider, filterServiceName, filterAssignedTo, filterCreatedFrom, filterCreatedTo, t]);
+
+    const handleTagTaskToVoter = async (voter: VoterWithPartNo) => {
+        if (!tagVoterTask || taggingVoter) return;
+        const epic = voter.epicNumber?.trim().toUpperCase();
+        if (!epic) return;
+
+        const taskId = tagVoterTask.id;
+        setTaggingVoter(true);
+        try {
+            const response = await fetch(
+                `/operator/api/tasks/${encodeURIComponent(taskId)}/tag-voter`,
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ voterId: epic }),
+                },
+            );
+            const json = await response.json();
+            if (!response.ok) {
+                throw new Error(json.error || t('taskManagement.tagToVoterFailed'));
+            }
+
+            const nextVoter: TaskVoter = {
+                epicNumber: epic,
+                fullName: voter.fullName ?? null,
+                mobileNoPrimary: voter.mobileNoPrimary ?? null,
+                mobileNoSecondary: voter.mobileNoSecondary ?? null,
+                age: voter.age ?? null,
+                gender: voter.gender ?? null,
+                relationName: voter.relationName ?? null,
+            };
+            const applyTag = (task: TaskWithService): TaskWithService =>
+                task.id === taskId
+                    ? { ...task, isOutsider: false, voterId: epic, voter: nextVoter }
+                    : task;
+
+            setTasks((prev) => prev.map(applyTag));
+            setSelectedTask((prev) => (prev ? applyTag(prev) : prev));
+            setTagVoterTask(null);
+            toast({
+                type: 'success',
+                description: t('taskManagement.tagToVoterSuccess', { voterId: epic }),
+            });
+            void fetchTasks();
+        } catch (error) {
+            console.error(error);
+            toast({
+                type: 'error',
+                description:
+                    error instanceof Error
+                        ? error.message
+                        : t('taskManagement.tagToVoterFailed'),
+            });
+        } finally {
+            setTaggingVoter(false);
+        }
+    };
 
     useEffect(() => {
         fetchTasks();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterServiceName, filterAssignedTo, filterCreatedFrom, filterCreatedTo]);
+    }, [currentPage, pageSize, filterStatus, filterPriority, filterToken, filterMobile, filterVoterId, filterOutsider, filterServiceName, filterAssignedTo, filterCreatedFrom, filterCreatedTo]);
 
     useEffect(() => {
         if (!pendingAutoFocusToken && !pendingAutoFocusTaskId) return;
@@ -867,6 +934,7 @@ export function TaskManagement({
         setFilterToken('');
         setFilterMobile('');
         setFilterVoterId('');
+        setFilterOutsider('all');
         setFilterCreatedFrom('');
         setFilterCreatedTo('');
         setFilterTokenInput('');
@@ -883,6 +951,7 @@ export function TaskManagement({
             token: '',
             mobile: '',
             voterId: '',
+            outsider: 'all',
             createdFrom: '',
             createdTo: '',
             page: 1,
@@ -1336,6 +1405,29 @@ export function TaskManagement({
                             </div>
 
                             <div>
+                                <Label htmlFor="outsider-filter">
+                                    {t('taskManagement.filters.outsider')}
+                                </Label>
+                                <Select
+                                    value={filterOutsider}
+                                    onValueChange={(value) => {
+                                        setFilterOutsider(value);
+                                        setCurrentPage(1);
+                                        syncManageUrl({ outsider: value, page: 1 }, true);
+                                    }}
+                                >
+                                    <SelectTrigger id="outsider-filter">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">{t('taskManagement.filters.allPeople')}</SelectItem>
+                                        <SelectItem value="outsider">{t('taskManagement.filters.outsidersOnly')}</SelectItem>
+                                        <SelectItem value="linked">{t('taskManagement.filters.linkedOnly')}</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div>
                                 <Label htmlFor="created-from-filter">
                                     {t('taskManagement.filters.createdFrom')}
                                 </Label>
@@ -1517,6 +1609,18 @@ export function TaskManagement({
                                                                                 {task.voter.location}
                                                                             </div>
                                                                         )}
+                                                                        {task.isOutsider && (
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="outline"
+                                                                                size="sm"
+                                                                                className="mt-2"
+                                                                                onClick={() => setTagVoterTask(task)}
+                                                                            >
+                                                                                <UserRoundPlus className="mr-2 h-4 w-4" />
+                                                                                {t('taskManagement.tagToVoter')}
+                                                                            </Button>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             )}
@@ -1682,6 +1786,18 @@ export function TaskManagement({
                                             <strong>{t('taskManagement.location')}</strong>{' '}
                                             {selectedTask.voter.location}
                                         </p>
+                                    )}
+                                    {selectedTask.isOutsider && (
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            className="mt-2"
+                                            onClick={() => setTagVoterTask(selectedTask)}
+                                        >
+                                            <UserRoundPlus className="mr-2 h-4 w-4" />
+                                            {t('taskManagement.tagToVoter')}
+                                        </Button>
                                     )}
                                 </div>
                             )}
@@ -2107,6 +2223,19 @@ export function TaskManagement({
                     )}
                 </DialogContent>
             </Dialog>
+
+            <TagVoterDialog
+                open={Boolean(tagVoterTask)}
+                onOpenChange={(open) => {
+                    if (!open) setTagVoterTask(null);
+                }}
+                title={t('taskManagement.tagToVoterTitle')}
+                description={t('taskManagement.tagToVoterDescription')}
+                pending={taggingVoter}
+                onSelectVoter={(voter) => {
+                    void handleTagTaskToVoter(voter);
+                }}
+            />
 
         </div>
     );
