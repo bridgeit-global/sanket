@@ -2,7 +2,7 @@
   "compilerOptions": {
     "target": "ESNext",
     "lib": ["dom", "dom.iterable", "esnext", "webworker"],
-    "types": ["@serwist/next/typings", "vitest/globals"],
+    "types": ["@serwist/next/typings"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -30,5 +30,11 @@
     ".next/types/**/*.ts",
     "next.config.js"
   ],
-  "exclude": ["node_modules", "public/sw.js"]
+  "exclude": [
+    "node_modules",
+    "public/sw.js",
+    "tests",
+    "vitest*.ts",
+    "playwright.config.ts"
+  ]
 }
