@@ -1,15 +1,14 @@
 'use client';
 
 import { ChevronRight, Pencil } from 'lucide-react';
-import { ContactWithCall } from './contact-with-call';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MemberDobField } from './member-dob-field';
+import { MemberPhoneField } from './member-phone-field';
 import { MemberPositionField } from './member-position-field';
 import { MemberVoterIdField } from './member-voter-id-field';
 import {
   getMemberDisplayName,
-  getMemberPhone,
   getPostGeoChip,
   getPostGeoContextLine,
 } from '@/lib/hierarchy/geo-attribution';
@@ -41,7 +40,6 @@ export function CompactMemberCard({
 }: CompactMemberCardProps) {
   const { t } = useTranslations();
   const name = getMemberDisplayName(member);
-  const phone = getMemberPhone(member);
   const primary = getPrimaryPost(member);
   const altPosts = getAltPosts(member);
   const roleLabel = primary ? getPostTitle(primary) : t('hierarchyModule.positionMissing');
@@ -164,7 +162,12 @@ export function CompactMemberCard({
         />
       </div>
 
-      <ContactWithCall phone={phone} compact />
+      <MemberPhoneField
+        member={member}
+        canEdit={canEdit}
+        onUpdated={onVoterIdUpdated}
+        compact
+      />
     </div>
   );
 }

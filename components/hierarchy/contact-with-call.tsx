@@ -28,17 +28,19 @@ export function PhoneCallButton({
 export function ContactWithCall({
   phone,
   compact = false,
+  className,
 }: {
   phone: string | null;
   compact?: boolean;
+  className?: string;
 }) {
   if (!phone) {
-    return <span className="text-xs text-muted-foreground">Contact: —</span>;
+    return <span className={cn('text-xs text-muted-foreground', className)}>Contact: —</span>;
   }
 
   if (compact) {
     return (
-      <div className="flex items-center gap-2">
+      <div className={cn('flex min-w-0 items-center gap-2', className)}>
         <PhoneCallButton phone={phone} />
         <span className="min-w-0 truncate text-xs text-muted-foreground">{phone}</span>
       </div>
@@ -46,7 +48,7 @@ export function ContactWithCall({
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+    <div className={cn('flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm', className)}>
       <PhoneCallButton phone={phone} />
       <span className="min-w-0 break-all text-muted-foreground">{phone}</span>
     </div>

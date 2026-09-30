@@ -8,6 +8,7 @@ export type RoleAssignee = {
   id: string;
   name: string;
   phone: string | null;
+  member: CadreMemberCard;
 };
 
 export type RoleSlot = {
@@ -36,6 +37,7 @@ export function buildRoleSlots(
         id: member.id,
         name: getMemberDisplayName(member),
         phone: getMemberPhone(member),
+        member,
       });
     }
     return { role, assignees };

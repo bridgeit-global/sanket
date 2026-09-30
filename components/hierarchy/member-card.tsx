@@ -1,16 +1,16 @@
 'use client';
 
 import { memo } from 'react';
-import { ChevronRight, Pencil, Phone } from 'lucide-react';
+import { ChevronRight, Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MemberAvatar } from './member-avatar';
 import { MemberDobField } from './member-dob-field';
+import { MemberPhoneField } from './member-phone-field';
 import { MemberPositionField } from './member-position-field';
 import { MemberVoterIdField } from './member-voter-id-field';
 import {
   getMemberDisplayName,
-  getMemberPhone,
   getPostGeoChip,
 } from '@/lib/hierarchy/geo-attribution';
 import { useTranslations } from '@/hooks/use-translations';
@@ -38,7 +38,6 @@ export const MemberCard = memo(function MemberCard({
 }: MemberCardProps) {
   const { t } = useTranslations();
   const name = getMemberDisplayName(member);
-  const phone = getMemberPhone(member);
   const primary = getPrimaryPost(member);
   const altPosts = getAltPosts(member);
   const geoChip = primary ? getPostGeoChip(primary) : null;
@@ -137,22 +136,11 @@ export const MemberCard = memo(function MemberCard({
         </div>
       )}
 
-      <div className="mt-3">
-        {phone ? (
-          <Button
-            asChild
-            className="h-10 w-full bg-green-600 text-white hover:bg-green-700"
-          >
-            <a href={`tel:${phone}`} onClick={(e) => e.stopPropagation()}>
-              <Phone className="mr-2 size-4" /> Call
-            </a>
-          </Button>
-        ) : (
-          <Button disabled className="h-10 w-full" variant="outline">
-            <Phone className="mr-2 size-4" /> No phone
-          </Button>
-        )}
-      </div>
+      <MemberPhoneField
+        member={member}
+        canEdit={canEdit}
+        onUpdated={onVoterIdUpdated}
+      />
     </div>
   );
 });

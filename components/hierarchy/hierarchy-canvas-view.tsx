@@ -19,7 +19,7 @@ import {
   RotateCcw,
   UserRound,
 } from 'lucide-react';
-import { ContactWithCall } from './contact-with-call';
+import { MemberPhoneField } from './member-phone-field';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -28,11 +28,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  getMemberDisplayName,
-  getMemberPhone,
-} from '@/lib/hierarchy/geo-attribution';
-import type { CadreConfig } from '@/lib/hierarchy/types';
+import { getMemberDisplayName } from '@/lib/hierarchy/geo-attribution';
+import type { CadreConfig, CadreMemberCard } from '@/lib/hierarchy/types';
 import type { CadreMaxGeoLevel } from '@/lib/hierarchy/wing-depth';
 import { extractWardNumber } from '@/lib/hierarchy/member-list';
 import { buildRoleSlots, type RoleSlot } from '@/lib/hierarchy/role-slots';
@@ -175,7 +172,9 @@ function WingRootBadge({
 function OrgLeaderCard({
   roleLabel,
   name,
-  phone,
+  member,
+  canEdit,
+  onUpdated,
   className,
   borderClass,
   accentClass,
@@ -184,7 +183,9 @@ function OrgLeaderCard({
 }: {
   roleLabel: string;
   name: string;
-  phone: string | null;
+  member: CadreMemberCard | null;
+  canEdit?: boolean;
+  onUpdated?: () => void;
   className: string;
   borderClass: string;
   accentClass: string;
@@ -212,9 +213,16 @@ function OrgLeaderCard({
         </p>
       </div>
       <p className="text-sm font-semibold leading-snug">{name}</p>
-      <div className="mt-1.5">
-        <ContactWithCall phone={phone} />
-      </div>
+      {member ? (
+        <div className="mt-1.5" onClick={(event) => event.stopPropagation()}>
+          <MemberPhoneField
+            member={member}
+            canEdit={canEdit}
+            onUpdated={onUpdated}
+            compact
+          />
+        </div>
+      ) : null}
     </Tag>
   );
 }
@@ -225,6 +233,8 @@ function RoleStructurePanel({
   panelClass,
   headerClass,
   compact,
+  canEdit,
+  onUpdated,
 }: {
   title: string;
   slots: RoleSlot[];
@@ -232,6 +242,8 @@ function RoleStructurePanel({
   headerClass: string;
   /** Tighter layout for side-by-side / mobile. */
   compact?: boolean;
+  canEdit?: boolean;
+  onUpdated?: () => void;
 }) {
   const [openRoles, setOpenRoles] = useState<Set<string>>(
     () => new Set(slots.filter((slot) => slot.assignees.length > 0).map((slot) => slot.role)),
@@ -304,11 +316,14 @@ function RoleStructurePanel({
                             <p className="truncate text-[11px] font-medium leading-snug">
                               {person.name}
                             </p>
-                            {person.phone ? (
-                              <div className="mt-0.5">
-                                <ContactWithCall phone={person.phone} />
-                              </div>
-                            ) : null}
+                            <div className="mt-0.5">
+                              <MemberPhoneField
+                                member={person.member}
+                                canEdit={canEdit}
+                                onUpdated={onUpdated}
+                                compact
+                              />
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -434,6 +449,8 @@ interface HierarchyCanvasViewProps {
   wardOptions: CadreConfig['geoUnits'];
   committeeRoles: CanvasCommitteeRoles;
   chunkLoading?: boolean;
+  canEdit?: boolean;
+  onMemberUpdated?: () => void;
   onScopeChange?: (scope: CanvasLoadScope) => void;
 }
 
@@ -444,6 +461,8 @@ export function HierarchyCanvasView({
   wardOptions,
   committeeRoles,
   chunkLoading = false,
+  canEdit,
+  onMemberUpdated,
   onScopeChange,
 }: HierarchyCanvasViewProps) {
   const { t } = useTranslations();
@@ -660,9 +679,9 @@ export function HierarchyCanvasView({
             ? getMemberDisplayName(canvasData.talukaAdhyaksh)
             : '—'
         }
-        phone={
-          canvasData.talukaAdhyaksh ? getMemberPhone(canvasData.talukaAdhyaksh) : null
-        }
+        member={canvasData.talukaAdhyaksh}
+        canEdit={canEdit}
+        onUpdated={onMemberUpdated}
         className={palette.leader}
         borderClass={palette.leaderBorder}
         accentClass={palette.accentText}
@@ -689,6 +708,8 @@ export function HierarchyCanvasView({
               canvasData.talukaCommitteeMembers,
               'taluka_committee',
             )}
+            canEdit={canEdit}
+            onUpdated={onMemberUpdated}
             panelClass={palette.committee}
             headerClass={palette.committeeHeader}
           />
@@ -769,7 +790,9 @@ export function HierarchyCanvasView({
           name={
             focusedWard.adhyaksh ? getMemberDisplayName(focusedWard.adhyaksh) : '—'
           }
-          phone={focusedWard.adhyaksh ? getMemberPhone(focusedWard.adhyaksh) : null}
+          member={focusedWard.adhyaksh}
+          canEdit={canEdit}
+          onUpdated={onMemberUpdated}
           className={wardLeaderTone.leader}
           borderClass={wardLeaderTone.border}
           accentClass={wardLeaderTone.accent}
@@ -792,6 +815,8 @@ export function HierarchyCanvasView({
                     focusedWard.committeeMembers,
                     'ward_committee',
                   )}
+                  canEdit={canEdit}
+                  onUpdated={onMemberUpdated}
                   panelClass={wardLeaderTone.committee}
                   headerClass={wardLeaderTone.committeeHeader}
                 />
@@ -835,6 +860,8 @@ export function HierarchyCanvasView({
                   focusedWard.committeeMembers,
                   'ward_committee',
                 )}
+                canEdit={canEdit}
+                onUpdated={onMemberUpdated}
                 panelClass={wardLeaderTone.committee}
                 headerClass={wardLeaderTone.committeeHeader}
               />
@@ -859,9 +886,9 @@ export function HierarchyCanvasView({
               ? getMemberDisplayName(focusedBooth.adhyaksh)
               : '—'
           }
-          phone={
-            focusedBooth.adhyaksh ? getMemberPhone(focusedBooth.adhyaksh) : null
-          }
+          member={focusedBooth.adhyaksh}
+          canEdit={canEdit}
+          onUpdated={onMemberUpdated}
           className={BOOTH_TONE.leader}
           borderClass={BOOTH_TONE.leaderBorder}
           accentClass={BOOTH_TONE.accentText}
@@ -889,7 +916,12 @@ export function HierarchyCanvasView({
                         {getMemberDisplayName(blaMember)}
                       </p>
                       <div className="mt-1">
-                        <ContactWithCall phone={getMemberPhone(blaMember)} />
+                        <MemberPhoneField
+                          member={blaMember}
+                          canEdit={canEdit}
+                          onUpdated={onMemberUpdated}
+                          compact
+                        />
                       </div>
                     </div>
                   ))}
@@ -901,13 +933,16 @@ export function HierarchyCanvasView({
                       ? getMemberDisplayName(focusedBooth.bla)
                       : '—'}
                   </p>
-                  <div className="mt-1.5">
-                    <ContactWithCall
-                      phone={
-                        focusedBooth.bla ? getMemberPhone(focusedBooth.bla) : null
-                      }
-                    />
-                  </div>
+                  {focusedBooth.bla ? (
+                    <div className="mt-1.5">
+                      <MemberPhoneField
+                        member={focusedBooth.bla}
+                        canEdit={canEdit}
+                        onUpdated={onMemberUpdated}
+                        compact
+                      />
+                    </div>
+                  ) : null}
                 </>
               )}
             </div>
@@ -925,6 +960,8 @@ export function HierarchyCanvasView({
                 focusedBooth.committeeMembers,
                 'booth_committee',
               )}
+              canEdit={canEdit}
+              onUpdated={onMemberUpdated}
               panelClass={BOOTH_TONE.committee}
               headerClass={BOOTH_TONE.committeeHeader}
             />

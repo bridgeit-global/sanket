@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { LeadershipSection, PanelActionLink, PanelSectionHeader } from './leadership-section';
 import { MemberDobField } from './member-dob-field';
+import { MemberPhoneField } from './member-phone-field';
 import { MemberPositionField } from './member-position-field';
 import { MemberVoterIdField } from './member-voter-id-field';
 import { Button } from '@/components/ui/button';
@@ -305,6 +306,12 @@ export function WardPanel({
                                       compact
                                     />
                                     <MemberDobField
+                                      member={head}
+                                      canEdit={canEdit}
+                                      onUpdated={onVoterIdUpdated}
+                                      compact
+                                    />
+                                    <MemberPhoneField
                                       member={head}
                                       canEdit={canEdit}
                                       onUpdated={onVoterIdUpdated}

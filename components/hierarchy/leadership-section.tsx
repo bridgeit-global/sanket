@@ -1,8 +1,8 @@
 'use client';
 
 import { ChevronRight } from 'lucide-react';
-import { ContactWithCall } from './contact-with-call';
 import { MemberDobField } from './member-dob-field';
+import { MemberPhoneField } from './member-phone-field';
 import { MemberPositionField } from './member-position-field';
 import { MemberVoterIdField } from './member-voter-id-field';
 import {
@@ -156,8 +156,13 @@ export function LeadershipSection({
                 ) : null}
               </div>
 
-              {head && headPhone ? (
-                <ContactWithCall phone={headPhone} compact />
+              {head ? (
+                <MemberPhoneField
+                  member={head}
+                  canEdit={canEdit}
+                  onUpdated={onVoterIdUpdated}
+                  compact
+                />
               ) : null}
 
               {onViewCommittee ? (

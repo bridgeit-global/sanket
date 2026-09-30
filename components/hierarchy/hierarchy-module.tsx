@@ -1320,6 +1320,8 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               wardOptions={wardOptions}
               committeeRoles={canvasCommitteeRoles}
               chunkLoading={canvasChunkLoading}
+              canEdit={canEdit}
+              onMemberUpdated={canEdit ? () => { void refresh(); } : undefined}
               onScopeChange={(scope) => {
                 void loadCanvasScope(scope);
               }}

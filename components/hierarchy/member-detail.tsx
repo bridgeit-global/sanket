@@ -1,16 +1,16 @@
 'use client';
 
-import { Phone, X } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MemberAvatar } from './member-avatar';
 import { MemberDobField } from './member-dob-field';
+import { MemberPhoneField } from './member-phone-field';
 import { MemberPositionField } from './member-position-field';
 import { MemberVoterIdField } from './member-voter-id-field';
 import {
   getMemberDisplayName,
-  getMemberPhone,
   getPostGeoChip,
 } from '@/lib/hierarchy/geo-attribution';
 import { getPostTitle } from '@/lib/hierarchy/member-list';
@@ -33,7 +33,6 @@ export function MemberDetail({
 }: MemberDetailProps) {
   const { t } = useTranslations();
   const name = getMemberDisplayName(member);
-  const phone = getMemberPhone(member);
 
   return (
     <Card className="w-80 max-w-full border-2 shadow-xl">
@@ -106,16 +105,11 @@ export function MemberDetail({
           </div>
         )}
 
-        {phone && (
-          <Button
-            asChild
-            className="h-10 w-full bg-green-600 text-white hover:bg-green-700"
-          >
-            <a href={`tel:${phone}`}>
-              <Phone className="mr-2 size-4" /> Call
-            </a>
-          </Button>
-        )}
+        <MemberPhoneField
+          member={member}
+          canEdit={canEdit}
+          onUpdated={onVoterIdUpdated}
+        />
       </CardContent>
     </Card>
   );
