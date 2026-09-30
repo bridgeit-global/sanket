@@ -1337,6 +1337,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
               geoLevel="taluka"
               onViewCommittee={openTalukaCommittee}
               canEdit={canEdit}
+              onEditMember={canEdit ? handleEdit : undefined}
               onVoterIdUpdated={canEdit ? () => { void refresh(); } : undefined}
             />
 
@@ -1366,6 +1367,7 @@ export function HierarchyModule({ canEdit, isAdmin }: HierarchyModuleProps) {
             onViewWardCommittee={openViewWardCommittee}
             onViewBoothCommittee={openViewBoothCommittee}
             onAddBoothCommitteeMember={openAddBoothCommitteeMember}
+            onEditMember={canEdit ? handleEdit : undefined}
             onVoterIdUpdated={canEdit ? () => { void refresh(); } : undefined}
           />
         ) : (

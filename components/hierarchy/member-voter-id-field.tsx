@@ -2,7 +2,7 @@
 
 import { useState, type MouseEvent } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Link2, Pencil, AlertCircle } from 'lucide-react';
+import { CheckCircle2, Link2, Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -18,6 +18,7 @@ import { useTranslations } from '@/hooks/use-translations';
 import { VoterPickerCombobox } from './voter-picker-combobox';
 import type { CadreMemberCard } from '@/lib/hierarchy/types';
 import { cn } from '@/lib/utils';
+import { MissingFieldRow } from './missing-field-row';
 
 interface MemberVoterIdFieldProps {
   member: CadreMemberCard;
@@ -101,13 +102,11 @@ export function MemberVoterIdField({
             {t('hierarchyModule.voterIdLinked')}
           </Badge>
         ) : (
-          <Badge
-            variant="secondary"
-            className="gap-1 border-none bg-amber-100 px-1.5 py-0 text-[10px] font-semibold uppercase tracking-wide text-amber-900 dark:bg-amber-950 dark:text-amber-200"
-          >
-            <AlertCircle className="size-3" aria-hidden />
-            {t('hierarchyModule.voterIdMissing')}
-          </Badge>
+          <MissingFieldRow
+            label={t('hierarchyModule.voterIdMissing')}
+            actionLabel={canEdit ? t('hierarchyModule.addVoterId') : undefined}
+            onAction={canEdit ? openEditor : undefined}
+          />
         )}
 
         {hasVoterId ? (
@@ -127,7 +126,7 @@ export function MemberVoterIdField({
           </span>
         ) : null}
 
-        {canEdit ? (
+        {canEdit && hasVoterId ? (
           <Button
             type="button"
             variant="ghost"
@@ -139,9 +138,7 @@ export function MemberVoterIdField({
             onClick={openEditor}
           >
             <Pencil className="size-3" aria-hidden />
-            {hasVoterId
-              ? t('hierarchyModule.updateVoterId')
-              : t('hierarchyModule.addVoterId')}
+            {t('hierarchyModule.updateVoterId')}
           </Button>
         ) : null}
       </div>

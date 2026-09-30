@@ -42,6 +42,18 @@ export function getMemberDisplayName(member: CadreMemberCard): string {
   );
 }
 
+/** Date of birth from the linked voter record. */
+export function getMemberDob(member: CadreMemberCard): string | null {
+  const voterDob = member.linkedVoter?.dob?.trim();
+  return voterDob || null;
+}
+
+/** Age from the voter roll, used when the roll has no date of birth. */
+export function getMemberVoterAge(member: CadreMemberCard): number | null {
+  const age = member.linkedVoter?.age;
+  return typeof age === 'number' && age > 0 ? age : null;
+}
+
 export function getMemberPhone(member: CadreMemberCard): string | null {
   return member.personPhone ?? member.linkedVoter?.mobile ?? null;
 }

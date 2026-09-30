@@ -4,6 +4,8 @@ import { ChevronRight, Pencil } from 'lucide-react';
 import { ContactWithCall } from './contact-with-call';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { MemberDobField } from './member-dob-field';
+import { MemberPositionField } from './member-position-field';
 import { MemberVoterIdField } from './member-voter-id-field';
 import {
   getMemberDisplayName,
@@ -19,6 +21,7 @@ import {
 } from '@/lib/hierarchy/member-list';
 import { getVerticalBadgeClass } from '@/lib/hierarchy/vertical-colors';
 import type { CadreMemberCard } from '@/lib/hierarchy/types';
+import { useTranslations } from '@/hooks/use-translations';
 import { cn } from '@/lib/utils';
 
 interface CompactMemberCardProps {
@@ -36,11 +39,12 @@ export function CompactMemberCard({
   onVoterIdUpdated,
   detail = 'minimal',
 }: CompactMemberCardProps) {
+  const { t } = useTranslations();
   const name = getMemberDisplayName(member);
   const phone = getMemberPhone(member);
   const primary = getPrimaryPost(member);
   const altPosts = getAltPosts(member);
-  const roleLabel = primary ? getPostTitle(primary) : 'No post assigned';
+  const roleLabel = primary ? getPostTitle(primary) : t('hierarchyModule.positionMissing');
   const geoChip = primary ? getPostGeoChip(primary) : null;
   const geoContext = primary ? getPostGeoContextLine(primary) : null;
   const breadcrumbItems = primary ? getPostBreadcrumbItems(primary) : [];
@@ -87,9 +91,12 @@ export function CompactMemberCard({
       ) : null}
 
       <div className={cn('min-w-0 space-y-1.5', canEdit && onEdit && !showFullDetail && 'pr-7')}>
-        <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-          {roleLabel}
-        </p>
+        <MemberPositionField
+          label={roleLabel}
+          missing={!primary}
+          canEdit={canEdit}
+          onEdit={!primary && onEdit ? () => onEdit(member) : undefined}
+        />
         <p className="truncate text-sm font-semibold text-foreground">{name}</p>
 
         {showFullDetail && member.verticals.length > 0 ? (
@@ -144,6 +151,12 @@ export function CompactMemberCard({
           : null}
 
         <MemberVoterIdField
+          member={member}
+          canEdit={canEdit}
+          onUpdated={onVoterIdUpdated}
+          compact
+        />
+        <MemberDobField
           member={member}
           canEdit={canEdit}
           onUpdated={onVoterIdUpdated}

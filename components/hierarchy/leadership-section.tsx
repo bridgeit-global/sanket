@@ -2,6 +2,8 @@
 
 import { ChevronRight } from 'lucide-react';
 import { ContactWithCall } from './contact-with-call';
+import { MemberDobField } from './member-dob-field';
+import { MemberPositionField } from './member-position-field';
 import { MemberVoterIdField } from './member-voter-id-field';
 import {
   getMemberDisplayName,
@@ -73,6 +75,7 @@ interface LeadershipSectionProps {
   geoLevel: keyof typeof VERTICAL_ADHYAKSH_LABEL_KEYS;
   onViewCommittee?: (verticalId: string) => void;
   canEdit?: boolean;
+  onEditMember?: (member: CadreMemberCard) => void;
   onVoterIdUpdated?: () => void;
 }
 
@@ -84,6 +87,7 @@ export function LeadershipSection({
   geoLevel,
   onViewCommittee,
   canEdit,
+  onEditMember,
   onVoterIdUpdated,
 }: LeadershipSectionProps) {
   const { t } = useTranslations();
@@ -96,8 +100,17 @@ export function LeadershipSection({
       </PanelSectionHeader>
       <div className="grid gap-2 border border-t-0 border-primary/20 bg-card p-3 sm:grid-cols-2 dark:border-primary/50">
         {entries.map((entry) => {
-          const headName = entry.head ? getMemberDisplayName(entry.head) : vacantLabel;
-          const headPhone = entry.head ? getMemberPhone(entry.head) : null;
+          const head = entry.head;
+          const headName = head ? getMemberDisplayName(head) : vacantLabel;
+          const headPhone = head ? getMemberPhone(head) : null;
+          const hasPosition = Boolean(
+            head?.posts.some(
+              (post) =>
+                post.verticalId === entry.verticalId &&
+                post.positionLevelKey === geoLevel &&
+                Boolean(post.positionName?.trim() || post.label?.trim()),
+            ),
+          );
 
           return (
             <div
@@ -105,38 +118,53 @@ export function LeadershipSection({
               className="flex flex-col gap-2 rounded-lg border border-border/70 bg-muted/20 px-3 py-2.5"
             >
               <div className="min-w-0 space-y-1.5">
-                <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                  {t(roleLabelKey, { vertical: entry.verticalName })}
-                </p>
+                <MemberPositionField
+                  label={t(roleLabelKey, { vertical: entry.verticalName })}
+                  missing={Boolean(head) && !hasPosition}
+                  canEdit={canEdit && Boolean(head) && !hasPosition}
+                  onEdit={
+                    head && onEditMember && !hasPosition
+                      ? () => onEditMember(head)
+                      : undefined
+                  }
+                />
                 <p
                   className={cn(
                     'truncate text-sm',
-                    entry.head
+                    head
                       ? 'font-semibold text-foreground'
                       : 'italic text-muted-foreground',
                   )}
                 >
                   {headName}
                 </p>
-                {entry.head ? (
-                  <MemberVoterIdField
-                    member={entry.head}
-                    canEdit={canEdit}
-                    onUpdated={onVoterIdUpdated}
-                    compact
-                  />
+                {head ? (
+                  <>
+                    <MemberVoterIdField
+                      member={head}
+                      canEdit={canEdit}
+                      onUpdated={onVoterIdUpdated}
+                      compact
+                    />
+                    <MemberDobField
+                      member={head}
+                      canEdit={canEdit}
+                      onUpdated={onVoterIdUpdated}
+                      compact
+                    />
+                  </>
                 ) : null}
               </div>
 
-              {entry.head && headPhone ? (
+              {head && headPhone ? (
                 <ContactWithCall phone={headPhone} compact />
               ) : null}
 
               {onViewCommittee ? (
                 <PanelActionLink
                   onClick={() => onViewCommittee(entry.verticalId)}
-                  disabled={!entry.head}
-                  className={cn('w-full', entry.head && headPhone && 'sm:w-auto')}
+                  disabled={!head}
+                  className={cn('w-full', head && headPhone && 'sm:w-auto')}
                 >
                   {viewCommitteeLabel}
                 </PanelActionLink>

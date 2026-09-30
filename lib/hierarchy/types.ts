@@ -77,7 +77,15 @@ export type CadreMemberCard = {
   verticals: CadreMemberVerticalRef[];
   posts: CadreMemberPostDetail[];
   linkedUser: { id: string; userId: string } | null;
-  linkedVoter: { epicNumber: string; fullName: string; mobile: string | null } | null;
+  linkedVoter: {
+    epicNumber: string;
+    fullName: string;
+    mobile: string | null;
+    /** `yyyy-MM-dd` from VoterMaster; often null on the roll. */
+    dob: string | null;
+    /** Age as printed on the voter roll; present even when DOB is not. */
+    age: number | null;
+  } | null;
   /** WhatsApp number stored in CadreMemberWhatsApp. */
   whatsappPhone: string | null;
 };

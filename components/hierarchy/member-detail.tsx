@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MemberAvatar } from './member-avatar';
+import { MemberDobField } from './member-dob-field';
+import { MemberPositionField } from './member-position-field';
 import { MemberVoterIdField } from './member-voter-id-field';
 import {
   getMemberDisplayName,
@@ -12,6 +14,7 @@ import {
   getPostGeoChip,
 } from '@/lib/hierarchy/geo-attribution';
 import { getPostTitle } from '@/lib/hierarchy/member-list';
+import { useTranslations } from '@/hooks/use-translations';
 import { getVerticalBadgeClass } from '@/lib/hierarchy/vertical-colors';
 import type { CadreMemberCard } from '@/lib/hierarchy/types';
 
@@ -28,6 +31,7 @@ export function MemberDetail({
   canEdit,
   onVoterIdUpdated,
 }: MemberDetailProps) {
+  const { t } = useTranslations();
   const name = getMemberDisplayName(member);
   const phone = getMemberPhone(member);
 
@@ -63,6 +67,12 @@ export function MemberDetail({
         )}
 
         <div className="space-y-1">
+          {member.posts.length === 0 ? (
+            <MemberPositionField
+              label={t('hierarchyModule.positionMissing')}
+              missing
+            />
+          ) : null}
           {member.posts.map((post) => {
             const geo = getPostGeoChip(post);
             return (
@@ -79,6 +89,11 @@ export function MemberDetail({
         </div>
 
         <MemberVoterIdField
+          member={member}
+          canEdit={canEdit}
+          onUpdated={onVoterIdUpdated}
+        />
+        <MemberDobField
           member={member}
           canEdit={canEdit}
           onUpdated={onVoterIdUpdated}

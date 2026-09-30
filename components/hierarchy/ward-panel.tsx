@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Plus } from 'lucide-react';
 import { LeadershipSection, PanelActionLink, PanelSectionHeader } from './leadership-section';
+import { MemberDobField } from './member-dob-field';
+import { MemberPositionField } from './member-position-field';
 import { MemberVoterIdField } from './member-voter-id-field';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -36,6 +38,7 @@ interface WardPanelProps {
   onViewWardCommittee: (verticalId: string) => void;
   onViewBoothCommittee: (boothNo: string, verticalId: string) => void;
   onAddBoothCommitteeMember: (boothNo: string) => void;
+  onEditMember?: (member: CadreMemberCard) => void;
   onVoterIdUpdated?: () => void;
 }
 
@@ -74,6 +77,7 @@ export function WardPanel({
   onViewWardCommittee,
   onViewBoothCommittee,
   onAddBoothCommitteeMember,
+  onEditMember,
   onVoterIdUpdated,
 }: WardPanelProps) {
   const { t } = useTranslations();
@@ -165,6 +169,7 @@ export function WardPanel({
         geoLevel="ward"
         onViewCommittee={onViewWardCommittee}
         canEdit={canEdit}
+        onEditMember={onEditMember}
         onVoterIdUpdated={onVoterIdUpdated}
       />
 
@@ -264,33 +269,48 @@ export function WardPanel({
                         </p>
                       ) : (
                         <div className="divide-y overflow-hidden rounded-xl border border-border bg-background">
-                          {boothLeadershipEntries.map((entry) => (
+                          {boothLeadershipEntries.map((entry) => {
+                            const head = entry.head;
+                            return (
                             <div
                               key={entry.key}
                               className="flex flex-col gap-2 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between"
                             >
                               <div className="min-w-0 flex-1 space-y-1.5">
-                                <p className="text-[11px] font-semibold tracking-[0.12em] text-muted-foreground uppercase">
-                                  {entry.roleLabel}
-                                </p>
+                                <MemberPositionField
+                                  label={entry.roleLabel}
+                                  missing={head != null && head.posts.length === 0}
+                                  canEdit={canEdit && head != null && head.posts.length === 0}
+                                  onEdit={
+                                    head && onEditMember && head.posts.length === 0
+                                      ? () => onEditMember(head)
+                                      : undefined
+                                  }
+                                />
                                 <p
                                   className={
-                                    entry.head
+                                    head
                                       ? 'text-sm font-medium'
                                       : 'text-sm italic text-muted-foreground'
                                   }
                                 >
-                                  {entry.head
-                                    ? getMemberDisplayName(entry.head)
-                                    : vacantLabel}
+                                  {head ? getMemberDisplayName(head) : vacantLabel}
                                 </p>
-                                {entry.head ? (
-                                  <MemberVoterIdField
-                                    member={entry.head}
-                                    canEdit={canEdit}
-                                    onUpdated={onVoterIdUpdated}
-                                    compact
-                                  />
+                                {head ? (
+                                  <>
+                                    <MemberVoterIdField
+                                      member={head}
+                                      canEdit={canEdit}
+                                      onUpdated={onVoterIdUpdated}
+                                      compact
+                                    />
+                                    <MemberDobField
+                                      member={head}
+                                      canEdit={canEdit}
+                                      onUpdated={onVoterIdUpdated}
+                                      compact
+                                    />
+                                  </>
                                 ) : null}
                               </div>
                               {entry.showCommittee ? (
@@ -304,7 +324,8 @@ export function WardPanel({
                                 </PanelActionLink>
                               ) : null}
                             </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
 

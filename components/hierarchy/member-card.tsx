@@ -5,12 +5,15 @@ import { ChevronRight, Pencil, Phone } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { MemberAvatar } from './member-avatar';
+import { MemberDobField } from './member-dob-field';
+import { MemberPositionField } from './member-position-field';
 import { MemberVoterIdField } from './member-voter-id-field';
 import {
   getMemberDisplayName,
   getMemberPhone,
   getPostGeoChip,
 } from '@/lib/hierarchy/geo-attribution';
+import { useTranslations } from '@/hooks/use-translations';
 import { getPostBreadcrumbItems } from '@/lib/hierarchy/geo-navigation';
 import {
   getAltPosts,
@@ -33,6 +36,7 @@ export const MemberCard = memo(function MemberCard({
   onEdit,
   onVoterIdUpdated,
 }: MemberCardProps) {
+  const { t } = useTranslations();
   const name = getMemberDisplayName(member);
   const phone = getMemberPhone(member);
   const primary = getPrimaryPost(member);
@@ -99,10 +103,14 @@ export const MemberCard = memo(function MemberCard({
         </div>
       </div>
 
-      <div className="mt-3 space-y-0.5">
-        <p className="text-sm font-semibold text-foreground">
-          {primary ? getPostTitle(primary) : 'No post assigned'}
-        </p>
+      <div className="mt-3 space-y-1.5">
+        <MemberPositionField
+          label={primary ? getPostTitle(primary) : t('hierarchyModule.positionMissing')}
+          missing={!primary}
+          canEdit={canEdit}
+          onEdit={!primary && onEdit ? () => onEdit(member) : undefined}
+          prominent
+        />
         {altPosts.map((post) => (
           <p key={post.id} className="text-xs font-medium italic text-amber-700 dark:text-amber-300">
             {getPostTitle(post)} (Alt)
@@ -111,6 +119,11 @@ export const MemberCard = memo(function MemberCard({
       </div>
 
       <MemberVoterIdField
+        member={member}
+        canEdit={canEdit}
+        onUpdated={onVoterIdUpdated}
+      />
+      <MemberDobField
         member={member}
         canEdit={canEdit}
         onUpdated={onVoterIdUpdated}

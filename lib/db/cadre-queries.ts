@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase/server';
 import { sql as pgSql } from '@/lib/db/postgres';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { throwOnSupabaseError } from '@/lib/db/errors';
+import { getTodayDateStringIST, parseFlexibleDateToYmd } from '@/lib/ist-date';
 import { TABLES } from './schema';
 import {
   mapCadreGeographicUnitRow,
@@ -771,12 +772,17 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
           supabase.from(TABLES.user).select('id, user_id').in('id', chunk),
         'Failed to load linked users',
       ),
-      selectByIdsInChunks<{ epic_number: string; full_name: string }>(
+      selectByIdsInChunks<{
+        epic_number: string;
+        full_name: string;
+        dob: string | null;
+        age: number | null;
+      }>(
         epicNumbers,
         (chunk) =>
           supabase
             .from(TABLES.voterMaster)
-            .select('epic_number, full_name')
+            .select('epic_number, full_name, dob, age')
             .in('epic_number', chunk),
         'Failed to load linked voters',
       ),
@@ -950,6 +956,8 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
         epicNumber: String(row.epic_number),
         fullName: String(row.full_name),
         mobile: null as string | null,
+        dob: row.dob ? String(row.dob).slice(0, 10) : null,
+        age: row.age == null || Number.isNaN(Number(row.age)) ? null : Number(row.age),
       },
     ]),
   );
@@ -1559,6 +1567,8 @@ export type CadreMemberInput = {
   photoUrl?: string | null;
   userId?: string | null;
   epicNumber?: string | null;
+  /** Calendar date `yyyy-MM-dd` written to the linked voter. Null clears it. */
+  dob?: string | null;
   notes?: string | null;
   appointedAt?: Date | null;
   termEndsAt?: Date | null;
@@ -1755,6 +1765,50 @@ async function syncCadreMemberWhatsApp(
   throwOnSupabaseError(error, 'Failed to save member WhatsApp number');
 }
 
+function normalizeMemberDob(value: string | null): string | null {
+  const trimmed = value?.trim() ?? '';
+  if (!trimmed) return null;
+  const ymd = parseFlexibleDateToYmd(trimmed);
+  if (!ymd) throw new Error('Date of birth must be a valid date');
+  if (ymd > getTodayDateStringIST()) {
+    throw new Error('Date of birth cannot be in the future');
+  }
+  if (ymd < '1900-01-01') {
+    throw new Error('Date of birth is too far in the past');
+  }
+  return ymd;
+}
+
+/**
+ * DOB lives only on VoterMaster, so a member without a voter ID has no DOB.
+ * Returns the normalized `yyyy-MM-dd` (or null to clear) once the pairing is
+ * valid; call this before any member write so a bad request leaves nothing behind.
+ */
+function resolveVoterDobChange(
+  epicNumber: string | null | undefined,
+  dob: string | null | undefined,
+): { epic: string; dob: string | null } | null {
+  if (dob === undefined) return null;
+  const epic = epicNumber?.trim();
+  if (!epic) {
+    throw new Error('Link a voter ID before setting date of birth');
+  }
+  return { epic, dob: dob == null ? null : normalizeMemberDob(dob) };
+}
+
+async function syncLinkedVoterDob(epic: string, dob: string | null): Promise<void> {
+  const { data, error } = await supabase
+    .from(TABLES.voterMaster)
+    .update({ dob })
+    .eq('epic_number', epic)
+    .select('epic_number')
+    .maybeSingle();
+  throwOnSupabaseError(error, 'Failed to update voter date of birth');
+  if (!data) {
+    throw new Error('Voter not found');
+  }
+}
+
 export async function createCadreMember(
   input: CadreMemberInput,
   createdBy: string,
@@ -1766,6 +1820,7 @@ export async function createCadreMember(
     throw new Error('At least one vertical is required');
   }
 
+  const dobChange = resolveVoterDobChange(input.epicNumber, input.dob);
   const person = await resolveMemberPersonFields(input);
 
   const { data, error } = await supabase
@@ -1809,6 +1864,8 @@ export async function createCadreMember(
 
   await syncCadreMemberWhatsApp(member.id, input, createdBy);
 
+  if (dobChange) await syncLinkedVoterDob(dobChange.epic, dobChange.dob);
+
   return member;
 }
 
@@ -1819,11 +1876,19 @@ export async function updateCadreMember(
 ): Promise<CadreMember> {
   const { data: existing, error: existingError } = await supabase
     .from(TABLES.cadreMember)
-    .select('id, person_name, person_phone, person_email')
+    .select('id, person_name, person_phone, person_email, epic_number')
     .eq('id', id)
     .maybeSingle();
   throwOnSupabaseError(existingError, 'Failed to load cadre member');
   if (!existing) throw new Error('Member not found');
+
+  const nextEpic =
+    input.epicNumber !== undefined
+      ? input.epicNumber
+      : existing.epic_number
+        ? String(existing.epic_number)
+        : null;
+  const dobChange = resolveVoterDobChange(nextEpic, input.dob);
 
   const person = await resolveMemberPersonFields(input);
 
@@ -1911,6 +1976,8 @@ export async function updateCadreMember(
   }
 
   await syncCadreMemberWhatsApp(id, input, updatedBy);
+
+  if (dobChange) await syncLinkedVoterDob(dobChange.epic, dobChange.dob);
 
   return member;
 }
