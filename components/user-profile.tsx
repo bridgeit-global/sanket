@@ -56,20 +56,25 @@ export function UserProfile({ userId }: { userId: string }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>My Profile</CardTitle>
+    <Card className="min-w-0">
+      <CardHeader className="p-4 md:p-6">
+        <CardTitle className="break-words">My Profile</CardTitle>
       </CardHeader>
-      <CardContent>
-        <div className="mb-4">
-          <p className="font-medium">{session?.user?.userId ?? 'Guest'}</p>
-          <p className="text-sm text-muted-foreground">
+      <CardContent className="min-w-0 p-4 pt-0 md:p-6 md:pt-0">
+        <div className="mb-4 min-w-0">
+          <p className="break-words font-medium">
+            {session?.user?.userId ?? 'Guest'}
+          </p>
+          <p className="break-words text-sm text-muted-foreground">
             Role: {session?.user?.roleName || 'No role assigned'}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
-          <div className="space-y-2">
+        <form
+          onSubmit={handleSubmit}
+          className="grid min-w-0 grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3"
+        >
+          <div className="min-w-0 space-y-2">
             <Label htmlFor="currentPassword">Current Password</Label>
             <Input
               id="currentPassword"
@@ -78,7 +83,7 @@ export function UserProfile({ userId }: { userId: string }) {
               onChange={(e) => setCurrentPassword(e.target.value)}
             />
           </div>
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
             <Label htmlFor="newPassword">New Password</Label>
             <Input
               id="newPassword"
@@ -87,7 +92,7 @@ export function UserProfile({ userId }: { userId: string }) {
               onChange={(e) => setNewPassword(e.target.value)}
             />
           </div>
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
             <Label htmlFor="confirmPassword">Confirm New Password</Label>
             <Input
               id="confirmPassword"
@@ -98,14 +103,18 @@ export function UserProfile({ userId }: { userId: string }) {
           </div>
           {message && (
             <p
-              className={`text-sm ${
+              className={`break-words text-sm md:col-span-2 lg:col-span-3 ${
                 isError ? 'text-destructive' : 'text-green-600'
               }`}
             >
               {message}
             </p>
           )}
-          <Button type="submit">Change Password</Button>
+          <div className="md:col-span-2 lg:col-span-3">
+            <Button type="submit" className="h-10 w-full sm:w-auto">
+              Change Password
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>

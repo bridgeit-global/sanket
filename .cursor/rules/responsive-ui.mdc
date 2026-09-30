@@ -1,0 +1,46 @@
+---
+alwaysApply: true
+---
+# Responsive UI (mobile, tablet, desktop)
+
+Build every screen mobile-first with Tailwind. It must work at three widths. Do not add custom breakpoints.
+
+| Band | Width | Classes |
+|------|--------|---------|
+| Mobile | under 768px | default (no prefix). Sidebar is a sheet via `useIsMobile` (768). |
+| Tablet | 768–1023px | `md:` |
+| Desktop | 1024px and up | `lg:` and up |
+
+`sm:` (640px) is only for small phone tweaks (full-width buttons, stacked toolbars).
+
+## Layout
+
+- Page headers: `flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`.
+- Forms and filters: `grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3`.
+- Primary actions: `w-full sm:w-auto`. Keep controls at least `h-10`; do not shrink tap targets on mobile.
+- Inputs, selects, and date controls stay `w-full` until `md:`.
+- Tables: from `md:` keep the table. Below `md:`, use a stacked card list, or wrap the table in `overflow-x-auto` on a `min-w-0` parent. The page itself must not scroll sideways.
+- Dialogs: near full width on mobile (`w-[calc(100%-2rem)]`), then the existing max width (`sm:max-w-lg` or larger) from tablet up.
+- Long text: `min-w-0` on flex children, plus `truncate` or `break-words`.
+
+## Interaction
+
+- Primary actions stay visible without hover. Mobile and tablet have no hover.
+- A sidebar that stays open on `lg:` must use the existing sheet sidebar below `md:`.
+- Shorten labels on small screens with `hidden sm:inline` / `sm:hidden` when the full label will not fit. Do not drop the action.
+
+## Examples
+
+```tsx
+// BAD — fixed desktop row, overflows a phone
+<div className="flex items-center justify-between gap-4">
+  <Button className="w-[180px]">Save</Button>
+</div>
+
+// GOOD
+<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <Button className="w-full sm:w-auto">Save</Button>
+</div>
+```
+
+When layout changes, check the screen around 390px (mobile), 768px (tablet), and 1280px (desktop).
