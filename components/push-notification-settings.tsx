@@ -27,12 +27,14 @@ export function PushNotificationSettings() {
 
   if (!isSupported) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Push Notifications</CardTitle>
+      <Card className="min-w-0">
+        <CardHeader className="p-4 md:p-6">
+          <CardTitle className="break-words text-lg md:text-xl">
+            Push Notifications
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
+        <CardContent className="p-4 pt-0 md:p-6 md:pt-0">
+          <p className="break-words text-sm text-muted-foreground">
             Push notifications are not supported in this browser.
           </p>
         </CardContent>
@@ -41,12 +43,14 @@ export function PushNotificationSettings() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Push Notifications</CardTitle>
+    <Card className="min-w-0">
+      <CardHeader className="p-4 md:p-6">
+        <CardTitle className="break-words text-lg md:text-xl">
+          Push Notifications
+        </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
+      <CardContent className="min-w-0 space-y-4 p-4 pt-0 md:p-6 md:pt-0">
+        <p className="break-words text-sm text-muted-foreground">
           Receive alerts for task escalations, assignments, and beneficiary
           service updates — even when the app is in the background.
         </p>
@@ -60,7 +64,7 @@ export function PushNotificationSettings() {
 
         {error && <p className="text-sm text-destructive">{error}</p>}
 
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
           {isSubscribed ? (
             <>
               <Button
@@ -68,18 +72,22 @@ export function PushNotificationSettings() {
                 variant="outline"
                 onClick={() => void unsubscribe()}
                 disabled={isLoading}
+                className="h-10 w-full sm:w-auto"
               >
-                <BellOff className="mr-2 size-4" />
-                Disable notifications
+                <BellOff className="size-4 shrink-0" />
+                <span className="sm:hidden">Disable</span>
+                <span className="hidden sm:inline">Disable notifications</span>
               </Button>
               <Button
                 type="button"
                 variant="secondary"
                 onClick={() => void subscribe()}
                 disabled={isLoading || permission === 'denied'}
+                className="h-10 w-full sm:w-auto"
               >
-                <Bell className="mr-2 size-4" />
-                Refresh subscription
+                <Bell className="size-4 shrink-0" />
+                <span className="sm:hidden">Refresh</span>
+                <span className="hidden sm:inline">Refresh subscription</span>
               </Button>
             </>
           ) : (
@@ -87,8 +95,9 @@ export function PushNotificationSettings() {
               type="button"
               onClick={() => void subscribe()}
               disabled={isLoading || permission === 'denied'}
+              className="h-10 w-full sm:w-auto"
             >
-              <Bell className="mr-2 size-4" />
+              <Bell className="size-4 shrink-0" />
               Enable notifications
             </Button>
           )}

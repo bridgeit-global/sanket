@@ -12,11 +12,11 @@ export default async function ProfilePage() {
   }
 
   return (
-    <div className="container mx-auto p-4 sm:py-8 max-w-7xl">
+    <div className="mx-auto w-full min-w-0 max-w-7xl px-3 py-4 sm:px-4 md:py-6 lg:py-8">
       <ProfileHeader />
       <div className="space-y-6">
         <PushNotificationSettings />
-        <UserProfile userId={session.user.id} />
+        <UserProfile />
       </div>
     </div>
   );

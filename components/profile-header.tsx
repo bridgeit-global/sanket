@@ -1,11 +1,13 @@
 'use client';
 
-import { SidebarToggle } from '@/components/sidebar-toggle';
+import { ModulePageHeader } from '@/components/module-page-header';
 
 export function ProfileHeader() {
   return (
-    <div className="flex items-center gap-3 mb-6">
-      <SidebarToggle />
-    </div>
+    <ModulePageHeader
+      title="Profile"
+      description="View your account and update your password"
+      className="mb-4 md:mb-6"
+    />
   );
 }
