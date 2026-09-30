@@ -204,8 +204,13 @@ function computeLetterPreviewDisplayScale(
           ? 1.1
           : 1
       : 1;
-  const minScale = variant === 'modal' ? 0.7 : 0.55;
+  // Modal preview must stay inside the dialog. A floor above the fit scale
+  // makes A4 wider than a phone and forces sideways scrolling.
+  if (variant === 'modal') {
+    return Math.min(maxScale, fitScale);
+  }
 
+  const minScale = 0.55;
   return Math.min(maxScale, Math.max(minScale, fitScale));
 }
 
@@ -465,8 +470,8 @@ export function LetterPreview({
   } as const;
 
   return (
-    <div ref={rootRef} className="w-full">
-      <div className="mx-auto" style={{ width: scaledPaperWidthPx }}>
+    <div ref={rootRef} className="w-full min-w-0 max-w-full">
+      <div className="mx-auto max-w-full" style={{ width: scaledPaperWidthPx }}>
         {pageStartOffsetsPx.map((startOffsetPx, pageIndex) => {
           const nextStartPx = pageStartOffsetsPx[pageIndex + 1];
           const pageContentHeightPx =

@@ -6988,7 +6988,7 @@ export function LetterGeneration({
                   >
                     <DialogContent
                       className={cn(
-                        'max-h-[90vh] w-[calc(100%-2rem)] overflow-y-auto p-4 sm:w-full sm:p-6',
+                        'flex max-h-[90dvh] w-[calc(100%-2rem)] min-w-0 flex-col gap-3 overflow-hidden p-4 sm:gap-4 sm:p-6',
                         selectedSavedLetter
                           ? getLetterPreviewDialogMaxWidthClass(
                             resolveSavedLetterPaperSize(selectedSavedLetter),
@@ -6998,119 +6998,117 @@ export function LetterGeneration({
                     >
                       {selectedSavedLetter ? (
                         <>
-                          <DialogHeader className="space-y-4">
-                            <div className="flex flex-col gap-3 pr-8 sm:flex-row sm:items-start sm:justify-between">
-                              <div className="space-y-1.5 text-left">
-                                <DialogTitle>
-                                  {selectedSavedLetter.title}{' '}
-                                  {selectedSavedLetter.referenceNo
-                                    ? `- ${formatReferenceForDisplay(selectedSavedLetter.referenceNo, locale)}`
-                                    : ''}
-                                </DialogTitle>
-                                <DialogDescription>
-                                  {resolveTypeLabel(selectedSavedLetter.letterType)} ·{' '}
-                                  {t('letterGeneration.paperSize.label', {
-                                    size: getLetterPaperLabel(
-                                      resolveSavedLetterPaperSize(selectedSavedLetter),
-                                    ),
-                                  })}
-                                </DialogDescription>
-                              </div>
-                              <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row sm:items-center">
-                                {outwardAddedReferenceNos.has(
-                                  selectedSavedLetter.referenceNo,
-                                ) ? (
-                                  <Button
-                                    asChild
-                                    size="sm"
-                                    variant="outline"
-                                    className="w-full sm:w-auto"
-                                  >
-                                    <Link
-                                      href={buildOutwardEntryHref(selectedSavedLetter)}
-                                    >
-                                      <ExternalLink className="mr-2 size-4" />
-                                      {t(
-                                        'letterGeneration.savedLetters.actions.goToOutward',
-                                      )}
-                                    </Link>
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="w-full sm:w-auto"
-                                    onClick={() =>
-                                      void handleAddLetterToOutward(selectedSavedLetter)
-                                    }
-                                    disabled={
-                                      addingToOutwardLetterId === selectedSavedLetter.id
-                                    }
-                                  >
-                                    {addingToOutwardLetterId ===
-                                    selectedSavedLetter.id ? (
-                                      <Loader2 className="mr-2 size-4 animate-spin" />
-                                    ) : (
-                                      <Send className="mr-2 size-4" />
-                                    )}
-                                    {t(
-                                      'letterGeneration.savedLetters.actions.addToOutward',
-                                    )}
-                                  </Button>
-                                )}
+                          <DialogHeader className="shrink-0 space-y-3 pr-8 text-left">
+                            <div className="min-w-0 space-y-1.5">
+                              <DialogTitle className="break-words text-base leading-snug sm:text-lg">
+                                {selectedSavedLetter.title}{' '}
+                                {selectedSavedLetter.referenceNo
+                                  ? `- ${formatReferenceForDisplay(selectedSavedLetter.referenceNo, locale)}`
+                                  : ''}
+                              </DialogTitle>
+                              <DialogDescription className="break-words">
+                                {resolveTypeLabel(selectedSavedLetter.letterType)} ·{' '}
+                                {t('letterGeneration.paperSize.label', {
+                                  size: getLetterPaperLabel(
+                                    resolveSavedLetterPaperSize(selectedSavedLetter),
+                                  ),
+                                })}
+                              </DialogDescription>
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap">
+                              {outwardAddedReferenceNos.has(
+                                selectedSavedLetter.referenceNo,
+                              ) ? (
                                 <Button
                                   asChild
                                   size="sm"
                                   variant="outline"
-                                  className="w-full sm:w-auto"
+                                  className="h-auto min-h-10 w-full justify-start whitespace-normal px-3 py-2 text-left text-xs leading-snug sm:text-sm lg:w-auto lg:justify-center"
                                 >
                                   <Link
-                                    href={`/modules/gov-follow-up?new=1&letterId=${selectedSavedLetter.id}`}
+                                    href={buildOutwardEntryHref(selectedSavedLetter)}
                                   >
-                                    <PhoneCall className="mr-2 size-4" />
-                                    {t('govFollowUp.startFollowUp')}
+                                    <ExternalLink className="mr-2 size-4 shrink-0" />
+                                    {t(
+                                      'letterGeneration.savedLetters.actions.goToOutward',
+                                    )}
                                   </Link>
                                 </Button>
+                              ) : (
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="w-full sm:w-auto"
+                                  className="h-auto min-h-10 w-full justify-start whitespace-normal px-3 py-2 text-left text-xs leading-snug sm:text-sm lg:w-auto lg:justify-center"
                                   onClick={() =>
-                                    void handlePrintSavedLetter(selectedSavedLetter)
+                                    void handleAddLetterToOutward(selectedSavedLetter)
                                   }
                                   disabled={
-                                    printingLetterId === selectedSavedLetter.id
+                                    addingToOutwardLetterId === selectedSavedLetter.id
                                   }
                                 >
-                                  {printingLetterId === selectedSavedLetter.id ? (
-                                    <Loader2 className="mr-2 size-4 animate-spin" />
+                                  {addingToOutwardLetterId ===
+                                  selectedSavedLetter.id ? (
+                                    <Loader2 className="mr-2 size-4 shrink-0 animate-spin" />
                                   ) : (
-                                    <Printer className="mr-2 size-4" />
+                                    <Send className="mr-2 size-4 shrink-0" />
                                   )}
-                                  {t('letterGeneration.savedLetters.actions.print')}
+                                  {t(
+                                    'letterGeneration.savedLetters.actions.addToOutward',
+                                  )}
                                 </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="w-full sm:w-auto"
-                                  onClick={() =>
-                                    void handleDownloadSavedLetter(selectedSavedLetter)
-                                  }
-                                  disabled={
-                                    downloadingLetterId === selectedSavedLetter.id
-                                  }
+                              )}
+                              <Button
+                                asChild
+                                size="sm"
+                                variant="outline"
+                                className="h-auto min-h-10 w-full justify-start whitespace-normal px-3 py-2 text-left text-xs leading-snug sm:text-sm lg:w-auto lg:justify-center"
+                              >
+                                <Link
+                                  href={`/modules/gov-follow-up?new=1&letterId=${selectedSavedLetter.id}`}
                                 >
-                                  {downloadingLetterId === selectedSavedLetter.id ? (
-                                    <Loader2 className="mr-2 size-4 animate-spin" />
-                                  ) : (
-                                    <FileDown className="mr-2 size-4" />
-                                  )}
-                                  {t('letterGeneration.savedLetters.actions.download')}
-                                </Button>
-                              </div>
+                                  <PhoneCall className="mr-2 size-4 shrink-0" />
+                                  {t('govFollowUp.startFollowUp')}
+                                </Link>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-auto min-h-10 w-full justify-start whitespace-normal px-3 py-2 text-left text-xs leading-snug sm:text-sm lg:w-auto lg:justify-center"
+                                onClick={() =>
+                                  void handlePrintSavedLetter(selectedSavedLetter)
+                                }
+                                disabled={
+                                  printingLetterId === selectedSavedLetter.id
+                                }
+                              >
+                                {printingLetterId === selectedSavedLetter.id ? (
+                                  <Loader2 className="mr-2 size-4 shrink-0 animate-spin" />
+                                ) : (
+                                  <Printer className="mr-2 size-4 shrink-0" />
+                                )}
+                                {t('letterGeneration.savedLetters.actions.print')}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-auto min-h-10 w-full justify-start whitespace-normal px-3 py-2 text-left text-xs leading-snug sm:text-sm lg:w-auto lg:justify-center"
+                                onClick={() =>
+                                  void handleDownloadSavedLetter(selectedSavedLetter)
+                                }
+                                disabled={
+                                  downloadingLetterId === selectedSavedLetter.id
+                                }
+                              >
+                                {downloadingLetterId === selectedSavedLetter.id ? (
+                                  <Loader2 className="mr-2 size-4 shrink-0 animate-spin" />
+                                ) : (
+                                  <FileDown className="mr-2 size-4 shrink-0" />
+                                )}
+                                {t('letterGeneration.savedLetters.actions.download')}
+                              </Button>
                             </div>
                           </DialogHeader>
-                          <div className="w-full">
+                          <div className="min-h-0 min-w-0 w-full flex-1 overflow-x-hidden overflow-y-auto">
                             <LetterPreview
                               html={selectedSavedLetter.renderedHtml}
                               paperSize={resolveSavedLetterPaperSize(selectedSavedLetter)}
