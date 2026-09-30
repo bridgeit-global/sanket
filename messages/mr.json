@@ -1554,7 +1554,8 @@
     "milestones": "मैलाचे दगड",
     "tabs": {
       "funds": "निधी",
-      "demandLetters": "मागणी पत्रे"
+      "demandLetters": "मागणी पत्रे",
+      "fundRequestLetters": "निधीसाठी प्रलंबित विनंती पत्रे"
     },
     "demandLetters": {
       "add": "मागणी पत्र जोडा",
@@ -1583,6 +1584,53 @@
       "failedToLoad": "मागणी पत्रे लोड करण्यात अयशस्वी",
       "failedToUpload": "मागणी पत्र अपलोड करण्यात अयशस्वी",
       "failedToDelete": "मागणी पत्र हटवण्यात अयशस्वी"
+    },
+    "fundRequestLetters": {
+      "add": "विनंती पत्र अपलोड करा",
+      "date": "दिनांक",
+      "title": "शीर्षक",
+      "document": "PDF",
+      "actions": "क्रिया",
+      "statusLabel": "स्थिती",
+      "statusAll": "सर्व स्थिती",
+      "status": {
+        "pending": "निधीसाठी प्रलंबित",
+        "linked": "ADM शी जोडलेले",
+        "sanctioned": "मंजूर",
+        "rejected": "नाकारले"
+      },
+      "fund": "ADM निधी",
+      "fundPlaceholder": "ADM निधी निवडा",
+      "noFund": "जोडलेले नाही",
+      "notLinked": "जोडलेले नाही",
+      "linkedFund": "जोडलेला निधी",
+      "fundHint": "जोडलेली आणि मंजूर पत्रे ADM निधीशी जोडलेली असावीत. प्रलंबित असताना निधी निवडल्यास पत्र जोडलेले म्हणून नोंदले जाते.",
+      "linkAction": "स्थिती आणि ADM दुवा",
+      "linkTitle": "स्थिती आणि ADM शी दुवा",
+      "filterTitle": "शीर्षक",
+      "filterTitlePlaceholder": "शीर्षकानुसार फिल्टर करा...",
+      "fromDate": "पासून दिनांक",
+      "toDate": "पर्यंत दिनांक",
+      "titlePlaceholder": "उदा. रस्ता कामाची विनंती, गोवंडी",
+      "fileHint": "फक्त PDF, कमाल २५MB",
+      "upload": "अपलोड",
+      "viewPdf": "PDF पहा",
+      "loading": "विनंती पत्रे लोड होत आहेत...",
+      "empty": "निधीसाठी प्रलंबित विनंती पत्रे अद्याप नाहीत.",
+      "noMatch": "आपल्या फिल्टरशी जुळणारी विनंती पत्रे नाहीत.",
+      "delete": "विनंती पत्र हटवा",
+      "deleteDescription": "हे विनंती पत्र आणि त्याचा PDF हटवायचा का?",
+      "titleRequired": "शीर्षक आवश्यक आहे",
+      "dateRequired": "दिनांक आवश्यक आहे",
+      "fileRequired": "PDF आवश्यक आहे",
+      "fundRequired": "या स्थितीसाठी ADM निधी जोडा",
+      "uploadedSuccess": "विनंती पत्र अपलोड झाले",
+      "updatedSuccess": "विनंती पत्र अद्ययावत झाले",
+      "deletedSuccess": "विनंती पत्र हटवले",
+      "failedToLoad": "विनंती पत्रे लोड करण्यात अयशस्वी",
+      "failedToUpload": "विनंती पत्र अपलोड करण्यात अयशस्वी",
+      "failedToUpdate": "विनंती पत्र अद्ययावत करण्यात अयशस्वी",
+      "failedToDelete": "विनंती पत्र हटवण्यात अयशस्वी"
     }
   },
   "dataExport": {
@@ -2201,6 +2249,9 @@
       "taskType": "कार्य प्रकार",
       "letters": "पत्रे",
       "generateLetter": "पत्र तयार करा",
+      "requestLettersPending": "निधीसाठी प्रलंबित विनंती पत्रे",
+      "requestLettersPendingShort": "प्रलंबित पत्रे",
+      "noRequestLetters": "या सेवेसाठी निधीसाठी प्रलंबित विनंती पत्रे अद्याप नाहीत.",
       "downloadLetter": "डाउनलोड",
       "downloadLetterUnavailable": "PDF अद्याप उपलब्ध नाही — पत्र तयार करा उघडून एकदा डाउनलोड करा.",
       "downloadLetterSuccess": "पत्राचे PDF यशस्वीपणे डाउनलोड झाले",

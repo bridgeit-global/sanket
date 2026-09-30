@@ -16,6 +16,7 @@ import type {
   AdmDocument,
   AdmFundingCategoryWithFunds,
 } from '@/lib/db/schema';
+import { admFundOptionLabel } from '@/lib/adm/fund-request-letter';
 import {
   buildAdmSearchParams,
   parseAdmFiltersFromSearchParams,
@@ -23,6 +24,10 @@ import {
 import { AdmProfileBanner } from './adm/adm-profile-banner';
 import { AdmFundsList } from './adm/adm-funds-list';
 import { AdmDemandLetters } from './adm/adm-demand-letters';
+import {
+  AdmFundRequestLetters,
+  type AdmFundLinkOption,
+} from './adm/adm-fund-request-letters';
 import type { AdmCreateProjectValues, AdmProjectOption } from './adm/adm-fund-detail';
 
 export function AdmModule() {
@@ -41,6 +46,10 @@ export function AdmModule() {
   const [dlTitle, setDlTitle] = useState(urlState.dlTitle);
   const [dlFrom, setDlFrom] = useState(urlState.dlFrom);
   const [dlTo, setDlTo] = useState(urlState.dlTo);
+  const [rlTitle, setRlTitle] = useState(urlState.rlTitle);
+  const [rlStatus, setRlStatus] = useState(urlState.rlStatus);
+  const [rlFrom, setRlFrom] = useState(urlState.rlFrom);
+  const [rlTo, setRlTo] = useState(urlState.rlTo);
 
   const [deleteFundId, setDeleteFundId] = useState<string | null>(null);
   const [deleteAllocation, setDeleteAllocation] =
@@ -59,6 +68,10 @@ export function AdmModule() {
           dlTitle: updates.dlTitle ?? dlTitle,
           dlFrom: updates.dlFrom ?? dlFrom,
           dlTo: updates.dlTo ?? dlTo,
+          rlTitle: updates.rlTitle ?? rlTitle,
+          rlStatus: updates.rlStatus ?? rlStatus,
+          rlFrom: updates.rlFrom ?? rlFrom,
+          rlTo: updates.rlTo ?? rlTo,
         },
         new URLSearchParams(searchParams.toString()),
       );
@@ -74,6 +87,10 @@ export function AdmModule() {
       dlTitle,
       dlFrom,
       dlTo,
+      rlTitle,
+      rlStatus,
+      rlFrom,
+      rlTo,
     ],
   );
 
@@ -146,6 +163,41 @@ export function AdmModule() {
   const handleSelectFund = (fundId: string) => {
     setFocusFundId(fundId);
     syncUrl({ fund: fundId });
+  };
+
+  const handleOpenLinkedFund = (fundId: string) => {
+    handleSelectFund(fundId);
+    document.getElementById('adm-funds')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  };
+
+  const fundLinkOptions: AdmFundLinkOption[] = funds.map((fund) => ({
+    id: fund.id,
+    label: admFundOptionLabel({
+      categoryName: fund.categoryName,
+      financialYear: fund.financialYear,
+      batchLabel: fund.batchLabel,
+    }),
+  }));
+
+  const handleRequestLetterFiltersChange = (updates: {
+    title?: string;
+    status?: string;
+    from?: string;
+    to?: string;
+  }) => {
+    if (updates.title !== undefined) setRlTitle(updates.title);
+    if (updates.status !== undefined) setRlStatus(updates.status);
+    if (updates.from !== undefined) setRlFrom(updates.from);
+    if (updates.to !== undefined) setRlTo(updates.to);
+    syncUrl({
+      rlTitle: updates.title ?? rlTitle,
+      rlStatus: updates.status ?? rlStatus,
+      rlFrom: updates.from ?? rlFrom,
+      rlTo: updates.to ?? rlTo,
+    });
   };
 
   const handleBackToList = useCallback(() => {
@@ -379,7 +431,7 @@ export function AdmModule() {
 
       <AdmProfileBanner />
 
-      <section className="space-y-4">
+      <section id="adm-funds" className="space-y-4">
         <h2 className="text-lg font-semibold tracking-tight">
           {t('adm.tabs.funds')}
         </h2>
@@ -419,6 +471,23 @@ export function AdmModule() {
         />
       </section>
 
+
+      <section className="space-y-4">
+        <div className="space-y-1">
+          <h2 className="text-lg font-semibold tracking-tight">
+            {t('adm.tabs.fundRequestLetters')}
+          </h2>
+        </div>
+        <AdmFundRequestLetters
+          funds={fundLinkOptions}
+          titleFilter={rlTitle}
+          statusFilter={rlStatus}
+          fromDate={rlFrom}
+          toDate={rlTo}
+          onFiltersChange={handleRequestLetterFiltersChange}
+          onOpenFund={handleOpenLinkedFund}
+        />
+      </section>
 
       <section className="space-y-4">
         <h2 className="text-lg font-semibold tracking-tight">

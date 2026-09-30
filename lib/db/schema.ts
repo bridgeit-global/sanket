@@ -66,6 +66,7 @@ export const TABLES = {
   admFundAllocation: 'AdmFundAllocation',
   admDocument: 'AdmDocument',
   admDemandLetter: 'AdmDemandLetter',
+  admFundRequestLetter: 'AdmFundRequestLetter',
   projectGroundMedia: 'ProjectGroundMedia',
   shortUrl: 'ShortUrl',
   govFollowUpDepartment: 'GovFollowUpDepartment',
@@ -1006,6 +1007,31 @@ export type AdmDemandLetter = {
   fileName: string;
   fileSizeKb: number;
   fileUrl: string;
+  uploadedBy: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type AdmFundRequestLetterStatus =
+  | 'pending'
+  | 'linked'
+  | 'sanctioned'
+  | 'rejected';
+
+export type AdmFundRequestLetter = {
+  id: string;
+  /** IST calendar day as `yyyy-MM-dd`. */
+  letterDate: string;
+  title: string;
+  status: AdmFundRequestLetterStatus;
+  fundRecordId: string | null;
+  /** Category · financial year · batch, when the fund still exists. */
+  fundLabel: string | null;
+  beneficiaryServiceId: string | null;
+  fileName: string;
+  fileSizeKb: number;
+  /** Object path in the private `letters` bucket. */
+  storagePath: string;
   uploadedBy: string;
   createdAt: Date;
   updatedAt: Date;

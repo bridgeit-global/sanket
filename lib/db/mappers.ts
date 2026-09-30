@@ -61,6 +61,8 @@ import type {
   AdmFundAllocation,
   AdmDocument,
   AdmDemandLetter,
+  AdmFundRequestLetter,
+  AdmFundRequestLetterStatus,
   ProjectGroundMedia,
   ProjectGroundMediaPhotoType,
   ProjectApprovalStatus,
@@ -850,6 +852,40 @@ export function mapAdmDocumentRow(row: Row): AdmDocument {
     attachmentFileName: toStringOrNull(
       row.attachment_file_name ?? row.attachmentFileName,
     ),
+  };
+}
+
+const ADM_FUND_REQUEST_LETTER_STATUSES = new Set<AdmFundRequestLetterStatus>([
+  'pending',
+  'linked',
+  'sanctioned',
+  'rejected',
+]);
+
+export function mapAdmFundRequestLetterRow(row: Row): AdmFundRequestLetter {
+  const rawStatus = String(row.status ?? 'pending');
+  const status = ADM_FUND_REQUEST_LETTER_STATUSES.has(
+    rawStatus as AdmFundRequestLetterStatus,
+  )
+    ? (rawStatus as AdmFundRequestLetterStatus)
+    : 'pending';
+
+  return {
+    id: String(row.id),
+    letterDate: formatDateField(row.letter_date ?? row.letterDate),
+    title: String(row.title ?? ''),
+    status,
+    fundRecordId: toStringOrNull(row.fund_record_id ?? row.fundRecordId),
+    fundLabel: toStringOrNull(row.fund_label ?? row.fundLabel),
+    beneficiaryServiceId: toStringOrNull(
+      row.beneficiary_service_id ?? row.beneficiaryServiceId,
+    ),
+    fileName: String(row.file_name ?? row.fileName ?? ''),
+    fileSizeKb: Number(row.file_size_kb ?? row.fileSizeKb ?? 0),
+    storagePath: String(row.storage_path ?? row.storagePath ?? ''),
+    uploadedBy: String(row.uploaded_by ?? row.uploadedBy),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+    updatedAt: toDate(row.updated_at ?? row.updatedAt),
   };
 }
 

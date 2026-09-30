@@ -19,6 +19,7 @@ import type { BeneficiaryService, VoterTask, VoterWithPartNo } from '@/lib/db/sc
 import { TablePagination } from '@/components/table-pagination';
 import { QrCode, Share2, FileText, FileDown, Loader2, Paperclip, Upload, UserRoundPlus, X } from 'lucide-react';
 import { TagVoterDialog } from '@/components/tag-voter-dialog';
+import { FundRequestLetterDialog } from '@/components/adm/fund-request-letter-dialog';
 import { isValidIndianMobile, normalizeIndianMobileDigits } from '@/lib/indian-mobile';
 import { letterPdfDownloadFileName } from '@/lib/letters/pdf-storage';
 import { buildThermalTicketText, shareThermalTicketPdf } from '@/lib/thermal/receipt';
@@ -405,6 +406,7 @@ export function TaskManagement({
     const [isLoading, setIsLoading] = useState(true);
     const [selectedTask, setSelectedTask] = useState<TaskWithService | null>(null);
     const [showTaskDialog, setShowTaskDialog] = useState(false);
+    const [requestLetterOpen, setRequestLetterOpen] = useState(false);
     const [linkedLetters, setLinkedLetters] = useState<
         Array<{
             id: string;
@@ -1740,7 +1742,13 @@ export function TaskManagement({
 
 
             {/* Task Management Dialog */}
-            <Dialog open={showTaskDialog} onOpenChange={setShowTaskDialog}>
+            <Dialog
+                open={showTaskDialog}
+                onOpenChange={(open) => {
+                    setShowTaskDialog(open);
+                    if (!open) setRequestLetterOpen(false);
+                }}
+            >
                 <DialogContent className="max-h-[90vh] max-w-[95vw] overflow-y-auto sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>{t('taskManagement.dialog.manageTitle')}</DialogTitle>
@@ -1806,22 +1814,39 @@ export function TaskManagement({
                                 <div className="space-y-3 rounded-md border p-3">
                                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                         <Label>{t('taskManagement.dialog.letters')}</Label>
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            className="w-full sm:w-auto"
-                                            onClick={() =>
-                                                router.push(
-                                                    `/modules/letter-generation?beneficiaryServiceId=${encodeURIComponent(
-                                                        selectedTask.serviceId,
-                                                    )}`,
-                                                )
-                                            }
-                                        >
-                                            <FileText className="mr-2 size-4" />
-                                            {t('taskManagement.dialog.generateLetter')}
-                                        </Button>
+                                        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="min-h-10 w-full sm:w-auto"
+                                                onClick={() =>
+                                                    router.push(
+                                                        `/modules/letter-generation?beneficiaryServiceId=${encodeURIComponent(
+                                                            selectedTask.serviceId,
+                                                        )}`,
+                                                    )
+                                                }
+                                            >
+                                                <FileText className="mr-2 size-4" />
+                                                {t('taskManagement.dialog.generateLetter')}
+                                            </Button>
+                                            <Button
+                                                type="button"
+                                                variant="outline"
+                                                size="sm"
+                                                className="min-h-10 w-full sm:w-auto"
+                                                onClick={() => setRequestLetterOpen(true)}
+                                            >
+                                                <Upload className="mr-2 size-4" />
+                                                <span className="sm:hidden">
+                                                    {t('taskManagement.dialog.requestLettersPendingShort')}
+                                                </span>
+                                                <span className="hidden sm:inline">
+                                                    {t('taskManagement.dialog.requestLettersPending')}
+                                                </span>
+                                            </Button>
+                                        </div>
                                     </div>
                                     {linkedLettersLoading ? (
                                         <div className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground">
@@ -2223,6 +2248,15 @@ export function TaskManagement({
                     )}
                 </DialogContent>
             </Dialog>
+
+            {selectedTask?.serviceId ? (
+                <FundRequestLetterDialog
+                    open={requestLetterOpen}
+                    onOpenChange={setRequestLetterOpen}
+                    beneficiaryServiceId={selectedTask.serviceId}
+                    defaultTitle={selectedTask.service?.serviceName ?? ''}
+                />
+            ) : null}
 
             <TagVoterDialog
                 open={Boolean(tagVoterTask)}

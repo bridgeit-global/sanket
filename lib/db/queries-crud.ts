@@ -32,6 +32,7 @@ import {
   mapAdmFundAllocationRow,
   mapAdmDocumentRow,
   mapAdmDemandLetterRow,
+  mapAdmFundRequestLetterRow,
   mapProjectAttachmentRow,
   mapProjectGroundMediaRow,
   mapRegisterAttachmentRow,
@@ -57,6 +58,7 @@ import { generateHashedPassword } from './utils';
 import type { VisibilityType } from '@/components/visibility-selector';
 import type { ArtifactKind } from '@/components/artifact';
 import { ChatSDKError } from '../errors';
+import { admFundOptionLabel } from '@/lib/adm/fund-request-letter';
 import { normalizeProjectGeoSelection } from '@/lib/projects/hierarchy-geo';
 import { normalizeEpicNumber } from '@/lib/epic/normalize-epic';
 import { notifyPush, sendPushToUser } from '@/lib/push/send';
@@ -91,6 +93,8 @@ import type {
   AdmFundAllocationWithProject,
   AdmDocument,
   AdmDemandLetter,
+  AdmFundRequestLetter,
+  AdmFundRequestLetterStatus,
   AdmFundingCategoryWithFunds,
   AdmFundRecordWithDetails,
   ProjectAttachment,
@@ -7571,6 +7575,329 @@ export async function createAdmDemandLetter({
     throw new ChatSDKError(
       'bad_request:database',
       'Failed to create ADM demand letter',
+    );
+  }
+}
+
+async function attachAdmFundRequestLetterLabels(
+  letters: AdmFundRequestLetter[],
+): Promise<AdmFundRequestLetter[]> {
+  const fundIds = [
+    ...new Set(
+      letters
+        .map((letter) => letter.fundRecordId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  if (fundIds.length === 0) return letters;
+
+  const { data: fundRows, error: fundError } = await supabase
+    .from(TABLES.admFundRecord)
+    .select('id, financial_year, batch_label, category_id')
+    .in('id', fundIds);
+  throwOnSupabaseError(fundError, 'Failed to load ADM funds for request letters');
+
+  const categoryIds = [
+    ...new Set(
+      (fundRows ?? [])
+        .map((row) => String(row.category_id ?? ''))
+        .filter(Boolean),
+    ),
+  ];
+  const categoryNameById = new Map<string, string>();
+  if (categoryIds.length > 0) {
+    const { data: categoryRows, error: categoryError } = await supabase
+      .from(TABLES.admFundingCategory)
+      .select('id, name')
+      .in('id', categoryIds);
+    throwOnSupabaseError(
+      categoryError,
+      'Failed to load ADM fund types for request letters',
+    );
+    for (const row of categoryRows ?? []) {
+      categoryNameById.set(String(row.id), String(row.name ?? ''));
+    }
+  }
+
+  const labelByFundId = new Map<string, string>();
+  for (const row of fundRows ?? []) {
+    labelByFundId.set(
+      String(row.id),
+      admFundOptionLabel({
+        categoryName: categoryNameById.get(String(row.category_id ?? '')) ?? '',
+        financialYear: String(row.financial_year ?? ''),
+        batchLabel: String(row.batch_label ?? ''),
+      }),
+    );
+  }
+
+  return letters.map((letter) => ({
+    ...letter,
+    fundLabel: letter.fundRecordId
+      ? (labelByFundId.get(letter.fundRecordId) ?? null)
+      : null,
+  }));
+}
+
+export async function listAdmFundLinkOptions(): Promise<
+  Array<{ id: string; label: string }>
+> {
+  try {
+    const { data: fundRows, error: fundError } = await supabase
+      .from(TABLES.admFundRecord)
+      .select('id, financial_year, batch_label, category_id')
+      .order('financial_year', { ascending: false });
+    throwOnSupabaseError(fundError, 'Failed to list ADM funds');
+
+    const categoryIds = [
+      ...new Set(
+        (fundRows ?? [])
+          .map((row) => String(row.category_id ?? ''))
+          .filter(Boolean),
+      ),
+    ];
+    const categoryNameById = new Map<string, string>();
+    if (categoryIds.length > 0) {
+      const { data: categoryRows, error: categoryError } = await supabase
+        .from(TABLES.admFundingCategory)
+        .select('id, name')
+        .in('id', categoryIds);
+      throwOnSupabaseError(categoryError, 'Failed to list ADM fund types');
+      for (const row of categoryRows ?? []) {
+        categoryNameById.set(String(row.id), String(row.name ?? ''));
+      }
+    }
+
+    return (fundRows ?? []).map((row) => ({
+      id: String(row.id),
+      label: admFundOptionLabel({
+        categoryName: categoryNameById.get(String(row.category_id ?? '')) ?? '',
+        financialYear: String(row.financial_year ?? ''),
+        batchLabel: String(row.batch_label ?? ''),
+      }),
+    }));
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to list ADM funds');
+  }
+}
+
+export async function beneficiaryServiceExists(id: string): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.beneficiaryServices)
+      .select('id')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get beneficiary service');
+    return Boolean(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get beneficiary service',
+    );
+  }
+}
+
+export async function listAdmFundRequestLetters({
+  title,
+  status,
+  from,
+  to,
+  beneficiaryServiceId,
+}: {
+  title?: string;
+  status?: AdmFundRequestLetterStatus;
+  from?: string;
+  to?: string;
+  beneficiaryServiceId?: string;
+} = {}): Promise<AdmFundRequestLetter[]> {
+  try {
+    let query = supabase
+      .from(TABLES.admFundRequestLetter)
+      .select('*')
+      .order('letter_date', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    const trimmedTitle = title?.trim();
+    if (trimmedTitle) {
+      query = query.ilike('title', `%${trimmedTitle}%`);
+    }
+    if (status) {
+      query = query.eq('status', status);
+    }
+    if (from) {
+      query = query.gte('letter_date', from);
+    }
+    if (to) {
+      query = query.lte('letter_date', to);
+    }
+    if (beneficiaryServiceId) {
+      query = query.eq('beneficiary_service_id', beneficiaryServiceId);
+    }
+
+    const { data, error } = await query;
+    throwOnSupabaseError(error, 'Failed to list ADM fund request letters');
+    const letters = (data ?? []).map(mapAdmFundRequestLetterRow);
+    return attachAdmFundRequestLetterLabels(letters);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to list ADM fund request letters',
+    );
+  }
+}
+
+export async function getAdmFundRequestLetterById(
+  id: string,
+): Promise<AdmFundRequestLetter | null> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.admFundRequestLetter)
+      .select('*')
+      .eq('id', id)
+      .maybeSingle();
+    throwOnSupabaseError(error, 'Failed to get ADM fund request letter');
+    if (!data) return null;
+    const [letter] = await attachAdmFundRequestLetterLabels([
+      mapAdmFundRequestLetterRow(data),
+    ]);
+    return letter ?? null;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to get ADM fund request letter',
+    );
+  }
+}
+
+export async function createAdmFundRequestLetter({
+  id,
+  letterDate,
+  title,
+  status,
+  fundRecordId,
+  fileName,
+  fileSizeKb,
+  storagePath,
+  uploadedBy,
+  beneficiaryServiceId,
+}: {
+  id?: string;
+  letterDate: string;
+  title: string;
+  status: AdmFundRequestLetterStatus;
+  fundRecordId: string | null;
+  fileName: string;
+  fileSizeKb: number;
+  storagePath: string;
+  uploadedBy: string;
+  beneficiaryServiceId?: string | null;
+}): Promise<AdmFundRequestLetter> {
+  try {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Request letter title is required',
+      );
+    }
+
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.admFundRequestLetter)
+      .insert({
+        ...(id ? { id } : {}),
+        letter_date: letterDate,
+        title: trimmedTitle,
+        status,
+        fund_record_id: fundRecordId,
+        beneficiary_service_id: beneficiaryServiceId ?? null,
+        file_name: fileName,
+        file_size_kb: fileSizeKb,
+        storage_path: storagePath,
+        uploaded_by: uploadedBy,
+        created_at: now,
+        updated_at: now,
+      })
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to create ADM fund request letter');
+    const [letter] = await attachAdmFundRequestLetterLabels([
+      mapAdmFundRequestLetterRow(data),
+    ]);
+    if (!letter) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Failed to create ADM fund request letter',
+      );
+    }
+    return letter;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to create ADM fund request letter',
+    );
+  }
+}
+
+export async function updateAdmFundRequestLetter({
+  id,
+  status,
+  fundRecordId,
+}: {
+  id: string;
+  status: AdmFundRequestLetterStatus;
+  fundRecordId: string | null;
+}): Promise<AdmFundRequestLetter> {
+  try {
+    const { data, error } = await supabase
+      .from(TABLES.admFundRequestLetter)
+      .update({
+        status,
+        fund_record_id: fundRecordId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to update ADM fund request letter');
+    const [letter] = await attachAdmFundRequestLetterLabels([
+      mapAdmFundRequestLetterRow(data),
+    ]);
+    if (!letter) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Failed to update ADM fund request letter',
+      );
+    }
+    return letter;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to update ADM fund request letter',
+    );
+  }
+}
+
+export async function deleteAdmFundRequestLetter(id: string): Promise<boolean> {
+  try {
+    const { error } = await supabase
+      .from(TABLES.admFundRequestLetter)
+      .delete()
+      .eq('id', id);
+    throwOnSupabaseError(error, 'Failed to delete ADM fund request letter');
+    return true;
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to delete ADM fund request letter',
     );
   }
 }

@@ -4,6 +4,10 @@ export const ADM_URL_PARAMS = {
   dlTitle: 'dlTitle',
   dlFrom: 'dlFrom',
   dlTo: 'dlTo',
+  rlTitle: 'rlTitle',
+  rlStatus: 'rlStatus',
+  rlFrom: 'rlFrom',
+  rlTo: 'rlTo',
 } as const;
 
 export type AdmFilterState = {
@@ -12,6 +16,10 @@ export type AdmFilterState = {
   dlTitle: string;
   dlFrom: string;
   dlTo: string;
+  rlTitle: string;
+  rlStatus: string;
+  rlFrom: string;
+  rlTo: string;
 };
 
 export function parseAdmFiltersFromSearchParams(
@@ -23,6 +31,10 @@ export function parseAdmFiltersFromSearchParams(
     dlTitle: params.get(ADM_URL_PARAMS.dlTitle) ?? '',
     dlFrom: params.get(ADM_URL_PARAMS.dlFrom) ?? '',
     dlTo: params.get(ADM_URL_PARAMS.dlTo) ?? '',
+    rlTitle: params.get(ADM_URL_PARAMS.rlTitle) ?? '',
+    rlStatus: params.get(ADM_URL_PARAMS.rlStatus) ?? '',
+    rlFrom: params.get(ADM_URL_PARAMS.rlFrom) ?? '',
+    rlTo: params.get(ADM_URL_PARAMS.rlTo) ?? '',
   };
 }
 
@@ -46,6 +58,10 @@ export function buildAdmSearchParams(
   setOrDelete(ADM_URL_PARAMS.dlTitle, state.dlTitle);
   setOrDelete(ADM_URL_PARAMS.dlFrom, state.dlFrom);
   setOrDelete(ADM_URL_PARAMS.dlTo, state.dlTo);
+  setOrDelete(ADM_URL_PARAMS.rlTitle, state.rlTitle);
+  setOrDelete(ADM_URL_PARAMS.rlStatus, state.rlStatus);
+  setOrDelete(ADM_URL_PARAMS.rlFrom, state.rlFrom);
+  setOrDelete(ADM_URL_PARAMS.rlTo, state.rlTo);
 
   // Drop leftover tab / category accordion params
   params.delete('tab');

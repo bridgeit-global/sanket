@@ -106,6 +106,35 @@ export const admDemandLetterSchema = z.object({
 
 export type AdmDemandLetterData = z.infer<typeof admDemandLetterSchema>;
 
+export const admFundRequestLetterStatusSchema = z.enum([
+  'pending',
+  'linked',
+  'sanctioned',
+  'rejected',
+]);
+
+export const admFundRequestLetterSchema = z.object({
+  title: z.string().trim().min(1, 'Title is required').max(500),
+  letterDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be yyyy-MM-dd'),
+  status: admFundRequestLetterStatusSchema.default('pending'),
+  fundRecordId: z.string().uuid().nullable().optional(),
+  beneficiaryServiceId: z.string().uuid().nullable().optional(),
+});
+
+export const admFundRequestLetterUpdateSchema = z.object({
+  status: admFundRequestLetterStatusSchema,
+  fundRecordId: z.string().uuid().nullable(),
+});
+
+export type AdmFundRequestLetterData = z.infer<
+  typeof admFundRequestLetterSchema
+>;
+export type AdmFundRequestLetterUpdateData = z.infer<
+  typeof admFundRequestLetterUpdateSchema
+>;
+
 export const projectDocumentKindSchema = z.enum([
   'approval_pdf',
   'sanction_letter',

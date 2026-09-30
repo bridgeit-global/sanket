@@ -1554,7 +1554,8 @@
     "milestones": "Milestones",
     "tabs": {
       "funds": "Funds",
-      "demandLetters": "Demand Letters"
+      "demandLetters": "Demand Letters",
+      "fundRequestLetters": "Request Letters Pending for Funds"
     },
     "demandLetters": {
       "add": "Add Demand Letter",
@@ -1583,6 +1584,53 @@
       "failedToLoad": "Failed to load demand letters",
       "failedToUpload": "Failed to upload demand letter",
       "failedToDelete": "Failed to delete demand letter"
+    },
+    "fundRequestLetters": {
+      "add": "Upload Request Letter",
+      "date": "Date",
+      "title": "Title",
+      "document": "PDF",
+      "actions": "Actions",
+      "statusLabel": "Status",
+      "statusAll": "All statuses",
+      "status": {
+        "pending": "Pending for funds",
+        "linked": "Linked with ADM",
+        "sanctioned": "Sanctioned",
+        "rejected": "Rejected"
+      },
+      "fund": "ADM fund",
+      "fundPlaceholder": "Select an ADM fund",
+      "noFund": "Not linked",
+      "notLinked": "Not linked",
+      "linkedFund": "Linked fund",
+      "fundHint": "Linked and sanctioned letters must be tied to an ADM fund. Choosing a fund while pending marks the letter as linked.",
+      "linkAction": "Status and ADM link",
+      "linkTitle": "Status and link with ADM",
+      "filterTitle": "Title",
+      "filterTitlePlaceholder": "Filter by title...",
+      "fromDate": "From date",
+      "toDate": "To date",
+      "titlePlaceholder": "e.g. Road work request, Govandi",
+      "fileHint": "PDF only, max 25MB",
+      "upload": "Upload",
+      "viewPdf": "View PDF",
+      "loading": "Loading request letters...",
+      "empty": "No request letters pending for funds yet.",
+      "noMatch": "No request letters match your filters.",
+      "delete": "Delete Request Letter",
+      "deleteDescription": "Delete this request letter and its PDF?",
+      "titleRequired": "Title is required",
+      "dateRequired": "Date is required",
+      "fileRequired": "A PDF is required",
+      "fundRequired": "Link an ADM fund for this status",
+      "uploadedSuccess": "Request letter uploaded",
+      "updatedSuccess": "Request letter updated",
+      "deletedSuccess": "Request letter deleted",
+      "failedToLoad": "Failed to load request letters",
+      "failedToUpload": "Failed to upload request letter",
+      "failedToUpdate": "Failed to update request letter",
+      "failedToDelete": "Failed to delete request letter"
     }
   },
   "dataExport": {
@@ -2199,6 +2247,9 @@
       "taskType": "Task Type",
       "letters": "Letters",
       "generateLetter": "Generate Letter",
+      "requestLettersPending": "Request Letters Pending",
+      "requestLettersPendingShort": "Pending letters",
+      "noRequestLetters": "No request letters pending for funds on this service yet.",
       "downloadLetter": "Download",
       "downloadLetterUnavailable": "PDF not available yet — open Generate Letter and download once.",
       "downloadLetterSuccess": "Letter PDF downloaded successfully",
