@@ -10,8 +10,16 @@ import { SessionProvider } from 'next-auth/react';
 import { PwaProvider } from '@/components/pwa-provider';
 
 export const metadata: Metadata = {
-  title: 'eOffice - Specialized ERP for Beneficiary Management',
+  metadataBase: new URL('https://sanket.bridgeit.in'),
+  title: 'eOffice',
   description: 'Streamline your beneficiary management across multiple locations',
+  openGraph: {
+    title: 'eOffice',
+    description: 'CRM for beneficiary management',
+    type: 'website',
+    url: 'https://sanket.bridgeit.in/',
+    images: ['https://sanket.bridgeit.in/favicon/apple-touch-icon.png'],
+  },
   manifest: '/favicon/site.webmanifest',
   icons: {
     icon: [
@@ -90,13 +98,6 @@ export default async function RootLayout({
           }}
         />
         {/* Mobile-optimized meta tags */}
-        <title>eOffice</title>
-        <meta property="og:title" content="eOffice" />
-        <meta property="og:description"
-          content="CRM for beneficiary management" />
-        <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://sanket.bridgeit.in/" />
-        <meta property="og:image" content="https://sanket.bridgeit.in/favicon/apple-touch-icon.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />

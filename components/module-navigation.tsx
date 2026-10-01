@@ -10,6 +10,7 @@ import {
   FolderKanban,
   Building2,
   Briefcase,
+  BriefcaseBusiness,
   MessageSquare,
   Users,
   User as UserIcon,
@@ -53,6 +54,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   'user-management': Users,
   profile: UserIcon,
   hierarchy: Network,
+  'job-fair': BriefcaseBusiness,
 };
 
 const getModuleTranslationKey = (moduleKey: string): string => {
@@ -76,6 +78,7 @@ const getModuleTranslationKey = (moduleKey: string): string => {
     chat: 'modules.chat.label',
     'user-management': 'modules.userManagement.label',
     profile: 'modules.profile.label',
+    'job-fair': 'modules.jobFair.label',
   };
   return keyMap[moduleKey] || moduleKey;
 };

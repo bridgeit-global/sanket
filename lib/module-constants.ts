@@ -196,6 +196,15 @@ export const ALL_MODULES: ModuleDefinition[] = [
     category: 'operations',
     defaultRoles: ['admin'],
   },
+  {
+    key: 'job-fair',
+    label: 'Job Fair',
+    description: 'YUVAAZ 2026 job fair candidate registrations',
+    route: '/modules/job-fair',
+    icon: 'Briefcase',
+    category: 'operations',
+    defaultRoles: ['admin'],
+  },
 ];
 
 // Get module by key
@@ -241,6 +250,7 @@ export const MODULE_DISPLAY_ORDER = [
   'outward',
   'letter-generation',
   'voting-participation',
+  'job-fair',
   'chat',
   'user-management',
   'profile',
@@ -314,5 +324,6 @@ export const MODULE_KEYS = {
   VOTING_PARTICIPATION: 'voting-participation',
   FIELD_VISITOR: 'field-visitor',
   HIERARCHY: 'hierarchy',
+  JOB_FAIR: 'job-fair',
 } as const;
 

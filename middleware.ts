@@ -47,6 +47,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Public job fair registration (YUVAAZ) and other unauthenticated APIs
+  if (
+    pathname === '/yuvaaz' ||
+    pathname.startsWith('/yuvaaz/') ||
+    pathname.startsWith('/api/public/')
+  ) {
+    return NextResponse.next();
+  }
+
   // Landing page — public; authenticated redirect is handled in app/page.tsx
   if (pathname === '/') {
     return NextResponse.next();

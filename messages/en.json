@@ -105,6 +105,10 @@
       "label": "Government Follow-up Desk",
       "description": "Track matters pending with government authorities"
     },
+    "jobFair": {
+      "label": "Job Fair",
+      "description": "YUVAAZ 2026 job fair candidate registrations"
+    },
     "inward": {
       "label": "Inward Register",
       "description": "Manage inward correspondence and documents"
