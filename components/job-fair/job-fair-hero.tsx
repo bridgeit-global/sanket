@@ -13,7 +13,7 @@ export function JobFairEventChips({ className }: { className?: string }) {
       )}
     >
       <div className="flex items-center gap-3 rounded-xl bg-secondary px-4 py-3 text-secondary-foreground ring-1 ring-border">
-        <CalendarDays className="size-5 shrink-0 text-primary" aria-hidden />
+        <CalendarDays className="size-5 shrink-0 text-yellow-400" aria-hidden />
         <div className="min-w-0">
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Date
@@ -22,7 +22,7 @@ export function JobFairEventChips({ className }: { className?: string }) {
         </div>
       </div>
       <div className="flex items-center gap-3 rounded-xl bg-secondary px-4 py-3 text-secondary-foreground ring-1 ring-border">
-        <Clock className="size-5 shrink-0 text-primary" aria-hidden />
+        <Clock className="size-5 shrink-0 text-yellow-400" aria-hidden />
         <div className="min-w-0">
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Time
@@ -37,7 +37,7 @@ export function JobFairEventChips({ className }: { className?: string }) {
         className="flex items-center gap-3 rounded-xl bg-secondary px-4 py-3 text-secondary-foreground ring-1 ring-border transition-colors hover:bg-secondary/80 sm:col-span-2 lg:col-span-1"
         title={JOB_FAIR_EVENT.venueFull}
       >
-        <MapPin className="size-5 shrink-0 text-primary" aria-hidden />
+        <MapPin className="size-5 shrink-0 text-yellow-400" aria-hidden />
         <div className="min-w-0">
           <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
             Venue · Open map
@@ -75,12 +75,12 @@ export function JobFairHero() {
             {JOB_FAIR_EVENT.subtitle}
           </p>
           <h1 className="mt-3 text-5xl font-black tracking-tight sm:text-6xl md:text-7xl">
-            YUVAAZ <span className="text-secondary">2026</span>
+            YUVAAZ <span className="text-yellow-300">2026</span>
           </h1>
           <p className="mt-3 text-lg font-bold tracking-wide sm:text-xl md:text-2xl">
             {JOB_FAIR_EVENT.taglineTop}
             <br />
-            <span className="text-secondary">{JOB_FAIR_EVENT.taglineBottom}</span>
+            <span className="text-yellow-300">{JOB_FAIR_EVENT.taglineBottom}</span>
           </p>
           <p className="mt-3 max-w-xl text-sm text-primary-foreground/80 sm:text-base">
             Register free in 2 minutes. Meet employers from banking, retail, IT,
