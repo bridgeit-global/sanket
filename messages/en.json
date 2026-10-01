@@ -502,7 +502,7 @@
     "cadreMember": "Member",
     "viewMoreBirthdays": "View more ({count})",
     "showFewerBirthdays": "Show less",
-    "openWhatsApp": "Open WhatsApp chat with {phone}",
+    "birthdayWishWhatsApp": "Send {language} birthday wish to {phone} on WhatsApp",
     "callPhone": "Call {phone}",
     "quickActions": "Quick actions",
     "addProject": "Add Project",

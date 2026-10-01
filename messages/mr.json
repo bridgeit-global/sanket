@@ -502,7 +502,7 @@
     "cadreMember": "सदस्य",
     "viewMoreBirthdays": "अधिक पहा ({count})",
     "showFewerBirthdays": "कमी दाखवा",
-    "openWhatsApp": "{phone} वर WhatsApp चॅट उघडा",
+    "birthdayWishWhatsApp": "{phone} ला {language} वाढदिवसाच्या शुभेच्छा WhatsApp वर पाठवा",
     "callPhone": "{phone} वर कॉल करा",
     "quickActions": "द्रुत कृती",
     "addProject": "प्रकल्प जोडा",

@@ -25,14 +25,41 @@ import type {
 
 const BIRTHDAY_PREVIEW_LIMIT = 2;
 
-const BIRTHDAY_WHATSAPP_MESSAGE = `HAPPY BIRTHDAY!!
-🎉 वाढदिवसाच्या हार्दिक शुभेच्छा! 🎂
+const BIRTHDAY_WISHES = [
+  {
+    id: 'mr',
+    label: 'मराठी',
+    message: `🎉 वाढदिवसाच्या हार्दिक शुभेच्छा! 🎂
 
 आपल्याला उत्तम आरोग्य, दीर्घायुष्य, सुख, समृद्धी आणि भरभरून यश लाभो, हीच सदिच्छा. समाजसेवेतील आपले कार्य असेच जोमाने सुरू राहो.
 
 शुभेच्छांसह,
 सना मलिक शेख
-आमदार, अणुशक्तीनगर`;
+आमदार, अणुशक्तीनगर`,
+  },
+  {
+    id: 'en',
+    label: 'English',
+    message: `🎉 Heartiest birthday wishes to you! 🎂
+
+Wishing you good health, long life, happiness, prosperity, and abundant success. May your dedicated work towards serving society continue with the same enthusiasm and determination.
+
+Best wishes,
+Sana Malik Shaikh
+MLA, Anushakti Nagar`,
+  },
+  {
+    id: 'ur',
+    label: 'اردو',
+    message: `🎉 سالگرہ کی دلی مبارکباد! 🎂
+
+آپ کو بہترین صحت، درازیِ عمر، خوشیاں، خوشحالی اور بے شمار کامیابیاں نصیب ہوں۔ معاشرے کی خدمت کے لیے آپ کی خواہشیں اسی جوش و جذبے کے ساتھ جاری رہیں، یہی ہماری نیک خواہش ہے۔
+
+نیک تمناؤں کے ساتھ،
+ثنا ملک شیخ
+ایم ایل اے، انوشکتی نگر`,
+  },
+] as const;
 
 function hierarchyMemberHref(memberId: string): string {
   const params = new URLSearchParams({
@@ -121,48 +148,61 @@ function UpcomingBirthdaysList({
                     .join(' · ')}
                 </p>
                 {item.phones.length > 0 ? (
-                  <div className="mt-1.5 flex flex-wrap items-center gap-2">
+                  <div className="mt-1.5 flex flex-col gap-2">
                     {item.phones.map((phone) => {
-                      const whatsappHref = toWhatsAppChatUrl(
-                        phone,
-                        BIRTHDAY_WHATSAPP_MESSAGE,
-                      );
                       const callHref = `tel:+91${phone}`;
                       return (
-                        <span
-                          key={phone}
-                          className="inline-flex items-center gap-1 rounded-md border bg-muted/40 px-1.5 py-1 text-xs"
-                        >
-                          <span className="px-1 font-medium tabular-nums">
-                            {phone}
-                          </span>
-                          {whatsappHref ? (
+                        <div key={phone} className="flex min-w-0 flex-col gap-1.5">
+                          <span className="inline-flex w-fit max-w-full items-center gap-1 rounded-md border bg-muted/40 px-1.5 py-1 text-xs">
+                            <span className="px-1 font-medium tabular-nums">
+                              {phone}
+                            </span>
                             <a
-                              href={whatsappHref}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex size-6 items-center justify-center rounded text-emerald-700 transition-colors hover:bg-emerald-100"
-                              aria-label={t('dashboard.openWhatsApp', {
+                              href={callHref}
+                              className="inline-flex size-10 items-center justify-center rounded text-sky-700 transition-colors hover:bg-sky-100"
+                              aria-label={t('dashboard.callPhone', {
                                 phone,
                               })}
-                              title={t('dashboard.openWhatsApp', {
-                                phone,
-                              })}
+                              title={t('dashboard.callPhone', { phone })}
                             >
-                              <WhatsAppIcon className="h-3.5 w-3.5" />
+                              <Phone className="h-3.5 w-3.5" />
                             </a>
-                          ) : null}
-                          <a
-                            href={callHref}
-                            className="inline-flex size-6 items-center justify-center rounded text-sky-700 transition-colors hover:bg-sky-100"
-                            aria-label={t('dashboard.callPhone', {
-                              phone,
+                          </span>
+                          <div className="flex flex-wrap gap-1.5">
+                            {BIRTHDAY_WISHES.map((wish) => {
+                              const whatsappHref = toWhatsAppChatUrl(
+                                phone,
+                                wish.message,
+                              );
+                              if (!whatsappHref) return null;
+                              return (
+                                <a
+                                  key={wish.id}
+                                  href={whatsappHref}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  lang={wish.id}
+                                  dir={wish.id === 'ur' ? 'rtl' : 'ltr'}
+                                  className="inline-flex h-10 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-medium text-emerald-800 transition-colors hover:bg-emerald-100"
+                                  aria-label={t(
+                                    'dashboard.birthdayWishWhatsApp',
+                                    {
+                                      language: wish.label,
+                                      phone,
+                                    },
+                                  )}
+                                  title={t('dashboard.birthdayWishWhatsApp', {
+                                    language: wish.label,
+                                    phone,
+                                  })}
+                                >
+                                  <WhatsAppIcon className="h-3.5 w-3.5" />
+                                  {wish.label}
+                                </a>
+                              );
                             })}
-                            title={t('dashboard.callPhone', { phone })}
-                          >
-                            <Phone className="h-3.5 w-3.5" />
-                          </a>
-                        </span>
+                          </div>
+                        </div>
                       );
                     })}
                   </div>
