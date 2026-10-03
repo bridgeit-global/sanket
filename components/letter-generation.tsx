@@ -4703,6 +4703,11 @@ export function LetterGeneration({
     return filteredSavedLetters.find((l) => l.id === selectedSavedLetterId) ?? null;
   }, [filteredSavedLetters, selectedSavedLetterId]);
 
+  const editingSavedLetter = useMemo(() => {
+    if (!editingLetterId) return null;
+    return savedLetters.find((letter) => letter.id === editingLetterId) ?? null;
+  }, [editingLetterId, savedLetters]);
+
   const renderSavedLetterActions = (
     letter: SavedLetterRow,
     layout: 'stack' | 'inline' = 'inline',
@@ -4756,6 +4761,20 @@ export function LetterGeneration({
           {t('letterGeneration.savedLetters.actions.approve')}
         </Button>
       ) : null}
+      <Button
+        size="sm"
+        variant="outline"
+        className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+        onClick={() => void handlePrintSavedLetter(letter)}
+        disabled={printingLetterId === letter.id}
+      >
+        {printingLetterId === letter.id ? (
+          <Loader2 className="mr-2 size-4 animate-spin" />
+        ) : (
+          <Printer className="mr-2 size-4" />
+        )}
+        {t('letterGeneration.savedLetters.actions.print')}
+      </Button>
       <Button
         size="sm"
         variant="outline"
@@ -7466,6 +7485,27 @@ export function LetterGeneration({
                         )}
                         {t('letterGeneration.savedLetters.saveDraft')}
                       </Button>
+                      {editingSavedLetter ? (
+                        <Button
+                          variant="outline"
+                          className="w-full sm:w-auto"
+                          onClick={() =>
+                            void handlePrintSavedLetter(editingSavedLetter)
+                          }
+                          disabled={
+                            isSaving ||
+                            isSubmitting ||
+                            printingLetterId === editingSavedLetter.id
+                          }
+                        >
+                          {printingLetterId === editingSavedLetter.id ? (
+                            <Loader2 className="mr-2 size-4 animate-spin" />
+                          ) : (
+                            <Printer className="mr-2 size-4" />
+                          )}
+                          {t('letterGeneration.savedLetters.actions.print')}
+                        </Button>
+                      ) : null}
                       <Button
                         className="w-full sm:w-auto"
                         onClick={() => void handleSendForVerification()}
