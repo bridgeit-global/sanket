@@ -4550,6 +4550,10 @@ export function LetterGeneration({
       setIncomeFields(mergeSavedLetterFields(incomeDefaults(letterLocale), saved));
     } else if (formBase === 'domicile' || formBase === 'identity') {
       setDomicileFields(mergeSavedLetterFields(domicileDefaults(letterLocale), saved));
+    } else if (formBase === 'qr-birth-certificate') {
+      setBirthCertificateFields(
+        mergeSavedLetterFields(birthCertificateDefaults(letterLocale), saved),
+      );
     } else if (formBase === 'medical-assistance') {
       setMedicalAssistanceFields(
         mergeSavedLetterFields(medicalAssistanceDefaults(letterLocale), saved),
@@ -4583,6 +4587,7 @@ export function LetterGeneration({
           rationFields: rationDefaults(letterLocale),
           incomeFields: incomeDefaults(letterLocale),
           domicileFields: domicileDefaults(letterLocale),
+          birthCertificateFields: birthCertificateDefaults(letterLocale),
           medicalAssistanceFields: medicalAssistanceDefaults(letterLocale),
           wardFields: wardDefaults(
             letterLocale,
