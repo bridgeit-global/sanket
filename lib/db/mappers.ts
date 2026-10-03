@@ -467,6 +467,17 @@ export function mapLetterAddressTypeLinkRow(row: Row): LetterAddressTypeLink {
   };
 }
 
+function mapLetterStatus(value: unknown): Letter['status'] {
+  if (
+    value === 'draft' ||
+    value === 'pending_verification' ||
+    value === 'approved'
+  ) {
+    return value;
+  }
+  return 'approved';
+}
+
 export function mapLetterRow(row: Row): Letter {
   const letterType = String(row.letter_type ?? row.letterType);
   return {
@@ -485,6 +496,10 @@ export function mapLetterRow(row: Row): Letter {
       row.pdf_storage_path ?? row.pdfStoragePath,
     ),
     printedAt: toDateOrNull(row.printed_at ?? row.printedAt),
+    status: mapLetterStatus(row.status),
+    submittedAt: toDateOrNull(row.submitted_at ?? row.submittedAt),
+    approvedAt: toDateOrNull(row.approved_at ?? row.approvedAt),
+    approvedBy: toStringOrNull(row.approved_by ?? row.approvedBy),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),
     beneficiaryServiceId: toStringOrNull(
       row.beneficiary_service_id ?? row.beneficiaryServiceId,

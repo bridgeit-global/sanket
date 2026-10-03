@@ -18,6 +18,8 @@ import {
   ListTree,
   MapPin,
   Plus,
+  Check,
+  Pencil,
   Printer,
   RefreshCw,
   Save,
@@ -34,6 +36,7 @@ import {
   getLetterPreviewDialogMaxWidthClass,
   LetterPreview,
 } from '@/components/letter-preview';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -220,6 +223,52 @@ function normalizeAadhaarNo(value: string): string {
 /** Digits-only mobile contact (max 10). Accepts Devanagari input. */
 function normalizeContactNo(value: string): string {
   return toWesternDigits(value).replace(/\D/g, '').slice(0, 10);
+}
+
+type LetterWorkflowStatus = 'draft' | 'pending_verification' | 'approved';
+
+function letterWorkflowStatus(status: string | null | undefined): LetterWorkflowStatus {
+  if (
+    status === 'draft' ||
+    status === 'pending_verification' ||
+    status === 'approved'
+  ) {
+    return status;
+  }
+  return 'approved';
+}
+
+function mergeSavedLetterFields<T extends object>(
+  defaults: T,
+  saved: Record<string, unknown>,
+): T {
+  const next = { ...defaults };
+  for (const key of Object.keys(defaults) as Array<keyof T>) {
+    const value = saved[String(key)];
+    if (typeof value === 'string') {
+      next[key] = value as T[keyof T];
+    }
+  }
+  return next;
+}
+
+function parseFamilyMemberRows(value: string): FamilyMemberRow[] {
+  const lines = value
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length === 0) return [emptyFamilyMemberRow()];
+  return lines.map((line) => {
+    const match = line.match(
+      /^(?:[\d०-९]+)\s*-\s*(.+?)\s+-\s*(\S+)\s+(?:years|वर्षे)\s+-\s*(.+)$/i,
+    );
+    if (!match) return { name: line, relation: '', age: '' };
+    return {
+      name: match[1].trim(),
+      age: toWesternDigits(match[2]).replace(/\D/g, '').slice(0, 3),
+      relation: match[3].trim(),
+    };
+  });
 }
 
 function formatFamilyMembersString(
@@ -1149,8 +1198,42 @@ type SavedLetterRow = {
   paperSize: LetterPaperSize;
   pdfStoragePath?: string | null;
   printedAt?: string | Date | null;
+  status?: LetterWorkflowStatus;
   createdAt: string | Date;
 };
+
+type LetterDraftPayload = {
+  letterType: string;
+  letterLocale: LetterLocale;
+  letterMasterId: string | null;
+  referenceNo: string;
+  referencePrefix: string;
+  autoSequence: boolean;
+  title: string;
+  fields: Record<string, unknown>;
+  renderedHtml: string;
+  paperSize: LetterPaperSize;
+  beneficiaryServiceId: string | null;
+  govFollowUpMatterId: string | null;
+  snapshot: string;
+};
+
+/** Ignores reference number and rendered HTML, which update after the server assigns a number. */
+function draftContentKey(snapshot: string): string {
+  try {
+    const parsed = JSON.parse(snapshot) as {
+      fields?: Record<string, unknown>;
+      renderedHtml?: string;
+    };
+    if (parsed.fields) {
+      delete parsed.fields.referenceNo;
+    }
+    delete parsed.renderedHtml;
+    return JSON.stringify(parsed);
+  } catch {
+    return snapshot;
+  }
+}
 
 type LetterMasterRow = {
   id: string;
@@ -1201,6 +1284,7 @@ export function LetterGeneration({
   prefillName,
   prefill,
   initialLetterType,
+  initialLetterId,
   catalogServiceId,
   service,
 }: {
@@ -1214,6 +1298,8 @@ export function LetterGeneration({
   prefill?: LetterBeneficiaryPrefill;
   /** Letter type linked on ServiceCatalog.letter_type for this service. */
   initialLetterType?: string;
+  /** Saved letter to select when opening the page from a notification. */
+  initialLetterId?: string;
   /** ServiceCatalog row id — used to deep-link “link letter type”. */
   catalogServiceId?: string;
   service?: BeneficiaryServiceInfo;
@@ -1247,6 +1333,32 @@ export function LetterGeneration({
     [],
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingLetterId, setEditingLetterId] = useState<string | null>(null);
+  const editingLetterIdRef = useRef<string | null>(null);
+  editingLetterIdRef.current = editingLetterId;
+  const draftUserEditedRef = useRef(false);
+  const draftHydratingRef = useRef(false);
+  const draftBaselineRef = useRef<string | null>(null);
+  const lastSavedSnapshotRef = useRef<string | null>(null);
+  const lastSavedLetterRef = useRef<SavedLetterRow | null>(null);
+  const persistInFlightRef = useRef<Promise<SavedLetterRow | 'skipped' | null> | null>(
+    null,
+  );
+  const draftEpochRef = useRef(0);
+  const draftSaveRequestRef = useRef(0);
+  const draftPayloadRef = useRef<LetterDraftPayload | null>(null);
+  const persistLetterDraftRef = useRef<
+    (options?: {
+      silent?: boolean;
+      selectSaved?: boolean;
+    }) => Promise<SavedLetterRow | 'skipped' | null>
+  >(async () => null);
+  const [draftSaveStatus, setDraftSaveStatus] = useState<
+    'idle' | 'saving' | 'saved' | 'error'
+  >('idle');
+  const [approvingLetterId, setApprovingLetterId] = useState<string | null>(null);
+  const [submittingLetterId, setSubmittingLetterId] = useState<string | null>(null);
   const [addingToOutwardLetterId, setAddingToOutwardLetterId] = useState<
     string | null
   >(null);
@@ -1338,6 +1450,7 @@ export function LetterGeneration({
 
   const [savedLetters, setSavedLetters] = useState<SavedLetterRow[]>([]);
   const [savedLettersLoading, setSavedLettersLoading] = useState(false);
+  const [savedLettersFetched, setSavedLettersFetched] = useState(false);
   const [letterMasters, setLetterMasters] = useState<LetterMasterRow[]>([]);
   const [letterMastersLoading, setLetterMastersLoading] = useState(false);
   const [selectedLetterMasterId, setSelectedLetterMasterId] = useState<
@@ -1705,7 +1818,9 @@ export function LetterGeneration({
       date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
       salutation: resolveSalutation(letterLocale, prev.gender),
       fullName: filterText(prev.fullName),
-      familyMembers: formatFamilyMembersString(nextFamilyMemberRows, letterLocale),
+      familyMembers:
+        formatFamilyMembersString(nextFamilyMemberRows, letterLocale) ||
+        prev.familyMembers,
       fromRationOffice:
         getRationOfficeLabelById(
           addresses,
@@ -2492,6 +2607,7 @@ export function LetterGeneration({
       toast.error(t('letterGeneration.savedLetters.fetchError'));
     } finally {
       setSavedLettersLoading(false);
+      setSavedLettersFetched(true);
     }
   };
 
@@ -2809,8 +2925,11 @@ export function LetterGeneration({
   }, [customPlaceholders]);
 
   const existingReferenceNos = useMemo(
-    () => savedLetters.map((letter) => letter.referenceNo),
-    [savedLetters],
+    () =>
+      savedLetters
+        .filter((letter) => letter.id !== editingLetterId)
+        .map((letter) => letter.referenceNo),
+    [savedLetters, editingLetterId],
   );
 
   const activeBody = useMemo(() => {
@@ -2921,6 +3040,42 @@ export function LetterGeneration({
     activeReferenceNo,
   );
   const activeDate = activeFields.date;
+
+  const draftSnapshot = useMemo(
+    () =>
+      JSON.stringify({
+        letterType: activeTab,
+        letterMasterId: activeLetterMaster?.id ?? null,
+        paperSize: paperSizeDraft,
+        title: activeTitle,
+        fields: activeFields,
+        renderedHtml: activeBody,
+      }),
+    [
+      activeBody,
+      activeFields,
+      activeLetterMaster?.id,
+      activeTab,
+      activeTitle,
+      paperSizeDraft,
+    ],
+  );
+
+  draftPayloadRef.current = {
+    letterType: activeTab,
+    letterLocale,
+    letterMasterId: activeLetterMaster?.id ?? null,
+    referenceNo: activeFullReferenceNo,
+    referencePrefix: activeReferencePrefix,
+    autoSequence: referenceNumberAutoRef.current,
+    title: activeTitle,
+    fields: activeFields,
+    renderedHtml: activeBody,
+    paperSize: paperSizeDraft,
+    beneficiaryServiceId: beneficiaryServiceId ?? null,
+    govFollowUpMatterId: govFollowUpMatterId ?? null,
+    snapshot: draftSnapshot,
+  };
 
   useEffect(() => {
     const coercePrefix = <T extends { referencePrefix: string }>(prev: T): T => {
@@ -3562,6 +3717,139 @@ export function LetterGeneration({
     }
   };
 
+  persistLetterDraftRef.current = async (options) => {
+    const begin = async (): Promise<SavedLetterRow | 'skipped' | null> => {
+      const current = draftPayloadRef.current;
+      if (!current?.letterType || !current.title || !current.renderedHtml) return null;
+      if (!current.referencePrefix) return null;
+
+      const existingId = editingLetterIdRef.current;
+      const currentKey = draftContentKey(current.snapshot);
+      if (
+        options?.silent &&
+        existingId &&
+        lastSavedSnapshotRef.current &&
+        draftContentKey(lastSavedSnapshotRef.current) === currentKey
+      ) {
+        return lastSavedLetterRef.current ?? 'skipped';
+      }
+      if (
+        options?.silent &&
+        !existingId &&
+        draftBaselineRef.current &&
+        draftContentKey(draftBaselineRef.current) === currentKey
+      ) {
+        return 'skipped';
+      }
+
+      const epoch = draftEpochRef.current;
+      const sentSnapshot = current.snapshot;
+      const res = await fetch(
+        existingId ? `/api/letters/${encodeURIComponent(existingId)}` : '/api/letters',
+        {
+          method: existingId ? 'PATCH' : 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            letterType: current.letterType,
+            letterLocale: current.letterLocale,
+            letterMasterId: current.letterMasterId,
+            referenceNo: current.referenceNo,
+            referencePrefix: current.referencePrefix,
+            autoSequence: current.autoSequence,
+            title: current.title,
+            fields: current.fields,
+            renderedHtml: current.renderedHtml,
+            paperSize: current.paperSize,
+            beneficiaryServiceId: current.beneficiaryServiceId,
+            govFollowUpMatterId: current.govFollowUpMatterId,
+          }),
+        },
+      );
+      const json = await res.json();
+      if (!res.ok) {
+        if (
+          json?.error === 'referenceNo already exists' ||
+          (res.status === 409 && !existingId)
+        ) {
+          if (!options?.silent) {
+            const duplicateMessage = t(
+              'letterGeneration.validation.referenceNoDuplicate',
+            );
+            setFieldErrors((prev) => ({
+              ...prev,
+              referenceNo: duplicateMessage,
+            }));
+            toast.error(duplicateMessage);
+          }
+          return null;
+        }
+        throw new Error(json?.error || 'Failed to save letter');
+      }
+      const savedLetter = json?.letter as SavedLetterRow | undefined;
+      if (!savedLetter?.id) {
+        throw new Error('Failed to save letter');
+      }
+
+      referenceNumberAutoRef.current = false;
+      lastSavedLetterRef.current = savedLetter;
+      setSavedLetters((prev) => {
+        const index = prev.findIndex((letter) => letter.id === savedLetter.id);
+        if (index === -1) return [savedLetter, ...prev];
+        const next = [...prev];
+        next[index] = { ...next[index], ...savedLetter };
+        return next;
+      });
+
+      const stillEditing = draftEpochRef.current === epoch;
+      if (stillEditing) {
+        const wasCreate = !existingId;
+        editingLetterIdRef.current = savedLetter.id;
+        setEditingLetterId(savedLetter.id);
+        lastSavedSnapshotRef.current = sentSnapshot;
+        draftBaselineRef.current = sentSnapshot;
+        if (options?.selectSaved) {
+          setSelectedSavedLetterId(savedLetter.id);
+        }
+        if (wasCreate && typeof window !== 'undefined') {
+          const url = new URL(window.location.href);
+          url.searchParams.set('letterId', savedLetter.id);
+          window.history.replaceState(window.history.state, '', url.toString());
+        }
+        const savedRef = parseReference(String(savedLetter.referenceNo ?? ''));
+        if (savedRef.prefix && savedRef.number) {
+          syncReferenceFields(
+            savedRef.prefix,
+            formatReferenceNumberForLocale(savedRef.number, letterLocale),
+          );
+        }
+      }
+
+      if (!options?.silent) {
+        await refreshSavedLetters();
+      }
+      return savedLetter;
+    };
+
+    const previous = persistInFlightRef.current;
+    const run = (previous ?? Promise.resolve(null))
+      .catch(() => null)
+      .then(begin);
+    persistInFlightRef.current = run;
+    try {
+      return await run;
+    } catch (error) {
+      console.error('Failed to save letter', error);
+      if (!options?.silent) {
+        toast.error(t('letterGeneration.savedLetters.saveError'));
+      }
+      return null;
+    } finally {
+      if (persistInFlightRef.current === run) {
+        persistInFlightRef.current = null;
+      }
+    }
+  };
+
   const handleSaveLetter = async () => {
     if (!validateActiveLetterFields()) return;
 
@@ -3702,65 +3990,378 @@ export function LetterGeneration({
         }
       }
 
-      const res = await fetch('/api/letters', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          letterType: activeTab,
-          letterLocale,
-          letterMasterId: activeLetterMaster?.id ?? null,
-          referenceNo: activeFullReferenceNo,
-          referencePrefix: activeReferencePrefix,
-          autoSequence: referenceNumberAutoRef.current,
-          title: activeTitle,
-          fields: activeFields,
-          renderedHtml: activeBody,
-          paperSize: paperSizeDraft,
-          beneficiaryServiceId: beneficiaryServiceId ?? null,
-          govFollowUpMatterId: govFollowUpMatterId ?? null,
-        }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        if (res.status === 409 || json?.error === 'referenceNo already exists') {
-          const duplicateMessage = t(
-            'letterGeneration.validation.referenceNoDuplicate',
-          );
-          setFieldErrors((prev) => ({
-            ...prev,
-            referenceNo: duplicateMessage,
-          }));
-          toast.error(duplicateMessage);
-          return;
-        }
-        throw new Error(json?.error || 'Failed to save letter');
-      }
-      toast.success(t('letterGeneration.savedLetters.saveSuccess'));
-      await refreshSavedLetters();
-      const savedLetter = json?.letter as SavedLetterRow | undefined;
-      setSelectedSavedLetterId(savedLetter?.id ?? null);
-      if (savedLetter?.id && savedLetter.renderedHtml) {
-        void persistLetterPdf(savedLetter, { registerOutward: true });
-      }
-      const savedRef = parseReference(String(json?.letter?.referenceNo ?? ''));
-      if (savedRef.prefix && savedRef.number) {
-        syncReferenceFields(
-          savedRef.prefix,
-          formatReferenceNumberForLocale(savedRef.number, letterLocale),
-        );
-      }
-      referenceNumberAutoRef.current = true;
-      await refreshReferenceSequence(
-        savedRef.prefix || activeReferencePrefix,
-        { force: true },
-      );
+      const saved = await persistLetterDraftRef.current({ selectSaved: true });
+      return saved === 'skipped' ? null : saved;
     } catch (error) {
       console.error('Failed to save letter', error);
       toast.error(t('letterGeneration.savedLetters.saveError'));
+      return null;
     } finally {
       setIsSaving(false);
     }
   };
+
+  const handleSaveDraft = async () => {
+    const saved = await handleSaveLetter();
+    if (!saved) return;
+    toast.success(t('letterGeneration.savedLetters.draftSaved'));
+  };
+
+  const handleSendForVerification = async () => {
+    draftEpochRef.current += 1;
+    draftUserEditedRef.current = false;
+    setIsSubmitting(true);
+    try {
+      const saved = await handleSaveLetter();
+      if (!saved) {
+        draftUserEditedRef.current = true;
+        return;
+      }
+      const res = await fetch(
+        `/api/letters/${encodeURIComponent(saved.id)}/verification`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ action: 'submit' }),
+        },
+      );
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.error || 'Failed to send letter for verification');
+      }
+      const submitted = (json?.letter ?? saved) as SavedLetterRow;
+      editingLetterIdRef.current = null;
+      setEditingLetterId(null);
+      draftUserEditedRef.current = false;
+      draftHydratingRef.current = false;
+      draftBaselineRef.current = null;
+      lastSavedSnapshotRef.current = null;
+      setDraftSaveStatus('idle');
+      referenceNumberAutoRef.current = true;
+      toast.success(t('letterGeneration.savedLetters.submitSuccess'));
+      await refreshSavedLetters();
+      if (submitted.renderedHtml || saved.renderedHtml) {
+        await persistLetterPdf(
+          { ...saved, ...submitted, renderedHtml: submitted.renderedHtml || saved.renderedHtml },
+          { registerOutward: true },
+        );
+      }
+      const savedRef = parseReference(String(saved.referenceNo ?? ''));
+      await refreshReferenceSequence(savedRef.prefix || activeReferencePrefix, {
+        force: true,
+      });
+    } catch (error) {
+      console.error('Failed to send letter for verification', error);
+      draftUserEditedRef.current = true;
+      toast.error(t('letterGeneration.savedLetters.submitError'));
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleApproveLetter = async (letter: SavedLetterRow) => {
+    setApprovingLetterId(letter.id);
+    try {
+      const res = await fetch(
+        `/api/letters/${encodeURIComponent(letter.id)}/verification`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ action: 'approve' }),
+        },
+      );
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.error || 'Failed to approve letter');
+      }
+      const approved = (json?.letter ?? letter) as SavedLetterRow;
+      if (editingLetterId === letter.id) {
+        setEditingLetterId(null);
+      }
+      toast.success(t('letterGeneration.savedLetters.approveSuccess'));
+      await refreshSavedLetters();
+    } catch (error) {
+      console.error('Failed to approve letter', error);
+      toast.error(t('letterGeneration.savedLetters.approveError'));
+    } finally {
+      setApprovingLetterId(null);
+    }
+  };
+
+  const handleSubmitSavedDraft = async (letter: SavedLetterRow) => {
+    if (letterWorkflowStatus(letter.status) !== 'draft') return;
+    setSubmittingLetterId(letter.id);
+    try {
+      const res = await fetch(
+        `/api/letters/${encodeURIComponent(letter.id)}/verification`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ action: 'submit' }),
+        },
+      );
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.error || 'Failed to send letter for verification');
+      }
+      const submitted = (json?.letter ?? letter) as SavedLetterRow;
+      if (editingLetterId === letter.id) {
+        draftEpochRef.current += 1;
+        editingLetterIdRef.current = null;
+        setEditingLetterId(null);
+        draftUserEditedRef.current = false;
+        draftHydratingRef.current = false;
+        draftBaselineRef.current = null;
+        lastSavedSnapshotRef.current = null;
+        setDraftSaveStatus('idle');
+        referenceNumberAutoRef.current = true;
+      }
+      setSelectedSavedLetterId(null);
+      toast.success(t('letterGeneration.savedLetters.submitSuccess'));
+      await refreshSavedLetters();
+      if (submitted.renderedHtml || letter.renderedHtml) {
+        await persistLetterPdf(
+          {
+            ...letter,
+            ...submitted,
+            renderedHtml: submitted.renderedHtml || letter.renderedHtml,
+          },
+          { registerOutward: true },
+        );
+      }
+    } catch (error) {
+      console.error('Failed to send letter for verification', error);
+      toast.error(t('letterGeneration.savedLetters.submitError'));
+    } finally {
+      setSubmittingLetterId(null);
+    }
+  };
+
+  const handleEditDraft = (
+    letter: SavedLetterRow,
+    options?: { silent?: boolean },
+  ) => {
+    if (letterWorkflowStatus(letter.status) !== 'draft') return;
+    const saved =
+      letter.fields && typeof letter.fields === 'object'
+        ? (letter.fields as Record<string, unknown>)
+        : {};
+    draftEpochRef.current += 1;
+    draftUserEditedRef.current = false;
+    draftHydratingRef.current = true;
+    lastSavedSnapshotRef.current = null;
+    draftBaselineRef.current = null;
+    referenceNumberAutoRef.current = false;
+    editingLetterIdRef.current = letter.id;
+    setEditingLetterId(letter.id);
+    setActiveTab(letter.letterType);
+    setLetterTypeReady(true);
+    setPaperSizeDraft(resolveSavedLetterPaperSize(letter));
+    setSelectedLetterMasterId(letter.letterMasterId);
+    setIsGeneratorCollapsed(false);
+    setFieldErrors({});
+
+    const formBase = resolveLetterFormBase(letter.letterType);
+    if (formBase === 'general') {
+      const merged = mergeSavedLetterFields(generalDefaults(letterLocale), saved);
+      setGeneralFields(merged);
+      const rows = String(merged.paragraphs ?? '')
+        .split('\n')
+        .map((row) => row.trim())
+        .filter(Boolean);
+      setParagraphRows(rows.length > 0 ? rows : ['']);
+    } else if (formBase === 'fees') {
+      setFeesFields(mergeSavedLetterFields(feesDefaults(letterLocale), saved));
+    } else if (formBase === 'school-admission') {
+      setSchoolAdmissionFields(
+        mergeSavedLetterFields(schoolAdmissionDefaults(letterLocale), saved),
+      );
+    } else if (formBase === 'college-admission') {
+      setCollegeAdmissionFields(
+        mergeSavedLetterFields(collegeAdmissionDefaults(letterLocale), saved),
+      );
+    } else if (formBase === 'school-transfer') {
+      setSchoolTransferFields(
+        mergeSavedLetterFields(schoolTransferDefaults(letterLocale), saved),
+      );
+    } else if (formBase === 'income') {
+      setIncomeFields(mergeSavedLetterFields(incomeDefaults(letterLocale), saved));
+    } else if (formBase === 'domicile' || formBase === 'identity') {
+      setDomicileFields(mergeSavedLetterFields(domicileDefaults(letterLocale), saved));
+    } else if (formBase === 'medical-assistance') {
+      setMedicalAssistanceFields(
+        mergeSavedLetterFields(medicalAssistanceDefaults(letterLocale), saved),
+      );
+    } else if (formBase === 'ward') {
+      setWardFields(
+        mergeSavedLetterFields(
+          wardDefaults(
+            letterLocale,
+            resolveWardIssueForLetterContext(letter.letterType, service?.serviceName),
+          ),
+          saved,
+        ),
+      );
+    } else if (isRationLetterType(formBase)) {
+      const merged = mergeSavedLetterFields(rationDefaults(letterLocale), saved);
+      setRationFields(merged);
+      setFamilyMemberRows(parseFamilyMemberRows(merged.familyMembers ?? ''));
+    } else {
+      setGeneralFields(mergeSavedLetterFields(generalDefaults(letterLocale), saved));
+    }
+
+    const known = new Set(
+      Object.keys(
+        getFieldsForLetterType(letter.letterType, {
+          generalFields: generalDefaults(letterLocale),
+          feesFields: feesDefaults(letterLocale),
+          schoolAdmissionFields: schoolAdmissionDefaults(letterLocale),
+          collegeAdmissionFields: collegeAdmissionDefaults(letterLocale),
+          schoolTransferFields: schoolTransferDefaults(letterLocale),
+          rationFields: rationDefaults(letterLocale),
+          incomeFields: incomeDefaults(letterLocale),
+          domicileFields: domicileDefaults(letterLocale),
+          medicalAssistanceFields: medicalAssistanceDefaults(letterLocale),
+          wardFields: wardDefaults(
+            letterLocale,
+            resolveWardIssueForLetterContext(letter.letterType, service?.serviceName),
+          ),
+        }),
+      ),
+    );
+    const custom: Record<string, string> = {};
+    for (const [key, value] of Object.entries(saved)) {
+      if (!known.has(key) && typeof value === 'string') custom[key] = value;
+    }
+    setCustomPlaceholderValues(custom);
+    setSelectedSavedLetterId(null);
+    if (!options?.silent) {
+      toast.success(t('letterGeneration.savedLetters.loaded'));
+      document.getElementById('letter-generator-header')?.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const draftAutoOpenedRef = useRef(false);
+  useEffect(() => {
+    if (!savedLettersFetched || draftAutoOpenedRef.current) return;
+
+    if (initialLetterId) {
+      const letter = savedLetters.find((row) => row.id === initialLetterId);
+      if (!letter) return;
+      draftAutoOpenedRef.current = true;
+      if (letterWorkflowStatus(letter.status) === 'draft') {
+        handleEditDraft(letter, { silent: true });
+      } else {
+        setSelectedSavedLetterId(initialLetterId);
+      }
+      return;
+    }
+
+    draftAutoOpenedRef.current = true;
+    const draft = savedLetters.find(
+      (letter) => letterWorkflowStatus(letter.status) === 'draft',
+    );
+    if (!draft) return;
+    handleEditDraft(draft, { silent: true });
+    // Open the saved draft once, after the first list load.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedLettersFetched, savedLetters, initialLetterId]);
+
+  useEffect(() => {
+    if (!letterTypeReady || isGeneratorCollapsed) return;
+    const root = document.getElementById('letter-generator-content');
+    if (!root) return;
+
+    const markEdited = () => {
+      draftUserEditedRef.current = true;
+      draftHydratingRef.current = false;
+    };
+    const onGeneratorEvent = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof Node) || !root.contains(target)) return;
+      markEdited();
+    };
+    const onPortaledControl = (event: Event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const control = target.closest(
+        '[role="option"], [role="radio"], [role="checkbox"], [role="switch"], [role="menuitem"], [role="gridcell"]',
+      );
+      if (!control) return;
+      if (
+        root.contains(control) ||
+        root.querySelector('[data-state="open"], [aria-expanded="true"]')
+      ) {
+        markEdited();
+      }
+    };
+
+    root.addEventListener('input', onGeneratorEvent, true);
+    root.addEventListener('change', onGeneratorEvent, true);
+    root.addEventListener('click', onGeneratorEvent, true);
+    document.addEventListener('click', onPortaledControl, true);
+    return () => {
+      root.removeEventListener('input', onGeneratorEvent, true);
+      root.removeEventListener('change', onGeneratorEvent, true);
+      root.removeEventListener('click', onGeneratorEvent, true);
+      document.removeEventListener('click', onPortaledControl, true);
+    };
+  }, [isGeneratorCollapsed, letterTypeReady]);
+
+  useEffect(() => {
+    if (!letterTypeReady) return;
+    if (!draftUserEditedRef.current) {
+      draftBaselineRef.current = draftSnapshot;
+      if (draftHydratingRef.current && editingLetterIdRef.current) {
+        lastSavedSnapshotRef.current = draftSnapshot;
+      }
+      return;
+    }
+    draftHydratingRef.current = false;
+    if (!savedLettersFetched || isSubmitting) return;
+
+    const currentKey = draftContentKey(draftSnapshot);
+    if (
+      draftBaselineRef.current &&
+      draftContentKey(draftBaselineRef.current) === currentKey
+    ) {
+      return;
+    }
+    if (
+      lastSavedSnapshotRef.current &&
+      draftContentKey(lastSavedSnapshotRef.current) === currentKey
+    ) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      const requestId = ++draftSaveRequestRef.current;
+      setDraftSaveStatus('saving');
+      void persistLetterDraftRef.current({ silent: true }).then((saved) => {
+        if (draftSaveRequestRef.current !== requestId) return;
+        if (saved === 'skipped') return;
+        setDraftSaveStatus(saved ? 'saved' : 'error');
+      });
+    }, 1200);
+
+    return () => window.clearTimeout(timer);
+  }, [draftSnapshot, isSubmitting, letterTypeReady, savedLettersFetched]);
+
+  useEffect(() => {
+    const flush = () => {
+      if (!draftUserEditedRef.current) return;
+      void persistLetterDraftRef.current({ silent: true });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('pagehide', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('pagehide', flush);
+    };
+  }, []);
 
   const handleRegenerateSavedLetter = async (letter: SavedLetterRow) => {
     setRegeneratingLetterId(letter.id);
@@ -3804,6 +4405,7 @@ export function LetterGeneration({
       toast.success(t('letterGeneration.savedLetters.deleteSuccess'));
       setSavedLetters((prev) => prev.filter((l) => l.id !== id));
       setSelectedSavedLetterId((prev) => (prev === id ? null : prev));
+      setEditingLetterId((prev) => (prev === id ? null : prev));
     } catch (error) {
       console.error('Failed to delete letter', error);
       toast.error(t('letterGeneration.savedLetters.deleteError'));
@@ -3860,6 +4462,14 @@ export function LetterGeneration({
       toRationOffice: '',
     });
     setFieldErrors({});
+    draftEpochRef.current += 1;
+    draftUserEditedRef.current = false;
+    draftHydratingRef.current = false;
+    draftBaselineRef.current = null;
+    lastSavedSnapshotRef.current = null;
+    editingLetterIdRef.current = null;
+    setEditingLetterId(null);
+    setDraftSaveStatus('idle');
     referenceNumberAutoRef.current = true;
     void refreshReferenceSequence(defaultReferencePrefix(letterLocale), {
       force: true,
@@ -4105,6 +4715,47 @@ export function LetterGeneration({
           : 'flex-col sm:flex-row sm:flex-wrap sm:justify-end',
       )}
     >
+      {letterWorkflowStatus(letter.status) === 'draft' ? (
+        <>
+          <Button
+            size="sm"
+            variant="outline"
+            className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+            onClick={() => handleEditDraft(letter)}
+          >
+            <Pencil className="mr-2 size-4" />
+            {t('letterGeneration.savedLetters.actions.edit')}
+          </Button>
+          <Button
+            size="sm"
+            className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+            onClick={() => void handleSubmitSavedDraft(letter)}
+            disabled={submittingLetterId === letter.id}
+          >
+            {submittingLetterId === letter.id ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Send className="mr-2 size-4" />
+            )}
+            {t('letterGeneration.savedLetters.actions.submit')}
+          </Button>
+        </>
+      ) : null}
+      {isAdmin && letterWorkflowStatus(letter.status) === 'pending_verification' ? (
+        <Button
+          size="sm"
+          className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+          onClick={() => void handleApproveLetter(letter)}
+          disabled={approvingLetterId === letter.id}
+        >
+          {approvingLetterId === letter.id ? (
+            <Loader2 className="mr-2 size-4 animate-spin" />
+          ) : (
+            <Check className="mr-2 size-4" />
+          )}
+          {t('letterGeneration.savedLetters.actions.approve')}
+        </Button>
+      ) : null}
       <Button
         size="sm"
         variant="outline"
@@ -6776,8 +7427,24 @@ export function LetterGeneration({
                           </>
                         ) : null}
                       </p>
+                      {draftSaveStatus !== 'idle' ? (
+                        <p
+                          className={
+                            draftSaveStatus === 'error'
+                              ? 'text-xs text-destructive'
+                              : 'text-xs text-muted-foreground'
+                          }
+                          aria-live="polite"
+                        >
+                          {draftSaveStatus === 'saving'
+                            ? t('letterGeneration.savedLetters.autoSaving')
+                            : draftSaveStatus === 'saved'
+                              ? t('letterGeneration.savedLetters.autoSaved')
+                              : t('letterGeneration.savedLetters.autoSaveError')}
+                        </p>
+                      ) : null}
                     </div>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                       <Button
                         variant="outline"
                         className="w-full sm:w-auto"
@@ -6789,15 +7456,27 @@ export function LetterGeneration({
                       <Button
                         variant="outline"
                         className="w-full sm:w-auto"
-                        onClick={handleSaveLetter}
-                        disabled={isSaving}
+                        onClick={() => void handleSaveDraft()}
+                        disabled={isSaving || isSubmitting}
                       >
-                        {isSaving ? (
+                        {isSaving && !isSubmitting ? (
                           <Loader2 className="mr-2 size-4 animate-spin" />
                         ) : (
                           <Save className="mr-2 size-4" />
                         )}
-                        {t('letterGeneration.savedLetters.save')}
+                        {t('letterGeneration.savedLetters.saveDraft')}
+                      </Button>
+                      <Button
+                        className="w-full sm:w-auto"
+                        onClick={() => void handleSendForVerification()}
+                        disabled={isSaving || isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                        ) : (
+                          <Send className="mr-2 size-4" />
+                        )}
+                        {t('letterGeneration.savedLetters.sendForVerification')}
                       </Button>
                     </div>
                   </div>
@@ -6913,12 +7592,19 @@ export function LetterGeneration({
                               {letter.referenceNo
                                 ? formatReferenceForDisplay(letter.referenceNo, locale)
                                 : '—'}
+                            </p>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge variant="outline" className="font-normal">
+                                {t(
+                                  `letterGeneration.savedLetters.status.${letterWorkflowStatus(letter.status)}`,
+                                )}
+                              </Badge>
                               {letter.printedAt ? (
-                                <span className="ml-2 text-xs font-normal text-amber-700 dark:text-amber-400">
-                                  ({t('letterGeneration.savedLetters.printedBadge')})
+                                <span className="text-xs font-normal text-amber-700 dark:text-amber-400">
+                                  {t('letterGeneration.savedLetters.printedBadge')}
                                 </span>
                               ) : null}
-                            </p>
+                            </div>
                             <p className="text-sm text-muted-foreground">
                               {resolveTypeLabel(letter.letterType)} ·{' '}
                               {getLetterPaperLabel(resolveSavedLetterPaperSize(letter))}
@@ -6956,6 +7642,11 @@ export function LetterGeneration({
                               {letter.referenceNo
                                 ? formatReferenceForDisplay(letter.referenceNo, locale)
                                 : '—'}
+                              <Badge variant="outline" className="ml-2 align-middle font-normal">
+                                {t(
+                                  `letterGeneration.savedLetters.status.${letterWorkflowStatus(letter.status)}`,
+                                )}
+                              </Badge>
                               {letter.printedAt ? (
                                 <span className="ml-2 text-xs font-normal text-amber-700 dark:text-amber-400">
                                   ({t('letterGeneration.savedLetters.printedBadge')})
@@ -7013,6 +7704,10 @@ export function LetterGeneration({
                                     resolveSavedLetterPaperSize(selectedSavedLetter),
                                   ),
                                 })}
+                                {' · '}
+                                {t(
+                                  `letterGeneration.savedLetters.status.${letterWorkflowStatus(selectedSavedLetter.status)}`,
+                                )}
                               </DialogDescription>
                             </div>
                             <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap">
@@ -7070,6 +7765,53 @@ export function LetterGeneration({
                                   {t('govFollowUp.startFollowUp')}
                                 </Link>
                               </Button>
+                              {letterWorkflowStatus(selectedSavedLetter.status) === 'draft' ? (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-auto min-h-10 w-full justify-start whitespace-normal px-3 py-2 text-left text-xs leading-snug sm:text-sm lg:w-auto lg:justify-center"
+                                    onClick={() => handleEditDraft(selectedSavedLetter)}
+                                  >
+                                    <Pencil className="mr-2 size-4 shrink-0" />
+                                    {t('letterGeneration.savedLetters.actions.edit')}
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    className="h-auto min-h-10 w-full justify-start whitespace-normal px-3 py-2 text-left text-xs leading-snug sm:text-sm lg:w-auto lg:justify-center"
+                                    onClick={() =>
+                                      void handleSubmitSavedDraft(selectedSavedLetter)
+                                    }
+                                    disabled={submittingLetterId === selectedSavedLetter.id}
+                                  >
+                                    {submittingLetterId === selectedSavedLetter.id ? (
+                                      <Loader2 className="mr-2 size-4 shrink-0 animate-spin" />
+                                    ) : (
+                                      <Send className="mr-2 size-4 shrink-0" />
+                                    )}
+                                    {t('letterGeneration.savedLetters.actions.submit')}
+                                  </Button>
+                                </>
+                              ) : null}
+                              {isAdmin &&
+                              letterWorkflowStatus(selectedSavedLetter.status) ===
+                                'pending_verification' ? (
+                                <Button
+                                  size="sm"
+                                  className="h-auto min-h-10 w-full justify-start whitespace-normal px-3 py-2 text-left text-xs leading-snug sm:text-sm lg:w-auto lg:justify-center"
+                                  onClick={() =>
+                                    void handleApproveLetter(selectedSavedLetter)
+                                  }
+                                  disabled={approvingLetterId === selectedSavedLetter.id}
+                                >
+                                  {approvingLetterId === selectedSavedLetter.id ? (
+                                    <Loader2 className="mr-2 size-4 shrink-0 animate-spin" />
+                                  ) : (
+                                    <Check className="mr-2 size-4 shrink-0" />
+                                  )}
+                                  {t('letterGeneration.savedLetters.actions.approve')}
+                                </Button>
+                              ) : null}
                               <Button
                                 size="sm"
                                 variant="outline"

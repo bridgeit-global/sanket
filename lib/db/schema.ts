@@ -309,6 +309,8 @@ export type LetterAddressTypeLink = {
   updatedAt: Date;
 };
 
+export type LetterStatus = 'draft' | 'pending_verification' | 'approved';
+
 export type Letter = {
   id: string;
   letterMasterId: string | null;
@@ -321,6 +323,10 @@ export type Letter = {
   paperSize: 'a4' | 'a5' | 'b5';
   pdfStoragePath: string | null;
   printedAt: Date | null;
+  status: LetterStatus;
+  submittedAt: Date | null;
+  approvedAt: Date | null;
+  approvedBy: string | null;
   createdBy: string | null;
   beneficiaryServiceId: string | null;
   createdAt: Date;
