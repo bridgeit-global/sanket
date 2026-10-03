@@ -20,6 +20,7 @@ const FORCE_LETTER_TYPE_BY_NAME: Record<string, string> = {
   'Medical Assistance': 'medical-assistance',
   'Medical Aid': 'medical-assistance',
   'Cancer-Related Assistance': 'medical-assistance',
+  'Sanjay Gandhi Niradhar Yojana': 'sanjay-gandhi-niradhar',
 };
 
 type SeedService = {

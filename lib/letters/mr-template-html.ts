@@ -501,6 +501,30 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   ${CLOSING}
 </div>`,
 
+  'sanjay-gandhi-niradhar': `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>दि. <span class="var">{{date}}</span></div>
+  </div>
+प्रति,<br>
+  <div class="address">
+    <span class="var" style="font-weight: bold;">{{officeName}}</span>,<br>
+    <span style="font-weight: normal;">{{officeAddress}}</span>
+  </div>
+  ${subjectHtml('संजय गांधी निराधार योजना चालूकरणेबाबत.')}
+  <div class="salutation">
+    महोदय,
+  </div>
+  <p class="paragraph">
+    <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span> रा. <span style="font-weight: normal;">{{address}}</span> यांचे निवेदन मला प्राप्त झाले त्यात त्यांनी त्यांची संजय गांधी निराधार अनुदान योजना पुन्हा चालूकरणेबाबतची विनंती केलेली आहे. माहे <span class="var">{{stoppedFrom}}</span> पासून सदर योजना बंद करण्यात आलेली आहे. कारण त्यांनी हयातीचा दाखला सादर केलेला नव्हता. परंतु दि. <span class="var">{{lifeCertificateDate}}</span> च्या परिशिष्ट अन्वये दाखला सादर करण्यात आलेला आहे.
+  </p>
+  <p class="paragraph">
+    तरी <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span> यांना सदर योजनेंतर्गत लाभ पुन्हा सुरू करणेबाबत योग्य ती कार्यवाही करण्यात यावी.
+  </p>
+  ${CLOSING}
+</div>`,
+
   ward: WARD_TEMPLATE_HTML,
   ...Object.fromEntries(
     WARD_LETTER_TYPES.map((type) => [type, wardIssueTemplateHtml(type)]),

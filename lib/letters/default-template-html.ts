@@ -63,6 +63,10 @@ const BASE_TEMPLATE_NAMES: Record<
     en: 'Medical Assistance Recommendation',
     mr: 'वैद्यकीय सहायता शिफारस',
   },
+  'sanjay-gandhi-niradhar': {
+    en: 'Sanjay Gandhi Niradhar Yojana Restart',
+    mr: 'संजय गांधी निराधार योजना चालूकरण',
+  },
   ward: { en: 'Ward Letter', mr: 'प्रभाग पत्र' },
 };
 

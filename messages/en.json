@@ -1197,6 +1197,7 @@
       "identity": "Identity Card",
       "qr-birth-certificate": "QR Birth Certificate",
       "medical-assistance": "Medical Assistance Recommendation",
+      "sanjay-gandhi-niradhar": "Sanjay Gandhi Niradhar Yojana Restart",
       "ward": "Ward Letter",
       "general": "General Letter",
       "ration": "Ration Card (All)"
@@ -1267,7 +1268,9 @@
       "hospitalAddress": "Hospital Address",
       "age": "Age",
       "ailment": "Ailment / Condition",
-      "treatment": "Required Treatment"
+      "treatment": "Required Treatment",
+      "stoppedFrom": "Scheme stopped from (month/year)",
+      "lifeCertificateDate": "Life certificate date"
     },
     "customFields": {
       "title": "Template fields",
@@ -1302,7 +1305,9 @@
       "birthRegistrationNo": "e.g. 12345/2005",
       "officeName": "e.g. Medical Health Officer, M/East Ward",
       "ailment": "e.g. kidney ailment",
-      "treatment": "e.g. kidney transplant"
+      "treatment": "e.g. kidney transplant",
+      "stoppedFrom": "e.g. April 2026",
+      "lifeCertificateDate": "e.g. 20/08/2026"
     },
     "gender": {
       "male": "Male",

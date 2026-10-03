@@ -191,6 +191,18 @@ export function getDefaultLetterAddressTypeLinks(): LetterAddressTypeLinkSeed[] 
       addressType: 'general',
       sortOrder: 2,
     },
+    {
+      letterType: 'sanjay-gandhi-niradhar',
+      addressField: 'office',
+      addressType: 'office',
+      sortOrder: 1,
+    },
+    {
+      letterType: 'sanjay-gandhi-niradhar',
+      addressField: 'applicant',
+      addressType: 'general',
+      sortOrder: 2,
+    },
     { letterType: 'ward', addressField: 'to', addressType: 'office', sortOrder: 1 },
     ...WARD_LETTER_TYPES.map((letterType) => ({
       letterType,

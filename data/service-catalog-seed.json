@@ -37,6 +37,7 @@
   { "category": "Pension & Social Welfare", "name": "Pension Letter Signature", "sortOrder": 29 },
   { "category": "Pension & Social Welfare", "name": "Disability Pension Issue", "sortOrder": 30 },
   { "category": "Pension & Social Welfare", "name": "Ladki Bahin Yojana – Amount Not Credited", "sortOrder": 31 },
+  { "category": "Pension & Social Welfare", "name": "Sanjay Gandhi Niradhar Yojana", "sortOrder": 114 },
   { "category": "Donations & Assistance", "name": "Ration Donation", "sortOrder": 32 },
   { "category": "Donations & Assistance", "name": "Marriage Assistance", "sortOrder": 33 },
   { "category": "Donations & Assistance", "name": "Festival Assistance", "sortOrder": 34 },

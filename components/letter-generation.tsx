@@ -85,6 +85,7 @@ import { useTranslations } from '@/hooks/use-translations';
 import {
   buildLetterBody,
   DEFAULT_BIRTH_CERTIFICATE_OFFICE_NAME,
+  DEFAULT_SANJAY_GANDHI_OFFICE_NAME,
   DEFAULT_SIGNATORY,
   DEFAULT_GENERAL_SALUTATION,
   isLetterType,
@@ -103,6 +104,7 @@ import {
   type MedicalAssistanceLetterFields,
   type PersonGender,
   type RationLetterFields,
+  type SanjayGandhiNiradharLetterFields,
   type CollegeAdmissionLetterFields,
   type SchoolAdmissionLetterFields,
   type SchoolTransferLetterFields,
@@ -357,6 +359,7 @@ function getFieldsForLetterType(
     domicileFields: DomicileLetterFields;
     birthCertificateFields: BirthCertificateLetterFields;
     medicalAssistanceFields: MedicalAssistanceLetterFields;
+    sanjayGandhiNiradharFields: SanjayGandhiNiradharLetterFields;
     wardFields: WardLetterFields;
   },
 ) {
@@ -381,6 +384,8 @@ function getFieldsForLetterType(
       return fields.birthCertificateFields;
     case 'medical-assistance':
       return fields.medicalAssistanceFields;
+    case 'sanjay-gandhi-niradhar':
+      return fields.sanjayGandhiNiradharFields;
     case 'ward':
       return fields.wardFields;
     default:
@@ -643,6 +648,22 @@ function medicalAssistanceDefaults(locale: LetterLocale): MedicalAssistanceLette
     address: '',
     ailment: '',
     treatment: '',
+  };
+}
+
+function sanjayGandhiNiradharDefaults(
+  locale: LetterLocale,
+): SanjayGandhiNiradharLetterFields {
+  return {
+    ...commonDefaults(locale, 'sanjay-gandhi-niradhar'),
+    gender: 'female',
+    salutation: resolveSalutation(locale, 'female'),
+    fullName: '',
+    address: '',
+    officeName: DEFAULT_SANJAY_GANDHI_OFFICE_NAME[locale],
+    officeAddress: '',
+    stoppedFrom: '',
+    lifeCertificateDate: '',
   };
 }
 
@@ -1118,6 +1139,9 @@ function applyMasterAddressToFields(
     setIncomeFields: Dispatch<SetStateAction<IncomeLetterFields>>;
     setDomicileFields: Dispatch<SetStateAction<DomicileLetterFields>>;
     setMedicalAssistanceFields: Dispatch<SetStateAction<MedicalAssistanceLetterFields>>;
+    setSanjayGandhiNiradharFields: Dispatch<
+      SetStateAction<SanjayGandhiNiradharLetterFields>
+    >;
     setWardFields: Dispatch<SetStateAction<WardLetterFields>>;
   },
 ) {
@@ -1164,6 +1188,10 @@ function applyMasterAddressToFields(
     setters.setIncomeFields((prev) => ({ ...prev, address: applicantText }));
     setters.setDomicileFields((prev) => ({ ...prev, address: applicantText }));
     setters.setMedicalAssistanceFields((prev) => ({ ...prev, address: applicantText }));
+    setters.setSanjayGandhiNiradharFields((prev) => ({
+      ...prev,
+      address: applicantText,
+    }));
   }
 
   if (rationOfficeText) {
@@ -1188,6 +1216,11 @@ function applyMasterAddressToFields(
       officeAddress: officeText,
     }));
     setters.setDomicileFields((prev) => ({
+      ...prev,
+      officeName: officeName || prev.officeName,
+      officeAddress: officeText,
+    }));
+    setters.setSanjayGandhiNiradharFields((prev) => ({
       ...prev,
       officeName: officeName || prev.officeName,
       officeAddress: officeText,
@@ -1450,6 +1483,8 @@ export function LetterGeneration({
   const birthOfficeTranslateReqRef = useRef(0);
   const [medicalAssistanceFields, setMedicalAssistanceFields] =
     useState<MedicalAssistanceLetterFields>(() => medicalAssistanceDefaults('mr'));
+  const [sanjayGandhiNiradharFields, setSanjayGandhiNiradharFields] =
+    useState<SanjayGandhiNiradharLetterFields>(() => sanjayGandhiNiradharDefaults('mr'));
   const [wardFields, setWardFields] = useState<WardLetterFields>(() => {
     const base = wardDefaults(
       'mr',
@@ -1519,6 +1554,7 @@ export function LetterGeneration({
         domicileFields,
         birthCertificateFields,
         medicalAssistanceFields,
+        sanjayGandhiNiradharFields,
         wardFields,
       }).date,
     [
@@ -1526,6 +1562,7 @@ export function LetterGeneration({
       birthCertificateFields,
       domicileFields,
       medicalAssistanceFields,
+      sanjayGandhiNiradharFields,
       generalFields,
       feesFields,
       incomeFields,
@@ -1740,6 +1777,7 @@ export function LetterGeneration({
     setDomicileFields((prev) => ({ ...prev, ...patch }));
     setBirthCertificateFields((prev) => ({ ...prev, ...patch }));
     setMedicalAssistanceFields((prev) => ({ ...prev, ...patch }));
+    setSanjayGandhiNiradharFields((prev) => ({ ...prev, ...patch }));
     setWardFields((prev) => ({ ...prev, ...patch }));
   }, []);
 
@@ -1938,6 +1976,26 @@ export function LetterGeneration({
       ailment: filterText(prev.ailment),
       treatment: filterText(prev.treatment),
     }));
+    setSanjayGandhiNiradharFields((prev) => ({
+      ...prev,
+      referencePrefix: nextPrefix(prev.referencePrefix),
+      referenceNo: nextReferenceNo(prev.referenceNo),
+      signatory: nextSignatory(prev.signatory),
+      date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+      salutation: resolveSalutation(letterLocale, prev.gender),
+      fullName: filterText(prev.fullName),
+      stoppedFrom: filterText(prev.stoppedFrom),
+      lifeCertificateDate: toLocaleDigits(
+        toWesternDigits(prev.lifeCertificateDate),
+        letterLocale,
+      ),
+      officeName:
+        !prev.officeName.trim() ||
+        prev.officeName.trim() === DEFAULT_SANJAY_GANDHI_OFFICE_NAME[prevLocale] ||
+        prev.officeName.trim() === DEFAULT_SANJAY_GANDHI_OFFICE_NAME[letterLocale]
+          ? DEFAULT_SANJAY_GANDHI_OFFICE_NAME[letterLocale]
+          : filterText(prev.officeName),
+    }));
     setWardFields((prev) => {
       const issueType = resolveWardIssueType(prev.issueType);
       const prevDefaultTo = getDefaultWardToAddress(issueType, prevLocale);
@@ -2006,6 +2064,7 @@ export function LetterGeneration({
       setIncomeFields,
       setDomicileFields,
       setMedicalAssistanceFields,
+      setSanjayGandhiNiradharFields,
       setWardFields,
     });
 
@@ -2034,6 +2093,7 @@ export function LetterGeneration({
         setIncomeFields((prev) => ({ ...prev, address: text }));
         setDomicileFields((prev) => ({ ...prev, address: text }));
         setMedicalAssistanceFields((prev) => ({ ...prev, address: text }));
+        setSanjayGandhiNiradharFields((prev) => ({ ...prev, address: text }));
       }
     }
     if (!addressSelections.rationOffice) {
@@ -2056,6 +2116,7 @@ export function LetterGeneration({
       if (text.trim()) {
         setIncomeFields((prev) => ({ ...prev, officeAddress: text }));
         setDomicileFields((prev) => ({ ...prev, officeAddress: text }));
+        setSanjayGandhiNiradharFields((prev) => ({ ...prev, officeAddress: text }));
       }
     }
     if (!addressSelections.to) {
@@ -2167,6 +2228,7 @@ export function LetterGeneration({
           setIncomeFields((prev) => ({ ...prev, address: value }));
           setDomicileFields((prev) => ({ ...prev, address: value }));
           setMedicalAssistanceFields((prev) => ({ ...prev, address: value }));
+          setSanjayGandhiNiradharFields((prev) => ({ ...prev, address: value }));
           break;
         case 'rationOffice':
           setRationFields((prev) => ({ ...prev, rationOfficeAddress: value }));
@@ -2180,6 +2242,7 @@ export function LetterGeneration({
         case 'office':
           setIncomeFields((prev) => ({ ...prev, officeAddress: value }));
           setDomicileFields((prev) => ({ ...prev, officeAddress: value }));
+          setSanjayGandhiNiradharFields((prev) => ({ ...prev, officeAddress: value }));
           break;
         case 'to':
           setWardFields((prev) => ({
@@ -2290,6 +2353,7 @@ export function LetterGeneration({
     setIncomeFields((prev) => ({ ...prev, address: text }));
     setDomicileFields((prev) => ({ ...prev, address: text }));
     setMedicalAssistanceFields((prev) => ({ ...prev, address: text }));
+    setSanjayGandhiNiradharFields((prev) => ({ ...prev, address: text }));
   };
 
   const handleSchoolAddressSelect = (id: string | null, seedText = '') => {
@@ -2467,6 +2531,7 @@ export function LetterGeneration({
       if (text) {
         setIncomeFields((prev) => ({ ...prev, officeAddress: text }));
         setDomicileFields((prev) => ({ ...prev, officeAddress: text }));
+        setSanjayGandhiNiradharFields((prev) => ({ ...prev, officeAddress: text }));
       }
       const selected = addresses.find((a) => a.id === id);
       if (selected) {
@@ -2474,6 +2539,7 @@ export function LetterGeneration({
         if (officeName) {
           setIncomeFields((prev) => ({ ...prev, officeName }));
           setDomicileFields((prev) => ({ ...prev, officeName }));
+          setSanjayGandhiNiradharFields((prev) => ({ ...prev, officeName }));
           setFieldErrors((prev) => ({ ...prev, officeName: undefined }));
         }
         setManualAddressParts((prev) => ({ ...prev, office: addressRowToParts(selected) }));
@@ -2482,6 +2548,10 @@ export function LetterGeneration({
       // Manual entry starts blank — don't carry over the previous name.
       setIncomeFields((prev) => ({ ...prev, officeName: '' }));
       setDomicileFields((prev) => ({ ...prev, officeName: '' }));
+      setSanjayGandhiNiradharFields((prev) => ({
+        ...prev,
+        officeName: DEFAULT_SANJAY_GANDHI_OFFICE_NAME[letterLocale],
+      }));
       seedManualAddressPartsFromText('office', seedText);
     }
   };
@@ -3100,6 +3170,7 @@ export function LetterGeneration({
         domicileFields,
         birthCertificateFields,
         medicalAssistanceFields,
+        sanjayGandhiNiradharFields,
         wardFields,
       }),
       ...customPlaceholderValues,
@@ -3131,6 +3202,7 @@ export function LetterGeneration({
     domicileFields,
     birthCertificateFields,
     medicalAssistanceFields,
+    sanjayGandhiNiradharFields,
     wardFields,
     customPlaceholderValues,
     activeTemplateHtml,
@@ -3169,6 +3241,7 @@ export function LetterGeneration({
         domicileFields,
         birthCertificateFields,
         medicalAssistanceFields,
+        sanjayGandhiNiradharFields,
         wardFields,
       }),
       ...customPlaceholderValues,
@@ -3179,6 +3252,7 @@ export function LetterGeneration({
       customPlaceholderValues,
       domicileFields,
       medicalAssistanceFields,
+      sanjayGandhiNiradharFields,
       generalFields,
       feesFields,
       incomeFields,
@@ -3252,6 +3326,7 @@ export function LetterGeneration({
     setDomicileFields(coercePrefix);
     setBirthCertificateFields(coercePrefix);
     setMedicalAssistanceFields(coercePrefix);
+    setSanjayGandhiNiradharFields(coercePrefix);
     setWardFields(coercePrefix);
   }, []);
 
@@ -3276,6 +3351,7 @@ export function LetterGeneration({
     setDomicileFields(patchPrefix);
     setBirthCertificateFields(patchPrefix);
     setMedicalAssistanceFields(patchPrefix);
+    setSanjayGandhiNiradharFields(patchPrefix);
     setWardFields(patchPrefix);
     referenceNumberAutoRef.current = true;
   }, [activeTab, lockFixedFields, govFollowUpMatterId]);
@@ -3397,6 +3473,19 @@ export function LetterGeneration({
           });
         },
       );
+      setSanjayGandhiNiradharFields((prev) =>
+        prev.fullName.trim() ? prev : { ...prev, fullName: voterPrefillName },
+      );
+      void applyNameMarathiIfUnchanged(
+        'sanjay-gandhi-niradhar.fullName',
+        voterPrefillName,
+        (translated, trimmed) => {
+          setSanjayGandhiNiradharFields((prev) => {
+            if (prev.fullName.trim() !== trimmed) return prev;
+            return { ...prev, fullName: translated };
+          });
+        },
+      );
       setSchoolAdmissionFields((prev) =>
         prev.parentName.trim()
           ? prev
@@ -3470,6 +3559,9 @@ export function LetterGeneration({
         prev.address.trim() ? prev : { ...prev, address: voterPrefillAddress },
       );
       setMedicalAssistanceFields((prev) =>
+        prev.address.trim() ? prev : { ...prev, address: voterPrefillAddress },
+      );
+      setSanjayGandhiNiradharFields((prev) =>
         prev.address.trim() ? prev : { ...prev, address: voterPrefillAddress },
       );
       seedManualAddressPartsFromText('applicant', voterPrefillAddress);
@@ -3654,6 +3746,31 @@ export function LetterGeneration({
       requireField(errors, 'treatment', medicalAssistanceFields.treatment, requiredMsg);
       requireAddress('school', medicalAssistanceFields.hospitalAddress);
       requireAddress('applicant', medicalAssistanceFields.address);
+    } else if (formTab === 'sanjay-gandhi-niradhar') {
+      requireField(
+        errors,
+        'officeName',
+        sanjayGandhiNiradharFields.officeName,
+        requiredMsg,
+      );
+      requireField(
+        errors,
+        'salutation',
+        sanjayGandhiNiradharFields.salutation,
+        requiredMsg,
+      );
+      requireField(errors, 'fullName', sanjayGandhiNiradharFields.fullName, requiredMsg);
+      requireField(
+        errors,
+        'stoppedFrom',
+        sanjayGandhiNiradharFields.stoppedFrom,
+        requiredMsg,
+      );
+      if (!tryParseDisplayToIso(sanjayGandhiNiradharFields.lifeCertificateDate)) {
+        errors.lifeCertificateDate = lt('letterGeneration.validation.dateRequired');
+      }
+      requireAddress('office', sanjayGandhiNiradharFields.officeAddress);
+      requireAddress('applicant', sanjayGandhiNiradharFields.address);
     } else if (formTab === 'ward') {
       requireField(errors, 'toName', wardFields.toName, requiredMsg);
       requireAddress('to', wardFields.to);
@@ -3769,6 +3886,12 @@ export function LetterGeneration({
       return differsFromDefaults(
         medicalAssistanceFields as unknown as Record<string, unknown>,
         medicalAssistanceDefaults(letterLocale) as unknown as Record<string, unknown>,
+      );
+    }
+    if (formTab === 'sanjay-gandhi-niradhar') {
+      return differsFromDefaults(
+        sanjayGandhiNiradharFields as unknown as Record<string, unknown>,
+        sanjayGandhiNiradharDefaults(letterLocale) as unknown as Record<string, unknown>,
       );
     }
     if (formTab === 'ward') {
@@ -4317,14 +4440,25 @@ export function LetterGeneration({
         }
       }
 
-      if (!addressSelections.office && (formTab === 'income' || formTab === 'domicile')) {
+      if (
+        !addressSelections.office &&
+        (formTab === 'income' ||
+          formTab === 'domicile' ||
+          formTab === 'sanjay-gandhi-niradhar')
+      ) {
         const officeText =
-          (formTab === 'income' ? incomeFields.officeAddress : domicileFields.officeAddress) ??
-          '';
+          (formTab === 'income'
+            ? incomeFields.officeAddress
+            : formTab === 'domicile'
+              ? domicileFields.officeAddress
+              : sanjayGandhiNiradharFields.officeAddress) ?? '';
         if (officeText.trim()) {
           const created = await createAddressMasterFromManualEntry({
             addressType: addressTypeForField('office'),
-            name: deriveAddressMasterName(officeText, 'Office Address'),
+            name:
+              (formTab === 'sanjay-gandhi-niradhar'
+                ? sanjayGandhiNiradharFields.officeName.trim()
+                : '') || deriveAddressMasterName(officeText, 'Office Address'),
             parts: manualAddressParts.office,
           });
           if (created?.id) {
@@ -4559,6 +4693,10 @@ export function LetterGeneration({
       setMedicalAssistanceFields(
         mergeSavedLetterFields(medicalAssistanceDefaults(letterLocale), saved),
       );
+    } else if (formBase === 'sanjay-gandhi-niradhar') {
+      setSanjayGandhiNiradharFields(
+        mergeSavedLetterFields(sanjayGandhiNiradharDefaults(letterLocale), saved),
+      );
     } else if (formBase === 'ward') {
       setWardFields(
         mergeSavedLetterFields(
@@ -4590,6 +4728,7 @@ export function LetterGeneration({
           domicileFields: domicileDefaults(letterLocale),
           birthCertificateFields: birthCertificateDefaults(letterLocale),
           medicalAssistanceFields: medicalAssistanceDefaults(letterLocale),
+          sanjayGandhiNiradharFields: sanjayGandhiNiradharDefaults(letterLocale),
           wardFields: wardDefaults(
             letterLocale,
             resolveWardIssueForLetterContext(letter.letterType, service?.serviceName),
@@ -4797,6 +4936,7 @@ export function LetterGeneration({
     setBirthOfficeParts(createEmptyAddressParts());
     setBirthOfficePincodeError(undefined);
     setMedicalAssistanceFields(medicalAssistanceDefaults(letterLocale));
+    setSanjayGandhiNiradharFields(sanjayGandhiNiradharDefaults(letterLocale));
     setWardFields(
       wardDefaults(
         letterLocale,
@@ -7780,6 +7920,216 @@ export function LetterGeneration({
                           required
                         />
                       </FieldGroup>
+                    </TabsContent>
+
+                    <TabsContent value="sanjay-gandhi-niradhar" className="mt-0 space-y-4">
+                      {renderCommonFields(
+                        sanjayGandhiNiradharFields,
+                        setSanjayGandhiNiradharFields,
+                      )}
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
+                        <FieldGroup label={lt('letterGeneration.fields.gender')} required>
+                          <Select
+                            value={sanjayGandhiNiradharFields.gender}
+                            onValueChange={(value: PersonGender) =>
+                              setSanjayGandhiNiradharFields((prev) => ({
+                                ...prev,
+                                gender: value,
+                                salutation: resolveSalutation(letterLocale, value),
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="male">
+                                {lt('letterGeneration.gender.male')}
+                              </SelectItem>
+                              <SelectItem value="female">
+                                {lt('letterGeneration.gender.female')}
+                              </SelectItem>
+                              <SelectItem value="other">
+                                {lt('letterGeneration.gender.other')}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FieldGroup>
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.salutation')}
+                          required
+                          error={fieldErrors.salutation}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
+                            value={sanjayGandhiNiradharFields.salutation}
+                            onValueChange={(salutation) => {
+                              setSanjayGandhiNiradharFields((prev) => ({
+                                ...prev,
+                                salutation,
+                              }));
+                              if (fieldErrors.salutation) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  salutation: undefined,
+                                }));
+                              }
+                            }}
+                            required
+                          />
+                        </FieldGroup>
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.fullName')}
+                          required
+                          error={fieldErrors.fullName}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
+                            value={sanjayGandhiNiradharFields.fullName}
+                            onValueChange={(fullName) => {
+                              bumpNameTranslateReqId('sanjay-gandhi-niradhar.fullName');
+                              setSanjayGandhiNiradharFields((prev) => ({
+                                ...prev,
+                                fullName,
+                              }));
+                              if (fieldErrors.fullName) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  fullName: undefined,
+                                }));
+                              }
+                            }}
+                            onBlur={() => {
+                              void applyNameMarathiIfUnchanged(
+                                'sanjay-gandhi-niradhar.fullName',
+                                sanjayGandhiNiradharFields.fullName,
+                                (translated, trimmed) => {
+                                  setSanjayGandhiNiradharFields((prev) => {
+                                    if (prev.fullName.trim() !== trimmed) return prev;
+                                    return { ...prev, fullName: translated };
+                                  });
+                                },
+                              );
+                            }}
+                            required
+                          />
+                        </FieldGroup>
+                      </div>
+                      <LetterAddressField
+                        label={lt('letterGeneration.fields.address')}
+                        addressType={addressTypeForField('applicant')}
+                        entryMode="structured"
+                        locale={letterLocale}
+                        selectedAddressId={addressSelections.applicant}
+                        addresses={addresses}
+                        letterDate={activeLetterDate}
+                        addressParts={manualAddressParts.applicant}
+                        onAddressPartsChange={(parts) =>
+                          handleManualAddressPartsChange('applicant', parts)
+                        }
+                        pincodeError={addressPincodeErrors.applicant}
+                        error={fieldErrors.applicantAddress}
+                        required
+                        onSelectedAddressIdChange={(id) =>
+                          handleApplicantAddressSelect(
+                            id,
+                            sanjayGandhiNiradharFields.address,
+                          )
+                        }
+                      />
+                      <LetterAddressField
+                        label={lt('letterGeneration.fields.officeAddress')}
+                        addressType={addressTypeForField('office')}
+                        locale={letterLocale}
+                        selectedAddressId={addressSelections.office}
+                        addresses={addresses}
+                        letterDate={activeLetterDate}
+                        addressParts={manualAddressParts.office}
+                        onAddressPartsChange={(parts) =>
+                          handleManualAddressPartsChange('office', parts)
+                        }
+                        pincodeError={addressPincodeErrors.office}
+                        error={fieldErrors.officeAddress}
+                        required
+                        nameLabel={letterLocale === 'mr' ? 'कार्यालय नाव' : 'Office Name'}
+                        namePlaceholder={
+                          letterLocale === 'mr'
+                            ? 'कार्यालय नाव टाइप करा'
+                            : 'Type office name'
+                        }
+                        nameValue={sanjayGandhiNiradharFields.officeName}
+                        nameRequired
+                        nameError={fieldErrors.officeName}
+                        onNameChange={(value) => {
+                          setSanjayGandhiNiradharFields((prev) => ({
+                            ...prev,
+                            officeName: value,
+                          }));
+                          if (fieldErrors.officeName) {
+                            setFieldErrors((prev) => ({
+                              ...prev,
+                              officeName: undefined,
+                            }));
+                          }
+                        }}
+                        onSelectedAddressIdChange={(id) =>
+                          handleOfficeAddressSelect(
+                            id,
+                            sanjayGandhiNiradharFields.officeAddress,
+                          )
+                        }
+                      />
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.stoppedFrom')}
+                          required
+                          error={fieldErrors.stoppedFrom}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
+                            value={sanjayGandhiNiradharFields.stoppedFrom}
+                            onValueChange={(stoppedFrom) => {
+                              setSanjayGandhiNiradharFields((prev) => ({
+                                ...prev,
+                                stoppedFrom,
+                              }));
+                              if (fieldErrors.stoppedFrom) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  stoppedFrom: undefined,
+                                }));
+                              }
+                            }}
+                            placeholder={lt('letterGeneration.placeholders.stoppedFrom')}
+                            required
+                          />
+                        </FieldGroup>
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.lifeCertificateDate')}
+                          required
+                          error={fieldErrors.lifeCertificateDate}
+                        >
+                          <LetterDatePicker
+                            locale={letterLocale}
+                            value={sanjayGandhiNiradharFields.lifeCertificateDate}
+                            onValueChange={(lifeCertificateDate) => {
+                              setSanjayGandhiNiradharFields((prev) => ({
+                                ...prev,
+                                lifeCertificateDate,
+                              }));
+                              if (fieldErrors.lifeCertificateDate) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  lifeCertificateDate: undefined,
+                                }));
+                              }
+                            }}
+                            placeholder={lt(
+                              'letterGeneration.placeholders.lifeCertificateDate',
+                            )}
+                          />
+                        </FieldGroup>
+                      </div>
                     </TabsContent>
 
                     <TabsContent value="ward" className="mt-0 space-y-4">

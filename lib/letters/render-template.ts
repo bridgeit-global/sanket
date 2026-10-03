@@ -29,6 +29,7 @@ import type {
   MedicalAssistanceLetterFields,
   PersonGender,
   RationLetterFields,
+  SanjayGandhiNiradharLetterFields,
   CollegeAdmissionLetterFields,
   SchoolAdmissionLetterFields,
   SchoolTransferLetterFields,
@@ -287,6 +288,19 @@ export function buildRenderFields(
       ...medicalFields,
       age: toLocaleDigits(toWesternDigits(medicalFields.age ?? '').replace(/\D/g, ''), locale),
       hospitalAddress: formatAddressSoftWrapHtml(medicalFields.hospitalAddress),
+    };
+  } else if (formType === 'sanjay-gandhi-niradhar') {
+    const sgnyFields = fields as SanjayGandhiNiradharLetterFields;
+    renderFields = {
+      ...base,
+      ...resolveGenderTokens(sgnyFields.gender, locale),
+      officeName: sgnyFields.officeName,
+      officeAddress: formatAddressSoftWrapHtml(sgnyFields.officeAddress),
+      stoppedFrom: toLocaleDigits(sgnyFields.stoppedFrom ?? '', locale),
+      lifeCertificateDate: toLocaleDigits(
+        toWesternDigits(sgnyFields.lifeCertificateDate ?? ''),
+        locale,
+      ),
     };
   } else if (formType === 'school-admission') {
     const schoolFields = fields as SchoolAdmissionLetterFields;

@@ -51,7 +51,7 @@ export function getAllowedLetterPaperSizes(
 /**
  * Default paper size by letter type:
  * - Ration Card → B5
- * - Small subjects (fees, income, domicile, identity, qr-birth-certificate, medical-assistance) → A5
+ * - Small subjects (fees, income, domicile, identity, qr-birth-certificate, medical-assistance, sanjay-gandhi-niradhar) → A5
  * - VIP / remaining → A4
  */
 export function getDefaultLetterPaperSize(
@@ -71,6 +71,7 @@ export function getDefaultLetterPaperSize(
     case 'identity':
     case 'qr-birth-certificate':
     case 'medical-assistance':
+    case 'sanjay-gandhi-niradhar':
       return 'a5';
     default:
       return 'a4';

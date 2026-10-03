@@ -153,6 +153,9 @@ const SERVICE_NAME_TO_LETTER_TYPE: Array<{ match: string; letterType: string }> 
   { match: 'medical aid', letterType: 'medical-assistance' },
   { match: 'cancer-related assistance', letterType: 'medical-assistance' },
   { match: 'cancer related assistance', letterType: 'medical-assistance' },
+  { match: 'sanjay gandhi niradhar yojana', letterType: 'sanjay-gandhi-niradhar' },
+  { match: 'sanjay gandhi niradhar', letterType: 'sanjay-gandhi-niradhar' },
+  { match: 'sanjay gandhi niradha', letterType: 'sanjay-gandhi-niradhar' },
   { match: 'request letter', letterType: 'general' },
   { match: 'handover letter request', letterType: 'general' },
   { match: 'ward letter', letterType: 'ward' },
@@ -237,6 +240,9 @@ export function resolveLetterTypeFromServiceName(
   }
   if (/\bcancer\b/.test(key) && /\bassistance\b/.test(key)) {
     return 'medical-assistance';
+  }
+  if (/\bsanjay\b/.test(key) && /\bgandhi\b/.test(key) && /\bniradh/.test(key)) {
+    return 'sanjay-gandhi-niradhar';
   }
   // Former "Ward – …" services were renamed to "BMC – …"; both open the ward form.
   if (/\bward\b/.test(key) || /^bmc\s*-/.test(key)) return 'ward';

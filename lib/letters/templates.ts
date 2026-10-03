@@ -52,6 +52,7 @@ export const LETTER_TYPES = [
   'identity',
   'qr-birth-certificate',
   'medical-assistance',
+  'sanjay-gandhi-niradhar',
   /** @deprecated Prefer specific ward-* letter types */
   'ward',
   ...WARD_LETTER_TYPES,
@@ -201,6 +202,20 @@ export type MedicalAssistanceLetterFields = CommonLetterFields & {
   treatment: string;
 };
 
+/** Restart Sanjay Gandhi Niradhar Yojana after life-certificate stoppage. */
+export type SanjayGandhiNiradharLetterFields = CommonLetterFields & {
+  gender: PersonGender;
+  salutation: string;
+  fullName: string;
+  address: string;
+  officeName: string;
+  officeAddress: string;
+  /** Month/year from which the scheme was stopped (e.g. एप्रिल २०२६). */
+  stoppedFrom: string;
+  /** Date of the life certificate submitted (enclosure). */
+  lifeCertificateDate: string;
+};
+
 export type GeneralLetterFields = CommonLetterFields & {
   /** Combined recipient block (name + address) for letter templates. */
   to: string;
@@ -240,6 +255,7 @@ export type LetterFields =
   | DomicileLetterFields
   | BirthCertificateLetterFields
   | MedicalAssistanceLetterFields
+  | SanjayGandhiNiradharLetterFields
   | WardLetterFields;
 
 export const DEFAULT_SIGNATORY: Record<LetterLocale, string> = {
@@ -260,6 +276,11 @@ export const DEFAULT_RATION_OFFICE_ADDRESS: Record<LetterLocale, string> = {
 export const DEFAULT_BIRTH_CERTIFICATE_OFFICE_NAME: Record<LetterLocale, string> = {
   mr: 'वैद्यकीय आरोग्य अधिकारी, एम/पूर्व विभाग',
   en: 'Medical Health Officer, M/East Ward',
+};
+
+export const DEFAULT_SANJAY_GANDHI_OFFICE_NAME: Record<LetterLocale, string> = {
+  mr: 'मा. तहसीलदार (कुर्ला)',
+  en: 'Hon. Tehsildar (Kurla)',
 };
 
 export const DEFAULT_OFFICE_ADDRESS: Record<LetterLocale, string> = {

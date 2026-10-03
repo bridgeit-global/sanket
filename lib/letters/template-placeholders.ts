@@ -194,6 +194,17 @@ const KNOWN_PLACEHOLDERS_BY_FORM: Partial<
     'ailment',
     'treatment',
   ],
+  'sanjay-gandhi-niradhar': [
+    ...COMMON_PLACEHOLDER_KEYS,
+    'gender',
+    'salutation',
+    'fullName',
+    'address',
+    'officeName',
+    'officeAddress',
+    'stoppedFrom',
+    'lifeCertificateDate',
+  ],
   ward: [
     ...COMMON_PLACEHOLDER_KEYS,
     'issueType',

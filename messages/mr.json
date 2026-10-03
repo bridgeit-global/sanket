@@ -1197,6 +1197,7 @@
       "identity": "ओळखपत्र",
       "qr-birth-certificate": "QR जन्म प्रमाणपत्र",
       "medical-assistance": "वैद्यकीय सहायता शिफारस",
+      "sanjay-gandhi-niradhar": "संजय गांधी निराधार योजना चालूकरण",
       "ward": "प्रभाग पत्र",
       "general": "सामान्य पत्र",
       "ration": "शिधापत्रिका (सर्व)"
@@ -1267,7 +1268,9 @@
       "hospitalAddress": "हॉस्पिटल पत्ता",
       "age": "वय",
       "ailment": "त्रास / आजार",
-      "treatment": "आवश्यक उपचार"
+      "treatment": "आवश्यक उपचार",
+      "stoppedFrom": "योजना बंद झाल्याचा महिना/वर्ष",
+      "lifeCertificateDate": "हयातीच्या दाखल्याची दिनांक"
     },
     "customFields": {
       "title": "साच्याची फील्ड्स",
@@ -1302,7 +1305,9 @@
       "birthRegistrationNo": "उदा. १२३४५/२००५",
       "officeName": "उदा. वैद्यकीय आरोग्य अधिकारी, एम/पूर्व विभाग",
       "ailment": "उदा. किडनीचा त्रास",
-      "treatment": "उदा. किडनी ट्रान्सप्लांट"
+      "treatment": "उदा. किडनी ट्रान्सप्लांट",
+      "stoppedFrom": "उदा. एप्रिल २०२६",
+      "lifeCertificateDate": "उदा. २०/०८/२०२६"
     },
     "gender": {
       "male": "पुरुष",

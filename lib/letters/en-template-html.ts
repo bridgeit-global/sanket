@@ -533,6 +533,32 @@ To,<br>
   ${CLOSING}
 </div>`,
 
+  'sanjay-gandhi-niradhar': `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>Date: <span class="var">{{date}}</span></div>
+  </div>
+To,<br>
+  <div class="address">
+    <span class="var" style="font-weight: bold;">{{officeName}}</span>,<br>
+    <span style="font-weight: normal;">{{officeAddress}}</span>
+  </div>
+  <div class="subject">
+    <span style="font-weight: normal;">Subject:</span> Regarding restart of Sanjay Gandhi Niradhar Yojana.
+  </div>
+  <div class="salutation">
+    Sir/Madam,
+  </div>
+  <p class="paragraph">
+    I have received an application from <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, residing at <span style="font-weight: normal;">{{address}}</span>, requesting that their Sanjay Gandhi Niradhar Grant Scheme be restarted. The said scheme has been stopped since <span class="var">{{stoppedFrom}}</span> because a life certificate had not been submitted. However, as per the enclosure dated <span class="var">{{lifeCertificateDate}}</span>, the certificate has been submitted.
+  </p>
+  <p class="paragraph">
+    Kindly take appropriate action to restart the benefits under the said scheme for <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>.
+  </p>
+  ${CLOSING}
+</div>`,
+
   ward: WARD_TEMPLATE_HTML,
   ...Object.fromEntries(
     WARD_LETTER_TYPES.map((type) => [type, wardIssueTemplateHtml(type)]),
