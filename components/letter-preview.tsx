@@ -1,7 +1,10 @@
 'use client';
 
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { Minus, Plus, RotateCcw } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
+import { useTranslations } from '@/hooks/use-translations';
 import { truncateAddressPincodesForLetter } from '@/lib/letters/format-address-master';
 import {
   getLetterheadContentPaddingMm,
@@ -22,6 +25,11 @@ import type { LetterLocale } from '@/lib/letters/templates';
 import {
   paginateLetterContentRoot,
 } from '@/lib/pdf/page-breaks';
+import { cn } from '@/lib/utils';
+
+const PREVIEW_ZOOM_MIN = 0.5;
+const PREVIEW_ZOOM_MAX = 2.5;
+const PREVIEW_ZOOM_STEP = 0.1;
 
 /** Preview/print HTML: keep full 6-digit address PINs (e.g. 400043). */
 function withLetterPincodeDisplay(html: string, letterLocale: LetterLocale): string {
@@ -317,6 +325,21 @@ export function createLetterExportElement(
   return letterContent;
 }
 
+function clampPreviewZoom(value: number): number {
+  return Math.min(
+    PREVIEW_ZOOM_MAX,
+    Math.max(PREVIEW_ZOOM_MIN, Math.round(value / PREVIEW_ZOOM_STEP) * PREVIEW_ZOOM_STEP),
+  );
+}
+
+function clampPreviewZoomContinuous(value: number): number {
+  return Math.min(PREVIEW_ZOOM_MAX, Math.max(PREVIEW_ZOOM_MIN, value));
+}
+
+function touchDistance(a: Touch, b: Touch): number {
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+}
+
 export function LetterPreview({
   html,
   paperSize = 'a4',
@@ -330,6 +353,7 @@ export function LetterPreview({
   letterLocale: LetterLocale;
   variant?: 'inline' | 'modal';
 }) {
+  const { t } = useTranslations();
   const resolvedLetterhead = resolveLetterheadUrl(paperSize, letterheadUrl);
   const contentHtml = withLetterAddressWidthStyle(
     withLetterClosingAlignStyle(
@@ -361,10 +385,36 @@ export function LetterPreview({
   const contentWidthPx = getLetterPaperContentWidthPx(paperSize);
 
   const rootRef = useRef<HTMLDivElement>(null);
-  const [displayScale, setDisplayScale] = useState(1);
+  const zoomFactorRef = useRef(1);
+  const pinchRef = useRef<{
+    startDistance: number;
+    startZoom: number;
+  } | null>(null);
+  const [fitScale, setFitScale] = useState(1);
+  const [zoomFactor, setZoomFactor] = useState(1);
   // Y offsets where each preview page begins — aligned to text-line bottoms
   // so glyphs are never clipped mid-line (same logic as PDF export).
   const [pageStartOffsetsPx, setPageStartOffsetsPx] = useState<number[]>([0]);
+
+  const displayScale = fitScale * zoomFactor;
+  const zoomPercent = Math.round(zoomFactor * 100);
+
+  const setZoom = useCallback((next: number, snap = false) => {
+    const clamped = snap ? clampPreviewZoom(next) : clampPreviewZoomContinuous(next);
+    zoomFactorRef.current = clamped;
+    setZoomFactor(clamped);
+  }, []);
+
+  const adjustZoom = useCallback(
+    (delta: number) => {
+      setZoom(zoomFactorRef.current + delta, true);
+    },
+    [setZoom],
+  );
+
+  const resetZoom = useCallback(() => {
+    setZoom(1, true);
+  }, [setZoom]);
 
   useLayoutEffect(() => {
     let cancelled = false;
@@ -439,23 +489,75 @@ export function LetterPreview({
     const root = rootRef.current;
     if (!root) return;
 
-    const updateDisplayScale = () => {
+    const updateFitScale = () => {
       const width = root.clientWidth;
       if (width <= 0) return;
       const next = computeLetterPreviewDisplayScale(width, paperSize, variant);
-      setDisplayScale((prev) => (Math.abs(prev - next) < 0.001 ? prev : next));
+      setFitScale((prev) => (Math.abs(prev - next) < 0.001 ? prev : next));
     };
 
-    updateDisplayScale();
+    updateFitScale();
 
     if (typeof ResizeObserver === 'undefined') {
       return;
     }
 
-    const observer = new ResizeObserver(() => updateDisplayScale());
+    const observer = new ResizeObserver(() => updateFitScale());
     observer.observe(root);
     return () => observer.disconnect();
   }, [paperSize, variant]);
+
+  useLayoutEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+
+    const onWheel = (event: WheelEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      event.preventDefault();
+      adjustZoom(event.deltaY < 0 ? PREVIEW_ZOOM_STEP : -PREVIEW_ZOOM_STEP);
+    };
+
+    const onTouchStart = (event: TouchEvent) => {
+      if (event.touches.length !== 2) {
+        pinchRef.current = null;
+        return;
+      }
+      const distance = touchDistance(event.touches[0], event.touches[1]);
+      if (distance < 8) return;
+      pinchRef.current = {
+        startDistance: distance,
+        startZoom: zoomFactorRef.current,
+      };
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      const pinch = pinchRef.current;
+      if (!pinch || event.touches.length !== 2) return;
+      event.preventDefault();
+      const distance = touchDistance(event.touches[0], event.touches[1]);
+      if (distance < 8 || pinch.startDistance < 8) return;
+      setZoom(pinch.startZoom * (distance / pinch.startDistance));
+    };
+
+    const endPinch = () => {
+      if (!pinchRef.current) return;
+      pinchRef.current = null;
+      setZoom(zoomFactorRef.current, true);
+    };
+
+    root.addEventListener('wheel', onWheel, { passive: false });
+    root.addEventListener('touchstart', onTouchStart, { passive: true });
+    root.addEventListener('touchmove', onTouchMove, { passive: false });
+    root.addEventListener('touchend', endPinch);
+    root.addEventListener('touchcancel', endPinch);
+    return () => {
+      root.removeEventListener('wheel', onWheel);
+      root.removeEventListener('touchstart', onTouchStart);
+      root.removeEventListener('touchmove', onTouchMove);
+      root.removeEventListener('touchend', endPinch);
+      root.removeEventListener('touchcancel', endPinch);
+    };
+  }, [adjustZoom, setZoom]);
 
   const paperWidthPx = getLetterPaperWidthPx(paperSize);
   const paperHeightPx = getLetterPaperHeightPx(paperSize);
@@ -470,88 +572,142 @@ export function LetterPreview({
   } as const;
 
   return (
-    <div ref={rootRef} className="w-full min-w-0 max-w-full">
-      <div className="mx-auto max-w-full" style={{ width: scaledPaperWidthPx }}>
-        {pageStartOffsetsPx.map((startOffsetPx, pageIndex) => {
-          const nextStartPx = pageStartOffsetsPx[pageIndex + 1];
-          const pageContentHeightPx =
-            pageIndex === 0
-              ? firstPageContentHeightPx
-              : subsequentPageContentHeightPx;
-          // Integer cuts — subpixel translateY leaves hairline glyph remnants.
-          const renderStartPx =
-            pageIndex === 0 ? 0 : Math.round(startOffsetPx);
-          const renderEndPx =
-            nextStartPx != null ? Math.round(nextStartPx) : undefined;
-          // Clip ONLY to the safe break — never to the full page content height,
-          // or a mid-line cut at the page bottom will slice glyphs.
-          const sliceHeightPx =
-            renderEndPx != null
-              ? Math.max(0, renderEndPx - renderStartPx)
-              : pageContentHeightPx;
+    <div
+      ref={rootRef}
+      className="w-full min-w-0 max-w-full touch-pan-x touch-pan-y space-y-3"
+    >
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex items-center gap-1 rounded-md border bg-background p-1">
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-9 w-9 shrink-0 px-0"
+            aria-label={t('letterGeneration.previewZoom.zoomOut')}
+            disabled={zoomFactor <= PREVIEW_ZOOM_MIN + 0.001}
+            onClick={() => adjustZoom(-PREVIEW_ZOOM_STEP)}
+          >
+            <Minus className="size-4" />
+          </Button>
+          <span
+            className="min-w-[3.5rem] text-center text-xs font-medium tabular-nums text-muted-foreground"
+            aria-live="polite"
+          >
+            {t('letterGeneration.previewZoom.level', { percent: zoomPercent })}
+          </span>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-9 w-9 shrink-0 px-0"
+            aria-label={t('letterGeneration.previewZoom.zoomIn')}
+            disabled={zoomFactor >= PREVIEW_ZOOM_MAX - 0.001}
+            onClick={() => adjustZoom(PREVIEW_ZOOM_STEP)}
+          >
+            <Plus className="size-4" />
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="ghost"
+            className="h-9 w-9 shrink-0 px-0"
+            aria-label={t('letterGeneration.previewZoom.reset')}
+            disabled={Math.abs(zoomFactor - 1) < 0.001}
+            onClick={resetZoom}
+          >
+            <RotateCcw className="size-4" />
+          </Button>
+        </div>
+      </div>
 
-          return (
-            <div
-              key={pageIndex}
-              className="shrink-0"
-              style={{
-                width: scaledPaperWidthPx,
-                height: scaledPaperHeightPx,
-                marginBottom:
-                  pageIndex < pageStartOffsetsPx.length - 1
-                    ? LETTER_PREVIEW_PAGE_GAP_PX
-                    : undefined,
-              }}
-            >
+      <div
+        className={cn(
+          'min-w-0 max-w-full',
+          zoomFactor > 1.001 ? 'overflow-x-auto' : 'overflow-x-hidden',
+        )}
+      >
+        <div className="mx-auto max-w-none" style={{ width: scaledPaperWidthPx }}>
+          {pageStartOffsetsPx.map((startOffsetPx, pageIndex) => {
+            const nextStartPx = pageStartOffsetsPx[pageIndex + 1];
+            const pageContentHeightPx =
+              pageIndex === 0
+                ? firstPageContentHeightPx
+                : subsequentPageContentHeightPx;
+            // Integer cuts — subpixel translateY leaves hairline glyph remnants.
+            const renderStartPx =
+              pageIndex === 0 ? 0 : Math.round(startOffsetPx);
+            const renderEndPx =
+              nextStartPx != null ? Math.round(nextStartPx) : undefined;
+            // Clip ONLY to the safe break — never to the full page content height,
+            // or a mid-line cut at the page bottom will slice glyphs.
+            const sliceHeightPx =
+              renderEndPx != null
+                ? Math.max(0, renderEndPx - renderStartPx)
+                : pageContentHeightPx;
+
+            return (
               <div
-                className="relative overflow-hidden rounded-lg bg-white text-black shadow-sm ring-1 ring-black/10"
-                style={pageShellStyle}
+                key={pageIndex}
+                className="shrink-0"
+                style={{
+                  width: scaledPaperWidthPx,
+                  height: scaledPaperHeightPx,
+                  marginBottom:
+                    pageIndex < pageStartOffsetsPx.length - 1
+                      ? LETTER_PREVIEW_PAGE_GAP_PX
+                      : undefined,
+                }}
               >
-                {resolvedLetterhead && pageIndex === 0 ? (
-                  <div
-                    aria-hidden
-                    className="pointer-events-none absolute inset-0 bg-no-repeat"
-                    style={{
-                      backgroundImage: `url("${resolvedLetterhead}")`,
-                      backgroundSize: '100% 100%',
-                    }}
-                  />
-                ) : null}
                 <div
-                  className="absolute inset-0"
-                  style={{
-                    padding:
-                      pageIndex === 0
-                        ? firstPageBodyPadding
-                        : continuationBodyPadding,
-                  }}
+                  className="relative overflow-hidden rounded-lg bg-white text-black shadow-sm ring-1 ring-black/10"
+                  style={pageShellStyle}
                 >
+                  {resolvedLetterhead && pageIndex === 0 ? (
+                    <div
+                      aria-hidden
+                      className="pointer-events-none absolute inset-0 bg-no-repeat"
+                      style={{
+                        backgroundImage: `url("${resolvedLetterhead}")`,
+                        backgroundSize: '100% 100%',
+                      }}
+                    />
+                  ) : null}
                   <div
-                    className="overflow-hidden"
+                    className="absolute inset-0"
                     style={{
-                      height: sliceHeightPx,
-                      maxHeight: pageContentHeightPx,
+                      padding:
+                        pageIndex === 0
+                          ? firstPageBodyPadding
+                          : continuationBodyPadding,
                     }}
                   >
                     <div
-                      className={LETTER_PREVIEW_CONTENT_CLASSES}
+                      className="overflow-hidden"
                       style={{
-                        width: contentWidthPx,
-                        maxWidth: '100%',
-                        transform:
-                          renderStartPx > 0
-                            ? `translateY(-${renderStartPx}px)`
-                            : undefined,
+                        height: sliceHeightPx,
+                        maxHeight: pageContentHeightPx,
                       }}
-                      // Letter HTML is generated from admin-editable templates stored in our database.
-                      dangerouslySetInnerHTML={{ __html: contentHtml }}
-                    />
+                    >
+                      <div
+                        className={LETTER_PREVIEW_CONTENT_CLASSES}
+                        style={{
+                          width: contentWidthPx,
+                          maxWidth: '100%',
+                          transform:
+                            renderStartPx > 0
+                              ? `translateY(-${renderStartPx}px)`
+                              : undefined,
+                        }}
+                        // Letter HTML is generated from admin-editable templates stored in our database.
+                        dangerouslySetInnerHTML={{ __html: contentHtml }}
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

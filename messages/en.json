@@ -769,6 +769,12 @@
     "clearAllConfirmDescription": "This will reset all letter form fields for every letter type. This cannot be undone.",
     "clearAllSuccess": "Form cleared",
     "previewTitle": "Preview",
+    "previewZoom": {
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "reset": "Reset zoom",
+      "level": "{percent}%"
+    },
     "paperSize": {
       "label": "Paper size: {size}",
       "hint": "Change size above to customize",

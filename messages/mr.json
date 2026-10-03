@@ -769,6 +769,12 @@
     "clearAllConfirmDescription": "यामुळे सर्व पत्र प्रकारांच्या फॉर्म फील्ड रीसेट होतील. हे पूर्ववत करता येणार नाही.",
     "clearAllSuccess": "फॉर्म साफ झाला",
     "previewTitle": "पूर्वावलोकन",
+    "previewZoom": {
+      "zoomIn": "झूम इन",
+      "zoomOut": "झूम आउट",
+      "reset": "झूम रीसेट",
+      "level": "{percent}%"
+    },
     "paperSize": {
       "label": "कागदाचा आकार: {size}",
       "hint": "आकार बदलण्यासाठी वर निवडा",
