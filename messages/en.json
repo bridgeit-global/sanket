@@ -1159,6 +1159,8 @@
         "approve": "Approve",
         "regenerate": "Regenerate",
         "closePreview": "Close preview",
+        "fullscreen": "Full screen",
+        "exitFullscreen": "Exit full screen",
         "addToOutward": "Add to Outward Register",
         "addedToOutward": "Added to Outward",
         "goToOutward": "Go to Outward"
@@ -1302,6 +1304,7 @@
       "referenceNoDuplicate": "Reference No. already exists",
       "dateRequired": "Date is required",
       "fieldRequired": "This field is required",
+      "atLeastOneField": "Fill at least one letter field before sending for verification",
       "contactNoInvalid": "Contact number must be exactly 10 digits"
     }
   },

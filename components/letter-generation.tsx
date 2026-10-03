@@ -17,6 +17,8 @@ import {
   Loader2,
   ListTree,
   MapPin,
+  Maximize2,
+  Minimize2,
   Plus,
   Check,
   Pencil,
@@ -468,7 +470,7 @@ function LetterDatePicker({
           </span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-[320px] p-4">
+      <DropdownMenuContent align="start" className="w-[min(320px,calc(100vw-2rem))] p-4">
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="letterDatePickerValue">Date</Label>
@@ -1533,6 +1535,8 @@ export function LetterGeneration({
   const [selectedSavedLetterId, setSelectedSavedLetterId] = useState<string | null>(
     null,
   );
+  const [previewFullscreen, setPreviewFullscreen] = useState(false);
+  const [livePreviewFullscreen, setLivePreviewFullscreen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [letterToDelete, setLetterToDelete] = useState<string | null>(null);
   const [clearAllDialogOpen, setClearAllDialogOpen] = useState(false);
@@ -3473,6 +3477,134 @@ export function LetterGeneration({
     return true;
   };
 
+  /** True when any letter content field differs from empty/defaults (not just ref/date). */
+  const hasUserFilledContentField = (): boolean => {
+    if (
+      Object.values(customPlaceholderValues).some((value) => Boolean(value?.trim()))
+    ) {
+      return true;
+    }
+
+    const ignoreKeys = new Set([
+      'referencePrefix',
+      'referenceNo',
+      'date',
+      'signatory',
+      'gender',
+      'issueType',
+      'salutation',
+      'signatureParagraphs',
+    ]);
+
+    const differsFromDefaults = (
+      current: Record<string, unknown>,
+      defaults: Record<string, unknown>,
+    ) => {
+      for (const [key, value] of Object.entries(current)) {
+        if (ignoreKeys.has(key)) continue;
+        if (typeof value !== 'string') continue;
+        const cur = value.trim();
+        if (!cur) continue;
+        const def =
+          typeof defaults[key] === 'string' ? String(defaults[key]).trim() : '';
+        if (cur !== def) return true;
+      }
+      return false;
+    };
+
+    if (formTab === 'general') {
+      return differsFromDefaults(
+        generalFields as unknown as Record<string, unknown>,
+        generalDefaults(letterLocale) as unknown as Record<string, unknown>,
+      );
+    }
+    if (formTab === 'fees') {
+      return differsFromDefaults(
+        feesFields as unknown as Record<string, unknown>,
+        feesDefaults(letterLocale) as unknown as Record<string, unknown>,
+      );
+    }
+    if (formTab === 'school-admission') {
+      return differsFromDefaults(
+        schoolAdmissionFields as unknown as Record<string, unknown>,
+        schoolAdmissionDefaults(letterLocale) as unknown as Record<string, unknown>,
+      );
+    }
+    if (formTab === 'college-admission') {
+      return differsFromDefaults(
+        collegeAdmissionFields as unknown as Record<string, unknown>,
+        collegeAdmissionDefaults(letterLocale) as unknown as Record<string, unknown>,
+      );
+    }
+    if (formTab === 'school-transfer') {
+      return differsFromDefaults(
+        schoolTransferFields as unknown as Record<string, unknown>,
+        schoolTransferDefaults(letterLocale) as unknown as Record<string, unknown>,
+      );
+    }
+    if (isRationLetterType(formTab)) {
+      return differsFromDefaults(
+        rationFields as unknown as Record<string, unknown>,
+        rationDefaults(letterLocale) as unknown as Record<string, unknown>,
+      );
+    }
+    if (formTab === 'income') {
+      return differsFromDefaults(
+        incomeFields as unknown as Record<string, unknown>,
+        incomeDefaults(letterLocale) as unknown as Record<string, unknown>,
+      );
+    }
+    if (formTab === 'domicile' || formTab === 'identity') {
+      return differsFromDefaults(
+        domicileFields as unknown as Record<string, unknown>,
+        domicileDefaults(letterLocale) as unknown as Record<string, unknown>,
+      );
+    }
+    if (formTab === 'medical-assistance') {
+      return differsFromDefaults(
+        medicalAssistanceFields as unknown as Record<string, unknown>,
+        medicalAssistanceDefaults(letterLocale) as unknown as Record<string, unknown>,
+      );
+    }
+    if (formTab === 'ward') {
+      return differsFromDefaults(
+        wardFields as unknown as Record<string, unknown>,
+        wardDefaults(
+          letterLocale,
+          resolveWardIssueType(wardFields.issueType),
+        ) as unknown as Record<string, unknown>,
+      );
+    }
+    return false;
+  };
+
+  /** Draft / send-for-verification: only need one content field filled. */
+  const validateMinimalLetterFields = () => {
+    if (!hasUserFilledContentField()) {
+      toast.error(lt('letterGeneration.validation.atLeastOneField'));
+      return false;
+    }
+
+    // Still block duplicate reference numbers when a number is present.
+    const trimmedPrefix = normalizeReferencePrefix(activeReferencePrefix);
+    const trimmedNumber = toWesternDigits(activeReferenceNo.trim());
+    if (trimmedPrefix && trimmedNumber) {
+      const fullReference = formatReference(trimmedPrefix, trimmedNumber);
+      if (
+        existingReferenceNos.some((existing) => existing.trim() === fullReference)
+      ) {
+        const message = lt('letterGeneration.validation.referenceNoDuplicate');
+        setFieldErrors((prev) => ({ ...prev, referenceNo: message }));
+        toast.error(message);
+        return false;
+      }
+    }
+
+    setFieldErrors({});
+    setAddressPincodeErrors({});
+    return true;
+  };
+
   const resolveSavedLetterPaperSize = (letter: SavedLetterRow): LetterPaperSize =>
     resolveLetterPaperSize(letter.paperSize, letter.letterType);
 
@@ -3850,8 +3982,13 @@ export function LetterGeneration({
     }
   };
 
-  const handleSaveLetter = async () => {
-    if (!validateActiveLetterFields()) return;
+  const handleSaveLetter = async (options?: { requireAllFields?: boolean }) => {
+    const requireAllFields = options?.requireAllFields ?? false;
+    if (requireAllFields) {
+      if (!validateActiveLetterFields()) return;
+    } else if (!validateMinimalLetterFields()) {
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -4725,7 +4862,7 @@ export function LetterGeneration({
           <Button
             size="sm"
             variant="outline"
-            className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+            className="h-10 w-full sm:w-auto"
             onClick={() => handleEditDraft(letter)}
           >
             <Pencil className="mr-2 size-4" />
@@ -4733,7 +4870,7 @@ export function LetterGeneration({
           </Button>
           <Button
             size="sm"
-            className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+            className="h-10 w-full sm:w-auto"
             onClick={() => void handleSubmitSavedDraft(letter)}
             disabled={submittingLetterId === letter.id}
           >
@@ -4749,7 +4886,7 @@ export function LetterGeneration({
       {isAdmin && letterWorkflowStatus(letter.status) === 'pending_verification' ? (
         <Button
           size="sm"
-          className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+          className="h-10 w-full sm:w-auto"
           onClick={() => void handleApproveLetter(letter)}
           disabled={approvingLetterId === letter.id}
         >
@@ -4764,7 +4901,7 @@ export function LetterGeneration({
       <Button
         size="sm"
         variant="outline"
-        className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+        className="h-10 w-full sm:w-auto"
         onClick={() => void handlePrintSavedLetter(letter)}
         disabled={printingLetterId === letter.id}
       >
@@ -4778,7 +4915,7 @@ export function LetterGeneration({
       <Button
         size="sm"
         variant="outline"
-        className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+        className="h-10 w-full sm:w-auto"
         onClick={() => void handleDownloadSavedLetter(letter)}
         disabled={downloadingLetterId === letter.id}
       >
@@ -4792,7 +4929,7 @@ export function LetterGeneration({
       <Button
         size="sm"
         variant="outline"
-        className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+        className="h-10 w-full sm:w-auto"
         onClick={() => setSelectedSavedLetterId(letter.id)}
       >
         <Eye className="mr-2 size-4" />
@@ -4803,7 +4940,7 @@ export function LetterGeneration({
           asChild
           size="sm"
           variant="outline"
-          className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+          className="h-10 w-full sm:w-auto"
         >
           <Link href={buildOutwardEntryHref(letter)}>
             <ExternalLink className="mr-2 size-4" />
@@ -4814,7 +4951,7 @@ export function LetterGeneration({
         <Button
           size="sm"
           variant="outline"
-          className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+          className="h-10 w-full sm:w-auto"
           onClick={() => void handleAddLetterToOutward(letter)}
           disabled={addingToOutwardLetterId === letter.id}
         >
@@ -4830,7 +4967,7 @@ export function LetterGeneration({
         asChild
         size="sm"
         variant="outline"
-        className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+        className="h-10 w-full sm:w-auto"
       >
         <Link href={`/modules/gov-follow-up?new=1&letterId=${letter.id}`}>
           <PhoneCall className="mr-2 size-4" />
@@ -4840,7 +4977,7 @@ export function LetterGeneration({
       {/* <Button
         size="sm"
         variant="outline"
-        className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+        className="h-10 w-full sm:w-auto"
         onClick={() => void handleRegenerateSavedLetter(letter)}
         disabled={regeneratingLetterId === letter.id}
       >
@@ -4854,7 +4991,7 @@ export function LetterGeneration({
       <Button
         size="sm"
         variant="destructive"
-        className={layout === 'stack' ? 'w-full' : 'w-full sm:w-auto'}
+        className="h-10 w-full sm:w-auto"
         onClick={() => handleDeleteSavedLetter(letter.id)}
       >
         <Trash2 className="mr-2 size-4" />
@@ -4873,7 +5010,7 @@ export function LetterGeneration({
 
     return (
     <>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
         <FieldGroup
           label={lt('letterGeneration.fields.referencePrefix')}
           required
@@ -4979,13 +5116,13 @@ export function LetterGeneration({
   };
 
   return (
-    <div className="flex flex-col gap-4 md:gap-6">
+    <div className="flex min-w-0 flex-col gap-4 md:gap-6">
       <ModulePageHeader
         title={t('letterGeneration.title')}
         description={t('letterGeneration.description')}
       />
-      <div className="flex flex-wrap gap-2">
-        <Button variant="outline" asChild>
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <Button variant="outline" asChild className="h-10 w-full sm:w-auto">
           <Link
             href={
               beneficiaryServiceId
@@ -4993,11 +5130,11 @@ export function LetterGeneration({
                 : '/modules/letter-generation/service-catalog'
             }
           >
-            <ListTree className="mr-2 size-4" />
+            <ListTree className="mr-2 size-4 shrink-0" />
             {t('letterGeneration.serviceCatalogMaster.manageLink')}
           </Link>
         </Button>
-        <Button variant="outline" asChild>
+        <Button variant="outline" asChild className="h-10 w-full sm:w-auto">
           <Link
             href={
               beneficiaryServiceId
@@ -5005,11 +5142,11 @@ export function LetterGeneration({
                 : '/modules/letter-generation/document-types'
             }
           >
-            <FileType className="mr-2 size-4" />
+            <FileType className="mr-2 size-4 shrink-0" />
             {t('letterGeneration.documentTypesMaster.manageLink')}
           </Link>
         </Button>
-        <Button variant="outline" asChild>
+        <Button variant="outline" asChild className="h-10 w-full sm:w-auto">
           <Link
             href={
               beneficiaryServiceId
@@ -5017,12 +5154,12 @@ export function LetterGeneration({
                 : '/modules/letter-generation/addresses'
             }
           >
-            <MapPin className="mr-2 size-4" />
+            <MapPin className="mr-2 size-4 shrink-0" />
             {t('letterGeneration.addresses.manageLink')}
           </Link>
         </Button>
         {isAdmin ? (
-          <Button variant="outline" asChild>
+          <Button variant="outline" asChild className="h-10 w-full sm:w-auto">
             <Link
               href={
                 beneficiaryServiceId
@@ -5030,7 +5167,7 @@ export function LetterGeneration({
                   : `/modules/letter-generation/templates?letterType=${encodeURIComponent(activeTab)}&letterLocale=${encodeURIComponent(letterLocale)}`
               }
             >
-              <FileCode2 className="mr-2 size-4" />
+              <FileCode2 className="mr-2 size-4 shrink-0" />
               {t('letterGeneration.templates.manageLink')}
             </Link>
           </Button>
@@ -5039,8 +5176,8 @@ export function LetterGeneration({
       {govFollowUpMatterId && govFollowUpPrefill ? (
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader className="p-4 sm:p-6">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1.5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 space-y-1.5">
                 <CardTitle className="text-base">
                   {t('letterGeneration.followUpInfo.title')}
                 </CardTitle>
@@ -5048,7 +5185,12 @@ export function LetterGeneration({
                   {t('letterGeneration.followUpInfo.description')}
                 </CardDescription>
               </div>
-              <Button variant="outline" size="sm" asChild className="shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="h-10 w-full shrink-0 sm:w-auto"
+              >
                 <Link
                   href={`/modules/gov-follow-up?matter=${encodeURIComponent(govFollowUpMatterId)}`}
                 >
@@ -5059,20 +5201,20 @@ export function LetterGeneration({
             </div>
           </CardHeader>
           <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-              <div>
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-3 md:grid-cols-2 lg:grid-cols-3">
+              <div className="min-w-0">
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t('govFollowUp.fields.followUpNo')}
                 </dt>
-                <dd className="text-sm font-medium">
+                <dd className="break-words text-sm font-medium">
                   {govFollowUpPrefill.followUpNo}
                 </dd>
               </div>
-              <div className="sm:col-span-2">
+              <div className="min-w-0 md:col-span-2">
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t('govFollowUp.fields.subject')}
                 </dt>
-                <dd className="text-sm font-medium">
+                <dd className="break-words text-sm font-medium">
                   {govFollowUpPrefill.subject}
                 </dd>
               </div>
@@ -5104,8 +5246,8 @@ export function LetterGeneration({
       {service ? (
         <Card className="border-primary/30 bg-primary/5">
           <CardHeader className="p-4 sm:p-6">
-            <div className="flex items-start justify-between gap-3">
-              <div className="space-y-1.5">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+              <div className="min-w-0 space-y-1.5">
                 <CardTitle className="text-base">
                   {t('letterGeneration.serviceInfo.title')}
                 </CardTitle>
@@ -5113,7 +5255,12 @@ export function LetterGeneration({
                   {t('letterGeneration.serviceInfo.description')}
                 </CardDescription>
               </div>
-              <Button variant="outline" size="sm" asChild className="shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                asChild
+                className="h-10 w-full shrink-0 sm:w-auto"
+              >
                 <Link href="/modules/operator?tab=manage">
                   <ArrowLeft className="mr-2 size-4" />
                   {t('letterGeneration.backToBeneficiary')}
@@ -5122,22 +5269,22 @@ export function LetterGeneration({
             </div>
           </CardHeader>
           <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-3 md:grid-cols-2 lg:grid-cols-3">
               {prefillName ? (
-                <div>
+                <div className="min-w-0">
                   <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     {t('letterGeneration.serviceInfo.beneficiaryName')}
                   </dt>
-                  <dd className="text-sm font-medium">{prefillName}</dd>
+                  <dd className="break-words text-sm font-medium">{prefillName}</dd>
                 </div>
               ) : null}
-              <div>
+              <div className="min-w-0">
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t('letterGeneration.serviceInfo.serviceName')}
                 </dt>
-                <dd className="text-sm font-medium">{service.serviceName}</dd>
+                <dd className="break-words text-sm font-medium">{service.serviceName}</dd>
               </div>
-              <div>
+              <div className="min-w-0">
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t('letterGeneration.serviceInfo.serviceType')}
                 </dt>
@@ -5145,13 +5292,13 @@ export function LetterGeneration({
                   {t(`letterGeneration.serviceInfo.types.${service.serviceType}`)}
                 </dd>
               </div>
-              <div>
+              <div className="min-w-0">
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t('letterGeneration.serviceInfo.token')}
                 </dt>
-                <dd className="text-sm font-medium">{service.token}</dd>
+                <dd className="break-words text-sm font-medium">{service.token}</dd>
               </div>
-              <div>
+              <div className="min-w-0">
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t('letterGeneration.serviceInfo.status')}
                 </dt>
@@ -5159,7 +5306,7 @@ export function LetterGeneration({
                   {t(`letterGeneration.serviceInfo.statuses.${service.status}`)}
                 </dd>
               </div>
-              <div>
+              <div className="min-w-0">
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t('letterGeneration.serviceInfo.priority')}
                 </dt>
@@ -5167,7 +5314,7 @@ export function LetterGeneration({
                   {t(`letterGeneration.serviceInfo.priorities.${service.priority}`)}
                 </dd>
               </div>
-              <div>
+              <div className="min-w-0">
                 <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {t('letterGeneration.serviceInfo.createdAt')}
                 </dt>
@@ -5176,11 +5323,11 @@ export function LetterGeneration({
                 </dd>
               </div>
               {service.description ? (
-                <div className="sm:col-span-2 lg:col-span-3">
+                <div className="min-w-0 md:col-span-2 lg:col-span-3">
                   <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                     {t('letterGeneration.serviceInfo.notes')}
                   </dt>
-                  <dd className="text-sm">{service.description}</dd>
+                  <dd className="break-words text-sm">{service.description}</dd>
                 </div>
               ) : null}
             </dl>
@@ -5205,9 +5352,11 @@ export function LetterGeneration({
           id="letter-generator-header"
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="space-y-1">
+            <div className="min-w-0 space-y-1">
               <CardTitle className="text-lg">{t('letterGeneration.title')}</CardTitle>
-              <CardDescription>{t('letterGeneration.formDescription')}</CardDescription>
+              <CardDescription className="break-words">
+                {t('letterGeneration.formDescription')}
+              </CardDescription>
             </div>
             {isGeneratorCollapsed ? (
               <ChevronDown className="mt-1 size-5 shrink-0 text-muted-foreground" aria-hidden />
@@ -5242,8 +5391,8 @@ export function LetterGeneration({
                       })}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="flex flex-wrap gap-2 p-4 pt-0 sm:p-6 sm:pt-0">
-                    <Button variant="default" asChild>
+                  <CardContent className="flex flex-col gap-2 p-4 pt-0 sm:flex-row sm:flex-wrap sm:p-6 sm:pt-0">
+                    <Button variant="default" asChild className="h-10 w-full sm:w-auto">
                       <Link
                         href={(() => {
                           const params = new URLSearchParams();
@@ -5264,13 +5413,14 @@ export function LetterGeneration({
                             : '/modules/letter-generation/service-catalog';
                         })()}
                       >
-                        <ListTree className="mr-2 size-4" />
+                        <ListTree className="mr-2 size-4 shrink-0" />
                         {t('letterGeneration.letterTypeLink.linkService')}
                       </Link>
                     </Button>
                     <Button
                       variant="outline"
                       type="button"
+                      className="h-10 w-full sm:w-auto"
                       onClick={() => {
                         setActiveTab('general');
                         setLetterTypeReady(true);
@@ -5282,7 +5432,7 @@ export function LetterGeneration({
                 </Card>
               ) : (
                 <>
-              <div className="grid w-full max-w-3xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid w-full max-w-3xl grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-3">
                 <FieldGroup label={lt('letterGeneration.fields.letterType')}>
                   {lockFixedFields ? (
                     <div className="flex h-10 items-center rounded-md border bg-muted/40 px-3 text-sm font-medium">
@@ -5340,17 +5490,17 @@ export function LetterGeneration({
                 ) : null}
               </div>
 
-              <div className="mt-6 grid gap-4 md:gap-6 md:grid-cols-2">
-                <Card>
+              <div className="mt-6 grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-6">
+                <Card className="min-w-0">
                   <CardHeader className="p-4 sm:p-6">
                     <CardTitle className="text-lg">
                       {t('letterGeneration.formTitle')}
                     </CardTitle>
-                    <CardDescription>
+                    <CardDescription className="break-words">
                       {t('letterGeneration.formDescription')}
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
+                  <CardContent className="min-w-0 p-4 pt-0 sm:p-6 sm:pt-0">
                     <TabsContent value="general" className="mt-0 space-y-4">
                       {renderCommonFields(generalFields, setGeneralFields)}
                       <FieldGroup
@@ -5570,7 +5720,7 @@ export function LetterGeneration({
                           handleSchoolAddressSelect(id, feesFields.schoolAddress)
                         }
                       />
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
                         <FieldGroup
                           label={lt('letterGeneration.fields.standard')}
                           required
@@ -5663,7 +5813,7 @@ export function LetterGeneration({
                           handleSchoolAddressSelect(id, schoolAdmissionFields.schoolAddress)
                         }
                       />
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
                         <FieldGroup
                           label={lt('letterGeneration.fields.standard')}
                           required
@@ -5999,7 +6149,7 @@ export function LetterGeneration({
                           handleSchoolAddressSelect(id, schoolTransferFields.schoolAddress)
                         }
                       />
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
                         <FieldGroup
                           label={lt('letterGeneration.fields.standard')}
                           required
@@ -6132,7 +6282,7 @@ export function LetterGeneration({
                           required
                         />
                       </FieldGroup>
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
                         <FieldGroup
                           label={lt('letterGeneration.fields.currentStandard')}
                           required
@@ -6192,7 +6342,7 @@ export function LetterGeneration({
                     ).map((rationType) => (
                       <TabsContent key={rationType} value={rationType} className="mt-0 space-y-4">
                         {renderCommonFields(rationFields, setRationFields)}
-                        <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
                           <FieldGroup label={lt('letterGeneration.fields.gender')} required>
                             <Select
                               value={rationFields.gender}
@@ -6406,9 +6556,9 @@ export function LetterGeneration({
                             {familyMemberRows.map((member, index) => (
                               <div
                                 key={`family-member-${index}`}
-                                className="flex flex-col gap-2 sm:flex-row sm:items-start"
+                                className="flex flex-col gap-2 md:flex-row md:items-start"
                               >
-                                <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-[1fr_7rem_8rem]">
+                                <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 md:grid-cols-[1fr_7rem_8rem]">
                                   <LocaleTextInput
                                     locale={letterLocale}
                                     value={member.name}
@@ -6565,7 +6715,7 @@ export function LetterGeneration({
 
                     <TabsContent value="income" className="mt-0 space-y-4">
                       {renderCommonFields(incomeFields, setIncomeFields)}
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
                         <FieldGroup label={lt('letterGeneration.fields.gender')} required>
                           <Select
                             value={incomeFields.gender}
@@ -6757,7 +6907,7 @@ export function LetterGeneration({
 
                     <TabsContent value="domicile" className="mt-0 space-y-4">
                       {renderCommonFields(domicileFields, setDomicileFields)}
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
                         <FieldGroup label={lt('letterGeneration.fields.gender')} required>
                           <Select
                             value={domicileFields.gender}
@@ -6989,7 +7139,7 @@ export function LetterGeneration({
                           )
                         }
                       />
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
                         <FieldGroup label={lt('letterGeneration.fields.gender')} required>
                           <Select
                             value={medicalAssistanceFields.gender}
@@ -7276,7 +7426,7 @@ export function LetterGeneration({
                           handleWardToAddressSelect(id, wardFields.to)
                         }
                       />
-                      <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4">
                         <FieldGroup
                           label={lt('letterGeneration.fields.complainantName')}
                           required
@@ -7346,7 +7496,7 @@ export function LetterGeneration({
                           label={lt('letterGeneration.fields.location')}
                           required
                           error={fieldErrors.location}
-                          className="sm:col-span-2"
+                          className="md:col-span-2"
                         >
                           <LocaleTextInput
                             locale={letterLocale}
@@ -7371,7 +7521,7 @@ export function LetterGeneration({
                             label={lt('letterGeneration.fields.duration')}
                             required
                             error={fieldErrors.duration}
-                            className="sm:col-span-2"
+                            className="md:col-span-2"
                           >
                             <LocaleTextInput
                               locale={letterLocale}
@@ -7429,13 +7579,13 @@ export function LetterGeneration({
                   </CardContent>
                 </Card>
 
-                <div className="space-y-4">
+                <div className="min-w-0 space-y-4">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="space-y-1">
+                    <div className="min-w-0 space-y-1">
                       <h2 className="text-lg font-semibold">
                         {t('letterGeneration.previewTitle')}
                       </h2>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="break-words text-sm text-muted-foreground">
                         {t('letterGeneration.paperSize.label', {
                           size: activePaperLabel,
                         })}
@@ -7463,10 +7613,18 @@ export function LetterGeneration({
                         </p>
                       ) : null}
                     </div>
-                    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
+                    <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
                       <Button
                         variant="outline"
-                        className="w-full sm:w-auto"
+                        className="h-10 w-full sm:w-auto"
+                        onClick={() => setLivePreviewFullscreen(true)}
+                      >
+                        <Maximize2 className="mr-2 size-4" />
+                        {t('letterGeneration.savedLetters.actions.fullscreen')}
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="h-10 w-full sm:w-auto"
                         onClick={() => setClearAllDialogOpen(true)}
                       >
                         <Eraser className="mr-2 size-4" />
@@ -7474,7 +7632,7 @@ export function LetterGeneration({
                       </Button>
                       <Button
                         variant="outline"
-                        className="w-full sm:w-auto"
+                        className="h-10 w-full sm:w-auto"
                         onClick={() => void handleSaveDraft()}
                         disabled={isSaving || isSubmitting}
                       >
@@ -7488,7 +7646,7 @@ export function LetterGeneration({
                       {editingSavedLetter ? (
                         <Button
                           variant="outline"
-                          className="w-full sm:w-auto"
+                          className="h-10 w-full sm:w-auto"
                           onClick={() =>
                             void handlePrintSavedLetter(editingSavedLetter)
                           }
@@ -7507,7 +7665,7 @@ export function LetterGeneration({
                         </Button>
                       ) : null}
                       <Button
-                        className="w-full sm:w-auto"
+                        className="h-10 w-full sm:w-auto"
                         onClick={() => void handleSendForVerification()}
                         disabled={isSaving || isSubmitting}
                       >
@@ -7569,7 +7727,7 @@ export function LetterGeneration({
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
                 <FieldGroup label={t('letterGeneration.fields.letterType')}>
                   <Combobox
                     value={filterLetterType}
@@ -7590,7 +7748,7 @@ export function LetterGeneration({
 
                 <FieldGroup
                   label={t('letterGeneration.savedLetters.filters.dateRange')}
-                  className="sm:col-span-2"
+                  className="md:col-span-2"
                 >
                   <DateRangePicker
                     startDate={filterStartDate}
@@ -7612,7 +7770,7 @@ export function LetterGeneration({
                   <div className="flex justify-stretch sm:justify-end">
                     <Button
                       variant="outline"
-                      className="w-full sm:w-auto"
+                      className="h-10 w-full sm:w-auto"
                       onClick={() => void refreshSavedLetters()}
                       disabled={savedLettersLoading}
                     >
@@ -7620,13 +7778,13 @@ export function LetterGeneration({
                     </Button>
                   </div>
 
-                  <div className="space-y-3 lg:hidden">
+                  <div className="space-y-3 md:hidden">
                     {filteredSavedLetters.map((letter) => (
                       <div
                         key={letter.id}
                         className="space-y-3 rounded-lg border bg-card p-4 shadow-sm"
                       >
-                        <div className="flex items-start justify-between gap-3">
+                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                           <div className="min-w-0 space-y-1">
                             <p className="truncate font-medium">
                               {letter.referenceNo
@@ -7645,12 +7803,12 @@ export function LetterGeneration({
                                 </span>
                               ) : null}
                             </div>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="break-words text-sm text-muted-foreground">
                               {resolveTypeLabel(letter.letterType)} ·{' '}
                               {getLetterPaperLabel(resolveSavedLetterPaperSize(letter))}
                             </p>
                           </div>
-                          <p className="shrink-0 text-xs text-muted-foreground">
+                          <p className="shrink-0 text-xs text-muted-foreground sm:text-right">
                             {formatDisplayDateTimeIST(letter.createdAt)}
                           </p>
                         </div>
@@ -7659,7 +7817,7 @@ export function LetterGeneration({
                     ))}
                   </div>
 
-                  <div className="hidden overflow-x-auto lg:block">
+                  <div className="hidden min-w-0 overflow-x-auto md:block">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -7714,43 +7872,76 @@ export function LetterGeneration({
                   <Dialog
                     open={!!selectedSavedLetter}
                     onOpenChange={(open) => {
-                      if (!open) setSelectedSavedLetterId(null);
+                      if (!open) {
+                        setSelectedSavedLetterId(null);
+                        setPreviewFullscreen(false);
+                      }
                     }}
                   >
                     <DialogContent
                       className={cn(
-                        'flex max-h-[90dvh] w-[calc(100%-2rem)] min-w-0 flex-col gap-3 overflow-hidden p-4 sm:gap-4 sm:p-6',
-                        selectedSavedLetter
-                          ? getLetterPreviewDialogMaxWidthClass(
-                            resolveSavedLetterPaperSize(selectedSavedLetter),
-                          )
-                          : 'max-w-3xl',
+                        'flex min-w-0 flex-col gap-3 overflow-hidden p-4 sm:gap-4 sm:p-6',
+                        previewFullscreen
+                          ? 'left-0 top-0 h-[100dvh] max-h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 rounded-none border-0 sm:rounded-none'
+                          : 'max-h-[90dvh] w-[calc(100%-2rem)]',
+                        !previewFullscreen &&
+                          (selectedSavedLetter
+                            ? getLetterPreviewDialogMaxWidthClass(
+                                resolveSavedLetterPaperSize(selectedSavedLetter),
+                              )
+                            : 'max-w-3xl'),
                       )}
                     >
                       {selectedSavedLetter ? (
                         <>
-                          <DialogHeader className="shrink-0 space-y-3 pr-8 text-left">
-                            <div className="min-w-0 space-y-1.5">
-                              <DialogTitle className="break-words text-base leading-snug sm:text-lg">
-                                {selectedSavedLetter.title}{' '}
-                                {selectedSavedLetter.referenceNo
-                                  ? `- ${formatReferenceForDisplay(selectedSavedLetter.referenceNo, locale)}`
-                                  : ''}
-                              </DialogTitle>
-                              <DialogDescription className="break-words">
-                                {resolveTypeLabel(selectedSavedLetter.letterType)} ·{' '}
-                                {t('letterGeneration.paperSize.label', {
-                                  size: getLetterPaperLabel(
-                                    resolveSavedLetterPaperSize(selectedSavedLetter),
-                                  ),
-                                })}
-                                {' · '}
-                                {t(
-                                  `letterGeneration.savedLetters.status.${letterWorkflowStatus(selectedSavedLetter.status)}`,
+                          <DialogHeader className="shrink-0 space-y-3 pr-12 text-left">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 space-y-1.5">
+                                <DialogTitle className="break-words text-base leading-snug sm:text-lg">
+                                  {selectedSavedLetter.title}{' '}
+                                  {selectedSavedLetter.referenceNo
+                                    ? `- ${formatReferenceForDisplay(selectedSavedLetter.referenceNo, locale)}`
+                                    : ''}
+                                </DialogTitle>
+                                <DialogDescription className="break-words">
+                                  {resolveTypeLabel(selectedSavedLetter.letterType)} ·{' '}
+                                  {t('letterGeneration.paperSize.label', {
+                                    size: getLetterPaperLabel(
+                                      resolveSavedLetterPaperSize(selectedSavedLetter),
+                                    ),
+                                  })}
+                                  {' · '}
+                                  {t(
+                                    `letterGeneration.savedLetters.status.${letterWorkflowStatus(selectedSavedLetter.status)}`,
+                                  )}
+                                </DialogDescription>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="mr-2 h-10 w-10 shrink-0 justify-center px-0"
+                                aria-label={
+                                  previewFullscreen
+                                    ? t(
+                                        'letterGeneration.savedLetters.actions.exitFullscreen',
+                                      )
+                                    : t(
+                                        'letterGeneration.savedLetters.actions.fullscreen',
+                                      )
+                                }
+                                onClick={() =>
+                                  setPreviewFullscreen((value) => !value)
+                                }
+                              >
+                                {previewFullscreen ? (
+                                  <Minimize2 className="size-4" />
+                                ) : (
+                                  <Maximize2 className="size-4" />
                                 )}
-                              </DialogDescription>
+                              </Button>
                             </div>
-                            <div className="grid grid-cols-2 gap-2 lg:flex lg:flex-wrap">
+                            <div className="flex flex-wrap gap-2">
                               {outwardAddedReferenceNos.has(
                                 selectedSavedLetter.referenceNo,
                               ) ? (
@@ -7758,22 +7949,30 @@ export function LetterGeneration({
                                   asChild
                                   size="sm"
                                   variant="outline"
-                                  className="h-auto min-h-10 w-full justify-start whitespace-normal px-3 py-2 text-left text-xs leading-snug sm:text-sm lg:w-auto lg:justify-center"
+                                  className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
                                 >
                                   <Link
                                     href={buildOutwardEntryHref(selectedSavedLetter)}
-                                  >
-                                    <ExternalLink className="mr-2 size-4 shrink-0" />
-                                    {t(
+                                    aria-label={t(
                                       'letterGeneration.savedLetters.actions.goToOutward',
                                     )}
+                                  >
+                                    <ExternalLink className="size-4 shrink-0 sm:mr-2" />
+                                    <span className="hidden sm:inline">
+                                      {t(
+                                        'letterGeneration.savedLetters.actions.goToOutward',
+                                      )}
+                                    </span>
                                   </Link>
                                 </Button>
                               ) : (
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="h-auto min-h-10 w-full justify-start whitespace-normal px-3 py-2 text-left text-xs leading-snug sm:text-sm lg:w-auto lg:justify-center"
+                                  className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
+                                  aria-label={t(
+                                    'letterGeneration.savedLetters.actions.addToOutward',
+                                  )}
                                   onClick={() =>
                                     void handleAddLetterToOutward(selectedSavedLetter)
                                   }
@@ -7783,26 +7982,31 @@ export function LetterGeneration({
                                 >
                                   {addingToOutwardLetterId ===
                                   selectedSavedLetter.id ? (
-                                    <Loader2 className="mr-2 size-4 shrink-0 animate-spin" />
+                                    <Loader2 className="size-4 shrink-0 animate-spin sm:mr-2" />
                                   ) : (
-                                    <Send className="mr-2 size-4 shrink-0" />
+                                    <Send className="size-4 shrink-0 sm:mr-2" />
                                   )}
-                                  {t(
-                                    'letterGeneration.savedLetters.actions.addToOutward',
-                                  )}
+                                  <span className="hidden sm:inline">
+                                    {t(
+                                      'letterGeneration.savedLetters.actions.addToOutward',
+                                    )}
+                                  </span>
                                 </Button>
                               )}
                               <Button
                                 asChild
                                 size="sm"
                                 variant="outline"
-                                className="h-auto min-h-10 w-full justify-start whitespace-normal px-3 py-2 text-left text-xs leading-snug sm:text-sm lg:w-auto lg:justify-center"
+                                className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
                               >
                                 <Link
                                   href={`/modules/gov-follow-up?new=1&letterId=${selectedSavedLetter.id}`}
+                                  aria-label={t('govFollowUp.startFollowUp')}
                                 >
-                                  <PhoneCall className="mr-2 size-4 shrink-0" />
-                                  {t('govFollowUp.startFollowUp')}
+                                  <PhoneCall className="size-4 shrink-0 sm:mr-2" />
+                                  <span className="hidden sm:inline">
+                                    {t('govFollowUp.startFollowUp')}
+                                  </span>
                                 </Link>
                               </Button>
                               {letterWorkflowStatus(selectedSavedLetter.status) === 'draft' ? (
@@ -7810,26 +8014,36 @@ export function LetterGeneration({
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="h-auto min-h-10 w-full justify-start whitespace-normal px-3 py-2 text-left text-xs leading-snug sm:text-sm lg:w-auto lg:justify-center"
+                                    className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
+                                    aria-label={t(
+                                      'letterGeneration.savedLetters.actions.edit',
+                                    )}
                                     onClick={() => handleEditDraft(selectedSavedLetter)}
                                   >
-                                    <Pencil className="mr-2 size-4 shrink-0" />
-                                    {t('letterGeneration.savedLetters.actions.edit')}
+                                    <Pencil className="size-4 shrink-0 sm:mr-2" />
+                                    <span className="hidden sm:inline">
+                                      {t('letterGeneration.savedLetters.actions.edit')}
+                                    </span>
                                   </Button>
                                   <Button
                                     size="sm"
-                                    className="h-auto min-h-10 w-full justify-start whitespace-normal px-3 py-2 text-left text-xs leading-snug sm:text-sm lg:w-auto lg:justify-center"
+                                    className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
+                                    aria-label={t(
+                                      'letterGeneration.savedLetters.actions.submit',
+                                    )}
                                     onClick={() =>
                                       void handleSubmitSavedDraft(selectedSavedLetter)
                                     }
                                     disabled={submittingLetterId === selectedSavedLetter.id}
                                   >
                                     {submittingLetterId === selectedSavedLetter.id ? (
-                                      <Loader2 className="mr-2 size-4 shrink-0 animate-spin" />
+                                      <Loader2 className="size-4 shrink-0 animate-spin sm:mr-2" />
                                     ) : (
-                                      <Send className="mr-2 size-4 shrink-0" />
+                                      <Send className="size-4 shrink-0 sm:mr-2" />
                                     )}
-                                    {t('letterGeneration.savedLetters.actions.submit')}
+                                    <span className="hidden sm:inline">
+                                      {t('letterGeneration.savedLetters.actions.submit')}
+                                    </span>
                                   </Button>
                                 </>
                               ) : null}
@@ -7838,24 +8052,32 @@ export function LetterGeneration({
                                 'pending_verification' ? (
                                 <Button
                                   size="sm"
-                                  className="h-auto min-h-10 w-full justify-start whitespace-normal px-3 py-2 text-left text-xs leading-snug sm:text-sm lg:w-auto lg:justify-center"
+                                  className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
+                                  aria-label={t(
+                                    'letterGeneration.savedLetters.actions.approve',
+                                  )}
                                   onClick={() =>
                                     void handleApproveLetter(selectedSavedLetter)
                                   }
                                   disabled={approvingLetterId === selectedSavedLetter.id}
                                 >
                                   {approvingLetterId === selectedSavedLetter.id ? (
-                                    <Loader2 className="mr-2 size-4 shrink-0 animate-spin" />
+                                    <Loader2 className="size-4 shrink-0 animate-spin sm:mr-2" />
                                   ) : (
-                                    <Check className="mr-2 size-4 shrink-0" />
+                                    <Check className="size-4 shrink-0 sm:mr-2" />
                                   )}
-                                  {t('letterGeneration.savedLetters.actions.approve')}
+                                  <span className="hidden sm:inline">
+                                    {t('letterGeneration.savedLetters.actions.approve')}
+                                  </span>
                                 </Button>
                               ) : null}
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-auto min-h-10 w-full justify-start whitespace-normal px-3 py-2 text-left text-xs leading-snug sm:text-sm lg:w-auto lg:justify-center"
+                                className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
+                                aria-label={t(
+                                  'letterGeneration.savedLetters.actions.print',
+                                )}
                                 onClick={() =>
                                   void handlePrintSavedLetter(selectedSavedLetter)
                                 }
@@ -7864,16 +8086,21 @@ export function LetterGeneration({
                                 }
                               >
                                 {printingLetterId === selectedSavedLetter.id ? (
-                                  <Loader2 className="mr-2 size-4 shrink-0 animate-spin" />
+                                  <Loader2 className="size-4 shrink-0 animate-spin sm:mr-2" />
                                 ) : (
-                                  <Printer className="mr-2 size-4 shrink-0" />
+                                  <Printer className="size-4 shrink-0 sm:mr-2" />
                                 )}
-                                {t('letterGeneration.savedLetters.actions.print')}
+                                <span className="hidden sm:inline">
+                                  {t('letterGeneration.savedLetters.actions.print')}
+                                </span>
                               </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
-                                className="h-auto min-h-10 w-full justify-start whitespace-normal px-3 py-2 text-left text-xs leading-snug sm:text-sm lg:w-auto lg:justify-center"
+                                className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
+                                aria-label={t(
+                                  'letterGeneration.savedLetters.actions.download',
+                                )}
                                 onClick={() =>
                                   void handleDownloadSavedLetter(selectedSavedLetter)
                                 }
@@ -7882,11 +8109,13 @@ export function LetterGeneration({
                                 }
                               >
                                 {downloadingLetterId === selectedSavedLetter.id ? (
-                                  <Loader2 className="mr-2 size-4 shrink-0 animate-spin" />
+                                  <Loader2 className="size-4 shrink-0 animate-spin sm:mr-2" />
                                 ) : (
-                                  <FileDown className="mr-2 size-4 shrink-0" />
+                                  <FileDown className="size-4 shrink-0 sm:mr-2" />
                                 )}
-                                {t('letterGeneration.savedLetters.actions.download')}
+                                <span className="hidden sm:inline">
+                                  {t('letterGeneration.savedLetters.actions.download')}
+                                </span>
                               </Button>
                             </div>
                           </DialogHeader>
@@ -7914,6 +8143,49 @@ export function LetterGeneration({
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={livePreviewFullscreen}
+        onOpenChange={setLivePreviewFullscreen}
+      >
+        <DialogContent className="left-0 top-0 flex h-[100dvh] max-h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-3 overflow-hidden rounded-none border-0 p-3 sm:gap-4 sm:rounded-none sm:p-4">
+          <DialogHeader className="shrink-0 space-y-1 pr-12 text-left">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 space-y-1">
+                <DialogTitle className="text-base sm:text-lg">
+                  {t('letterGeneration.previewTitle')}
+                </DialogTitle>
+                <DialogDescription className="break-words">
+                  {t('letterGeneration.paperSize.label', {
+                    size: activePaperLabel,
+                  })}
+                </DialogDescription>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mr-2 h-10 w-10 shrink-0 justify-center px-0"
+                aria-label={t(
+                  'letterGeneration.savedLetters.actions.exitFullscreen',
+                )}
+                onClick={() => setLivePreviewFullscreen(false)}
+              >
+                <Minimize2 className="size-4" />
+              </Button>
+            </div>
+          </DialogHeader>
+          <div className="min-h-0 min-w-0 w-full flex-1 overflow-x-hidden overflow-y-auto">
+            <LetterPreview
+              html={activeBody}
+              paperSize={activePaperSize}
+              letterheadUrl={activeLetterheadUrl}
+              letterLocale={letterLocale}
+              variant="modal"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={clearAllDialogOpen}

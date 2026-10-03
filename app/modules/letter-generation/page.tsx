@@ -78,7 +78,7 @@ export default async function LetterGenerationPage({
 
     return (
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto max-w-7xl p-4 sm:py-8">
+        <div className="container mx-auto min-w-0 max-w-7xl overflow-x-hidden px-3 py-4 sm:px-4 sm:py-8">
           <LetterGeneration
             isAdmin={isAdmin}
             govFollowUpMatterId={matter.id}
@@ -156,7 +156,7 @@ export default async function LetterGenerationPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-7xl p-4 sm:py-8">
+      <div className="container mx-auto min-w-0 max-w-7xl overflow-x-hidden px-3 py-4 sm:px-4 sm:py-8">
         <LetterGeneration
           isAdmin={isAdmin}
           beneficiaryServiceId={beneficiaryServiceId}
