@@ -42,6 +42,8 @@ export const LETTER_TYPES = [
   'college-admission',
   'school-transfer',
   'ration-new',
+  'ration-temporary',
+  'ration-duplicate',
   'ration-add-members',
   'ration-delete-members',
   'ration-transfer',

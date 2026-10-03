@@ -261,6 +261,47 @@ To,<br>
   ${RATION_CLOSING}
 </div>`,
 
+  'ration-temporary': `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>Date: <span class="var">{{date}}</span></div>
+  </div>
+  ${RATION_RECIPIENT_TOP}
+  <div class="subject">
+    <span style="font-weight: normal;">Subject:</span> Regarding issuance of a temporary ration card.
+  </div>
+  <p class="paragraph">
+    Along with this letter, <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, residing at <span style="font-weight: normal;">{{address}}</span>, is being forwarded to you for obtaining a temporary new ration card in the names of their family members.
+  </p>
+  <p class="member-list">
+    <span class="var">{{familyMembersBlock}}</span>
+  </p>
+  <p class="paragraph">
+    Kindly verify the supporting documents available with <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span> and take the necessary action as required.
+  </p>
+  ${RATION_CLOSING}
+</div>`,
+
+  'ration-duplicate': `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>Date: <span class="var">{{date}}</span></div>
+  </div>
+  ${RATION_RECIPIENT_TOP}
+  <div class="subject">
+    <span style="font-weight: normal;">Subject:</span> Regarding issuance of a duplicate ration card in place of a damaged ration card.
+  </div>
+  <p class="paragraph">
+    <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span>, residing at <span style="font-weight: normal;">{{address}}</span>, is being forwarded to you. Their ration card no. <span class="var">{{rationCardNo}}</span> is damaged. Kindly issue a duplicate ration card in the names of the persons mentioned below.
+  </p>
+  <p class="member-list">
+    <span class="var">{{familyMembersBlock}}</span>
+  </p>
+  ${RATION_CLOSING}
+</div>`,
+
   'ration-add-members': `<div class="letter-content" style="${ROOT}">
   <style>${LETTER_STYLE}</style>
   <div class="top-row">

@@ -257,6 +257,43 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   ${RATION_CLOSING}
 </div>`,
 
+  'ration-temporary': `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>दि. <span class="var">{{date}}</span></div>
+  </div>
+  ${RATION_RECIPIENT_TOP}
+  ${subjectHtml('तात्पुरती शिधापत्रिका मिळणेबाबत.')}
+  <p class="paragraph">
+    सोबत आपणाकडे <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span> रा. <span style="font-weight: normal;">{{address}}</span> यांस त्यांच्या कुटुंबियांच्या नावे तात्पुरती नवीन शिधापत्रिका मिळणेकरिता आपणाकडे पाठवीत आहे.
+  </p>
+  <p class="member-list">
+    <span class="var">{{familyMembersBlock}}</span>
+  </p>
+  <p class="paragraph">
+    तरी <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span> यांच्याकडे असलेल्या पुरावादर्शक कागदपत्रांची पडताळणी करून इष्ट ती कार्यवाही गठीत करण्यात यावी.
+  </p>
+  ${RATION_CLOSING}
+</div>`,
+
+  'ration-duplicate': `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>संदर्भ क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>दि. <span class="var">{{date}}</span></div>
+  </div>
+  ${RATION_RECIPIENT_TOP}
+  ${subjectHtml('खराब झालेली शिधापत्रिका बदलून नवीन दुय्यम (डुप्लिकेट) शिधापत्रिका मिळणेबाबत.')}
+  <p class="paragraph">
+    <span class="var">{{salutation}}</span> <span class="var">{{fullName}}</span> रा. <span style="font-weight: normal;">{{address}}</span> यांना आपणाकडे पाठवित आहे. त्यांच्याकडे असलेली शिधापत्रिका क्र. <span class="var">{{rationCardNo}}</span> अशी असून ती खराब झालेली आहे. तरी त्यांना खालील नमूद केलेल्या व्यक्तींच्या नावे दुय्यम (डुप्लिकेट) शिधापत्रिका देण्यात यावी.
+  </p>
+  <p class="member-list">
+    <span class="var">{{familyMembersBlock}}</span>
+  </p>
+  ${RATION_CLOSING}
+</div>`,
+
   'ration-add-members': `<div class="letter-content" style="${ROOT}">
   <style>${LETTER_STYLE}</style>
   <div class="top-row">

@@ -130,6 +130,12 @@ const SERVICE_NAME_TO_LETTER_TYPE: Array<{ match: string; letterType: string }> 
   { match: 'ration card name deletion', letterType: 'ration-delete-members' },
   { match: 'ration card - transfer', letterType: 'ration-transfer' },
   { match: 'ration card transfer', letterType: 'ration-transfer' },
+  { match: 'ration card - temporary', letterType: 'ration-temporary' },
+  { match: 'ration card temporary', letterType: 'ration-temporary' },
+  { match: 'temporary ration card', letterType: 'ration-temporary' },
+  { match: 'ration card - duplicate', letterType: 'ration-duplicate' },
+  { match: 'ration card duplicate', letterType: 'ration-duplicate' },
+  { match: 'duplicate ration card', letterType: 'ration-duplicate' },
   { match: 'ration card - new', letterType: 'ration-new' },
   { match: 'ration card new', letterType: 'ration-new' },
   { match: 'ration card', letterType: 'ration-new' },
@@ -212,6 +218,12 @@ export function resolveLetterTypeFromServiceName(
       return 'ration-delete-members';
     }
     if (/\btransfer\b/.test(key)) return 'ration-transfer';
+    if (/\btemporary\b/.test(key) || /\btatpurti\b/.test(key)) {
+      return 'ration-temporary';
+    }
+    if (/\bduplicate\b/.test(key) || /\bduyyam\b/.test(key)) {
+      return 'ration-duplicate';
+    }
     return 'ration-new';
   }
   if (/\bincome\b/.test(key)) return 'income';

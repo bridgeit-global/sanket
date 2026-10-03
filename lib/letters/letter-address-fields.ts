@@ -87,6 +87,30 @@ export function getDefaultLetterAddressTypeLinks(): LetterAddressTypeLinkSeed[] 
       sortOrder: 2,
     },
     {
+      letterType: 'ration-temporary',
+      addressField: 'rationOffice',
+      addressType: 'ration_office',
+      sortOrder: 1,
+    },
+    {
+      letterType: 'ration-temporary',
+      addressField: 'applicant',
+      addressType: 'general',
+      sortOrder: 2,
+    },
+    {
+      letterType: 'ration-duplicate',
+      addressField: 'rationOffice',
+      addressType: 'ration_office',
+      sortOrder: 1,
+    },
+    {
+      letterType: 'ration-duplicate',
+      addressField: 'applicant',
+      addressType: 'general',
+      sortOrder: 2,
+    },
+    {
       letterType: 'ration-add-members',
       addressField: 'rationOffice',
       addressType: 'ration_office',

@@ -32,6 +32,14 @@ const BASE_TEMPLATE_NAMES: Record<
     mr: 'शाळा स्थानांतरण प्रवेश शिफारस',
   },
   'ration-new': { en: 'Ration Card — New', mr: 'शिधापत्रिका — नवीन' },
+  'ration-temporary': {
+    en: 'Ration Card — Temporary',
+    mr: 'शिधापत्रिका — तात्पुरती',
+  },
+  'ration-duplicate': {
+    en: 'Ration Card — Duplicate',
+    mr: 'शिधापत्रिका — दुय्यम (डुप्लिकेट)',
+  },
   'ration-add-members': {
     en: 'Ration Card — Name Addition',
     mr: 'शिधापत्रिका — नाव समाविष्ट',

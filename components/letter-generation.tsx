@@ -3584,7 +3584,7 @@ export function LetterGeneration({
       requireField(errors, 'familyMembers', rationFields.familyMembers, requiredMsg);
       requireAddress('applicant', rationFields.address);
       requireAddress('rationOffice', rationFields.rationOfficeAddress);
-      if (formTab !== 'ration-new') {
+      if (formTab !== 'ration-new' && formTab !== 'ration-temporary') {
         requireField(errors, 'rationCardNo', rationFields.rationCardNo, requiredMsg);
       }
       if (formTab === 'ration-transfer') {
@@ -6569,6 +6569,8 @@ export function LetterGeneration({
                     {(
                       [
                         'ration-new',
+                        'ration-temporary',
+                        'ration-duplicate',
                         'ration-add-members',
                         'ration-delete-members',
                         'ration-transfer',
@@ -6677,7 +6679,8 @@ export function LetterGeneration({
                             handleApplicantAddressSelect(id, rationFields.address)
                           }
                         />
-                        {rationType !== 'ration-new' ? (
+                        {rationType !== 'ration-new' &&
+                        rationType !== 'ration-temporary' ? (
                           <FieldGroup
                             label={lt('letterGeneration.fields.rationCardNo')}
                             required

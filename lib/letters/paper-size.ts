@@ -39,6 +39,8 @@ export function getDefaultLetterPaperSize(
   if (isWardLetterType(letterType)) return 'a5';
   switch (letterType) {
     case 'ration-new':
+    case 'ration-temporary':
+    case 'ration-duplicate':
     case 'ration-add-members':
     case 'ration-delete-members':
     case 'ration-transfer':

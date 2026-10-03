@@ -1187,6 +1187,8 @@
       "college-admission": "महाविद्यालय — नवीन प्रवेश",
       "school-transfer": "शाळा — स्थानांतरण प्रवेश",
       "ration-new": "शिधापत्रिका — नवीन",
+      "ration-temporary": "शिधापत्रिका — तात्पुरती",
+      "ration-duplicate": "शिधापत्रिका — दुय्यम (डुप्लिकेट)",
       "ration-add-members": "शिधापत्रिका — नाव समाविष्ट",
       "ration-delete-members": "शिधापत्रिका — नाव वगळणे",
       "ration-transfer": "शिधापत्रिका — हस्तांतरण",

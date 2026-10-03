@@ -1187,6 +1187,8 @@
       "college-admission": "College — New Admission",
       "school-transfer": "School — Transfer",
       "ration-new": "Ration Card — New",
+      "ration-temporary": "Ration Card — Temporary",
+      "ration-duplicate": "Ration Card — Duplicate",
       "ration-add-members": "Ration Card — Name Addition",
       "ration-delete-members": "Ration Card — Name Deletion",
       "ration-transfer": "Ration Card — Transfer",
