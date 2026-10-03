@@ -2,6 +2,7 @@ import 'server-only';
 
 import { sql } from './postgres';
 import { JOB_FAIR_EVENT } from '@/lib/job-fair/options';
+import { generateJobFairRegistrationNo } from '@/lib/job-fair/registration-no';
 import type { JobFairRegistrationInput } from '@/lib/job-fair/schema';
 
 export const JOB_FAIR_RESUME_BUCKET = 'job-fair-resumes';
@@ -126,27 +127,48 @@ export async function getJobFairRegistrationNoByMobile(
   return rows[0] ? String(rows[0].registration_no) : null;
 }
 
+const REGISTRATION_NO_ATTEMPTS = 8;
+
+function isRegistrationNoCollision(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null) return false;
+  const pg = error as { code?: string; constraint_name?: string; message?: string };
+  if (pg.code !== '23505') return false;
+  const detail = `${pg.constraint_name ?? ''} ${pg.message ?? ''}`;
+  return detail.includes('registration_no');
+}
+
 export async function insertJobFairRegistration(
   input: JobFairRegistrationInput,
 ): Promise<{ id: string; registrationNo: string }> {
-  const rows = await sql`
-    INSERT INTO "JobFairRegistration" (
-      event_code, full_name, mobile, whatsapp, age, gender, area, area_other,
-      pincode, epic_number, qualification, course, employment_status, experience,
-      job_types, job_type_other, heard_from
-    ) VALUES (
-      ${JOB_FAIR_EVENT.code}, ${input.fullName}, ${input.mobile}, ${input.whatsapp},
-      ${Number(input.age)}, ${input.gender}, ${input.area},
-      ${input.area === 'other' ? (input.areaOther ?? null) : null},
-      ${input.pincode}, ${input.epicNumber ?? null}, ${input.qualification},
-      ${input.course ?? null}, ${input.employmentStatus}, ${input.experience},
-      ${sql.array(input.jobTypes)},
-      ${input.jobTypes.includes('other') ? (input.jobTypeOther ?? null) : null},
-      ${input.heardFrom ?? null}
-    )
-    RETURNING id, registration_no
-  `;
-  return { id: String(rows[0].id), registrationNo: String(rows[0].registration_no) };
+  for (let attempt = 0; attempt < REGISTRATION_NO_ATTEMPTS; attempt += 1) {
+    const registrationNo = generateJobFairRegistrationNo();
+    try {
+      const rows = await sql`
+        INSERT INTO "JobFairRegistration" (
+          event_code, registration_no, full_name, mobile, whatsapp, age, gender,
+          area, area_other, pincode, epic_number, qualification, course,
+          employment_status, experience, job_types, job_type_other, heard_from
+        ) VALUES (
+          ${JOB_FAIR_EVENT.code}, ${registrationNo}, ${input.fullName}, ${input.mobile},
+          ${input.whatsapp}, ${Number(input.age)}, ${input.gender}, ${input.area},
+          ${input.area === 'other' ? (input.areaOther ?? null) : null},
+          ${input.pincode}, ${input.epicNumber ?? null}, ${input.qualification},
+          ${input.course ?? null}, ${input.employmentStatus}, ${input.experience},
+          ${sql.array(input.jobTypes)},
+          ${input.jobTypes.includes('other') ? (input.jobTypeOther ?? null) : null},
+          ${input.heardFrom ?? null}
+        )
+        RETURNING id, registration_no
+      `;
+      return { id: String(rows[0].id), registrationNo: String(rows[0].registration_no) };
+    } catch (error) {
+      if (isRegistrationNoCollision(error) && attempt < REGISTRATION_NO_ATTEMPTS - 1) {
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error('Could not assign a registration number');
 }
 
 export async function setJobFairRegistrationResume(

@@ -16,6 +16,7 @@ import {
   Building2,
   CalendarPlus,
   Check,
+  Download,
   CheckCircle2,
   Cpu,
   FileText,
@@ -78,6 +79,7 @@ import {
   type JobFairStepKey,
 } from '@/lib/job-fair/schema';
 import { downloadJobFairIcs } from '@/lib/job-fair/calendar';
+import { downloadJobFairReceipt } from '@/lib/job-fair/receipt';
 import { JobFairEventChips } from './job-fair-hero';
 
 const DRAFT_KEY = 'yuvaaz-2026-registration-draft';
@@ -128,8 +130,19 @@ const EMPLOYMENT_ICONS: Record<string, typeof User> = {
 };
 
 type Result =
-  | { kind: 'success'; registrationNo: string; resumeUploaded: boolean | null }
-  | { kind: 'duplicate'; registrationNo: string | null };
+  | {
+      kind: 'success';
+      registrationNo: string;
+      resumeUploaded: boolean | null;
+      values: JobFairFormValues;
+      resumeFileName: string | null;
+    }
+  | {
+      kind: 'duplicate';
+      registrationNo: string | null;
+      values: JobFairFormValues;
+      resumeFileName: string | null;
+    };
 
 const fieldId = (name: string) => `jf-${name}`;
 
@@ -516,13 +529,20 @@ export function JobFairRegistrationForm() {
           kind: 'success',
           registrationNo: data.registrationNo ?? '',
           resumeUploaded: data.resumeUploaded ?? null,
+          values,
+          resumeFileName: resume?.name ?? null,
         });
         scrollToCard();
         return;
       }
       if (res.status === 409) {
         window.localStorage.removeItem(DRAFT_KEY);
-        setResult({ kind: 'duplicate', registrationNo: data.registrationNo ?? null });
+        setResult({
+          kind: 'duplicate',
+          registrationNo: data.registrationNo ?? null,
+          values,
+          resumeFileName: resume?.name ?? null,
+        });
         scrollToCard();
         return;
       }
@@ -1167,7 +1187,27 @@ function ResultCard({
   result: Result;
   onRegisterAnother: () => void;
 }) {
+  const [downloading, setDownloading] = useState(false);
   const isSuccess = result.kind === 'success';
+
+  const downloadReceipt = async () => {
+    if (!result.registrationNo || downloading) return;
+    setDownloading(true);
+    try {
+      await downloadJobFairReceipt({
+        registrationNo: result.registrationNo,
+        values: result.values,
+        resumeFileName:
+          result.kind === 'success' && result.resumeUploaded === false
+            ? null
+            : result.resumeFileName,
+      });
+    } catch {
+      toast.error('Could not create the PDF receipt. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  };
   const shareText = `I just registered for ${JOB_FAIR_EVENT.title} – ${JOB_FAIR_EVENT.subtitle} on ${JOB_FAIR_EVENT.dateLabel}, ${JOB_FAIR_EVENT.timeLabel} at ${JOB_FAIR_EVENT.venueShort}. Register free here:`;
   const shareUrl =
     typeof window !== 'undefined'
@@ -1229,6 +1269,17 @@ function ResultCard({
         </ul>
 
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {result.registrationNo ? (
+            <Button
+              type="button"
+              className="h-11 w-full sm:col-span-2"
+              disabled={downloading}
+              onClick={() => void downloadReceipt()}
+            >
+              {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+              Download PDF receipt
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"

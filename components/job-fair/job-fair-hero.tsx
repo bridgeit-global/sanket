@@ -111,8 +111,8 @@ export function JobFairFooter() {
       <div className="mt-3">
         An initiative by
         <div className="flex flex-col">
-          <div className="font-semibold ">{JOB_FAIR_EVENT.initiativeBy}</div>
-          <div className="font-semibold ">{JOB_FAIR_EVENT.initiativeRole}</div>
+          <div className="font-semibold">{JOB_FAIR_EVENT.initiativeBy}</div>
+          <div className="font-semibold">{JOB_FAIR_EVENT.initiativeRole}</div>
         </div>
       </div>
     </footer>
