@@ -9,7 +9,7 @@ export const JOB_FAIR_EVENT = {
   taglineTop: 'PROTEST BHI. PROGRESS BHI.',
   taglineBottom: 'AB JOB KI BAARI!!',
   initiativeBy: 'Sana Malik Shaikh',
-  initiativeRole: 'MLA, Anushakti Nagar',
+  initiativeRole: 'MLA - Anushakti Nagar',
   dateLabel: '18 October 2026',
   timeLabel: '10:00 AM – 4:00 PM',
   venueShort: 'Matoshree Vidyamandir, Mankhurd',
@@ -24,6 +24,8 @@ export const JOB_FAIR_EVENT = {
 
 type Option<T extends string = string> = { value: T; label: string };
 
+type AreaOption = Option & { pincodes: readonly string[] };
+
 function opts<const T extends readonly Option[]>(list: T) {
   return list;
 }
@@ -37,36 +39,66 @@ export const GENDER_OPTIONS = opts([
 export const AREA_OTHER = 'other';
 
 export const AREA_OPTIONS = opts([
-  { value: 'agarwadi', label: 'Agarwadi' },
-  { value: 'ashok-nagar-kasturba-nagar', label: 'Ashok Nagar – Kasturba Nagar' },
-  { value: 'aziz-baug-indira-nagar', label: 'Aziz Baug – Indira Nagar' },
-  { value: 'barc', label: 'BARC' },
-  { value: 'bharat-nagar', label: 'Bharat Nagar' },
-  { value: 'bharat-nagar-mankhurd', label: 'Bharat Nagar – Mankhurd' },
-  { value: 'cheeta-camp', label: 'Cheeta Camp' },
-  { value: 'deonar-gaon', label: 'Deonar Gaon' },
-  { value: 'deonar-municipal-colony', label: 'Deonar Municipal Colony' },
+  { value: 'agarwadi', label: 'Agarwadi', pincodes: ['400088'] },
+  {
+    value: 'ashok-nagar-kasturba-nagar',
+    label: 'Ashok Nagar – Kasturba Nagar',
+    pincodes: ['400074'],
+  },
+  {
+    value: 'aziz-baug-indira-nagar',
+    label: 'Aziz Baug – Indira Nagar',
+    pincodes: ['400074'],
+  },
+  { value: 'barc', label: 'BARC', pincodes: ['400085'] },
+  { value: 'bharat-nagar', label: 'Bharat Nagar', pincodes: ['400074'] },
+  {
+    value: 'bharat-nagar-mankhurd',
+    label: 'Bharat Nagar – Mankhurd',
+    pincodes: ['400043', '400088'],
+  },
+  { value: 'cheeta-camp', label: 'Cheeta Camp', pincodes: ['400088'] },
+  { value: 'deonar-gaon', label: 'Deonar Gaon', pincodes: ['400088'] },
+  {
+    value: 'deonar-municipal-colony',
+    label: 'Deonar Municipal Colony',
+    pincodes: ['400043'],
+  },
   {
     value: 'gadkari-prayag-nagar-gavanpada',
     label: 'Gadkari – Prayag Nagar – Gavanpada',
+    pincodes: ['400074'],
   },
-  { value: 'govandi-gaon', label: 'Govandi Gaon' },
-  { value: 'mahatma-phule-nagar', label: 'Mahatma Phule Nagar' },
-  { value: 'maharashtra-nagar', label: 'Maharashtra Nagar' },
-  { value: 'mandala-labour-colony', label: 'Mandala – Labour Colony' },
-  { value: 'mankhurd-gaon', label: 'Mankhurd Gaon' },
-  { value: 'mhada-bharat-nagar', label: 'MHADA – Bharat Nagar' },
-  { value: 'panjrapole', label: 'Panjrapole' },
-  { value: 'paylipada', label: 'Paylipada' },
-  { value: 'rcf-colony', label: 'RCF Colony' },
-  { value: 'sahyadri-nagar', label: 'Sahyadri Nagar' },
-  { value: 'samrat-ashok-nagar', label: 'Samrat Ashok Nagar' },
-  { value: 'tata-nagar', label: 'Tata Nagar' },
-  { value: 'trombay-koliwada', label: 'Trombay Koliwada' },
-  { value: 'vashi-naka', label: 'Vashi Naka' },
-  { value: 'vishnu-nagar', label: 'Vishnu Nagar' },
-  { value: AREA_OTHER, label: 'Other – Please Specify' },
-] as const);
+  { value: 'govandi-gaon', label: 'Govandi Gaon', pincodes: ['400043'] },
+  {
+    value: 'mahatma-phule-nagar',
+    label: 'Mahatma Phule Nagar',
+    pincodes: ['400043'],
+  },
+  { value: 'maharashtra-nagar', label: 'Maharashtra Nagar', pincodes: ['400088'] },
+  {
+    value: 'mandala-labour-colony',
+    label: 'Mandala – Labour Colony',
+    pincodes: ['400043'],
+  },
+  { value: 'mankhurd-gaon', label: 'Mankhurd Gaon', pincodes: ['400088'] },
+  {
+    value: 'mhada-bharat-nagar',
+    label: 'MHADA – Bharat Nagar',
+    pincodes: ['400074'],
+  },
+  { value: 'panjrapole', label: 'Panjrapole', pincodes: ['400088'] },
+  { value: 'paylipada', label: 'Paylipada', pincodes: ['400088'] },
+  { value: 'rcf-colony', label: 'RCF Colony', pincodes: ['400074'] },
+  { value: 'sahyadri-nagar', label: 'Sahyadri Nagar', pincodes: ['400074'] },
+  { value: 'samrat-ashok-nagar', label: 'Samrat Ashok Nagar', pincodes: ['400043'] },
+  { value: 'tata-nagar', label: 'Tata Nagar', pincodes: ['400043'] },
+  { value: 'trombay-koliwada', label: 'Trombay Koliwada', pincodes: ['400088'] },
+  { value: 'vashi-naka', label: 'Vashi Naka', pincodes: ['400074'] },
+  { value: 'vishnu-nagar', label: 'Vishnu Nagar', pincodes: ['400074'] },
+  { value: 'vn-purav-marg', label: 'VN Purav Marg', pincodes: ['400071'] },
+  { value: AREA_OTHER, label: 'Other – Please Specify', pincodes: [] },
+] as const satisfies readonly AreaOption[]);
 
 export const QUALIFICATION_OPTIONS = opts([
   { value: 'below-10th', label: 'Below 10th' },
@@ -144,6 +176,17 @@ export function optionLabel(
 ): string {
   if (!value) return '';
   return list.find((o) => o.value === value)?.label ?? value;
+}
+
+export function areaPincodes(value: string | null | undefined): readonly string[] {
+  const match = AREA_OPTIONS.find((o) => o.value === value);
+  return match ? match.pincodes : [];
+}
+
+/** Area name plus PIN, for the searchable locality dropdown. */
+export function areaSearchLabel(option: (typeof AREA_OPTIONS)[number]): string {
+  if (option.pincodes.length === 0) return option.label;
+  return `${option.label} · ${option.pincodes.join(' / ')}`;
 }
 
 export const RESUME_MAX_BYTES = 5 * 1024 * 1024;

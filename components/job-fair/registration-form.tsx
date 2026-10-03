@@ -52,6 +52,8 @@ import { cn } from '@/lib/utils';
 import {
   AREA_OPTIONS,
   AREA_OTHER,
+  areaPincodes,
+  areaSearchLabel,
   EMPLOYMENT_STATUS_OPTIONS,
   EXPERIENCE_OPTIONS,
   GENDER_OPTIONS,
@@ -68,6 +70,7 @@ import {
   EMPTY_JOB_FAIR_FORM,
   JOB_FAIR_STEP_KEYS,
   normalizeIndianMobile,
+  sanitizeEpicInput,
   validateJobFairStep,
   validateResumeFile,
   type JobFairFieldErrors,
@@ -349,7 +352,10 @@ export function JobFairRegistrationForm() {
           sameAsMobile?: boolean;
           step?: number;
         };
-        setValues({ ...EMPTY_JOB_FAIR_FORM, ...draft.values });
+        const restored = { ...EMPTY_JOB_FAIR_FORM, ...draft.values };
+        const pins = areaPincodes(restored.area);
+        if (pins.length === 1 && !restored.pincode) restored.pincode = pins[0];
+        setValues(restored);
         setSameAsMobile(Boolean(draft.sameAsMobile));
         if (typeof draft.step === 'number') {
           setStep(Math.min(Math.max(0, draft.step), STEPS.length - 1));
@@ -388,6 +394,20 @@ export function JobFairRegistrationForm() {
     },
     [sameAsMobile],
   );
+
+  const setArea = useCallback((area: string) => {
+    const pins = areaPincodes(area);
+    setValues((prev) => ({
+      ...prev,
+      area,
+      areaOther: area === AREA_OTHER ? prev.areaOther : '',
+      pincode: pins.length === 1 ? pins[0] : '',
+    }));
+    setErrors((prev) => {
+      const { area: _area, areaOther: _areaOther, pincode: _pincode, ...rest } = prev;
+      return rest;
+    });
+  }, []);
 
   const scrollToCard = () => {
     cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -731,9 +751,13 @@ export function JobFairRegistrationForm() {
                 <Field name="area" label="Area / Locality" required error={err('area')}>
                   <Combobox
                     id={fieldId('area')}
-                    options={AREA_OPTIONS.map((o) => ({ ...o, pinned: o.value === AREA_OTHER }))}
+                    options={AREA_OPTIONS.map((o) => ({
+                      value: o.value,
+                      label: areaSearchLabel(o),
+                      pinned: o.value === AREA_OTHER,
+                    }))}
                     value={values.area}
-                    onValueChange={(v) => set('area', v)}
+                    onValueChange={setArea}
                     placeholder="Search or select your area"
                     emptyMessage="No match — choose “Other – Please Specify”"
                     aria-invalid={Boolean(err('area'))}
@@ -757,33 +781,68 @@ export function JobFairRegistrationForm() {
                 </Reveal>
 
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                  <Field name="pincode" label="PIN Code" required error={err('pincode')}>
-                    <Input
-                      id={fieldId('pincode')}
-                      inputMode="numeric"
-                      autoComplete="postal-code"
-                      placeholder="e.g. 400088"
-                      value={values.pincode}
-                      onChange={(e) => set('pincode', digitsOnly(e.target.value, 6))}
-                      aria-invalid={Boolean(err('pincode')) || undefined}
-                      className={cn('h-11', err('pincode') && 'border-rose-400')}
-                    />
-                  </Field>
+                  {areaPincodes(values.area).length > 1 ? (
+                    <Field
+                      name="pincode"
+                      label="PIN Code"
+                      required
+                      error={err('pincode')}
+                      hint="This area uses more than one PIN code"
+                      className="md:col-span-2"
+                    >
+                      <RadioTiles
+                        name="pincode"
+                        columns="grid-cols-2"
+                        options={areaPincodes(values.area).map((pin) => ({
+                          value: pin,
+                          label: pin,
+                        }))}
+                        value={values.pincode}
+                        onChange={(v) => set('pincode', v)}
+                        invalid={Boolean(err('pincode'))}
+                      />
+                    </Field>
+                  ) : (
+                    <Field
+                      name="pincode"
+                      label="PIN Code"
+                      required
+                      error={err('pincode')}
+                      hint={
+                        areaPincodes(values.area).length === 1
+                          ? 'Filled from your area. You can change it if needed.'
+                          : undefined
+                      }
+                    >
+                      <Input
+                        id={fieldId('pincode')}
+                        inputMode="numeric"
+                        autoComplete="postal-code"
+                        placeholder="e.g. 400088"
+                        value={values.pincode}
+                        onChange={(e) => set('pincode', digitsOnly(e.target.value, 6))}
+                        aria-invalid={Boolean(err('pincode')) || undefined}
+                        className={cn('h-11', err('pincode') && 'border-rose-400')}
+                      />
+                    </Field>
+                  )}
                   <Field
                     name="epicNumber"
                     label="Voter ID / EPIC Number"
                     error={err('epicNumber')}
-                    hint="Printed on your Election Card"
+                    hint="3 letters and 7 digits, as printed on your Election Card"
                   >
                     <Input
                       id={fieldId('epicNumber')}
                       autoCapitalize="characters"
+                      autoCorrect="off"
+                      spellCheck={false}
                       placeholder="e.g. ABC1234567"
                       value={values.epicNumber}
-                      onChange={(e) => set('epicNumber', e.target.value.toUpperCase().replace(/\s/g, ''))}
+                      onChange={(e) => set('epicNumber', sanitizeEpicInput(e.target.value))}
                       aria-invalid={Boolean(err('epicNumber')) || undefined}
                       className={cn('h-11 uppercase', err('epicNumber') && 'border-rose-400')}
-                      maxLength={20}
+                      maxLength={10}
                     />
                   </Field>
                 </div>

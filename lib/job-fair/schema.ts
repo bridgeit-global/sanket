@@ -15,11 +15,29 @@ import {
   optionValues,
 } from './options';
 
+/** Indian voter ID: three letters, then seven digits (e.g. ABC1234567). */
+export const EPIC_NUMBER_PATTERN = /^[A-Z]{3}[0-9]{7}$/;
+
 export function normalizeIndianMobile(value: string): string {
   let digits = value.replace(/\D/g, '');
   if (digits.length === 12 && digits.startsWith('91')) digits = digits.slice(2);
   if (digits.length === 11 && digits.startsWith('0')) digits = digits.slice(1);
   return digits;
+}
+
+/** Keep only a partial or complete EPIC while the user types or pastes. */
+export function sanitizeEpicInput(value: string): string {
+  const upper = value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+  let letters = '';
+  let digits = '';
+  for (const ch of upper) {
+    if (digits.length === 0 && letters.length < 3 && /[A-Z]/.test(ch)) {
+      letters += ch;
+    } else if (letters.length === 3 && digits.length < 7 && /[0-9]/.test(ch)) {
+      digits += ch;
+    }
+  }
+  return letters + digits;
 }
 
 const mobileField = (label: string) =>
@@ -77,10 +95,18 @@ export const jobFairStepSchemas = {
       epicNumber: z
         .string()
         .trim()
-        .toUpperCase()
-        .max(20, 'Maximum 20 characters')
-        .regex(/^[A-Z0-9/]*$/, 'Only letters and numbers')
-        .optional()
+        .transform(sanitizeEpicInput)
+        .pipe(
+          z.union([
+            z.literal(''),
+            z
+              .string()
+              .regex(
+                EPIC_NUMBER_PATTERN,
+                'Enter a valid EPIC number (3 letters and 7 digits, e.g. ABC1234567)',
+              ),
+          ]),
+        )
         .transform((v) => (v ? v : undefined)),
     })
     .superRefine((data, ctx) => {

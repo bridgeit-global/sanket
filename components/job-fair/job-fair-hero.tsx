@@ -64,8 +64,9 @@ export function JobFairHero() {
           />
           <div className="min-w-0 text-sm leading-tight">
             <div className="text-primary-foreground/75">An initiative by</div>
-            <div className="truncate font-semibold">
-              {JOB_FAIR_EVENT.initiativeBy}, {JOB_FAIR_EVENT.initiativeRole}
+            <div className="flex items-start flex-col">
+              <div className="font-semibold text-base">{JOB_FAIR_EVENT.initiativeBy}</div>
+              <div className="font-semibold text-base">{JOB_FAIR_EVENT.initiativeRole}</div>
             </div>
           </div>
         </div>
@@ -108,8 +109,11 @@ export function JobFairFooter() {
         {JOB_FAIR_EVENT.taglineTop} {JOB_FAIR_EVENT.taglineBottom}
       </div>
       <div className="mt-3">
-        An initiative by {JOB_FAIR_EVENT.initiativeBy},{' '}
-        {JOB_FAIR_EVENT.initiativeRole}
+        An initiative by
+        <div className="flex flex-col">
+          <div className="font-semibold ">{JOB_FAIR_EVENT.initiativeBy}</div>
+          <div className="font-semibold ">{JOB_FAIR_EVENT.initiativeRole}</div>
+        </div>
       </div>
     </footer>
   );
