@@ -4682,6 +4682,7 @@ export async function createLetter({
           fields,
           renderedHtml,
           paperSize: resolveLetterPaperSize(paperSize, letterType),
+          status: 'draft',
           createdBy: createdBy || null,
           beneficiaryServiceId: beneficiaryServiceId || null,
           createdAt: now,
@@ -4797,6 +4798,134 @@ export async function updateLetterPdfStoragePath({
       'bad_request:database',
       'Failed to update letter PDF storage path',
     );
+  }
+}
+
+export type LetterDraftUpdateResult =
+  | { letter: Letter }
+  | { error: 'not_found' | 'not_draft' };
+
+export async function updateLetterDraft({
+  id,
+  letterMasterId,
+  letterType,
+  letterLocale,
+  title,
+  fields,
+  renderedHtml,
+  paperSize,
+}: {
+  id: string;
+  letterMasterId?: string | null;
+  letterType: string;
+  letterLocale: string;
+  title: string;
+  fields: unknown;
+  renderedHtml: string;
+  paperSize?: 'a4' | 'a5' | 'b5';
+}): Promise<LetterDraftUpdateResult> {
+  try {
+    const existing = await getLetterById(id);
+    if (!existing) return { error: 'not_found' };
+    if (existing.status !== 'draft') return { error: 'not_draft' };
+
+    const { resolveLetterPaperSize } = await import('@/lib/letters/paper-size');
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.letter)
+      .update(
+        toSnakeCaseKeys({
+          letterMasterId: letterMasterId || null,
+          letterType,
+          letterLocale,
+          title,
+          fields,
+          renderedHtml,
+          paperSize: resolveLetterPaperSize(paperSize, letterType),
+          updatedAt: now,
+        }),
+      )
+      .eq('id', id)
+      .eq('status', 'draft')
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to update letter draft');
+    return { letter: mapLetterRow(data) };
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to update letter draft');
+  }
+}
+
+export type LetterVerificationResult =
+  | { letter: Letter }
+  | { error: 'not_found' | 'not_draft' | 'not_pending' };
+
+export async function submitLetterForVerification(
+  id: string,
+): Promise<LetterVerificationResult> {
+  try {
+    const existing = await getLetterById(id);
+    if (!existing) return { error: 'not_found' };
+    if (existing.status !== 'draft') return { error: 'not_draft' };
+
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.letter)
+      .update(
+        toSnakeCaseKeys({
+          status: 'pending_verification',
+          submittedAt: now,
+          updatedAt: now,
+        }),
+      )
+      .eq('id', id)
+      .eq('status', 'draft')
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to submit letter for verification');
+    return { letter: mapLetterRow(data) };
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to submit letter for verification',
+    );
+  }
+}
+
+export async function approveLetter({
+  id,
+  approvedBy,
+}: {
+  id: string;
+  approvedBy: string;
+}): Promise<LetterVerificationResult> {
+  try {
+    const existing = await getLetterById(id);
+    if (!existing) return { error: 'not_found' };
+    if (existing.status !== 'pending_verification') return { error: 'not_pending' };
+
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.letter)
+      .update(
+        toSnakeCaseKeys({
+          status: 'approved',
+          approvedAt: now,
+          approvedBy,
+          updatedAt: now,
+        }),
+      )
+      .eq('id', id)
+      .eq('status', 'pending_verification')
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to approve letter');
+    return { letter: mapLetterRow(data) };
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to approve letter');
   }
 }
 

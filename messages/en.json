@@ -769,6 +769,12 @@
     "clearAllConfirmDescription": "This will reset all letter form fields for every letter type. This cannot be undone.",
     "clearAllSuccess": "Form cleared",
     "previewTitle": "Preview",
+    "previewZoom": {
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "reset": "Reset zoom",
+      "level": "{percent}%"
+    },
     "paperSize": {
       "label": "Paper size: {size}",
       "hint": "Change size above to customize",
@@ -1107,6 +1113,16 @@
       "description": "Save generated letters to the database and reuse them later. A PDF copy is stored in Storage.",
       "sectionTitle": "Letter history",
       "save": "Save Letter",
+      "saveDraft": "Save draft",
+      "sendForVerification": "Send for verification",
+      "draftSaved": "Draft saved",
+      "autoSaving": "Saving draft…",
+      "autoSaved": "Draft saved",
+      "autoSaveError": "Could not auto-save the draft.",
+      "submitSuccess": "Letter sent for verification",
+      "submitError": "Failed to send the letter for verification.",
+      "approveSuccess": "Letter approved",
+      "approveError": "Failed to approve the letter.",
       "refresh": "Refresh",
       "dropdownLabel": "Select saved letter",
       "dropdownPlaceholder": "Choose a saved letter…",
@@ -1117,7 +1133,7 @@
         "allTypes": "All letter types",
         "dateRange": "Saved date range"
       },
-      "empty": "No saved letters yet. Click \"Save Letter\" to store the current letter.",
+      "empty": "No saved letters yet. Edits are saved as a draft automatically.",
       "saveSuccess": "Letter saved",
       "saveError": "Failed to save letter. Please try again.",
       "pdfStorageError": "Letter saved, but uploading the PDF to storage failed.",
@@ -1144,8 +1160,13 @@
         "reprintConfirm": "Reprint anyway",
         "download": "Download PDF",
         "delete": "Delete",
+        "edit": "Edit",
+        "submit": "Submit",
+        "approve": "Approve",
         "regenerate": "Regenerate",
         "closePreview": "Close preview",
+        "fullscreen": "Full screen",
+        "exitFullscreen": "Exit full screen",
         "addToOutward": "Add to Outward Register",
         "addedToOutward": "Added to Outward",
         "goToOutward": "Go to Outward"
@@ -1153,7 +1174,12 @@
       "addToOutwardSuccess": "Letter added to the outward register.",
       "addToOutwardError": "Failed to add the letter to the outward register.",
       "regenerateSuccess": "Letter regenerated from template",
-      "regenerateError": "Failed to regenerate letter"
+      "regenerateError": "Failed to regenerate letter",
+      "status": {
+        "draft": "Draft",
+        "pending_verification": "Pending verification",
+        "approved": "Approved"
+      }
     },
     "tabs": {
       "fees": "Fee Concession Recommendation",
@@ -1295,6 +1321,7 @@
       "referenceNoDuplicate": "Reference No. already exists",
       "dateRequired": "Date is required",
       "fieldRequired": "This field is required",
+      "atLeastOneField": "Fill at least one letter field before sending for verification",
       "contactNoInvalid": "Contact number must be exactly 10 digits"
     }
   },

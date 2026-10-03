@@ -40,13 +40,13 @@ export default async function LetterGenerationPage({
     const letter = await getLetterById(letterId);
     if (letter?.beneficiaryServiceId) {
       redirect(
-        `/modules/letter-generation?beneficiaryServiceId=${encodeURIComponent(letter.beneficiaryServiceId)}`,
+        `/modules/letter-generation?beneficiaryServiceId=${encodeURIComponent(letter.beneficiaryServiceId)}&letterId=${encodeURIComponent(letterId)}`,
       );
     }
     const matter = await findMatterByLetterId(letterId);
     if (matter) {
       redirect(
-        `/modules/letter-generation?govFollowUpMatterId=${encodeURIComponent(matter.id)}`,
+        `/modules/letter-generation?govFollowUpMatterId=${encodeURIComponent(matter.id)}&letterId=${encodeURIComponent(letterId)}`,
       );
     }
     redirect('/modules/operator');
@@ -78,10 +78,11 @@ export default async function LetterGenerationPage({
 
     return (
       <div className="min-h-screen bg-background">
-        <div className="container mx-auto max-w-7xl p-4 sm:py-8">
+        <div className="container mx-auto min-w-0 max-w-7xl overflow-x-hidden px-3 py-4 sm:px-4 sm:py-8">
           <LetterGeneration
             isAdmin={isAdmin}
             govFollowUpMatterId={matter.id}
+            initialLetterId={letterId}
             govFollowUpPrefill={{
               followUpNo: matter.followUpNo,
               subject: matter.subject,
@@ -155,11 +156,12 @@ export default async function LetterGenerationPage({
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="container mx-auto max-w-7xl p-4 sm:py-8">
+      <div className="container mx-auto min-w-0 max-w-7xl overflow-x-hidden px-3 py-4 sm:px-4 sm:py-8">
         <LetterGeneration
           isAdmin={isAdmin}
           beneficiaryServiceId={beneficiaryServiceId}
           govFollowUpMatterId={govFollowUpMatterId}
+          initialLetterId={letterId}
           prefillName={prefillName}
           prefill={{
             name: prefillName,
