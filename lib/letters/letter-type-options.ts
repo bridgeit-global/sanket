@@ -45,6 +45,7 @@ export function documentTypeForLetterType(
     base === 'income' ||
     base === 'domicile' ||
     base === 'identity' ||
+    base === 'qr-birth-certificate' ||
     base === 'medical-assistance' ||
     base.startsWith('ration-')
   ) {
@@ -140,6 +141,8 @@ const SERVICE_NAME_TO_LETTER_TYPE: Array<{ match: string; letterType: string }> 
     letterType: 'income',
   },
   { match: 'identity card', letterType: 'identity' },
+  { match: 'qr birth certificate', letterType: 'qr-birth-certificate' },
+  { match: 'qr code birth certificate', letterType: 'qr-birth-certificate' },
   { match: 'medical assistance', letterType: 'medical-assistance' },
   { match: 'medical aid', letterType: 'medical-assistance' },
   { match: 'cancer-related assistance', letterType: 'medical-assistance' },
@@ -214,6 +217,9 @@ export function resolveLetterTypeFromServiceName(
   if (/\bincome\b/.test(key)) return 'income';
   if (/\bdomicile\b/.test(key)) return 'domicile';
   if (/\bidentity card\b/.test(key) || /\bolkhaptra\b/.test(key)) return 'identity';
+  if (/\bqr\b/.test(key) && /\bbirth\b/.test(key) && /\bcertificate\b/.test(key)) {
+    return 'qr-birth-certificate';
+  }
   if (/\bmedical\b/.test(key) && /\b(assistance|aid)\b/.test(key)) {
     return 'medical-assistance';
   }

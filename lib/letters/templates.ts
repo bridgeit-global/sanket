@@ -48,6 +48,7 @@ export const LETTER_TYPES = [
   'income',
   'domicile',
   'identity',
+  'qr-birth-certificate',
   'medical-assistance',
   /** @deprecated Prefer specific ward-* letter types */
   'ward',
@@ -173,6 +174,19 @@ export type DomicileLetterFields = CommonLetterFields & {
   reason?: string;
 };
 
+export type BirthCertificateLetterFields = CommonLetterFields & {
+  gender: PersonGender;
+  salutation: string;
+  /** Constituent who requested the certificate. */
+  applicantName: string;
+  /** Person named on the birth certificate. */
+  personName: string;
+  dateOfBirth: string;
+  birthRegistrationNo: string;
+  officeName: string;
+  officeAddress: string;
+};
+
 export type MedicalAssistanceLetterFields = CommonLetterFields & {
   gender: PersonGender;
   salutation: string;
@@ -222,6 +236,7 @@ export type LetterFields =
   | RationLetterFields
   | IncomeLetterFields
   | DomicileLetterFields
+  | BirthCertificateLetterFields
   | MedicalAssistanceLetterFields
   | WardLetterFields;
 
@@ -238,6 +253,11 @@ export const DEFAULT_GENERAL_SALUTATION: Record<LetterLocale, string> = {
 export const DEFAULT_RATION_OFFICE_ADDRESS: Record<LetterLocale, string> = {
   mr: 'पहिला मजला, सुप्रीम एलनॉर इमारत, गोवंडी स्टेशन रोड, देवनार, गोवंडी (पूर्व), मुंबई - ४०००८८',
   en: '1st Floor, Supreme Elanor Building, Govandi Station Road, Deonar, Govandi (E), Mumbai - 400088',
+};
+
+export const DEFAULT_BIRTH_CERTIFICATE_OFFICE_NAME: Record<LetterLocale, string> = {
+  mr: 'वैद्यकीय आरोग्य अधिकारी, एम/पूर्व विभाग',
+  en: 'Medical Health Officer, M/East Ward',
 };
 
 export const DEFAULT_OFFICE_ADDRESS: Record<LetterLocale, string> = {

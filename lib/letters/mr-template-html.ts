@@ -404,6 +404,38 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   ${CLOSING}
 </div>`,
 
+  'qr-birth-certificate': `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>जावक क्र. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>दिनांक : <span class="var">{{date}}</span></div>
+  </div>
+प्रति,<br>
+  <div class="address">
+    <span class="var" style="font-weight: bold;">{{officeName}}</span>,<br>
+    <span style="font-weight: normal;">{{officeAddress}}</span>
+  </div>
+  ${subjectHtml('QR Code असलेले जन्म प्रमाणपत्र देण्याबाबत शिफारस.')}
+  <div class="salutation">
+    महोदय/महोदया,
+  </div>
+  <p class="paragraph">
+    माझ्या अणुशक्ती नगर विधानसभा मतदारसंघातील <span class="var">{{salutation}}</span> <span class="var">{{applicantName}}</span> यांनी खालील व्यक्तीचे QR Code असलेले जन्म प्रमाणपत्र मिळण्याबाबत माझ्याकडे विनंती केली आहे.
+  </p>
+  <p class="member-list" style="margin: 8px 0 12px 28px;">
+    नाव : <span class="var">{{personName}}</span><br>
+    जन्म दिनांक : <span class="var">{{dateOfBirth}}</span><br>
+    जन्म नोंदणी क्रमांक : <span class="var">{{birthRegistrationNo}}</span>
+  </p>
+  <p class="paragraph">
+    सदर जन्माची नोंद महानगरपालिकेच्या अभिलेखात उपलब्ध असून, अर्जदारास विविध शासकीय/अधिकृत कामकाजासाठी अद्ययावत QR Code असलेल्या जन्म प्रमाणपत्राची आवश्यकता आहे.
+  </p>
+  <p class="paragraph">
+    तरी, सदर प्रकरणातील अभिलेख व आवश्यक कागदपत्रांची पडताळणी करून, नियमानुसार QR Code असलेले जन्म प्रमाणपत्र तातडीने उपलब्ध करून देण्याबाबत आवश्यक कार्यवाही करावी, अशी माझी शिफारस आहे.
+  </p>
+  ${CLOSING}
+</div>`,
+
   'medical-assistance': `<div class="letter-content" style="${ROOT}">
   <style>${LETTER_STYLE}</style>
   <div class="top-row">

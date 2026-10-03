@@ -18,6 +18,7 @@ import {
   resolveWardIssueType,
 } from '@/lib/letters/ward-issue-presets';
 import type {
+  BirthCertificateLetterFields,
   DomicileLetterFields,
   FeesLetterFields,
   GeneralLetterFields,
@@ -265,6 +266,19 @@ export function buildRenderFields(
       officeName: domicileFields.officeName,
       officeAddress: formatAddressSoftWrapHtml(domicileFields.officeAddress),
       reason,
+    };
+  } else if (formType === 'qr-birth-certificate') {
+    const birthFields = fields as BirthCertificateLetterFields;
+    renderFields = {
+      ...base,
+      ...birthFields,
+      dateOfBirth: toLocaleDigits(toWesternDigits(birthFields.dateOfBirth ?? ''), locale),
+      birthRegistrationNo: toLocaleDigits(
+        toWesternDigits(birthFields.birthRegistrationNo ?? ''),
+        locale,
+      ),
+      officeName: birthFields.officeName,
+      officeAddress: formatAddressSoftWrapHtml(birthFields.officeAddress),
     };
   } else if (formType === 'medical-assistance') {
     const medicalFields = fields as MedicalAssistanceLetterFields;

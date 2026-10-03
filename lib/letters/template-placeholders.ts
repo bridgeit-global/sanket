@@ -148,6 +148,17 @@ const KNOWN_PLACEHOLDERS_BY_FORM: Partial<
     'genderPronounSubject',
     'reason',
   ],
+  'qr-birth-certificate': [
+    ...COMMON_PLACEHOLDER_KEYS,
+    'gender',
+    'salutation',
+    'applicantName',
+    'personName',
+    'dateOfBirth',
+    'birthRegistrationNo',
+    'officeName',
+    'officeAddress',
+  ],
   'medical-assistance': [
     ...COMMON_PLACEHOLDER_KEYS,
     'gender',

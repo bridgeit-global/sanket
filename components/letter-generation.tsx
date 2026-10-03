@@ -79,6 +79,7 @@ import {
 import { useTranslations } from '@/hooks/use-translations';
 import {
   buildLetterBody,
+  DEFAULT_BIRTH_CERTIFICATE_OFFICE_NAME,
   DEFAULT_SIGNATORY,
   DEFAULT_GENERAL_SALUTATION,
   isLetterType,
@@ -87,6 +88,7 @@ import {
   LETTER_TYPES,
   wardIssueTypeFromLetterType,
   type CommonLetterFields,
+  type BirthCertificateLetterFields,
   type DomicileLetterFields,
   type FeesLetterFields,
   type GeneralLetterFields,
@@ -301,6 +303,7 @@ function getFieldsForLetterType(
     rationFields: RationLetterFields;
     incomeFields: IncomeLetterFields;
     domicileFields: DomicileLetterFields;
+    birthCertificateFields: BirthCertificateLetterFields;
     medicalAssistanceFields: MedicalAssistanceLetterFields;
     wardFields: WardLetterFields;
   },
@@ -322,6 +325,8 @@ function getFieldsForLetterType(
     case 'domicile':
     case 'identity':
       return fields.domicileFields;
+    case 'qr-birth-certificate':
+      return fields.birthCertificateFields;
     case 'medical-assistance':
       return fields.medicalAssistanceFields;
     case 'ward':
@@ -557,6 +562,20 @@ function domicileDefaults(locale: LetterLocale): DomicileLetterFields {
     officeAddress: '',
     aadhaarNo: '',
     reason: '',
+  };
+}
+
+function birthCertificateDefaults(locale: LetterLocale): BirthCertificateLetterFields {
+  return {
+    ...commonDefaults(locale, 'qr-birth-certificate'),
+    gender: 'male',
+    salutation: resolveSalutation(locale, 'male'),
+    applicantName: '',
+    personName: '',
+    dateOfBirth: '',
+    birthRegistrationNo: '',
+    officeName: DEFAULT_BIRTH_CERTIFICATE_OFFICE_NAME[locale],
+    officeAddress: '',
   };
 }
 
@@ -1305,6 +1324,15 @@ export function LetterGeneration({
   const [domicileFields, setDomicileFields] = useState<DomicileLetterFields>(
     () => domicileDefaults('mr'),
   );
+  const [birthCertificateFields, setBirthCertificateFields] =
+    useState<BirthCertificateLetterFields>(() => birthCertificateDefaults('mr'));
+  const [birthOfficeId, setBirthOfficeId] = useState<string | null>(null);
+  const [birthOfficeParts, setBirthOfficeParts] = useState<AddressMasterAddressParts>(
+    () => createEmptyAddressParts(),
+  );
+  const [birthOfficePincodeError, setBirthOfficePincodeError] = useState<string | undefined>();
+  const birthOfficeTranslateTimerRef = useRef<number | null>(null);
+  const birthOfficeTranslateReqRef = useRef(0);
   const [medicalAssistanceFields, setMedicalAssistanceFields] =
     useState<MedicalAssistanceLetterFields>(() => medicalAssistanceDefaults('mr'));
   const [wardFields, setWardFields] = useState<WardLetterFields>(() => {
@@ -1373,11 +1401,13 @@ export function LetterGeneration({
         rationFields,
         incomeFields,
         domicileFields,
+        birthCertificateFields,
         medicalAssistanceFields,
         wardFields,
       }).date,
     [
       activeTab,
+      birthCertificateFields,
       domicileFields,
       medicalAssistanceFields,
       generalFields,
@@ -1590,6 +1620,7 @@ export function LetterGeneration({
     setRationFields((prev) => ({ ...prev, ...patch }));
     setIncomeFields((prev) => ({ ...prev, ...patch }));
     setDomicileFields((prev) => ({ ...prev, ...patch }));
+    setBirthCertificateFields((prev) => ({ ...prev, ...patch }));
     setMedicalAssistanceFields((prev) => ({ ...prev, ...patch }));
     setWardFields((prev) => ({ ...prev, ...patch }));
   }, []);
@@ -1749,6 +1780,31 @@ export function LetterGeneration({
       aadhaarNo: normalizeAadhaarNo(prev.aadhaarNo),
       reason: filterText(prev.reason ?? ''),
     }));
+    const birthOfficeAddressText = birthOfficeId
+      ? (getAddressTextFromMaster(addresses, birthOfficeId, letterLocale, true) ?? '')
+      : formatAddressMasterMultiline(birthOfficeParts, letterLocale);
+    setBirthCertificateFields((prev) => ({
+      ...prev,
+      referencePrefix: nextPrefix(prev.referencePrefix),
+      referenceNo: nextReferenceNo(prev.referenceNo),
+      signatory: nextSignatory(prev.signatory),
+      date: prev.date.trim() === '' || prev.date === prevAutoDate ? nextAutoDate : prev.date,
+      salutation: resolveSalutation(letterLocale, prev.gender),
+      applicantName: filterText(prev.applicantName),
+      personName: filterText(prev.personName),
+      dateOfBirth: toLocaleDigits(toWesternDigits(prev.dateOfBirth), letterLocale),
+      birthRegistrationNo: toLocaleDigits(
+        toWesternDigits(prev.birthRegistrationNo),
+        letterLocale,
+      ),
+      officeName:
+        !prev.officeName.trim() ||
+        prev.officeName.trim() === DEFAULT_BIRTH_CERTIFICATE_OFFICE_NAME[prevLocale] ||
+        prev.officeName.trim() === DEFAULT_BIRTH_CERTIFICATE_OFFICE_NAME[letterLocale]
+          ? DEFAULT_BIRTH_CERTIFICATE_OFFICE_NAME[letterLocale]
+          : filterText(prev.officeName),
+      officeAddress: birthOfficeAddressText.trim() ? birthOfficeAddressText : prev.officeAddress,
+    }));
     setMedicalAssistanceFields((prev) => ({
       ...prev,
       referencePrefix: nextPrefix(prev.referencePrefix),
@@ -1905,7 +1961,14 @@ export function LetterGeneration({
     }
 
     prevLetterLocaleRef.current = letterLocale;
-  }, [letterLocale, addresses, addressSelections, manualAddressParts]);
+  }, [
+    letterLocale,
+    addresses,
+    addressSelections,
+    manualAddressParts,
+    birthOfficeId,
+    birthOfficeParts,
+  ]);
 
   const triggerAutoTranslateManualAddressParts = (
     key: ManualAddressKey,
@@ -2301,6 +2364,93 @@ export function LetterGeneration({
       setDomicileFields((prev) => ({ ...prev, officeName: '' }));
       seedManualAddressPartsFromText('office', seedText);
     }
+  };
+
+  const applyBirthOfficeAddress = (text: string) => {
+    setBirthCertificateFields((prev) => ({ ...prev, officeAddress: text }));
+  };
+
+  const translateBirthOfficeParts = (parts: AddressMasterAddressParts) => {
+    const sourceText = formatAddressMaster(parts, letterLocale);
+    if (!sourceText.trim()) return;
+    const hasAddressLines = Boolean(
+      parts.line1Mr.trim() ||
+      parts.line2Mr.trim() ||
+      parts.line3Mr.trim() ||
+      parts.cityMr.trim() ||
+      parts.stateMr.trim(),
+    );
+    if (!hasAddressLines) return;
+
+    const nextReqId = birthOfficeTranslateReqRef.current + 1;
+    birthOfficeTranslateReqRef.current = nextReqId;
+    if (birthOfficeTranslateTimerRef.current) {
+      window.clearTimeout(birthOfficeTranslateTimerRef.current);
+    }
+    birthOfficeTranslateTimerRef.current = window.setTimeout(async () => {
+      try {
+        const res = await fetch('/api/translate', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ text: sourceText, targetLocale: 'en' }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json?.error || 'Failed to translate');
+        if (birthOfficeTranslateReqRef.current !== nextReqId) return;
+        const translated = String(json?.translated ?? '').trim();
+        if (!translated) return;
+        setBirthOfficeParts((prev) =>
+          sanitizeAddressPartsLocations(
+            localizeAddressPartsDigits(
+              mergeAddressParts(prev, parseFreeTextAddressForLocale(translated, 'en')),
+              'en',
+            ),
+          ),
+        );
+      } catch (error) {
+        console.error('Failed to auto-translate birth certificate office address', error);
+      }
+    }, 450);
+  };
+
+  const handleBirthOfficePartsChange = (parts: AddressMasterAddressParts) => {
+    setBirthOfficeParts(parts);
+    setBirthOfficePincodeError(getPincodeValidationError(parts, lt));
+    setFieldErrors((prev) => ({ ...prev, officeAddress: undefined }));
+    applyBirthOfficeAddress(formatAddressMasterMultiline(parts, letterLocale));
+    translateBirthOfficeParts(parts);
+  };
+
+  const handleBirthOfficeSelect = (id: string | null) => {
+    setBirthOfficeId(id);
+    setFieldErrors((prev) => ({
+      ...prev,
+      officeAddress: undefined,
+      officeName: undefined,
+    }));
+    if (id) {
+      const text = getAddressTextFromMaster(addresses, id, letterLocale, true) ?? '';
+      const selected = addresses.find((address) => address.id === id);
+      if (selected) {
+        setBirthOfficeParts(addressRowToParts(selected));
+        const officeName = getAddressMasterName(selected, letterLocale);
+        setBirthCertificateFields((prev) => ({
+          ...prev,
+          officeAddress: text || prev.officeAddress,
+          officeName: officeName || prev.officeName,
+        }));
+      } else if (text) {
+        applyBirthOfficeAddress(text);
+      }
+      return;
+    }
+    setBirthOfficeParts(createEmptyAddressParts());
+    setBirthOfficePincodeError(undefined);
+    setBirthCertificateFields((prev) => ({
+      ...prev,
+      officeName: DEFAULT_BIRTH_CERTIFICATE_OFFICE_NAME[letterLocale],
+      officeAddress: '',
+    }));
   };
 
   // Prefill office with Tahsildar Office, Kurla once addresses load.
@@ -2824,6 +2974,7 @@ export function LetterGeneration({
         rationFields,
         incomeFields,
         domicileFields,
+        birthCertificateFields,
         medicalAssistanceFields,
         wardFields,
       }),
@@ -2854,6 +3005,7 @@ export function LetterGeneration({
     rationFields,
     incomeFields,
     domicileFields,
+    birthCertificateFields,
     medicalAssistanceFields,
     wardFields,
     customPlaceholderValues,
@@ -2891,6 +3043,7 @@ export function LetterGeneration({
         rationFields,
         incomeFields,
         domicileFields,
+        birthCertificateFields,
         medicalAssistanceFields,
         wardFields,
       }),
@@ -2898,6 +3051,7 @@ export function LetterGeneration({
     }),
     [
       activeTab,
+      birthCertificateFields,
       customPlaceholderValues,
       domicileFields,
       medicalAssistanceFields,
@@ -2936,6 +3090,7 @@ export function LetterGeneration({
     setRationFields(coercePrefix);
     setIncomeFields(coercePrefix);
     setDomicileFields(coercePrefix);
+    setBirthCertificateFields(coercePrefix);
     setMedicalAssistanceFields(coercePrefix);
     setWardFields(coercePrefix);
   }, []);
@@ -2959,6 +3114,7 @@ export function LetterGeneration({
     setRationFields(patchPrefix);
     setIncomeFields(patchPrefix);
     setDomicileFields(patchPrefix);
+    setBirthCertificateFields(patchPrefix);
     setMedicalAssistanceFields(patchPrefix);
     setWardFields(patchPrefix);
     referenceNumberAutoRef.current = true;
@@ -3050,6 +3206,21 @@ export function LetterGeneration({
           setDomicileFields((prev) => {
             if (prev.fullName.trim() !== trimmed) return prev;
             return { ...prev, fullName: translated };
+          });
+        },
+      );
+      setBirthCertificateFields((prev) =>
+        prev.applicantName.trim()
+          ? prev
+          : { ...prev, applicantName: voterPrefillName },
+      );
+      void applyNameMarathiIfUnchanged(
+        'qr-birth-certificate.applicantName',
+        voterPrefillName,
+        (translated, trimmed) => {
+          setBirthCertificateFields((prev) => {
+            if (prev.applicantName.trim() !== trimmed) return prev;
+            return { ...prev, applicantName: translated };
           });
         },
       );
@@ -3281,6 +3452,39 @@ export function LetterGeneration({
         requireField(errors, 'officeName', domicileFields.officeName, requiredMsg);
         requireAddress('office', domicileFields.officeAddress);
       }
+    } else if (formTab === 'qr-birth-certificate') {
+      requireField(errors, 'officeName', birthCertificateFields.officeName, requiredMsg);
+      requireField(errors, 'salutation', birthCertificateFields.salutation, requiredMsg);
+      requireField(errors, 'applicantName', birthCertificateFields.applicantName, requiredMsg);
+      requireField(errors, 'personName', birthCertificateFields.personName, requiredMsg);
+      requireField(
+        errors,
+        'birthRegistrationNo',
+        birthCertificateFields.birthRegistrationNo,
+        requiredMsg,
+      );
+      if (!tryParseDisplayToIso(birthCertificateFields.dateOfBirth)) {
+        errors.dateOfBirth = lt('letterGeneration.validation.dateRequired');
+      }
+      if (
+        !isAddressProvided(
+          birthOfficeId,
+          birthOfficeParts,
+          letterLocale,
+          birthCertificateFields.officeAddress,
+        )
+      ) {
+        errors.officeAddress = lt('letterGeneration.addresses.fieldsRequired');
+      } else if (!birthOfficeId && hasAddressContent(birthOfficeParts)) {
+        const addressError = getManualAddressValidationError(
+          birthOfficeParts,
+          letterLocale,
+          lt,
+        );
+        const pincodeError = getPincodeValidationError(birthOfficeParts, lt);
+        if (pincodeError) setBirthOfficePincodeError(pincodeError);
+        if (addressError) errors.officeAddress = addressError;
+      }
     } else if (formTab === 'medical-assistance') {
       requireField(errors, 'hospitalName', medicalAssistanceFields.hospitalName, requiredMsg);
       requireField(errors, 'salutation', medicalAssistanceFields.salutation, requiredMsg);
@@ -3334,8 +3538,10 @@ export function LetterGeneration({
     const candidates = [
       fields.schoolName,
       fields.hospitalName,
-      fields.toName,
       fields.officeName,
+      fields.applicantName,
+      fields.personName,
+      fields.toName,
       fields.officeAddress,
       fields.rationOfficeAddress,
       fields.toRationOffice,
@@ -3666,6 +3872,25 @@ export function LetterGeneration({
         }
       }
 
+      if (!birthOfficeId && formTab === 'qr-birth-certificate') {
+        const officeText = birthCertificateFields.officeAddress ?? '';
+        if (officeText.trim() && hasAddressContent(birthOfficeParts)) {
+          const created = await createAddressMasterFromManualEntry({
+            addressType: addressTypeForField('office'),
+            name:
+              birthCertificateFields.officeName.trim() ||
+              deriveAddressMasterName(officeText, 'Office'),
+            parts: birthOfficeParts,
+          });
+          if (created?.id) {
+            setAddresses((prev) =>
+              prev.some((a) => a.id === created.id) ? prev : [created, ...prev],
+            );
+            setBirthOfficeId(created.id);
+          }
+        }
+      }
+
       if (!addressSelections.office && (formTab === 'income' || formTab === 'domicile')) {
         const officeText =
           (formTab === 'income' ? incomeFields.officeAddress : domicileFields.officeAddress) ??
@@ -3822,6 +4047,10 @@ export function LetterGeneration({
     setRationFields(rationDefaults(letterLocale));
     setIncomeFields(incomeDefaults(letterLocale));
     setDomicileFields(domicileDefaults(letterLocale));
+    setBirthCertificateFields(birthCertificateDefaults(letterLocale));
+    setBirthOfficeId(null);
+    setBirthOfficeParts(createEmptyAddressParts());
+    setBirthOfficePincodeError(undefined);
     setMedicalAssistanceFields(medicalAssistanceDefaults(letterLocale));
     setWardFields(
       wardDefaults(
@@ -6273,6 +6502,216 @@ export function LetterGeneration({
                           />
                         </FieldGroup>
                       ) : null}
+                    </TabsContent>
+
+                    <TabsContent value="qr-birth-certificate" className="mt-0 space-y-4">
+                      {renderCommonFields(birthCertificateFields, setBirthCertificateFields)}
+                      <LetterAddressField
+                        label={lt('letterGeneration.fields.officeAddress')}
+                        addressType={addressTypeForField('office')}
+                        locale={letterLocale}
+                        selectedAddressId={birthOfficeId}
+                        addresses={addresses}
+                        letterDate={activeLetterDate}
+                        addressParts={birthOfficeParts}
+                        onAddressPartsChange={handleBirthOfficePartsChange}
+                        pincodeError={birthOfficePincodeError}
+                        error={fieldErrors.officeAddress}
+                        required
+                        nameLabel={lt('letterGeneration.fields.officeName')}
+                        namePlaceholder={lt('letterGeneration.placeholders.officeName')}
+                        nameValue={birthCertificateFields.officeName}
+                        nameRequired
+                        nameError={fieldErrors.officeName}
+                        onNameChange={(value) => {
+                          setBirthCertificateFields((prev) => ({
+                            ...prev,
+                            officeName: value,
+                          }));
+                          if (fieldErrors.officeName) {
+                            setFieldErrors((prev) => ({
+                              ...prev,
+                              officeName: undefined,
+                            }));
+                          }
+                        }}
+                        onSelectedAddressIdChange={handleBirthOfficeSelect}
+                      />
+                      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                        <FieldGroup label={lt('letterGeneration.fields.gender')} required>
+                          <Select
+                            value={birthCertificateFields.gender}
+                            onValueChange={(value: PersonGender) =>
+                              setBirthCertificateFields((prev) => ({
+                                ...prev,
+                                gender: value,
+                                salutation: resolveSalutation(letterLocale, value),
+                              }))
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="male">
+                                {lt('letterGeneration.gender.male')}
+                              </SelectItem>
+                              <SelectItem value="female">
+                                {lt('letterGeneration.gender.female')}
+                              </SelectItem>
+                              <SelectItem value="other">
+                                {lt('letterGeneration.gender.other')}
+                              </SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </FieldGroup>
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.salutation')}
+                          required
+                          error={fieldErrors.salutation}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
+                            value={birthCertificateFields.salutation}
+                            onValueChange={(salutation) => {
+                              setBirthCertificateFields((prev) => ({
+                                ...prev,
+                                salutation,
+                              }));
+                              if (fieldErrors.salutation) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  salutation: undefined,
+                                }));
+                              }
+                            }}
+                            required
+                          />
+                        </FieldGroup>
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.applicantName')}
+                          required
+                          error={fieldErrors.applicantName}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
+                            value={birthCertificateFields.applicantName}
+                            onValueChange={(applicantName) => {
+                              bumpNameTranslateReqId('qr-birth-certificate.applicantName');
+                              setBirthCertificateFields((prev) => ({
+                                ...prev,
+                                applicantName,
+                              }));
+                              if (fieldErrors.applicantName) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  applicantName: undefined,
+                                }));
+                              }
+                            }}
+                            onBlur={() => {
+                              void applyNameMarathiIfUnchanged(
+                                'qr-birth-certificate.applicantName',
+                                birthCertificateFields.applicantName,
+                                (translated, trimmed) => {
+                                  setBirthCertificateFields((prev) => {
+                                    if (prev.applicantName.trim() !== trimmed) return prev;
+                                    return { ...prev, applicantName: translated };
+                                  });
+                                },
+                              );
+                            }}
+                            placeholder={lt('letterGeneration.placeholders.applicantName')}
+                            required
+                          />
+                        </FieldGroup>
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.personName')}
+                          required
+                          error={fieldErrors.personName}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
+                            value={birthCertificateFields.personName}
+                            onValueChange={(personName) => {
+                              bumpNameTranslateReqId('qr-birth-certificate.personName');
+                              setBirthCertificateFields((prev) => ({
+                                ...prev,
+                                personName,
+                              }));
+                              if (fieldErrors.personName) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  personName: undefined,
+                                }));
+                              }
+                            }}
+                            onBlur={() => {
+                              void applyNameMarathiIfUnchanged(
+                                'qr-birth-certificate.personName',
+                                birthCertificateFields.personName,
+                                (translated, trimmed) => {
+                                  setBirthCertificateFields((prev) => {
+                                    if (prev.personName.trim() !== trimmed) return prev;
+                                    return { ...prev, personName: translated };
+                                  });
+                                },
+                              );
+                            }}
+                            placeholder={lt('letterGeneration.placeholders.personName')}
+                            required
+                          />
+                        </FieldGroup>
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.dateOfBirth')}
+                          required
+                          error={fieldErrors.dateOfBirth}
+                        >
+                          <LetterDatePicker
+                            locale={letterLocale}
+                            value={birthCertificateFields.dateOfBirth}
+                            onValueChange={(dateOfBirth) => {
+                              setBirthCertificateFields((prev) => ({
+                                ...prev,
+                                dateOfBirth,
+                              }));
+                              if (fieldErrors.dateOfBirth) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  dateOfBirth: undefined,
+                                }));
+                              }
+                            }}
+                            placeholder={lt('letterGeneration.placeholders.dateOfBirth')}
+                          />
+                        </FieldGroup>
+                        <FieldGroup
+                          label={lt('letterGeneration.fields.birthRegistrationNo')}
+                          required
+                          error={fieldErrors.birthRegistrationNo}
+                        >
+                          <LocaleTextInput
+                            locale={letterLocale}
+                            value={birthCertificateFields.birthRegistrationNo}
+                            onValueChange={(birthRegistrationNo) => {
+                              setBirthCertificateFields((prev) => ({
+                                ...prev,
+                                birthRegistrationNo,
+                              }));
+                              if (fieldErrors.birthRegistrationNo) {
+                                setFieldErrors((prev) => ({
+                                  ...prev,
+                                  birthRegistrationNo: undefined,
+                                }));
+                              }
+                            }}
+                            placeholder={lt(
+                              'letterGeneration.placeholders.birthRegistrationNo',
+                            )}
+                            required
+                          />
+                        </FieldGroup>
+                      </div>
                     </TabsContent>
 
                     <TabsContent value="medical-assistance" className="mt-0 space-y-4">

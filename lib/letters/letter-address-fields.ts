@@ -150,6 +150,12 @@ export function getDefaultLetterAddressTypeLinks(): LetterAddressTypeLinkSeed[] 
       sortOrder: 1,
     },
     {
+      letterType: 'qr-birth-certificate',
+      addressField: 'office',
+      addressType: 'office',
+      sortOrder: 1,
+    },
+    {
       letterType: 'medical-assistance',
       addressField: 'school',
       addressType: 'school',

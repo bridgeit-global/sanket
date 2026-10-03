@@ -418,6 +418,40 @@ To,<br>
   ${CLOSING}
 </div>`,
 
+  'qr-birth-certificate': `<div class="letter-content" style="${ROOT}">
+  <style>${LETTER_STYLE}</style>
+  <div class="top-row">
+    <div>Ref. No. <span class="var">{{referencePrefix}}</span>/<span class="var">{{referenceNo}}</span></div>
+    <div>Date: <span class="var">{{date}}</span></div>
+  </div>
+To,<br>
+  <div class="address">
+    <span class="var" style="font-weight: bold;">{{officeName}}</span>,<br>
+    <span style="font-weight: normal;">{{officeAddress}}</span>
+  </div>
+  <div class="subject">
+    <span style="font-weight: normal;">Subject:</span> Recommendation for issuing a birth certificate with a QR code.
+  </div>
+  <div class="salutation">
+    Sir/Madam,
+  </div>
+  <p class="paragraph">
+    <span class="var">{{salutation}}</span> <span class="var">{{applicantName}}</span> of my Anushakti Nagar Assembly Constituency has requested me for a birth certificate with a QR code for the following person.
+  </p>
+  <p class="member-list" style="margin: 8px 0 12px 28px;">
+    Name: <span class="var">{{personName}}</span><br>
+    Date of birth: <span class="var">{{dateOfBirth}}</span><br>
+    Birth registration number: <span class="var">{{birthRegistrationNo}}</span>
+  </p>
+  <p class="paragraph">
+    The said birth is recorded in the Municipal Corporation records, and the applicant requires an updated birth certificate with a QR code for various official purposes.
+  </p>
+  <p class="paragraph">
+    I therefore recommend that the records and required documents in this matter be verified and that a birth certificate with a QR code be issued at the earliest, as per rules.
+  </p>
+  ${CLOSING}
+</div>`,
+
   'medical-assistance': `<div class="letter-content" style="white-space: normal; font-family: inherit; font-size: 14px; line-height: 1.65; color: #000; margin: 20px; font-weight: normal;">
   <style>
     .var { font-weight: bold; }

@@ -16,6 +16,7 @@ dotenv.config();
 /** Catalog names whose letter type must stay linked even if previously set. */
 const FORCE_LETTER_TYPE_BY_NAME: Record<string, string> = {
   'Identity Card': 'identity',
+  'QR Birth Certificate': 'qr-birth-certificate',
   'Medical Assistance': 'medical-assistance',
   'Medical Aid': 'medical-assistance',
   'Cancer-Related Assistance': 'medical-assistance',
