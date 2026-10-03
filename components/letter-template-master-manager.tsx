@@ -56,8 +56,8 @@ import {
   type LetterTypeOption,
 } from '@/lib/letters/letter-type-options';
 import {
+  getAllowedLetterPaperSizes,
   getDefaultLetterPaperSize,
-  LETTER_PAPER_SIZES,
   resolveLetterPaperSize,
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
@@ -692,11 +692,13 @@ export function LetterTemplateMasterManager({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {LETTER_PAPER_SIZES.map((size) => (
-                        <SelectItem key={size} value={size}>
-                          {t(`letterGeneration.paperSize.options.${size}`)}
-                        </SelectItem>
-                      ))}
+                      {getAllowedLetterPaperSizes(form.letterType).map(
+                        (size) => (
+                          <SelectItem key={size} value={size}>
+                            {t(`letterGeneration.paperSize.options.${size}`)}
+                          </SelectItem>
+                        ),
+                      )}
                     </SelectContent>
                   </Select>
                 </FieldGroup>

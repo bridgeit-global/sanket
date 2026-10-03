@@ -4,6 +4,9 @@ export type LetterPaperSize = 'a4' | 'a5' | 'b5';
 
 export const LETTER_PAPER_SIZES: LetterPaperSize[] = ['a4', 'a5', 'b5'];
 
+/** Ration card letters: A5 / B5 only (never A4). */
+export const RATION_LETTER_PAPER_SIZES: LetterPaperSize[] = ['a5', 'b5'];
+
 /** ISO portrait page sizes in mm. */
 export const LETTER_PAPER_DIMENSIONS_MM: Record<
   LetterPaperSize,
@@ -27,6 +30,24 @@ export const LETTER_PAPER_BOTTOM_MARGIN_MM: Record<LetterPaperSize, number> = {
   b5: 0,
 };
 
+export function isRationLetterPaperType(letterType: LetterType | string): boolean {
+  return (
+    typeof letterType === 'string' &&
+    (letterType === 'ration' || letterType.startsWith('ration-'))
+  );
+}
+
+/**
+ * Paper sizes the user may pick for a letter type.
+ * Ration card letters are limited to A5 and B5.
+ */
+export function getAllowedLetterPaperSizes(
+  letterType: LetterType | string,
+): LetterPaperSize[] {
+  if (isRationLetterPaperType(letterType)) return RATION_LETTER_PAPER_SIZES;
+  return LETTER_PAPER_SIZES;
+}
+
 /**
  * Default paper size by letter type:
  * - Ration Card → B5
@@ -37,15 +58,8 @@ export function getDefaultLetterPaperSize(
   letterType: LetterType | string,
 ): LetterPaperSize {
   if (isWardLetterType(letterType)) return 'a5';
+  if (isRationLetterPaperType(letterType)) return 'b5';
   switch (letterType) {
-    case 'ration-new':
-    case 'ration-temporary':
-    case 'ration-duplicate':
-    case 'ration-add-members':
-    case 'ration-delete-members':
-    case 'ration-transfer':
-    case 'ration':
-      return 'b5';
     case 'general':
       return 'a4';
     case 'fees':
@@ -81,7 +95,10 @@ export function resolveLetterPaperSize(
   paperSize: unknown,
   letterType: LetterType | string,
 ): LetterPaperSize {
-  return normalizeLetterPaperSize(paperSize, getDefaultLetterPaperSize(letterType));
+  const fallback = getDefaultLetterPaperSize(letterType);
+  const normalized = normalizeLetterPaperSize(paperSize, fallback);
+  const allowed = getAllowedLetterPaperSizes(letterType);
+  return allowed.includes(normalized) ? normalized : fallback;
 }
 
 /** Full page width at 96dpi. */

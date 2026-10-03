@@ -136,12 +136,13 @@ import {
   humanizePlaceholderKey,
 } from '@/lib/letters/template-placeholders';
 import {
+  getAllowedLetterPaperSizes,
   getDefaultLetterPaperSize,
   getLetterPaperContentWidthPx,
   getLetterPaperLabel,
+  isRationLetterPaperType,
   LETTER_PAPER_DIMENSIONS_MM,
   LETTER_PAPER_MARGIN_MM,
-  LETTER_PAPER_SIZES,
   resolveLetterPaperSize,
   type LetterPaperSize,
 } from '@/lib/letters/paper-size';
@@ -5688,7 +5689,7 @@ export function LetterGeneration({
                     />
                   )}
                 </FieldGroup>
-                {formTab === 'general' ? (
+                {formTab === 'general' || isRationLetterPaperType(formTab) ? (
                   <FieldGroup label={lt('letterGeneration.fields.paperSize')}>
                     <Select
                       value={paperSizeDraft}
@@ -5700,7 +5701,7 @@ export function LetterGeneration({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {LETTER_PAPER_SIZES.map((size) => (
+                        {getAllowedLetterPaperSizes(formTab).map((size) => (
                           <SelectItem key={size} value={size}>
                             {t(`letterGeneration.paperSize.options.${size}`)}
                           </SelectItem>
@@ -8036,7 +8037,8 @@ export function LetterGeneration({
                         {t('letterGeneration.paperSize.label', {
                           size: activePaperLabel,
                         })}
-                        {formTab === 'general' ? (
+                        {formTab === 'general' ||
+                        isRationLetterPaperType(formTab) ? (
                           <>
                             {' · '}
                             {t('letterGeneration.paperSize.hint')}
