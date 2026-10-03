@@ -574,9 +574,9 @@ export function LetterPreview({
   return (
     <div
       ref={rootRef}
-      className="w-full min-w-0 max-w-full touch-pan-x touch-pan-y space-y-3"
+      className="w-full min-w-0 max-w-full touch-pan-x touch-pan-y md:space-y-3"
     >
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="hidden flex-wrap items-center justify-end gap-2 md:flex">
         <div className="flex items-center gap-1 rounded-md border bg-background p-1">
           <Button
             type="button"
