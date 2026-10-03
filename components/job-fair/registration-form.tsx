@@ -61,6 +61,7 @@ import {
   HEARD_FROM_OPTIONS,
   JOB_FAIR_EVENT,
   JOB_FAIR_PUBLIC_PATH,
+  JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT,
   JOB_TYPE_OPTIONS,
   JOB_TYPE_OTHER,
   QUALIFICATION_OPTIONS,
@@ -129,20 +130,34 @@ const EMPLOYMENT_ICONS: Record<string, typeof User> = {
   'employed-looking': Briefcase,
 };
 
-type Result =
-  | {
-      kind: 'success';
-      registrationNo: string;
-      resumeUploaded: boolean | null;
-      values: JobFairFormValues;
-      resumeFileName: string | null;
-    }
-  | {
-      kind: 'duplicate';
-      registrationNo: string | null;
-      values: JobFairFormValues;
-      resumeFileName: string | null;
-    };
+type SavedRegistration = {
+  registrationNo: string;
+  resumeFileName: string | null;
+  receiptDownloadsRemaining: number;
+  values: JobFairFormValues;
+};
+
+type Result = {
+  kind: 'success' | 'updated';
+  registrationNo: string;
+  resumeUploaded: boolean | null;
+  resumeFileName: string | null;
+  receiptDownloadsRemaining: number;
+  values: JobFairFormValues;
+};
+
+type LookupResponse = {
+  status?: 'new' | 'draft' | 'registered';
+  registrationNo?: string | null;
+  receiptDownloadsRemaining?: number | null;
+  resumeFileName?: string | null;
+  step?: number;
+  values?: JobFairFormValues | null;
+  sameAsMobile?: boolean;
+  error?: string;
+};
+
+const MOBILE_PATTERN = /^[6-9]\d{9}$/;
 
 const fieldId = (name: string) => `jf-${name}`;
 
@@ -353,8 +368,41 @@ export function JobFairRegistrationForm() {
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [registrationNo, setRegistrationNo] = useState<string | null>(null);
+  const [receiptRemaining, setReceiptRemaining] = useState<number | null>(null);
+  const [existingResumeName, setExistingResumeName] = useState<string | null>(null);
+  const [restoredDraft, setRestoredDraft] = useState(false);
+  const [lookupReady, setLookupReady] = useState(false);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [downloading, setDownloading] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const lookupHandled = useRef<string | null>(null);
+  const honeypotRef = useRef('');
+  const valuesRef = useRef(values);
+  const sameAsMobileRef = useRef(sameAsMobile);
+  const stepRef = useRef(step);
+  valuesRef.current = values;
+  sameAsMobileRef.current = sameAsMobile;
+  stepRef.current = step;
+
+  const applySavedRegistration = useCallback((saved: SavedRegistration, nextStep?: number) => {
+    const pins = areaPincodes(saved.values.area);
+    const restored = { ...saved.values };
+    if (pins.length === 1 && !restored.pincode) restored.pincode = pins[0];
+    setValues(restored);
+    setSameAsMobile(restored.whatsapp === restored.mobile);
+    setRegistrationNo(saved.registrationNo);
+    setReceiptRemaining(saved.receiptDownloadsRemaining);
+    setExistingResumeName(saved.resumeFileName);
+    setRestoredDraft(false);
+    lookupHandled.current = restored.mobile;
+    setLookupReady(true);
+    if (typeof nextStep === 'number') {
+      setStep(Math.min(Math.max(0, nextStep), STEPS.length - 1));
+    }
+  }, []);
 
   useEffect(() => {
     try {
@@ -364,6 +412,9 @@ export function JobFairRegistrationForm() {
           values?: Partial<JobFairFormValues>;
           sameAsMobile?: boolean;
           step?: number;
+          registrationNo?: string | null;
+          receiptDownloadsRemaining?: number | null;
+          existingResumeName?: string | null;
         };
         const restored = { ...EMPTY_JOB_FAIR_FORM, ...draft.values };
         const pins = areaPincodes(restored.area);
@@ -373,6 +424,11 @@ export function JobFairRegistrationForm() {
         if (typeof draft.step === 'number') {
           setStep(Math.min(Math.max(0, draft.step), STEPS.length - 1));
         }
+        if (draft.registrationNo) setRegistrationNo(draft.registrationNo);
+        if (typeof draft.receiptDownloadsRemaining === 'number') {
+          setReceiptRemaining(draft.receiptDownloadsRemaining);
+        }
+        if (draft.existingResumeName) setExistingResumeName(draft.existingResumeName);
       }
     } catch {
       // Corrupt draft: start fresh.
@@ -385,12 +441,165 @@ export function JobFairRegistrationForm() {
     try {
       window.localStorage.setItem(
         DRAFT_KEY,
-        JSON.stringify({ values, sameAsMobile, step }),
+        JSON.stringify({
+          values,
+          sameAsMobile,
+          step,
+          registrationNo,
+          receiptDownloadsRemaining: receiptRemaining,
+          existingResumeName,
+        }),
       );
     } catch {
       // Storage full or disabled.
     }
-  }, [values, sameAsMobile, step, hydrated, result]);
+  }, [values, sameAsMobile, step, registrationNo, receiptRemaining, existingResumeName, hydrated, result]);
+
+  useEffect(() => {
+    honeypotRef.current = honeypot;
+  }, [honeypot]);
+
+  const saveProgress = useCallback(async (resumeAt: number) => {
+    const current = valuesRef.current;
+    const mobile = normalizeIndianMobile(current.mobile);
+    if (!MOBILE_PATTERN.test(mobile)) return false;
+    setSaveState('saving');
+    try {
+      const res = await fetch('/api/public/job-fair/progress', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          step: resumeAt,
+          values: { ...current, mobile },
+          sameAsMobile: sameAsMobileRef.current,
+          savedAt: Date.now(),
+          website: honeypotRef.current,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        ok?: boolean;
+        status?: 'draft' | 'registered';
+        registrationNo?: string | null;
+        receiptDownloadsRemaining?: number | null;
+        resumeFileName?: string | null;
+      };
+      if (!res.ok || !data.ok) {
+        setSaveState('error');
+        return false;
+      }
+      if (data.status === 'registered' && data.registrationNo) {
+        setRegistrationNo(data.registrationNo);
+        if (typeof data.receiptDownloadsRemaining === 'number') {
+          setReceiptRemaining(data.receiptDownloadsRemaining);
+        }
+        if (data.resumeFileName) setExistingResumeName(data.resumeFileName);
+      }
+      setSaveState('saved');
+      return true;
+    } catch {
+      setSaveState('error');
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const mobile = normalizeIndianMobile(values.mobile);
+    if (!MOBILE_PATTERN.test(mobile)) {
+      setLookupReady(true);
+      return;
+    }
+    if (lookupHandled.current === mobile) {
+      setLookupReady(true);
+      return;
+    }
+
+    if (lookupHandled.current && lookupHandled.current !== mobile) {
+      setRegistrationNo(null);
+      setReceiptRemaining(null);
+      setExistingResumeName(null);
+      setRestoredDraft(false);
+    }
+
+    const controller = new AbortController();
+    setLookupReady(false);
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        try {
+          const res = await fetch('/api/public/job-fair/lookup', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: controller.signal,
+            body: JSON.stringify({ mobile, website: honeypotRef.current }),
+          });
+          const data = (await res.json().catch(() => ({}))) as LookupResponse;
+          if (controller.signal.aborted) return;
+          lookupHandled.current = mobile;
+          if (!res.ok || !data.status) {
+            setLookupReady(true);
+            return;
+          }
+          if (data.status === 'new') {
+            setRegistrationNo(null);
+            setReceiptRemaining(null);
+            setExistingResumeName(null);
+            setRestoredDraft(false);
+            setLookupReady(true);
+            return;
+          }
+          const restored = data.values
+            ? { ...EMPTY_JOB_FAIR_FORM, ...data.values, mobile }
+            : null;
+          if (restored) {
+            const pins = areaPincodes(restored.area);
+            if (pins.length === 1 && !restored.pincode) restored.pincode = pins[0];
+            setValues(restored);
+            setSameAsMobile(
+              Boolean(data.sameAsMobile) || restored.whatsapp === restored.mobile,
+            );
+          }
+          if (typeof data.step === 'number') {
+            setStep(Math.min(Math.max(0, data.step), STEPS.length - 1));
+          }
+          if (data.status === 'registered' && data.registrationNo) {
+            setRegistrationNo(data.registrationNo);
+            setReceiptRemaining(data.receiptDownloadsRemaining ?? JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT);
+            setExistingResumeName(data.resumeFileName ?? null);
+            setRestoredDraft(false);
+            toast.info(
+              `${data.registrationNo} is already registered. You can update the details.`,
+            );
+          } else {
+            setRegistrationNo(null);
+            setReceiptRemaining(null);
+            setExistingResumeName(null);
+            setRestoredDraft(true);
+          }
+          setErrors({});
+          setLookupReady(true);
+        } catch (error) {
+          if (controller.signal.aborted) return;
+          if (error instanceof DOMException && error.name === 'AbortError') return;
+          setLookupReady(true);
+        }
+      })();
+    }, 400);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [hydrated, values.mobile]);
+
+  useEffect(() => {
+    if (!hydrated || !lookupReady || result) return;
+    const mobile = normalizeIndianMobile(values.mobile);
+    if (!MOBILE_PATTERN.test(mobile)) return;
+    const timer = window.setTimeout(() => {
+      void saveProgress(stepRef.current);
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [values, sameAsMobile, step, hydrated, lookupReady, result, saveProgress]);
 
   const set = useCallback(
     <K extends keyof JobFairFormValues>(key: K, value: JobFairFormValues[K]) => {
@@ -445,7 +654,7 @@ export function JobFairRegistrationForm() {
     scrollToCard();
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     const key = STEPS[step].key;
     if (key !== 'review') {
       const check = validateJobFairStep(key, values);
@@ -455,7 +664,15 @@ export function JobFairRegistrationForm() {
         return;
       }
     }
-    goTo(Math.min(step + 1, STEPS.length - 1));
+    const nextStep = Math.min(step + 1, STEPS.length - 1);
+    setAdvancing(true);
+    const saved = await saveProgress(nextStep);
+    setAdvancing(false);
+    if (!saved && MOBILE_PATTERN.test(normalizeIndianMobile(values.mobile))) {
+      toast.error('Could not save this step. Check your connection and try again.');
+      return;
+    }
+    goTo(nextStep);
   };
 
   const handleBack = () => goTo(Math.max(step - 1, 0));
@@ -480,11 +697,17 @@ export function JobFairRegistrationForm() {
 
   const resetAll = () => {
     window.localStorage.removeItem(DRAFT_KEY);
+    lookupHandled.current = null;
     setValues(EMPTY_JOB_FAIR_FORM);
     setSameAsMobile(false);
     setResume(null);
     setErrors({});
     setResult(null);
+    setRegistrationNo(null);
+    setReceiptRemaining(null);
+    setExistingResumeName(null);
+    setRestoredDraft(false);
+    setSaveState('idle');
     setStep(0);
     scrollToCard();
   };
@@ -519,30 +742,35 @@ export function JobFairRegistrationForm() {
       const data = (await res.json().catch(() => ({}))) as {
         registrationNo?: string | null;
         resumeUploaded?: boolean | null;
+        receiptDownloadsRemaining?: number | null;
+        updated?: boolean;
         error?: string;
         fieldErrors?: JobFairFieldErrors;
       };
 
-      if (res.status === 201) {
+      if (res.status === 201 || (res.ok && data.registrationNo)) {
         window.localStorage.removeItem(DRAFT_KEY);
+        const remaining =
+          typeof data.receiptDownloadsRemaining === 'number'
+            ? data.receiptDownloadsRemaining
+            : JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT;
+        setRegistrationNo(data.registrationNo ?? null);
+        setReceiptRemaining(remaining);
         setResult({
-          kind: 'success',
+          kind: data.updated ? 'updated' : 'success',
           registrationNo: data.registrationNo ?? '',
           resumeUploaded: data.resumeUploaded ?? null,
           values,
-          resumeFileName: resume?.name ?? null,
+          resumeFileName: resume?.name ?? existingResumeName,
+          receiptDownloadsRemaining: remaining,
         });
         scrollToCard();
         return;
       }
-      if (res.status === 409) {
-        window.localStorage.removeItem(DRAFT_KEY);
-        setResult({
-          kind: 'duplicate',
-          registrationNo: data.registrationNo ?? null,
-          values,
-          resumeFileName: resume?.name ?? null,
-        });
+      if (res.status === 409 && data.registrationNo) {
+        setRegistrationNo(data.registrationNo);
+        setStep(0);
+        toast.info('This number is already registered. You can update the details.');
         scrollToCard();
         return;
       }
@@ -563,10 +791,83 @@ export function JobFairRegistrationForm() {
     }
   };
 
+  const downloadReceipt = async (mobile: string) => {
+    if (downloading) return;
+    setDownloading(true);
+    try {
+      const res = await fetch('/api/public/job-fair/receipt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mobile, website: honeypotRef.current }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        registrationNo?: string;
+        values?: JobFairFormValues;
+        resumeFileName?: string | null;
+        receiptDownloadsRemaining?: number;
+        error?: string;
+        message?: string;
+      };
+      if (res.status === 429) {
+        setReceiptRemaining(0);
+        setResult((prev) =>
+          prev ? { ...prev, receiptDownloadsRemaining: 0 } : prev,
+        );
+        toast.error(
+          data.message ||
+            `This receipt can be downloaded only ${JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT} times.`,
+        );
+        return;
+      }
+      if (!res.ok || !data.registrationNo || !data.values) {
+        toast.error(typeof data.error === 'string' ? data.error : 'Could not download the receipt.');
+        return;
+      }
+      const left = data.receiptDownloadsRemaining ?? 0;
+      setReceiptRemaining(left);
+      setResult((prev) =>
+        prev ? { ...prev, receiptDownloadsRemaining: left } : prev,
+      );
+      await downloadJobFairReceipt({
+        registrationNo: data.registrationNo,
+        values: data.values,
+        resumeFileName: data.resumeFileName,
+      });
+      toast.success(
+        left > 0
+          ? `Receipt downloaded. ${left} download${left === 1 ? '' : 's'} left.`
+          : 'Receipt downloaded. That was the last of 3 downloads.',
+      );
+    } catch {
+      toast.error('Could not create the PDF receipt. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (result) {
     return (
       <div ref={cardRef} className="scroll-mt-4">
-        <ResultCard result={result} onRegisterAnother={resetAll} />
+        <ResultCard
+          result={result}
+          downloading={downloading}
+          onDownload={() => void downloadReceipt(result.values.mobile)}
+          onRegisterAnother={resetAll}
+          onEdit={() => {
+            applySavedRegistration(
+              {
+                registrationNo: result.registrationNo,
+                resumeFileName: result.resumeFileName,
+                receiptDownloadsRemaining: result.receiptDownloadsRemaining,
+                values: result.values,
+              },
+              0,
+            );
+            setResume(null);
+            setResult(null);
+            scrollToCard();
+          }}
+        />
       </div>
     );
   }
@@ -592,6 +893,15 @@ export function JobFairRegistrationForm() {
             Step {step + 1} of {STEPS.length}
           </span>
         </div>
+        <p className="mt-1 text-xs text-muted-foreground" aria-live="polite">
+          {saveState === 'saving' || advancing
+            ? 'Saving…'
+            : saveState === 'saved'
+              ? 'Saved'
+              : saveState === 'error'
+                ? 'Could not save. Your details stay on this device.'
+                : 'Your details are saved at each step.'}
+        </p>
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-secondary">
           <motion.div
             className="h-full rounded-full bg-primary"
@@ -634,12 +944,53 @@ export function JobFairRegistrationForm() {
         </ol>
       </div>
 
+      {registrationNo ? (
+        <div className="mx-4 mt-4 rounded-xl border border-primary/30 bg-primary/10 p-3 sm:mx-6">
+          <p className="text-sm font-semibold">
+            Already registered · {registrationNo}
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            You can update these details and submit again. The receipt can be
+            downloaded {JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT} times
+            {receiptRemaining != null ? ` · ${receiptRemaining} left` : ''}.
+          </p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <Button
+              type="button"
+              className="h-10 w-full sm:w-auto"
+              disabled={downloading || receiptRemaining === 0}
+              onClick={() => void downloadReceipt(values.mobile)}
+            >
+              {downloading ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Download className="size-4" />
+              )}
+              {receiptRemaining === 0 ? 'Download limit reached' : 'Download receipt'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 w-full sm:w-auto"
+              onClick={resetAll}
+            >
+              <UserPlus className="size-4" />
+              Different mobile number
+            </Button>
+          </div>
+        </div>
+      ) : restoredDraft ? (
+        <p className="mx-4 mt-4 text-sm text-muted-foreground sm:mx-6">
+          Your saved details were restored. Continue from this step.
+        </p>
+      ) : null}
+
       <form
         noValidate
         onSubmit={(e) => {
           e.preventDefault();
           if (current.key === 'review') void handleSubmit();
-          else handleNext();
+          else void handleNext();
         }}
       >
         <input
@@ -679,7 +1030,17 @@ export function JobFairRegistrationForm() {
                 </Field>
 
                 <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                  <Field name="mobile" label="Mobile Number" required error={err('mobile')}>
+                  <Field
+                    name="mobile"
+                    label="Mobile Number"
+                    required
+                    error={err('mobile')}
+                    hint={
+                      registrationNo
+                        ? 'This number is already registered. Other details can be updated.'
+                        : 'We check this number and restore a saved registration.'
+                    }
+                  >
                     <div className="relative">
                       <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-muted-foreground">
                         +91
@@ -691,6 +1052,7 @@ export function JobFairRegistrationForm() {
                         autoComplete="tel-national"
                         placeholder="10-digit number"
                         value={values.mobile}
+                        disabled={Boolean(registrationNo)}
                         onChange={(e) => set('mobile', digitsOnly(normalizeIndianMobile(e.target.value), 10))}
                         aria-invalid={Boolean(err('mobile')) || undefined}
                         className={cn('h-11 pl-11', err('mobile') && 'border-rose-400')}
@@ -1025,28 +1387,45 @@ export function JobFairRegistrationForm() {
                       </Button>
                     </div>
                   ) : (
-                    <label
-                      htmlFor={fieldId('resume')}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        setDragging(true);
-                      }}
-                      onDragLeave={() => setDragging(false)}
-                      onDrop={onDrop}
-                      className={cn(
-                        'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors',
-                        dragging ? 'border-primary bg-primary/5' : 'border-input hover:border-primary',
-                        err('resume') && 'border-rose-400',
-                      )}
-                    >
-                      <span className="flex size-10 items-center justify-center rounded-full bg-muted">
-                        <Upload className="size-5 text-muted-foreground" />
-                      </span>
-                      <span className="text-sm font-medium">
-                        <span className="sm:hidden">Tap to choose a file</span>
-                        <span className="hidden sm:inline">Drag & drop or click to choose a file</span>
-                      </span>
-                    </label>
+                    <div className="space-y-2">
+                      {existingResumeName ? (
+                        <p className="rounded-lg border bg-muted/40 px-3 py-2 text-sm">
+                          Saved resume:{' '}
+                          <span className="font-medium">{existingResumeName}</span>
+                          <span className="mt-0.5 block text-xs text-muted-foreground">
+                            Upload a file only if you want to replace it.
+                          </span>
+                        </p>
+                      ) : null}
+                      <label
+                        htmlFor={fieldId('resume')}
+                        onDragOver={(e) => {
+                          e.preventDefault();
+                          setDragging(true);
+                        }}
+                        onDragLeave={() => setDragging(false)}
+                        onDrop={onDrop}
+                        className={cn(
+                          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors',
+                          dragging ? 'border-primary bg-primary/5' : 'border-input hover:border-primary',
+                          err('resume') && 'border-rose-400',
+                        )}
+                      >
+                        <span className="flex size-10 items-center justify-center rounded-full bg-muted">
+                          <Upload className="size-5 text-muted-foreground" />
+                        </span>
+                        <span className="text-sm font-medium">
+                          <span className="sm:hidden">
+                            {existingResumeName ? 'Tap to replace the file' : 'Tap to choose a file'}
+                          </span>
+                          <span className="hidden sm:inline">
+                            {existingResumeName
+                              ? 'Drag & drop or click to replace the file'
+                              : 'Drag & drop or click to choose a file'}
+                          </span>
+                        </span>
+                      </label>
+                    </div>
                   )}
                   <input
                     ref={fileInputRef}
@@ -1124,7 +1503,7 @@ export function JobFairRegistrationForm() {
                         )
                         .join(', '),
                     ],
-                    ['Resume', resume?.name],
+                    ['Resume', resume?.name || existingResumeName],
                     ['Heard via', optionLabel(HEARD_FROM_OPTIONS, values.heardFrom)],
                   ]}
                 />
@@ -1139,7 +1518,7 @@ export function JobFairRegistrationForm() {
               type="button"
               variant="outline"
               onClick={handleBack}
-              disabled={submitting}
+              disabled={submitting || advancing}
               className="h-11 w-full sm:w-auto"
             >
               <ArrowLeft className="size-4" />
@@ -1152,7 +1531,7 @@ export function JobFairRegistrationForm() {
           )}
           <Button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || advancing}
             className="h-11 w-full sm:w-auto sm:min-w-40"
           >
             {current.key === 'review' ? (
@@ -1163,10 +1542,15 @@ export function JobFairRegistrationForm() {
                 </>
               ) : (
                 <>
-                  Submit Registration
+                  {registrationNo ? 'Update registration' : 'Submit Registration'}
                   <Check className="size-4" />
                 </>
               )
+            ) : advancing ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Saving…
+              </>
             ) : (
               <>
                 {step === STEPS.length - 2 ? 'Review' : 'Next'}
@@ -1182,32 +1566,19 @@ export function JobFairRegistrationForm() {
 
 function ResultCard({
   result,
+  downloading,
+  onDownload,
   onRegisterAnother,
+  onEdit,
 }: {
   result: Result;
+  downloading: boolean;
+  onDownload: () => void;
   onRegisterAnother: () => void;
+  onEdit: () => void;
 }) {
-  const [downloading, setDownloading] = useState(false);
-  const isSuccess = result.kind === 'success';
-
-  const downloadReceipt = async () => {
-    if (!result.registrationNo || downloading) return;
-    setDownloading(true);
-    try {
-      await downloadJobFairReceipt({
-        registrationNo: result.registrationNo,
-        values: result.values,
-        resumeFileName:
-          result.kind === 'success' && result.resumeUploaded === false
-            ? null
-            : result.resumeFileName,
-      });
-    } catch {
-      toast.error('Could not create the PDF receipt. Please try again.');
-    } finally {
-      setDownloading(false);
-    }
-  };
+  const isUpdated = result.kind === 'updated';
+  const downloadsLeft = result.receiptDownloadsRemaining;
   const shareText = `I just registered for ${JOB_FAIR_EVENT.title} – ${JOB_FAIR_EVENT.subtitle} on ${JOB_FAIR_EVENT.dateLabel}, ${JOB_FAIR_EVENT.timeLabel} at ${JOB_FAIR_EVENT.venueShort}. Register free here:`;
   const shareUrl =
     typeof window !== 'undefined'
@@ -1223,15 +1594,15 @@ function ResultCard({
           transition={{ type: 'spring', stiffness: 260, damping: 18 }}
           className="mx-auto flex size-16 items-center justify-center rounded-full bg-secondary text-primary shadow-lg"
         >
-          {isSuccess ? <Check className="size-9" strokeWidth={3} /> : <UserPlus className="size-8" />}
+          <Check className="size-9" strokeWidth={3} />
         </motion.div>
         <h2 className="mt-4 text-2xl font-bold">
-          {isSuccess ? 'You are registered!' : 'You are already registered'}
+          {isUpdated ? 'Registration updated' : 'You are registered!'}
         </h2>
         <p className="mt-1 text-sm text-primary-foreground/85">
-          {isSuccess
-            ? 'See you at YUVAAZ 2026. Show this number at the registration desk.'
-            : 'This mobile number is already registered for YUVAAZ 2026.'}
+          {isUpdated
+            ? 'Your details are saved. Show this number at the registration desk.'
+            : 'See you at YUVAAZ 2026. Show this number at the registration desk.'}
         </p>
         {result.registrationNo ? (
           <div className="mx-auto mt-5 inline-flex flex-col rounded-xl bg-secondary px-6 py-3 text-secondary-foreground">
@@ -1247,7 +1618,7 @@ function ResultCard({
       </div>
 
       <div className="space-y-4 px-4 py-5 sm:px-6">
-        {isSuccess && result.resumeUploaded === false ? (
+        {result.resumeUploaded === false ? (
           <p className="rounded-lg border border-primary/30 bg-primary/10 p-3 text-sm">
             Your registration is saved, but we could not upload your resume. Please
             bring printed copies to the venue.
@@ -1273,11 +1644,13 @@ function ResultCard({
             <Button
               type="button"
               className="h-11 w-full sm:col-span-2"
-              disabled={downloading}
-              onClick={() => void downloadReceipt()}
+              disabled={downloading || downloadsLeft <= 0}
+              onClick={onDownload}
             >
               {downloading ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
-              Download PDF receipt
+              {downloadsLeft <= 0
+                ? 'Download limit reached'
+                : `Download receipt · ${downloadsLeft} left`}
             </Button>
           ) : null}
           <Button
@@ -1300,6 +1673,15 @@ function ResultCard({
             </a>
           </Button>
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 w-full"
+          onClick={onEdit}
+        >
+          <Pencil className="size-4" />
+          Edit registration
+        </Button>
         <Button
           type="button"
           variant="ghost"

@@ -4,12 +4,15 @@ import { supabase } from '@/lib/supabase/server';
 import { sanitizeStorageKeySegment } from '@/lib/storage/object-key';
 import {
   JOB_FAIR_RESUME_BUCKET,
-  getJobFairRegistrationNoByMobile,
+  getJobFairRegistrationByMobile,
   insertJobFairRegistration,
   setJobFairRegistrationResume,
+  updateJobFairRegistration,
+  upsertJobFairDraft,
 } from '@/lib/db/job-fair-queries';
-import { JOB_FAIR_EVENT } from '@/lib/job-fair/options';
+import { JOB_FAIR_EVENT, JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT } from '@/lib/job-fair/options';
 import {
+  jobFairRegistrationToFormValues,
   parseJobFairRegistration,
   validateResumeFile,
 } from '@/lib/job-fair/schema';
@@ -90,41 +93,51 @@ export async function POST(request: Request) {
   const data = parsed.data;
 
   try {
-    const existing = await getJobFairRegistrationNoByMobile(data.mobile);
-    if (existing) {
-      return NextResponse.json(
-        { error: 'already_registered', registrationNo: existing },
-        { status: 409 },
-      );
-    }
+    const existing = await getJobFairRegistrationByMobile(data.mobile);
+    let id: string;
+    let registrationNo: string;
+    let updated = false;
+    let receiptDownloadCount = 0;
 
-    let created: { id: string; registrationNo: string };
-    try {
-      created = await insertJobFairRegistration(data);
-    } catch (error) {
-      if (isUniqueViolation(error)) {
-        const registrationNo = await getJobFairRegistrationNoByMobile(data.mobile);
-        return NextResponse.json(
-          { error: 'already_registered', registrationNo },
-          { status: 409 },
-        );
+    if (existing) {
+      const saved = await updateJobFairRegistration(data);
+      id = saved.id;
+      registrationNo = saved.registrationNo;
+      receiptDownloadCount = saved.receiptDownloadCount;
+      updated = true;
+    } else {
+      try {
+        const created = await insertJobFairRegistration(data);
+        id = created.id;
+        registrationNo = created.registrationNo;
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          const again = await getJobFairRegistrationByMobile(data.mobile);
+          if (!again) throw error;
+          const saved = await updateJobFairRegistration(data);
+          id = saved.id;
+          registrationNo = saved.registrationNo;
+          receiptDownloadCount = saved.receiptDownloadCount;
+          updated = true;
+        } else {
+          throw error;
+        }
       }
-      throw error;
     }
 
     let resumeUploaded = false;
     if (resume) {
-      const storagePath = `${JOB_FAIR_EVENT.code}/${created.id}/${sanitizeStorageKeySegment(resume.name)}`;
+      const storagePath = `${JOB_FAIR_EVENT.code}/${id}/${sanitizeStorageKeySegment(resume.name)}`;
       const { error } = await supabase.storage
         .from(JOB_FAIR_RESUME_BUCKET)
         .upload(storagePath, await resume.arrayBuffer(), {
           contentType: resume.type || 'application/octet-stream',
-          upsert: false,
+          upsert: true,
         });
       if (error) {
         console.error('Job fair resume upload failed:', error);
       } else {
-        await setJobFairRegistrationResume(created.id, {
+        await setJobFairRegistrationResume(id, {
           storagePath,
           fileName: resume.name.slice(0, 255),
           sizeKb: Math.max(1, Math.round(resume.size / 1024)),
@@ -133,13 +146,47 @@ export async function POST(request: Request) {
       }
     }
 
+    try {
+      await upsertJobFairDraft({
+        mobile: data.mobile,
+        step: 4,
+        values: jobFairRegistrationToFormValues({
+          fullName: data.fullName,
+          mobile: data.mobile,
+          whatsapp: data.whatsapp,
+          age: Number(data.age),
+          gender: data.gender,
+          area: data.area,
+          areaOther: data.areaOther ?? null,
+          pincode: data.pincode,
+          epicNumber: data.epicNumber ?? null,
+          qualification: data.qualification,
+          course: data.course ?? null,
+          employmentStatus: data.employmentStatus,
+          experience: data.experience,
+          jobTypes: [...data.jobTypes],
+          jobTypeOther: data.jobTypeOther ?? null,
+          heardFrom: data.heardFrom ?? null,
+        }),
+        sameAsMobile: data.whatsapp === data.mobile,
+        savedAt: Date.now(),
+      });
+    } catch (error) {
+      console.error('Job fair draft sync failed:', error);
+    }
+
     return NextResponse.json(
       {
         ok: true,
-        registrationNo: created.registrationNo,
+        updated,
+        registrationNo,
         resumeUploaded: resume ? resumeUploaded : null,
+        receiptDownloadsRemaining: Math.max(
+          0,
+          JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT - receiptDownloadCount,
+        ),
       },
-      { status: 201 },
+      { status: updated ? 200 : 201 },
     );
   } catch (error) {
     console.error('Job fair registration failed:', error);

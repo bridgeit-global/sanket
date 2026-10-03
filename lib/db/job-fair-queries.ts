@@ -1,9 +1,17 @@
 import 'server-only';
 
 import { sql } from './postgres';
-import { JOB_FAIR_EVENT } from '@/lib/job-fair/options';
+import {
+  JOB_FAIR_EVENT,
+  JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT,
+} from '@/lib/job-fair/options';
 import { generateJobFairRegistrationNo } from '@/lib/job-fair/registration-no';
-import type { JobFairRegistrationInput } from '@/lib/job-fair/schema';
+import {
+  jobFairRegistrationToFormValues,
+  sanitizeJobFairFormValues,
+  type JobFairFormValues,
+  type JobFairRegistrationInput,
+} from '@/lib/job-fair/schema';
 
 export const JOB_FAIR_RESUME_BUCKET = 'job-fair-resumes';
 
@@ -30,8 +38,11 @@ export type JobFairRegistration = {
   resumeFileName: string | null;
   resumeSizeKb: number | null;
   status: string;
+  receiptDownloadCount: number;
   /** ISO instant (UTC). */
   createdAt: string;
+  /** Naive UTC wall-clock, for ordering against drafts. */
+  updatedAt: string;
 };
 
 export type JobFairListFilters = {
@@ -52,8 +63,9 @@ const SELECT_COLUMNS = sql`
   id, registration_no, full_name, mobile, whatsapp, age, gender, area, area_other,
   pincode, epic_number, qualification, course, employment_status, experience,
   job_types, job_type_other, heard_from, resume_storage_path, resume_file_name,
-  resume_size_kb, status,
-  to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at
+  resume_size_kb, status, receipt_download_count,
+  to_char(created_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"') AS created_at,
+  to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS') AS updated_at
 `;
 
 function mapRow(row: Row): JobFairRegistration {
@@ -81,7 +93,9 @@ function mapRow(row: Row): JobFairRegistration {
     resumeSizeKb:
       row.resume_size_kb == null ? null : Number(row.resume_size_kb),
     status: String(row.status),
+    receiptDownloadCount: Number(row.receipt_download_count ?? 0),
     createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at ?? ''),
   };
 }
 
@@ -119,12 +133,162 @@ function buildWhere(filters: JobFairListFilters) {
 export async function getJobFairRegistrationNoByMobile(
   mobile: string,
 ): Promise<string | null> {
+  const existing = await getJobFairRegistrationByMobile(mobile);
+  return existing?.registrationNo ?? null;
+}
+
+export async function getJobFairRegistrationByMobile(
+  mobile: string,
+): Promise<JobFairRegistration | null> {
   const rows = await sql`
-    SELECT registration_no FROM "JobFairRegistration"
+    SELECT ${SELECT_COLUMNS} FROM "JobFairRegistration"
     WHERE event_code = ${JOB_FAIR_EVENT.code} AND mobile = ${mobile}
     LIMIT 1
   `;
-  return rows[0] ? String(rows[0].registration_no) : null;
+  return rows[0] ? mapRow(rows[0] as Row) : null;
+}
+
+export type JobFairDraft = {
+  mobile: string;
+  /** Step index to reopen (0–4, where 4 is review). */
+  step: number;
+  values: JobFairFormValues;
+  sameAsMobile: boolean;
+  /** Naive UTC wall-clock, same format as registration.updatedAt. */
+  updatedAt: string;
+};
+
+function mapDraft(row: Row): JobFairDraft | null {
+  const payload =
+    row.payload && typeof row.payload === 'object'
+      ? (row.payload as { values?: unknown; sameAsMobile?: unknown })
+      : {};
+  const values = sanitizeJobFairFormValues(payload.values);
+  if (!/^[6-9]\d{9}$/.test(values.mobile)) return null;
+  const step = Number(row.step);
+  return {
+    mobile: String(row.mobile),
+    step: Number.isFinite(step) ? Math.min(Math.max(0, Math.trunc(step)), 4) : 0,
+    values,
+    sameAsMobile: Boolean(payload.sameAsMobile),
+    updatedAt: String(row.updated_at ?? ''),
+  };
+}
+
+export async function getJobFairDraftByMobile(
+  mobile: string,
+): Promise<JobFairDraft | null> {
+  const rows = await sql`
+    SELECT mobile, step, payload,
+      to_char(updated_at, 'YYYY-MM-DD"T"HH24:MI:SS.MS') AS updated_at
+    FROM "JobFairRegistrationDraft"
+    WHERE event_code = ${JOB_FAIR_EVENT.code} AND mobile = ${mobile}
+    LIMIT 1
+  `;
+  return rows[0] ? mapDraft(rows[0] as Row) : null;
+}
+
+export async function upsertJobFairDraft(input: {
+  mobile: string;
+  step: number;
+  values: JobFairFormValues;
+  sameAsMobile: boolean;
+  savedAt: number;
+}): Promise<void> {
+  const payload = {
+    values: input.values,
+    sameAsMobile: input.sameAsMobile,
+    savedAt: input.savedAt,
+  };
+  await sql`
+    INSERT INTO "JobFairRegistrationDraft" (event_code, mobile, step, payload)
+    VALUES (
+      ${JOB_FAIR_EVENT.code},
+      ${input.mobile},
+      ${input.step},
+      ${sql.json(payload)}
+    )
+    ON CONFLICT (event_code, mobile) DO UPDATE
+    SET step = EXCLUDED.step,
+        payload = EXCLUDED.payload,
+        updated_at = now()
+    WHERE COALESCE(("JobFairRegistrationDraft".payload->>'savedAt')::bigint, 0)
+      <= ${input.savedAt}::bigint
+  `;
+}
+
+export type JobFairMobileState = {
+  status: 'new' | 'draft' | 'registered';
+  registrationNo: string | null;
+  receiptDownloadsRemaining: number | null;
+  resumeFileName: string | null;
+  step: number;
+  values: JobFairFormValues | null;
+  sameAsMobile: boolean;
+};
+
+function downloadsRemaining(count: number): number {
+  return Math.max(0, JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT - count);
+}
+
+export async function getJobFairMobileState(
+  mobile: string,
+): Promise<JobFairMobileState> {
+  const [registration, draft] = await Promise.all([
+    getJobFairRegistrationByMobile(mobile),
+    getJobFairDraftByMobile(mobile),
+  ]);
+  const draftNewer =
+    draft != null &&
+    (registration == null || draft.updatedAt > registration.updatedAt);
+
+  if (registration && draftNewer && draft) {
+    return {
+      status: 'registered',
+      registrationNo: registration.registrationNo,
+      receiptDownloadsRemaining: downloadsRemaining(registration.receiptDownloadCount),
+      resumeFileName: registration.resumeFileName,
+      step: draft.step,
+      values: { ...draft.values, mobile: registration.mobile },
+      sameAsMobile:
+        draft.sameAsMobile || draft.values.whatsapp === registration.mobile,
+    };
+  }
+
+  if (registration) {
+    const values = jobFairRegistrationToFormValues(registration);
+    return {
+      status: 'registered',
+      registrationNo: registration.registrationNo,
+      receiptDownloadsRemaining: downloadsRemaining(registration.receiptDownloadCount),
+      resumeFileName: registration.resumeFileName,
+      step: 4,
+      values,
+      sameAsMobile: values.whatsapp === values.mobile,
+    };
+  }
+
+  if (draft) {
+    return {
+      status: 'draft',
+      registrationNo: null,
+      receiptDownloadsRemaining: null,
+      resumeFileName: null,
+      step: draft.step,
+      values: draft.values,
+      sameAsMobile: draft.sameAsMobile || draft.values.whatsapp === draft.values.mobile,
+    };
+  }
+
+  return {
+    status: 'new',
+    registrationNo: null,
+    receiptDownloadsRemaining: null,
+    resumeFileName: null,
+    step: 0,
+    values: null,
+    sameAsMobile: false,
+  };
 }
 
 const REGISTRATION_NO_ATTEMPTS = 8;
@@ -169,6 +333,67 @@ export async function insertJobFairRegistration(
     }
   }
   throw new Error('Could not assign a registration number');
+}
+
+export async function updateJobFairRegistration(
+  input: JobFairRegistrationInput,
+): Promise<{ id: string; registrationNo: string; receiptDownloadCount: number }> {
+  const rows = await sql`
+    UPDATE "JobFairRegistration"
+    SET full_name = ${input.fullName},
+        whatsapp = ${input.whatsapp},
+        age = ${Number(input.age)},
+        gender = ${input.gender},
+        area = ${input.area},
+        area_other = ${input.area === 'other' ? (input.areaOther ?? null) : null},
+        pincode = ${input.pincode},
+        epic_number = ${input.epicNumber ?? null},
+        qualification = ${input.qualification},
+        course = ${input.course ?? null},
+        employment_status = ${input.employmentStatus},
+        experience = ${input.experience},
+        job_types = ${sql.array(input.jobTypes)},
+        job_type_other = ${input.jobTypes.includes('other') ? (input.jobTypeOther ?? null) : null},
+        heard_from = ${input.heardFrom ?? null},
+        updated_at = now()
+    WHERE event_code = ${JOB_FAIR_EVENT.code} AND mobile = ${input.mobile}
+    RETURNING id, registration_no, receipt_download_count
+  `;
+  if (!rows[0]) throw new Error('Registration not found');
+  return {
+    id: String(rows[0].id),
+    registrationNo: String(rows[0].registration_no),
+    receiptDownloadCount: Number(rows[0].receipt_download_count ?? 0),
+  };
+}
+
+export async function claimJobFairReceiptDownload(mobile: string): Promise<
+  | { ok: true; registration: JobFairRegistration; remaining: number }
+  | { ok: false; reason: 'not_found' | 'limit' }
+> {
+  const rows = await sql`
+    UPDATE "JobFairRegistration"
+    SET receipt_download_count = receipt_download_count + 1
+    WHERE event_code = ${JOB_FAIR_EVENT.code}
+      AND mobile = ${mobile}
+      AND receipt_download_count < ${JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT}
+    RETURNING id
+  `;
+  if (!rows[0]) {
+    const existing = await getJobFairRegistrationByMobile(mobile);
+    if (!existing) return { ok: false, reason: 'not_found' };
+    return { ok: false, reason: 'limit' };
+  }
+  const registration = await getJobFairRegistrationById(String(rows[0].id));
+  if (!registration) return { ok: false, reason: 'not_found' };
+  return {
+    ok: true,
+    registration,
+    remaining: Math.max(
+      0,
+      JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT - registration.receiptDownloadCount,
+    ),
+  };
 }
 
 export async function setJobFairRegistrationResume(

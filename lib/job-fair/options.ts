@@ -1,6 +1,9 @@
 export const JOB_FAIR_MODULE_KEY = 'job-fair';
 export const JOB_FAIR_PUBLIC_PATH = '/yuvaaz';
 
+/** A saved registration receipt can be downloaded this many times. */
+export const JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT = 3;
+
 export const JOB_FAIR_EVENT = {
   code: 'yuvaaz-2026',
   registrationPrefix: 'YUVAAZ',

@@ -242,6 +242,101 @@ export const EMPTY_JOB_FAIR_FORM: JobFairFormValues = {
   heardFrom: '',
 };
 
+/** Cap untrusted form JSON before it is stored as a draft. */
+export function sanitizeJobFairFormValues(input: unknown): JobFairFormValues {
+  const src =
+    input && typeof input === 'object' ? (input as Record<string, unknown>) : {};
+  const text = (key: keyof JobFairFormValues, max: number) =>
+    String(src[key] ?? '')
+      .replace(/\0/g, '')
+      .trim()
+      .slice(0, max);
+  const allowedJobs = new Set<string>(optionValues(JOB_TYPE_OPTIONS));
+  const jobTypes = Array.isArray(src.jobTypes)
+    ? src.jobTypes
+        .map((value) => String(value))
+        .filter((value) => allowedJobs.has(value))
+        .slice(0, JOB_TYPE_OPTIONS.length)
+    : [];
+
+  return {
+    fullName: text('fullName', 150),
+    mobile: normalizeIndianMobile(text('mobile', 20)).slice(0, 10),
+    whatsapp: normalizeIndianMobile(text('whatsapp', 20)).slice(0, 10),
+    age: text('age', 2).replace(/\D/g, '').slice(0, 2),
+    gender: text('gender', 20),
+    area: text('area', 60),
+    areaOther: text('areaOther', 150),
+    pincode: text('pincode', 6).replace(/\D/g, '').slice(0, 6),
+    epicNumber: sanitizeEpicInput(text('epicNumber', 20)),
+    qualification: text('qualification', 30),
+    course: text('course', 150),
+    employmentStatus: text('employmentStatus', 40),
+    experience: text('experience', 20),
+    jobTypes,
+    jobTypeOther: text('jobTypeOther', 150),
+    heardFrom: text('heardFrom', 30),
+  };
+}
+
+/** How many steps from the start are valid. 4 means the review step can open. */
+export function completedJobFairStepCount(values: JobFairFormValues): number {
+  let count = 0;
+  for (const step of JOB_FAIR_STEP_KEYS) {
+    if (!validateJobFairStep(step, values).ok) break;
+    count += 1;
+  }
+  return count;
+}
+
+/** Resume on the requested step, but never past the first incomplete step. */
+export function clampJobFairResumeStep(
+  values: JobFairFormValues,
+  requested: number,
+): number {
+  const furthest = completedJobFairStepCount(values);
+  const requestedSafe = Number.isFinite(requested) ? Math.trunc(requested) : 0;
+  return Math.min(Math.max(0, requestedSafe), furthest);
+}
+
+export function jobFairRegistrationToFormValues(row: {
+  fullName: string;
+  mobile: string;
+  whatsapp: string;
+  age: number;
+  gender: string;
+  area: string;
+  areaOther: string | null;
+  pincode: string;
+  epicNumber: string | null;
+  qualification: string;
+  course: string | null;
+  employmentStatus: string;
+  experience: string;
+  jobTypes: string[];
+  jobTypeOther: string | null;
+  heardFrom: string | null;
+}): JobFairFormValues {
+  return {
+    fullName: row.fullName,
+    mobile: row.mobile,
+    whatsapp: row.whatsapp,
+    age: String(row.age),
+    gender: row.gender,
+    area: row.area,
+    areaOther: row.areaOther ?? '',
+    pincode: row.pincode,
+    epicNumber: row.epicNumber ?? '',
+    qualification: row.qualification,
+    course: row.course ?? '',
+    employmentStatus: row.employmentStatus,
+    experience: row.experience,
+    jobTypes: row.jobTypes ?? [],
+    jobTypeOther: row.jobTypeOther ?? '',
+    heardFrom: row.heardFrom ?? '',
+  };
+}
+
 export function validateResumeFile(file: {
   size: number;
   type: string;
