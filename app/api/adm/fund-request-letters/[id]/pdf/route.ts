@@ -10,7 +10,7 @@ import {
 import { supabase } from '@/lib/supabase/server';
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
@@ -46,11 +46,14 @@ export async function GET(
       );
     }
 
-    const disposition = contentDispositionAttachment(
-      letter.fileName.toLowerCase().endsWith('.pdf')
-        ? letter.fileName
-        : `${letter.fileName}.pdf`,
-    ).replace(/^attachment;/, 'inline;');
+    const fileName = letter.fileName.toLowerCase().endsWith('.pdf')
+      ? letter.fileName
+      : `${letter.fileName}.pdf`;
+    const forceDownload =
+      request.nextUrl.searchParams.get('download') === '1';
+    const disposition = forceDownload
+      ? contentDispositionAttachment(fileName)
+      : contentDispositionAttachment(fileName).replace(/^attachment;/, 'inline;');
 
     return new NextResponse(data, {
       status: 200,

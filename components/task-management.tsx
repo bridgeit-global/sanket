@@ -28,7 +28,7 @@ import {
   parseManageFiltersFromSearchParams,
   type ManageFilterState,
 } from '@/lib/operator/manage-url-params';
-import { formatDisplayDateTimeIST } from '@/lib/ist-date';
+import { formatDisplayDateIST, formatDisplayDateTimeIST } from '@/lib/ist-date';
 
 interface TaskVoter {
     epicNumber: string;
@@ -416,6 +416,16 @@ export function TaskManagement({
             pdfStoragePath?: string | null;
         }>
     >([]);
+    const [linkedRequestLetters, setLinkedRequestLetters] = useState<
+        Array<{
+            id: string;
+            title: string;
+            fileName: string;
+            letterDate: string;
+            status: string;
+            fundLabel: string | null;
+        }>
+    >([]);
     const [linkedLettersLoading, setLinkedLettersLoading] = useState(false);
     const [downloadingLetterId, setDownloadingLetterId] = useState<string | null>(null);
     const [serviceAttachments, setServiceAttachments] = useState<
@@ -455,6 +465,7 @@ export function TaskManagement({
         const taskId = selectedTask?.id;
         if (!showTaskDialog || !taskId) {
             setLinkedLetters([]);
+            setLinkedRequestLetters([]);
             setLinkedLettersLoading(false);
             setServiceAttachments([]);
             setTaskHistory([]);
@@ -476,12 +487,16 @@ export function TaskManagement({
                             `/api/letters?limit=50&beneficiaryServiceId=${encodeURIComponent(serviceId)}`,
                         ),
                         fetch(
+                            `/api/adm/fund-request-letters?beneficiaryServiceId=${encodeURIComponent(serviceId)}`,
+                        ),
+                        fetch(
                             `/operator/api/beneficiary-services/${encodeURIComponent(serviceId)}/attachments`,
                         ),
                     );
                 }
 
-                const [historyRes, lettersRes, attachmentsRes] = await Promise.all(requests);
+                const [historyRes, lettersRes, requestLettersRes, attachmentsRes] =
+                    await Promise.all(requests);
                 if (cancelled) return;
 
                 if (historyRes.ok) {
@@ -502,6 +517,17 @@ export function TaskManagement({
                     setLinkedLetters([]);
                 }
 
+                if (serviceId && requestLettersRes) {
+                    if (requestLettersRes.ok) {
+                        const json = await requestLettersRes.json();
+                        setLinkedRequestLetters(Array.isArray(json) ? json : []);
+                    } else {
+                        setLinkedRequestLetters([]);
+                    }
+                } else {
+                    setLinkedRequestLetters([]);
+                }
+
                 if (serviceId && attachmentsRes) {
                     if (attachmentsRes.ok) {
                         const json = await attachmentsRes.json();
@@ -515,6 +541,7 @@ export function TaskManagement({
             } catch {
                 if (!cancelled) {
                     setLinkedLetters([]);
+                    setLinkedRequestLetters([]);
                     setServiceAttachments([]);
                     setTaskHistory([]);
                 }
@@ -1132,6 +1159,52 @@ export function TaskManagement({
         }
     };
 
+    const handleDownloadRequestLetter = async (letter: {
+        id: string;
+        title: string;
+        fileName: string;
+    }) => {
+        const downloadKey = `request:${letter.id}`;
+        setDownloadingLetterId(downloadKey);
+        try {
+            const res = await fetch(
+                `/api/adm/fund-request-letters/${encodeURIComponent(letter.id)}/pdf?download=1`,
+            );
+            if (!res.ok) {
+                const json = await res.json().catch(() => ({}));
+                throw new Error(
+                    typeof json?.error === 'string'
+                        ? json.error
+                        : 'Failed to download request letter PDF',
+                );
+            }
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            const baseName = letter.fileName?.trim() || letter.title || 'request-letter';
+            anchor.download = baseName.toLowerCase().endsWith('.pdf')
+                ? baseName
+                : `${baseName}.pdf`;
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(url);
+            toast({
+                type: 'success',
+                description: t('taskManagement.dialog.downloadRequestLetterSuccess'),
+            });
+        } catch (error) {
+            console.error('Error downloading request letter PDF:', error);
+            toast({
+                type: 'error',
+                description: t('taskManagement.dialog.downloadRequestLetterFailed'),
+            });
+        } finally {
+            setDownloadingLetterId(null);
+        }
+    };
+
     const getStatusColor = (status: string) => {
         switch (status) {
             case 'pending':
@@ -1582,13 +1655,13 @@ export function TaskManagement({
                                                             )}
 
                                                             {(task.voter || task.isOutsider) && (
-                                                                <div className="bg-gray-50 p-3 rounded-lg mb-3">
-                                                                    <div className="text-sm font-medium text-gray-900 mb-1">
+                                                                <div className="mb-3 space-y-1 rounded-lg border bg-muted/30 p-3">
+                                                                    <div className="mb-1 text-sm font-medium text-foreground">
                                                                         {task.isOutsider
                                                                             ? t('taskManagement.outsiderInformation')
                                                                             : t('taskManagement.voterInformation')}
                                                                     </div>
-                                                                    <div className="text-sm text-gray-700 space-y-1">
+                                                                    <div className="space-y-1 text-sm text-foreground">
                                                                         <div>
                                                                             <strong>{t('taskManagement.name')}</strong>{' '}
                                                                             {task.voter?.fullName || '—'}
@@ -1616,7 +1689,7 @@ export function TaskManagement({
                                                                                 type="button"
                                                                                 variant="outline"
                                                                                 size="sm"
-                                                                                className="mt-2"
+                                                                                className="mt-2 text-foreground"
                                                                                 onClick={() => setTagVoterTask(task)}
                                                                             >
                                                                                 <UserRoundPlus className="mr-2 h-4 w-4" />
@@ -1853,7 +1926,7 @@ export function TaskManagement({
                                             <Loader2 className="size-4 animate-spin" />
                                             {t('taskManagement.dialog.loadingLetters')}
                                         </div>
-                                    ) : linkedLetters.length > 0 ? (
+                                    ) : linkedLetters.length > 0 || linkedRequestLetters.length > 0 ? (
                                         <ul className="max-h-56 space-y-2 overflow-y-auto sm:max-h-72">
                                             {linkedLetters.map((letter) => (
                                                 <li
@@ -1898,6 +1971,50 @@ export function TaskManagement({
                                                     </Button>
                                                 </li>
                                             ))}
+                                            {linkedRequestLetters.map((letter) => {
+                                                const downloadKey = `request:${letter.id}`;
+                                                return (
+                                                    <li
+                                                        key={downloadKey}
+                                                        className="flex flex-col gap-2 rounded-md border border-border/60 p-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                                                    >
+                                                        <div className="flex min-w-0 flex-1 items-start gap-2 text-sm">
+                                                            <FileText className="mt-0.5 size-3.5 shrink-0 text-muted-foreground" />
+                                                            <div className="min-w-0 flex-1">
+                                                                <p className="break-words font-medium leading-snug">
+                                                                    {letter.title}
+                                                                </p>
+                                                                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                                                                    {t('taskManagement.dialog.requestLetterLabel')}
+                                                                    {' · '}
+                                                                    {formatDisplayDateIST(letter.letterDate)}
+                                                                    {letter.fundLabel
+                                                                        ? ` · ${letter.fundLabel}`
+                                                                        : ''}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="w-full shrink-0 sm:w-auto"
+                                                            disabled={downloadingLetterId === downloadKey}
+                                                            title={t('taskManagement.dialog.downloadLetter')}
+                                                            onClick={() =>
+                                                                void handleDownloadRequestLetter(letter)
+                                                            }
+                                                        >
+                                                            {downloadingLetterId === downloadKey ? (
+                                                                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+                                                            ) : (
+                                                                <FileDown className="mr-1.5 size-3.5" />
+                                                            )}
+                                                            {t('taskManagement.dialog.downloadLetter')}
+                                                        </Button>
+                                                    </li>
+                                                );
+                                            })}
                                         </ul>
                                     ) : (
                                         <p className="text-xs text-muted-foreground">
@@ -2252,7 +2369,24 @@ export function TaskManagement({
             {selectedTask?.serviceId ? (
                 <FundRequestLetterDialog
                     open={requestLetterOpen}
-                    onOpenChange={setRequestLetterOpen}
+                    onOpenChange={(open) => {
+                        setRequestLetterOpen(open);
+                        if (!open && selectedTask.serviceId) {
+                            const serviceId = selectedTask.serviceId;
+                            void (async () => {
+                                try {
+                                    const res = await fetch(
+                                        `/api/adm/fund-request-letters?beneficiaryServiceId=${encodeURIComponent(serviceId)}`,
+                                    );
+                                    if (!res.ok) return;
+                                    const json = await res.json();
+                                    setLinkedRequestLetters(Array.isArray(json) ? json : []);
+                                } catch {
+                                    // Keep existing list if refresh fails.
+                                }
+                            })();
+                        }
+                    }}
                     beneficiaryServiceId={selectedTask.serviceId}
                     defaultTitle={selectedTask.service?.serviceName ?? ''}
                 />

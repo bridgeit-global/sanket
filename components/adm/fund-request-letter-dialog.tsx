@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { FileText } from 'lucide-react';
+import { FileDown, FileText, Loader2 } from 'lucide-react';
 import { toast } from '@/components/toast';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -56,6 +56,7 @@ export function FundRequestLetterDialog({
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<AdmFundRequestLetterStatus>('pending');
   const [fundId, setFundId] = useState('');
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     if (!beneficiaryServiceId) return;
@@ -105,6 +106,44 @@ export function FundRequestLetterDialog({
     if (nextFundId && status === 'pending') setStatus('linked');
     if (!nextFundId && fundRequestLetterStatusRequiresFund(status)) {
       setStatus('pending');
+    }
+  };
+
+  const handleDownload = async (letter: AdmFundRequestLetter) => {
+    setDownloadingId(letter.id);
+    try {
+      const response = await fetch(
+        `/api/adm/fund-request-letters/${encodeURIComponent(letter.id)}/pdf?download=1`,
+      );
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(
+          typeof data?.error === 'string'
+            ? data.error
+            : t('adm.fundRequestLetters.failedToDownload'),
+        );
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      const baseName = letter.fileName?.trim() || letter.title || 'request-letter';
+      anchor.download = baseName.toLowerCase().endsWith('.pdf')
+        ? baseName
+        : `${baseName}.pdf`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      toast.success(t('adm.fundRequestLetters.downloadSuccess'));
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : t('adm.fundRequestLetters.failedToDownload'),
+      );
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -198,17 +237,34 @@ export function FundRequestLetterDialog({
                       {formatDisplayDateIST(letter.letterDate)}
                       {letter.fundLabel ? ` · ${letter.fundLabel}` : ''}
                     </p>
-                    <a
-                      href={`/api/adm/fund-request-letters/${letter.id}/pdf`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex min-h-10 items-center gap-1.5 text-blue-600 hover:underline"
-                    >
-                      <FileText className="h-4 w-4 shrink-0" />
-                      <span className="truncate">
-                        {letter.fileName || t('adm.fundRequestLetters.viewPdf')}
-                      </span>
-                    </a>
+                    <div className="flex w-full flex-col gap-2 sm:flex-row">
+                      <a
+                        href={`/api/adm/fund-request-letters/${letter.id}/pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex min-h-10 items-center gap-1.5 text-blue-600 hover:underline"
+                      >
+                        <FileText className="h-4 w-4 shrink-0" />
+                        <span className="truncate">
+                          {letter.fileName || t('adm.fundRequestLetters.viewPdf')}
+                        </span>
+                      </a>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="min-h-10 w-full sm:w-auto"
+                        disabled={downloadingId === letter.id}
+                        onClick={() => void handleDownload(letter)}
+                      >
+                        {downloadingId === letter.id ? (
+                          <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                        ) : (
+                          <FileDown className="mr-1.5 h-4 w-4" />
+                        )}
+                        {t('adm.fundRequestLetters.download')}
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>
