@@ -457,6 +457,7 @@ export async function getJobFairRegistrationById(
 export type JobFairStats = {
   total: number;
   today: number;
+  checkedIn: number;
   withResume: number;
   topAreas: Array<{ area: string; count: number }>;
 };
@@ -469,6 +470,7 @@ export async function getJobFairStats(todayYmd: string): Promise<JobFairStats> {
         count(*) FILTER (
           WHERE created_at >= ${istDayStartUtc(todayYmd)}::timestamp
         )::int AS today,
+        count(*) FILTER (WHERE status <> 'registered')::int AS checked_in,
         count(resume_storage_path)::int AS with_resume
       FROM "JobFairRegistration"
       WHERE event_code = ${JOB_FAIR_EVENT.code}
@@ -485,6 +487,7 @@ export async function getJobFairStats(todayYmd: string): Promise<JobFairStats> {
   return {
     total: Number(summary[0]?.total ?? 0),
     today: Number(summary[0]?.today ?? 0),
+    checkedIn: Number(summary[0]?.checked_in ?? 0),
     withResume: Number(summary[0]?.with_resume ?? 0),
     topAreas: areas.map((r) => ({ area: String(r.area), count: Number(r.count) })),
   };

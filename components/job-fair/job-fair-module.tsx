@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  CalendarCheck,
   Copy,
   Download,
   ExternalLink,
@@ -14,6 +15,7 @@ import {
   X,
 } from 'lucide-react';
 
+import { JobFairCheckIn } from '@/components/job-fair/job-fair-check-in';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,6 +47,7 @@ import {
 import { TablePagination } from '@/components/table-pagination';
 import { toast } from '@/components/toast';
 import { formatDisplayDateTimeIST } from '@/lib/ist-date';
+import { jobFairStatusLabel } from '@/lib/job-fair/check-in';
 import {
   AREA_OPTIONS,
   AREA_OTHER,
@@ -171,7 +174,11 @@ function StatCard({
   );
 }
 
-export function JobFairModule() {
+export function JobFairModule({
+  initialCheckInCode,
+}: {
+  initialCheckInCode?: string | null;
+}) {
   const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
   const [searchDraft, setSearchDraft] = useState('');
   const [page, setPage] = useState(1);
@@ -180,6 +187,7 @@ export function JobFairModule() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<JobFairRegistration | null>(null);
   const [openingResume, setOpeningResume] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -216,7 +224,7 @@ export function JobFairModule() {
     return () => {
       cancelled = true;
     };
-  }, [filters, page, pageSize]);
+  }, [filters, page, pageSize, reloadKey]);
 
   const setFilter = (key: keyof Filters, value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
@@ -292,8 +300,14 @@ export function JobFairModule() {
         }
       />
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <JobFairCheckIn
+        initialCode={initialCheckInCode}
+        onCheckedIn={() => setReloadKey((key) => key + 1)}
+      />
+
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard icon={Users} label="Total registrations" value={stats?.total ?? '—'} />
+        <StatCard icon={CalendarCheck} label="Checked in" value={stats?.checkedIn ?? '—'} />
         <StatCard icon={UserCheck} label="Registered today" value={stats?.today ?? '—'} />
         <StatCard icon={FileText} label="With resume" value={stats?.withResume ?? '—'} />
         <StatCard
@@ -371,6 +385,7 @@ export function JobFairModule() {
                   <TableRow>
                     <TableHead>Reg. No</TableHead>
                     <TableHead>Name</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Mobile</TableHead>
                     <TableHead>Area</TableHead>
                     <TableHead>Qualification</TableHead>
@@ -384,6 +399,11 @@ export function JobFairModule() {
                     <TableRow key={r.id} className="cursor-pointer" onClick={() => setSelected(r)}>
                       <TableCell className="font-mono text-xs">{r.registrationNo}</TableCell>
                       <TableCell className="max-w-48 truncate font-medium">{r.fullName}</TableCell>
+                      <TableCell>
+                        <Badge variant={r.status === 'registered' ? 'secondary' : 'default'}>
+                          {jobFairStatusLabel(r.status)}
+                        </Badge>
+                      </TableCell>
                       <TableCell>{r.mobile}</TableCell>
                       <TableCell className="max-w-44 truncate">{areaText(r)}</TableCell>
                       <TableCell>{optionLabel(QUALIFICATION_OPTIONS, r.qualification)}</TableCell>
@@ -429,6 +449,9 @@ export function JobFairModule() {
                       {r.mobile} · {areaText(r)}
                     </div>
                     <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                      <Badge variant={r.status === 'registered' ? 'secondary' : 'default'}>
+                        {jobFairStatusLabel(r.status)}
+                      </Badge>
                       <Badge variant="secondary">{optionLabel(QUALIFICATION_OPTIONS, r.qualification)}</Badge>
                       <Badge variant="outline">{optionLabel(EXPERIENCE_OPTIONS, r.experience)}</Badge>
                       {r.resumeStoragePath ? <Badge variant="outline">Resume</Badge> : null}
@@ -462,7 +485,8 @@ export function JobFairModule() {
               <DialogHeader>
                 <DialogTitle className="break-words">{selected.fullName}</DialogTitle>
                 <DialogDescription>
-                  {selected.registrationNo} · Registered {formatDisplayDateTimeIST(selected.createdAt)}
+                  {selected.registrationNo} · {jobFairStatusLabel(selected.status)} · Registered{' '}
+                  {formatDisplayDateTimeIST(selected.createdAt)}
                 </DialogDescription>
               </DialogHeader>
               <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-sm sm:grid-cols-2">

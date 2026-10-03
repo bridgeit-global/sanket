@@ -54,6 +54,7 @@ import {
   UserRoundPlus,
   X,
 } from 'lucide-react';
+import { JobFairCheckIn } from '@/components/job-fair/job-fair-check-in';
 import { QrScannerDialog } from '@/components/qr-scanner-dialog';
 import { AadhaarQrScanButton, AadhaarQrScannerDialog } from '@/components/aadhaar-qr-scanner-dialog';
 import {
@@ -1504,6 +1505,7 @@ export function VisitorWorkflow({
 
       {tab === 'visitor' && (
         <>
+          <JobFairCheckIn initialCode={searchParams.get('yuvaaz')} />
           {createdVisitToken && createdVisitorSnapshot ? (
             <Card>
               <CardHeader>

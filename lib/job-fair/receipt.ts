@@ -12,6 +12,7 @@ import {
   optionLabel,
 } from '@/lib/job-fair/options';
 import type { JobFairFormValues } from '@/lib/job-fair/schema';
+import { buildJobFairCheckInPath } from '@/lib/job-fair/check-in';
 
 export type JobFairReceiptInput = {
   registrationNo: string;
@@ -118,11 +119,14 @@ export async function downloadJobFairReceipt(input: JobFairReceiptInput): Promis
   doc.text(input.registrationNo, margin + 6, 86);
 
   try {
-    const qr = await QRCode.toDataURL(input.registrationNo, {
-      margin: 0,
-      errorCorrectionLevel: 'M',
-      width: 256,
-    });
+    const qr = await QRCode.toDataURL(
+      `${window.location.origin}${buildJobFairCheckInPath(input.registrationNo)}`,
+      {
+        margin: 0,
+        errorCorrectionLevel: 'M',
+        width: 256,
+      },
+    );
     const qrSize = 26;
     doc.addImage(qr, 'PNG', pageWidth - margin - 6 - qrSize, 69, qrSize, qrSize);
   } catch {
@@ -191,7 +195,7 @@ export async function downloadJobFairReceipt(input: JobFairReceiptInput): Promis
   doc.text('Please bring', margin, y);
   doc.setFont('helvetica', 'normal');
   const notes = [
-    'This receipt (show the registration number at the desk).',
+    'This receipt. The visitor desk scans the QR to check you in.',
     '3–5 printed copies of your resume / CV.',
     'A photo ID (Aadhaar / Voter ID) and mark sheets or certificates.',
     'Reach early — entry from 10:00 AM.',
