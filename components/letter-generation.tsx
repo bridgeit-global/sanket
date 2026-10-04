@@ -3826,6 +3826,29 @@ export function LetterGeneration({
       'signatureParagraphs',
     ]);
 
+    // Address-master selections (including auto-prefill) must not alone satisfy
+    // "at least one field" — operators still need a real content field.
+    if (addressSelections.office) {
+      ignoreKeys.add('officeName');
+      ignoreKeys.add('officeAddress');
+    }
+    if (addressSelections.rationOffice) {
+      ignoreKeys.add('rationOfficeAddress');
+    }
+    if (addressSelections.fromRationOffice) {
+      ignoreKeys.add('fromRationOffice');
+    }
+    if (addressSelections.toRationOffice) {
+      ignoreKeys.add('toRationOffice');
+    }
+    if (addressSelections.to) {
+      ignoreKeys.add('to');
+      ignoreKeys.add('toName');
+    }
+    if (birthOfficeId) {
+      ignoreKeys.add('officeAddress');
+    }
+
     const differsFromDefaults = (
       current: Record<string, unknown>,
       defaults: Record<string, unknown>,
@@ -3888,6 +3911,12 @@ export function LetterGeneration({
       return differsFromDefaults(
         domicileFields as unknown as Record<string, unknown>,
         domicileDefaults(letterLocale) as unknown as Record<string, unknown>,
+      );
+    }
+    if (formTab === 'qr-birth-certificate') {
+      return differsFromDefaults(
+        birthCertificateFields as unknown as Record<string, unknown>,
+        birthCertificateDefaults(letterLocale) as unknown as Record<string, unknown>,
       );
     }
     if (formTab === 'medical-assistance') {
@@ -4966,7 +4995,20 @@ export function LetterGeneration({
 
   const clearLetterForm = (options?: { announce?: boolean }) => {
     setFeesFields(feesDefaults(letterLocale));
-    setGeneralFields(generalDefaults(letterLocale));
+    const nextGeneral = generalDefaults(letterLocale);
+    if (govFollowUpPrefill) {
+      const toName = govFollowUpPrefill.toName.trim();
+      const toAddress = govFollowUpPrefill.toAddress.trim();
+      setGeneralFields({
+        ...nextGeneral,
+        toName,
+        toAddress,
+        to: syncGeneralToBlock(toName, toAddress),
+        subject: govFollowUpPrefill.subject,
+      });
+    } else {
+      setGeneralFields(nextGeneral);
+    }
     setSchoolAdmissionFields(schoolAdmissionDefaults(letterLocale));
     setCollegeAdmissionFields(collegeAdmissionDefaults(letterLocale));
     setSchoolTransferFields(schoolTransferDefaults(letterLocale));
@@ -4979,12 +5021,29 @@ export function LetterGeneration({
     setBirthOfficePincodeError(undefined);
     setMedicalAssistanceFields(medicalAssistanceDefaults(letterLocale));
     setSanjayGandhiNiradharFields(sanjayGandhiNiradharDefaults(letterLocale));
-    setWardFields(
-      wardDefaults(
-        letterLocale,
-        resolveWardIssueForLetterContext(activeTab, service?.serviceName),
-      ),
+    const nextWard = wardDefaults(
+      letterLocale,
+      resolveWardIssueForLetterContext(activeTab, service?.serviceName),
     );
+    if (govFollowUpPrefill) {
+      const toName = govFollowUpPrefill.toName.trim();
+      const toAddress = govFollowUpPrefill.toAddress.trim();
+      setWardFields({
+        ...nextWard,
+        toName: toName || nextWard.toName,
+        to: toAddress
+          ? combineNameAndAddress(
+              toName,
+              addressNewlinesToHtmlBreaks(toAddress),
+              ',<br>',
+              { boldName: true },
+            )
+          : nextWard.to,
+        location: govFollowUpPrefill.locationName?.trim() || nextWard.location,
+      });
+    } else {
+      setWardFields(nextWard);
+    }
     setCustomPlaceholderValues(
       Object.fromEntries(customPlaceholders.map((key) => [key, ''])),
     );
@@ -5046,18 +5105,23 @@ export function LetterGeneration({
       handleOfficeAddressSelect(preferredOffice.id);
     }
     defaultWardToAppliedRef.current = false;
-    const clearedWardIssue = resolveWardIssueForLetterContext(
-      activeTab,
-      service?.serviceName,
-    );
-    const preferredWardTo = findWardOfficerAddress(
-      addresses,
-      clearedWardIssue,
-      activeLetterDate,
-    );
-    if (preferredWardTo) {
+    if (govFollowUpPrefill?.toName.trim()) {
+      // Keep matter recipient; don't overwrite with address-master default.
       defaultWardToAppliedRef.current = true;
-      handleWardToAddressSelect(preferredWardTo.id);
+    } else {
+      const clearedWardIssue = resolveWardIssueForLetterContext(
+        activeTab,
+        service?.serviceName,
+      );
+      const preferredWardTo = findWardOfficerAddress(
+        addresses,
+        clearedWardIssue,
+        activeLetterDate,
+      );
+      if (preferredWardTo) {
+        defaultWardToAppliedRef.current = true;
+        handleWardToAddressSelect(preferredWardTo.id);
+      }
     }
     if (options?.announce) {
       toast.success(t('letterGeneration.clearAllSuccess'));
