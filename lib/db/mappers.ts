@@ -69,6 +69,7 @@ import type {
   ProjectNocStatus,
   ProjectPhysicalStatus,
   ProjectDocumentKind,
+  GovFollowUpAttachment,
   GovFollowUpDepartment,
   GovFollowUpLocation,
   GovFollowUpMatter,
@@ -1438,6 +1439,18 @@ export function mapGovFollowUpLogRow(row: Row): GovFollowUpLog {
     performedByName: toStringOrNull(
       row.performed_by_name ?? row.performedByName,
     ),
+    createdAt: toDate(row.created_at ?? row.createdAt),
+  };
+}
+
+export function mapGovFollowUpAttachmentRow(row: Row): GovFollowUpAttachment {
+  return {
+    id: String(row.id),
+    matterId: String(row.matter_id ?? row.matterId),
+    fileName: String(row.file_name ?? row.fileName),
+    fileSizeKb: Number(row.file_size_kb ?? row.fileSizeKb ?? 0),
+    fileUrl: toStringOrNull(row.file_url ?? row.fileUrl),
+    createdBy: toStringOrNull(row.created_by ?? row.createdBy),
     createdAt: toDate(row.created_at ?? row.createdAt),
   };
 }

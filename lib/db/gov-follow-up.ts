@@ -6,6 +6,7 @@ import { ChatSDKError } from '@/lib/errors';
 import { getTodayDateStringIST } from '@/lib/ist-date';
 import { TABLES } from '@/lib/db/schema';
 import {
+  mapGovFollowUpAttachmentRow,
   mapGovFollowUpDepartmentRow,
   mapGovFollowUpLocationRow,
   mapGovFollowUpLogRow,
@@ -27,6 +28,7 @@ import type {
   GovFollowUpLocation,
   GovFollowUpLog,
   GovFollowUpLogKind,
+  GovFollowUpAttachment,
   GovFollowUpInwardLetter,
   GovFollowUpMatter,
   GovFollowUpMatterDetail,
@@ -65,6 +67,7 @@ import {
 } from '@/lib/gov-follow-up/workflow';
 import {
   buildAppUploadPath,
+  removeStoredPublicUrl,
   uploadAppFile,
 } from '@/lib/storage/app-uploads';
 
@@ -497,27 +500,67 @@ async function inwardLettersByMatterIds(
   return result;
 }
 
+async function attachmentsByMatterIds(
+  matterIds: string[],
+): Promise<Map<string, GovFollowUpAttachment[]>> {
+  const unique = [...new Set(matterIds.filter(Boolean))];
+  const result = new Map<string, GovFollowUpAttachment[]>();
+  for (const id of unique) result.set(id, []);
+  if (unique.length === 0) return result;
+
+  const { data, error } = await supabase
+    .from(TABLES.govFollowUpAttachment)
+    .select('*')
+    .in('matter_id', unique)
+    .order('created_at', { ascending: false });
+  if (error) {
+    // Table may be missing until migration is applied.
+    const message = String(error.message || error.code || '');
+    if (
+      message.includes('does not exist') ||
+      message.includes('Could not find the table') ||
+      error.code === '42P01' ||
+      error.code === 'PGRST205'
+    ) {
+      return result;
+    }
+    throwOnSupabaseError(error, 'Failed to load follow-up attachments');
+  }
+
+  for (const row of data ?? []) {
+    const attachment = mapGovFollowUpAttachmentRow(row);
+    const list = result.get(attachment.matterId) ?? [];
+    list.push(attachment);
+    result.set(attachment.matterId, list);
+  }
+  return result;
+}
+
 async function hydrateMatters(
   rows: GovFollowUpMatter[],
 ): Promise<GovFollowUpMatterListItem[]> {
   const catalogs = await catalogMaps();
-  const [lettersByMatter, inwardByMatter, registerRefs] = await Promise.all([
-    lettersByMatterIds(
-      rows.map((row) => ({ id: row.id, letterId: row.letterId })),
-    ),
-    inwardLettersByMatterIds(
-      rows.map((row) => ({
-        id: row.id,
-        registerEntryId: row.registerEntryId,
-      })),
-    ),
-    registerRefByIds(rows.map((r) => r.registerEntryId ?? '')),
-  ]);
+  const matterIds = rows.map((row) => row.id);
+  const [lettersByMatter, inwardByMatter, attachmentsByMatter, registerRefs] =
+    await Promise.all([
+      lettersByMatterIds(
+        rows.map((row) => ({ id: row.id, letterId: row.letterId })),
+      ),
+      inwardLettersByMatterIds(
+        rows.map((row) => ({
+          id: row.id,
+          registerEntryId: row.registerEntryId,
+        })),
+      ),
+      attachmentsByMatterIds(matterIds),
+      registerRefByIds(rows.map((r) => r.registerEntryId ?? '')),
+    ]);
   return rows.map((matter) => {
     const department = catalogs.departmentById.get(matter.departmentId);
     const location = catalogs.locationById.get(matter.locationId);
     const letters = lettersByMatter.get(matter.id) ?? [];
     const inwardLetters = inwardByMatter.get(matter.id) ?? [];
+    const attachments = attachmentsByMatter.get(matter.id) ?? [];
     return {
       ...matter,
       departmentName: department?.name ?? '',
@@ -529,6 +572,7 @@ async function hydrateMatters(
         : null,
       letters,
       inwardLetters,
+      attachments,
       letterReferenceNo: letters[0]?.referenceNo ?? null,
       registerRefNo:
         matter.registerEntryId
@@ -1754,4 +1798,66 @@ export async function addGovFollowUpLog(params: {
     );
   }
   return detail;
+}
+
+export async function getGovFollowUpAttachments(
+  matterId: string,
+): Promise<GovFollowUpAttachment[]> {
+  const { data, error } = await supabase
+    .from(TABLES.govFollowUpAttachment)
+    .select('*')
+    .eq('matter_id', matterId)
+    .order('created_at', { ascending: false });
+  throwOnSupabaseError(error, 'Failed to load follow-up attachments');
+  return (data ?? []).map(mapGovFollowUpAttachmentRow);
+}
+
+export async function createGovFollowUpAttachment(params: {
+  matterId: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl?: string | null;
+  createdBy: string;
+}): Promise<GovFollowUpAttachment> {
+  const matter = await getGovFollowUpMatterById(params.matterId);
+  if (!matter) {
+    throw new ChatSDKError('not_found:database', 'Follow-up matter not found');
+  }
+
+  const { data, error } = await supabase
+    .from(TABLES.govFollowUpAttachment)
+    .insert({
+      matter_id: params.matterId,
+      file_name: params.fileName,
+      file_size_kb: params.fileSizeKb,
+      file_url: params.fileUrl ?? null,
+      created_by: params.createdBy,
+      created_at: new Date().toISOString(),
+    })
+    .select('*')
+    .single();
+  throwOnSupabaseError(error, 'Failed to create follow-up attachment');
+  return mapGovFollowUpAttachmentRow(data);
+}
+
+export async function deleteGovFollowUpAttachment(params: {
+  matterId: string;
+  attachmentId: string;
+}): Promise<void> {
+  const attachments = await getGovFollowUpAttachments(params.matterId);
+  const attachment = attachments.find((item) => item.id === params.attachmentId);
+  if (!attachment) {
+    throw new ChatSDKError('not_found:database', 'Attachment not found');
+  }
+
+  if (attachment.fileUrl) {
+    await removeStoredPublicUrl(attachment.fileUrl);
+  }
+
+  const { error } = await supabase
+    .from(TABLES.govFollowUpAttachment)
+    .delete()
+    .eq('id', params.attachmentId)
+    .eq('matter_id', params.matterId);
+  throwOnSupabaseError(error, 'Failed to delete follow-up attachment');
 }

@@ -2762,6 +2762,14 @@
       "uploadSuccess": "पत्र अपलोड झाले आणि आवक नोंदीत जोडले",
       "uploadError": "पत्र आवक नोंदीत अपलोड करता आले नाही"
     },
+    "documents": {
+      "title": "कागदपत्रे",
+      "empty": "अद्याप कागदपत्रे जोडलेली नाहीत.",
+      "uploadSuccess": "कागदपत्र जोडले",
+      "uploadError": "कागदपत्र जोडता आले नाही",
+      "deleteSuccess": "कागदपत्र काढले",
+      "deleteError": "कागदपत्र काढता आले नाही"
+    },
     "actions": {
       "logFollowUp": "फॉलो-अप नोंदवा",
       "fileMoved": "फाईल हलली",
@@ -2771,6 +2779,7 @@
       "viewLetter": "पत्र उघडा",
       "generateLetter": "पत्र तयार करा",
       "uploadLetter": "पत्र अपलोड करा",
+      "attachDocuments": "कागदपत्रे जोडा",
       "viewRegister": "आवक/जावक उघडा",
       "viewFile": "फाइल पहा",
       "unassigned": "नेमणूक नाही"

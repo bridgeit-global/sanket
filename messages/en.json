@@ -2760,6 +2760,14 @@
       "uploadSuccess": "Letter uploaded and added to inward register",
       "uploadError": "Failed to upload letter to inward register"
     },
+    "documents": {
+      "title": "Documents",
+      "empty": "No documents attached yet.",
+      "uploadSuccess": "Document attached",
+      "uploadError": "Failed to attach document",
+      "deleteSuccess": "Document removed",
+      "deleteError": "Failed to remove document"
+    },
     "actions": {
       "logFollowUp": "Log follow-up",
       "fileMoved": "File moved",
@@ -2769,6 +2777,7 @@
       "viewLetter": "Open letter",
       "generateLetter": "Generate letter",
       "uploadLetter": "Upload letter",
+      "attachDocuments": "Attach documents",
       "viewRegister": "Open I/O register",
       "viewFile": "View file",
       "unassigned": "Unassigned"

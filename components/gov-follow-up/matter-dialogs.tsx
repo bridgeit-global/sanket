@@ -2,7 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, FileText, Inbox, Loader2, Upload } from 'lucide-react';
+import {
+  ChevronDown,
+  FileText,
+  Inbox,
+  Loader2,
+  Paperclip,
+  Trash2,
+  Upload,
+} from 'lucide-react';
 import { toast } from '@/components/toast';
 import { Button } from '@/components/ui/button';
 import { DmyDateInput } from '@/components/ui/dmy-date-input';
@@ -715,6 +723,11 @@ export function GovFollowUpDetailDialog({
   const [uploadDate, setUploadDate] = useState(getTodayDateStringIST());
   const [uploadFromTo, setUploadFromTo] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [attaching, setAttaching] = useState(false);
+  const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(
+    null,
+  );
+  const documentInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!matter || !open) return;
@@ -767,7 +780,77 @@ export function GovFollowUpDetailDialog({
     setUploadFromTo(
       matter.officeName || matter.departmentName || '',
     );
+    setAttaching(false);
+    setDeletingAttachmentId(null);
   }, [matter, open]);
+
+  const refreshMatter = async (matterId: string) => {
+    const res = await fetch(
+      `/api/gov-follow-up/${encodeURIComponent(matterId)}`,
+    );
+    const payload = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(payload.error || 'refresh');
+    }
+    onUploaded(payload as GovFollowUpMatterDetail);
+  };
+
+  const handleAttachDocuments = async (files: FileList | null) => {
+    if (!matter || !files?.length) return;
+    setAttaching(true);
+    try {
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch(
+          `/api/gov-follow-up/${encodeURIComponent(matter.id)}/attachments`,
+          { method: 'POST', body: formData },
+        );
+        const payload = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(payload.error || 'attach');
+        }
+      }
+      toast.success(t('govFollowUp.documents.uploadSuccess'));
+      await refreshMatter(matter.id);
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error && error.message !== 'attach'
+          ? error.message
+          : t('govFollowUp.documents.uploadError'),
+      );
+    } finally {
+      setAttaching(false);
+      if (documentInputRef.current) documentInputRef.current.value = '';
+    }
+  };
+
+  const handleDeleteAttachment = async (attachmentId: string) => {
+    if (!matter) return;
+    setDeletingAttachmentId(attachmentId);
+    try {
+      const res = await fetch(
+        `/api/gov-follow-up/${encodeURIComponent(matter.id)}/attachments?attachmentId=${encodeURIComponent(attachmentId)}`,
+        { method: 'DELETE' },
+      );
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload.error || 'delete');
+      }
+      toast.success(t('govFollowUp.documents.deleteSuccess'));
+      await refreshMatter(matter.id);
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error && error.message !== 'delete'
+          ? error.message
+          : t('govFollowUp.documents.deleteError'),
+      );
+    } finally {
+      setDeletingAttachmentId(null);
+    }
+  };
 
   const submitUpload = async () => {
     if (!matter || !uploadFile) {
@@ -998,17 +1081,45 @@ export function GovFollowUpDetailDialog({
                 {t('govFollowUp.letters.title')}
               </h3>
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                <input
+                  ref={documentInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt,application/pdf,image/*"
+                  className="sr-only"
+                  onChange={(e) => void handleAttachDocuments(e.target.files)}
+                />
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="w-full sm:w-auto"
+                  className="w-full gap-1.5 sm:w-auto"
+                  disabled={attaching}
+                  onClick={() => documentInputRef.current?.click()}
+                >
+                  {attaching ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Paperclip className="size-3.5" />
+                  )}
+                  {t('govFollowUp.actions.attachDocuments')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-1.5 sm:w-auto"
                   onClick={() => setUploadOpen(true)}
                 >
                   <Upload className="size-3.5" />
                   {t('govFollowUp.actions.uploadLetter')}
                 </Button>
-                <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full gap-1.5 sm:w-auto"
+                  asChild
+                >
                   <Link href={govFollowUpLetterGenerationHref(matter.id)}>
                     <FileText className="size-3.5" />
                     {t('govFollowUp.actions.generateLetter')}
@@ -1122,6 +1233,78 @@ export function GovFollowUpDetailDialog({
                 )}
               </div>
             </div>
+          </section>
+
+          <section>
+            <h3 className="mb-3 text-sm font-semibold">
+              {t('govFollowUp.documents.title')}
+              {(matter.attachments ?? []).length > 0
+                ? ` (${matter.attachments.length})`
+                : ''}
+            </h3>
+            {(matter.attachments ?? []).length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                {t('govFollowUp.documents.empty')}
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {(matter.attachments ?? []).map((attachment) => (
+                  <li key={attachment.id}>
+                    <div className="flex min-w-0 flex-col gap-2 rounded-md border px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="truncate font-medium">
+                          {attachment.fileName}
+                        </div>
+                        <div className="text-muted-foreground text-xs">
+                          {attachment.fileSizeKb} KB
+                          {' · '}
+                          {formatShortDisplayDateIST(
+                            attachment.createdAt,
+                            locale,
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 flex-wrap gap-2">
+                        {attachment.fileUrl ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 gap-1.5"
+                            asChild
+                          >
+                            <a
+                              href={attachment.fileUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <FileText className="size-3.5" />
+                              {t('govFollowUp.actions.viewFile')}
+                            </a>
+                          </Button>
+                        ) : null}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1.5"
+                          disabled={deletingAttachmentId === attachment.id}
+                          onClick={() =>
+                            void handleDeleteAttachment(attachment.id)
+                          }
+                        >
+                          {deletingAttachmentId === attachment.id ? (
+                            <Loader2 className="size-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="size-3.5" />
+                          )}
+                          {t('common.delete')}
+                        </Button>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
 
           <section>

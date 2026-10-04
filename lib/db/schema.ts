@@ -74,6 +74,7 @@ export const TABLES = {
   govFollowUpSequence: 'GovFollowUpSequence',
   govFollowUpMatter: 'GovFollowUpMatter',
   govFollowUpLog: 'GovFollowUpLog',
+  govFollowUpAttachment: 'GovFollowUpAttachment',
 } as const;
 
 export type Role = {
@@ -1207,6 +1208,16 @@ export type GovFollowUpInwardLetter = {
   createdAt: Date;
 };
 
+export type GovFollowUpAttachment = {
+  id: string;
+  matterId: string;
+  fileName: string;
+  fileSizeKb: number;
+  fileUrl: string | null;
+  createdBy: string | null;
+  createdAt: Date;
+};
+
 export type GovFollowUpMatterListItem = GovFollowUpMatter & {
   departmentName: string;
   departmentCode: string;
@@ -1216,6 +1227,7 @@ export type GovFollowUpMatterListItem = GovFollowUpMatter & {
   letterReferenceNo: string | null;
   letters: GovFollowUpMatterLetter[];
   inwardLetters: GovFollowUpInwardLetter[];
+  attachments: GovFollowUpAttachment[];
   registerRefNo: string | null;
 };
 
