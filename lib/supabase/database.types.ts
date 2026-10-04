@@ -1609,6 +1609,7 @@ export type Database = {
           date: string
           document_type: string
           from_to: string
+          gov_follow_up_matter_id: string | null
           id: string
           assigned_person: string | null
           assigned_phone: string | null
@@ -1628,6 +1629,7 @@ export type Database = {
           date: string
           document_type?: string
           from_to: string
+          gov_follow_up_matter_id?: string | null
           id?: string
           mode?: string | null
           officer?: string | null
@@ -1645,6 +1647,7 @@ export type Database = {
           date?: string
           document_type?: string
           from_to?: string
+          gov_follow_up_matter_id?: string | null
           id?: string
           mode?: string | null
           officer?: string | null
@@ -1660,6 +1663,13 @@ export type Database = {
             columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "User"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "RegisterEntry_gov_follow_up_matter_id_fkey"
+            columns: ["gov_follow_up_matter_id"]
+            isOneToOne: false
+            referencedRelation: "GovFollowUpMatter"
             referencedColumns: ["id"]
           },
           {

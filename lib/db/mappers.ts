@@ -979,6 +979,9 @@ export function mapRegisterEntryRow(row: Row): RegisterEntry {
     officer: toStringOrNull(row.officer),
     assignedPerson: toStringOrNull(row.assigned_person ?? row.assignedPerson),
     assignedPhone: toStringOrNull(row.assigned_phone ?? row.assignedPhone),
+    govFollowUpMatterId: toStringOrNull(
+      row.gov_follow_up_matter_id ?? row.govFollowUpMatterId,
+    ),
     createdBy: String(row.created_by ?? row.createdBy),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),

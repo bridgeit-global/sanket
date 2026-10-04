@@ -687,6 +687,7 @@ export type RegisterEntry = {
   officer: string | null;
   assignedPerson: string | null;
   assignedPhone: string | null;
+  govFollowUpMatterId: string | null;
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;
@@ -1194,6 +1195,18 @@ export type GovFollowUpMatterLetter = {
   createdAt: Date;
 };
 
+export type GovFollowUpInwardLetter = {
+  id: string;
+  date: string;
+  fromTo: string;
+  subject: string;
+  refNo: string | null;
+  officer: string | null;
+  fileName: string | null;
+  fileUrl: string | null;
+  createdAt: Date;
+};
+
 export type GovFollowUpMatterListItem = GovFollowUpMatter & {
   departmentName: string;
   departmentCode: string;
@@ -1202,6 +1215,7 @@ export type GovFollowUpMatterListItem = GovFollowUpMatter & {
   staffUserName: string | null;
   letterReferenceNo: string | null;
   letters: GovFollowUpMatterLetter[];
+  inwardLetters: GovFollowUpInwardLetter[];
   registerRefNo: string | null;
 };
 

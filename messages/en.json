@@ -2746,7 +2746,19 @@
     "letters": {
       "title": "Letters",
       "empty": "No letters generated for this matter yet.",
-      "count": "{count, plural, one {# letter} other {# letters}}"
+      "generatedTitle": "Generated letters",
+      "inwardTitle": "Inward letters",
+      "inwardEmpty": "No inward letters uploaded for this matter yet.",
+      "count": "{count, plural, one {# letter} other {# letters}}",
+      "inwardCount": "{count, plural, one {# inward} other {# inward}}",
+      "uploadTitle": "Upload letter to inward",
+      "uploadDescription": "Attach the letter file. An inward register entry is created automatically and linked to this matter.",
+      "file": "Letter file",
+      "fileRequired": "Choose a letter file to upload",
+      "fromTo": "From",
+      "refNoPlaceholder": "Department inward / reference no.",
+      "uploadSuccess": "Letter uploaded and added to inward register",
+      "uploadError": "Failed to upload letter to inward register"
     },
     "actions": {
       "logFollowUp": "Log follow-up",
@@ -2756,7 +2768,9 @@
       "create": "Create matter",
       "viewLetter": "Open letter",
       "generateLetter": "Generate letter",
+      "uploadLetter": "Upload letter",
       "viewRegister": "Open I/O register",
+      "viewFile": "View file",
       "unassigned": "Unassigned"
     },
     "unsavedTitle": "Unsaved changes",

@@ -2748,7 +2748,19 @@
     "letters": {
       "title": "पत्रे",
       "empty": "या बाबीसाठी अद्याप पत्र तयार केलेले नाही.",
-      "count": "{count, plural, one {# पत्र} other {# पत्रे}}"
+      "generatedTitle": "तयार केलेली पत्रे",
+      "inwardTitle": "आवक पत्रे",
+      "inwardEmpty": "या बाबीसाठी अद्याप आवक पत्र अपलोड केलेले नाही.",
+      "count": "{count, plural, one {# पत्र} other {# पत्रे}}",
+      "inwardCount": "{count, plural, one {# आवक} other {# आवक}}",
+      "uploadTitle": "पत्र आवक मध्ये अपलोड करा",
+      "uploadDescription": "पत्राची फाइल जोडा. आवक नोंद आपोआप तयार होऊन या बाबीशी जोडली जाईल.",
+      "file": "पत्र फाइल",
+      "fileRequired": "अपलोड करण्यासाठी पत्र फाइल निवडा",
+      "fromTo": "कडून",
+      "refNoPlaceholder": "विभागाचा आवक / संदर्भ क्रमांक",
+      "uploadSuccess": "पत्र अपलोड झाले आणि आवक नोंदीत जोडले",
+      "uploadError": "पत्र आवक नोंदीत अपलोड करता आले नाही"
     },
     "actions": {
       "logFollowUp": "फॉलो-अप नोंदवा",
@@ -2758,7 +2770,9 @@
       "create": "बाब तयार करा",
       "viewLetter": "पत्र उघडा",
       "generateLetter": "पत्र तयार करा",
+      "uploadLetter": "पत्र अपलोड करा",
       "viewRegister": "आवक/जावक उघडा",
+      "viewFile": "फाइल पहा",
       "unassigned": "नेमणूक नाही"
     },
     "unsavedTitle": "न साठवलेले बदल",

@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown, FileText, Inbox, Loader2 } from 'lucide-react';
+import { ChevronDown, FileText, Inbox, Loader2, Upload } from 'lucide-react';
+import { toast } from '@/components/toast';
 import { Button } from '@/components/ui/button';
 import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
@@ -676,6 +677,7 @@ export function GovFollowUpDetailDialog({
   catalogs,
   saving,
   onLog,
+  onUploaded,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -683,8 +685,10 @@ export function GovFollowUpDetailDialog({
   catalogs: GovFollowUpCatalogs;
   saving: boolean;
   onLog: (input: GovFollowUpLogInput) => Promise<void>;
+  onUploaded: (matter: GovFollowUpMatterDetail) => void;
 }) {
   const { t, locale } = useTranslations();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [kind, setKind] = useState<GovFollowUpLogKind>('follow_up');
   const [mode, setMode] = useState<GovFollowUpMode | ''>('call');
   const [occurredOn, setOccurredOn] = useState(getTodayDateStringIST());
@@ -705,6 +709,12 @@ export function GovFollowUpDetailDialog({
   const [showWhere, setShowWhere] = useState(false);
   const [baseline, setBaseline] = useState<LogDraft | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadRefNo, setUploadRefNo] = useState('');
+  const [uploadDate, setUploadDate] = useState(getTodayDateStringIST());
+  const [uploadFromTo, setUploadFromTo] = useState('');
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!matter || !open) return;
@@ -750,7 +760,51 @@ export function GovFollowUpDetailDialog({
     setShowWhere(needsPendingWithFields(nextKind));
     setBaseline(draft);
     setConfirmClose(false);
+    setUploadOpen(false);
+    setUploadFile(null);
+    setUploadRefNo(matter.inwardRefNo ?? '');
+    setUploadDate(getTodayDateStringIST());
+    setUploadFromTo(
+      matter.officeName || matter.departmentName || '',
+    );
   }, [matter, open]);
+
+  const submitUpload = async () => {
+    if (!matter || !uploadFile) {
+      toast.error(t('govFollowUp.letters.fileRequired'));
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', uploadFile);
+      if (uploadRefNo.trim()) formData.append('refNo', uploadRefNo.trim());
+      if (uploadDate) formData.append('date', uploadDate);
+      if (uploadFromTo.trim()) formData.append('fromTo', uploadFromTo.trim());
+
+      const res = await fetch(
+        `/api/gov-follow-up/${encodeURIComponent(matter.id)}/upload-letter`,
+        { method: 'POST', body: formData },
+      );
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload.error || 'upload');
+      }
+      toast.success(t('govFollowUp.letters.uploadSuccess'));
+      setUploadOpen(false);
+      setUploadFile(null);
+      onUploaded(payload as GovFollowUpMatterDetail);
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        error instanceof Error && error.message !== 'upload'
+          ? error.message
+          : t('govFollowUp.letters.uploadError'),
+      );
+    } finally {
+      setUploading(false);
+    }
+  };
 
   useEffect(() => {
     if (needsPendingWithFields(kind)) {
@@ -943,51 +997,131 @@ export function GovFollowUpDetailDialog({
               <h3 className="text-sm font-semibold">
                 {t('govFollowUp.letters.title')}
               </h3>
-              <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
-                <Link href={govFollowUpLetterGenerationHref(matter.id)}>
-                  <FileText className="size-3.5" />
-                  {t('govFollowUp.actions.generateLetter')}
-                </Link>
-              </Button>
-            </div>
-            {(matter.letters ?? []).length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                {t('govFollowUp.letters.empty')}
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {(matter.letters ?? []).map((letter) => (
-                  <li key={letter.id}>
-                    <Link
-                      href={govFollowUpLetterGenerationHref(matter.id, letter.id)}
-                      className="flex min-w-0 flex-col gap-0.5 rounded-md border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <span className="min-w-0 truncate font-medium">
-                        {letter.referenceNo || letter.title || t('govFollowUp.actions.viewLetter')}
-                      </span>
-                      <span className="text-muted-foreground shrink-0 text-xs">
-                        {t(`letterGeneration.savedLetters.status.${letter.status}`)}
-                        {' · '}
-                        {formatShortDisplayDateIST(letter.createdAt, locale)}
-                      </span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {matter.registerEntryId ? (
-              <div className="mt-3">
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full sm:w-auto"
+                  onClick={() => setUploadOpen(true)}
+                >
+                  <Upload className="size-3.5" />
+                  {t('govFollowUp.actions.uploadLetter')}
+                </Button>
                 <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
-                  <Link
-                    href={`/modules/io-register?search=${encodeURIComponent(matter.registerRefNo || matter.subject)}`}
-                  >
-                    <Inbox className="size-3.5" />
-                    {t('govFollowUp.actions.viewRegister')}
-                    {matter.registerRefNo ? ` (${matter.registerRefNo})` : ''}
+                  <Link href={govFollowUpLetterGenerationHref(matter.id)}>
+                    <FileText className="size-3.5" />
+                    {t('govFollowUp.actions.generateLetter')}
                   </Link>
                 </Button>
               </div>
-            ) : null}
+            </div>
+            <div className="space-y-4">
+              <div>
+                <h4 className="text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wide">
+                  {t('govFollowUp.letters.generatedTitle')}
+                </h4>
+                {(matter.letters ?? []).length === 0 ? (
+                  <p className="text-muted-foreground text-sm">
+                    {t('govFollowUp.letters.empty')}
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {(matter.letters ?? []).map((letter) => (
+                      <li key={letter.id}>
+                        <Link
+                          href={govFollowUpLetterGenerationHref(
+                            matter.id,
+                            letter.id,
+                          )}
+                          className="flex min-w-0 flex-col gap-0.5 rounded-md border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
+                        >
+                          <span className="min-w-0 truncate font-medium">
+                            {letter.referenceNo ||
+                              letter.title ||
+                              t('govFollowUp.actions.viewLetter')}
+                          </span>
+                          <span className="text-muted-foreground shrink-0 text-xs">
+                            {t(
+                              `letterGeneration.savedLetters.status.${letter.status}`,
+                            )}
+                            {' · '}
+                            {formatShortDisplayDateIST(letter.createdAt, locale)}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div>
+                <h4 className="text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wide">
+                  {t('govFollowUp.letters.inwardTitle')}
+                </h4>
+                {(matter.inwardLetters ?? []).length === 0 ? (
+                  <p className="text-muted-foreground text-sm">
+                    {t('govFollowUp.letters.inwardEmpty')}
+                  </p>
+                ) : (
+                  <ul className="space-y-2">
+                    {(matter.inwardLetters ?? []).map((letter) => (
+                      <li key={letter.id}>
+                        <div className="flex min-w-0 flex-col gap-1 rounded-md border px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">
+                              {letter.refNo ||
+                                letter.subject ||
+                                t('govFollowUp.actions.viewRegister')}
+                            </div>
+                            <div className="text-muted-foreground truncate text-xs">
+                              {letter.fromTo}
+                              {letter.fileName ? ` · ${letter.fileName}` : ''}
+                            </div>
+                          </div>
+                          <div className="flex shrink-0 flex-wrap items-center gap-2">
+                            <span className="text-muted-foreground text-xs">
+                              {formatShortDisplayDateIST(letter.date, locale)}
+                            </span>
+                            {letter.fileUrl ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8"
+                                asChild
+                              >
+                                <a
+                                  href={letter.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <Inbox className="size-3.5" />
+                                  {t('govFollowUp.actions.viewFile')}
+                                </a>
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8"
+                                asChild
+                              >
+                                <Link
+                                  href={`/modules/io-register?tab=inward&search=${encodeURIComponent(letter.refNo || letter.subject)}`}
+                                >
+                                  <Inbox className="size-3.5" />
+                                  {t('govFollowUp.actions.viewRegister')}
+                                </Link>
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
           </section>
 
           <section>
@@ -1325,6 +1459,86 @@ export function GovFollowUpDetailDialog({
         onOpenChange(false);
       }}
     />
+    <Dialog
+      open={uploadOpen}
+      onOpenChange={(next) => {
+        if (uploading) return;
+        setUploadOpen(next);
+        if (!next) setUploadFile(null);
+      }}
+    >
+      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>{t('govFollowUp.letters.uploadTitle')}</DialogTitle>
+          <DialogDescription>
+            {t('govFollowUp.letters.uploadDescription')}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3">
+          <Field id="upload-file" label={t('govFollowUp.letters.file')}>
+            <input
+              ref={fileInputRef}
+              id="upload-file"
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,application/pdf,image/*"
+              className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-2 file:text-sm file:font-medium"
+              onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+            />
+          </Field>
+          <Field
+            id="upload-ref"
+            label={t('govFollowUp.fields.inwardRefNo')}
+          >
+            <Input
+              id="upload-ref"
+              value={uploadRefNo}
+              onChange={(e) => setUploadRefNo(e.target.value)}
+              placeholder={t('govFollowUp.letters.refNoPlaceholder')}
+            />
+          </Field>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field id="upload-date" label={t('govFollowUp.fields.occurredOn')}>
+              <DmyDateInput
+                id="upload-date"
+                value={uploadDate}
+                onValueChange={setUploadDate}
+              />
+            </Field>
+            <Field id="upload-from" label={t('govFollowUp.letters.fromTo')}>
+              <Input
+                id="upload-from"
+                value={uploadFromTo}
+                onChange={(e) => setUploadFromTo(e.target.value)}
+              />
+            </Field>
+          </div>
+        </div>
+        <DialogFooter className="flex-col gap-2 sm:flex-row">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full sm:w-auto"
+            disabled={uploading}
+            onClick={() => setUploadOpen(false)}
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button
+            type="button"
+            className="w-full sm:w-auto"
+            disabled={uploading || !uploadFile}
+            onClick={() => void submitUpload()}
+          >
+            {uploading ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Upload className="mr-2 size-4" />
+            )}
+            {t('govFollowUp.actions.uploadLetter')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
     </>
   );
 }

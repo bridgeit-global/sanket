@@ -317,6 +317,7 @@ export {
   getGovFollowUpMatterById,
   findMatterByLetterId,
   attachLetterToGovFollowUpMatter,
+  uploadGovFollowUpInwardLetter,
   findOpenMatterByLetterId,
   findOpenMatterByRegisterEntryId,
   getGovFollowUpPrefill,

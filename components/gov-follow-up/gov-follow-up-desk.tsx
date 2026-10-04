@@ -816,6 +816,10 @@ export function GovFollowUpDesk() {
         catalogs={catalogs}
         saving={saving}
         onLog={saveLog}
+        onUploaded={(payload) => {
+          setDetail(payload);
+          reloadDesk();
+        }}
       />
     </div>
   );

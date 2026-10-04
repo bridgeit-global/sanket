@@ -27,6 +27,7 @@ import type {
   GovFollowUpLocation,
   GovFollowUpLog,
   GovFollowUpLogKind,
+  GovFollowUpInwardLetter,
   GovFollowUpMatter,
   GovFollowUpMatterDetail,
   GovFollowUpMatterLetter,
@@ -45,7 +46,14 @@ import type {
   GovFollowUpSummary,
   GovFollowUpWard,
 } from '@/lib/gov-follow-up/types';
-import { getLetterById, getRegisterEntryById, getAddressMasters, getAddressTypeMasters } from '@/lib/db/queries-crud';
+import {
+  createRegisterAttachment,
+  createRegisterEntry,
+  getLetterById,
+  getRegisterEntryById,
+  getAddressMasters,
+  getAddressTypeMasters,
+} from '@/lib/db/queries-crud';
 import { getCadreMembersForWardScope } from '@/lib/db/cadre-queries';
 import {
   getMemberDisplayName,
@@ -55,6 +63,10 @@ import {
   defaultGovFollowUpLogBody,
   suggestedStatusForLogKind,
 } from '@/lib/gov-follow-up/workflow';
+import {
+  buildAppUploadPath,
+  uploadAppFile,
+} from '@/lib/storage/app-uploads';
 
 export type {
   GovFollowUpAddressOfficer,
@@ -304,7 +316,10 @@ async function lettersByMatterIds(
     ...new Set(
       matters
         .map((matter) => matter.letterId)
-        .filter((id): id is string => Boolean(id) && !seen.has(id)),
+        .filter((id): id is string => {
+          if (!id) return false;
+          return !seen.has(id);
+        }),
     ),
   ];
   if (legacyIds.length === 0) return result;
@@ -349,13 +364,152 @@ async function registerRefByIds(
   return map;
 }
 
+async function attachmentByEntryIds(
+  entryIds: string[],
+): Promise<Map<string, { fileName: string | null; fileUrl: string | null }>> {
+  const unique = [...new Set(entryIds.filter(Boolean))];
+  const map = new Map<
+    string,
+    { fileName: string | null; fileUrl: string | null }
+  >();
+  if (unique.length === 0) return map;
+
+  const { data, error } = await supabase
+    .from(TABLES.registerAttachment)
+    .select('entry_id, file_name, file_url, created_at')
+    .in('entry_id', unique)
+    .order('created_at', { ascending: true });
+  throwOnSupabaseError(error, 'Failed to load inward letter attachments');
+
+  for (const row of data ?? []) {
+    const entryId = String(row.entry_id ?? '');
+    if (!entryId || map.has(entryId)) continue;
+    map.set(entryId, {
+      fileName: row.file_name != null ? String(row.file_name) : null,
+      fileUrl: row.file_url != null ? String(row.file_url) : null,
+    });
+  }
+  return map;
+}
+
+type InwardRegisterRow = {
+  id: unknown;
+  date?: unknown;
+  from_to?: unknown;
+  subject?: unknown;
+  ref_no?: unknown;
+  officer?: unknown;
+  created_at?: unknown;
+  gov_follow_up_matter_id?: unknown;
+};
+
+function mapInwardLetterRow(
+  row: InwardRegisterRow,
+  attachment?: { fileName: string | null; fileUrl: string | null },
+): GovFollowUpInwardLetter {
+  return {
+    id: String(row.id),
+    date: String(row.date ?? ''),
+    fromTo: String(row.from_to ?? ''),
+    subject: String(row.subject ?? ''),
+    refNo: row.ref_no != null ? String(row.ref_no) : null,
+    officer: row.officer != null ? String(row.officer) : null,
+    fileName: attachment?.fileName ?? null,
+    fileUrl: attachment?.fileUrl ?? null,
+    createdAt: new Date(String(row.created_at)),
+  };
+}
+
+async function inwardLettersByMatterIds(
+  matters: Array<{ id: string; registerEntryId: string | null }>,
+): Promise<Map<string, GovFollowUpInwardLetter[]>> {
+  const matterIds = matters.map((matter) => matter.id).filter(Boolean);
+  const result = new Map<string, GovFollowUpInwardLetter[]>();
+  for (const id of matterIds) result.set(id, []);
+  if (matterIds.length === 0) return result;
+
+  const { data, error } = await supabase
+    .from(TABLES.registerEntry)
+    .select(
+      'id, date, from_to, subject, ref_no, officer, created_at, gov_follow_up_matter_id',
+    )
+    .eq('type', 'inward')
+    .in('gov_follow_up_matter_id', matterIds)
+    .order('created_at', { ascending: false });
+
+  const linkedRows = error ? [] : (data ?? []);
+  const seen = new Set(linkedRows.map((row) => String(row.id)));
+
+  // Legacy: matter.register_entry_id rows that predate the FK.
+  const legacyIds = [
+    ...new Set(
+      matters
+        .map((matter) => matter.registerEntryId)
+        .filter((id): id is string => {
+          if (!id) return false;
+          return !seen.has(id);
+        }),
+    ),
+  ];
+
+  let legacyRows: InwardRegisterRow[] = [];
+  if (legacyIds.length > 0) {
+    const { data: legacyData, error: legacyError } = await supabase
+      .from(TABLES.registerEntry)
+      .select('id, date, from_to, subject, ref_no, officer, created_at')
+      .eq('type', 'inward')
+      .in('id', legacyIds);
+    throwOnSupabaseError(legacyError, 'Failed to load legacy inward letters');
+    legacyRows = (legacyData ?? []) as InwardRegisterRow[];
+  }
+
+  const allEntryIds = [
+    ...linkedRows.map((row) => String(row.id)),
+    ...legacyRows.map((row) => String(row.id)),
+  ];
+  const attachments = await attachmentByEntryIds(allEntryIds);
+
+  for (const row of linkedRows) {
+    const matterId = String(row.gov_follow_up_matter_id ?? '');
+    if (!matterId) continue;
+    const letter = mapInwardLetterRow(row, attachments.get(String(row.id)));
+    const list = result.get(matterId) ?? [];
+    list.push(letter);
+    result.set(matterId, list);
+  }
+
+  const legacyById = new Map(
+    legacyRows.map((row) => [String(row.id), row]),
+  );
+  for (const matter of matters) {
+    if (!matter.registerEntryId) continue;
+    const row = legacyById.get(matter.registerEntryId);
+    if (!row) continue;
+    const list = result.get(matter.id) ?? [];
+    if (list.some((letter) => letter.id === matter.registerEntryId)) continue;
+    list.push(
+      mapInwardLetterRow(row, attachments.get(matter.registerEntryId)),
+    );
+    list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    result.set(matter.id, list);
+  }
+
+  return result;
+}
+
 async function hydrateMatters(
   rows: GovFollowUpMatter[],
 ): Promise<GovFollowUpMatterListItem[]> {
   const catalogs = await catalogMaps();
-  const [lettersByMatter, registerRefs] = await Promise.all([
+  const [lettersByMatter, inwardByMatter, registerRefs] = await Promise.all([
     lettersByMatterIds(
       rows.map((row) => ({ id: row.id, letterId: row.letterId })),
+    ),
+    inwardLettersByMatterIds(
+      rows.map((row) => ({
+        id: row.id,
+        registerEntryId: row.registerEntryId,
+      })),
     ),
     registerRefByIds(rows.map((r) => r.registerEntryId ?? '')),
   ]);
@@ -363,6 +517,7 @@ async function hydrateMatters(
     const department = catalogs.departmentById.get(matter.departmentId);
     const location = catalogs.locationById.get(matter.locationId);
     const letters = lettersByMatter.get(matter.id) ?? [];
+    const inwardLetters = inwardByMatter.get(matter.id) ?? [];
     return {
       ...matter,
       departmentName: department?.name ?? '',
@@ -373,10 +528,12 @@ async function hydrateMatters(
         ? (catalogs.userById.get(matter.staffUserId) ?? null)
         : null,
       letters,
+      inwardLetters,
       letterReferenceNo: letters[0]?.referenceNo ?? null,
-      registerRefNo: matter.registerEntryId
-        ? (registerRefs.get(matter.registerEntryId) ?? null)
-        : null,
+      registerRefNo:
+        matter.registerEntryId
+          ? (registerRefs.get(matter.registerEntryId) ?? null)
+          : (inwardLetters[0]?.refNo ?? null),
     };
   });
 }
@@ -977,6 +1134,114 @@ export async function attachLetterToGovFollowUpMatter(params: {
   throwOnSupabaseError(error, 'Failed to link letter to follow-up matter');
 }
 
+/**
+ * Upload a correspondence file for a matter: create an inward register entry,
+ * attach the file, link the matter, and log "inward obtained".
+ */
+export async function uploadGovFollowUpInwardLetter(params: {
+  matterId: string;
+  fileName: string;
+  fileSize: number;
+  contentType: string;
+  body: ArrayBuffer;
+  refNo?: string | null;
+  date?: string | null;
+  fromTo?: string | null;
+  performedBy: string;
+}): Promise<GovFollowUpMatterDetail> {
+  const matter = await getGovFollowUpMatterById(params.matterId);
+  if (!matter) {
+    throw new ChatSDKError('not_found:database', 'Follow-up matter not found');
+  }
+
+  const occurredOn =
+    (params.date || '').trim() || getTodayDateStringIST();
+  const refNo = emptyToNull(params.refNo);
+  const fromTo =
+    emptyToNull(params.fromTo) ||
+    matter.officeName ||
+    matter.departmentName ||
+    'Department';
+
+  const entry = await createRegisterEntry({
+    type: 'inward',
+    date: occurredOn,
+    fromTo,
+    subject: matter.subject,
+    refNo: refNo ?? undefined,
+    officer: matter.officerName ?? undefined,
+    govFollowUpMatterId: matter.id,
+    createdBy: params.performedBy,
+  });
+
+  const path = buildAppUploadPath(`register/${entry.id}`, params.fileName);
+  const uploaded = await uploadAppFile({
+    path,
+    body: params.body,
+    contentType: params.contentType,
+  });
+  await createRegisterAttachment({
+    entryId: entry.id,
+    fileName: params.fileName,
+    fileSizeKb: Math.max(1, Math.round(params.fileSize / 1024)),
+    fileUrl: uploaded.url,
+  });
+
+  const now = new Date().toISOString();
+  const inwardRefNo = refNo ?? matter.inwardRefNo;
+  const body = defaultGovFollowUpLogBody('inward', {
+    departmentName: matter.departmentName,
+    officeName: matter.officeName,
+    officerName: matter.officerName,
+    designation: matter.designation,
+    deskName: matter.deskName,
+    inwardRefNo,
+  });
+
+  await insertLog({
+    matterId: matter.id,
+    occurredOn,
+    kind: 'inward',
+    mode: 'letter',
+    body,
+    snapshot: pendingSnapshot({
+      departmentId: matter.departmentId,
+      locationId: matter.locationId,
+      officeName: matter.officeName,
+      officerName: matter.officerName,
+      designation: matter.designation,
+      deskName: matter.deskName,
+      presentStage: matter.presentStage,
+    }),
+    nextFollowUpOn: matter.nextFollowUpOn,
+    nextAction: matter.nextAction,
+    performedBy: params.performedBy,
+  });
+
+  const { error } = await supabase
+    .from(TABLES.govFollowUpMatter)
+    .update({
+      register_entry_id: entry.id,
+      inward_ref_no: emptyToNull(inwardRefNo),
+      last_log_kind: 'inward',
+      last_follow_up_on: occurredOn,
+      last_follow_up_mode: 'letter',
+      last_response: body,
+      updated_at: now,
+    })
+    .eq('id', matter.id);
+  throwOnSupabaseError(error, 'Failed to link inward letter to follow-up matter');
+
+  const detail = await getGovFollowUpMatterById(matter.id);
+  if (!detail) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Failed to reload follow-up matter',
+    );
+  }
+  return detail;
+}
+
 export async function findOpenMatterByLetterId(
   letterId: string,
 ): Promise<GovFollowUpMatter | null> {
@@ -997,7 +1262,27 @@ export async function findOpenMatterByRegisterEntryId(
     .in('status', OPEN)
     .limit(1);
   throwOnSupabaseError(error, 'Failed to find follow-up by register entry');
-  return data?.[0] ? mapGovFollowUpMatterRow(data[0]) : null;
+  if (data?.[0]) return mapGovFollowUpMatterRow(data[0]);
+
+  const { data: entry, error: entryError } = await supabase
+    .from(TABLES.registerEntry)
+    .select('gov_follow_up_matter_id')
+    .eq('id', registerEntryId)
+    .maybeSingle();
+  throwOnSupabaseError(entryError, 'Failed to find follow-up by register entry');
+  const matterId = entry?.gov_follow_up_matter_id
+    ? String(entry.gov_follow_up_matter_id)
+    : '';
+  if (!matterId) return null;
+
+  const { data: linked, error: linkedError } = await supabase
+    .from(TABLES.govFollowUpMatter)
+    .select('*')
+    .eq('id', matterId)
+    .in('status', OPEN)
+    .limit(1);
+  throwOnSupabaseError(linkedError, 'Failed to find follow-up by register entry');
+  return linked?.[0] ? mapGovFollowUpMatterRow(linked[0]) : null;
 }
 
 export async function getGovFollowUpPrefill(options: {
@@ -1151,6 +1436,21 @@ export async function createGovFollowUpMatter(params: {
   throwOnSupabaseError(error, 'Failed to create follow-up matter');
 
   const matter = mapGovFollowUpMatterRow(data);
+
+  if (matter.registerEntryId) {
+    const { error: linkError } = await supabase
+      .from(TABLES.registerEntry)
+      .update({
+        gov_follow_up_matter_id: matter.id,
+        updated_at: now,
+      })
+      .eq('id', matter.registerEntryId);
+    throwOnSupabaseError(
+      linkError,
+      'Failed to link register entry to follow-up matter',
+    );
+  }
+
   const departments = await listGovFollowUpDepartments();
   const departmentName =
     departments.find((dept) => dept.id === input.departmentId)?.name ?? null;

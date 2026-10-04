@@ -5099,6 +5099,7 @@ export async function createRegisterEntry({
   officer,
   assignedPerson,
   assignedPhone,
+  govFollowUpMatterId,
   createdBy,
 }: {
   type: 'inward' | 'outward';
@@ -5112,6 +5113,7 @@ export async function createRegisterEntry({
   officer?: string;
   assignedPerson?: string;
   assignedPhone?: string;
+  govFollowUpMatterId?: string | null;
   createdBy: string;
 }): Promise<RegisterEntry> {
   try {
@@ -5131,6 +5133,7 @@ export async function createRegisterEntry({
           officer: officer || null,
           assignedPerson: assignedPerson || null,
           assignedPhone: assignedPhone || null,
+          govFollowUpMatterId: govFollowUpMatterId || null,
           createdBy,
           createdAt: now,
           updatedAt: now,

@@ -81,17 +81,35 @@ function MatterCard({
         </div>
         <MatterBadges matter={matter} />
       </div>
-      {(matter.letters ?? []).length > 0 ? (
-        <div className="text-muted-foreground mt-2 text-xs">
-          {t('govFollowUp.letters.count', {
-            count: matter.letters.length,
-          })}
-          {matter.letters[0]?.referenceNo
-            ? ` · ${matter.letters[0].referenceNo}`
-            : ''}
-          {matter.letters.length > 1
-            ? ` +${matter.letters.length - 1}`
-            : ''}
+      {(matter.letters ?? []).length > 0 ||
+      (matter.inwardLetters ?? []).length > 0 ? (
+        <div className="text-muted-foreground mt-2 space-y-0.5 text-xs">
+          {(matter.letters ?? []).length > 0 ? (
+            <div>
+              {t('govFollowUp.letters.count', {
+                count: matter.letters.length,
+              })}
+              {matter.letters[0]?.referenceNo
+                ? ` · ${matter.letters[0].referenceNo}`
+                : ''}
+              {matter.letters.length > 1
+                ? ` +${matter.letters.length - 1}`
+                : ''}
+            </div>
+          ) : null}
+          {(matter.inwardLetters ?? []).length > 0 ? (
+            <div>
+              {t('govFollowUp.letters.inwardCount', {
+                count: matter.inwardLetters.length,
+              })}
+              {matter.inwardLetters[0]?.refNo
+                ? ` · ${matter.inwardLetters[0].refNo}`
+                : ''}
+              {matter.inwardLetters.length > 1
+                ? ` +${matter.inwardLetters.length - 1}`
+                : ''}
+            </div>
+          ) : null}
         </div>
       ) : null}
       <dl className="mt-3 grid gap-2 text-sm">
@@ -241,6 +259,18 @@ export function GovFollowUpMatterTable({
                           {': '}
                           {matter.letters
                             .map((letter) => letter.referenceNo || letter.title)
+                            .filter(Boolean)
+                            .join(', ')}
+                        </div>
+                      ) : null}
+                      {(matter.inwardLetters ?? []).length > 0 ? (
+                        <div className="text-muted-foreground mt-1 max-w-[280px] truncate text-xs">
+                          {t('govFollowUp.letters.inwardCount', {
+                            count: matter.inwardLetters.length,
+                          })}
+                          {': '}
+                          {matter.inwardLetters
+                            .map((letter) => letter.refNo || letter.subject)
                             .filter(Boolean)
                             .join(', ')}
                         </div>
