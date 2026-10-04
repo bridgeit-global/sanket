@@ -27,7 +27,8 @@
     "test:api": "vitest run --config vitest.api.config.ts",
     "test:component": "vitest run --config vitest.component.config.ts",
     "test:e2e": "pnpm test",
-    "test:all": "pnpm run test:unit && pnpm run test:integration && pnpm run test:api && pnpm run test:component && pnpm run test:e2e"
+    "test:all": "pnpm run test:unit && pnpm run test:integration && pnpm run test:api && pnpm run test:component && pnpm run test:e2e",
+    "postinstall": "node -e \"require('fs').copyFileSync('node_modules/pdfjs-dist/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs')\""
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.0",
@@ -88,6 +89,7 @@
     "orderedmap": "^2.1.1",
     "pako": "^2.1.0",
     "papaparse": "^5.5.2",
+    "pdfjs-dist": "^6.4.299",
     "postgres": "^3.4.4",
     "prosemirror-example-setup": "^1.2.3",
     "prosemirror-inputrules": "^1.4.0",

@@ -11,7 +11,6 @@ import {
 import { Button } from '@/components/ui/button';
 import {
   Download,
-  ExternalLink,
   FileText,
   Minus,
   Plus,
@@ -20,6 +19,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/components/toast';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { MobilePdfCanvas } from '@/components/mobile-pdf-canvas';
 import {
   FILE_PREVIEW_ZOOM_MAX,
   FILE_PREVIEW_ZOOM_MIN,
@@ -30,6 +30,7 @@ import {
   downloadFileFromUrl,
   isImageFile,
   isPdfFile,
+  needsCanvasPdfPreview,
   touchDistance,
 } from '@/lib/file-preview';
 import { cn } from '@/lib/utils';
@@ -52,6 +53,8 @@ export function FilePreviewDialog({
   sourceUrl,
 }: FilePreviewDialogProps) {
   const isMobile = useIsMobile();
+  const [useCanvasPdf, setUseCanvasPdf] = useState(false);
+  const [pdfModeReady, setPdfModeReady] = useState(false);
   const previewIframeRef = useRef<HTMLIFrameElement>(null);
   const zoomRootRef = useRef<HTMLDivElement>(null);
   const zoomFactorRef = useRef(1);
@@ -59,26 +62,26 @@ export function FilePreviewDialog({
     null,
   );
   const [zoomFactor, setZoomFactor] = useState(1);
-  // Prefer in-dialog blob preview on mobile too. Only surface the native-viewer
-  // helper when the inline frame cannot paint; Open uses the blob URL.
-  const [mobilePdfInlineFailed, setMobilePdfInlineFailed] = useState(false);
+
+  useEffect(() => {
+    // Decide once on the client so we never flash a dead iframe on iOS/mobile.
+    setUseCanvasPdf(needsCanvasPdfPreview() || window.innerWidth < 768);
+    setPdfModeReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!pdfModeReady) return;
+    setUseCanvasPdf(needsCanvasPdfPreview() || isMobile);
+  }, [isMobile, pdfModeReady]);
 
   const effectiveSourceUrl = sourceUrl || fileUrl;
   const previewIsImage = !!fileName && isImageFile(fileName);
   const previewIsPdf = !!fileName && isPdfFile(fileName);
-  const showMobilePdfFallback =
-    previewIsPdf && isMobile && mobilePdfInlineFailed;
+  // Mobile widths + iOS/iPadOS (iframe/object PDF embedding is unsupported).
+  const useMobilePdfCanvas = previewIsPdf && useCanvasPdf;
   const canZoom =
-    open &&
-    !!fileUrl &&
-    !!fileName &&
-    canPreviewInline(fileName) &&
-    !showMobilePdfFallback;
+    open && !!fileUrl && !!fileName && canPreviewInline(fileName);
   const zoomPercent = Math.round(zoomFactor * 100);
-
-  useEffect(() => {
-    setMobilePdfInlineFailed(false);
-  }, [fileUrl, fileName, open]);
 
   const setZoom = useCallback((next: number, snap = false) => {
     const clamped = snap
@@ -271,7 +274,7 @@ export function FilePreviewDialog({
                 </Button>
               </div>
             )}
-            {canZoom && (
+            {canZoom && !useMobilePdfCanvas && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -306,30 +309,25 @@ export function FilePreviewDialog({
           )}
         >
           {fileUrl && fileName && canPreviewInline(fileName) ? (
-            showMobilePdfFallback ? (
-              <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-                <FileText className="h-12 w-12 text-muted-foreground opacity-50" />
-                <p className="text-sm text-muted-foreground">
-                  This browser can&apos;t show the PDF inline. Open it in your
-                  device viewer instead.
-                </p>
-                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                  <Button
-                    className="w-full sm:w-auto"
-                    onClick={handleOpenExternally}
-                  >
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    Open PDF
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                    onClick={handleDownload}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Download
-                  </Button>
-                </div>
+            previewIsPdf && !pdfModeReady ? (
+              <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">
+                Loading PDF…
+              </div>
+            ) : useMobilePdfCanvas ? (
+              <div
+                className="h-full w-full"
+                style={{
+                  transform: `scale(${zoomFactor})`,
+                  transformOrigin: 'top left',
+                  width: `${100 / zoomFactor}%`,
+                  height: `${100 / zoomFactor}%`,
+                }}
+              >
+                <MobilePdfCanvas
+                  fileUrl={fileUrl}
+                  fileName={fileName}
+                  onOpenExternally={handleOpenExternally}
+                />
               </div>
             ) : (
               <div
@@ -358,35 +356,6 @@ export function FilePreviewDialog({
                       className="max-h-full max-w-full object-contain"
                       draggable={false}
                     />
-                  ) : previewIsPdf && isMobile ? (
-                    <object
-                      data={fileUrl}
-                      type="application/pdf"
-                      title={fileName}
-                      className="h-full w-full"
-                    >
-                      <embed
-                        src={fileUrl}
-                        type="application/pdf"
-                        title={fileName}
-                        className="h-full w-full"
-                      />
-                      <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-                        <p className="text-sm text-muted-foreground">
-                          Inline PDF preview isn&apos;t supported here.
-                        </p>
-                        <Button
-                          className="w-full sm:w-auto"
-                          onClick={() => {
-                            setMobilePdfInlineFailed(true);
-                            handleOpenExternally();
-                          }}
-                        >
-                          <ExternalLink className="mr-2 h-4 w-4" />
-                          Open PDF
-                        </Button>
-                      </div>
-                    </object>
                   ) : (
                     <iframe
                       ref={previewIframeRef}

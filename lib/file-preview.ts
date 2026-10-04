@@ -16,6 +16,15 @@ export function isPdfFile(fileName: string) {
   return getFileExt(fileName) === 'pdf';
 }
 
+/** Browsers that cannot paint PDFs inside iframe/object/embed (iOS / iPadOS). */
+export function needsCanvasPdfPreview(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const ua = navigator.userAgent;
+  if (/iPad|iPhone|iPod/i.test(ua)) return true;
+  // iPadOS 13+ can report as MacIntel with touch
+  return navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+}
+
 export function canPreviewInline(fileName: string) {
   const ext = getFileExt(fileName);
   return [...IMAGE_EXTS, 'pdf', 'txt'].includes(ext);
