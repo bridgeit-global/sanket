@@ -26,6 +26,7 @@ import {
   RefreshCw,
   Save,
   Send,
+  ShieldCheck,
   Trash2,
   X,
   PhoneCall,
@@ -76,6 +77,11 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -5274,49 +5280,253 @@ export function LetterGeneration({
   const renderSavedLetterActions = (
     letter: SavedLetterRow,
     layout: 'stack' | 'inline' = 'inline',
-  ) => (
-    <div
-      className={cn(
-        'flex gap-2',
-        layout === 'stack'
-          ? 'flex-col'
-          : 'flex-col sm:flex-row sm:flex-wrap sm:justify-end',
-      )}
-    >
-      {letterWorkflowStatus(letter.status) === 'draft' ? (
-        <>
+  ) => {
+    const iconButtonClass = 'h-10 w-10 shrink-0';
+    const verifyDisabled =
+      verifyingLetterId === letter.id || submittingLetterId === letter.id;
+    const submitDisabled =
+      submittingLetterId === letter.id || verifyingLetterId === letter.id;
+
+    return (
+      <div
+        className={cn(
+          'flex flex-wrap gap-2',
+          layout === 'stack' ? 'justify-start' : 'justify-end',
+        )}
+      >
+        {letterWorkflowStatus(letter.status) === 'draft' ? (
+          <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className={iconButtonClass}
+                  onClick={() => handleEditDraft(letter)}
+                  aria-label={t('letterGeneration.savedLetters.actions.edit')}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {t('letterGeneration.savedLetters.actions.edit')}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="inline-flex">
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className={iconButtonClass}
+                    onClick={() =>
+                      void handleSendSavedDraftForVerification(letter)
+                    }
+                    disabled={verifyDisabled}
+                    aria-label={t(
+                      'letterGeneration.savedLetters.sendForVerification',
+                    )}
+                  >
+                    {verifyingLetterId === letter.id ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <ShieldCheck className="size-4" />
+                    )}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                {t('letterGeneration.savedLetters.sendForVerification')}
+              </TooltipContent>
+            </Tooltip>
+          </>
+        ) : null}
+        {isAdmin &&
+        letterWorkflowStatus(letter.status) === 'pending_verification' ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <Button
+                  type="button"
+                  size="icon"
+                  className={iconButtonClass}
+                  onClick={() => void handleApproveLetter(letter)}
+                  disabled={approvingLetterId === letter.id}
+                  aria-label={t('letterGeneration.savedLetters.actions.approve')}
+                >
+                  {approvingLetterId === letter.id ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Check className="size-4" />
+                  )}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {t('letterGeneration.savedLetters.actions.approve')}
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className={iconButtonClass}
+                onClick={() => void handlePrintSavedLetter(letter)}
+                disabled={printingLetterId === letter.id}
+                aria-label={t('letterGeneration.savedLetters.actions.print')}
+              >
+                {printingLetterId === letter.id ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Printer className="size-4" />
+                )}
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            {t('letterGeneration.savedLetters.actions.print')}
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className={iconButtonClass}
+                onClick={() => void handleDownloadSavedLetter(letter)}
+                disabled={downloadingLetterId === letter.id}
+                aria-label={t('letterGeneration.savedLetters.actions.download')}
+              >
+                {downloadingLetterId === letter.id ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <FileDown className="size-4" />
+                )}
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            {t('letterGeneration.savedLetters.actions.download')}
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              className={iconButtonClass}
+              onClick={() => setSelectedSavedLetterId(letter.id)}
+              aria-label={t('letterGeneration.savedLetters.actions.preview')}
+            >
+              <Eye className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {t('letterGeneration.savedLetters.actions.preview')}
+          </TooltipContent>
+        </Tooltip>
+        {outwardAddedReferenceNos.has(letter.referenceNo) ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                asChild
+                size="icon"
+                variant="outline"
+                className={iconButtonClass}
+              >
+                <Link
+                  href={buildOutwardEntryHref(letter)}
+                  aria-label={t(
+                    'letterGeneration.savedLetters.actions.goToOutward',
+                  )}
+                >
+                  <ExternalLink className="size-4" />
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {t('letterGeneration.savedLetters.actions.goToOutward')}
+            </TooltipContent>
+          </Tooltip>
+        ) : (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className={iconButtonClass}
+                  onClick={() => void handleAddLetterToOutward(letter)}
+                  disabled={addingToOutwardLetterId === letter.id}
+                  aria-label={t(
+                    'letterGeneration.savedLetters.actions.addToOutward',
+                  )}
+                >
+                  {addingToOutwardLetterId === letter.id ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Send className="size-4" />
+                  )}
+                </Button>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {t('letterGeneration.savedLetters.actions.addToOutward')}
+            </TooltipContent>
+          </Tooltip>
+        )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              asChild
+              size="icon"
+              variant="outline"
+              className={iconButtonClass}
+            >
+              <Link
+                href={`/modules/gov-follow-up?new=1&letterId=${letter.id}`}
+                aria-label={t('govFollowUp.startFollowUp')}
+              >
+                <PhoneCall className="size-4" />
+              </Link>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('govFollowUp.startFollowUp')}</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              size="icon"
+              variant="destructive"
+              className={iconButtonClass}
+              onClick={() => handleDeleteSavedLetter(letter.id)}
+              aria-label={t('letterGeneration.savedLetters.actions.delete')}
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {t('letterGeneration.savedLetters.actions.delete')}
+          </TooltipContent>
+        </Tooltip>
+        {letterWorkflowStatus(letter.status) === 'draft' ? (
           <Button
+            type="button"
             size="sm"
-            variant="outline"
-            className="h-10 w-full sm:w-auto"
-            onClick={() => handleEditDraft(letter)}
-          >
-            <Pencil className="mr-2 size-4" />
-            {t('letterGeneration.savedLetters.actions.edit')}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-10 w-full sm:w-auto"
-            onClick={() => void handleSendSavedDraftForVerification(letter)}
-            disabled={
-              verifyingLetterId === letter.id || submittingLetterId === letter.id
-            }
-          >
-            {verifyingLetterId === letter.id ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
-            ) : (
-              <Send className="mr-2 size-4" />
-            )}
-            {t('letterGeneration.savedLetters.sendForVerification')}
-          </Button>
-          <Button
-            size="sm"
-            className="h-10 w-full sm:w-auto"
+            className="h-10 w-auto"
             onClick={() => void handleSubmitSavedDraft(letter)}
-            disabled={
-              submittingLetterId === letter.id || verifyingLetterId === letter.id
-            }
+            disabled={submitDisabled}
           >
             {submittingLetterId === letter.id ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
@@ -5325,124 +5535,10 @@ export function LetterGeneration({
             )}
             {t('letterGeneration.savedLetters.actions.submit')}
           </Button>
-        </>
-      ) : null}
-      {isAdmin && letterWorkflowStatus(letter.status) === 'pending_verification' ? (
-        <Button
-          size="sm"
-          className="h-10 w-full sm:w-auto"
-          onClick={() => void handleApproveLetter(letter)}
-          disabled={approvingLetterId === letter.id}
-        >
-          {approvingLetterId === letter.id ? (
-            <Loader2 className="mr-2 size-4 animate-spin" />
-          ) : (
-            <Check className="mr-2 size-4" />
-          )}
-          {t('letterGeneration.savedLetters.actions.approve')}
-        </Button>
-      ) : null}
-      <Button
-        size="sm"
-        variant="outline"
-        className="h-10 w-full sm:w-auto"
-        onClick={() => void handlePrintSavedLetter(letter)}
-        disabled={printingLetterId === letter.id}
-      >
-        {printingLetterId === letter.id ? (
-          <Loader2 className="mr-2 size-4 animate-spin" />
-        ) : (
-          <Printer className="mr-2 size-4" />
-        )}
-        {t('letterGeneration.savedLetters.actions.print')}
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className="h-10 w-full sm:w-auto"
-        onClick={() => void handleDownloadSavedLetter(letter)}
-        disabled={downloadingLetterId === letter.id}
-      >
-        {downloadingLetterId === letter.id ? (
-          <Loader2 className="mr-2 size-4 animate-spin" />
-        ) : (
-          <FileDown className="mr-2 size-4" />
-        )}
-        {t('letterGeneration.savedLetters.actions.download')}
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className="h-10 w-full sm:w-auto"
-        onClick={() => setSelectedSavedLetterId(letter.id)}
-      >
-        <Eye className="mr-2 size-4" />
-        {t('letterGeneration.savedLetters.actions.preview')}
-      </Button>
-      {outwardAddedReferenceNos.has(letter.referenceNo) ? (
-        <Button
-          asChild
-          size="sm"
-          variant="outline"
-          className="h-10 w-full sm:w-auto"
-        >
-          <Link href={buildOutwardEntryHref(letter)}>
-            <ExternalLink className="mr-2 size-4" />
-            {t('letterGeneration.savedLetters.actions.goToOutward')}
-          </Link>
-        </Button>
-      ) : (
-        <Button
-          size="sm"
-          variant="outline"
-          className="h-10 w-full sm:w-auto"
-          onClick={() => void handleAddLetterToOutward(letter)}
-          disabled={addingToOutwardLetterId === letter.id}
-        >
-          {addingToOutwardLetterId === letter.id ? (
-            <Loader2 className="mr-2 size-4 animate-spin" />
-          ) : (
-            <Send className="mr-2 size-4" />
-          )}
-          {t('letterGeneration.savedLetters.actions.addToOutward')}
-        </Button>
-      )}
-      <Button
-        asChild
-        size="sm"
-        variant="outline"
-        className="h-10 w-full sm:w-auto"
-      >
-        <Link href={`/modules/gov-follow-up?new=1&letterId=${letter.id}`}>
-          <PhoneCall className="mr-2 size-4" />
-          {t('govFollowUp.startFollowUp')}
-        </Link>
-      </Button>
-      {/* <Button
-        size="sm"
-        variant="outline"
-        className="h-10 w-full sm:w-auto"
-        onClick={() => void handleRegenerateSavedLetter(letter)}
-        disabled={regeneratingLetterId === letter.id}
-      >
-        {regeneratingLetterId === letter.id ? (
-          <Loader2 className="mr-2 size-4 animate-spin" />
-        ) : (
-          <RefreshCw className="mr-2 size-4" />
-        )}
-        {t('letterGeneration.savedLetters.actions.regenerate')}
-      </Button> */}
-      <Button
-        size="sm"
-        variant="destructive"
-        className="h-10 w-full sm:w-auto"
-        onClick={() => handleDeleteSavedLetter(letter.id)}
-      >
-        <Trash2 className="mr-2 size-4" />
-        {t('letterGeneration.savedLetters.actions.delete')}
-      </Button>
-    </div>
-  );
+        ) : null}
+      </div>
+    );
+  };
 
   const renderCommonFields = <T extends CommonLetterFields>(
     fields: T,
@@ -8481,76 +8577,144 @@ export function LetterGeneration({
                         </p>
                       ) : null}
                     </div>
-                    <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center sm:justify-end">
-                      <Button
-                        variant="outline"
-                        className="h-10 w-full sm:w-auto"
-                        onClick={() => setLivePreviewFullscreen(true)}
-                      >
-                        <Maximize2 className="mr-2 size-4" />
-                        {t('letterGeneration.savedLetters.actions.fullscreen')}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="h-10 w-full sm:w-auto"
-                        onClick={() => setClearAllDialogOpen(true)}
-                      >
-                        <Eraser className="mr-2 size-4" />
-                        {t('letterGeneration.clearAll')}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="h-10 w-full sm:w-auto"
-                        onClick={() => void handleSaveDraft()}
-                        disabled={
-                          isSaving || isSubmitting || isSendingForVerification
-                        }
-                      >
-                        {isSaving && !isSubmitting && !isSendingForVerification ? (
-                          <Loader2 className="mr-2 size-4 animate-spin" />
-                        ) : (
-                          <Save className="mr-2 size-4" />
-                        )}
-                        {t('letterGeneration.savedLetters.saveDraft')}
-                      </Button>
+                    <div className="flex w-full flex-wrap items-center justify-end gap-2">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 shrink-0"
+                            onClick={() => setLivePreviewFullscreen(true)}
+                            aria-label={t(
+                              'letterGeneration.savedLetters.actions.fullscreen',
+                            )}
+                          >
+                            <Maximize2 className="size-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {t('letterGeneration.savedLetters.actions.fullscreen')}
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-10 w-10 shrink-0"
+                            onClick={() => setClearAllDialogOpen(true)}
+                            aria-label={t('letterGeneration.clearAll')}
+                          >
+                            <Eraser className="size-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {t('letterGeneration.clearAll')}
+                        </TooltipContent>
+                      </Tooltip>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-10 w-10 shrink-0"
+                              onClick={() => void handleSaveDraft()}
+                              disabled={
+                                isSaving ||
+                                isSubmitting ||
+                                isSendingForVerification
+                              }
+                              aria-label={t(
+                                'letterGeneration.savedLetters.saveDraft',
+                              )}
+                            >
+                              {isSaving &&
+                              !isSubmitting &&
+                              !isSendingForVerification ? (
+                                <Loader2 className="size-4 animate-spin" />
+                              ) : (
+                                <Save className="size-4" />
+                              )}
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {t('letterGeneration.savedLetters.saveDraft')}
+                        </TooltipContent>
+                      </Tooltip>
                       {editingSavedLetter ? (
-                        <Button
-                          variant="outline"
-                          className="h-10 w-full sm:w-auto"
-                          onClick={() =>
-                            void handlePrintSavedLetter(editingSavedLetter)
-                          }
-                          disabled={
-                            isSaving ||
-                            isSubmitting ||
-                            isSendingForVerification ||
-                            printingLetterId === editingSavedLetter.id
-                          }
-                        >
-                          {printingLetterId === editingSavedLetter.id ? (
-                            <Loader2 className="mr-2 size-4 animate-spin" />
-                          ) : (
-                            <Printer className="mr-2 size-4" />
-                          )}
-                          {t('letterGeneration.savedLetters.actions.print')}
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="h-10 w-10 shrink-0"
+                                onClick={() =>
+                                  void handlePrintSavedLetter(editingSavedLetter)
+                                }
+                                disabled={
+                                  isSaving ||
+                                  isSubmitting ||
+                                  isSendingForVerification ||
+                                  printingLetterId === editingSavedLetter.id
+                                }
+                                aria-label={t(
+                                  'letterGeneration.savedLetters.actions.print',
+                                )}
+                              >
+                                {printingLetterId === editingSavedLetter.id ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                  <Printer className="size-4" />
+                                )}
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {t('letterGeneration.savedLetters.actions.print')}
+                          </TooltipContent>
+                        </Tooltip>
                       ) : null}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="inline-flex">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-10 w-10 shrink-0"
+                              onClick={() => void handleSendForVerification()}
+                              disabled={
+                                isSaving ||
+                                isSubmitting ||
+                                isSendingForVerification
+                              }
+                              aria-label={t(
+                                'letterGeneration.savedLetters.sendForVerification',
+                              )}
+                            >
+                              {isSendingForVerification ? (
+                                <Loader2 className="size-4 animate-spin" />
+                              ) : (
+                                <ShieldCheck className="size-4" />
+                              )}
+                            </Button>
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {t(
+                            'letterGeneration.savedLetters.sendForVerification',
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
                       <Button
-                        variant="outline"
-                        className="h-10 w-full sm:w-auto"
-                        onClick={() => void handleSendForVerification()}
-                        disabled={
-                          isSaving || isSubmitting || isSendingForVerification
-                        }
-                      >
-                        {isSendingForVerification ? (
-                          <Loader2 className="mr-2 size-4 animate-spin" />
-                        ) : (
-                          <Send className="mr-2 size-4" />
-                        )}
-                        {t('letterGeneration.savedLetters.sendForVerification')}
-                      </Button>
-                      <Button
+                        type="button"
                         className="h-10 w-full sm:w-auto"
                         onClick={() => void handleSubmitLetter()}
                         disabled={
@@ -8933,7 +9097,7 @@ export function LetterGeneration({
                                     {verifyingLetterId === selectedSavedLetter.id ? (
                                       <Loader2 className="size-4 shrink-0 animate-spin sm:mr-2" />
                                     ) : (
-                                      <Send className="size-4 shrink-0 sm:mr-2" />
+                                      <ShieldCheck className="size-4 shrink-0 sm:mr-2" />
                                     )}
                                     <span className="hidden sm:inline">
                                       {t(
