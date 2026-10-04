@@ -5017,6 +5017,15 @@ export function LetterGeneration({
     lastSavedSnapshotRef.current = null;
     editingLetterIdRef.current = null;
     setEditingLetterId(null);
+    setSelectedSavedLetterId(null);
+    lastSavedLetterRef.current = null;
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('letterId')) {
+        url.searchParams.delete('letterId');
+        window.history.replaceState(window.history.state, '', url.toString());
+      }
+    }
     setDraftSaveStatus('idle');
     referenceNumberAutoRef.current = true;
     void refreshReferenceSequence(defaultReferencePrefix(letterLocale), {

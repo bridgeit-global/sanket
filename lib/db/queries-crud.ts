@@ -4655,6 +4655,7 @@ export async function createLetter({
   paperSize,
   createdBy,
   beneficiaryServiceId,
+  govFollowUpMatterId,
 }: {
   letterMasterId?: string | null;
   letterType: string;
@@ -4666,6 +4667,7 @@ export async function createLetter({
   paperSize?: 'a4' | 'a5' | 'b5';
   createdBy?: string | null;
   beneficiaryServiceId?: string | null;
+  govFollowUpMatterId?: string | null;
 }): Promise<Letter> {
   try {
     const { resolveLetterPaperSize } = await import('@/lib/letters/paper-size');
@@ -4685,6 +4687,7 @@ export async function createLetter({
           status: 'draft',
           createdBy: createdBy || null,
           beneficiaryServiceId: beneficiaryServiceId || null,
+          govFollowUpMatterId: govFollowUpMatterId || null,
           createdAt: now,
           updatedAt: now,
         }),
@@ -4702,9 +4705,11 @@ export async function createLetter({
 export async function getLetters({
   limit = 50,
   beneficiaryServiceId,
+  govFollowUpMatterId,
 }: {
   limit?: number;
   beneficiaryServiceId?: string;
+  govFollowUpMatterId?: string;
 } = {}): Promise<Array<Letter>> {
   try {
     let query = supabase
@@ -4714,6 +4719,9 @@ export async function getLetters({
       .limit(limit);
     if (beneficiaryServiceId) {
       query = query.eq('beneficiary_service_id', beneficiaryServiceId);
+    }
+    if (govFollowUpMatterId) {
+      query = query.eq('gov_follow_up_matter_id', govFollowUpMatterId);
     }
     const { data, error } = await query;
     throwOnSupabaseError(error, 'Failed to get letters');

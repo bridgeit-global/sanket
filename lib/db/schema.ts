@@ -329,6 +329,7 @@ export type Letter = {
   approvedBy: string | null;
   createdBy: string | null;
   beneficiaryServiceId: string | null;
+  govFollowUpMatterId: string | null;
   createdAt: Date;
   updatedAt: Date;
 };

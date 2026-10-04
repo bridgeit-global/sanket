@@ -859,6 +859,20 @@ export async function getGovFollowUpMatterById(
 export async function findMatterByLetterId(
   letterId: string,
 ): Promise<GovFollowUpMatter | null> {
+  const { data: letterRow, error: letterError } = await supabase
+    .from(TABLES.letter)
+    .select('gov_follow_up_matter_id')
+    .eq('id', letterId)
+    .maybeSingle();
+  throwOnSupabaseError(letterError, 'Failed to find follow-up by letter');
+  const matterId = letterRow?.gov_follow_up_matter_id
+    ? String(letterRow.gov_follow_up_matter_id)
+    : null;
+  if (matterId) {
+    return getGovFollowUpMatterById(matterId);
+  }
+
+  // Legacy fallback: matter still points at this letter via letter_id.
   const { data, error } = await supabase
     .from(TABLES.govFollowUpMatter)
     .select('*')
@@ -873,11 +887,22 @@ export async function attachLetterToGovFollowUpMatter(params: {
   matterId: string;
   letterId: string;
 }): Promise<void> {
+  const now = new Date().toISOString();
+  const { error: letterError } = await supabase
+    .from(TABLES.letter)
+    .update({
+      gov_follow_up_matter_id: params.matterId,
+      updated_at: now,
+    })
+    .eq('id', params.letterId);
+  throwOnSupabaseError(letterError, 'Failed to link letter to follow-up matter');
+
+  // Keep matter.letter_id as the latest letter for shortcuts / prefill.
   const { error } = await supabase
     .from(TABLES.govFollowUpMatter)
     .update({
       letter_id: params.letterId,
-      updated_at: new Date().toISOString(),
+      updated_at: now,
     })
     .eq('id', params.matterId);
   throwOnSupabaseError(error, 'Failed to link letter to follow-up matter');
@@ -886,14 +911,11 @@ export async function attachLetterToGovFollowUpMatter(params: {
 export async function findOpenMatterByLetterId(
   letterId: string,
 ): Promise<GovFollowUpMatter | null> {
-  const { data, error } = await supabase
-    .from(TABLES.govFollowUpMatter)
-    .select('*')
-    .eq('letter_id', letterId)
-    .in('status', OPEN)
-    .limit(1);
-  throwOnSupabaseError(error, 'Failed to find follow-up by letter');
-  return data?.[0] ? mapGovFollowUpMatterRow(data[0]) : null;
+  const matter = await findMatterByLetterId(letterId);
+  if (matter && isOpenGovFollowUpStatus(matter.status)) {
+    return matter;
+  }
+  return null;
 }
 
 export async function findOpenMatterByRegisterEntryId(

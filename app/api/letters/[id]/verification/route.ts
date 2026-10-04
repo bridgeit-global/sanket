@@ -14,6 +14,8 @@ async function letterPageUrl(letter: Letter): Promise<string> {
   const params = new URLSearchParams({ letterId: letter.id });
   if (letter.beneficiaryServiceId) {
     params.set('beneficiaryServiceId', letter.beneficiaryServiceId);
+  } else if (letter.govFollowUpMatterId) {
+    params.set('govFollowUpMatterId', letter.govFollowUpMatterId);
   } else {
     const matter = await findMatterByLetterId(letter.id);
     if (matter) params.set('govFollowUpMatterId', matter.id);

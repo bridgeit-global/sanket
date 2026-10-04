@@ -5,7 +5,6 @@ import {
   attachLetterToGovFollowUpMatter,
   createLetter,
   getGovFollowUpMatterById,
-  getLetterById,
   getLetterByReferenceNo,
   getLetters,
   resolveDocumentTypeReferenceForSave,
@@ -55,11 +54,14 @@ export async function GET(request: NextRequest) {
 
     if (govFollowUpMatterId) {
       const matter = await getGovFollowUpMatterById(govFollowUpMatterId);
-      if (!matter?.letterId) {
+      if (!matter) {
         return NextResponse.json({ letters: [] });
       }
-      const letter = await getLetterById(matter.letterId);
-      return NextResponse.json({ letters: letter ? [letter] : [] });
+      const letters = await getLetters({
+        limit,
+        govFollowUpMatterId: matter.id,
+      });
+      return NextResponse.json({ letters });
     }
 
     const letters = await getLetters({ limit, beneficiaryServiceId });
@@ -203,6 +205,7 @@ export async function POST(request: NextRequest) {
       paperSize: resolveLetterPaperSize(paperSize, letterType),
       createdBy: session.user.id,
       beneficiaryServiceId: linkedServiceId || null,
+      govFollowUpMatterId: linkedMatterId || null,
     });
 
     if (linkedMatterId) {

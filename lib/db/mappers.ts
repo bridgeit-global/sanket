@@ -504,6 +504,9 @@ export function mapLetterRow(row: Row): Letter {
     beneficiaryServiceId: toStringOrNull(
       row.beneficiary_service_id ?? row.beneficiaryServiceId,
     ),
+    govFollowUpMatterId: toStringOrNull(
+      row.gov_follow_up_matter_id ?? row.govFollowUpMatterId,
+    ),
     createdAt: toDate(row.created_at ?? row.createdAt),
     updatedAt: toDate(row.updated_at ?? row.updatedAt),
   };
