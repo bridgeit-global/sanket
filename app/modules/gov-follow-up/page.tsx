@@ -22,7 +22,7 @@ export default async function GovFollowUpPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-7xl px-3 py-4 sm:px-4 sm:py-8">
+    <div className="container mx-auto min-w-0 max-w-7xl px-3 py-4 sm:px-4 sm:py-8">
       <Suspense fallback={<TableSkeleton rows={8} />}>
         <GovFollowUpDesk />
       </Suspense>

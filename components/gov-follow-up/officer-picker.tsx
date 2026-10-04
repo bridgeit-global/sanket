@@ -271,7 +271,7 @@ export function OfficerPicker({
       : '';
 
   return (
-    <div className="sm:col-span-2 space-y-3">
+    <div className="md:col-span-2 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Label htmlFor={`${id}-officer`}>
           {t('govFollowUp.fields.officerName')}
@@ -304,7 +304,7 @@ export function OfficerPicker({
       </div>
 
       {source === 'address' ? (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor={`${id}-type`}>
               {t('govFollowUp.officerPicker.addressType')}
@@ -339,7 +339,7 @@ export function OfficerPicker({
           </div>
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor={`${id}-ward`}>
               {t('govFollowUp.officerPicker.ward')}

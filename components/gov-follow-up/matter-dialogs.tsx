@@ -273,8 +273,8 @@ function MatterFields({
   return (
     <div className="space-y-4">
       <FormSection title={t('govFollowUp.sections.matter')}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="sm:col-span-2">
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="md:col-span-2">
             <Field
               id={`${idPrefix}-subject`}
               label={t('govFollowUp.fields.subject')}
@@ -413,7 +413,7 @@ function MatterFields({
       </FormSection>
 
       <FormSection title={t('govFollowUp.sections.pendingWith')}>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           <OfficerPicker
             id={`${idPrefix}-officer`}
             catalogs={catalogs}
@@ -484,7 +484,7 @@ function MatterFields({
               onChange={(e) => set({ contactEmail: e.target.value })}
             />
           </Field>
-          <div className="sm:col-span-2">
+          <div className="md:col-span-2">
             <Field
               id={`${idPrefix}-stage`}
               label={t('govFollowUp.fields.presentStage')}
@@ -522,8 +522,8 @@ function MatterFields({
       </FormSection>
 
       <FormSection title={t('govFollowUp.sections.plan')}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="sm:col-span-2">
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="md:col-span-2">
             <Field
               id={`${idPrefix}-next-action`}
               label={t('govFollowUp.fields.nextAction')}
@@ -547,7 +547,7 @@ function MatterFields({
               onValueChange={(ymd) => set({ nextFollowUpOn: ymd })}
             />
           </Field>
-          <div className="sm:col-span-2">
+          <div className="md:col-span-2">
             <Field
               id={`${idPrefix}-remarks`}
               label={t('govFollowUp.fields.remarks')}
@@ -612,14 +612,14 @@ export function GovFollowUpCreateDialog({
         else requestClose();
       }}
     >
-      <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col gap-0 overflow-hidden p-0">
-        <DialogHeader className="shrink-0 space-y-1.5 border-b px-6 py-4 pr-12">
+      <DialogContent className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+        <DialogHeader className="shrink-0 space-y-1.5 border-b px-4 py-4 pr-12 sm:px-6">
           <DialogTitle>{t('govFollowUp.newMatter')}</DialogTitle>
           <DialogDescription>
             {t('govFollowUp.createDescription')}
           </DialogDescription>
         </DialogHeader>
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
           <MatterFields
             form={form}
             setForm={setForm}
@@ -627,11 +627,16 @@ export function GovFollowUpCreateDialog({
             idPrefix="create"
           />
         </div>
-        <DialogFooter className="shrink-0 border-t px-6 py-3 sm:space-x-2">
-          <Button variant="outline" onClick={requestClose}>
+        <DialogFooter className="shrink-0 gap-2 border-t px-4 py-3 sm:space-x-2 sm:px-6">
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={requestClose}
+          >
             {t('common.close')}
           </Button>
           <Button
+            className="w-full sm:w-auto"
             disabled={
               saving ||
               !form.subject.trim() ||
@@ -1018,8 +1023,8 @@ export function GovFollowUpDetailDialog({
         else requestClose();
       }}
     >
-      <DialogContent className="flex max-h-[90vh] max-w-3xl flex-col gap-0 overflow-hidden p-0">
-        <DialogHeader className="shrink-0 space-y-2 border-b px-6 py-4 pr-12 text-left">
+      <DialogContent className="flex max-h-[90dvh] w-[calc(100%-2rem)] max-w-3xl flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl">
+        <DialogHeader className="shrink-0 space-y-2 border-b px-4 py-4 pr-12 text-left sm:px-6">
           <div className="text-muted-foreground text-xs font-medium tracking-wide">
             {matter.followUpNo}
           </div>
@@ -1058,8 +1063,8 @@ export function GovFollowUpDetailDialog({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 space-y-5 overflow-y-auto px-6 py-4">
-          <div className="grid gap-2 sm:grid-cols-2">
+        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-4 sm:px-6">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
             <MetaItem label={t('govFollowUp.fields.department')}>
               {matter.departmentName}
               {matter.locationName ? ` · ${matter.locationName}` : ''}
@@ -1356,7 +1361,7 @@ export function GovFollowUpDetailDialog({
           </section>
 
           <FormSection title={t('govFollowUp.sections.recordUpdate')}>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               <Field id="log-kind" label={t('govFollowUp.fields.kind')}>
                 <Select
                   value={kind}
@@ -1436,7 +1441,7 @@ export function GovFollowUpDetailDialog({
                   </SelectContent>
                 </Select>
               </Field>
-              <div className="sm:col-span-2">
+              <div className="md:col-span-2">
                 <Field id="log-body" label={t('govFollowUp.fields.body')}>
                   <Textarea
                     id="log-body"
@@ -1484,7 +1489,7 @@ export function GovFollowUpDetailDialog({
                 {t('govFollowUp.sections.whereNow')}
               </button>
               {showWhere ? (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
                   <Field id="log-dept" label={t('govFollowUp.fields.department')}>
                     <Select
                       value={departmentId}
@@ -1590,7 +1595,7 @@ export function GovFollowUpDetailDialog({
                       onChange={(e) => setDeskName(e.target.value)}
                     />
                   </Field>
-                  <div className="sm:col-span-2">
+                  <div className="md:col-span-2">
                     <Field
                       id="log-stage"
                       label={t('govFollowUp.fields.presentStage')}
@@ -1607,12 +1612,16 @@ export function GovFollowUpDetailDialog({
           </FormSection>
         </div>
 
-        <div className="flex shrink-0 flex-wrap gap-2 border-t px-6 py-3">
-          <Button disabled={saving} onClick={() => submit()}>
+        <div className="flex shrink-0 flex-col gap-2 border-t px-4 py-3 sm:flex-row sm:flex-wrap sm:px-6">
+          <Button
+            className="w-full sm:w-auto"
+            disabled={saving}
+            onClick={() => submit()}
+          >
             {saving ? <Loader2 className="mr-2 size-4 animate-spin" /> : null}
             {t('govFollowUp.actions.saveLog')}
           </Button>
-          <Button variant="outline" asChild>
+          <Button variant="outline" className="w-full sm:w-auto" asChild>
             <Link href={govFollowUpLetterGenerationHref(matter.id)}>
               <FileText className="size-3.5" />
               {t('govFollowUp.actions.generateLetter')}
@@ -1620,7 +1629,7 @@ export function GovFollowUpDetailDialog({
           </Button>
           <Button
             variant="outline"
-            className="sm:ml-auto"
+            className="w-full sm:ml-auto sm:w-auto"
             disabled={saving}
             onClick={requestClose}
           >
@@ -1679,7 +1688,7 @@ export function GovFollowUpDetailDialog({
               placeholder={t('govFollowUp.letters.refNoPlaceholder')}
             />
           </Field>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3 md:grid-cols-2">
             <Field id="upload-date" label={t('govFollowUp.fields.occurredOn')}>
               <DmyDateInput
                 id="upload-date"

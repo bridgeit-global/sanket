@@ -444,14 +444,14 @@ export function GovFollowUpDesk() {
         title={t('govFollowUp.title')}
         description={t('govFollowUp.description')}
         actions={
-          <Button onClick={openCreate}>
+          <Button className="w-full sm:w-auto" onClick={openCreate}>
             <Plus className="size-4" />
             {t('govFollowUp.newMatter')}
           </Button>
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         {GOV_FOLLOW_UP_KPI_CHIPS.map((chip) => {
           const count = summary[CHIP_COUNTS[chip]];
           const active = filters.chip === chip;
@@ -507,7 +507,7 @@ export function GovFollowUpDesk() {
                 aria-pressed={active}
                 onClick={() => applyChip(chip)}
                 className={cn(
-                  'inline-flex items-center rounded-full border px-3 py-1 text-xs transition-colors',
+                  'inline-flex h-10 items-center rounded-full border px-3 text-xs transition-colors',
                   active
                     ? 'border-primary bg-primary text-primary-foreground'
                     : 'hover:border-primary/50',
@@ -527,17 +527,19 @@ export function GovFollowUpDesk() {
       </div>
 
       {filters.chip ? (
-        <div className="bg-muted/50 flex flex-wrap items-center gap-2 rounded-md border px-3 py-2 text-sm">
-          <span className="text-muted-foreground">
-            {t('govFollowUp.filterActive')}
-          </span>
-          <span className="font-medium">
-            {t(`govFollowUp.chips.${filters.chip}`)}
-          </span>
+        <div className="bg-muted/50 flex flex-col gap-2 rounded-md border px-3 py-2 text-sm sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="min-w-0">
+            <span className="text-muted-foreground">
+              {t('govFollowUp.filterActive')}
+            </span>{' '}
+            <span className="font-medium">
+              {t(`govFollowUp.chips.${filters.chip}`)}
+            </span>
+          </div>
           <Button
             variant="ghost"
             size="sm"
-            className="ml-auto h-7"
+            className="h-10 w-full sm:ml-auto sm:h-7 sm:w-auto"
             onClick={() => syncUrl({ chip: '', page: 1 })}
           >
             <X className="size-3.5" />
@@ -577,16 +579,16 @@ export function GovFollowUpDesk() {
             })}
           </TabsList>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-muted-foreground mr-1 text-xs font-medium uppercase tracking-wide">
+        <div className="-mx-3 flex min-w-0 items-start gap-2 overflow-x-auto px-3 sm:mx-0 sm:flex-wrap sm:items-center sm:overflow-visible sm:px-0">
+          <span className="text-muted-foreground shrink-0 pt-1 text-xs font-medium uppercase tracking-wide sm:mr-1 sm:pt-0">
             {t('govFollowUp.browse')}
           </span>
-          <TabsList className="h-auto bg-transparent p-0">
+          <TabsList className="h-auto w-max bg-transparent p-0">
             {GOV_FOLLOW_UP_BROWSE_TABS.map((tab) => (
               <TabsTrigger
                 key={tab}
                 value={tab}
-                className="h-auto rounded-full border px-2.5 py-1 text-xs data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none"
+                className="h-10 rounded-full border px-2.5 text-xs data-[state=active]:border-primary data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=inactive]:bg-transparent data-[state=inactive]:text-muted-foreground data-[state=inactive]:shadow-none"
               >
                 {t(`govFollowUp.tabs.${tab}`)}
               </TabsTrigger>
@@ -610,8 +612,8 @@ export function GovFollowUpDesk() {
           <p className="text-muted-foreground text-sm">
             {t('govFollowUp.visits.help')}
           </p>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="space-y-1.5">
+          <div className="flex flex-col gap-3 md:flex-row md:items-end">
+            <div className="min-w-0 flex-1 space-y-1.5">
               <div className="text-sm font-medium">
                 {t('govFollowUp.visits.pickLocation')}
               </div>
@@ -621,7 +623,7 @@ export function GovFollowUpDesk() {
                   syncUrl({ locationId: value, page: 1 })
                 }
               >
-                <SelectTrigger className="w-full sm:w-[220px]">
+                <SelectTrigger className="w-full md:w-[220px]">
                   <SelectValue placeholder={t('govFollowUp.selectLocation')} />
                 </SelectTrigger>
                 <SelectContent>
@@ -633,7 +635,7 @@ export function GovFollowUpDesk() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5">
+            <div className="min-w-0 w-full space-y-1.5 md:w-auto">
               <div className="text-sm font-medium">
                 {t('govFollowUp.visits.pickDate')}
               </div>

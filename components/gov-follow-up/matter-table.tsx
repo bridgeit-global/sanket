@@ -71,10 +71,12 @@ function MatterCard({
         overdue && 'border-l-4 border-l-destructive',
       )}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex flex-col gap-2">
         <div className="min-w-0">
-          <div className="font-medium leading-snug">{matter.subject}</div>
-          <div className="text-muted-foreground mt-0.5 text-xs">
+          <div className="break-words font-medium leading-snug">
+            {matter.subject}
+          </div>
+          <div className="text-muted-foreground mt-0.5 break-words text-xs">
             {matter.followUpNo}
             {matter.departmentName ? ` · ${matter.departmentName}` : ''}
           </div>
@@ -117,7 +119,7 @@ function MatterCard({
           <dt className="text-muted-foreground text-xs">
             {t('govFollowUp.columns.pendingWith')}
           </dt>
-          <dd>{pendingWithLabel(matter)}</dd>
+          <dd className="break-words">{pendingWithLabel(matter)}</dd>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div>
@@ -175,7 +177,7 @@ export function GovFollowUpMatterTable({
         {t('govFollowUp.emptyHint')}
       </p>
       {onCreate ? (
-        <Button className="mt-2" onClick={onCreate}>
+        <Button className="mt-2 w-full sm:w-auto" onClick={onCreate}>
           {t('govFollowUp.newMatter')}
         </Button>
       ) : null}
