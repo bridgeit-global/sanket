@@ -81,6 +81,19 @@ function MatterCard({
         </div>
         <MatterBadges matter={matter} />
       </div>
+      {(matter.letters ?? []).length > 0 ? (
+        <div className="text-muted-foreground mt-2 text-xs">
+          {t('govFollowUp.letters.count', {
+            count: matter.letters.length,
+          })}
+          {matter.letters[0]?.referenceNo
+            ? ` · ${matter.letters[0].referenceNo}`
+            : ''}
+          {matter.letters.length > 1
+            ? ` +${matter.letters.length - 1}`
+            : ''}
+        </div>
+      ) : null}
       <dl className="mt-3 grid gap-2 text-sm">
         <div>
           <dt className="text-muted-foreground text-xs">
@@ -220,6 +233,18 @@ export function GovFollowUpMatterTable({
                       <div className="text-muted-foreground text-xs">
                         {matter.followUpNo}
                       </div>
+                      {(matter.letters ?? []).length > 0 ? (
+                        <div className="text-muted-foreground mt-1 max-w-[280px] truncate text-xs">
+                          {t('govFollowUp.letters.count', {
+                            count: matter.letters.length,
+                          })}
+                          {': '}
+                          {matter.letters
+                            .map((letter) => letter.referenceNo || letter.title)
+                            .filter(Boolean)
+                            .join(', ')}
+                        </div>
+                      ) : null}
                     </TableCell>
                     <TableCell>
                       <div>{matter.departmentName || '—'}</div>

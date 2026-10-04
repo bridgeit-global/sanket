@@ -2743,6 +2743,11 @@
       "closed": "Closed",
       "note": "Note"
     },
+    "letters": {
+      "title": "Letters",
+      "empty": "No letters generated for this matter yet.",
+      "count": "{count, plural, one {# letter} other {# letters}}"
+    },
     "actions": {
       "logFollowUp": "Log follow-up",
       "fileMoved": "File moved",

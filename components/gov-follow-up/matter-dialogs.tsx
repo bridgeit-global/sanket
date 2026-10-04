@@ -938,31 +938,57 @@ export function GovFollowUpDetailDialog({
             </MetaItem>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button variant="outline" size="sm" asChild>
-              <Link href={govFollowUpLetterGenerationHref(matter.id)}>
-                <FileText className="size-3.5" />
-                {matter.letterId
-                  ? `${t('govFollowUp.actions.viewLetter')}${
-                      matter.letterReferenceNo
-                        ? ` (${matter.letterReferenceNo})`
-                        : ''
-                    }`
-                  : t('govFollowUp.actions.generateLetter')}
-              </Link>
-            </Button>
-            {matter.registerEntryId ? (
-              <Button variant="outline" size="sm" asChild>
-                <Link
-                  href={`/modules/io-register?search=${encodeURIComponent(matter.registerRefNo || matter.subject)}`}
-                >
-                  <Inbox className="size-3.5" />
-                  {t('govFollowUp.actions.viewRegister')}
-                  {matter.registerRefNo ? ` (${matter.registerRefNo})` : ''}
+          <section>
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-sm font-semibold">
+                {t('govFollowUp.letters.title')}
+              </h3>
+              <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
+                <Link href={govFollowUpLetterGenerationHref(matter.id)}>
+                  <FileText className="size-3.5" />
+                  {t('govFollowUp.actions.generateLetter')}
                 </Link>
               </Button>
+            </div>
+            {(matter.letters ?? []).length === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                {t('govFollowUp.letters.empty')}
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {(matter.letters ?? []).map((letter) => (
+                  <li key={letter.id}>
+                    <Link
+                      href={govFollowUpLetterGenerationHref(matter.id, letter.id)}
+                      className="flex min-w-0 flex-col gap-0.5 rounded-md border px-3 py-2 text-sm transition-colors hover:border-primary/40 hover:bg-muted/40 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <span className="min-w-0 truncate font-medium">
+                        {letter.referenceNo || letter.title || t('govFollowUp.actions.viewLetter')}
+                      </span>
+                      <span className="text-muted-foreground shrink-0 text-xs">
+                        {t(`letterGeneration.savedLetters.status.${letter.status}`)}
+                        {' · '}
+                        {formatShortDisplayDateIST(letter.createdAt, locale)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {matter.registerEntryId ? (
+              <div className="mt-3">
+                <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
+                  <Link
+                    href={`/modules/io-register?search=${encodeURIComponent(matter.registerRefNo || matter.subject)}`}
+                  >
+                    <Inbox className="size-3.5" />
+                    {t('govFollowUp.actions.viewRegister')}
+                    {matter.registerRefNo ? ` (${matter.registerRefNo})` : ''}
+                  </Link>
+                </Button>
+              </div>
             ) : null}
-          </div>
+          </section>
 
           <section>
             <h3 className="mb-3 text-sm font-semibold">
@@ -1272,9 +1298,7 @@ export function GovFollowUpDetailDialog({
           <Button variant="outline" asChild>
             <Link href={govFollowUpLetterGenerationHref(matter.id)}>
               <FileText className="size-3.5" />
-              {matter.letterId
-                ? t('govFollowUp.actions.viewLetter')
-                : t('govFollowUp.actions.generateLetter')}
+              {t('govFollowUp.actions.generateLetter')}
             </Link>
           </Button>
           <Button

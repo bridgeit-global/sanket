@@ -29,8 +29,10 @@ import type {
   GovFollowUpLogKind,
   GovFollowUpMatter,
   GovFollowUpMatterDetail,
+  GovFollowUpMatterLetter,
   GovFollowUpMatterListItem,
   GovFollowUpMode,
+  LetterStatus,
 } from '@/lib/db/schema';
 import type {
   GovFollowUpAddressOfficer,
@@ -248,21 +250,86 @@ async function catalogMaps() {
   };
 }
 
-async function letterRefByIds(
-  ids: string[],
-): Promise<Map<string, string>> {
-  const unique = [...new Set(ids.filter(Boolean))];
-  if (unique.length === 0) return new Map();
+function mapMatterLetterRow(row: {
+  id: unknown;
+  reference_no?: unknown;
+  title?: unknown;
+  status?: unknown;
+  created_at?: unknown;
+}): GovFollowUpMatterLetter {
+  const status = String(row.status ?? 'draft') as LetterStatus;
+  return {
+    id: String(row.id),
+    referenceNo: String(row.reference_no ?? ''),
+    title: String(row.title ?? ''),
+    status:
+      status === 'pending_verification' || status === 'approved'
+        ? status
+        : 'draft',
+    createdAt: new Date(String(row.created_at)),
+  };
+}
+
+async function lettersByMatterIds(
+  matters: Array<{ id: string; letterId: string | null }>,
+): Promise<Map<string, GovFollowUpMatterLetter[]>> {
+  const matterIds = matters.map((matter) => matter.id).filter(Boolean);
+  const result = new Map<string, GovFollowUpMatterLetter[]>();
+  for (const id of matterIds) result.set(id, []);
+
+  if (matterIds.length === 0) return result;
+
   const { data, error } = await supabase
     .from(TABLES.letter)
-    .select('id, reference_no')
-    .in('id', unique);
-  throwOnSupabaseError(error, 'Failed to load letter references');
-  const map = new Map<string, string>();
-  for (const row of data ?? []) {
-    map.set(String(row.id), String(row.reference_no ?? ''));
+    .select('id, reference_no, title, status, created_at, gov_follow_up_matter_id')
+    .in('gov_follow_up_matter_id', matterIds)
+    .order('created_at', { ascending: false });
+
+  const seen = new Set<string>();
+  // Column may be missing until migration is applied — fall back to letter_id only.
+  if (!error) {
+    for (const row of data ?? []) {
+      const matterId = String(row.gov_follow_up_matter_id ?? '');
+      if (!matterId) continue;
+      const letter = mapMatterLetterRow(row);
+      seen.add(letter.id);
+      const list = result.get(matterId) ?? [];
+      list.push(letter);
+      result.set(matterId, list);
+    }
   }
-  return map;
+
+  // Include legacy matter.letter_id rows that predate gov_follow_up_matter_id.
+  const legacyIds = [
+    ...new Set(
+      matters
+        .map((matter) => matter.letterId)
+        .filter((id): id is string => Boolean(id) && !seen.has(id)),
+    ),
+  ];
+  if (legacyIds.length === 0) return result;
+
+  const { data: legacyRows, error: legacyError } = await supabase
+    .from(TABLES.letter)
+    .select('id, reference_no, title, status, created_at')
+    .in('id', legacyIds);
+  throwOnSupabaseError(legacyError, 'Failed to load legacy follow-up letters');
+
+  const legacyById = new Map(
+    (legacyRows ?? []).map((row) => [String(row.id), row]),
+  );
+  for (const matter of matters) {
+    if (!matter.letterId) continue;
+    const row = legacyById.get(matter.letterId);
+    if (!row) continue;
+    const list = result.get(matter.id) ?? [];
+    if (list.some((letter) => letter.id === matter.letterId)) continue;
+    list.push(mapMatterLetterRow(row));
+    list.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    result.set(matter.id, list);
+  }
+
+  return result;
 }
 
 async function registerRefByIds(
@@ -286,13 +353,16 @@ async function hydrateMatters(
   rows: GovFollowUpMatter[],
 ): Promise<GovFollowUpMatterListItem[]> {
   const catalogs = await catalogMaps();
-  const [letterRefs, registerRefs] = await Promise.all([
-    letterRefByIds(rows.map((r) => r.letterId ?? '')),
+  const [lettersByMatter, registerRefs] = await Promise.all([
+    lettersByMatterIds(
+      rows.map((row) => ({ id: row.id, letterId: row.letterId })),
+    ),
     registerRefByIds(rows.map((r) => r.registerEntryId ?? '')),
   ]);
   return rows.map((matter) => {
     const department = catalogs.departmentById.get(matter.departmentId);
     const location = catalogs.locationById.get(matter.locationId);
+    const letters = lettersByMatter.get(matter.id) ?? [];
     return {
       ...matter,
       departmentName: department?.name ?? '',
@@ -302,9 +372,8 @@ async function hydrateMatters(
       staffUserName: matter.staffUserId
         ? (catalogs.userById.get(matter.staffUserId) ?? null)
         : null,
-      letterReferenceNo: matter.letterId
-        ? (letterRefs.get(matter.letterId) ?? null)
-        : null,
+      letters,
+      letterReferenceNo: letters[0]?.referenceNo ?? null,
       registerRefNo: matter.registerEntryId
         ? (registerRefs.get(matter.registerEntryId) ?? null)
         : null,

@@ -1186,6 +1186,14 @@ export type GovFollowUpMatter = {
   updatedAt: Date;
 };
 
+export type GovFollowUpMatterLetter = {
+  id: string;
+  referenceNo: string;
+  title: string;
+  status: LetterStatus;
+  createdAt: Date;
+};
+
 export type GovFollowUpMatterListItem = GovFollowUpMatter & {
   departmentName: string;
   departmentCode: string;
@@ -1193,6 +1201,7 @@ export type GovFollowUpMatterListItem = GovFollowUpMatter & {
   locationCode: string;
   staffUserName: string | null;
   letterReferenceNo: string | null;
+  letters: GovFollowUpMatterLetter[];
   registerRefNo: string | null;
 };
 

@@ -2745,6 +2745,11 @@
       "closed": "बंद",
       "note": "टीप"
     },
+    "letters": {
+      "title": "पत्रे",
+      "empty": "या बाबीसाठी अद्याप पत्र तयार केलेले नाही.",
+      "count": "{count, plural, one {# पत्र} other {# पत्रे}}"
+    },
     "actions": {
       "logFollowUp": "फॉलो-अप नोंदवा",
       "fileMoved": "फाईल हलली",
