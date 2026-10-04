@@ -24,7 +24,7 @@ async function letterPageUrl(letter: Letter): Promise<string> {
 function notifyLetterParties(
   letter: Letter,
   actorUserId: string,
-  kind: 'submitted' | 'approved',
+  kind: 'verification' | 'approved',
 ) {
   notifyPush(async () => {
     const adminIds = await getAdminRoleUserIds();
@@ -39,7 +39,7 @@ function notifyLetterParties(
     const reference = letter.referenceNo || letter.title;
     await sendPushToUsers(recipientIds, {
       title:
-        kind === 'submitted'
+        kind === 'verification'
           ? 'Letter sent for verification'
           : 'Letter approved',
       body: reference,
@@ -68,7 +68,7 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const action = body?.action;
 
-    if (action === 'submit') {
+    if (action === 'send_for_verification') {
       const result = await submitLetterForVerification(id);
       if ('error' in result) {
         if (result.error === 'not_found') {
@@ -79,7 +79,7 @@ export async function POST(
           { status: 409 },
         );
       }
-      notifyLetterParties(result.letter, session.user.id, 'submitted');
+      notifyLetterParties(result.letter, session.user.id, 'verification');
       return NextResponse.json({ letter: result.letter });
     }
 
@@ -106,7 +106,7 @@ export async function POST(
     }
 
     return NextResponse.json(
-      { error: 'action must be submit or approve' },
+      { error: 'action must be send_for_verification or approve' },
       { status: 400 },
     );
   } catch (error) {

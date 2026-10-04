@@ -1414,6 +1414,8 @@ export function LetterGeneration({
   >('idle');
   const [approvingLetterId, setApprovingLetterId] = useState<string | null>(null);
   const [submittingLetterId, setSubmittingLetterId] = useState<string | null>(null);
+  const [verifyingLetterId, setVerifyingLetterId] = useState<string | null>(null);
+  const [isSendingForVerification, setIsSendingForVerification] = useState(false);
   const [addingToOutwardLetterId, setAddingToOutwardLetterId] = useState<
     string | null
   >(null);
@@ -4507,7 +4509,7 @@ export function LetterGeneration({
   const handleSendForVerification = async () => {
     draftEpochRef.current += 1;
     draftUserEditedRef.current = false;
-    setIsSubmitting(true);
+    setIsSendingForVerification(true);
     try {
       const saved = await handleSaveLetter();
       if (!saved) {
@@ -4519,36 +4521,53 @@ export function LetterGeneration({
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ action: 'submit' }),
+          body: JSON.stringify({ action: 'send_for_verification' }),
         },
       );
       const json = await res.json();
       if (!res.ok) {
         throw new Error(json?.error || 'Failed to send letter for verification');
       }
-      const submitted = (json?.letter ?? saved) as SavedLetterRow;
-      editingLetterIdRef.current = null;
-      setEditingLetterId(null);
-      draftUserEditedRef.current = false;
-      draftHydratingRef.current = false;
-      draftBaselineRef.current = null;
-      lastSavedSnapshotRef.current = null;
-      setDraftSaveStatus('idle');
-      referenceNumberAutoRef.current = true;
-      toast.success(t('letterGeneration.savedLetters.submitSuccess'));
+      const verified = (json?.letter ?? saved) as SavedLetterRow;
+      toast.success(t('letterGeneration.savedLetters.verificationSuccess'));
       await refreshSavedLetters();
-      if (submitted.renderedHtml || saved.renderedHtml) {
-        await persistLetterPdf(
-          { ...saved, ...submitted, renderedHtml: submitted.renderedHtml || saved.renderedHtml },
-          { registerOutward: true },
-        );
+      // Persist PDF for admin review only — do not register outward.
+      if (verified.renderedHtml || saved.renderedHtml) {
+        await persistLetterPdf({
+          ...saved,
+          ...verified,
+          renderedHtml: verified.renderedHtml || saved.renderedHtml,
+        });
       }
-      const savedRef = parseReference(String(saved.referenceNo ?? ''));
-      await refreshReferenceSequence(savedRef.prefix || activeReferencePrefix, {
-        force: true,
-      });
+      clearLetterForm();
     } catch (error) {
       console.error('Failed to send letter for verification', error);
+      draftUserEditedRef.current = true;
+      toast.error(t('letterGeneration.savedLetters.verificationError'));
+    } finally {
+      setIsSendingForVerification(false);
+    }
+  };
+
+  const handleSubmitLetter = async () => {
+    draftEpochRef.current += 1;
+    draftUserEditedRef.current = false;
+    setIsSubmitting(true);
+    try {
+      const saved = await handleSaveLetter();
+      if (!saved) {
+        draftUserEditedRef.current = true;
+        return;
+      }
+      // Submit does not change letter status — only outward + clear form.
+      toast.success(t('letterGeneration.savedLetters.submitSuccess'));
+      await refreshSavedLetters();
+      if (saved.renderedHtml) {
+        await persistLetterPdf(saved, { registerOutward: true });
+      }
+      clearLetterForm();
+    } catch (error) {
+      console.error('Failed to submit letter', error);
       draftUserEditedRef.current = true;
       toast.error(t('letterGeneration.savedLetters.submitError'));
     } finally {
@@ -4571,7 +4590,6 @@ export function LetterGeneration({
       if (!res.ok) {
         throw new Error(json?.error || 'Failed to approve letter');
       }
-      const approved = (json?.letter ?? letter) as SavedLetterRow;
       if (editingLetterId === letter.id) {
         setEditingLetterId(null);
       }
@@ -4585,49 +4603,61 @@ export function LetterGeneration({
     }
   };
 
-  const handleSubmitSavedDraft = async (letter: SavedLetterRow) => {
+  const handleSendSavedDraftForVerification = async (letter: SavedLetterRow) => {
     if (letterWorkflowStatus(letter.status) !== 'draft') return;
-    setSubmittingLetterId(letter.id);
+    setVerifyingLetterId(letter.id);
     try {
       const res = await fetch(
         `/api/letters/${encodeURIComponent(letter.id)}/verification`,
         {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ action: 'submit' }),
+          body: JSON.stringify({ action: 'send_for_verification' }),
         },
       );
       const json = await res.json();
       if (!res.ok) {
         throw new Error(json?.error || 'Failed to send letter for verification');
       }
-      const submitted = (json?.letter ?? letter) as SavedLetterRow;
-      if (editingLetterId === letter.id) {
-        draftEpochRef.current += 1;
-        editingLetterIdRef.current = null;
-        setEditingLetterId(null);
-        draftUserEditedRef.current = false;
-        draftHydratingRef.current = false;
-        draftBaselineRef.current = null;
-        lastSavedSnapshotRef.current = null;
-        setDraftSaveStatus('idle');
-        referenceNumberAutoRef.current = true;
-      }
+      const verified = (json?.letter ?? letter) as SavedLetterRow;
+      const wasEditing = editingLetterId === letter.id;
       setSelectedSavedLetterId(null);
-      toast.success(t('letterGeneration.savedLetters.submitSuccess'));
+      toast.success(t('letterGeneration.savedLetters.verificationSuccess'));
       await refreshSavedLetters();
-      if (submitted.renderedHtml || letter.renderedHtml) {
-        await persistLetterPdf(
-          {
-            ...letter,
-            ...submitted,
-            renderedHtml: submitted.renderedHtml || letter.renderedHtml,
-          },
-          { registerOutward: true },
-        );
+      if (verified.renderedHtml || letter.renderedHtml) {
+        await persistLetterPdf({
+          ...letter,
+          ...verified,
+          renderedHtml: verified.renderedHtml || letter.renderedHtml,
+        });
+      }
+      if (wasEditing) {
+        clearLetterForm();
       }
     } catch (error) {
       console.error('Failed to send letter for verification', error);
+      toast.error(t('letterGeneration.savedLetters.verificationError'));
+    } finally {
+      setVerifyingLetterId(null);
+    }
+  };
+
+  const handleSubmitSavedDraft = async (letter: SavedLetterRow) => {
+    if (letterWorkflowStatus(letter.status) !== 'draft') return;
+    setSubmittingLetterId(letter.id);
+    try {
+      // Submit does not change letter status — only outward + clear form.
+      const wasEditingSubmitted = editingLetterId === letter.id;
+      setSelectedSavedLetterId(null);
+      toast.success(t('letterGeneration.savedLetters.submitSuccess'));
+      if (letter.renderedHtml) {
+        await persistLetterPdf(letter, { registerOutward: true });
+      }
+      if (wasEditingSubmitted) {
+        clearLetterForm();
+      }
+    } catch (error) {
+      console.error('Failed to submit letter', error);
       toast.error(t('letterGeneration.savedLetters.submitError'));
     } finally {
       setSubmittingLetterId(null);
@@ -4825,7 +4855,7 @@ export function LetterGeneration({
       return;
     }
     draftHydratingRef.current = false;
-    if (!savedLettersFetched || isSubmitting) return;
+    if (!savedLettersFetched || isSubmitting || isSendingForVerification) return;
 
     const currentKey = draftContentKey(draftSnapshot);
     if (
@@ -4852,7 +4882,13 @@ export function LetterGeneration({
     }, 1200);
 
     return () => window.clearTimeout(timer);
-  }, [draftSnapshot, isSubmitting, letterTypeReady, savedLettersFetched]);
+  }, [
+    draftSnapshot,
+    isSendingForVerification,
+    isSubmitting,
+    letterTypeReady,
+    savedLettersFetched,
+  ]);
 
   useEffect(() => {
     const flush = () => {
@@ -4922,7 +4958,7 @@ export function LetterGeneration({
     }
   };
 
-  const confirmClearAll = () => {
+  const clearLetterForm = (options?: { announce?: boolean }) => {
     setFeesFields(feesDefaults(letterLocale));
     setGeneralFields(generalDefaults(letterLocale));
     setSchoolAdmissionFields(schoolAdmissionDefaults(letterLocale));
@@ -5008,8 +5044,14 @@ export function LetterGeneration({
       defaultWardToAppliedRef.current = true;
       handleWardToAddressSelect(preferredWardTo.id);
     }
+    if (options?.announce) {
+      toast.success(t('letterGeneration.clearAllSuccess'));
+    }
+  };
+
+  const confirmClearAll = () => {
+    clearLetterForm({ announce: true });
     setClearAllDialogOpen(false);
-    toast.success(t('letterGeneration.clearAllSuccess'));
   };
 
   const executePrintSavedLetter = async (letter: SavedLetterRow) => {
@@ -5245,14 +5287,32 @@ export function LetterGeneration({
           </Button>
           <Button
             size="sm"
+            variant="outline"
+            className="h-10 w-full sm:w-auto"
+            onClick={() => void handleSendSavedDraftForVerification(letter)}
+            disabled={
+              verifyingLetterId === letter.id || submittingLetterId === letter.id
+            }
+          >
+            {verifyingLetterId === letter.id ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : (
+              <Send className="mr-2 size-4" />
+            )}
+            {t('letterGeneration.savedLetters.sendForVerification')}
+          </Button>
+          <Button
+            size="sm"
             className="h-10 w-full sm:w-auto"
             onClick={() => void handleSubmitSavedDraft(letter)}
-            disabled={submittingLetterId === letter.id}
+            disabled={
+              submittingLetterId === letter.id || verifyingLetterId === letter.id
+            }
           >
             {submittingLetterId === letter.id ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
             ) : (
-              <Send className="mr-2 size-4" />
+              <Check className="mr-2 size-4" />
             )}
             {t('letterGeneration.savedLetters.actions.submit')}
           </Button>
@@ -8433,9 +8493,11 @@ export function LetterGeneration({
                         variant="outline"
                         className="h-10 w-full sm:w-auto"
                         onClick={() => void handleSaveDraft()}
-                        disabled={isSaving || isSubmitting}
+                        disabled={
+                          isSaving || isSubmitting || isSendingForVerification
+                        }
                       >
-                        {isSaving && !isSubmitting ? (
+                        {isSaving && !isSubmitting && !isSendingForVerification ? (
                           <Loader2 className="mr-2 size-4 animate-spin" />
                         ) : (
                           <Save className="mr-2 size-4" />
@@ -8452,6 +8514,7 @@ export function LetterGeneration({
                           disabled={
                             isSaving ||
                             isSubmitting ||
+                            isSendingForVerification ||
                             printingLetterId === editingSavedLetter.id
                           }
                         >
@@ -8464,16 +8527,33 @@ export function LetterGeneration({
                         </Button>
                       ) : null}
                       <Button
+                        variant="outline"
                         className="h-10 w-full sm:w-auto"
                         onClick={() => void handleSendForVerification()}
-                        disabled={isSaving || isSubmitting}
+                        disabled={
+                          isSaving || isSubmitting || isSendingForVerification
+                        }
                       >
-                        {isSubmitting ? (
+                        {isSendingForVerification ? (
                           <Loader2 className="mr-2 size-4 animate-spin" />
                         ) : (
                           <Send className="mr-2 size-4" />
                         )}
                         {t('letterGeneration.savedLetters.sendForVerification')}
+                      </Button>
+                      <Button
+                        className="h-10 w-full sm:w-auto"
+                        onClick={() => void handleSubmitLetter()}
+                        disabled={
+                          isSaving || isSubmitting || isSendingForVerification
+                        }
+                      >
+                        {isSubmitting ? (
+                          <Loader2 className="mr-2 size-4 animate-spin" />
+                        ) : (
+                          <Check className="mr-2 size-4" />
+                        )}
+                        {t('letterGeneration.savedLetters.actions.submit')}
                       </Button>
                     </div>
                   </div>
@@ -8826,6 +8906,34 @@ export function LetterGeneration({
                                   </Button>
                                   <Button
                                     size="sm"
+                                    variant="outline"
+                                    className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
+                                    aria-label={t(
+                                      'letterGeneration.savedLetters.sendForVerification',
+                                    )}
+                                    onClick={() =>
+                                      void handleSendSavedDraftForVerification(
+                                        selectedSavedLetter,
+                                      )
+                                    }
+                                    disabled={
+                                      verifyingLetterId === selectedSavedLetter.id ||
+                                      submittingLetterId === selectedSavedLetter.id
+                                    }
+                                  >
+                                    {verifyingLetterId === selectedSavedLetter.id ? (
+                                      <Loader2 className="size-4 shrink-0 animate-spin sm:mr-2" />
+                                    ) : (
+                                      <Send className="size-4 shrink-0 sm:mr-2" />
+                                    )}
+                                    <span className="hidden sm:inline">
+                                      {t(
+                                        'letterGeneration.savedLetters.sendForVerification',
+                                      )}
+                                    </span>
+                                  </Button>
+                                  <Button
+                                    size="sm"
                                     className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
                                     aria-label={t(
                                       'letterGeneration.savedLetters.actions.submit',
@@ -8833,12 +8941,15 @@ export function LetterGeneration({
                                     onClick={() =>
                                       void handleSubmitSavedDraft(selectedSavedLetter)
                                     }
-                                    disabled={submittingLetterId === selectedSavedLetter.id}
+                                    disabled={
+                                      submittingLetterId === selectedSavedLetter.id ||
+                                      verifyingLetterId === selectedSavedLetter.id
+                                    }
                                   >
                                     {submittingLetterId === selectedSavedLetter.id ? (
                                       <Loader2 className="size-4 shrink-0 animate-spin sm:mr-2" />
                                     ) : (
-                                      <Send className="size-4 shrink-0 sm:mr-2" />
+                                      <Check className="size-4 shrink-0 sm:mr-2" />
                                     )}
                                     <span className="hidden sm:inline">
                                       {t('letterGeneration.savedLetters.actions.submit')}
