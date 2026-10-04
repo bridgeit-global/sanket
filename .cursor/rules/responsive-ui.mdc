@@ -1,9 +1,11 @@
 ---
+description: Mobile-first responsive UI/UX for phone, tablet, and desktop (Tailwind)
 alwaysApply: true
 ---
-# Responsive UI (mobile, tablet, desktop)
 
-Build every screen mobile-first with Tailwind. It must work at three widths. Do not add custom breakpoints.
+# Responsive UI / UX (mobile, tablet, desktop)
+
+Build every screen **mobile-first** with Tailwind. It must work at three widths. Do not add custom breakpoints.
 
 | Band | Width | Classes |
 |------|--------|---------|
@@ -17,17 +19,28 @@ Build every screen mobile-first with Tailwind. It must work at three widths. Do 
 
 - Page headers: `flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`.
 - Forms and filters: `grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3`.
-- Primary actions: `w-full sm:w-auto`. Keep controls at least `h-10`; do not shrink tap targets on mobile.
+- Primary actions: `w-full sm:w-auto`. Controls at least `h-10`; do not shrink tap targets on mobile.
 - Inputs, selects, and date controls stay `w-full` until `md:`.
-- Tables: from `md:` keep the table. Below `md:`, use a stacked card list, or wrap the table in `overflow-x-auto` on a `min-w-0` parent. The page itself must not scroll sideways.
-- Dialogs: near full width on mobile (`w-[calc(100%-2rem)]`), then the existing max width (`sm:max-w-lg` or larger) from tablet up.
+- Tables: from `md:` keep the table. Below `md:`, use a stacked card list, or wrap in `overflow-x-auto` on a `min-w-0` parent. The page must not scroll sideways.
+- Dialogs / sheets: near full width on mobile (`w-[calc(100%-2rem)]`), then existing max width (`sm:max-w-lg` or larger) from tablet up.
+- Spacing: prefer `gap-3` / `p-4` on mobile; increase only when the layout needs air at `md:` / `lg:`.
 - Long text: `min-w-0` on flex children, plus `truncate` or `break-words`.
 
-## Interaction
+## Interaction & UX
 
-- Primary actions stay visible without hover. Mobile and tablet have no hover.
+- Primary actions stay visible without hover. Mobile and tablet have no reliable hover — do not hide critical actions in hover-only menus.
 - A sidebar that stays open on `lg:` must use the existing sheet sidebar below `md:`.
 - Shorten labels on small screens with `hidden sm:inline` / `sm:hidden` when the full label will not fit. Do not drop the action.
+- Prefer one clear primary CTA per toolbar/section; secondary actions can collapse into a menu on mobile if needed.
+- Touch-friendly: avoid tiny icon-only hit areas; use `size="icon"` buttons with adequate padding, or pair icons with text on larger screens.
+- Focus and keyboard: keep focus rings; do not remove outline for “cleaner” mobile UI.
+
+## Do not
+
+- Fixed widths that overflow phones (`w-[480px]`, rigid multi-column rows without stacking).
+- Desktop-only horizontal toolbars that wrap awkwardly or clip on tablet.
+- Relying on hover, dual-click, or dense data grids as the only way to complete a task on mobile.
+- Adding custom media queries or new breakpoint tokens unless the design system already has them.
 
 ## Examples
 
@@ -43,4 +56,4 @@ Build every screen mobile-first with Tailwind. It must work at three widths. Do 
 </div>
 ```
 
-When layout changes, check the screen around 390px (mobile), 768px (tablet), and 1280px (desktop).
+When layout changes, check ~390px (mobile), 768px (tablet), and 1280px (desktop).
