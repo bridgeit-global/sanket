@@ -12,6 +12,7 @@ import {
   Upload,
 } from 'lucide-react';
 import { toast } from '@/components/toast';
+import { FilePreviewButton } from '@/components/file-preview-button';
 import { Button } from '@/components/ui/button';
 import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
@@ -1200,21 +1201,11 @@ export function GovFollowUpDetailDialog({
                               {formatShortDisplayDateIST(letter.date, locale)}
                             </span>
                             {letter.fileUrl ? (
-                              <Button
+                              <FilePreviewButton
                                 variant="outline"
-                                size="sm"
-                                className="h-8"
-                                asChild
-                              >
-                                <a
-                                  href={letter.fileUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  <Inbox className="size-3.5" />
-                                  {t('govFollowUp.actions.viewFile')}
-                                </a>
-                              </Button>
+                                fileUrl={letter.fileUrl}
+                                fileName={letter.fileName || 'document.pdf'}
+                              />
                             ) : (
                               <Button
                                 variant="outline"
@@ -1269,29 +1260,21 @@ export function GovFollowUpDetailDialog({
                           )}
                         </div>
                       </div>
-                      <div className="flex shrink-0 flex-wrap gap-2">
+                      <div className="flex shrink-0 items-center gap-1">
                         {attachment.fileUrl ? (
-                          <Button
+                          <FilePreviewButton
                             variant="outline"
-                            size="sm"
-                            className="h-8 gap-1.5"
-                            asChild
-                          >
-                            <a
-                              href={attachment.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                            >
-                              <FileText className="size-3.5" />
-                              {t('govFollowUp.actions.viewFile')}
-                            </a>
-                          </Button>
+                            fileUrl={attachment.fileUrl}
+                            fileName={attachment.fileName}
+                          />
                         ) : null}
                         <Button
                           type="button"
                           variant="outline"
-                          size="sm"
-                          className="h-8 gap-1.5"
+                          size="icon"
+                          className="h-8 w-8"
+                          title={t('common.delete')}
+                          aria-label={t('common.delete')}
                           disabled={deletingAttachmentId === attachment.id}
                           onClick={() =>
                             void handleDeleteAttachment(attachment.id)
@@ -1302,7 +1285,6 @@ export function GovFollowUpDetailDialog({
                           ) : (
                             <Trash2 className="size-3.5" />
                           )}
-                          {t('common.delete')}
                         </Button>
                       </div>
                     </div>

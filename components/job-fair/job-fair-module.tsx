@@ -6,6 +6,7 @@ import {
   Copy,
   Download,
   ExternalLink,
+  Eye,
   FileText,
   Loader2,
   MapPin,
@@ -16,6 +17,7 @@ import {
 } from 'lucide-react';
 
 import { JobFairCheckIn } from '@/components/job-fair/job-fair-check-in';
+import { FilePreviewDialog } from '@/components/file-preview-dialog';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -187,6 +189,10 @@ export function JobFairModule({
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<JobFairRegistration | null>(null);
   const [openingResume, setOpeningResume] = useState<string | null>(null);
+  const [resumePreview, setResumePreview] = useState<{
+    fileUrl: string;
+    fileName: string;
+  } | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
@@ -252,19 +258,27 @@ export function JobFairModule({
     }
   };
 
-  const openResume = useCallback(async (id: string) => {
-    setOpeningResume(id);
-    try {
-      const res = await fetch(`/api/job-fair/registrations/${id}/resume`);
-      const json = (await res.json()) as { url?: string; error?: string };
-      if (!res.ok || !json.url) throw new Error(json.error || 'Could not open resume');
-      window.open(json.url, '_blank', 'noopener,noreferrer');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not open resume');
-    } finally {
-      setOpeningResume(null);
-    }
-  }, []);
+  const openResume = useCallback(
+    async (id: string, fileNameHint?: string | null) => {
+      setOpeningResume(id);
+      try {
+        const res = await fetch(`/api/job-fair/registrations/${id}/resume`);
+        const json = (await res.json()) as { url?: string; error?: string };
+        if (!res.ok || !json.url) {
+          throw new Error(json.error || 'Could not open resume');
+        }
+        setResumePreview({
+          fileUrl: json.url,
+          fileName: fileNameHint || 'resume.pdf',
+        });
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Could not open resume');
+      } finally {
+        setOpeningResume(null);
+      }
+    },
+    [],
+  );
 
   const exportHref = `/api/job-fair/registrations/export?${buildQuery(filters)}`;
   const items = data?.items ?? [];
@@ -413,15 +427,21 @@ export function JobFairModule({
                         {r.resumeStoragePath ? (
                           <Button
                             variant="ghost"
-                            size="sm"
+                            size="icon"
+                            className="h-8 w-8"
+                            title="Preview resume"
+                            aria-label="Preview resume"
                             disabled={openingResume === r.id}
                             onClick={(e) => {
                               e.stopPropagation();
-                              void openResume(r.id);
+                              void openResume(r.id, 'resume.pdf');
                             }}
                           >
-                            {openingResume === r.id ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
-                            View
+                            {openingResume === r.id ? (
+                              <Loader2 className="size-4 animate-spin" />
+                            ) : (
+                              <Eye className="size-4" />
+                            )}
                           </Button>
                         ) : (
                           <span className="text-xs text-muted-foreground">—</span>
@@ -527,18 +547,42 @@ export function JobFairModule({
                   </a>
                 </Button>
                 <Button
-                  className="h-10 w-full sm:w-auto"
-                  disabled={!selected.resumeStoragePath || openingResume === selected.id}
-                  onClick={() => void openResume(selected.id)}
+                  variant="outline"
+                  size="icon"
+                  className="h-10 w-10"
+                  title={
+                    selected.resumeStoragePath ? 'Preview resume' : 'No resume'
+                  }
+                  aria-label={
+                    selected.resumeStoragePath ? 'Preview resume' : 'No resume'
+                  }
+                  disabled={
+                    !selected.resumeStoragePath ||
+                    openingResume === selected.id
+                  }
+                  onClick={() => void openResume(selected.id, 'resume.pdf')}
                 >
-                  {openingResume === selected.id ? <Loader2 className="size-4 animate-spin" /> : <FileText className="size-4" />}
-                  {selected.resumeStoragePath ? 'View resume' : 'No resume'}
+                  {openingResume === selected.id ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Eye className="size-4" />
+                  )}
                 </Button>
               </div>
             </>
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <FilePreviewDialog
+        open={!!resumePreview}
+        onOpenChange={(open) => {
+          if (!open) setResumePreview(null);
+        }}
+        fileName={resumePreview?.fileName ?? null}
+        fileUrl={resumePreview?.fileUrl ?? null}
+        sourceUrl={resumePreview?.fileUrl ?? null}
+      />
     </div>
   );
 }

@@ -43,6 +43,7 @@ import { toast } from '@/components/toast';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ProjectsSkeleton } from '@/components/module-skeleton';
 import { RegisterAttachmentDialog } from '@/components/register-attachment-dialog';
+import { FilePreviewButton } from '@/components/file-preview-button';
 import { ProjectHierarchyGeoPickers } from '@/components/projects/project-hierarchy-geo-pickers';
 import { normalizeProjectGeoSelection } from '@/lib/projects/hierarchy-geo';
 import { LimitedFormField } from '@/components/ui/limited-form-field';
@@ -1373,15 +1374,29 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                               <TableCell>{entry.assignedPhone || '-'}</TableCell>
                               <TableCell>
                                 {entry.attachments && entry.attachments.length > 0 ? (
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-auto py-1 px-2 text-sm text-muted-foreground hover:text-foreground"
-                                    onClick={() => setAttachmentDialogEntry(entry)}
-                                  >
-                                    <Paperclip className="h-3 w-3 mr-1" />
-                                    {entry.attachments.length} file(s)
-                                  </Button>
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-auto py-1 px-2 text-sm text-muted-foreground hover:text-foreground"
+                                      onClick={() => setAttachmentDialogEntry(entry)}
+                                    >
+                                      <Paperclip className="h-3 w-3 mr-1" />
+                                      {entry.attachments.length} file(s)
+                                    </Button>
+                                    {entry.attachments.find((a) => a.fileUrl) ? (
+                                      <FilePreviewButton
+                                        fileUrl={
+                                          entry.attachments.find((a) => a.fileUrl)
+                                            ?.fileUrl
+                                        }
+                                        fileName={
+                                          entry.attachments.find((a) => a.fileUrl)
+                                            ?.fileName ?? 'document'
+                                        }
+                                      />
+                                    ) : null}
+                                  </div>
                                 ) : (
                                   '-'
                                 )}

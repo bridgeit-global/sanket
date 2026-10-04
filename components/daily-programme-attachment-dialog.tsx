@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -16,11 +16,15 @@ import {
   Image,
   Trash2,
   Download,
-  Printer,
-  Eye,
   Loader2,
 } from 'lucide-react';
 import { toast } from '@/components/toast';
+import { FilePreviewButton } from '@/components/file-preview-button';
+import {
+  downloadFileFromUrl,
+  isImageFile,
+  isPdfFile,
+} from '@/lib/file-preview';
 
 export type DailyProgrammeAttachment = {
   id: string;
@@ -49,24 +53,8 @@ export function DailyProgrammeAttachmentDialog({
 }: DailyProgrammeAttachmentDialogProps) {
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
-  const [opening, setOpening] = useState<string | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Inline preview state - previewing in-app avoids opening browser tabs.
-  const [previewAttachment, setPreviewAttachment] =
-    useState<DailyProgrammeAttachment | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const previewIframeRef = useRef<HTMLIFrameElement>(null);
-
-  // Revoke the object URL when the preview closes or the component unmounts.
-  useEffect(() => {
-    return () => {
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-      }
-    };
-  }, [previewUrl]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -77,6 +65,45 @@ export function DailyProgrammeAttachmentDialog({
       setDragActive(false);
     }
   }, []);
+
+  const uploadFiles = async (files: File[]) => {
+    setUploading(true);
+    let successCount = 0;
+
+    for (const file of files) {
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch(
+          `/api/daily-programme/${programmeId}/attachments`,
+          {
+            method: 'POST',
+            body: formData,
+          },
+        );
+
+        if (response.ok) {
+          successCount++;
+        } else {
+          const data = await response.json();
+          toast.error(`Failed to upload ${file.name}: ${data.error}`);
+        }
+      } catch (error) {
+        console.error('Upload error:', error);
+        toast.error(`Failed to upload ${file.name}`);
+      }
+    }
+
+    setUploading(false);
+
+    if (successCount > 0) {
+      toast.success(
+        `${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully`,
+      );
+      onAttachmentsChange();
+    }
+  };
 
   const handleDrop = useCallback(
     async (e: React.DragEvent) => {
@@ -89,6 +116,7 @@ export function DailyProgrammeAttachmentDialog({
         await uploadFiles(Array.from(files));
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stable for drop target
     [programmeId],
   );
 
@@ -97,48 +125,8 @@ export function DailyProgrammeAttachmentDialog({
     if (files && files.length > 0) {
       await uploadFiles(Array.from(files));
     }
-    // Reset input
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
-    }
-  };
-
-  const uploadFiles = async (files: File[]) => {
-    setUploading(true);
-    let successCount = 0;
-    let errorCount = 0;
-
-    for (const file of files) {
-      try {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        const response = await fetch(`/api/daily-programme/${programmeId}/attachments`, {
-          method: 'POST',
-          body: formData,
-        });
-
-        if (response.ok) {
-          successCount++;
-        } else {
-          const data = await response.json();
-          toast.error(`Failed to upload ${file.name}: ${data.error}`);
-          errorCount++;
-        }
-      } catch (error) {
-        console.error('Upload error:', error);
-        toast.error(`Failed to upload ${file.name}`);
-        errorCount++;
-      }
-    }
-
-    setUploading(false);
-
-    if (successCount > 0) {
-      toast.success(
-        `${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully`,
-      );
-      onAttachmentsChange();
     }
   };
 
@@ -167,85 +155,24 @@ export function DailyProgrammeAttachmentDialog({
     }
   };
 
-  const closePreview = (isOpen: boolean) => {
-    if (!isOpen) {
-      setPreviewAttachment(null);
-      setPreviewUrl(null);
-    }
-  };
-
-  // Preview the file inline inside the app instead of opening a browser tab.
-  // This avoids the "a new tab opens on every click" problem entirely.
-  const handleView = async (attachment: DailyProgrammeAttachment) => {
-    if (!attachment.fileUrl) {
-      toast.error('File URL not available');
-      return;
-    }
-    setOpening(attachment.id);
-    try {
-      const response = await fetch(attachment.fileUrl);
-      if (!response.ok) throw new Error('Failed to fetch file');
-      const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      setPreviewUrl(objectUrl);
-      setPreviewAttachment(attachment);
-    } catch (error) {
-      console.error('Preview error:', error);
-      toast.error('Failed to open document');
-    } finally {
-      setOpening(null);
-    }
-  };
-
-  const handlePreviewPrint = () => {
-    try {
-      previewIframeRef.current?.contentWindow?.focus();
-      previewIframeRef.current?.contentWindow?.print();
-    } catch (error) {
-      console.error('Print error:', error);
-    }
-  };
-
-  const getFileExt = (fileName: string) =>
-    fileName.split('.').pop()?.toLowerCase() ?? '';
-
-  const canPreviewInline = (fileName: string) => {
-    const ext = getFileExt(fileName);
-    return ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'txt'].includes(ext);
-  };
-
   const handleDownload = async (attachment: DailyProgrammeAttachment) => {
     if (!attachment.fileUrl) {
       toast.error('File URL not available');
       return;
     }
     try {
-      // Fetch as a blob so the download happens in-place instead of opening a
-      // new tab (the `download` attribute is ignored for cross-origin URLs).
-      const response = await fetch(attachment.fileUrl);
-      if (!response.ok) throw new Error('Failed to fetch file');
-      const blob = await response.blob();
-      const objectUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = objectUrl;
-      link.download = attachment.fileName;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(objectUrl);
+      await downloadFileFromUrl(attachment.fileUrl, attachment.fileName);
     } catch (error) {
       console.error('Download error:', error);
-      // Fallback: reuse the shared preview tab rather than spawning a new one.
       window.open(attachment.fileUrl, 'attachment-preview');
     }
   };
 
   const getFileIcon = (fileName: string) => {
-    const ext = fileName.split('.').pop()?.toLowerCase();
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) {
+    if (isImageFile(fileName)) {
       return <Image className="h-4 w-4 text-blue-500" />;
     }
-    if (ext === 'pdf') {
+    if (isPdfFile(fileName)) {
       return <FileText className="h-4 w-4 text-red-500" />;
     }
     return <File className="h-4 w-4 text-gray-500" />;
@@ -259,7 +186,6 @@ export function DailyProgrammeAttachmentDialog({
   };
 
   return (
-    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
         <DialogHeader>
@@ -269,7 +195,6 @@ export function DailyProgrammeAttachmentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Upload Zone */}
         <div
           className={`
             relative border-2 border-dashed rounded-lg p-6 transition-colors
@@ -310,7 +235,6 @@ export function DailyProgrammeAttachmentDialog({
           </div>
         </div>
 
-        {/* Attachments List */}
         <div className="flex-1 overflow-y-auto min-h-0">
           {attachments.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
@@ -320,7 +244,8 @@ export function DailyProgrammeAttachmentDialog({
           ) : (
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground mb-2">
-                {attachments.length} document{attachments.length !== 1 ? 's' : ''} attached
+                {attachments.length} document
+                {attachments.length !== 1 ? 's' : ''} attached
               </p>
               {attachments.map((attachment) => (
                 <div
@@ -337,20 +262,10 @@ export function DailyProgrammeAttachmentDialog({
                     </p>
                   </div>
                   <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8"
-                      onClick={() => handleView(attachment)}
-                      disabled={opening === attachment.id}
-                      title="View"
-                    >
-                      {opening === attachment.id ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Eye className="h-4 w-4" />
-                      )}
-                    </Button>
+                    <FilePreviewButton
+                      fileUrl={attachment.fileUrl}
+                      fileName={attachment.fileName}
+                    />
                     <Button
                       variant="ghost"
                       size="icon"
@@ -382,75 +297,5 @@ export function DailyProgrammeAttachmentDialog({
         </div>
       </DialogContent>
     </Dialog>
-
-    {/* Inline document preview - keeps everything in-app (no browser tabs) */}
-    <Dialog open={!!previewAttachment} onOpenChange={closePreview}>
-      <DialogContent className="max-w-5xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="p-4 pr-14 border-b">
-          <DialogTitle className="truncate text-base">
-            {previewAttachment?.fileName}
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            Document preview
-          </DialogDescription>
-          <div className="flex items-center gap-1 absolute right-12 top-3.5">
-            {previewAttachment &&
-              canPreviewInline(previewAttachment.fileName) && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8"
-                  onClick={handlePreviewPrint}
-                  title="Print"
-                >
-                  <Printer className="h-4 w-4" />
-                </Button>
-              )}
-            {previewAttachment && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={() => handleDownload(previewAttachment)}
-                title="Download"
-              >
-                <Download className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
-        </DialogHeader>
-
-        <div className="flex-1 min-h-0 bg-muted/30">
-          {previewUrl &&
-          previewAttachment &&
-          canPreviewInline(previewAttachment.fileName) ? (
-            <iframe
-              ref={previewIframeRef}
-              src={previewUrl}
-              title={previewAttachment.fileName}
-              className="w-full h-full border-0"
-            />
-          ) : (
-            <div className="flex flex-col items-center justify-center h-full gap-3 text-center p-6">
-              <FileText className="h-12 w-12 text-muted-foreground opacity-50" />
-              <p className="text-sm text-muted-foreground">
-                Preview isn&apos;t available for this file type.
-              </p>
-              {previewAttachment && (
-                <Button
-                  variant="outline"
-                  onClick={() => handleDownload(previewAttachment)}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download to view
-                </Button>
-              )}
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-    </>
   );
 }
-

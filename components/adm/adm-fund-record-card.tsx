@@ -11,6 +11,7 @@ import {
   Upload,
   X,
 } from 'lucide-react';
+import { FilePreviewButton } from '@/components/file-preview-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -378,20 +379,17 @@ export function AdmFundRecordCard({
               {sourceDocuments.map((doc) => {
                 const href = doc.attachmentFileUrl || doc.fileUrl;
                 if (!href) return null;
+                const name =
+                  doc.fileName || doc.label || t('adm.sourceDetailsPdf');
                 return (
-                  <a
+                  <div
                     key={doc.id}
-                    href={href}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-11 w-full items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-primary hover:bg-muted/40 sm:w-auto sm:min-h-9 sm:border-0 sm:px-0 sm:py-0 sm:hover:bg-transparent sm:hover:underline"
+                    className="inline-flex min-h-11 w-full items-center gap-2 rounded-md border border-border px-3 py-2 text-sm sm:w-auto sm:min-h-9 sm:border-0 sm:px-0 sm:py-0"
                   >
-                    <FileText className="h-3.5 w-3.5 shrink-0" />
-                    <span className="min-w-0 truncate">
-                      {doc.label || doc.fileName || t('adm.sourceDetailsPdf')}
-                    </span>
-                    <ExternalLink className="h-3 w-3 shrink-0" />
-                  </a>
+                    <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate">{name}</span>
+                    <FilePreviewButton fileUrl={href} fileName={name} />
+                  </div>
                 );
               })}
             </div>
@@ -490,33 +488,31 @@ export function AdmFundRecordCard({
                 <div className="flex min-w-0 items-start gap-2 sm:items-center">
                   <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground sm:mt-0" />
                   <div className="min-w-0 flex-1">
-                    {doc.fileUrl ? (
-                      <a
-                        href={doc.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="break-words text-primary hover:underline"
-                      >
-                        {doc.label || doc.fileName}
-                      </a>
-                    ) : (
-                      <span className="break-words">
-                        {doc.label || doc.fileName}
-                      </span>
-                    )}
+                    <span className="break-words">
+                      {doc.label || doc.fileName}
+                    </span>
                     <p className="text-xs text-muted-foreground">{doc.kind}</p>
                   </div>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="min-h-11 w-full sm:min-h-9 sm:w-auto"
-                  onClick={() => onDeleteDocument(fund.id, doc)}
-                >
-                  <X className="mr-1 h-3.5 w-3.5 sm:mr-0" />
-                  <span className="sm:hidden">{t('adm.delete')}</span>
-                </Button>
+                <div className="flex w-full items-center gap-1 sm:w-auto">
+                  {doc.fileUrl ? (
+                    <FilePreviewButton
+                      fileUrl={doc.fileUrl}
+                      fileName={doc.fileName || doc.label || 'document'}
+                    />
+                  ) : null}
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8"
+                    title={t('adm.delete')}
+                    aria-label={t('adm.delete')}
+                    onClick={() => onDeleteDocument(fund.id, doc)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { FileText, Trash2, Upload } from 'lucide-react';
+import { FilePreviewButton } from '@/components/file-preview-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -144,30 +145,29 @@ export function ProjectDetailExtras({
                   className="rounded-md border border-border p-3 text-sm"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      {doc.fileUrl ? (
-                        <a
-                          href={doc.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
-                        >
-                          <FileText className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">{doc.fileName}</span>
-                        </a>
-                      ) : (
-                        <span className="font-medium">{doc.fileName}</span>
-                      )}
+                    <div className="flex min-w-0 items-center gap-2">
+                      <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                      <span className="truncate font-medium">{doc.fileName}</span>
                     </div>
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="ghost"
-                      className="text-destructive"
-                      onClick={() => void deleteDocument(doc.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {doc.fileUrl ? (
+                        <FilePreviewButton
+                          fileUrl={doc.fileUrl}
+                          fileName={doc.fileName || 'document'}
+                        />
+                      ) : null}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 text-destructive"
+                        onClick={() => void deleteDocument(doc.id)}
+                        title="Delete"
+                        aria-label="Delete"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </li>
               ))}

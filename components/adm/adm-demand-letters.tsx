@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FileText, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from '@/components/toast';
+import { FilePreviewButton } from '@/components/file-preview-button';
 import { Button } from '@/components/ui/button';
 import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
@@ -286,17 +287,19 @@ export function AdmDemandLetters({
                   <TableCell className="font-medium">{letter.title}</TableCell>
                   <TableCell>
                     {letter.fileUrl ? (
-                      <a
-                        href={letter.fileUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
-                      >
-                        <FileText className="h-4 w-4 shrink-0" />
-                        <span className="truncate max-w-[220px]">
+                      <div className="inline-flex max-w-full items-center gap-1.5">
+                        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="max-w-[180px] truncate text-sm">
                           {letter.fileName || t('adm.demandLetters.viewDocument')}
                         </span>
-                      </a>
+                        <FilePreviewButton
+                          fileUrl={letter.fileUrl}
+                          fileName={
+                            letter.fileName ||
+                            t('adm.demandLetters.viewDocument')
+                          }
+                        />
+                      </div>
                     ) : (
                       '—'
                     )}

@@ -1613,6 +1613,10 @@ export function LetterGeneration({
   );
   const [previewFullscreen, setPreviewFullscreen] = useState(false);
   const [livePreviewFullscreen, setLivePreviewFullscreen] = useState(false);
+  const [savedPreviewToolbarEl, setSavedPreviewToolbarEl] =
+    useState<HTMLDivElement | null>(null);
+  const [livePreviewToolbarEl, setLivePreviewToolbarEl] =
+    useState<HTMLDivElement | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [letterToDelete, setLetterToDelete] = useState<string | null>(null);
   const [clearAllDialogOpen, setClearAllDialogOpen] = useState(false);
@@ -8999,7 +9003,7 @@ export function LetterGeneration({
                         'flex min-w-0 flex-col gap-3 overflow-hidden p-4 sm:gap-4 sm:p-6',
                         previewFullscreen
                           ? 'left-0 top-0 h-[100dvh] max-h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 rounded-none border-0 sm:rounded-none'
-                          : 'max-h-[90dvh] w-[calc(100%-2rem)]',
+                          : 'h-[90dvh] max-h-[90dvh] w-[calc(100%-2rem)]',
                         !previewFullscreen &&
                           (selectedSavedLetter
                             ? getLetterPreviewDialogMaxWidthClass(
@@ -9011,259 +9015,368 @@ export function LetterGeneration({
                       {selectedSavedLetter ? (
                         <>
                           <DialogHeader className="shrink-0 space-y-3 pr-12 text-left">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 space-y-1.5">
-                                <DialogTitle className="break-words text-base leading-snug sm:text-lg">
-                                  {selectedSavedLetter.title}{' '}
-                                  {selectedSavedLetter.referenceNo
-                                    ? `- ${formatReferenceForDisplay(selectedSavedLetter.referenceNo, locale)}`
-                                    : ''}
-                                </DialogTitle>
-                                <DialogDescription className="break-words">
-                                  {resolveTypeLabel(selectedSavedLetter.letterType)} ·{' '}
-                                  {t('letterGeneration.paperSize.label', {
-                                    size: getLetterPaperLabel(
-                                      resolveSavedLetterPaperSize(selectedSavedLetter),
-                                    ),
-                                  })}
-                                  {' · '}
-                                  {t(
-                                    `letterGeneration.savedLetters.status.${letterWorkflowStatus(selectedSavedLetter.status)}`,
-                                  )}
-                                </DialogDescription>
-                              </div>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                className="mr-2 h-10 w-10 shrink-0 justify-center px-0"
-                                aria-label={
-                                  previewFullscreen
+                            <div className="min-w-0 space-y-1.5">
+                              <DialogTitle className="break-words text-base leading-snug sm:text-lg">
+                                {selectedSavedLetter.title}{' '}
+                                {selectedSavedLetter.referenceNo
+                                  ? `- ${formatReferenceForDisplay(selectedSavedLetter.referenceNo, locale)}`
+                                  : ''}
+                              </DialogTitle>
+                              <DialogDescription className="break-words">
+                                {resolveTypeLabel(selectedSavedLetter.letterType)} ·{' '}
+                                {t('letterGeneration.paperSize.label', {
+                                  size: getLetterPaperLabel(
+                                    resolveSavedLetterPaperSize(selectedSavedLetter),
+                                  ),
+                                })}
+                                {' · '}
+                                {t(
+                                  `letterGeneration.savedLetters.status.${letterWorkflowStatus(selectedSavedLetter.status)}`,
+                                )}
+                              </DialogDescription>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <div
+                                ref={setSavedPreviewToolbarEl}
+                                className="flex items-center"
+                              />
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-10 w-10 shrink-0"
+                                    aria-label={
+                                      previewFullscreen
+                                        ? t(
+                                            'letterGeneration.savedLetters.actions.exitFullscreen',
+                                          )
+                                        : t(
+                                            'letterGeneration.savedLetters.actions.fullscreen',
+                                          )
+                                    }
+                                    onClick={() =>
+                                      setPreviewFullscreen((value) => !value)
+                                    }
+                                  >
+                                    {previewFullscreen ? (
+                                      <Minimize2 className="size-4" />
+                                    ) : (
+                                      <Maximize2 className="size-4" />
+                                    )}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {previewFullscreen
                                     ? t(
                                         'letterGeneration.savedLetters.actions.exitFullscreen',
                                       )
                                     : t(
                                         'letterGeneration.savedLetters.actions.fullscreen',
-                                      )
-                                }
-                                onClick={() =>
-                                  setPreviewFullscreen((value) => !value)
-                                }
-                              >
-                                {previewFullscreen ? (
-                                  <Minimize2 className="size-4" />
-                                ) : (
-                                  <Maximize2 className="size-4" />
-                                )}
-                              </Button>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
+                                      )}
+                                </TooltipContent>
+                              </Tooltip>
                               {outwardAddedReferenceNos.has(
                                 selectedSavedLetter.referenceNo,
                               ) ? (
-                                <Button
-                                  asChild
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
-                                >
-                                  <Link
-                                    href={buildOutwardEntryHref(selectedSavedLetter)}
-                                    aria-label={t(
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      asChild
+                                      size="icon"
+                                      variant="outline"
+                                      className="h-10 w-10 shrink-0"
+                                    >
+                                      <Link
+                                        href={buildOutwardEntryHref(
+                                          selectedSavedLetter,
+                                        )}
+                                        aria-label={t(
+                                          'letterGeneration.savedLetters.actions.goToOutward',
+                                        )}
+                                      >
+                                        <ExternalLink className="size-4" />
+                                      </Link>
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {t(
                                       'letterGeneration.savedLetters.actions.goToOutward',
                                     )}
-                                  >
-                                    <ExternalLink className="size-4 shrink-0 sm:mr-2" />
-                                    <span className="hidden sm:inline">
-                                      {t(
-                                        'letterGeneration.savedLetters.actions.goToOutward',
-                                      )}
-                                    </span>
-                                  </Link>
-                                </Button>
+                                  </TooltipContent>
+                                </Tooltip>
                               ) : (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
-                                  aria-label={t(
-                                    'letterGeneration.savedLetters.actions.addToOutward',
-                                  )}
-                                  onClick={() =>
-                                    void handleAddLetterToOutward(selectedSavedLetter)
-                                  }
-                                  disabled={
-                                    addingToOutwardLetterId === selectedSavedLetter.id
-                                  }
-                                >
-                                  {addingToOutwardLetterId ===
-                                  selectedSavedLetter.id ? (
-                                    <Loader2 className="size-4 shrink-0 animate-spin sm:mr-2" />
-                                  ) : (
-                                    <Send className="size-4 shrink-0 sm:mr-2" />
-                                  )}
-                                  <span className="hidden sm:inline">
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="inline-flex">
+                                      <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="outline"
+                                        className="h-10 w-10 shrink-0"
+                                        aria-label={t(
+                                          'letterGeneration.savedLetters.actions.addToOutward',
+                                        )}
+                                        onClick={() =>
+                                          void handleAddLetterToOutward(
+                                            selectedSavedLetter,
+                                          )
+                                        }
+                                        disabled={
+                                          addingToOutwardLetterId ===
+                                          selectedSavedLetter.id
+                                        }
+                                      >
+                                        {addingToOutwardLetterId ===
+                                        selectedSavedLetter.id ? (
+                                          <Loader2 className="size-4 animate-spin" />
+                                        ) : (
+                                          <Send className="size-4" />
+                                        )}
+                                      </Button>
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
                                     {t(
                                       'letterGeneration.savedLetters.actions.addToOutward',
                                     )}
-                                  </span>
-                                </Button>
+                                  </TooltipContent>
+                                </Tooltip>
                               )}
-                              <Button
-                                asChild
-                                size="sm"
-                                variant="outline"
-                                className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
-                              >
-                                <Link
-                                  href={`/modules/gov-follow-up?new=1&letterId=${selectedSavedLetter.id}`}
-                                  aria-label={t('govFollowUp.startFollowUp')}
-                                >
-                                  <PhoneCall className="size-4 shrink-0 sm:mr-2" />
-                                  <span className="hidden sm:inline">
-                                    {t('govFollowUp.startFollowUp')}
-                                  </span>
-                                </Link>
-                              </Button>
-                              {letterWorkflowStatus(selectedSavedLetter.status) === 'draft' ? (
-                                <>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
                                   <Button
-                                    size="sm"
+                                    asChild
+                                    size="icon"
                                     variant="outline"
-                                    className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
-                                    aria-label={t(
-                                      'letterGeneration.savedLetters.actions.edit',
-                                    )}
-                                    onClick={() => handleEditDraft(selectedSavedLetter)}
+                                    className="h-10 w-10 shrink-0"
                                   >
-                                    <Pencil className="size-4 shrink-0 sm:mr-2" />
-                                    <span className="hidden sm:inline">
-                                      {t('letterGeneration.savedLetters.actions.edit')}
-                                    </span>
+                                    <Link
+                                      href={`/modules/gov-follow-up?new=1&letterId=${selectedSavedLetter.id}`}
+                                      aria-label={t('govFollowUp.startFollowUp')}
+                                    >
+                                      <PhoneCall className="size-4" />
+                                    </Link>
                                   </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
-                                    aria-label={t(
-                                      'letterGeneration.savedLetters.sendForVerification',
-                                    )}
-                                    onClick={() =>
-                                      void handleSendSavedDraftForVerification(
-                                        selectedSavedLetter,
-                                      )
-                                    }
-                                    disabled={
-                                      verifyingLetterId === selectedSavedLetter.id ||
-                                      submittingLetterId === selectedSavedLetter.id
-                                    }
-                                  >
-                                    {verifyingLetterId === selectedSavedLetter.id ? (
-                                      <Loader2 className="size-4 shrink-0 animate-spin sm:mr-2" />
-                                    ) : (
-                                      <ShieldCheck className="size-4 shrink-0 sm:mr-2" />
-                                    )}
-                                    <span className="hidden sm:inline">
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {t('govFollowUp.startFollowUp')}
+                                </TooltipContent>
+                              </Tooltip>
+                              {letterWorkflowStatus(selectedSavedLetter.status) ===
+                              'draft' ? (
+                                <>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="outline"
+                                        className="h-10 w-10 shrink-0"
+                                        aria-label={t(
+                                          'letterGeneration.savedLetters.actions.edit',
+                                        )}
+                                        onClick={() =>
+                                          handleEditDraft(selectedSavedLetter)
+                                        }
+                                      >
+                                        <Pencil className="size-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {t(
+                                        'letterGeneration.savedLetters.actions.edit',
+                                      )}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="inline-flex">
+                                        <Button
+                                          type="button"
+                                          size="icon"
+                                          variant="outline"
+                                          className="h-10 w-10 shrink-0"
+                                          aria-label={t(
+                                            'letterGeneration.savedLetters.sendForVerification',
+                                          )}
+                                          onClick={() =>
+                                            void handleSendSavedDraftForVerification(
+                                              selectedSavedLetter,
+                                            )
+                                          }
+                                          disabled={
+                                            verifyingLetterId ===
+                                              selectedSavedLetter.id ||
+                                            submittingLetterId ===
+                                              selectedSavedLetter.id
+                                          }
+                                        >
+                                          {verifyingLetterId ===
+                                          selectedSavedLetter.id ? (
+                                            <Loader2 className="size-4 animate-spin" />
+                                          ) : (
+                                            <ShieldCheck className="size-4" />
+                                          )}
+                                        </Button>
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
                                       {t(
                                         'letterGeneration.savedLetters.sendForVerification',
                                       )}
-                                    </span>
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
-                                    aria-label={t(
-                                      'letterGeneration.savedLetters.actions.submit',
-                                    )}
-                                    onClick={() =>
-                                      void handleSubmitSavedDraft(selectedSavedLetter)
-                                    }
-                                    disabled={
-                                      submittingLetterId === selectedSavedLetter.id ||
-                                      verifyingLetterId === selectedSavedLetter.id
-                                    }
-                                  >
-                                    {submittingLetterId === selectedSavedLetter.id ? (
-                                      <Loader2 className="size-4 shrink-0 animate-spin sm:mr-2" />
-                                    ) : (
-                                      <Check className="size-4 shrink-0 sm:mr-2" />
-                                    )}
-                                    <span className="hidden sm:inline">
-                                      {t('letterGeneration.savedLetters.actions.submit')}
-                                    </span>
-                                  </Button>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="inline-flex">
+                                        <Button
+                                          type="button"
+                                          size="icon"
+                                          className="h-10 w-10 shrink-0"
+                                          aria-label={t(
+                                            'letterGeneration.savedLetters.actions.submit',
+                                          )}
+                                          onClick={() =>
+                                            void handleSubmitSavedDraft(
+                                              selectedSavedLetter,
+                                            )
+                                          }
+                                          disabled={
+                                            submittingLetterId ===
+                                              selectedSavedLetter.id ||
+                                            verifyingLetterId ===
+                                              selectedSavedLetter.id
+                                          }
+                                        >
+                                          {submittingLetterId ===
+                                          selectedSavedLetter.id ? (
+                                            <Loader2 className="size-4 animate-spin" />
+                                          ) : (
+                                            <Check className="size-4" />
+                                          )}
+                                        </Button>
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      {t(
+                                        'letterGeneration.savedLetters.actions.submit',
+                                      )}
+                                    </TooltipContent>
+                                  </Tooltip>
                                 </>
                               ) : null}
                               {isAdmin &&
                               letterWorkflowStatus(selectedSavedLetter.status) ===
                                 'pending_verification' ? (
-                                <Button
-                                  size="sm"
-                                  className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
-                                  aria-label={t(
-                                    'letterGeneration.savedLetters.actions.approve',
-                                  )}
-                                  onClick={() =>
-                                    void handleApproveLetter(selectedSavedLetter)
-                                  }
-                                  disabled={approvingLetterId === selectedSavedLetter.id}
-                                >
-                                  {approvingLetterId === selectedSavedLetter.id ? (
-                                    <Loader2 className="size-4 shrink-0 animate-spin sm:mr-2" />
-                                  ) : (
-                                    <Check className="size-4 shrink-0 sm:mr-2" />
-                                  )}
-                                  <span className="hidden sm:inline">
-                                    {t('letterGeneration.savedLetters.actions.approve')}
-                                  </span>
-                                </Button>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <span className="inline-flex">
+                                      <Button
+                                        type="button"
+                                        size="icon"
+                                        className="h-10 w-10 shrink-0"
+                                        aria-label={t(
+                                          'letterGeneration.savedLetters.actions.approve',
+                                        )}
+                                        onClick={() =>
+                                          void handleApproveLetter(
+                                            selectedSavedLetter,
+                                          )
+                                        }
+                                        disabled={
+                                          approvingLetterId ===
+                                          selectedSavedLetter.id
+                                        }
+                                      >
+                                        {approvingLetterId ===
+                                        selectedSavedLetter.id ? (
+                                          <Loader2 className="size-4 animate-spin" />
+                                        ) : (
+                                          <Check className="size-4" />
+                                        )}
+                                      </Button>
+                                    </span>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    {t(
+                                      'letterGeneration.savedLetters.actions.approve',
+                                    )}
+                                  </TooltipContent>
+                                </Tooltip>
                               ) : null}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
-                                aria-label={t(
-                                  'letterGeneration.savedLetters.actions.print',
-                                )}
-                                onClick={() =>
-                                  void handlePrintSavedLetter(selectedSavedLetter)
-                                }
-                                disabled={
-                                  printingLetterId === selectedSavedLetter.id
-                                }
-                              >
-                                {printingLetterId === selectedSavedLetter.id ? (
-                                  <Loader2 className="size-4 shrink-0 animate-spin sm:mr-2" />
-                                ) : (
-                                  <Printer className="size-4 shrink-0 sm:mr-2" />
-                                )}
-                                <span className="hidden sm:inline">
-                                  {t('letterGeneration.savedLetters.actions.print')}
-                                </span>
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-10 w-10 shrink-0 justify-center px-0 sm:h-auto sm:min-h-10 sm:w-auto sm:justify-start sm:px-3 sm:py-2 sm:text-sm"
-                                aria-label={t(
-                                  'letterGeneration.savedLetters.actions.download',
-                                )}
-                                onClick={() =>
-                                  void handleDownloadSavedLetter(selectedSavedLetter)
-                                }
-                                disabled={
-                                  downloadingLetterId === selectedSavedLetter.id
-                                }
-                              >
-                                {downloadingLetterId === selectedSavedLetter.id ? (
-                                  <Loader2 className="size-4 shrink-0 animate-spin sm:mr-2" />
-                                ) : (
-                                  <FileDown className="size-4 shrink-0 sm:mr-2" />
-                                )}
-                                <span className="hidden sm:inline">
-                                  {t('letterGeneration.savedLetters.actions.download')}
-                                </span>
-                              </Button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex">
+                                    <Button
+                                      type="button"
+                                      size="icon"
+                                      variant="outline"
+                                      className="h-10 w-10 shrink-0"
+                                      aria-label={t(
+                                        'letterGeneration.savedLetters.actions.print',
+                                      )}
+                                      onClick={() =>
+                                        void handlePrintSavedLetter(
+                                          selectedSavedLetter,
+                                        )
+                                      }
+                                      disabled={
+                                        printingLetterId === selectedSavedLetter.id
+                                      }
+                                    >
+                                      {printingLetterId ===
+                                      selectedSavedLetter.id ? (
+                                        <Loader2 className="size-4 animate-spin" />
+                                      ) : (
+                                        <Printer className="size-4" />
+                                      )}
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {t(
+                                    'letterGeneration.savedLetters.actions.print',
+                                  )}
+                                </TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <span className="inline-flex">
+                                    <Button
+                                      type="button"
+                                      size="icon"
+                                      variant="outline"
+                                      className="h-10 w-10 shrink-0"
+                                      aria-label={t(
+                                        'letterGeneration.savedLetters.actions.download',
+                                      )}
+                                      onClick={() =>
+                                        void handleDownloadSavedLetter(
+                                          selectedSavedLetter,
+                                        )
+                                      }
+                                      disabled={
+                                        downloadingLetterId ===
+                                        selectedSavedLetter.id
+                                      }
+                                    >
+                                      {downloadingLetterId ===
+                                      selectedSavedLetter.id ? (
+                                        <Loader2 className="size-4 animate-spin" />
+                                      ) : (
+                                        <FileDown className="size-4" />
+                                      )}
+                                    </Button>
+                                  </span>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  {t(
+                                    'letterGeneration.savedLetters.actions.download',
+                                  )}
+                                </TooltipContent>
+                              </Tooltip>
                             </div>
                           </DialogHeader>
                           <div className="min-h-0 min-w-0 w-full flex-1 overflow-x-hidden overflow-y-auto">
@@ -9278,6 +9391,7 @@ export function LetterGeneration({
                               )}
                               letterLocale={selectedSavedLetter.letterLocale}
                               variant="modal"
+                              toolbarTarget={savedPreviewToolbarEl}
                             />
                           </div>
                         </>
@@ -9296,30 +9410,41 @@ export function LetterGeneration({
         onOpenChange={setLivePreviewFullscreen}
       >
         <DialogContent className="left-0 top-0 flex h-[100dvh] max-h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-3 overflow-hidden rounded-none border-0 p-3 sm:gap-4 sm:rounded-none sm:p-4">
-          <DialogHeader className="shrink-0 space-y-1 pr-12 text-left">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 space-y-1">
-                <DialogTitle className="text-base sm:text-lg">
-                  {t('letterGeneration.previewTitle')}
-                </DialogTitle>
-                <DialogDescription className="break-words">
-                  {t('letterGeneration.paperSize.label', {
-                    size: activePaperLabel,
-                  })}
-                </DialogDescription>
-              </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="mr-2 h-10 w-10 shrink-0 justify-center px-0"
-                aria-label={t(
-                  'letterGeneration.savedLetters.actions.exitFullscreen',
-                )}
-                onClick={() => setLivePreviewFullscreen(false)}
-              >
-                <Minimize2 className="size-4" />
-              </Button>
+          <DialogHeader className="shrink-0 space-y-3 pr-12 text-left">
+            <div className="min-w-0 space-y-1">
+              <DialogTitle className="text-base sm:text-lg">
+                {t('letterGeneration.previewTitle')}
+              </DialogTitle>
+              <DialogDescription className="break-words">
+                {t('letterGeneration.paperSize.label', {
+                  size: activePaperLabel,
+                })}
+              </DialogDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <div
+                ref={setLivePreviewToolbarEl}
+                className="flex items-center"
+              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="h-10 w-10 shrink-0"
+                    aria-label={t(
+                      'letterGeneration.savedLetters.actions.exitFullscreen',
+                    )}
+                    onClick={() => setLivePreviewFullscreen(false)}
+                  >
+                    <Minimize2 className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {t('letterGeneration.savedLetters.actions.exitFullscreen')}
+                </TooltipContent>
+              </Tooltip>
             </div>
           </DialogHeader>
           <div className="min-h-0 min-w-0 w-full flex-1 overflow-x-hidden overflow-y-auto">
@@ -9329,6 +9454,7 @@ export function LetterGeneration({
               letterheadUrl={activeLetterheadUrl}
               letterLocale={letterLocale}
               variant="modal"
+              toolbarTarget={livePreviewToolbarEl}
             />
           </div>
         </DialogContent>

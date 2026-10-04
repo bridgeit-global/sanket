@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Minus, Plus, RotateCcw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -346,12 +347,15 @@ export function LetterPreview({
   letterheadUrl,
   letterLocale,
   variant = 'inline',
+  toolbarTarget = null,
 }: {
   html: string;
   paperSize?: LetterPaperSize;
   letterheadUrl?: string | null;
   letterLocale: LetterLocale;
   variant?: 'inline' | 'modal';
+  /** When set, zoom controls render into this node (e.g. modal action toolbar). */
+  toolbarTarget?: HTMLElement | null;
 }) {
   const { t } = useTranslations();
   const resolvedLetterhead = resolveLetterheadUrl(paperSize, letterheadUrl);
@@ -571,54 +575,70 @@ export function LetterPreview({
     transformOrigin: 'top left',
   } as const;
 
+  const zoomToolbar = (
+    <div className="flex h-10 items-center gap-0.5 rounded-md border bg-background p-0.5">
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        className="h-9 w-9 shrink-0"
+        aria-label={t('letterGeneration.previewZoom.zoomOut')}
+        disabled={zoomFactor <= PREVIEW_ZOOM_MIN + 0.001}
+        onClick={() => adjustZoom(-PREVIEW_ZOOM_STEP)}
+      >
+        <Minus className="size-4" />
+      </Button>
+      <span
+        className="min-w-[3.5rem] text-center text-xs font-medium tabular-nums text-muted-foreground"
+        aria-live="polite"
+      >
+        {t('letterGeneration.previewZoom.level', { percent: zoomPercent })}
+      </span>
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        className="h-9 w-9 shrink-0"
+        aria-label={t('letterGeneration.previewZoom.zoomIn')}
+        disabled={zoomFactor >= PREVIEW_ZOOM_MAX - 0.001}
+        onClick={() => adjustZoom(PREVIEW_ZOOM_STEP)}
+      >
+        <Plus className="size-4" />
+      </Button>
+      <Button
+        type="button"
+        size="icon"
+        variant="ghost"
+        className="h-9 w-9 shrink-0"
+        aria-label={t('letterGeneration.previewZoom.reset')}
+        disabled={Math.abs(zoomFactor - 1) < 0.001}
+        onClick={resetZoom}
+      >
+        <RotateCcw className="size-4" />
+      </Button>
+    </div>
+  );
+
+  let toolbar: ReactNode = null;
+  if (toolbarTarget) {
+    toolbar = createPortal(zoomToolbar, toolbarTarget);
+  } else {
+    toolbar = (
+      <div className="hidden flex-wrap items-center justify-end gap-2 md:flex">
+        {zoomToolbar}
+      </div>
+    );
+  }
+
   return (
     <div
       ref={rootRef}
-      className="w-full min-w-0 max-w-full touch-pan-x touch-pan-y md:space-y-3"
+      className={cn(
+        'w-full min-w-0 max-w-full touch-pan-x touch-pan-y',
+        !toolbarTarget && 'md:space-y-3',
+      )}
     >
-      <div className="hidden flex-wrap items-center justify-end gap-2 md:flex">
-        <div className="flex items-center gap-1 rounded-md border bg-background p-1">
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-9 w-9 shrink-0 px-0"
-            aria-label={t('letterGeneration.previewZoom.zoomOut')}
-            disabled={zoomFactor <= PREVIEW_ZOOM_MIN + 0.001}
-            onClick={() => adjustZoom(-PREVIEW_ZOOM_STEP)}
-          >
-            <Minus className="size-4" />
-          </Button>
-          <span
-            className="min-w-[3.5rem] text-center text-xs font-medium tabular-nums text-muted-foreground"
-            aria-live="polite"
-          >
-            {t('letterGeneration.previewZoom.level', { percent: zoomPercent })}
-          </span>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-9 w-9 shrink-0 px-0"
-            aria-label={t('letterGeneration.previewZoom.zoomIn')}
-            disabled={zoomFactor >= PREVIEW_ZOOM_MAX - 0.001}
-            onClick={() => adjustZoom(PREVIEW_ZOOM_STEP)}
-          >
-            <Plus className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="ghost"
-            className="h-9 w-9 shrink-0 px-0"
-            aria-label={t('letterGeneration.previewZoom.reset')}
-            disabled={Math.abs(zoomFactor - 1) < 0.001}
-            onClick={resetZoom}
-          >
-            <RotateCcw className="size-4" />
-          </Button>
-        </div>
-      </div>
+      {toolbar}
 
       <div
         className={cn(

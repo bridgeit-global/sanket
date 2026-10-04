@@ -13,6 +13,11 @@ import { Combobox } from '@/components/ui/combobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from '@/components/toast';
+import {
+    FilePreviewButton,
+    type FilePreviewOpenPayload,
+} from '@/components/file-preview-button';
+import { FilePreviewDialog } from '@/components/file-preview-dialog';
 import { ArrowUpIcon, ArrowDownIcon, MinusIcon } from '@/components/icons';
 import { useTranslations } from '@/hooks/use-translations';
 import type { BeneficiaryService, VoterTask, VoterWithPartNo } from '@/lib/db/schema';
@@ -431,6 +436,9 @@ export function TaskManagement({
     const [serviceAttachments, setServiceAttachments] = useState<
         Array<{ id: string; fileName: string; fileUrl: string | null }>
     >([]);
+    const [filePreview, setFilePreview] = useState<FilePreviewOpenPayload | null>(
+        null,
+    );
     const [taskHistory, setTaskHistory] = useState<TaskHistoryEntry[]>([]);
     const [taskHistoryLoading, setTaskHistoryLoading] = useState(false);
     const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -1116,6 +1124,21 @@ export function TaskManagement({
             });
         }
     };
+
+    const handlePreviewOpen = useCallback((payload: FilePreviewOpenPayload) => {
+        setFilePreview((prev) => {
+            if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
+            return payload;
+        });
+    }, []);
+
+    const handlePreviewDialogChange = useCallback((open: boolean) => {
+        if (open) return;
+        setFilePreview((prev) => {
+            if (prev?.previewUrl) URL.revokeObjectURL(prev.previewUrl);
+            return null;
+        });
+    }, []);
 
     const handleDownloadLetter = async (letter: {
         id: string;
@@ -1818,6 +1841,8 @@ export function TaskManagement({
             <Dialog
                 open={showTaskDialog}
                 onOpenChange={(open) => {
+                    // Keep Manage Task open while the lifted preview dialog is showing.
+                    if (!open && filePreview) return;
                     setShowTaskDialog(open);
                     if (!open) setRequestLetterOpen(false);
                 }}
@@ -1928,7 +1953,12 @@ export function TaskManagement({
                                         </div>
                                     ) : linkedLetters.length > 0 || linkedRequestLetters.length > 0 ? (
                                         <ul className="max-h-56 space-y-2 overflow-y-auto sm:max-h-72">
-                                            {linkedLetters.map((letter) => (
+                                            {linkedLetters.map((letter) => {
+                                                const pdfName = letterPdfDownloadFileName(
+                                                    letter.title,
+                                                    letter.referenceNo,
+                                                );
+                                                return (
                                                 <li
                                                     key={letter.id}
                                                     className="flex flex-col gap-2 rounded-md border border-border/60 p-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
@@ -1946,33 +1976,51 @@ export function TaskManagement({
                                                             ) : null}
                                                         </div>
                                                     </div>
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        className="w-full shrink-0 sm:w-auto"
-                                                        disabled={
-                                                            downloadingLetterId === letter.id ||
-                                                            !letter.pdfStoragePath
-                                                        }
-                                                        title={
-                                                            letter.pdfStoragePath
-                                                                ? t('taskManagement.dialog.downloadLetter')
-                                                                : t('taskManagement.dialog.downloadLetterUnavailable')
-                                                        }
-                                                        onClick={() => void handleDownloadLetter(letter)}
-                                                    >
-                                                        {downloadingLetterId === letter.id ? (
-                                                            <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                                                        ) : (
-                                                            <FileDown className="mr-1.5 size-3.5" />
-                                                        )}
-                                                        {t('taskManagement.dialog.downloadLetter')}
-                                                    </Button>
+                                                    <div className="flex shrink-0 items-center justify-end gap-1">
+                                                        {letter.pdfStoragePath ? (
+                                                            <FilePreviewButton
+                                                                variant="outline"
+                                                                fileUrl={`/api/letters/${encodeURIComponent(letter.id)}/pdf`}
+                                                                fileName={pdfName}
+                                                                onPreviewOpen={handlePreviewOpen}
+                                                            />
+                                                        ) : null}
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="icon"
+                                                            className="h-8 w-8"
+                                                            disabled={
+                                                                downloadingLetterId === letter.id ||
+                                                                !letter.pdfStoragePath
+                                                            }
+                                                            title={
+                                                                letter.pdfStoragePath
+                                                                    ? t('taskManagement.dialog.downloadLetter')
+                                                                    : t('taskManagement.dialog.downloadLetterUnavailable')
+                                                            }
+                                                            aria-label={
+                                                                letter.pdfStoragePath
+                                                                    ? t('taskManagement.dialog.downloadLetter')
+                                                                    : t('taskManagement.dialog.downloadLetterUnavailable')
+                                                            }
+                                                            onClick={() => void handleDownloadLetter(letter)}
+                                                        >
+                                                            {downloadingLetterId === letter.id ? (
+                                                                <Loader2 className="size-3.5 animate-spin" />
+                                                            ) : (
+                                                                <FileDown className="size-3.5" />
+                                                            )}
+                                                        </Button>
+                                                    </div>
                                                 </li>
-                                            ))}
+                                                );
+                                            })}
                                             {linkedRequestLetters.map((letter) => {
                                                 const downloadKey = `request:${letter.id}`;
+                                                const pdfName = letter.fileName?.toLowerCase().endsWith('.pdf')
+                                                    ? letter.fileName
+                                                    : `${letter.fileName || letter.title || 'request-letter'}.pdf`;
                                                 return (
                                                     <li
                                                         key={downloadKey}
@@ -1994,24 +2042,32 @@ export function TaskManagement({
                                                                 </p>
                                                             </div>
                                                         </div>
-                                                        <Button
-                                                            type="button"
-                                                            variant="outline"
-                                                            size="sm"
-                                                            className="w-full shrink-0 sm:w-auto"
-                                                            disabled={downloadingLetterId === downloadKey}
-                                                            title={t('taskManagement.dialog.downloadLetter')}
-                                                            onClick={() =>
-                                                                void handleDownloadRequestLetter(letter)
-                                                            }
-                                                        >
-                                                            {downloadingLetterId === downloadKey ? (
-                                                                <Loader2 className="mr-1.5 size-3.5 animate-spin" />
-                                                            ) : (
-                                                                <FileDown className="mr-1.5 size-3.5" />
-                                                            )}
-                                                            {t('taskManagement.dialog.downloadLetter')}
-                                                        </Button>
+                                                        <div className="flex shrink-0 items-center justify-end gap-1">
+                                                            <FilePreviewButton
+                                                                variant="outline"
+                                                                fileUrl={`/api/adm/fund-request-letters/${encodeURIComponent(letter.id)}/pdf`}
+                                                                fileName={pdfName}
+                                                                onPreviewOpen={handlePreviewOpen}
+                                                            />
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                size="icon"
+                                                                className="h-8 w-8"
+                                                                disabled={downloadingLetterId === downloadKey}
+                                                                title={t('taskManagement.dialog.downloadLetter')}
+                                                                aria-label={t('taskManagement.dialog.downloadLetter')}
+                                                                onClick={() =>
+                                                                    void handleDownloadRequestLetter(letter)
+                                                                }
+                                                            >
+                                                                {downloadingLetterId === downloadKey ? (
+                                                                    <Loader2 className="size-3.5 animate-spin" />
+                                                                ) : (
+                                                                    <FileDown className="size-3.5" />
+                                                                )}
+                                                            </Button>
+                                                        </div>
                                                     </li>
                                                 );
                                             })}
@@ -2028,23 +2084,22 @@ export function TaskManagement({
                                             </Label>
                                             <ul className="space-y-1">
                                                 {serviceAttachments.map((att) => (
-                                                    <li key={att.id} className="text-sm">
+                                                    <li
+                                                        key={att.id}
+                                                        className="flex items-center gap-2 text-sm"
+                                                    >
+                                                        <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
+                                                        <span className="min-w-0 flex-1 truncate">
+                                                            {att.fileName}
+                                                        </span>
                                                         {att.fileUrl ? (
-                                                            <a
-                                                                href={att.fileUrl}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="flex items-center gap-2 text-primary hover:underline"
-                                                            >
-                                                                <Paperclip className="size-3.5 shrink-0" />
-                                                                <span className="truncate">{att.fileName}</span>
-                                                            </a>
-                                                        ) : (
-                                                            <span className="flex items-center gap-2">
-                                                                <Paperclip className="size-3.5 shrink-0" />
-                                                                <span className="truncate">{att.fileName}</span>
-                                                            </span>
-                                                        )}
+                                                            <FilePreviewButton
+                                                                variant="outline"
+                                                                fileUrl={att.fileUrl}
+                                                                fileName={att.fileName}
+                                                                onPreviewOpen={handlePreviewOpen}
+                                                            />
+                                                        ) : null}
                                                     </li>
                                                 ))}
                                             </ul>
@@ -2403,6 +2458,14 @@ export function TaskManagement({
                 onSelectVoter={(voter) => {
                     void handleTagTaskToVoter(voter);
                 }}
+            />
+
+            <FilePreviewDialog
+                open={!!filePreview}
+                onOpenChange={handlePreviewDialogChange}
+                fileName={filePreview?.fileName ?? null}
+                fileUrl={filePreview?.previewUrl ?? null}
+                sourceUrl={filePreview?.sourceUrl ?? null}
             />
 
         </div>

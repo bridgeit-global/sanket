@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { FileDown, FileText, Loader2 } from 'lucide-react';
 import { toast } from '@/components/toast';
+import { FilePreviewButton } from '@/components/file-preview-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DmyDateInput } from '@/components/ui/dmy-date-input';
@@ -237,18 +238,21 @@ export function FundRequestLetterDialog({
                       {formatDisplayDateIST(letter.letterDate)}
                       {letter.fundLabel ? ` · ${letter.fundLabel}` : ''}
                     </p>
-                    <div className="flex w-full flex-col gap-2 sm:flex-row">
-                      <a
-                        href={`/api/adm/fund-request-letters/${letter.id}/pdf`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex min-h-10 items-center gap-1.5 text-blue-600 hover:underline"
-                      >
-                        <FileText className="h-4 w-4 shrink-0" />
-                        <span className="truncate">
+                    <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center">
+                      <div className="inline-flex min-h-10 min-w-0 items-center gap-1.5">
+                        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                        <span className="truncate text-sm">
                           {letter.fileName || t('adm.fundRequestLetters.viewPdf')}
                         </span>
-                      </a>
+                        <FilePreviewButton
+                          fileUrl={`/api/adm/fund-request-letters/${letter.id}/pdf`}
+                          fileName={
+                            letter.fileName?.endsWith('.pdf')
+                              ? letter.fileName
+                              : `${letter.fileName || 'letter'}.pdf`
+                          }
+                        />
+                      </div>
                       <Button
                         type="button"
                         variant="outline"

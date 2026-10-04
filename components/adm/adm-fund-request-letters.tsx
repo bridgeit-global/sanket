@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FileText, Link2, Plus, Search, Trash2 } from 'lucide-react';
 import { toast } from '@/components/toast';
+import { FilePreviewButton } from '@/components/file-preview-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DmyDateInput } from '@/components/ui/dmy-date-input';
@@ -362,19 +363,19 @@ export function AdmFundRequestLetters({
     </Select>
   );
 
-  const renderPdfLink = (letter: AdmFundRequestLetter) => (
-    <a
-      href={`/api/adm/fund-request-letters/${letter.id}/pdf`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="inline-flex min-h-10 items-center gap-1.5 text-sm text-blue-600 hover:underline"
-    >
-      <FileText className="h-4 w-4 shrink-0" />
-      <span className="max-w-[220px] truncate">
-        {letter.fileName || t('adm.fundRequestLetters.viewPdf')}
-      </span>
-    </a>
-  );
+  const renderPdfLink = (letter: AdmFundRequestLetter) => {
+    const fileName = letter.fileName || t('adm.fundRequestLetters.viewPdf');
+    return (
+      <div className="inline-flex min-h-10 max-w-full items-center gap-1.5 text-sm">
+        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="max-w-[180px] truncate">{fileName}</span>
+        <FilePreviewButton
+          fileUrl={`/api/adm/fund-request-letters/${letter.id}/pdf`}
+          fileName={fileName.endsWith('.pdf') ? fileName : `${fileName}.pdf`}
+        />
+      </div>
+    );
+  };
 
   const renderFundLink = (letter: AdmFundRequestLetter) => {
     const label = fundLabelFor(letter);

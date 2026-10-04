@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from '@/components/toast';
+import { FilePreviewButton } from '@/components/file-preview-button';
 import { useTranslations } from '@/hooks/use-translations';
 import { SidebarToggle } from '@/components/sidebar-toggle';
 import { TablePagination } from '@/components/table-pagination';
@@ -2667,25 +2668,20 @@ export function VisitorWorkflow({
                                           {details.attachments.map((att) => (
                                             <li
                                               key={att.id}
-                                              className="rounded border px-2 py-1.5 text-sm"
+                                              className="flex items-center gap-2 rounded border px-2 py-1.5 text-sm"
                                             >
-                                              {att.fileUrl ? (
-                                                <a
-                                                  href={att.fileUrl}
-                                                  target="_blank"
-                                                  rel="noreferrer"
-                                                  className="font-medium underline-offset-2 hover:underline"
-                                                >
-                                                  {att.fileName}
-                                                </a>
-                                              ) : (
-                                                <span className="font-medium">
-                                                  {att.fileName}
-                                                </span>
-                                              )}
-                                              <span className="ml-2 text-xs text-muted-foreground">
+                                              <span className="min-w-0 flex-1 truncate font-medium">
+                                                {att.fileName}
+                                              </span>
+                                              <span className="shrink-0 text-xs text-muted-foreground">
                                                 {att.fileSizeKb} KB
                                               </span>
+                                              {att.fileUrl ? (
+                                                <FilePreviewButton
+                                                  fileUrl={att.fileUrl}
+                                                  fileName={att.fileName}
+                                                />
+                                              ) : null}
                                             </li>
                                           ))}
                                         </ul>

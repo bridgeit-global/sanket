@@ -1,6 +1,7 @@
 'use client';
 
-import { ChevronRight, ExternalLink, FileText } from 'lucide-react';
+import { ChevronRight, FileText } from 'lucide-react';
+import { FilePreviewButton } from '@/components/file-preview-button';
 import { Badge } from '@/components/ui/badge';
 import { useTranslations } from '@/hooks/use-translations';
 import { formatCurrency } from '@/lib/mla-office-utils';
@@ -71,21 +72,19 @@ export function AdmFundSummaryRow({ fund, onSelect }: AdmFundSummaryRowProps) {
             {documentsWithUrl.map((doc) => {
               const href = doc.attachmentFileUrl || doc.fileUrl;
               if (!href) return null;
+              const name =
+                doc.fileName || doc.label || t('adm.sourceDetailsPdf');
               return (
-                <a
+                <div
                   key={doc.id}
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  className="inline-flex min-h-11 w-full items-center gap-2 rounded-md border border-border px-3 py-2 text-sm sm:w-auto sm:min-h-9"
                   onClick={(e) => e.stopPropagation()}
-                  className="inline-flex min-h-11 w-full items-center gap-2 rounded-md border border-border px-3 py-2 text-sm text-primary hover:bg-muted/40 sm:w-auto sm:min-h-9"
+                  onKeyDown={(e) => e.stopPropagation()}
                 >
-                  <FileText className="h-3.5 w-3.5 shrink-0" />
-                  <span className="min-w-0 truncate">
-                    {doc.label || doc.fileName || t('adm.sourceDetailsPdf')}
-                  </span>
-                  <ExternalLink className="h-3 w-3 shrink-0" />
-                </a>
+                  <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate">{name}</span>
+                  <FilePreviewButton fileUrl={href} fileName={name} />
+                </div>
               );
             })}
           </div>
