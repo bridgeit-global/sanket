@@ -19,8 +19,10 @@ import {
   Printer,
   Eye,
   Loader2,
+  ExternalLink,
 } from 'lucide-react';
 import { toast } from '@/components/toast';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Attachment {
   id: string;
@@ -40,6 +42,44 @@ interface RegisterAttachmentDialogProps {
   canDeleteAttachments?: boolean;
 }
 
+const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'webp'] as const;
+
+function getFileExt(fileName: string) {
+  return fileName.split('.').pop()?.toLowerCase() ?? '';
+}
+
+function isImageFile(fileName: string) {
+  return (IMAGE_EXTS as readonly string[]).includes(getFileExt(fileName));
+}
+
+function isPdfFile(fileName: string) {
+  return getFileExt(fileName) === 'pdf';
+}
+
+function canPreviewInline(fileName: string) {
+  const ext = getFileExt(fileName);
+  return [...IMAGE_EXTS, 'pdf', 'txt'].includes(ext);
+}
+
+/** Ensure the blob has a MIME type mobile browsers need to open the file. */
+function withMimeType(blob: Blob, fileName: string): Blob {
+  if (blob.type && blob.type !== 'application/octet-stream') {
+    return blob;
+  }
+  const ext = getFileExt(fileName);
+  const mimeByExt: Record<string, string> = {
+    pdf: 'application/pdf',
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    gif: 'image/gif',
+    webp: 'image/webp',
+    txt: 'text/plain',
+  };
+  const mime = mimeByExt[ext];
+  return mime ? new Blob([blob], { type: mime }) : blob;
+}
+
 export function RegisterAttachmentDialog({
   open,
   onOpenChange,
@@ -49,6 +89,7 @@ export function RegisterAttachmentDialog({
   onAttachmentsChange,
   canDeleteAttachments = true,
 }: RegisterAttachmentDialogProps) {
+  const isMobile = useIsMobile();
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
@@ -177,18 +218,29 @@ export function RegisterAttachmentDialog({
     }
   };
 
-  // Preview the file inline inside the app instead of opening a browser tab.
-  // This avoids the "a new tab opens on every click" problem entirely.
+  // Preview inline on desktop. On mobile, PDFs cannot render inside iframes
+  // (iOS Safari / many Android browsers show a blank frame), so open the
+  // native viewer in a new tab instead.
   const handleView = async (attachment: Attachment) => {
     if (!attachment.fileUrl) {
       toast.error('File URL not available');
       return;
     }
+
+    // Prefer the original URL on mobile so the device PDF viewer can load it
+    // synchronously from the tap (avoids blank iframes + popup blockers).
+    if (isPdfFile(attachment.fileName) && isMobile) {
+      const opened = window.open(attachment.fileUrl, '_blank');
+      if (opened) return;
+
+      // Popup blocked — fall through to an in-app open/download sheet.
+    }
+
     setOpening(attachment.id);
     try {
       const response = await fetch(attachment.fileUrl);
       if (!response.ok) throw new Error('Failed to fetch file');
-      const blob = await response.blob();
+      const blob = withMimeType(await response.blob(), attachment.fileName);
       const objectUrl = URL.createObjectURL(blob);
       setPreviewUrl(objectUrl);
       setPreviewAttachment(attachment);
@@ -198,6 +250,12 @@ export function RegisterAttachmentDialog({
     } finally {
       setOpening(null);
     }
+  };
+
+  const handleOpenPreviewExternally = () => {
+    const url = previewAttachment?.fileUrl || previewUrl;
+    if (!url) return;
+    window.open(url, '_blank');
   };
 
   const handleDownload = async (attachment: Attachment) => {
@@ -278,24 +336,22 @@ export function RegisterAttachmentDialog({
     }
   };
 
-  const getFileExt = (fileName: string) =>
-    fileName.split('.').pop()?.toLowerCase() ?? '';
-
-  const canPreviewInline = (fileName: string) => {
-    const ext = getFileExt(fileName);
-    return ['pdf', 'jpg', 'jpeg', 'png', 'gif', 'webp', 'txt'].includes(ext);
-  };
-
   const getFileIcon = (fileName: string) => {
-    const ext = fileName.split('.').pop()?.toLowerCase();
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) {
+    if (isImageFile(fileName)) {
       return <Image className="h-4 w-4 text-blue-500" />;
     }
-    if (ext === 'pdf') {
+    if (isPdfFile(fileName)) {
       return <FileText className="h-4 w-4 text-red-500" />;
     }
     return <File className="h-4 w-4 text-gray-500" />;
   };
+
+  const previewIsImage =
+    !!previewAttachment && isImageFile(previewAttachment.fileName);
+  const previewIsPdf =
+    !!previewAttachment && isPdfFile(previewAttachment.fileName);
+  // Mobile PDF iframe is unsupported — show open/download actions instead.
+  const showMobilePdfFallback = previewIsPdf && isMobile;
 
   const formatFileSize = (sizeKb: number) => {
     if (sizeKb < 1024) {
@@ -446,17 +502,18 @@ export function RegisterAttachmentDialog({
       open={!!previewAttachment}
       onOpenChange={closePreview}
     >
-      <DialogContent className="max-w-5xl w-[95vw] h-[90vh] flex flex-col p-0 gap-0">
-        <DialogHeader className="p-4 pr-14 border-b">
+      <DialogContent className="flex h-[90dvh] w-[calc(100%-2rem)] max-w-5xl flex-col gap-0 p-0 sm:w-[95vw]">
+        <DialogHeader className="shrink-0 border-b p-4 pr-14">
           <DialogTitle className="truncate text-base">
             {previewAttachment?.fileName}
           </DialogTitle>
           <DialogDescription className="sr-only">
             Document preview
           </DialogDescription>
-          <div className="flex items-center gap-1 absolute right-12 top-3.5">
+          <div className="absolute right-12 top-3.5 flex items-center gap-1">
             {previewAttachment &&
-              canPreviewInline(previewAttachment.fileName) && (
+              canPreviewInline(previewAttachment.fileName) &&
+              !showMobilePdfFallback && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -481,18 +538,51 @@ export function RegisterAttachmentDialog({
           </div>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 bg-muted/30">
+        <div className="min-h-0 flex-1 bg-muted/30">
           {previewUrl &&
           previewAttachment &&
           canPreviewInline(previewAttachment.fileName) ? (
-            <iframe
-              ref={previewIframeRef}
-              src={previewUrl}
-              title={previewAttachment.fileName}
-              className="w-full h-full border-0"
-            />
+            showMobilePdfFallback ? (
+              <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+                <FileText className="h-12 w-12 text-muted-foreground opacity-50" />
+                <p className="text-sm text-muted-foreground">
+                  PDF preview opens in your device&apos;s viewer on mobile.
+                </p>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+                  <Button
+                    className="w-full sm:w-auto"
+                    onClick={handleOpenPreviewExternally}
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Open PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto"
+                    onClick={() => handleDownload(previewAttachment)}
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Download
+                  </Button>
+                </div>
+              </div>
+            ) : previewIsImage ? (
+              // eslint-disable-next-line @next/next/no-img-element -- blob object URL preview
+              <img
+                src={previewUrl}
+                alt={previewAttachment.fileName}
+                className="h-full w-full object-contain p-2"
+              />
+            ) : (
+              <iframe
+                ref={previewIframeRef}
+                src={previewUrl}
+                title={previewAttachment.fileName}
+                className="h-full w-full border-0"
+              />
+            )
           ) : (
-            <div className="flex flex-col items-center justify-center h-full gap-3 text-center p-6">
+            <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
               <FileText className="h-12 w-12 text-muted-foreground opacity-50" />
               <p className="text-sm text-muted-foreground">
                 Preview isn&apos;t available for this file type.
@@ -500,9 +590,10 @@ export function RegisterAttachmentDialog({
               {previewAttachment && (
                 <Button
                   variant="outline"
+                  className="w-full sm:w-auto"
                   onClick={() => handleDownload(previewAttachment)}
                 >
-                  <Download className="h-4 w-4 mr-2" />
+                  <Download className="mr-2 h-4 w-4" />
                   Download to view
                 </Button>
               )}
