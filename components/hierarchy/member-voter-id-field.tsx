@@ -17,6 +17,12 @@ import { toast } from '@/components/toast';
 import { useTranslations } from '@/hooks/use-translations';
 import { VoterPickerCombobox } from './voter-picker-combobox';
 import type { CadreMemberCard } from '@/lib/hierarchy/types';
+import {
+  EPIC_NUMBER_PATTERN,
+  isCompleteEpicNumber,
+  normalizeEpicNumber,
+  sanitizeEpicInput,
+} from '@/lib/epic/normalize-epic';
 import { cn } from '@/lib/utils';
 import { MissingFieldRow } from './missing-field-row';
 
@@ -35,18 +41,32 @@ export function MemberVoterIdField({
 }: MemberVoterIdFieldProps) {
   const { t } = useTranslations();
   const [open, setOpen] = useState(false);
-  const [epicDraft, setEpicDraft] = useState(member.epicNumber ?? '');
+  const [epicDraft, setEpicDraft] = useState(() =>
+    member.epicNumber && isCompleteEpicNumber(member.epicNumber)
+      ? normalizeEpicNumber(member.epicNumber)
+      : (member.epicNumber ?? ''),
+  );
   const [saving, setSaving] = useState(false);
   const hasVoterId = Boolean(member.epicNumber?.trim());
+  const epicInvalid =
+    epicDraft.trim().length > 0 && !EPIC_NUMBER_PATTERN.test(epicDraft);
 
   const openEditor = (e: MouseEvent) => {
     e.stopPropagation();
-    setEpicDraft(member.epicNumber ?? '');
+    setEpicDraft(
+      member.epicNumber && isCompleteEpicNumber(member.epicNumber)
+        ? normalizeEpicNumber(member.epicNumber)
+        : (member.epicNumber ?? ''),
+    );
     setOpen(true);
   };
 
   const saveEpic = async (nextEpic: string | null) => {
-    const trimmed = nextEpic?.trim() || null;
+    const trimmed = nextEpic ? sanitizeEpicInput(nextEpic) || null : null;
+    if (trimmed && !EPIC_NUMBER_PATTERN.test(trimmed)) {
+      toast.error(t('hierarchyModule.invalidEpic'));
+      return;
+    }
     if (trimmed === (member.epicNumber?.trim() || null)) {
       setOpen(false);
       return;
@@ -160,10 +180,20 @@ export function MemberVoterIdField({
                 id={`voter-id-${member.id}`}
                 placeholder={t('hierarchyModule.voterIdEpicPlaceholder')}
                 value={epicDraft}
-                onChange={(e) => setEpicDraft(e.target.value.toUpperCase())}
+                onChange={(e) => setEpicDraft(sanitizeEpicInput(e.target.value))}
                 disabled={saving}
-                className="h-9 uppercase"
+                maxLength={10}
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                aria-invalid={epicInvalid || undefined}
+                className="h-10 uppercase"
               />
+              {epicInvalid ? (
+                <p className="text-xs text-destructive">
+                  {t('hierarchyModule.invalidEpic')}
+                </p>
+              ) : null}
             </div>
 
             <div className="space-y-1.5">
@@ -172,7 +202,9 @@ export function MemberVoterIdField({
                 value={epicDraft || null}
                 disabled={saving}
                 onSelect={(voter) => {
-                  setEpicDraft(voter?.epicNumber ?? '');
+                  setEpicDraft(
+                    voter?.epicNumber ? sanitizeEpicInput(voter.epicNumber) : '',
+                  );
                 }}
               />
             </div>
@@ -190,7 +222,7 @@ export function MemberVoterIdField({
               ) : null}
               <Button
                 type="button"
-                disabled={saving || !epicDraft.trim()}
+                disabled={saving || !epicDraft.trim() || epicInvalid}
                 onClick={() => void saveEpic(epicDraft)}
               >
                 {saving

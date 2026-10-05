@@ -672,6 +672,7 @@
     "editVoterIdTitle": "Update voter ID",
     "voterIdEpicLabel": "Voter ID / EPIC",
     "voterIdEpicPlaceholder": "e.g. ABC1234567",
+    "invalidEpic": "Enter a valid EPIC number (e.g. ABC1234567)",
     "searchVoterLabel": "Or search voter roll",
     "clearVoterId": "Clear",
     "saveVoterId": "Save",

@@ -672,6 +672,7 @@
     "editVoterIdTitle": "मतदार आयडी अपडेट करा",
     "voterIdEpicLabel": "मतदार आयडी / EPIC",
     "voterIdEpicPlaceholder": "उदा. ABC1234567",
+    "invalidEpic": "वैध EPIC क्रमांक प्रविष्ट करा (उदा. ABC1234567)",
     "searchVoterLabel": "किंवा मतदार यादीत शोधा",
     "clearVoterId": "साफ करा",
     "saveVoterId": "जतन करा",

@@ -60,7 +60,11 @@ import type { ArtifactKind } from '@/components/artifact';
 import { ChatSDKError } from '../errors';
 import { admFundOptionLabel } from '@/lib/adm/fund-request-letter';
 import { normalizeProjectGeoSelection } from '@/lib/projects/hierarchy-geo';
-import { normalizeEpicNumber } from '@/lib/epic/normalize-epic';
+import {
+  EPIC_NUMBER_INVALID_MESSAGE,
+  EPIC_NUMBER_PATTERN,
+  normalizeEpicNumber,
+} from '@/lib/epic/normalize-epic';
 import { notifyPush, sendPushToUser } from '@/lib/push/send';
 import type {
   BeneficiaryService,
@@ -977,8 +981,13 @@ export async function createVoter(
       throw new ChatSDKError('bad_request:database', 'EPIC Number and Full Name are required');
     }
 
+    const epicNumber = normalizeEpicNumber(voterData.epicNumber);
+    if (!EPIC_NUMBER_PATTERN.test(epicNumber)) {
+      throw new ChatSDKError('bad_request:database', EPIC_NUMBER_INVALID_MESSAGE);
+    }
+
     const insertRow = toSnakeCaseKeys({
-      epicNumber: voterData.epicNumber,
+      epicNumber,
       fullName: voterData.fullName,
       relationType: voterData.relationType || null,
       relationName: voterData.relationName || null,
@@ -1009,7 +1018,7 @@ export async function createVoter(
     if (shouldCreateMapping) {
       const { error: mapError } = await supabase.from(TABLES.electionMapping).upsert(
         {
-          epic_number: voterData.epicNumber,
+          epic_number: epicNumber,
           election_id: currentElectionId,
           booth_no: voterData.partNo || null,
           sr_no: voterData.srNo || null,
@@ -1021,7 +1030,7 @@ export async function createVoter(
     }
 
     await syncVoterMobileNumberTable(
-      voterData.epicNumber,
+      epicNumber,
       voterData.mobileNoPrimary || null,
       voterData.mobileNoSecondary || null,
     );

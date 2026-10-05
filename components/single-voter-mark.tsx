@@ -8,6 +8,11 @@ import { Label } from '@/components/ui/label';
 import { ElectionSelect } from '@/components/election-select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/components/toast';
+import {
+  EPIC_NUMBER_INVALID_MESSAGE,
+  EPIC_NUMBER_PATTERN,
+  sanitizeEpicInput,
+} from '@/lib/epic/normalize-epic';
 import { Search, CheckCircle2, XCircle } from 'lucide-react';
 import type { VoterWithPartNo } from '@/lib/db/schema';
 
@@ -23,6 +28,10 @@ export function SingleVoterMark() {
   const handleSearch = async () => {
     if (!epicNumber.trim()) {
       toast.error('Please enter an EPIC number');
+      return;
+    }
+    if (!EPIC_NUMBER_PATTERN.test(epicNumber)) {
+      toast.error(EPIC_NUMBER_INVALID_MESSAGE);
       return;
     }
 
@@ -120,18 +129,35 @@ export function SingleVoterMark() {
               <Input
                 id="epicNumber"
                 value={epicNumber}
-                onChange={(e) => setEpicNumber(e.target.value)}
+                onChange={(e) => setEpicNumber(sanitizeEpicInput(e.target.value))}
                 placeholder="Enter EPIC number"
+                maxLength={10}
+                autoCapitalize="characters"
+                autoCorrect="off"
+                spellCheck={false}
+                aria-invalid={
+                  epicNumber.length > 0 && !EPIC_NUMBER_PATTERN.test(epicNumber)
+                    ? true
+                    : undefined
+                }
+                className="h-10 uppercase"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     handleSearch();
                   }
                 }}
               />
-              <Button onClick={handleSearch} disabled={isSearching}>
+              <Button
+                onClick={handleSearch}
+                disabled={isSearching || !EPIC_NUMBER_PATTERN.test(epicNumber)}
+                className="h-10"
+              >
                 <Search className="h-4 w-4" />
               </Button>
             </div>
+            {epicNumber.length > 0 && !EPIC_NUMBER_PATTERN.test(epicNumber) ? (
+              <p className="text-xs text-destructive">{EPIC_NUMBER_INVALID_MESSAGE}</p>
+            ) : null}
           </div>
 
           <div className="space-y-2">

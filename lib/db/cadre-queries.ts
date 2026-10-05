@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase/server';
 import { sql as pgSql } from '@/lib/db/postgres';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { throwOnSupabaseError } from '@/lib/db/errors';
+import { assertOptionalEpicNumber } from '@/lib/epic/normalize-epic';
 import { getTodayDateStringIST, parseFlexibleDateToYmd } from '@/lib/ist-date';
 import { TABLES } from './schema';
 import {
@@ -1813,6 +1814,9 @@ export async function createCadreMember(
   input: CadreMemberInput,
   createdBy: string,
 ): Promise<CadreMember> {
+  if (input.epicNumber !== undefined) {
+    input.epicNumber = assertOptionalEpicNumber(input.epicNumber);
+  }
   if (!input.personName && !input.userId && !input.epicNumber) {
     throw new Error('Person name, user link, or voter link is required');
   }
@@ -1874,6 +1878,9 @@ export async function updateCadreMember(
   input: CadreMemberInput,
   updatedBy: string,
 ): Promise<CadreMember> {
+  if (input.epicNumber !== undefined) {
+    input.epicNumber = assertOptionalEpicNumber(input.epicNumber);
+  }
   const { data: existing, error: existingError } = await supabase
     .from(TABLES.cadreMember)
     .select('id, person_name, person_phone, person_email, epic_number')

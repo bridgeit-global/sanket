@@ -12,9 +12,11 @@ import {
 } from 'node:crypto';
 import { ANUSHAKTI_NAGAR_AC_NUMBER } from '@/lib/eci/ac-constants';
 
+import { EPIC_NUMBER_PATTERN } from '@/lib/epic/normalize-epic';
+
 export { ANUSHAKTI_NAGAR_AC_NUMBER };
+export { EPIC_NUMBER_PATTERN };
 export const MAHARASHTRA_STATE_CD = 'S13';
-export const EPIC_NUMBER_PATTERN = /^[A-Z]{3}[0-9]{7}$/;
 
 const ECI_GATEWAY = 'https://gateway-voters.eci.gov.in/api/v1';
 const ECI_SEARCH_URL = `${ECI_GATEWAY}/elastic/search-by-epic-from-national-display-v1`;
