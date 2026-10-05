@@ -24,6 +24,8 @@ const KNOWN_PLACEHOLDERS_BY_FORM: Partial<
     'signatureParagraphs',
     'toBlock',
     'toBlockSecondary',
+    'copyTo',
+    'copyToBlock',
     'salutationBlock',
     'paragraphsBlock',
     'signatureBlock',

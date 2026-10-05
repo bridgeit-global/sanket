@@ -228,6 +228,11 @@ export type GeneralLetterFields = CommonLetterFields & {
   toAddressSecondary: string;
   /** Combined second recipient block (name + address) for letter templates. */
   toSecondary: string;
+  /** Optional copy ("प्रत") printed under the signature. */
+  copyToName: string;
+  copyToAddress: string;
+  /** Single-line copy recipient (name + address). */
+  copyTo: string;
   subject: string;
   /** Greeting after the subject. Optional; empty omits it from the letter. */
   salutation: string;

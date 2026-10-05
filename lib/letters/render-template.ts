@@ -118,6 +118,35 @@ function htmlHasVisibleText(value: string | undefined): boolean {
   );
 }
 
+/** "प्रत" / "Copy" line under the signature, as in the sample letter. */
+function formatCopyToLine(name: string, address: string): string {
+  const addressLine = (address ?? '')
+    .replace(/<br\s*\/?>/gi, ', ')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) =>
+      line
+        .replace(/<[^>]+>/g, '')
+        .trim()
+        .replace(/,\s*$/, ''),
+    )
+    .filter(Boolean)
+    .join(', ');
+  const holder = (name ?? '').replace(/<[^>]+>/g, '').trim();
+  return escapeHtmlText([holder, addressLine].filter(Boolean).join(', '));
+}
+
+function appendGeneralCopyToBlock(
+  templateHtml: string,
+  locale: LetterLocale,
+): string {
+  const label = locale === 'mr' ? 'प्रत' : 'Copy';
+  const block = `<div class="copy-to" style="margin-top:24px; text-align:left; font-weight:normal; max-width:100%;">${label}<br><div class="recipient-bottom" style="margin-top:0; margin-left:0;">{{copyToBlock}}</div></div>`;
+  const close = templateHtml.lastIndexOf('</div>');
+  if (close === -1) return `${templateHtml}${block}`;
+  return `${templateHtml.slice(0, close)}${block}${templateHtml.slice(close)}`;
+}
+
 export function renderLetterTemplate(
   templateHtml: string,
   fields: Record<string, string>,
@@ -254,6 +283,11 @@ export function buildRenderFields(
       salutation: generalFields.salutation ?? '',
       toBlock: formatMultilineHtmlBlock(generalFields.to),
       toBlockSecondary: formatMultilineHtmlBlock(generalFields.toSecondary ?? ''),
+      copyTo: generalFields.copyTo ?? '',
+      copyToBlock: formatCopyToLine(
+        generalFields.copyToName ?? '',
+        generalFields.copyToAddress ?? '',
+      ),
       salutationBlock: formatSalutationBlock(generalFields.salutation),
       paragraphsBlock: formatParagraphsBlock(generalFields.paragraphs),
       signatureBlock: formatSignatureBlock(generalFields.signatureParagraphs),
@@ -424,10 +458,14 @@ export function buildRenderedLetterHtml(
     formType === 'general'
       ? ensureGeneralRecipientToPrefix(templateHtml, locale)
       : templateHtml;
-  const htmlForRender =
+  const withDualRecipient =
     formType === 'general' && htmlHasVisibleText(renderFields.toBlockSecondary)
       ? applyGeneralDualRecipientLayout(htmlWithToPrefix, locale)
       : htmlWithToPrefix;
+  const htmlForRender =
+    formType === 'general' && htmlHasVisibleText(renderFields.copyToBlock)
+      ? appendGeneralCopyToBlock(withDualRecipient, locale)
+      : withDualRecipient;
   const contentHtml = renderLetterTemplate(htmlForRender, renderFields);
   return wrapLetterWithLetterhead(contentHtml, letterheadUrl, letterheadMode);
 }

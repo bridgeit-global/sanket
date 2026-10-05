@@ -682,6 +682,9 @@ function generalDefaults(locale: LetterLocale): GeneralLetterFields {
     toNameSecondary: '',
     toAddressSecondary: '',
     toSecondary: '',
+    copyToName: '',
+    copyToAddress: '',
+    copyTo: '',
     subject: '',
     salutation: DEFAULT_GENERAL_SALUTATION[locale],
     paragraphs: '',
@@ -728,6 +731,16 @@ function addressNewlinesToHtmlBreaks(value: string): string {
     .join('<br>');
 }
 
+function syncGeneralCopyLine(name: string, address: string): string {
+  const addressLine = address
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => line.trim().replace(/,\s*$/, ''))
+    .filter(Boolean)
+    .join(', ');
+  return [name.trim(), addressLine].filter(Boolean).join(', ');
+}
+
 function syncGeneralToBlock(toName: string, toAddress: string): string {
   return combineNameAndAddress(
     toName,
@@ -750,6 +763,16 @@ function generalSecondaryHasContent(
   return Boolean(
     fields.toNameSecondary.trim() || fields.toAddressSecondary.trim() || plain,
   );
+}
+
+function generalCopyHasContent(
+  fields: Pick<GeneralLetterFields, 'copyToName' | 'copyToAddress' | 'copyTo'>,
+): boolean {
+  const plain = (fields.copyTo ?? '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .trim();
+  return Boolean(fields.copyToName.trim() || fields.copyToAddress.trim() || plain);
 }
 
 function wardDefaults(
@@ -1569,6 +1592,10 @@ export function LetterGeneration({
     string | null
   >(null);
   const [secondaryToOpen, setSecondaryToOpen] = useState(false);
+  const [generalCopyToAddressId, setGeneralCopyToAddressId] = useState<string | null>(
+    null,
+  );
+  const [copyToOpen, setCopyToOpen] = useState(false);
   const addressSelectionsRef = useRef(addressSelections);
   addressSelectionsRef.current = addressSelections;
   const activeLetterDate = useMemo(
@@ -2072,6 +2099,8 @@ export function LetterGeneration({
       const toAddress = filterText(rawAddress);
       const toNameSecondary = filterText(prev.toNameSecondary ?? '');
       const toAddressSecondary = filterText(prev.toAddressSecondary ?? '');
+      const copyToName = filterText(prev.copyToName ?? '');
+      const copyToAddress = filterText(prev.copyToAddress ?? '');
       return {
         ...prev,
         referencePrefix: nextPrefix(prev.referencePrefix),
@@ -2084,6 +2113,9 @@ export function LetterGeneration({
         toNameSecondary,
         toAddressSecondary,
         toSecondary: syncGeneralToBlock(toNameSecondary, toAddressSecondary),
+        copyToName,
+        copyToAddress,
+        copyTo: syncGeneralCopyLine(copyToName, copyToAddress),
         subject: filterText(prev.subject),
         salutation:
           prev.salutation.trim() === DEFAULT_GENERAL_SALUTATION[prevLocale]
@@ -2797,6 +2829,49 @@ export function LetterGeneration({
     }));
   };
 
+  const handleGeneralCopyToAddressSelect = (value: string) => {
+    if (!value || value === GENERAL_TO_MANUAL_VALUE) {
+      setGeneralCopyToAddressId(null);
+      return;
+    }
+    const selected = addresses.find((a) => a.id === value);
+    if (!selected) return;
+    setGeneralCopyToAddressId(selected.id);
+    const copyToName = getGeneralRecipientName(selected, letterLocale);
+    const copyToAddress = addressHtmlBreaksToNewlines(
+      formatAddressMasterMultiline(selected, letterLocale),
+    );
+    setGeneralFields((prev) => ({
+      ...prev,
+      copyToName,
+      copyToAddress,
+      copyTo: syncGeneralCopyLine(copyToName, copyToAddress),
+    }));
+    if (fieldErrors.copyToName || fieldErrors.copyToAddress) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        copyToName: undefined,
+        copyToAddress: undefined,
+      }));
+    }
+  };
+
+  const clearGeneralCopyTo = () => {
+    setCopyToOpen(false);
+    setGeneralCopyToAddressId(null);
+    setGeneralFields((prev) => ({
+      ...prev,
+      copyToName: '',
+      copyToAddress: '',
+      copyTo: '',
+    }));
+    setFieldErrors((prev) => ({
+      ...prev,
+      copyToName: undefined,
+      copyToAddress: undefined,
+    }));
+  };
+
   // Prefill ward recipient with the issue-type officer once addresses load.
   const defaultWardToAppliedRef = useRef(false);
   useEffect(() => {
@@ -2846,6 +2921,12 @@ export function LetterGeneration({
       return prev;
     });
     setGeneralToAddressIdSecondary((prev) => {
+      if (!prev) return prev;
+      const row = addresses.find((address) => address.id === prev);
+      if (!row || !isAddressVisibleForLetterDate(row, activeLetterDate)) return null;
+      return prev;
+    });
+    setGeneralCopyToAddressId((prev) => {
       if (!prev) return prev;
       const row = addresses.find((address) => address.id === prev);
       if (!row || !isAddressVisibleForLetterDate(row, activeLetterDate)) return null;
@@ -3728,6 +3809,18 @@ export function LetterGeneration({
           errors,
           'toAddressSecondary',
           generalFields.toAddressSecondary,
+          requiredMsg,
+        );
+      }
+      if (
+        copyToOpen &&
+        (generalFields.copyToName.trim() || generalFields.copyToAddress.trim())
+      ) {
+        requireField(errors, 'copyToName', generalFields.copyToName, requiredMsg);
+        requireField(
+          errors,
+          'copyToAddress',
+          generalFields.copyToAddress,
           requiredMsg,
         );
       }
@@ -4826,8 +4919,10 @@ export function LetterGeneration({
       const merged = mergeSavedLetterFields(generalDefaults(letterLocale), saved);
       setGeneralFields(merged);
       setSecondaryToOpen(generalSecondaryHasContent(merged));
+      setCopyToOpen(generalCopyHasContent(merged));
       setGeneralToAddressId(null);
       setGeneralToAddressIdSecondary(null);
+      setGeneralCopyToAddressId(null);
       const rows = String(merged.paragraphs ?? '')
         .split('\n')
         .map((row) => row.trim())
@@ -4881,8 +4976,10 @@ export function LetterGeneration({
       const merged = mergeSavedLetterFields(generalDefaults(letterLocale), saved);
       setGeneralFields(merged);
       setSecondaryToOpen(generalSecondaryHasContent(merged));
+      setCopyToOpen(generalCopyHasContent(merged));
       setGeneralToAddressId(null);
       setGeneralToAddressIdSecondary(null);
+      setGeneralCopyToAddressId(null);
     }
 
     const known = new Set(
@@ -5166,6 +5263,8 @@ export function LetterGeneration({
     setGeneralToAddressId(null);
     setGeneralToAddressIdSecondary(null);
     setSecondaryToOpen(false);
+    setGeneralCopyToAddressId(null);
+    setCopyToOpen(false);
     setManualAddressParts({
       school: createEmptyAddressParts(),
       applicant: createEmptyAddressParts(),
@@ -6450,6 +6549,128 @@ export function LetterGeneration({
                             </div>
                           ) : null}
                         </div>
+                        {copyToOpen ? (
+                          <div className="mt-4 min-w-0 space-y-2">
+                            <Label className="mb-1.5 block text-sm">
+                              {lt('letterGeneration.fields.copyTo')}
+                            </Label>
+                            <Combobox
+                              value={generalCopyToAddressId ?? GENERAL_TO_MANUAL_VALUE}
+                              onValueChange={handleGeneralCopyToAddressSelect}
+                              options={generalToAddressComboboxOptions}
+                              placeholder={lt(
+                                'letterGeneration.addresses.selectPlaceholder',
+                              )}
+                              emptyMessage={lt('letterGeneration.addresses.empty')}
+                            />
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">
+                                {lt('letterGeneration.addresses.columns.holder')}
+                                {generalFields.copyToName.trim() ||
+                                generalFields.copyToAddress.trim()
+                                  ? ' *'
+                                  : ''}
+                              </Label>
+                              <div className="flex items-center gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <LocaleTextInput
+                                    locale={letterLocale}
+                                    value={generalFields.copyToName}
+                                    onValueChange={(copyToName) => {
+                                      if (generalCopyToAddressId) {
+                                        setGeneralCopyToAddressId(null);
+                                      }
+                                      setGeneralFields({
+                                        ...generalFields,
+                                        copyToName,
+                                        copyTo: syncGeneralCopyLine(
+                                          copyToName,
+                                          generalFields.copyToAddress,
+                                        ),
+                                      });
+                                      if (fieldErrors.copyToName) {
+                                        setFieldErrors((prev) => ({
+                                          ...prev,
+                                          copyToName: undefined,
+                                        }));
+                                      }
+                                    }}
+                                    placeholder={lt(
+                                      'letterGeneration.placeholders.toName',
+                                    )}
+                                    aria-invalid={!!fieldErrors.copyToName}
+                                  />
+                                </div>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="size-10 shrink-0 text-muted-foreground hover:text-destructive"
+                                  onClick={clearGeneralCopyTo}
+                                  aria-label={lt(
+                                    'letterGeneration.fields.removeCopyAddress',
+                                  )}
+                                >
+                                  <Trash2 className="size-4" />
+                                </Button>
+                              </div>
+                              {fieldErrors.copyToName ? (
+                                <p className="text-xs text-destructive">
+                                  {fieldErrors.copyToName}
+                                </p>
+                              ) : null}
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs">
+                                {lt('letterGeneration.fields.address')}
+                                {generalFields.copyToName.trim() ||
+                                generalFields.copyToAddress.trim()
+                                  ? ' *'
+                                  : ''}
+                              </Label>
+                              <LocaleTextarea
+                                locale={letterLocale}
+                                value={generalFields.copyToAddress}
+                                onValueChange={(copyToAddress) => {
+                                  if (generalCopyToAddressId) {
+                                    setGeneralCopyToAddressId(null);
+                                  }
+                                  setGeneralFields({
+                                    ...generalFields,
+                                    copyToAddress,
+                                    copyTo: syncGeneralCopyLine(
+                                      generalFields.copyToName,
+                                      copyToAddress,
+                                    ),
+                                  });
+                                  if (fieldErrors.copyToAddress) {
+                                    setFieldErrors((prev) => ({
+                                      ...prev,
+                                      copyToAddress: undefined,
+                                    }));
+                                  }
+                                }}
+                                rows={3}
+                                aria-invalid={!!fieldErrors.copyToAddress}
+                              />
+                              {fieldErrors.copyToAddress ? (
+                                <p className="text-xs text-destructive">
+                                  {fieldErrors.copyToAddress}
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="mt-3 h-10 w-full sm:w-auto"
+                            onClick={() => setCopyToOpen(true)}
+                          >
+                            <Plus className="mr-1.5 size-4 shrink-0" />
+                            {lt('letterGeneration.fields.addCopyAddress')}
+                          </Button>
+                        )}
                       </div>
                       <FieldGroup
                         label={lt('letterGeneration.fields.subject')}
