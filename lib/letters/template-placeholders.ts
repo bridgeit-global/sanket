@@ -23,6 +23,7 @@ const KNOWN_PLACEHOLDERS_BY_FORM: Partial<
     'paragraphs',
     'signatureParagraphs',
     'toBlock',
+    'toBlockSecondary',
     'salutationBlock',
     'paragraphsBlock',
     'signatureBlock',

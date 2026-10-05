@@ -85,6 +85,39 @@ function ensureGeneralRecipientToPrefix(
   );
 }
 
+const GENERAL_RECIPIENT_PATTERN =
+  /(?:To|प्रति),\s*(?:<br\s*\/?>)?\s*<div class="(?:recipient|address)">\s*\{\{(?:toBlock|to)\}\}\s*<\/div>/i;
+
+function generalDualRecipientHtml(locale: LetterLocale): string {
+  const label = locale === 'mr' ? 'प्रति,' : 'To,';
+  const cell = (placeholder: 'toBlock' | 'toBlockSecondary', pad: string) =>
+    `<td style="width:50%; vertical-align:top; ${pad}"><div>${label}</div><div class="recipient" style="margin-left:0; margin-bottom:0;">{{${placeholder}}}</div></td>`;
+  return `<table class="to-pair" style="width:100%; border-collapse:collapse; margin:0 0 12px 0;"><tbody><tr>${cell('toBlock', 'padding:0 16px 0 0;')}${cell('toBlockSecondary', 'padding:0 0 0 8px;')}</tr></tbody></table>`;
+}
+
+/** Place a filled secondary recipient to the right of the first To block. */
+function applyGeneralDualRecipientLayout(
+  templateHtml: string,
+  locale: LetterLocale,
+): string {
+  if (!GENERAL_RECIPIENT_PATTERN.test(templateHtml)) {
+    return templateHtml;
+  }
+  return templateHtml.replace(
+    GENERAL_RECIPIENT_PATTERN,
+    generalDualRecipientHtml(locale),
+  );
+}
+
+function htmlHasVisibleText(value: string | undefined): boolean {
+  return Boolean(
+    (value ?? '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/gi, ' ')
+      .trim(),
+  );
+}
+
 export function renderLetterTemplate(
   templateHtml: string,
   fields: Record<string, string>,
@@ -220,6 +253,7 @@ export function buildRenderFields(
       subject: generalFields.subject,
       salutation: generalFields.salutation ?? '',
       toBlock: formatMultilineHtmlBlock(generalFields.to),
+      toBlockSecondary: formatMultilineHtmlBlock(generalFields.toSecondary ?? ''),
       salutationBlock: formatSalutationBlock(generalFields.salutation),
       paragraphsBlock: formatParagraphsBlock(generalFields.paragraphs),
       signatureBlock: formatSignatureBlock(generalFields.signatureParagraphs),
@@ -390,6 +424,10 @@ export function buildRenderedLetterHtml(
     formType === 'general'
       ? ensureGeneralRecipientToPrefix(templateHtml, locale)
       : templateHtml;
-  const contentHtml = renderLetterTemplate(htmlWithToPrefix, renderFields);
+  const htmlForRender =
+    formType === 'general' && htmlHasVisibleText(renderFields.toBlockSecondary)
+      ? applyGeneralDualRecipientLayout(htmlWithToPrefix, locale)
+      : htmlWithToPrefix;
+  const contentHtml = renderLetterTemplate(htmlForRender, renderFields);
   return wrapLetterWithLetterhead(contentHtml, letterheadUrl, letterheadMode);
 }
