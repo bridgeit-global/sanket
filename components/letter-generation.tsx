@@ -6214,10 +6214,12 @@ export function LetterGeneration({
                   <CardContent className="min-w-0 p-4 pt-0 sm:p-6 sm:pt-0">
                     <TabsContent value="general" className="mt-0 space-y-4">
                       {renderCommonFields(generalFields, setGeneralFields)}
-                      <FieldGroup
-                        label={lt('letterGeneration.fields.to')}
-                        required
-                      >
+                      <div>
+                        {secondaryToOpen ? null : (
+                          <Label className="mb-1.5 block text-sm">
+                            {lt('letterGeneration.fields.to')} *
+                          </Label>
+                        )}
                         <div
                           className={cn(
                             'grid grid-cols-1 items-start gap-4',
@@ -6225,6 +6227,11 @@ export function LetterGeneration({
                           )}
                         >
                           <div className="min-w-0 space-y-2">
+                            {secondaryToOpen ? (
+                              <Label className="mb-1.5 block text-sm">
+                                {lt('letterGeneration.fields.to')} *
+                              </Label>
+                            ) : null}
                             <Combobox
                               value={generalToAddressId ?? GENERAL_TO_MANUAL_VALUE}
                               onValueChange={handleGeneralToAddressSelect}
@@ -6329,7 +6336,7 @@ export function LetterGeneration({
                           </div>
                           {secondaryToOpen ? (
                             <div className="min-w-0 space-y-2">
-                              <Label className="text-xs">
+                              <Label className="mb-1.5 block text-sm">
                                 {lt('letterGeneration.fields.secondaryTo')}
                               </Label>
                               <Combobox
@@ -6443,7 +6450,7 @@ export function LetterGeneration({
                             </div>
                           ) : null}
                         </div>
-                      </FieldGroup>
+                      </div>
                       <FieldGroup
                         label={lt('letterGeneration.fields.subject')}
                         required
