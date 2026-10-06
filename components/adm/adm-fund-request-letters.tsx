@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FileUploadZone } from '@/components/ui/file-upload-zone';
 import {
   Dialog,
   DialogContent,
@@ -621,16 +622,20 @@ export function AdmFundRequestLetters({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="rl-file">{t('adm.fundRequestLetters.document')}</Label>
-              <Input
-                id="rl-file"
-                type="file"
-                accept="application/pdf,.pdf"
-                onChange={(e) => setFormFile(e.target.files?.[0] ?? null)}
-                className="min-h-11 w-full"
+              <FileUploadZone
+                multiple={false}
+                value={formFile ? [formFile] : []}
+                onFilesSelected={(files) => setFormFile(files[0] ?? null)}
+                onValueChange={(files) => setFormFile(files[0] ?? null)}
+                disabled={saving}
+                showFileList
+                validation={{
+                  accept: 'application/pdf,.pdf',
+                  maxSizeBytes: 25 * 1024 * 1024,
+                }}
+                title={t('adm.fundRequestLetters.document')}
+                description={t('adm.fundRequestLetters.fileHint')}
               />
-              <p className="text-xs text-muted-foreground">
-                {t('adm.fundRequestLetters.fileHint')}
-              </p>
             </div>
             <div className="space-y-1.5">
               <Label>{t('adm.fundRequestLetters.statusLabel')}</Label>

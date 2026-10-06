@@ -1,11 +1,10 @@
 'use client';
 
-import { useRef, useState, useCallback } from 'react';
 import Image from 'next/image';
-import { Upload, X, Loader2, ImageIcon } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { FileUploadZone } from '@/components/ui/file-upload-zone';
 import { useTranslations } from '@/hooks/use-translations';
-import { cn } from '@/lib/utils';
 
 interface AdmPhotoFrameProps {
   label: string;
@@ -25,55 +24,11 @@ export function AdmPhotoFrame({
   onRemove,
 }: AdmPhotoFrameProps) {
   const { t } = useTranslations();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [dragActive, setDragActive] = useState(false);
-
-  const handleFile = useCallback(
-    async (file: File) => {
-      if (!file.type.startsWith('image/')) return;
-      await onUpload(file);
-    },
-    [onUpload],
-  );
-
-  const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback(
-    async (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setDragActive(false);
-      const file = e.dataTransfer.files?.[0];
-      if (file) await handleFile(file);
-    },
-    [handleFile],
-  );
-
   return (
     <div className="space-y-2">
       <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <div
-        className={cn(
-          'relative flex min-h-28 flex-col items-center justify-center rounded-lg border border-dashed p-3 transition-colors',
-          dragActive ? 'border-primary bg-primary/5' : 'border-border bg-muted/20',
-          photoUrl && 'border-solid',
-        )}
-        onDragEnter={handleDrag}
-        onDragLeave={handleDrag}
-        onDragOver={handleDrag}
-        onDrop={handleDrop}
-      >
-        {uploading ? (
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        ) : photoUrl ? (
+      {photoUrl ? (
+        <div className="relative flex min-h-28 flex-col items-center justify-center rounded-lg border border-border p-3">
           <div className="flex w-full flex-col items-center gap-2">
             <div className="relative h-20 w-full overflow-hidden rounded-md">
               <Image
@@ -93,44 +48,42 @@ export function AdmPhotoFrame({
                 variant="outline"
                 size="sm"
                 className="min-h-9"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                {t('adm.photosReplace')}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="min-h-9"
                 onClick={onRemove}
               >
                 <X className="h-4 w-4" />
               </Button>
             </div>
+            <FileUploadZone
+              compact
+              multiple={false}
+              isUploading={uploading}
+              onUpload={async (files) => {
+                const file = files[0];
+                if (file) await onUpload(file);
+              }}
+              validation={{
+                accept: 'image/jpeg,image/png,image/gif,image/webp',
+              }}
+              title={t('adm.photosReplace')}
+              description={photoName ?? undefined}
+            />
           </div>
-        ) : (
-          <button
-            type="button"
-            className="flex min-h-20 w-full flex-col items-center justify-center gap-2 text-muted-foreground transition-colors hover:text-foreground"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <ImageIcon className="h-6 w-6" />
-            <span className="text-xs">{t('adm.photosUpload')}</span>
-            <Upload className="h-4 w-4" />
-          </button>
-        )}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/jpeg,image/png,image/gif,image/webp"
-          className="hidden"
-          onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (file) await handleFile(file);
-            e.target.value = '';
+        </div>
+      ) : (
+        <FileUploadZone
+          multiple={false}
+          isUploading={uploading}
+          onUpload={async (files) => {
+            const file = files[0];
+            if (file) await onUpload(file);
           }}
+          validation={{
+            accept: 'image/jpeg,image/png,image/gif,image/webp',
+          }}
+          title={t('adm.photosUpload')}
+          description="JPEG, PNG, GIF, or WEBP images"
         />
-      </div>
+      )}
     </div>
   );
 }

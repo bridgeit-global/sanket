@@ -4,21 +4,24 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
+import { FileUploadZone } from '@/components/ui/file-upload-zone';
 import { ElectionSelect } from '@/components/election-select';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/components/toast';
-import { Upload } from 'lucide-react';
 
 export function BulkVoteMark() {
   const [electionId, setElectionId] = useState('172LS2024');
   const [csvData, setCsvData] = useState('');
+  const [csvFile, setCsvFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  const handleFileUpload = (file: File | undefined) => {
+    if (!file) {
+      setCsvFile(null);
+      setCsvData('');
+      return;
+    }
+    setCsvFile(file);
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = e.target?.result as string;
@@ -101,16 +104,20 @@ export function BulkVoteMark() {
 
         <div className="space-y-2">
           <Label htmlFor="file">Upload CSV File</Label>
-          <div className="flex items-center gap-2">
-            <Input
-              id="file"
-              type="file"
-              accept=".csv"
-              onChange={handleFileUpload}
-              className="flex-1"
-            />
-            <Upload className="h-4 w-4 text-muted-foreground" />
-          </div>
+          <FileUploadZone
+            multiple={false}
+            value={csvFile ? [csvFile] : []}
+            onFilesSelected={(files) => handleFileUpload(files[0])}
+            onValueChange={(files) => {
+              if (files.length === 0) handleFileUpload(undefined);
+            }}
+            disabled={isProcessing}
+            showFileList
+            validation={{ accept: '.csv' }}
+            title="Drop a CSV file here or click to browse"
+            description="CSV files with an EPIC number column"
+            hint="You can also paste CSV data below."
+          />
         </div>
 
         <div className="space-y-2">

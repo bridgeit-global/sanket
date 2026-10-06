@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import { Eye, EyeOff, ImageIcon, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { FileUploadZone } from '@/components/ui/file-upload-zone';
 
 export type ProjectPhotoItem = {
   id: string;
@@ -27,10 +27,6 @@ interface ProjectPhotoGalleryProps {
   titleClassName?: string;
 }
 
-function imageFilesFromList(list: FileList | null | undefined): File[] {
-  return Array.from(list ?? []).filter((file) => file.type.startsWith('image/'));
-}
-
 export function ProjectPhotoGallery({
   photos,
   uploading,
@@ -45,63 +41,8 @@ export function ProjectPhotoGallery({
   title,
   titleClassName = 'text-sm font-medium',
 }: ProjectPhotoGalleryProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dragCountRef = useRef(0);
   const [previewOpen, setPreviewOpen] = useState(true);
-  const [dragActive, setDragActive] = useState(false);
   const PreviewIcon = previewOpen ? EyeOff : Eye;
-
-  const addFiles = useCallback(
-    async (files: File[]) => {
-      if (uploading || files.length === 0) return;
-      await onUpload(files);
-      setPreviewOpen(true);
-    },
-    [onUpload, uploading],
-  );
-
-  const handleDragEnter = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (uploading) return;
-      dragCountRef.current += 1;
-      if (e.dataTransfer.types.includes('Files')) {
-        setDragActive(true);
-      }
-    },
-    [uploading],
-  );
-
-  const handleDragOver = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      e.dataTransfer.dropEffect = uploading ? 'none' : 'copy';
-    },
-    [uploading],
-  );
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    dragCountRef.current = Math.max(0, dragCountRef.current - 1);
-    if (dragCountRef.current === 0) {
-      setDragActive(false);
-    }
-  }, []);
-
-  const handleDrop = useCallback(
-    async (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      dragCountRef.current = 0;
-      setDragActive(false);
-      if (uploading) return;
-      await addFiles(imageFilesFromList(e.dataTransfer.files));
-    },
-    [addFiles, uploading],
-  );
 
   return (
     <div className="space-y-3">
@@ -127,40 +68,21 @@ export function ProjectPhotoGallery({
           </Button>
         ) : null}
       </div>
-      <button
-        type="button"
-        disabled={uploading}
-        onClick={() => inputRef.current?.click()}
-        onDragEnter={handleDragEnter}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        className={cn(
-          'flex w-full flex-col items-center justify-center gap-1 rounded-md border border-dashed p-4 text-center transition-colors',
-          photos.length === 0 ? 'min-h-24' : 'min-h-16',
-          dragActive
-            ? 'border-primary bg-primary/10'
-            : 'border-border bg-muted/20 hover:border-primary/50',
-        )}
-      >
-        <ImageIcon className="h-5 w-5 text-muted-foreground" />
-        {photos.length === 0 ? (
-          <p className="text-sm font-medium text-muted-foreground">
-            {emptyLabel}
-          </p>
-        ) : null}
-        <p className="text-xs text-muted-foreground">{dropLabel}</p>
-      </button>
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
+      <FileUploadZone
         multiple
-        className="hidden"
-        onChange={async (e) => {
-          await addFiles(imageFilesFromList(e.target.files));
-          e.target.value = '';
+        disabled={uploading}
+        onUpload={async (files) => {
+          await onUpload(files);
+          setPreviewOpen(true);
         }}
+        validation={{
+          accept: 'image/jpeg,image/png,image/gif,image/webp',
+          maxSizeBytes: 10 * 1024 * 1024,
+        }}
+        icon={ImageIcon}
+        title={photos.length === 0 ? emptyLabel : 'Add more photos'}
+        description={dropLabel}
+        hint="JPEG, PNG, GIF, or WEBP images (maximum 10 MB each)"
       />
       {previewOpen && photos.length > 0 ? (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

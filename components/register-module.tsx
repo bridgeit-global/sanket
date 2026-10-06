@@ -61,6 +61,7 @@ import {
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { LimitedFormField } from '@/components/ui/limited-form-field';
+import { FileUploadZone } from '@/components/ui/file-upload-zone';
 import {
   REGISTER_ENTRY_FIELD_LIMITS,
   registerEntryFormSchema,
@@ -167,7 +168,7 @@ export function RegisterModule({
   // File upload state for new entries
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [newEntryAttachmentDialogOpen, setNewEntryAttachmentDialogOpen] = useState(false);
 
   // Search state
   const [searchTerm, setSearchTerm] = useState(urlState.search);
@@ -452,9 +453,6 @@ export function RegisterModule({
 
         await loadData();
         setSelectedFiles([]);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
         const nextForm = createEmptyRegisterForm(type);
         setForm(nextForm);
         referenceNumberAutoRef.current = true;
@@ -470,50 +468,6 @@ export function RegisterModule({
       toast.error('Failed to create entry');
       setUploadingFiles(false);
     }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      const fileArray = Array.from(files);
-      // Validate file types and sizes
-      const validFiles: File[] = [];
-      const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-      const ALLOWED_TYPES = [
-        'application/pdf',
-        'image/jpeg',
-        'image/png',
-        'image/gif',
-        'image/webp',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'text/plain',
-      ];
-
-      for (const file of fileArray) {
-        if (file.size > MAX_SIZE) {
-          toast.error(`${file.name} is too large. Maximum size is 10MB.`);
-          continue;
-        }
-        if (!ALLOWED_TYPES.includes(file.type)) {
-          toast.error(`${file.name} is not an allowed file type.`);
-          continue;
-        }
-        validFiles.push(file);
-      }
-
-      setSelectedFiles((prev) => [...prev, ...validFiles]);
-    }
-    // Reset input
-    if (e.target) {
-      e.target.value = '';
-    }
-  };
-
-  const removeFile = (index: number) => {
-    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handlePrint = () => {
@@ -962,61 +916,54 @@ export function RegisterModule({
               />
             </div>
             <div className="space-y-2 sm:col-span-2 xl:col-span-6">
-              <Label htmlFor="files">Attachments (Optional)</Label>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-fit"
-                  >
-                    <Upload className="mr-2 h-4 w-4" />
-                    Select Files
-                  </Button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={handleFileSelect}
-                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.txt"
-                  />
-                  {selectedFiles.length > 0 && (
-                    <span className="text-sm text-muted-foreground">
-                      {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
-                    </span>
-                  )}
-                </div>
+              <div className="flex items-center gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setNewEntryAttachmentDialogOpen(true)}
+                  className="w-fit"
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  {selectedFiles.length > 0 ? 'Edit Files' : 'Select Files'}
+                </Button>
                 {selectedFiles.length > 0 && (
-                  <div className="space-y-1 max-h-32 overflow-y-auto border rounded p-2">
-                    {selectedFiles.map((file, index) => (
-                      <div
-                        key={`${file.name}-${file.size}-${file.lastModified}`}
-                        className="flex items-center justify-between text-sm bg-muted p-2 rounded"
-                      >
-                        <span className="flex min-w-0 items-center gap-2">
-                          <Paperclip className="h-3 w-3 shrink-0" />
-                          <span className="truncate">{file.name}</span>
-                          <span className="shrink-0 text-muted-foreground">
-                            ({(file.size / 1024).toFixed(1)} KB)
-                          </span>
-                        </span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeFile(index)}
-                          className="h-6 w-6 p-0"
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} queued
+                  </span>
                 )}
               </div>
+              <Dialog
+                open={newEntryAttachmentDialogOpen}
+                onOpenChange={setNewEntryAttachmentDialogOpen}
+              >
+                <DialogContent className="w-[calc(100%-2rem)] max-w-xl">
+                  <DialogHeader>
+                    <DialogTitle>Select entry attachments</DialogTitle>
+                    <DialogDescription>
+                      Files will upload after the register entry is created.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <FileUploadZone
+                    multiple
+                    value={selectedFiles}
+                    onValueChange={setSelectedFiles}
+                    disabled={uploadingFiles}
+                    showFileList
+                    validation={{
+                      accept: '.pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt',
+                      maxSizeBytes: 10 * 1024 * 1024,
+                    }}
+                    title="Drop files here or click to browse"
+                    description="PDF, images, Word, Excel, or text files (maximum 10 MB each)"
+                  />
+                  <DialogFooter>
+                    <Button type="button" onClick={() => setNewEntryAttachmentDialogOpen(false)}>
+                      Done
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             </div>
             <div className="flex sm:col-span-2 sm:justify-end xl:col-span-6">
               <Button type="submit" disabled={uploadingFiles} className="w-full sm:w-auto">

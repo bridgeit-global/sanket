@@ -47,6 +47,7 @@ import { FilePreviewButton } from '@/components/file-preview-button';
 import { ProjectHierarchyGeoPickers } from '@/components/projects/project-hierarchy-geo-pickers';
 import { normalizeProjectGeoSelection } from '@/lib/projects/hierarchy-geo';
 import { LimitedFormField } from '@/components/ui/limited-form-field';
+import { FileUploadZone } from '@/components/ui/file-upload-zone';
 import { useTranslations } from '@/hooks/use-translations';
 import { ADM_URL_PARAMS } from '@/lib/adm/url-params';
 import {
@@ -226,7 +227,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   // File upload state for new entries
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
 
   // Get unique ward/beat values from all projects
   const availableWardValues = useMemo(() => {
@@ -531,9 +532,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         await loadProject();
         setShowAddForm(false);
         setSelectedFiles([]);
-        if (fileInputRef.current) {
-          fileInputRef.current.value = '';
-        }
         setEntryForm({
           type: 'inward',
           documentType: '',
@@ -555,57 +553,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       toast.error('Failed to add entry');
       setUploadingFiles(false);
     }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      const fileArray = Array.from(files);
-      // Validate file types and sizes
-      const validFiles: File[] = [];
-      const MAX_SIZE = 10 * 1024 * 1024; // 10MB
-      const ALLOWED_TYPES = [
-        'application/pdf',
-        'image/jpeg',
-        'image/png',
-        'image/gif',
-        'image/webp',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'application/vnd.ms-excel',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'text/plain',
-      ];
-
-      for (const file of fileArray) {
-        if (file.size > MAX_SIZE) {
-          toast.error(`${file.name} is too large. Maximum size is 10MB.`);
-          continue;
-        }
-        if (!ALLOWED_TYPES.includes(file.type)) {
-          toast.error(`${file.name} is not an allowed file type.`);
-          continue;
-        }
-        validFiles.push(file);
-      }
-
-      setSelectedFiles((prev) => [...prev, ...validFiles]);
-    }
-    // Reset input
-    if (e.target) {
-      e.target.value = '';
-    }
-  };
-
-  const removeFile = (fileToRemove: File) => {
-    setSelectedFiles((prev) =>
-      prev.filter(
-        (file) =>
-          file.name !== fileToRemove.name ||
-          file.size !== fileToRemove.size ||
-          file.lastModified !== fileToRemove.lastModified
-      )
-    );
   };
 
   const handleUpdateEntry = async (e: React.FormEvent) => {
@@ -1215,61 +1162,51 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="entry-files">Attachments (Optional)</Label>
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-fit"
-                    >
-                      <Upload className="mr-2 h-4 w-4" />
-                      Select Files
-                    </Button>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      className="hidden"
-                      onChange={handleFileSelect}
-                      accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.txt"
-                    />
-                    {selectedFiles.length > 0 && (
-                      <span className="text-sm text-muted-foreground">
-                        {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} selected
-                      </span>
-                    )}
-                  </div>
+                <div className="flex items-center gap-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAttachmentDialogOpen(true)}
+                    className="w-fit"
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    {selectedFiles.length > 0 ? 'Edit Files' : 'Select Files'}
+                  </Button>
                   {selectedFiles.length > 0 && (
-                    <div className="space-y-1 max-h-32 overflow-y-auto border rounded p-2">
-                      {selectedFiles.map((file) => (
-                        <div
-                          key={`${file.name}-${file.size}-${file.lastModified}`}
-                          className="flex items-center justify-between text-sm bg-muted p-2 rounded"
-                        >
-                          <span className="flex items-center gap-2">
-                            <Paperclip className="h-3 w-3" />
-                            <span className="truncate max-w-xs">{file.name}</span>
-                            <span className="text-muted-foreground">
-                              ({(file.size / 1024).toFixed(1)} KB)
-                            </span>
-                          </span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeFile(file)}
-                            className="h-6 w-6 p-0"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
+                    <span className="text-sm text-muted-foreground">
+                      {selectedFiles.length} file{selectedFiles.length > 1 ? 's' : ''} queued
+                    </span>
                   )}
                 </div>
+                <Dialog open={attachmentDialogOpen} onOpenChange={setAttachmentDialogOpen}>
+                  <DialogContent className="w-[calc(100%-2rem)] max-w-xl">
+                    <DialogHeader>
+                      <DialogTitle>Select entry attachments</DialogTitle>
+                      <DialogDescription>
+                        Files will upload after the register entry is created.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <FileUploadZone
+                      multiple
+                      value={selectedFiles}
+                      onValueChange={setSelectedFiles}
+                      disabled={uploadingFiles}
+                      showFileList
+                      validation={{
+                        accept: '.pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt',
+                        maxSizeBytes: 10 * 1024 * 1024,
+                      }}
+                      title="Drop files here or click to browse"
+                      description="PDF, images, Word, Excel, or text files (maximum 10 MB each)"
+                    />
+                    <DialogFooter>
+                      <Button type="button" onClick={() => setAttachmentDialogOpen(false)}>
+                        Done
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
               <div className="flex gap-2 justify-end">
                 <Button
@@ -1278,9 +1215,6 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                   onClick={() => {
                     setShowAddForm(false);
                     setSelectedFiles([]);
-                    if (fileInputRef.current) {
-                      fileInputRef.current.value = '';
-                    }
                   }}
                   disabled={uploadingFiles}
                 >
@@ -1373,33 +1307,33 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
                               <TableCell>{entry.assignedPerson || '-'}</TableCell>
                               <TableCell>{entry.assignedPhone || '-'}</TableCell>
                               <TableCell>
-                                {entry.attachments && entry.attachments.length > 0 ? (
-                                  <div className="flex items-center gap-1">
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-auto py-1 px-2 text-sm text-muted-foreground hover:text-foreground"
-                                      onClick={() => setAttachmentDialogEntry(entry)}
-                                    >
-                                      <Paperclip className="h-3 w-3 mr-1" />
-                                      {entry.attachments.length} file(s)
-                                    </Button>
-                                    {entry.attachments.find((a) => a.fileUrl) ? (
-                                      <FilePreviewButton
-                                        fileUrl={
-                                          entry.attachments.find((a) => a.fileUrl)
-                                            ?.fileUrl
-                                        }
-                                        fileName={
-                                          entry.attachments.find((a) => a.fileUrl)
-                                            ?.fileName ?? 'document'
-                                        }
-                                      />
-                                    ) : null}
-                                  </div>
-                                ) : (
-                                  '-'
-                                )}
+                                <div className="flex items-center gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-auto py-1 px-2 text-sm text-muted-foreground hover:text-foreground"
+                                    onClick={() => setAttachmentDialogEntry(entry)}
+                                    aria-label={
+                                      entry.attachments && entry.attachments.length > 0
+                                        ? `Manage ${entry.attachments.length} attachment${entry.attachments.length === 1 ? '' : 's'}`
+                                        : 'Add attachment'
+                                    }
+                                  >
+                                    <Paperclip className="h-3 w-3 mr-1" />
+                                    {entry.attachments && entry.attachments.length > 0
+                                      ? `${entry.attachments.length} file(s)`
+                                      : 'Add attachment'}
+                                  </Button>
+                                  {entry.attachments?.find((a) => a.fileUrl) ? (
+                                    <FilePreviewButton
+                                      fileUrl={entry.attachments.find((a) => a.fileUrl)?.fileUrl}
+                                      fileName={
+                                        entry.attachments.find((a) => a.fileUrl)?.fileName ??
+                                        'document'
+                                      }
+                                    />
+                                  ) : null}
+                                </div>
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">

@@ -44,6 +44,15 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
+import { FileUploadZone } from '@/components/ui/file-upload-zone';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useTranslations } from '@/hooks/use-translations';
 import {
   getDefaultTemplateHtml,
@@ -186,7 +195,7 @@ export function LetterTemplateMasterManager({
       ? initialLetterLocale
       : 'all',
   );
-  const letterheadInputRef = useRef<HTMLInputElement>(null);
+  const [letterheadDialogOpen, setLetterheadDialogOpen] = useState(false);
   const initialOpenDoneRef = useRef(false);
 
   const refreshLetterTypes = async () => {
@@ -450,14 +459,12 @@ export function LetterTemplateMasterManager({
       if (!res.ok) throw new Error(json?.error || 'Upload failed');
       setForm((prev) => ({ ...prev, letterheadUrl: json.url ?? null }));
       toast.success(t('letterGeneration.templates.letterheadUploadSuccess'));
+      setLetterheadDialogOpen(false);
     } catch (error) {
       console.error('Failed to upload letterhead', error);
       toast.error(t('letterGeneration.templates.letterheadUploadError'));
     } finally {
       setIsUploadingLetterhead(false);
-      if (letterheadInputRef.current) {
-        letterheadInputRef.current.value = '';
-      }
     }
   };
 
@@ -773,21 +780,11 @@ export function LetterTemplateMasterManager({
                     </FieldGroup>
                   ) : null}
                   <div className="flex flex-col gap-2 sm:flex-row">
-                    <input
-                      ref={letterheadInputRef}
-                      type="file"
-                      accept="image/jpeg,image/png"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) void handleUploadLetterhead(file);
-                      }}
-                    />
                     <Button
                       type="button"
                       variant="outline"
                       className="w-full sm:w-auto"
-                      onClick={() => letterheadInputRef.current?.click()}
+                      onClick={() => setLetterheadDialogOpen(true)}
                       disabled={isUploadingLetterhead}
                     >
                       {isUploadingLetterhead ? (
@@ -818,6 +815,53 @@ export function LetterTemplateMasterManager({
                       </Button>
                     ) : null}
                   </div>
+                  <Dialog open={letterheadDialogOpen} onOpenChange={setLetterheadDialogOpen}>
+                    <DialogContent className="w-[calc(100%-2rem)] max-w-xl">
+                      <DialogHeader>
+                        <DialogTitle>
+                          {form.letterheadUrl
+                            ? t('letterGeneration.templates.letterheadReplace')
+                            : t('letterGeneration.templates.letterheadUpload')}
+                        </DialogTitle>
+                        <DialogDescription>
+                          Upload a JPEG or PNG letterhead image for this template.
+                        </DialogDescription>
+                      </DialogHeader>
+                      {form.letterheadUrl ? (
+                        <div className="overflow-hidden rounded-lg border border-border bg-muted/20 p-2">
+                          <img
+                            src={form.letterheadUrl}
+                            alt="Current letterhead preview"
+                            className="max-h-48 w-full object-contain"
+                          />
+                        </div>
+                      ) : null}
+                      <FileUploadZone
+                        multiple={false}
+                        isUploading={isUploadingLetterhead}
+                        onUpload={async (files) => {
+                          const file = files[0];
+                          if (file) await handleUploadLetterhead(file);
+                        }}
+                        validation={{
+                          accept: 'image/jpeg,image/png',
+                          maxSizeBytes: 5 * 1024 * 1024,
+                        }}
+                        title={isUploadingLetterhead ? 'Uploading...' : 'Drop the letterhead here or click to browse'}
+                        description="JPEG or PNG image (maximum 5 MB)"
+                      />
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => setLetterheadDialogOpen(false)}
+                          disabled={isUploadingLetterhead}
+                        >
+                          {t('adm.cancel')}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                   <p className="text-xs text-muted-foreground">
                     {t('letterGeneration.templates.letterheadHint')}
                   </p>
