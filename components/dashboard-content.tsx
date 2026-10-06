@@ -38,6 +38,17 @@ const BIRTHDAY_WISHES = [
 आमदार, अणुशक्तीनगर`,
   },
   {
+    id: 'hi',
+    label: 'हिंदी',
+    message: `🎉 जन्मदिन की बहुत-बहुत बधाई! 🎂
+
+आपको अच्छी सेहत, लंबी उम्र, खुशी, खुशहाली और खूब सफलता मिले। समाज की सेवा का आपका काम ऐसे ही जोश और लगन से चलता रहे।
+
+शुभकामनाओं के साथ,
+सना मलिक शेख
+विधायक, अनुशक्ति नगर`,
+  },
+  {
     id: 'en',
     label: 'English',
     message: `🎉 Heartiest birthday wishes to you! 🎂
@@ -47,17 +58,6 @@ Wishing you good health, long life, happiness, prosperity, and abundant success.
 Best wishes,
 Sana Malik Shaikh
 MLA, Anushakti Nagar`,
-  },
-  {
-    id: 'ur',
-    label: 'اردو',
-    message: `🎉 سالگرہ کی دلی مبارکباد! 🎂
-
-آپ کو بہترین صحت، درازیِ عمر، خوشیاں، خوشحالی اور بے شمار کامیابیاں نصیب ہوں۔ معاشرے کی خدمت کے لیے آپ کی خواہشیں اسی جوش و جذبے کے ساتھ جاری رہیں، یہی ہماری نیک خواہش ہے۔
-
-نیک تمناؤں کے ساتھ،
-ثنا ملک شیخ
-ایم ایل اے، انوشکتی نگر`,
   },
 ] as const;
 
@@ -182,7 +182,6 @@ function UpcomingBirthdaysList({
                                   target="_blank"
                                   rel="noopener noreferrer"
                                   lang={wish.id}
-                                  dir={wish.id === 'ur' ? 'rtl' : 'ltr'}
                                   className="inline-flex h-10 items-center gap-1.5 rounded-md border border-emerald-200 bg-emerald-50 px-2.5 text-xs font-medium text-emerald-800 transition-colors hover:bg-emerald-100"
                                   aria-label={t(
                                     'dashboard.birthdayWishWhatsApp',
