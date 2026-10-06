@@ -292,6 +292,10 @@ export type DocumentTypeMaster = {
   labelEn: string;
   labelMr: string;
   lastSequence: number;
+  /** Freed numbers below the high-water mark, reused before lastSequence + 1. */
+  availableSequences: number[];
+  /** Lowest number the next letter or outward entry will receive. */
+  nextSequence?: number;
   isActive: boolean;
   sortOrder: number;
   createdBy: string | null;

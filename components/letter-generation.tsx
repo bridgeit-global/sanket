@@ -5183,9 +5183,17 @@ export function LetterGeneration({
       const json = await res.json();
       if (!res.ok) throw new Error(json?.error || 'Failed to delete letter');
       toast.success(t('letterGeneration.savedLetters.deleteSuccess'));
+      const deletedWasOpen = editingLetterIdRef.current === id;
       setSavedLetters((prev) => prev.filter((l) => l.id !== id));
       setSelectedSavedLetterId((prev) => (prev === id ? null : prev));
       setEditingLetterId((prev) => (prev === id ? null : prev));
+      if (deletedWasOpen) {
+        editingLetterIdRef.current = null;
+        referenceNumberAutoRef.current = true;
+      }
+      if (deletedWasOpen || referenceNumberAutoRef.current) {
+        void refreshReferenceSequence(activeReferencePrefix, { force: true });
+      }
     } catch (error) {
       console.error('Failed to delete letter', error);
       toast.error(t('letterGeneration.savedLetters.deleteError'));

@@ -114,6 +114,20 @@ function toStringArray(value: unknown): string[] {
   return out;
 }
 
+function toPositiveIntArray(value: unknown): number[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<number>();
+  const out: number[] = [];
+  for (const item of value) {
+    const parsed = typeof item === 'number' ? item : Number(item);
+    if (!Number.isInteger(parsed) || parsed < 1 || seen.has(parsed)) continue;
+    seen.add(parsed);
+    out.push(parsed);
+  }
+  out.sort((a, b) => a - b);
+  return out;
+}
+
 /** Normalize DB date/timestamptz values to `yyyy-MM-dd` for API responses. */
 function formatDateField(value: unknown): string {
   if (value == null) return '';
@@ -447,6 +461,9 @@ export function mapDocumentTypeMasterRow(row: Row): DocumentTypeMaster {
     labelEn: String(row.label_en ?? row.labelEn ?? ''),
     labelMr: String(row.label_mr ?? row.labelMr ?? ''),
     lastSequence: Number(row.last_sequence ?? row.lastSequence ?? 0),
+    availableSequences: toPositiveIntArray(
+      row.available_sequences ?? row.availableSequences,
+    ),
     isActive: Boolean(row.is_active ?? row.isActive ?? true),
     sortOrder: Number(row.sort_order ?? row.sortOrder ?? 0),
     createdBy: toStringOrNull(row.created_by ?? row.createdBy),

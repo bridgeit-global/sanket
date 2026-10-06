@@ -135,14 +135,42 @@ export function extractSequenceNumber(full: string, prefix: string): number | nu
   return Number.isFinite(value) ? value : null;
 }
 
-/** Next sequence number for a prefix given existing full refs (max + 1, or 1). */
+/**
+ * Next sequence for a prefix: the lowest missing positive number, or max + 1
+ * when the existing numbers are contiguous from 1.
+ */
 export function nextSequenceNumber(refs: string[], prefix: string): number {
+  const used = new Set<number>();
   let max = 0;
   for (const ref of refs) {
     const value = extractSequenceNumber(ref, prefix);
-    if (value != null && value > max) max = value;
+    if (value == null || value < 1) continue;
+    used.add(value);
+    if (value > max) max = value;
+  }
+  for (let candidate = 1; candidate <= max; candidate += 1) {
+    if (!used.has(candidate)) return candidate;
   }
   return max + 1;
+}
+
+/**
+ * Next number stored on a document type: lowest freed gap, otherwise
+ * lastSequence + 1. Gaps are scoped to that document type's own counter.
+ */
+export function peekSequenceNumber(
+  lastSequence: number,
+  availableSequences?: readonly number[] | null,
+): number {
+  const last = Number.isFinite(lastSequence) ? Math.trunc(lastSequence) : 0;
+  const highWater = Math.max(0, last);
+  let lowest: number | null = null;
+  for (const value of availableSequences ?? []) {
+    if (!Number.isInteger(value) || value < 1 || value > highWater) continue;
+    if (lowest == null || value < lowest) lowest = value;
+  }
+  if (lowest != null) return lowest;
+  return highWater + 1;
 }
 
 /** Digits-only reference number for the active locale (Devanagari when `mr`). */

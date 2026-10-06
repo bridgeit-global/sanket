@@ -4281,7 +4281,8 @@ export async function getDocumentTypes({
 
     const { data, error } = await query;
     throwOnSupabaseError(error, 'Failed to get document types');
-    return (data ?? []).map(mapDocumentTypeMasterRow);
+    const documentTypes = (data ?? []).map(mapDocumentTypeMasterRow);
+    return attachDocumentTypeNextSequences(documentTypes);
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to get document types');
@@ -4453,15 +4454,95 @@ export async function deleteDocumentType(id: string): Promise<void> {
   }
 }
 
-export async function peekDocumentTypeSequence(code: string): Promise<number> {
-  const docType = await getDocumentTypeByCode(code, { activeOnly: true });
-  if (!docType) {
-    throw new ChatSDKError('bad_request:database', 'Document type not found');
-  }
-  return docType.lastSequence + 1;
+async function attachDocumentTypeNextSequences(
+  documentTypes: Array<DocumentTypeMaster>,
+): Promise<Array<DocumentTypeMaster>> {
+  const activeCodes = documentTypes
+    .filter((item) => item.isActive)
+    .map((item) => item.code);
+  if (activeCodes.length === 0) return documentTypes;
+
+  const rows = await pgSql<{ code: string; next: number | string }[]>`
+    SELECT code, public.peek_document_type_sequence(code) AS next
+    FROM "DocumentTypeMaster"
+    WHERE is_active = true
+      AND code = ANY(${activeCodes})
+  `;
+  const nextByCode = new Map(
+    rows.map((row) => [String(row.code).toLowerCase(), Number(row.next)]),
+  );
+
+  return documentTypes.map((item) => {
+    const next = nextByCode.get(item.code.toLowerCase());
+    return Number.isFinite(next) ? { ...item, nextSequence: next } : item;
+  });
 }
 
-/** Atomically increment and return the next sequence number for a document type. */
+function throwDocumentTypeSequenceError(error: unknown, fallback: string): never {
+  if (error instanceof ChatSDKError) throw error;
+  const message = error instanceof Error ? error.message : '';
+  if (
+    message.includes('Document type not found') ||
+    message.includes('inactive')
+  ) {
+    throw new ChatSDKError(
+      'bad_request:database',
+      'Document type not found or inactive',
+    );
+  }
+  if (message.includes('Invalid sequence number')) {
+    throw new ChatSDKError('bad_request:database', 'Invalid sequence number');
+  }
+  throw new ChatSDKError('bad_request:database', fallback);
+}
+
+/** Prefix + numeric suffix for a stored reference, when both are present. */
+async function sequenceReleaseFromReference(
+  reference: string,
+): Promise<{ code: string; seq: number } | null> {
+  const { extractSequenceNumber, normalizeReferencePrefix, parseReference } =
+    await import('@/lib/letters/reference-sequence');
+  const parsed = parseReference(reference);
+  const code = normalizeReferencePrefix(parsed.prefix);
+  const seq = code ? extractSequenceNumber(reference, code) : null;
+  if (!code || seq == null || seq < 1) return null;
+  return { code, seq };
+}
+
+export async function peekDocumentTypeSequence(code: string): Promise<number> {
+  try {
+    const { normalizeReferencePrefix } = await import(
+      '@/lib/letters/reference-sequence'
+    );
+    const normalized = normalizeReferencePrefix(code);
+    if (!normalized) {
+      throw new ChatSDKError('bad_request:database', 'Document type code is required');
+    }
+
+    await ensureDocumentTypeDefaults();
+    const rows = await pgSql<{ next: number | string }[]>`
+      SELECT public.peek_document_type_sequence(${normalized}) AS next
+    `;
+    const next = Number(rows[0]?.next);
+    if (!Number.isFinite(next) || next < 1) {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Document type not found or inactive',
+      );
+    }
+    return next;
+  } catch (error) {
+    throwDocumentTypeSequenceError(
+      error,
+      'Failed to resolve document type sequence',
+    );
+  }
+}
+
+/**
+ * Next number for a document type: lowest freed gap, otherwise last_sequence + 1.
+ * The document-type row is locked so concurrent creates cannot take the same gap.
+ */
 export async function allocateDocumentTypeSequence(code: string): Promise<number> {
   try {
     const { normalizeReferencePrefix } = await import(
@@ -4472,17 +4553,11 @@ export async function allocateDocumentTypeSequence(code: string): Promise<number
       throw new ChatSDKError('bad_request:database', 'Document type code is required');
     }
 
-    const rows = await pgSql`
-      UPDATE "DocumentTypeMaster"
-      SET
-        last_sequence = last_sequence + 1,
-        updated_at = now()
-      WHERE lower(code) = lower(${normalized})
-        AND is_active = true
-      RETURNING last_sequence
+    const rows = await pgSql<{ next: number | string }[]>`
+      SELECT public.allocate_document_type_sequence(${normalized}) AS next
     `;
 
-    const next = Number(rows[0]?.last_sequence);
+    const next = Number(rows[0]?.next);
     if (!Number.isFinite(next) || next < 1) {
       throw new ChatSDKError(
         'bad_request:database',
@@ -4491,15 +4566,14 @@ export async function allocateDocumentTypeSequence(code: string): Promise<number
     }
     return next;
   } catch (error) {
-    if (error instanceof ChatSDKError) throw error;
-    throw new ChatSDKError(
-      'bad_request:database',
+    throwDocumentTypeSequenceError(
+      error,
       'Failed to allocate document type sequence',
     );
   }
 }
 
-/** Raise the counter to at least `usedNumber` (manual override path). */
+/** Raise the counter to at least `usedNumber` and record any skipped gaps. */
 export async function bumpDocumentTypeSequence(
   code: string,
   usedNumber: number,
@@ -4516,14 +4590,11 @@ export async function bumpDocumentTypeSequence(
       throw new ChatSDKError('bad_request:database', 'Invalid sequence number');
     }
 
-    const rows = await pgSql`
-      UPDATE "DocumentTypeMaster"
-      SET
-        last_sequence = GREATEST(last_sequence, ${Math.trunc(usedNumber)}),
-        updated_at = now()
-      WHERE lower(code) = lower(${normalized})
-        AND is_active = true
-      RETURNING last_sequence
+    const rows = await pgSql<{ last_sequence: number | string }[]>`
+      SELECT public.bump_document_type_sequence(
+        ${normalized},
+        ${Math.trunc(usedNumber)}
+      ) AS last_sequence
     `;
 
     const last = Number(rows[0]?.last_sequence);
@@ -4535,11 +4606,7 @@ export async function bumpDocumentTypeSequence(
     }
     return last;
   } catch (error) {
-    if (error instanceof ChatSDKError) throw error;
-    throw new ChatSDKError(
-      'bad_request:database',
-      'Failed to bump document type sequence',
-    );
+    throwDocumentTypeSequenceError(error, 'Failed to bump document type sequence');
   }
 }
 
@@ -5084,8 +5151,22 @@ export async function deleteLetter(id: string): Promise<void> {
       }
     }
 
-    const { error } = await supabase.from(TABLES.letter).delete().eq('id', id);
-    throwOnSupabaseError(error, 'Failed to delete letter');
+    const release = existing
+      ? await sequenceReleaseFromReference(existing.referenceNo)
+      : null;
+
+    await pgSql.begin(async (tx) => {
+      const deleted = await tx<{ id: string }[]>`
+        DELETE FROM "Letter"
+        WHERE id = ${id}::uuid
+        RETURNING id
+      `;
+      if (deleted.length > 0 && release) {
+        await tx`
+          SELECT public.release_document_type_sequence(${release.code}, ${release.seq})
+        `;
+      }
+    });
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to delete letter');
@@ -5421,8 +5502,24 @@ export async function updateRegisterEntry(
 
 export async function deleteRegisterEntry(id: string): Promise<void> {
   try {
-    const { error } = await supabase.from(TABLES.registerEntry).delete().eq('id', id);
-    throwOnSupabaseError(error, 'Failed to delete register entry');
+    const existing = await getRegisterEntryById(id);
+    const release =
+      existing?.type === 'outward' && existing.refNo
+        ? await sequenceReleaseFromReference(existing.refNo)
+        : null;
+
+    await pgSql.begin(async (tx) => {
+      const deleted = await tx<{ id: string }[]>`
+        DELETE FROM "RegisterEntry"
+        WHERE id = ${id}::uuid
+        RETURNING id
+      `;
+      if (deleted.length > 0 && release) {
+        await tx`
+          SELECT public.release_document_type_sequence(${release.code}, ${release.seq})
+        `;
+      }
+    });
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to delete register entry');
