@@ -35,7 +35,7 @@ const BIRTHDAY_WISHES = [
 
 शुभेच्छांसह,
 सना मलिक शेख
-आमदार, अणुशक्तीनगर`,
+आमदार - अणुशक्तीनगर`,
   },
   {
     id: 'hi',
@@ -46,7 +46,7 @@ const BIRTHDAY_WISHES = [
 
 शुभकामनाओं के साथ,
 सना मलिक शेख
-विधायक, अनुशक्ति नगर`,
+विधायक - अनुशक्ति नगर`,
   },
   {
     id: 'en',
@@ -57,7 +57,7 @@ Wishing you good health, long life, happiness, prosperity, and abundant success.
 
 Best wishes,
 Sana Malik Shaikh
-MLA, Anushakti Nagar`,
+MLA - Anushakti Nagar`,
   },
 ] as const;
 
