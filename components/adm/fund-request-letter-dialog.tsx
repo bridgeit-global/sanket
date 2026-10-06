@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FileUploadZone } from '@/components/ui/file-upload-zone';
 import {
   Select,
   SelectContent,
@@ -295,16 +296,19 @@ export function FundRequestLetterDialog({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="frl-file">{t('adm.fundRequestLetters.document')}</Label>
-            <Input
-              id="frl-file"
-              type="file"
-              accept="application/pdf,.pdf"
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-              className="min-h-11 w-full"
+            <FileUploadZone
+              multiple={false}
+              value={file ? [file] : []}
+              onValueChange={(files) => setFile(files[0] ?? null)}
+              disabled={saving}
+              showFileList
+              validation={{
+                accept: 'application/pdf,.pdf',
+                maxSizeBytes: 25 * 1024 * 1024,
+              }}
+              title={saving ? t('adm.uploading') : 'Drop the PDF here or click to browse'}
+              description="PDF files only (maximum 25 MB)"
             />
-            <p className="text-xs text-muted-foreground">
-              {t('adm.fundRequestLetters.fileHint')}
-            </p>
           </div>
           <div className="space-y-1.5">
             <Label>{t('adm.fundRequestLetters.statusLabel')}</Label>

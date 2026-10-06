@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
   ExternalLink,
@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { FileUploadZone } from '@/components/ui/file-upload-zone';
 import {
   Dialog,
   DialogContent,
@@ -158,7 +159,6 @@ export function AdmFundRecordCard({
   onDeleteDocument,
 }: AdmFundRecordCardProps) {
   const { t, locale } = useTranslations();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(false);
   const [financialYear, setFinancialYear] = useState(fund.financialYear);
   const [budget, setBudget] = useState(fund.budget);
@@ -169,6 +169,7 @@ export function AdmFundRecordCard({
   const [allocatedBudget, setAllocatedBudget] = useState(0);
   const [addingAllocation, setAddingAllocation] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -281,13 +282,13 @@ export function AdmFundRecordCard({
     setUploading(true);
     try {
       await onUploadDocument(fund.id, file, 'general');
+      setUploadDialogOpen(false);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : t('adm.failedToSave'),
       );
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -453,28 +454,17 @@ export function AdmFundRecordCard({
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {t('adm.admDocuments')}
           </p>
-          <div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void handleUpload(file);
-              }}
-            />
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="min-h-11 w-full sm:min-h-9 sm:w-auto"
-              disabled={uploading}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              <Upload className="mr-1 h-3.5 w-3.5" />
-              {uploading ? t('adm.uploading') : t('adm.uploadDocument')}
-            </Button>
-          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="min-h-11 w-full sm:min-h-9 sm:w-auto"
+            disabled={uploading}
+            onClick={() => setUploadDialogOpen(true)}
+          >
+            <Upload className="mr-1 h-3.5 w-3.5" />
+            {t('adm.uploadDocument')}
+          </Button>
         </div>
         {fund.documents.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t('adm.noDocuments')}</p>
@@ -754,6 +744,45 @@ export function AdmFundRecordCard({
           </Button>
         </div>
       </div>
+
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{t('adm.uploadDocument')}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="rounded-lg border border-border/60 bg-muted/20 p-3 text-sm text-muted-foreground">
+              Upload one operational document for <span className="font-medium text-foreground">{fund.categoryName}</span>.
+            </div>
+            <FileUploadZone
+              multiple={false}
+              isUploading={uploading}
+              onUpload={async (files) => {
+                const file = files[0];
+                if (file) await handleUpload(file);
+              }}
+              validation={{
+                accept:
+                  '.pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt',
+                maxSizeBytes: 10 * 1024 * 1024,
+              }}
+              title={uploading ? t('adm.uploading') : 'Drop your document here or click to browse'}
+              description="PDF, images, Word, Excel, or text files (maximum 10 MB)"
+              hint="Your file will be uploaded immediately after selection."
+            />
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setUploadDialogOpen(false)}
+              disabled={uploading}
+            >
+              {t('adm.cancel')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={createProjectOpen} onOpenChange={setCreateProjectOpen}>
         <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto">

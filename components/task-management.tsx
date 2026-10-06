@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Combobox } from '@/components/ui/combobox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { FileUploadZone } from '@/components/ui/file-upload-zone';
 import { toast } from '@/components/toast';
 import {
     FilePreviewButton,
@@ -443,7 +444,6 @@ export function TaskManagement({
     const [taskHistoryLoading, setTaskHistoryLoading] = useState(false);
     const [pendingFiles, setPendingFiles] = useState<File[]>([]);
     const [isUpdating, setIsUpdating] = useState(false);
-    const fileInputRef = useRef<HTMLInputElement>(null);
     const [showEscalationDialog, setShowEscalationDialog] = useState(false);
     const [tagVoterTask, setTagVoterTask] = useState<TaskWithService | null>(null);
     const [taggingVoter, setTaggingVoter] = useState(false);
@@ -2171,59 +2171,20 @@ export function TaskManagement({
                                     <Label htmlFor="update-documents">
                                         {t('taskManagement.dialog.attachDocuments')}
                                     </Label>
-                                    <input
-                                        ref={fileInputRef}
-                                        id="update-documents"
-                                        type="file"
+                                    <FileUploadZone
                                         multiple
-                                        className="hidden"
-                                        accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.bmp,.pdf,.doc,.docx,.xls,.xlsx,.txt"
-                                        onChange={(e) => {
-                                            const files = Array.from(e.target.files ?? []);
-                                            if (files.length === 0) return;
-                                            setPendingFiles((prev) => [...prev, ...files]);
-                                            e.target.value = '';
+                                        value={pendingFiles}
+                                        onValueChange={setPendingFiles}
+                                        disabled={isUpdating}
+                                        showFileList
+                                        validation={{
+                                            accept: '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.heic,.heif,.bmp,.txt',
+                                            maxSizeBytes: 10 * 1024 * 1024,
                                         }}
+                                        title={t('taskManagement.dialog.chooseFiles')}
+                                        description="Images, PDF, Word, Excel, or text files (maximum 10 MB each)"
+                                        hint="Files will be uploaded when you save the status update."
                                     />
-                                    <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        className="w-full sm:w-auto"
-                                        onClick={() => fileInputRef.current?.click()}
-                                    >
-                                        <Upload className="mr-2 size-4" />
-                                        {t('taskManagement.dialog.chooseFiles')}
-                                    </Button>
-                                    {pendingFiles.length > 0 && (
-                                        <ul className="space-y-1">
-                                            {pendingFiles.map((file, index) => (
-                                                <li
-                                                    key={`${file.name}-${file.size}-${index}`}
-                                                    className="flex items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-sm"
-                                                >
-                                                    <span className="flex min-w-0 items-center gap-2">
-                                                        <Paperclip className="size-3.5 shrink-0 text-muted-foreground" />
-                                                        <span className="truncate">{file.name}</span>
-                                                    </span>
-                                                    <Button
-                                                        type="button"
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-7 w-7 shrink-0 p-0"
-                                                        onClick={() =>
-                                                            setPendingFiles((prev) =>
-                                                                prev.filter((_, i) => i !== index),
-                                                            )
-                                                        }
-                                                        aria-label={t('taskManagement.dialog.removeFile')}
-                                                    >
-                                                        <X className="size-3.5" />
-                                                    </Button>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
                                     <p className="text-xs text-muted-foreground">
                                         {t('taskManagement.dialog.attachDocumentsHelp')}
                                     </p>

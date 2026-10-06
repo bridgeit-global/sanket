@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FileUploadZone } from '@/components/ui/file-upload-zone';
 import {
   Dialog,
   DialogContent,
@@ -366,16 +367,21 @@ export function AdmDemandLetters({
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="dl-file">{t('adm.demandLetters.document')}</Label>
-              <Input
-                id="dl-file"
-                type="file"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.txt"
-                onChange={(e) => setFormFile(e.target.files?.[0] ?? null)}
-                className="min-h-11"
+              <FileUploadZone
+                multiple={false}
+                value={formFile ? [formFile] : []}
+                onFilesSelected={(files) => setFormFile(files[0] ?? null)}
+                onValueChange={(files) => setFormFile(files[0] ?? null)}
+                disabled={saving}
+                showFileList
+                validation={{
+                  accept:
+                    '.pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.gif,.webp,.txt',
+                  maxSizeBytes: 25 * 1024 * 1024,
+                }}
+                title={t('adm.demandLetters.document')}
+                description={t('adm.demandLetters.fileHint')}
               />
-              <p className="text-xs text-muted-foreground">
-                {t('adm.demandLetters.fileHint')}
-              </p>
             </div>
           </div>
           <DialogFooter>

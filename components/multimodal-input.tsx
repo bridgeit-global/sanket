@@ -18,6 +18,7 @@ import { useLocalStorage, useWindowSize } from 'usehooks-ts';
 
 import { ArrowUpIcon, PaperclipIcon, StopIcon } from './icons';
 import { PreviewAttachment } from './preview-attachment';
+import { isFileTypeAccepted } from './ui/file-upload-zone';
 import { Button } from './ui/button';
 import { Textarea } from './ui/textarea';
 import { ComprehensiveSuggestions } from './comprehensive-suggestions';
@@ -172,7 +173,17 @@ function PureMultimodalInput({
 
   const handleFileChange = useCallback(
     async (event: ChangeEvent<HTMLInputElement>) => {
-      const files = Array.from(event.target.files || []);
+      const files = Array.from(event.target.files || []).filter((file) => {
+        if (file.size > 5 * 1024 * 1024) {
+          toast.error(`${file.name}: maximum file size is 5 MB.`);
+          return false;
+        }
+        if (!isFileTypeAccepted(file, 'image/jpeg,image/png')) {
+          toast.error(`${file.name}: only JPEG and PNG images are supported.`);
+          return false;
+        }
+        return true;
+      });
 
       setUploadQueue(files.map((file) => file.name));
 

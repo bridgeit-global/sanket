@@ -5,6 +5,7 @@ import { ImagePlus, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { isFileTypeAccepted } from '@/components/ui/file-upload-zone';
 import type { CadreWhatsAppMessageImage } from '@/lib/db/schema';
 
 interface WhatsAppComposeFieldsProps {
@@ -61,7 +62,17 @@ export function WhatsAppComposeFields({
   };
 
   const handleImageSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
+    const files = Array.from(event.target.files ?? []).filter((file) => {
+      if (file.size > 5 * 1024 * 1024) {
+        onUploadError(`${file.name}: maximum image size is 5 MB.`);
+        return false;
+      }
+      if (!isFileTypeAccepted(file, 'image/jpeg,image/png,image/webp')) {
+        onUploadError(`${file.name}: only JPEG, PNG, and WEBP images are supported.`);
+        return false;
+      }
+      return true;
+    });
     event.target.value = '';
     if (files.length === 0) return;
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,7 +10,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import {
-  Upload,
   File,
   FileText,
   Image,
@@ -26,6 +25,8 @@ import {
   isImageFile,
   isPdfFile,
 } from '@/lib/file-preview';
+
+import { FileUploadZone } from '@/components/ui/file-upload-zone';
 
 interface Attachment {
   id: string;
@@ -57,18 +58,6 @@ export function RegisterAttachmentDialog({
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [opening, setOpening] = useState<string | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
-  }, []);
 
   const uploadFiles = async (files: File[]) => {
     setUploading(true);
@@ -103,32 +92,6 @@ export function RegisterAttachmentDialog({
         `${successCount} file${successCount > 1 ? 's' : ''} uploaded successfully`,
       );
       onAttachmentsChange();
-    }
-  };
-
-  const handleDrop = useCallback(
-    async (e: React.DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setDragActive(false);
-
-      const files = e.dataTransfer.files;
-      if (files && files.length > 0) {
-        await uploadFiles(Array.from(files));
-      }
-    },
-    // uploadFiles closes over entryId / onAttachmentsChange; entryId is enough.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- stable for drop target
-    [entryId],
-  );
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      await uploadFiles(Array.from(files));
-    }
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
     }
   };
 
@@ -238,45 +201,17 @@ export function RegisterAttachmentDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div
-          className={`
-            relative border-2 border-dashed rounded-lg p-6 transition-colors
-            ${dragActive ? 'border-primary bg-primary/5' : 'border-muted-foreground/25'}
-            ${uploading ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:border-primary/50'}
-          `}
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            multiple
-            accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt"
-            className="hidden"
-            onChange={handleFileSelect}
-          />
-          <div className="flex flex-col items-center gap-2 text-center">
-            {uploading ? (
-              <>
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">Uploading...</p>
-              </>
-            ) : (
-              <>
-                <Upload className="h-8 w-8 text-muted-foreground" />
-                <p className="text-sm font-medium">
-                  Drop files here or click to upload
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  PDF, Images, Word, Excel, Text (max 10MB)
-                </p>
-              </>
-            )}
-          </div>
-        </div>
+        <FileUploadZone
+          multiple
+          isUploading={uploading}
+          onUpload={uploadFiles}
+          validation={{
+            accept: '.pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt',
+            maxSizeBytes: 10 * 1024 * 1024,
+          }}
+          title="Drop files here or click to upload"
+          description="PDF, Images, Word, Excel, Text (max 10MB)"
+        />
 
         <div className="flex-1 overflow-y-auto min-h-0">
           {attachments.length === 0 ? (

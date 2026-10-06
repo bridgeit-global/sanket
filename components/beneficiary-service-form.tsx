@@ -1,9 +1,18 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { Paperclip, Upload, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { FileUploadZone } from '@/components/ui/file-upload-zone';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,19 +22,6 @@ import { useTranslations } from '@/hooks/use-translations';
 import type { VoterWithPartNo } from '@/lib/db/schema';
 
 const ATTACHMENT_MAX_SIZE = 10 * 1024 * 1024; // 10MB
-const ATTACHMENT_ALLOWED_TYPES = [
-    'application/pdf',
-    'image/jpeg',
-    'image/png',
-    'image/gif',
-    'image/webp',
-    'application/msword',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    'application/vnd.ms-excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    'text/plain',
-];
-
 /**
  * Uploads document/image attachments to a beneficiary service. Runs sequentially
  * and returns counts so callers can surface a summary toast.
@@ -191,7 +187,7 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
     const [priority, setPriority] = useState<'low' | 'medium' | 'high' | 'urgent'>(initialData?.priority ?? 'medium');
     const [notes, setNotes] = useState(initialData?.notes ?? '');
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [attachmentDialogOpen, setAttachmentDialogOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [todayProgrammes, setTodayProgrammes] = useState<TodayProgrammeRow[]>([]);
     const [linkedProgrammeId, setLinkedProgrammeId] = useState(() => {
@@ -265,40 +261,6 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
             writeStoredLinkedProgramme('', '');
         }
     }, [programmesLoaded, todayProgrammes, linkedProgrammeId]);
-
-    const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const files = e.target.files;
-        if (files && files.length > 0) {
-            const validFiles: File[] = [];
-            for (const file of Array.from(files)) {
-                if (file.size > ATTACHMENT_MAX_SIZE) {
-                    toast({
-                        type: 'error',
-                        description: t('beneficiaryService.form.attachments.tooLarge', {
-                            name: file.name,
-                        }),
-                    });
-                    continue;
-                }
-                if (!ATTACHMENT_ALLOWED_TYPES.includes(file.type)) {
-                    toast({
-                        type: 'error',
-                        description: t('beneficiaryService.form.attachments.invalidType', {
-                            name: file.name,
-                        }),
-                    });
-                    continue;
-                }
-                validFiles.push(file);
-            }
-            setSelectedFiles((prev) => [...prev, ...validFiles]);
-        }
-        if (e.target) e.target.value = '';
-    };
-
-    const removeFile = (index: number) => {
-        setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
-    };
 
     const resolveProgrammeLabel = (id: string): string | undefined => {
         const row = todayProgrammes.find((p) => p.id === id);
@@ -490,21 +452,12 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
                                     type="button"
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => fileInputRef.current?.click()}
+                                    onClick={() => setAttachmentDialogOpen(true)}
                                     className="w-fit"
                                 >
                                     <Upload className="mr-2 size-4" />
                                     {t('beneficiaryService.form.attachments.selectFiles')}
                                 </Button>
-                                <input
-                                    id="serviceDocuments"
-                                    ref={fileInputRef}
-                                    type="file"
-                                    multiple
-                                    className="hidden"
-                                    onChange={handleFileSelect}
-                                    accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.txt"
-                                />
                                 {selectedFiles.length > 0 && (
                                     <span className="text-sm text-muted-foreground">
                                         {t('beneficiaryService.form.attachments.selectedCount', {
@@ -516,33 +469,34 @@ export function BeneficiaryServiceForm(props: BeneficiaryServiceFormProps) {
                             <p className="text-xs text-muted-foreground">
                                 {t('beneficiaryService.form.attachments.hint')}
                             </p>
-                            {selectedFiles.length > 0 && (
-                                <div className="max-h-32 space-y-1 overflow-y-auto rounded border p-2">
-                                    {selectedFiles.map((file, index) => (
-                                        <div
-                                            key={`${file.name}-${file.size}-${file.lastModified}`}
-                                            className="flex items-center justify-between rounded bg-muted p-2 text-sm"
-                                        >
-                                            <span className="flex items-center gap-2">
-                                                <Paperclip className="size-3" />
-                                                <span className="max-w-xs truncate">{file.name}</span>
-                                                <span className="text-muted-foreground">
-                                                    ({(file.size / 1024).toFixed(1)} KB)
-                                                </span>
-                                            </span>
-                                            <Button
-                                                type="button"
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => removeFile(index)}
-                                                className="size-6 p-0"
-                                            >
-                                                <X className="size-3" />
-                                            </Button>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
+                            <Dialog open={attachmentDialogOpen} onOpenChange={setAttachmentDialogOpen}>
+                                <DialogContent className="w-[calc(100%-2rem)] max-w-xl">
+                                    <DialogHeader>
+                                        <DialogTitle>{t('beneficiaryService.form.attachments.label')}</DialogTitle>
+                                        <DialogDescription>
+                                            Select documents to attach when this service is submitted.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <FileUploadZone
+                                        multiple
+                                        value={selectedFiles}
+                                        onValueChange={setSelectedFiles}
+                                        disabled={isSubmitting}
+                                        showFileList
+                                        validation={{
+                                            accept: '.pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp,.txt',
+                                            maxSizeBytes: ATTACHMENT_MAX_SIZE,
+                                        }}
+                                        title="Drop files here or click to browse"
+                                        description="PDF, Word, Excel, images, or text files (maximum 10 MB each)"
+                                    />
+                                    <DialogFooter>
+                                        <Button type="button" onClick={() => setAttachmentDialogOpen(false)}>
+                                            Done
+                                        </Button>
+                                    </DialogFooter>
+                                </DialogContent>
+                            </Dialog>
                         </div>
                     </div>
 

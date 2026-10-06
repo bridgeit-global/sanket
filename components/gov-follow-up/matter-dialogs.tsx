@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   ChevronDown,
@@ -18,6 +18,7 @@ import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { FileUploadZone } from '@/components/ui/file-upload-zone';
 import {
   Dialog,
   DialogContent,
@@ -702,7 +703,6 @@ export function GovFollowUpDetailDialog({
   onUploaded: (matter: GovFollowUpMatterDetail) => void;
 }) {
   const { t, locale } = useTranslations();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [kind, setKind] = useState<GovFollowUpLogKind>('follow_up');
   const [mode, setMode] = useState<GovFollowUpMode | ''>('call');
   const [occurredOn, setOccurredOn] = useState(getTodayDateStringIST());
@@ -725,6 +725,8 @@ export function GovFollowUpDetailDialog({
   const [confirmClose, setConfirmClose] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [documentsDialogOpen, setDocumentsDialogOpen] = useState(false);
+  const [selectedDocuments, setSelectedDocuments] = useState<File[]>([]);
   const [uploadRefNo, setUploadRefNo] = useState('');
   const [uploadDate, setUploadDate] = useState(getTodayDateStringIST());
   const [uploadFromTo, setUploadFromTo] = useState('');
@@ -733,7 +735,6 @@ export function GovFollowUpDetailDialog({
   const [deletingAttachmentId, setDeletingAttachmentId] = useState<string | null>(
     null,
   );
-  const documentInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!matter || !open) return;
@@ -781,6 +782,8 @@ export function GovFollowUpDetailDialog({
     setConfirmClose(false);
     setUploadOpen(false);
     setUploadFile(null);
+    setDocumentsDialogOpen(false);
+    setSelectedDocuments([]);
     setUploadRefNo(matter.inwardRefNo ?? '');
     setUploadDate(getTodayDateStringIST());
     setUploadFromTo(
@@ -801,8 +804,8 @@ export function GovFollowUpDetailDialog({
     onUploaded(payload as GovFollowUpMatterDetail);
   };
 
-  const handleAttachDocuments = async (files: FileList | null) => {
-    if (!matter || !files?.length) return;
+  const handleAttachDocuments = async (files: File[]) => {
+    if (!matter || files.length === 0) return;
     setAttaching(true);
     try {
       for (const file of Array.from(files)) {
@@ -819,6 +822,8 @@ export function GovFollowUpDetailDialog({
       }
       toast.success(t('govFollowUp.documents.uploadSuccess'));
       await refreshMatter(matter.id);
+      setSelectedDocuments([]);
+      setDocumentsDialogOpen(false);
     } catch (error) {
       console.error(error);
       toast.error(
@@ -828,7 +833,6 @@ export function GovFollowUpDetailDialog({
       );
     } finally {
       setAttaching(false);
-      if (documentInputRef.current) documentInputRef.current.value = '';
     }
   };
 
@@ -1087,21 +1091,13 @@ export function GovFollowUpDetailDialog({
                 {t('govFollowUp.letters.title')}
               </h3>
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                <input
-                  ref={documentInputRef}
-                  type="file"
-                  multiple
-                  accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt,application/pdf,image/*"
-                  className="sr-only"
-                  onChange={(e) => void handleAttachDocuments(e.target.files)}
-                />
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   className="w-full gap-1.5 sm:w-auto"
                   disabled={attaching}
-                  onClick={() => documentInputRef.current?.click()}
+                  onClick={() => setDocumentsDialogOpen(true)}
                 >
                   {attaching ? (
                     <Loader2 className="size-3.5 animate-spin" />
@@ -1634,6 +1630,55 @@ export function GovFollowUpDetailDialog({
       }}
     />
     <Dialog
+      open={documentsDialogOpen}
+      onOpenChange={(next) => {
+        if (!attaching) setDocumentsDialogOpen(next);
+      }}
+    >
+      <DialogContent className="w-[calc(100%-2rem)] sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{t('govFollowUp.actions.attachDocuments')}</DialogTitle>
+          <DialogDescription>
+            Select one or more supporting documents to attach to this matter.
+          </DialogDescription>
+        </DialogHeader>
+        <FileUploadZone
+          multiple
+          value={selectedDocuments}
+          onValueChange={setSelectedDocuments}
+          disabled={attaching}
+          showFileList
+          validation={{
+            accept:
+              '.pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt',
+            maxSizeBytes: 10 * 1024 * 1024,
+          }}
+          title="Drop documents here or click to browse"
+          description="Documents, images, Excel, or text files (maximum 10 MB each)"
+        />
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setDocumentsDialogOpen(false)}
+            disabled={attaching}
+          >
+            {t('common.cancel')}
+          </Button>
+          <Button
+            type="button"
+            onClick={() => void handleAttachDocuments(selectedDocuments)}
+            disabled={attaching || selectedDocuments.length === 0}
+          >
+            {attaching ? (
+              <Loader2 className="mr-2 size-4 animate-spin" />
+            ) : null}
+            Attach Documents
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    <Dialog
       open={uploadOpen}
       onOpenChange={(next) => {
         if (uploading) return;
@@ -1650,13 +1695,18 @@ export function GovFollowUpDetailDialog({
         </DialogHeader>
         <div className="grid gap-3">
           <Field id="upload-file" label={t('govFollowUp.letters.file')}>
-            <input
-              ref={fileInputRef}
-              id="upload-file"
-              type="file"
-              accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,application/pdf,image/*"
-              className="block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-2 file:text-sm file:font-medium"
-              onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+            <FileUploadZone
+              multiple={false}
+              value={uploadFile ? [uploadFile] : []}
+              onValueChange={(files) => setUploadFile(files[0] ?? null)}
+              disabled={uploading}
+              showFileList
+              validation={{
+                accept: '.pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx',
+                maxSizeBytes: 10 * 1024 * 1024,
+              }}
+              title={uploading ? t('govFollowUp.actions.uploadLetter') : 'Drop the official letter here or click to browse'}
+              description="PDF, images, or Word documents (maximum 10 MB)"
             />
           </Field>
           <Field

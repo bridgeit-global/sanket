@@ -1,11 +1,20 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { FileText, Trash2, Upload } from 'lucide-react';
 import { FilePreviewButton } from '@/components/file-preview-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FileUploadZone } from '@/components/ui/file-upload-zone';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -48,8 +57,8 @@ export function ProjectDetailExtras({
   onRefresh,
 }: ProjectDetailExtrasProps) {
   const { t } = useTranslations();
-  const docInputRef = useRef<HTMLInputElement>(null);
   const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
   const sortedDocs = [...documents].sort((a, b) => {
     const aTime = new Date(a.createdAt || 0).getTime();
@@ -73,13 +82,13 @@ export function ProjectDetailExtras({
       }
       await onRefresh();
       toast.success(t('projects.documentUploadedSuccess'));
+      setUploadDialogOpen(false);
     } catch (error) {
       toast.error(
         error instanceof Error ? error.message : t('adm.failedToSave'),
       );
     } finally {
       setUploadingDoc(false);
-      if (docInputRef.current) docInputRef.current.value = '';
     }
   };
 
@@ -116,21 +125,11 @@ export function ProjectDetailExtras({
               type="button"
               className="min-h-11 w-full sm:w-auto"
               disabled={uploadingDoc}
-              onClick={() => docInputRef.current?.click()}
+              onClick={() => setUploadDialogOpen(true)}
             >
               <Upload className="mr-1 h-4 w-4" />
               {t('projects.uploadDocument')}
             </Button>
-            <input
-              ref={docInputRef}
-              type="file"
-              className="hidden"
-              accept=".pdf,image/*,.doc,.docx"
-              onChange={async (e) => {
-                const file = e.target.files?.[0];
-                if (file) await uploadDocument(file);
-              }}
-            />
           </div>
 
           {sortedDocs.length === 0 ? (
@@ -175,6 +174,42 @@ export function ProjectDetailExtras({
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{t('projects.uploadDocument')}</DialogTitle>
+            <DialogDescription>
+              Upload one project document. It will be added to this repository immediately.
+            </DialogDescription>
+          </DialogHeader>
+          <FileUploadZone
+            multiple={false}
+            isUploading={uploadingDoc}
+            onUpload={async (files) => {
+              const file = files[0];
+              if (file) await uploadDocument(file);
+            }}
+            validation={{
+              accept: '.pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx',
+              maxSizeBytes: 10 * 1024 * 1024,
+            }}
+            title={uploadingDoc ? t('adm.uploading') : 'Drop your document here or click to browse'}
+            description="PDF, images, or Word documents (maximum 10 MB)"
+            hint="The document will upload immediately after selection."
+          />
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setUploadDialogOpen(false)}
+              disabled={uploadingDoc}
+            >
+              {t('adm.cancel')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
