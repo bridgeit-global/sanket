@@ -161,6 +161,10 @@ const MOBILE_PATTERN = /^[6-9]\d{9}$/;
 
 const fieldId = (name: string) => `jf-${name}`;
 
+/** White fields with a mauve border so they match the magenta page, not the app's slate inputs. */
+const fieldControl =
+  'h-11 rounded-xl border-input bg-white text-base text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:ring-offset-0 disabled:bg-muted disabled:text-foreground disabled:opacity-100 md:text-sm';
+
 function digitsOnly(value: string, max: number): string {
   return value.replace(/\D/g, '').slice(0, max);
 }
@@ -250,10 +254,10 @@ function RadioTiles({
             aria-checked={selected}
             onClick={() => onChange(option.value)}
             className={cn(
-              'flex min-h-11 items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+              'flex min-h-11 items-center gap-2.5 rounded-xl border bg-white px-2.5 py-2.5 text-left text-sm font-medium text-foreground transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:px-3',
               selected
                 ? 'border-primary bg-primary/10 text-foreground shadow-sm ring-1 ring-primary'
-                : 'border-input bg-background hover:border-primary',
+                : 'border-input hover:border-primary',
               invalid && !selected && 'border-rose-400',
             )}
           >
@@ -294,11 +298,11 @@ function SelectField({
       <SelectTrigger
         id={fieldId(name)}
         aria-invalid={invalid || undefined}
-        className={cn('h-11 w-full', invalid && 'border-rose-400')}
+        className={cn(fieldControl, 'w-full', invalid && 'border-rose-400')}
       >
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="yuvaaz-surface">
         {options.map((o) => (
           <SelectItem key={o.value} value={o.value}>
             {o.label}
@@ -921,7 +925,7 @@ export function JobFairRegistrationForm() {
                   disabled={i > step}
                   onClick={() => goTo(i)}
                   className={cn(
-                    'flex w-full flex-col items-center gap-1 rounded-lg py-1 text-[11px] font-medium transition-colors disabled:cursor-default',
+                    'flex min-h-11 w-full flex-col items-center justify-center gap-1 rounded-lg px-0.5 py-1 text-[10px] font-medium leading-tight transition-colors disabled:cursor-default md:text-[11px]',
                     active ? 'text-foreground' : done ? 'text-primary' : 'text-muted-foreground',
                   )}
                   aria-current={active ? 'step' : undefined}
@@ -936,7 +940,7 @@ export function JobFairRegistrationForm() {
                   >
                     {done ? <Check className="size-3.5" /> : <Icon className="size-3.5" />}
                   </span>
-                  <span className="hidden truncate sm:inline">{s.label}</span>
+                  <span className="hidden w-full text-center sm:line-clamp-2">{s.label}</span>
                 </button>
               </li>
             );
@@ -1024,7 +1028,7 @@ export function JobFairRegistrationForm() {
                     value={values.fullName}
                     onChange={(e) => set('fullName', e.target.value)}
                     aria-invalid={Boolean(err('fullName')) || undefined}
-                    className={cn('h-11', err('fullName') && 'border-rose-400')}
+                    className={cn(fieldControl, err('fullName') && 'border-rose-400')}
                     maxLength={150}
                   />
                 </Field>
@@ -1055,7 +1059,7 @@ export function JobFairRegistrationForm() {
                         disabled={Boolean(registrationNo)}
                         onChange={(e) => set('mobile', digitsOnly(normalizeIndianMobile(e.target.value), 10))}
                         aria-invalid={Boolean(err('mobile')) || undefined}
-                        className={cn('h-11 pl-11', err('mobile') && 'border-rose-400')}
+                        className={cn(fieldControl, 'pl-11', err('mobile') && 'border-rose-400')}
                       />
                     </div>
                   </Field>
@@ -1081,7 +1085,7 @@ export function JobFairRegistrationForm() {
                         disabled={sameAsMobile}
                         onChange={(e) => set('whatsapp', digitsOnly(normalizeIndianMobile(e.target.value), 10))}
                         aria-invalid={Boolean(err('whatsapp')) || undefined}
-                        className={cn('h-11 pl-11', err('whatsapp') && 'border-rose-400')}
+                        className={cn(fieldControl, 'pl-11', err('whatsapp') && 'border-rose-400')}
                       />
                     </div>
                     <label className="flex min-h-10 cursor-pointer items-center gap-2.5 text-sm">
@@ -1096,7 +1100,7 @@ export function JobFairRegistrationForm() {
                             setErrors(({ whatsapp: _w, ...rest }) => rest);
                           }
                         }}
-                        className="size-4 accent-primary"
+                        className="size-5 shrink-0 accent-primary"
                       />
                       Same as Mobile Number
                     </label>
@@ -1112,7 +1116,7 @@ export function JobFairRegistrationForm() {
                       value={values.age}
                       onChange={(e) => set('age', digitsOnly(e.target.value, 2))}
                       aria-invalid={Boolean(err('age')) || undefined}
-                      className={cn('h-11', err('age') && 'border-rose-400')}
+                      className={cn(fieldControl, err('age') && 'border-rose-400')}
                     />
                   </Field>
                   <Field name="gender" label="Gender" required error={err('gender')}>
@@ -1144,7 +1148,7 @@ export function JobFairRegistrationForm() {
                     emptyMessage="No match — choose “Other – Please Specify”"
                     aria-invalid={Boolean(err('area'))}
                     aria-required
-                    inputClassName={cn('h-11', err('area') && 'border-rose-400')}
+                    inputClassName={cn(fieldControl, err('area') && 'border-rose-400')}
                   />
                 </Field>
 
@@ -1156,7 +1160,7 @@ export function JobFairRegistrationForm() {
                       value={values.areaOther}
                       onChange={(e) => set('areaOther', e.target.value)}
                       aria-invalid={Boolean(err('areaOther')) || undefined}
-                      className={cn('h-11', err('areaOther') && 'border-rose-400')}
+                      className={cn(fieldControl, err('areaOther') && 'border-rose-400')}
                       maxLength={150}
                     />
                   </Field>
@@ -1204,7 +1208,7 @@ export function JobFairRegistrationForm() {
                         value={values.pincode}
                         onChange={(e) => set('pincode', digitsOnly(e.target.value, 6))}
                         aria-invalid={Boolean(err('pincode')) || undefined}
-                        className={cn('h-11', err('pincode') && 'border-rose-400')}
+                        className={cn(fieldControl, err('pincode') && 'border-rose-400')}
                       />
                     </Field>
                   )}
@@ -1223,7 +1227,7 @@ export function JobFairRegistrationForm() {
                       value={values.epicNumber}
                       onChange={(e) => set('epicNumber', sanitizeEpicInput(e.target.value))}
                       aria-invalid={Boolean(err('epicNumber')) || undefined}
-                      className={cn('h-11 uppercase', err('epicNumber') && 'border-rose-400')}
+                      className={cn(fieldControl, 'uppercase', err('epicNumber') && 'border-rose-400')}
                       maxLength={10}
                     />
                   </Field>
@@ -1255,7 +1259,7 @@ export function JobFairRegistrationForm() {
                       placeholder="e.g. B.Com"
                       value={values.course}
                       onChange={(e) => set('course', e.target.value)}
-                      className="h-11"
+                      className={fieldControl}
                       maxLength={150}
                     />
                   </Field>
@@ -1303,7 +1307,7 @@ export function JobFairRegistrationForm() {
                     tabIndex={-1}
                     role="group"
                     aria-labelledby={`${fieldId('jobTypes')}-label`}
-                    className="grid grid-cols-1 gap-2 focus:outline-none sm:grid-cols-2"
+                    className="grid grid-cols-1 gap-2 focus:outline-none md:grid-cols-2"
                   >
                     {JOB_TYPE_OPTIONS.map((option) => {
                       const selected = values.jobTypes.includes(option.value);
@@ -1322,10 +1326,10 @@ export function JobFairRegistrationForm() {
                             )
                           }
                           className={cn(
-                            'flex min-h-12 items-center gap-3 rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                            'flex min-h-12 items-center gap-3 rounded-xl border bg-white px-3 py-2.5 text-left text-sm font-medium text-foreground transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                             selected
                               ? 'border-primary bg-primary/10 ring-1 ring-primary'
-                              : 'border-input bg-background hover:border-primary',
+                              : 'border-input hover:border-primary',
                             err('jobTypes') && !selected && 'border-rose-400',
                           )}
                         >
@@ -1352,7 +1356,7 @@ export function JobFairRegistrationForm() {
                       value={values.jobTypeOther}
                       onChange={(e) => set('jobTypeOther', e.target.value)}
                       aria-invalid={Boolean(err('jobTypeOther')) || undefined}
-                      className={cn('h-11', err('jobTypeOther') && 'border-rose-400')}
+                      className={cn(fieldControl, err('jobTypeOther') && 'border-rose-400')}
                       maxLength={150}
                     />
                   </Field>
@@ -1605,11 +1609,11 @@ function ResultCard({
             : 'See you at YUVAAZ 2026. Show this number at the registration desk.'}
         </p>
         {result.registrationNo ? (
-          <div className="mx-auto mt-5 inline-flex flex-col rounded-xl bg-secondary px-6 py-3 text-secondary-foreground">
-            <span className="text-[11px] uppercase tracking-widest text-muted-foreground">
+          <div className="mx-auto mt-5 inline-flex max-w-full flex-col rounded-xl bg-white px-4 py-3 text-slate-900 sm:px-6">
+            <span className="text-[11px] uppercase tracking-widest text-slate-500">
               Registration No.
             </span>
-            <span className="font-mono text-3xl font-bold tracking-wider sm:text-4xl">
+            <span className="break-all font-mono text-2xl font-bold tracking-wider sm:text-4xl">
               {result.registrationNo}
             </span>
           </div>

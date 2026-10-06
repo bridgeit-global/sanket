@@ -22,6 +22,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { toast } from '@/components/toast';
+import {
+  EPIC_NUMBER_PATTERN,
+  isCompleteEpicNumber,
+  normalizeEpicNumber,
+  sanitizeEpicInput,
+} from '@/lib/epic/normalize-epic';
 import { useTranslations } from '@/hooks/use-translations';
 import { UserPickerCombobox } from './user-picker-combobox';
 import { VoterPickerCombobox } from './voter-picker-combobox';
@@ -110,7 +116,11 @@ function draftFromTarget(target: MemberEditorTarget): Draft {
       personEmail: m.personEmail ?? '',
       photoUrl: m.photoUrl ?? '',
       userId: m.userId,
-      epicNumber: m.epicNumber,
+      epicNumber: m.epicNumber
+        ? isCompleteEpicNumber(m.epicNumber)
+          ? normalizeEpicNumber(m.epicNumber)
+          : m.epicNumber
+        : null,
       notes: m.notes ?? '',
       verticalIds: m.verticals.map((v) => v.id),
       primaryVerticalId,
@@ -284,15 +294,18 @@ export function MemberEditor({
     });
   };
 
+  const epicInvalid = Boolean(
+    draft.epicNumber && !EPIC_NUMBER_PATTERN.test(draft.epicNumber),
+  );
   const hasPerson = Boolean(
     draft.personName.trim() || draft.userId || draft.epicNumber,
   );
   const validPosts = draft.posts.filter((p) => p.positionId && p.verticalId);
   const canEnrollPartyMember =
-    hasPerson && draft.verticalIds.length > 0 && !saving;
+    hasPerson && draft.verticalIds.length > 0 && !saving && !epicInvalid;
   const canAssignPost = validPosts.length > 0 && !saving;
   const canSaveEdit =
-    hasPerson && draft.verticalIds.length > 0 && !saving;
+    hasPerson && draft.verticalIds.length > 0 && !saving && !epicInvalid;
 
   const buildPayload = (includePosts: boolean) => ({
     constituencyId,
@@ -328,6 +341,10 @@ export function MemberEditor({
   });
 
   const enrollPartyMember = async () => {
+    if (draft.epicNumber && !EPIC_NUMBER_PATTERN.test(draft.epicNumber)) {
+      toast({ type: 'error', description: t('hierarchyModule.invalidEpic') });
+      return;
+    }
     setSaving(true);
     try {
       const res = await fetch('/api/hierarchy/members', {
@@ -369,6 +386,10 @@ export function MemberEditor({
   };
 
   const save = async () => {
+    if (draft.epicNumber && !EPIC_NUMBER_PATTERN.test(draft.epicNumber)) {
+      toast({ type: 'error', description: t('hierarchyModule.invalidEpic') });
+      return;
+    }
     setSaving(true);
     try {
       const payload = buildPayload(true);
@@ -520,12 +541,25 @@ export function MemberEditor({
                     />
                     <Input
                       placeholder="Voter ID / EPIC"
-                      className="h-9"
+                      className="h-10 uppercase"
                       value={draft.epicNumber ?? ''}
+                      maxLength={10}
+                      autoCapitalize="characters"
+                      autoCorrect="off"
+                      spellCheck={false}
+                      aria-invalid={epicInvalid || undefined}
                       onChange={(e) =>
-                        setDraft({ ...draft, epicNumber: e.target.value.trim() || null })
+                        setDraft({
+                          ...draft,
+                          epicNumber: sanitizeEpicInput(e.target.value) || null,
+                        })
                       }
                     />
+                    {epicInvalid ? (
+                      <p className="text-xs text-destructive">
+                        {t('hierarchyModule.invalidEpic')}
+                      </p>
+                    ) : null}
                     <Input
                       placeholder="Photo URL"
                       className="h-9"
@@ -551,7 +585,9 @@ export function MemberEditor({
                       onSelect={(v) =>
                         setDraft({
                           ...draft,
-                          epicNumber: v?.epicNumber ?? null,
+                          epicNumber: v?.epicNumber
+                            ? sanitizeEpicInput(v.epicNumber) || null
+                            : null,
                           personName: v ? v.fullName : draft.personName,
                         })
                       }

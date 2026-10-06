@@ -1,6 +1,11 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/app/(auth)/auth';
 import { createVoter } from '@/lib/db/queries';
+import {
+    EPIC_NUMBER_INVALID_MESSAGE,
+    EPIC_NUMBER_PATTERN,
+    normalizeEpicNumber,
+} from '@/lib/epic/normalize-epic';
 
 export async function POST(request: NextRequest) {
     try {
@@ -20,7 +25,15 @@ export async function POST(request: NextRequest) {
             }, { status: 400 });
         }
 
-        const voter = await createVoter(voterData);
+        const epicNumber = normalizeEpicNumber(String(voterData.epicNumber));
+        if (!EPIC_NUMBER_PATTERN.test(epicNumber)) {
+            return NextResponse.json(
+                { error: EPIC_NUMBER_INVALID_MESSAGE },
+                { status: 400 },
+            );
+        }
+
+        const voter = await createVoter({ ...voterData, epicNumber });
 
         return NextResponse.json({ voter });
     } catch (error) {

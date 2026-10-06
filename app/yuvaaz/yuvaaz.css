@@ -1,0 +1,38 @@
+/*
+ * Public registration stays on the magenta poster palette even when the
+ * signed-in app is in dark mode. Cool slate tokens (hue ~214) read as a
+ * different UI next to primary magenta (hue 329).
+ */
+.yuvaaz-page,
+.yuvaaz-surface {
+  color-scheme: light;
+  --background: 330 60% 99%;
+  --foreground: 329 45% 16%;
+  --card: 0 0% 100%;
+  --card-foreground: 329 45% 16%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 329 45% 16%;
+  --primary: 329 68% 38%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 329 42% 94%;
+  --secondary-foreground: 329 55% 26%;
+  --muted: 329 32% 95%;
+  --muted-foreground: 329 14% 38%;
+  --accent: 329 68% 95%;
+  --accent-foreground: 329 68% 26%;
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 329 24% 86%;
+  --input: 329 28% 74%;
+  --ring: 329 68% 38%;
+}
+
+.yuvaaz-page input:-webkit-autofill,
+.yuvaaz-page input:-webkit-autofill:hover,
+.yuvaaz-page input:-webkit-autofill:focus,
+.yuvaaz-page textarea:-webkit-autofill,
+.yuvaaz-page select:-webkit-autofill {
+  -webkit-text-fill-color: hsl(var(--foreground));
+  caret-color: hsl(var(--foreground));
+  box-shadow: 0 0 0 1000px #fff inset;
+}

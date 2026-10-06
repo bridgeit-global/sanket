@@ -85,6 +85,68 @@ function ensureGeneralRecipientToPrefix(
   );
 }
 
+const GENERAL_RECIPIENT_PATTERN =
+  /(?:To|प्रति),\s*(?:<br\s*\/?>)?\s*<div class="(?:recipient|address)">\s*\{\{(?:toBlock|to)\}\}\s*<\/div>/i;
+
+function generalDualRecipientHtml(locale: LetterLocale): string {
+  const label = locale === 'mr' ? 'प्रति,' : 'To,';
+  const cell = (placeholder: 'toBlock' | 'toBlockSecondary', pad: string) =>
+    `<td style="width:50%; vertical-align:top; ${pad}"><div>${label}</div><div class="recipient" style="margin-left:0; margin-bottom:0;">{{${placeholder}}}</div></td>`;
+  return `<table class="to-pair" style="width:100%; border-collapse:collapse; margin:0 0 12px 0;"><tbody><tr>${cell('toBlock', 'padding:0 16px 0 0;')}${cell('toBlockSecondary', 'padding:0 0 0 8px;')}</tr></tbody></table>`;
+}
+
+/** Place a filled secondary recipient to the right of the first To block. */
+function applyGeneralDualRecipientLayout(
+  templateHtml: string,
+  locale: LetterLocale,
+): string {
+  if (!GENERAL_RECIPIENT_PATTERN.test(templateHtml)) {
+    return templateHtml;
+  }
+  return templateHtml.replace(
+    GENERAL_RECIPIENT_PATTERN,
+    generalDualRecipientHtml(locale),
+  );
+}
+
+function htmlHasVisibleText(value: string | undefined): boolean {
+  return Boolean(
+    (value ?? '')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/gi, ' ')
+      .trim(),
+  );
+}
+
+/** "प्रत" / "Copy" line under the signature, as in the sample letter. */
+function formatCopyToLine(name: string, address: string): string {
+  const addressLine = (address ?? '')
+    .replace(/<br\s*\/?>/gi, ', ')
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) =>
+      line
+        .replace(/<[^>]+>/g, '')
+        .trim()
+        .replace(/,\s*$/, ''),
+    )
+    .filter(Boolean)
+    .join(', ');
+  const holder = (name ?? '').replace(/<[^>]+>/g, '').trim();
+  return escapeHtmlText([holder, addressLine].filter(Boolean).join(', '));
+}
+
+function appendGeneralCopyToBlock(
+  templateHtml: string,
+  locale: LetterLocale,
+): string {
+  const label = locale === 'mr' ? 'प्रत' : 'Copy';
+  const block = `<div class="copy-to" style="margin-top:24px; text-align:left; font-weight:normal; max-width:100%;">${label}<br><div class="recipient-bottom" style="margin-top:0; margin-left:0;">{{copyToBlock}}</div></div>`;
+  const close = templateHtml.lastIndexOf('</div>');
+  if (close === -1) return `${templateHtml}${block}`;
+  return `${templateHtml.slice(0, close)}${block}${templateHtml.slice(close)}`;
+}
+
 export function renderLetterTemplate(
   templateHtml: string,
   fields: Record<string, string>,
@@ -220,6 +282,12 @@ export function buildRenderFields(
       subject: generalFields.subject,
       salutation: generalFields.salutation ?? '',
       toBlock: formatMultilineHtmlBlock(generalFields.to),
+      toBlockSecondary: formatMultilineHtmlBlock(generalFields.toSecondary ?? ''),
+      copyTo: generalFields.copyTo ?? '',
+      copyToBlock: formatCopyToLine(
+        generalFields.copyToName ?? '',
+        generalFields.copyToAddress ?? '',
+      ),
       salutationBlock: formatSalutationBlock(generalFields.salutation),
       paragraphsBlock: formatParagraphsBlock(generalFields.paragraphs),
       signatureBlock: formatSignatureBlock(generalFields.signatureParagraphs),
@@ -390,6 +458,14 @@ export function buildRenderedLetterHtml(
     formType === 'general'
       ? ensureGeneralRecipientToPrefix(templateHtml, locale)
       : templateHtml;
-  const contentHtml = renderLetterTemplate(htmlWithToPrefix, renderFields);
+  const withDualRecipient =
+    formType === 'general' && htmlHasVisibleText(renderFields.toBlockSecondary)
+      ? applyGeneralDualRecipientLayout(htmlWithToPrefix, locale)
+      : htmlWithToPrefix;
+  const htmlForRender =
+    formType === 'general' && htmlHasVisibleText(renderFields.copyToBlock)
+      ? appendGeneralCopyToBlock(withDualRecipient, locale)
+      : withDualRecipient;
+  const contentHtml = renderLetterTemplate(htmlForRender, renderFields);
   return wrapLetterWithLetterhead(contentHtml, letterheadUrl, letterheadMode);
 }

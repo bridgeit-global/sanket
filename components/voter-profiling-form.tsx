@@ -8,6 +8,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/components/toast';
+import {
+  EPIC_NUMBER_INVALID_MESSAGE,
+  EPIC_NUMBER_PATTERN,
+  sanitizeEpicInput,
+} from '@/lib/epic/normalize-epic';
 import type { VoterMaster } from '@/lib/db/schema';
 
 interface VoterProfilingFormProps {
@@ -53,6 +58,14 @@ export function VoterProfilingForm({ onVoterCreated, onCancel, onMobileUpdateReq
             return;
         }
 
+        if (!EPIC_NUMBER_PATTERN.test(formData.epicNumber)) {
+            toast({
+                type: 'error',
+                description: EPIC_NUMBER_INVALID_MESSAGE,
+            });
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const response = await fetch('/operator/api/create-voter', {
@@ -67,7 +80,10 @@ export function VoterProfilingForm({ onVoterCreated, onCancel, onMobileUpdateReq
             });
 
             if (!response.ok) {
-                throw new Error('Failed to create voter profile');
+                const errorBody = await response.json().catch(() => null);
+                throw new Error(
+                    errorBody?.error || 'Failed to create voter profile',
+                );
             }
 
             const data = await response.json();
@@ -94,7 +110,10 @@ export function VoterProfilingForm({ onVoterCreated, onCancel, onMobileUpdateReq
         } catch (error) {
             toast({
                 type: 'error',
-                description: 'Failed to create voter profile. Please try again.',
+                description:
+                    error instanceof Error
+                        ? error.message
+                        : 'Failed to create voter profile. Please try again.',
             });
         } finally {
             setIsSubmitting(false);
@@ -120,10 +139,32 @@ export function VoterProfilingForm({ onVoterCreated, onCancel, onMobileUpdateReq
                                 <Input
                                     id="epicNumber"
                                     value={formData.epicNumber}
-                                    onChange={(e) => handleInputChange('epicNumber', e.target.value)}
+                                    onChange={(e) =>
+                                        handleInputChange(
+                                            'epicNumber',
+                                            sanitizeEpicInput(e.target.value),
+                                        )
+                                    }
                                     placeholder="e.g., ABC1234567"
+                                    maxLength={10}
+                                    autoCapitalize="characters"
+                                    autoCorrect="off"
+                                    spellCheck={false}
+                                    aria-invalid={
+                                        formData.epicNumber.length > 0 &&
+                                        !EPIC_NUMBER_PATTERN.test(formData.epicNumber)
+                                            ? true
+                                            : undefined
+                                    }
+                                    className="h-10 uppercase"
                                     required
                                 />
+                                {formData.epicNumber.length > 0 &&
+                                !EPIC_NUMBER_PATTERN.test(formData.epicNumber) ? (
+                                    <p className="text-xs text-destructive">
+                                        {EPIC_NUMBER_INVALID_MESSAGE}
+                                    </p>
+                                ) : null}
                             </div>
                             <div>
                                 <Label htmlFor="fullName">Full Name *</Label>

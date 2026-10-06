@@ -17,6 +17,8 @@ export type DocumentTypeMasterRow = {
   labelEn: string;
   labelMr: string;
   lastSequence: number;
+  availableSequences?: number[];
+  nextSequence?: number;
   isActive: boolean;
   sortOrder: number;
 };

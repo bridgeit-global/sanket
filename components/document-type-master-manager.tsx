@@ -25,7 +25,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useTranslations } from '@/hooks/use-translations';
-import { documentTypeLabel } from '@/lib/letters/reference-sequence';
+import {
+  documentTypeLabel,
+  peekSequenceNumber,
+} from '@/lib/letters/reference-sequence';
 import type { LetterLocale } from '@/lib/letters/templates';
 
 type DocumentTypeFormState = {
@@ -356,7 +359,10 @@ export function DocumentTypeMasterManager({
                           },
                         ])}
                       </TableCell>
-                      <TableCell>{item.lastSequence + 1}</TableCell>
+                      <TableCell>
+                        {item.nextSequence ??
+                          peekSequenceNumber(item.lastSequence, item.availableSequences)}
+                      </TableCell>
                       <TableCell>
                         {item.isActive
                           ? t('letterGeneration.documentTypesMaster.activeYes')
