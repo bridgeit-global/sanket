@@ -16,6 +16,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // PDF.js module worker. Mobile browsers fetch this without the session
+  // cookie; an auth redirect makes the preview fail.
+  if (pathname === '/pdf.worker.min.mjs') {
+    return NextResponse.next();
+  }
+
   /*
    * Playwright starts the dev server and requires a 200 status to
    * begin the tests, so this ensures that the tests can start
@@ -175,6 +181,6 @@ export const config = {
      * - _next/image (image optimization files)
      * - favicon.ico, sitemap.xml, robots.txt (metadata files)
      */
-    '/((?!_next/static|_next/image|favicon.ico|favicon/|sw.js|workbox-|serwist-|sitemap.xml|robots.txt).*)',
+    '/((?!_next/static|_next/image|favicon.ico|favicon/|sw.js|workbox-|serwist-|pdf\\.worker\\.min\\.mjs|sitemap.xml|robots.txt).*)',
   ],
 };

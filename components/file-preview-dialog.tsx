@@ -220,14 +220,14 @@ export function FilePreviewDialog({
         overlayClassName="z-[100]"
         className="z-[100] flex h-[90dvh] w-[calc(100%-2rem)] max-w-5xl flex-col gap-0 p-0 sm:w-[95vw]"
       >
-        <DialogHeader className="shrink-0 border-b p-4 pr-14">
-          <DialogTitle className="truncate text-base">
+        <DialogHeader className="shrink-0 gap-3 space-y-0 border-b p-4 pr-12 text-left sm:flex-row sm:items-center sm:justify-between">
+          <DialogTitle className="min-w-0 truncate pr-2 text-left text-base">
             {fileName ?? 'Document'}
           </DialogTitle>
           <DialogDescription className="sr-only">
             Document preview
           </DialogDescription>
-          <div className="absolute right-12 top-3.5 flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             {canZoom && (
               <div className="mr-1 flex items-center gap-0.5 rounded-md border bg-background p-0.5">
                 <Button

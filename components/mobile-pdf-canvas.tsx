@@ -15,6 +15,26 @@ type MobilePdfCanvasProps = {
 };
 
 /**
+ * Point PDF.js at a static worker file. The hashed Next asset is preferred;
+ * `/pdf.worker.min.mjs` is the fallback and must stay public. A login redirect
+ * is not a JavaScript module, which is what breaks the mobile preview.
+ */
+function resolvePdfWorkerSrc(): string {
+  try {
+    const url = new URL(
+      '../node_modules/pdfjs-dist/build/pdf.worker.min.mjs',
+      import.meta.url,
+    );
+    if (url.protocol === 'http:' || url.protocol === 'https:') {
+      return url.toString();
+    }
+  } catch {
+    // Use the public copy when the bundler does not emit the worker asset.
+  }
+  return '/pdf.worker.min.mjs';
+}
+
+/**
  * Renders a PDF to canvases. Mobile browsers (esp. iOS Safari) cannot show
  * PDFs inside iframe/object/embed; PDF.js canvas output is the reliable path.
  */
@@ -44,9 +64,16 @@ export function MobilePdfCanvas({
 
       try {
         const pdfjs = await import('pdfjs-dist');
-        pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+        pdfjs.GlobalWorkerOptions.workerSrc = resolvePdfWorkerSrc();
 
-        loadingTask = pdfjs.getDocument({ url: fileUrl });
+        const response = await fetch(fileUrl);
+        if (!response.ok) {
+          throw new Error('Failed to fetch PDF');
+        }
+        const data = new Uint8Array(await response.arrayBuffer());
+        if (cancelled) return;
+
+        loadingTask = pdfjs.getDocument({ data });
         const pdf = await loadingTask.promise;
         if (cancelled) {
           await pdf.cleanup();
