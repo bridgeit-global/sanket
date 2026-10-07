@@ -2,13 +2,17 @@
 
 import { FileText } from 'lucide-react';
 import type { VoterMaster } from '@/lib/db/schema';
-import { formatDisplayDateIST } from '@/lib/ist-date';
+import { ageFromDob, formatDisplayDateIST } from '@/lib/ist-date';
+import { cn } from '@/lib/utils';
 
 interface PersonalInformationProps {
     voter: VoterMaster;
 }
 
 export function PersonalInformation({ voter }: PersonalInformationProps) {
+    const expectedAge = voter.dob ? ageFromDob(voter.dob) : null;
+    const ageIncorrect = expectedAge != null && voter.age !== expectedAge;
+
     return (
         <div>
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -24,10 +28,26 @@ export function PersonalInformation({ voter }: PersonalInformationProps) {
                     <label className="text-sm font-medium text-muted-foreground">EPIC Number</label>
                     <p className="text-base font-medium">{voter.epicNumber}</p>
                 </div>
-                {voter.age && (
-                    <div>
+                {voter.age != null && (
+                    <div
+                        className={cn(
+                            ageIncorrect && 'rounded-md border border-destructive/40 bg-destructive/10 p-3',
+                        )}
+                    >
                         <label className="text-sm font-medium text-muted-foreground">Age</label>
-                        <p className="text-base">{voter.age}</p>
+                        <p
+                            className={cn(
+                                'text-base',
+                                ageIncorrect && 'font-medium text-destructive',
+                            )}
+                        >
+                            {voter.age}
+                        </p>
+                        {ageIncorrect ? (
+                            <p className="text-sm text-destructive" role="alert">
+                                Age is incorrect
+                            </p>
+                        ) : null}
                     </div>
                 )}
                 {voter.dob && (

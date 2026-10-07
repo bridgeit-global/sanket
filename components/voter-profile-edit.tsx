@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, User, Phone, MapPin, Calendar, FileText, Save, X } from 'lucide-react';
 import type { VoterWithPartNo } from '@/lib/db/schema';
+import { ageFromDob } from '@/lib/ist-date';
 import { toast } from '@/components/toast';
 
 interface VoterProfileEditProps {
@@ -136,6 +137,17 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
 
     fetchVoterProfile();
   }, [epicNumber]);
+
+  const expectedAge = ageFromDob(formData.dob);
+  const enteredAge = /^\d{1,3}$/.test(formData.age.trim())
+    ? Number(formData.age.trim())
+    : null;
+  const ageInvalid = expectedAge != null && enteredAge !== expectedAge;
+
+  const correctAge = () => {
+    if (expectedAge == null) return;
+    setFormData((current) => ({ ...current, age: String(expectedAge) }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -329,20 +341,53 @@ export function VoterProfileEdit({ epicNumber }: VoterProfileEditProps) {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="age">Age</Label>
-                  <Input
-                    id="age"
-                    type="text"
-                    value={formData.age}
-                    onChange={(e) => setFormData({ ...formData, age: e.target.value })}
-                    placeholder="Enter age"
-                  />
+                  <div className="flex items-center gap-2">
+                    <Input
+                      id="age"
+                      type="text"
+                      inputMode="numeric"
+                      value={formData.age}
+                      onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                      placeholder="Enter age"
+                      aria-invalid={ageInvalid}
+                      aria-describedby={ageInvalid ? 'age-invalid' : undefined}
+                      className={
+                        ageInvalid
+                          ? 'min-w-0 flex-1 border-destructive focus-visible:ring-destructive'
+                          : 'min-w-0 flex-1'
+                      }
+                    />
+                    {ageInvalid ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 shrink-0"
+                        onClick={correctAge}
+                      >
+                        Correct age
+                      </Button>
+                    ) : null}
+                  </div>
+                  {ageInvalid ? (
+                    <p id="age-invalid" className="text-sm text-destructive" role="alert">
+                      Age is invalid
+                    </p>
+                  ) : null}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="dob">Date of Birth</Label>
                   <DmyDateInput
                     id="dob"
                     value={formData.dob}
-                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
+                    onChange={(e) => {
+                      const dob = e.target.value;
+                      const age = ageFromDob(dob);
+                      setFormData((current) => ({
+                        ...current,
+                        dob,
+                        ...(age != null ? { age: String(age) } : {}),
+                      }));
+                    }}
                   />
                 </div>
                 <div className="space-y-2">

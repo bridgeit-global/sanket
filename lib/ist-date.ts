@@ -167,6 +167,39 @@ export function parseFlexibleDateToYmd(value: string): string | null {
 }
 
 /**
+ * Completed years between a date of birth and today in Asia/Kolkata.
+ * Accepts `yyyy-MM-dd`, `dd-mm-yyyy`, and `dd/mm/yyyy`.
+ * Returns null for empty, invalid, future, or implausible ages.
+ */
+export function ageFromDob(
+  dob: string,
+  today: CalendarYmd = getCalendarYmd(),
+): number | null {
+  const ymd = parseFlexibleDateToYmd(dob);
+  if (!ymd) return null;
+
+  const match = ymd.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const birth: CalendarYmd = {
+    year: Number(match[1]),
+    month: Number(match[2]),
+    day: Number(match[3]),
+  };
+
+  let age = today.year - birth.year;
+  if (
+    today.month < birth.month ||
+    (today.month === birth.month && today.day < birth.day)
+  ) {
+    age -= 1;
+  }
+
+  if (age < 0 || age > 150) return null;
+  return age;
+}
+
+/**
  * Display date as `dd-mm-yyyy` in Asia/Kolkata.
  * Built from calendar parts — never `toLocaleDateString()`, which follows the
  * OS short-date order on Windows (mm-dd-yyyy) even with `en-GB` / `en-IN`.
