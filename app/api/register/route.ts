@@ -6,8 +6,9 @@ import {
   createRegisterEntry,
   getDocumentTypeByCode,
   resolveDocumentTypeReferenceForSave,
+  registerReferenceExists,
+  hasModuleAccess,
 } from '@/lib/db/queries';
-import { hasModuleAccess } from '@/lib/db/queries';
 import { parseReference } from '@/lib/letters/reference-sequence';
 import { canAccessInwardRegister } from '@/lib/register/access';
 import { registerEntryFormSchema, validateForm } from '@/lib/validations';
@@ -195,6 +196,22 @@ export async function POST(request: NextRequest) {
     if (!validation.success) {
       const firstError = Object.values(validation.errors)[0];
       return NextResponse.json({ error: firstError }, { status: 400 });
+    }
+
+    if (
+      validation.data.refNo &&
+      (await registerReferenceExists({
+        type,
+        documentType: docTypeCode,
+        refNo: validation.data.refNo,
+      }))
+    ) {
+      return NextResponse.json(
+        {
+          error: `Reference number "${validation.data.refNo}" already exists under this document type in the ${type} register`,
+        },
+        { status: 409 },
+      );
     }
 
     const entry = await createRegisterEntry({

@@ -207,6 +207,7 @@ export {
   deleteDailyProgrammeAttachment,
   getDailyProgrammeAttachmentById,
   createRegisterEntry,
+  registerReferenceExists,
   getRegisterEntries,
   getRegisterEntriesWithAttachments,
   getRegisterEntriesByProjectId,

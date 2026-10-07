@@ -5239,6 +5239,45 @@ export async function createRegisterEntry({
   }
 }
 
+export async function registerReferenceExists({
+  type,
+  documentType,
+  refNo,
+  excludeId,
+}: {
+  type: 'inward' | 'outward';
+  documentType?: string | null;
+  refNo: string;
+  excludeId?: string;
+}): Promise<boolean> {
+  const normalized = refNo.trim();
+  if (!normalized) return false;
+
+  try {
+    let query = supabase
+      .from(TABLES.registerEntry)
+      .select('id')
+      .eq('type', type)
+      .ilike('ref_no', normalized.replace(/[%_\\]/g, (character) => `\\${character}`))
+      .limit(1);
+
+    if (documentType?.trim()) {
+      query = query.eq('document_type', documentType.trim());
+    } else {
+      query = query.is('document_type', null);
+    }
+
+    if (excludeId) query = query.neq('id', excludeId);
+
+    const { data, error } = await query.maybeSingle();
+    throwOnSupabaseError(error, 'Failed to check register reference');
+    return Boolean(data);
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to check register reference');
+  }
+}
+
 export async function getRegisterEntries({
   type,
   startDate,

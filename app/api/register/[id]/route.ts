@@ -7,8 +7,9 @@ import {
   deleteRegisterEntry,
   getRegisterAttachments,
   getDocumentTypeByCode,
+  registerReferenceExists,
+  hasModuleAccess,
 } from '@/lib/db/queries';
-import { hasModuleAccess } from '@/lib/db/queries';
 import { canAccessInwardRegister } from '@/lib/register/access';
 import { registerEntryFormSchema, validateForm } from '@/lib/validations';
 
@@ -148,6 +149,37 @@ export async function PUT(
         }
         updateData.documentType = docType.code;
       }
+    }
+
+    const effectiveDocumentType =
+      updateData.documentType !== undefined
+        ? (updateData.documentType as string | null)
+        : entry.documentType;
+    const normalizedCurrentRef = (entry.refNo || '').trim().toLowerCase();
+    const normalizedNextRef = (validation.data.refNo || '').trim().toLowerCase();
+    const documentTypeChanged =
+      (entry.documentType || '').trim().toLowerCase() !==
+      (effectiveDocumentType || '').trim().toLowerCase();
+    const referenceChanged = normalizedCurrentRef !== normalizedNextRef;
+
+    // Existing entries can be edited freely. Re-check uniqueness only when
+    // the reference namespace or the reference itself is changed.
+    if (
+      validation.data.refNo &&
+      (documentTypeChanged || referenceChanged) &&
+      (await registerReferenceExists({
+        type: entry.type,
+        documentType: effectiveDocumentType,
+        refNo: validation.data.refNo,
+        excludeId: id,
+      }))
+    ) {
+      return NextResponse.json(
+        {
+          error: `Reference number "${validation.data.refNo}" already exists under this document type in the ${entry.type} register`,
+        },
+        { status: 409 },
+      );
     }
 
     const updated = await updateRegisterEntry(id, updateData);

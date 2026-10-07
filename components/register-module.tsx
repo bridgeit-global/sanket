@@ -461,7 +461,11 @@ export function RegisterModule({
         }
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Failed to create entry');
+        const message = error.error || 'Failed to create entry';
+        if (response.status === 409) {
+          setFormErrors((prev) => ({ ...prev, refNo: message }));
+        }
+        toast.error(message);
       }
     } catch (error) {
       console.error('Error creating register entry:', error);
@@ -516,6 +520,7 @@ export function RegisterModule({
         : entry.documentType || '';
     setForm({
       documentType,
+      // Preserve the entry's original date when editing other fields.
       date: entry.date,
       fromTo: entry.fromTo,
       subject: entry.subject,
@@ -566,7 +571,11 @@ export function RegisterModule({
         }
       } else {
         const error = await response.json();
-        toast.error(error.error || 'Failed to update entry');
+        const message = error.error || 'Failed to update entry';
+        if (response.status === 409) {
+          setFormErrors((prev) => ({ ...prev, refNo: message }));
+        }
+        toast.error(message);
       }
     } catch (error) {
       console.error('Error updating entry:', error);
