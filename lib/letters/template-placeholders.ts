@@ -19,6 +19,8 @@ const KNOWN_PLACEHOLDERS_BY_FORM: Partial<
     ...COMMON_PLACEHOLDER_KEYS,
     'to',
     'subject',
+    'sandarbh',
+    'sandarbhBlock',
     'salutation',
     'paragraphs',
     'signatureParagraphs',

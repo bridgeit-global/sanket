@@ -686,6 +686,7 @@ function generalDefaults(locale: LetterLocale): GeneralLetterFields {
     copyToAddress: '',
     copyTo: '',
     subject: '',
+    sandarbh: '',
     salutation: DEFAULT_GENERAL_SALUTATION[locale],
     paragraphs: '',
     signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(locale)),
@@ -2117,6 +2118,7 @@ export function LetterGeneration({
         copyToAddress,
         copyTo: syncGeneralCopyLine(copyToName, copyToAddress),
         subject: filterText(prev.subject),
+        sandarbh: filterText(prev.sandarbh ?? ''),
         salutation:
           prev.salutation.trim() === DEFAULT_GENERAL_SALUTATION[prevLocale]
             ? DEFAULT_GENERAL_SALUTATION[letterLocale]
@@ -6695,6 +6697,18 @@ export function LetterGeneration({
                             }
                           }}
                           required
+                        />
+                      </FieldGroup>
+                      <FieldGroup label={lt('letterGeneration.fields.sandarbh')}>
+                        <LocaleTextInput
+                          locale={letterLocale}
+                          value={generalFields.sandarbh ?? ''}
+                          onValueChange={(sandarbh) => {
+                            setGeneralFields({ ...generalFields, sandarbh });
+                          }}
+                          placeholder={lt(
+                            'letterGeneration.placeholders.sandarbh',
+                          )}
                         />
                       </FieldGroup>
                       <FieldGroup

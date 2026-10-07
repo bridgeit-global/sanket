@@ -193,6 +193,34 @@ function formatSalutationBlock(salutation: string | undefined): string {
   return `<div class="salutation">${escapeHtmlText(text)}</div>`;
 }
 
+/** "संदर्भ" / "Reference" line under the subject. Empty text omits the line. */
+function formatSandarbhBlock(
+  sandarbh: string | undefined,
+  locale: LetterLocale,
+): string {
+  const text = (sandarbh ?? '').trim();
+  if (!text) return '';
+  const label = locale === 'mr' ? 'संदर्भ:' : 'Reference:';
+  return `<div class="subject" style="display:flex;align-items:flex-start;gap:6px;margin-bottom:12px;font-weight:normal;"><span class="subject-label" style="flex:0 0 auto;white-space:nowrap;font-weight:normal;">${label}</span><span class="subject-text" style="flex:1;text-align:left;font-weight:bold;">${escapeHtmlText(text)}</span></div>`;
+}
+
+/** Place the optional sandarbh line after the subject on stored general templates. */
+function ensureGeneralSandarbhPlaceholder(templateHtml: string): string {
+  if (templateHtml.includes('{{sandarbhBlock}}')) return templateHtml;
+  if (templateHtml.includes('{{salutationBlock}}')) {
+    return templateHtml.replace(
+      '{{salutationBlock}}',
+      '{{sandarbhBlock}}\n  {{salutationBlock}}',
+    );
+  }
+  const subjectToken = templateHtml.indexOf('{{subject}}');
+  if (subjectToken === -1) return templateHtml;
+  const divClose = templateHtml.indexOf('</div>', subjectToken);
+  if (divClose === -1) return templateHtml;
+  const insertAt = divClose + '</div>'.length;
+  return `${templateHtml.slice(0, insertAt)}\n  {{sandarbhBlock}}${templateHtml.slice(insertAt)}`;
+}
+
 function formatParagraphsBlock(paragraphs: string): string {
   return paragraphs
     .replace(/\r\n?/g, '\n')
@@ -280,6 +308,7 @@ export function buildRenderFields(
       ...base,
       to: generalFields.to,
       subject: generalFields.subject,
+      sandarbh: generalFields.sandarbh ?? '',
       salutation: generalFields.salutation ?? '',
       toBlock: formatMultilineHtmlBlock(generalFields.to),
       toBlockSecondary: formatMultilineHtmlBlock(generalFields.toSecondary ?? ''),
@@ -288,6 +317,7 @@ export function buildRenderFields(
         generalFields.copyToName ?? '',
         generalFields.copyToAddress ?? '',
       ),
+      sandarbhBlock: formatSandarbhBlock(generalFields.sandarbh, locale),
       salutationBlock: formatSalutationBlock(generalFields.salutation),
       paragraphsBlock: formatParagraphsBlock(generalFields.paragraphs),
       signatureBlock: formatSignatureBlock(generalFields.signatureParagraphs),
@@ -456,7 +486,9 @@ export function buildRenderedLetterHtml(
   const formType = resolveLetterFormBase(typeof type === 'string' ? type : 'general');
   const htmlWithToPrefix =
     formType === 'general'
-      ? ensureGeneralRecipientToPrefix(templateHtml, locale)
+      ? ensureGeneralSandarbhPlaceholder(
+          ensureGeneralRecipientToPrefix(templateHtml, locale),
+        )
       : templateHtml;
   const withDualRecipient =
     formType === 'general' && htmlHasVisibleText(renderFields.toBlockSecondary)

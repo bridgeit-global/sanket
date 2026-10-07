@@ -105,6 +105,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
 प्रति,<br>
   <div class="recipient">{{toBlock}}</div>
   ${subjectHtml('<span class="var">{{subject}}</span>')}
+  {{sandarbhBlock}}
   {{salutationBlock}}
   {{paragraphsBlock}}
   ${CLOSING}

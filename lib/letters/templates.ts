@@ -234,6 +234,11 @@ export type GeneralLetterFields = CommonLetterFields & {
   /** Single-line copy recipient (name + address). */
   copyTo: string;
   subject: string;
+  /**
+   * Earlier-letter citation printed under the subject (संदर्भ).
+   * Optional; empty omits it from the letter.
+   */
+  sandarbh: string;
   /** Greeting after the subject. Optional; empty omits it from the letter. */
   salutation: string;
   /** One paragraph per line. */
