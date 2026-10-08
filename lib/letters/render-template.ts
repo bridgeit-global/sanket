@@ -35,6 +35,7 @@ import type {
   SchoolTransferLetterFields,
   WardLetterFields,
 } from '@/lib/letters/templates';
+import { formatGeneralLetterTableHtml } from '@/lib/letters/general-letter-table';
 import { resolveLetterFormBase } from '@/lib/letters/letter-type-options';
 
 const PLACEHOLDER_PATTERN = /\{\{(\w+)\}\}/g;
@@ -221,6 +222,25 @@ function ensureGeneralSandarbhPlaceholder(templateHtml: string): string {
   return `${templateHtml.slice(0, insertAt)}\n  {{sandarbhBlock}}${templateHtml.slice(insertAt)}`;
 }
 
+/** Place the optional table after the paragraphs on stored general templates. */
+function ensureGeneralTablePlaceholder(templateHtml: string): string {
+  if (templateHtml.includes('{{tableBlock}}')) return templateHtml;
+  if (templateHtml.includes('{{paragraphsBlock}}')) {
+    return templateHtml.replace(
+      '{{paragraphsBlock}}',
+      '{{paragraphsBlock}}\n  {{tableBlock}}',
+    );
+  }
+  const closing = templateHtml.indexOf('class="right-tab"');
+  if (closing !== -1) {
+    const divStart = templateHtml.lastIndexOf('<div', closing);
+    if (divStart !== -1) {
+      return `${templateHtml.slice(0, divStart)}{{tableBlock}}\n  ${templateHtml.slice(divStart)}`;
+    }
+  }
+  return templateHtml;
+}
+
 function formatParagraphsBlock(paragraphs: string): string {
   return paragraphs
     .replace(/\r\n?/g, '\n')
@@ -320,6 +340,8 @@ export function buildRenderFields(
       sandarbhBlock: formatSandarbhBlock(generalFields.sandarbh, locale),
       salutationBlock: formatSalutationBlock(generalFields.salutation),
       paragraphsBlock: formatParagraphsBlock(generalFields.paragraphs),
+      letterTable: '',
+      tableBlock: formatGeneralLetterTableHtml(generalFields.letterTable, locale),
       signatureBlock: formatSignatureBlock(generalFields.signatureParagraphs),
     };
   } else if (formType.startsWith('ration-')) {
@@ -486,8 +508,10 @@ export function buildRenderedLetterHtml(
   const formType = resolveLetterFormBase(typeof type === 'string' ? type : 'general');
   const htmlWithToPrefix =
     formType === 'general'
-      ? ensureGeneralSandarbhPlaceholder(
-          ensureGeneralRecipientToPrefix(templateHtml, locale),
+      ? ensureGeneralTablePlaceholder(
+          ensureGeneralSandarbhPlaceholder(
+            ensureGeneralRecipientToPrefix(templateHtml, locale),
+          ),
         )
       : templateHtml;
   const withDualRecipient =

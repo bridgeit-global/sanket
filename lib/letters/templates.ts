@@ -245,6 +245,11 @@ export type GeneralLetterFields = CommonLetterFields & {
   paragraphs: string;
   /** One signature line per line. */
   signatureParagraphs: string;
+  /**
+   * Optional user-built table (JSON `GeneralLetterTable`).
+   * Empty string omits the table from the letter.
+   */
+  letterTable: string;
 };
 
 export type WardLetterFields = CommonLetterFields & {
