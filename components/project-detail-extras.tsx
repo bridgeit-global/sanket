@@ -1,8 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-import { FileText, Trash2, Upload } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import Image from 'next/image';
+import { FileText, Loader2, Trash2, Upload } from 'lucide-react';
 import { FilePreviewButton } from '@/components/file-preview-button';
+import { AdmMilestoneRow } from '@/components/adm/adm-milestone-row';
+import {
+  ProjectPhotoGallery,
+  type ProjectPhotoItem,
+} from '@/components/projects/project-photo-gallery';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,10 +31,14 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useTranslations } from '@/hooks/use-translations';
 import { toast } from '@/components/toast';
+import { getTodayDateStringIST } from '@/lib/ist-date';
 import type {
   ProjectAttachment,
   ProjectApprovalStatus,
+  ProjectGroundMedia,
+  ProjectGroundMediaPhotoType,
   ProjectNocStatus,
+  ProjectPhysicalStatus,
 } from '@/lib/db/schema';
 
 export type ProjectFundAllocationView = {
@@ -48,17 +58,60 @@ export type ProjectFundAllocationView = {
 interface ProjectDetailExtrasProps {
   projectId: string;
   documents: ProjectAttachment[];
+  groundMedia: ProjectGroundMedia[];
+  physicalStatus: ProjectPhysicalStatus;
+  bhoomiPujanDone: boolean;
+  bhoomiPujanDate: string | null;
+  lokarpanDone: boolean;
+  lokarpanDate: string | null;
+  isAdmProject: boolean;
   onRefresh: () => Promise<void>;
 }
 
 export function ProjectDetailExtras({
   projectId,
   documents,
+  groundMedia,
+  physicalStatus,
+  bhoomiPujanDone,
+  bhoomiPujanDate,
+  lokarpanDone,
+  lokarpanDate,
+  isAdmProject,
   onRefresh,
 }: ProjectDetailExtrasProps) {
   const { t } = useTranslations();
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadingPhotoType, setUploadingPhotoType] =
+    useState<ProjectGroundMediaPhotoType | null>(null);
+  const [savingExecution, setSavingExecution] = useState(false);
+  const [lightboxPhoto, setLightboxPhoto] = useState<ProjectPhotoItem | null>(
+    null,
+  );
+  const [executionDraft, setExecutionDraft] = useState({
+    physicalStatus,
+    bhoomiPujanDone,
+    bhoomiPujanDate,
+    lokarpanDone,
+    lokarpanDate,
+  });
+
+  useEffect(() => {
+    setExecutionDraft({
+      physicalStatus,
+      bhoomiPujanDone,
+      bhoomiPujanDate,
+      lokarpanDone,
+      lokarpanDate,
+    });
+  }, [
+    physicalStatus,
+    bhoomiPujanDone,
+    bhoomiPujanDate,
+    lokarpanDone,
+    lokarpanDate,
+  ]);
 
   const sortedDocs = [...documents].sort((a, b) => {
     const aTime = new Date(a.createdAt || 0).getTime();
@@ -92,6 +145,117 @@ export function ProjectDetailExtras({
     }
   };
 
+  const photosOf = (type: ProjectGroundMediaPhotoType): ProjectPhotoItem[] =>
+    groundMedia
+      .filter((photo) => photo.photoType === type)
+      .map((photo) => ({
+        id: photo.id,
+        fileUrl: photo.fileUrl,
+        fileName: photo.fileName,
+      }));
+
+  const uploadPhotos = async (
+    type: ProjectGroundMediaPhotoType,
+    files: File[],
+  ) => {
+    setUploadingPhotoType(type);
+    try {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('type', type);
+        const res = await fetch(`/api/projects/${projectId}/photos`, {
+          method: 'POST',
+          body: formData,
+        });
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.error || 'Upload failed');
+        }
+      }
+      await onRefresh();
+      toast.success(t('common.success'));
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t('adm.failedToSave'),
+      );
+    } finally {
+      setUploadingPhotoType(null);
+    }
+  };
+
+  const deletePhoto = async (mediaId: string) => {
+    try {
+      const res = await fetch(
+        `/api/projects/${projectId}/photos?mediaId=${mediaId}`,
+        { method: 'DELETE' },
+      );
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Delete failed');
+      }
+      await onRefresh();
+      toast.success(t('common.success'));
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t('adm.failedToDelete'),
+      );
+    }
+  };
+
+  const executionDirty =
+    executionDraft.physicalStatus !== physicalStatus ||
+    executionDraft.bhoomiPujanDone !== bhoomiPujanDone ||
+    (executionDraft.bhoomiPujanDate || null) !== (bhoomiPujanDate || null) ||
+    executionDraft.lokarpanDone !== lokarpanDone ||
+    (executionDraft.lokarpanDate || null) !== (lokarpanDate || null);
+
+  const saveExecution = async () => {
+    if (!executionDirty || savingExecution) return;
+    setSavingExecution(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          physicalStatus: executionDraft.physicalStatus,
+          bhoomiPujanDone: executionDraft.bhoomiPujanDone,
+          bhoomiPujanDate: executionDraft.bhoomiPujanDate,
+          lokarpanDone: executionDraft.lokarpanDone,
+          lokarpanDate: executionDraft.lokarpanDate,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Save failed');
+      }
+      await onRefresh();
+      toast.success(t('common.success'));
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t('adm.failedToSave'),
+      );
+    } finally {
+      setSavingExecution(false);
+    }
+  };
+
+  const photoGallery = (type: ProjectGroundMediaPhotoType, title: string) => (
+    <ProjectPhotoGallery
+      title={title}
+      photos={photosOf(type)}
+      uploading={uploadingPhotoType === type}
+      onUpload={(files) => uploadPhotos(type, files)}
+      onDelete={deletePhoto}
+      onOpen={setLightboxPhoto}
+      emptyLabel={t('projects.photosPending')}
+      dropLabel={t('projects.dropPhotos')}
+      deleteAriaLabel={t('adm.delete')}
+      hideLabel={t('projects.hidePhotos')}
+      showLabel={t('projects.showPhotos')}
+    />
+  );
+
   const deleteDocument = async (documentId: string) => {
     try {
       const res = await fetch(
@@ -113,6 +277,148 @@ export function ProjectDetailExtras({
 
   return (
     <div className="flex flex-col gap-6">
+      {isAdmProject ? (
+        <>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t('projects.tabExecution')}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>{t('projects.physicalStatus')}</Label>
+                <Select
+                  value={executionDraft.physicalStatus}
+                  onValueChange={(value: ProjectPhysicalStatus) =>
+                    setExecutionDraft((prev) => ({
+                      ...prev,
+                      physicalStatus: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="min-h-11 w-full md:w-72">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="WNS">{t('adm.physicalStatusWns')}</SelectItem>
+                    <SelectItem value="WIP">{t('adm.physicalStatusWip')}</SelectItem>
+                    <SelectItem value="WC">{t('adm.physicalStatusWc')}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-3">
+                <p className="text-sm font-medium">{t('projects.milestones')}</p>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div className="min-w-0 space-y-3">
+                    <AdmMilestoneRow
+                      id={`project-bhoomi-${projectId}`}
+                      label={t('adm.milestoneBhoomiPujan')}
+                      sublabel={t('adm.milestoneBhoomiPujanMr')}
+                      checked={executionDraft.bhoomiPujanDone}
+                      date={executionDraft.bhoomiPujanDate ?? ''}
+                      onCheckedChange={(checked) =>
+                        setExecutionDraft((prev) => ({
+                          ...prev,
+                          bhoomiPujanDone: checked,
+                          bhoomiPujanDate: checked
+                            ? prev.bhoomiPujanDate || getTodayDateStringIST()
+                            : null,
+                        }))
+                      }
+                      onDateChange={(date) =>
+                        setExecutionDraft((prev) => ({
+                          ...prev,
+                          bhoomiPujanDone: true,
+                          bhoomiPujanDate: date || null,
+                        }))
+                      }
+                    />
+                    {photoGallery('bhoomi_pujan', t('projects.photosBhoomiPujan'))}
+                  </div>
+                  <div className="min-w-0 space-y-3">
+                    <AdmMilestoneRow
+                      id={`project-lokarpan-${projectId}`}
+                      label={t('adm.milestoneLokarpan')}
+                      sublabel={t('adm.milestoneLokarpanMr')}
+                      checked={executionDraft.lokarpanDone}
+                      date={executionDraft.lokarpanDate ?? ''}
+                      onCheckedChange={(checked) =>
+                        setExecutionDraft((prev) => ({
+                          ...prev,
+                          lokarpanDone: checked,
+                          lokarpanDate: checked
+                            ? prev.lokarpanDate || getTodayDateStringIST()
+                            : null,
+                        }))
+                      }
+                      onDateChange={(date) =>
+                        setExecutionDraft((prev) => ({
+                          ...prev,
+                          lokarpanDone: true,
+                          lokarpanDate: date || null,
+                        }))
+                      }
+                    />
+                    {photoGallery('lokarpan', t('projects.photosLokarpan'))}
+                  </div>
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  className="min-h-11 w-full sm:w-auto"
+                  disabled={!executionDirty || savingExecution}
+                  onClick={() => void saveExecution()}
+                >
+                  {savingExecution ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  {t('common.save')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">{t('projects.groundMedia')}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                {photoGallery('before', t('projects.photosBefore'))}
+                {photoGallery('after', t('projects.photosAfter'))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Dialog
+            open={Boolean(lightboxPhoto)}
+            onOpenChange={(open) => {
+              if (!open) setLightboxPhoto(null);
+            }}
+          >
+            <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] max-w-4xl overflow-hidden p-3 sm:max-w-4xl sm:p-6">
+              <DialogHeader>
+                <DialogTitle className="truncate pr-8 text-sm sm:text-base">
+                  {lightboxPhoto?.fileName ?? t('projects.groundMedia')}
+                </DialogTitle>
+              </DialogHeader>
+              {lightboxPhoto ? (
+                <div className="relative mx-auto flex max-h-[75dvh] w-full items-center justify-center bg-muted/30">
+                  <Image
+                    src={lightboxPhoto.fileUrl}
+                    alt={lightboxPhoto.fileName}
+                    width={1600}
+                    height={1200}
+                    className="max-h-[75dvh] w-auto max-w-full object-contain"
+                    unoptimized
+                  />
+                </div>
+              ) : null}
+            </DialogContent>
+          </Dialog>
+        </>
+      ) : null}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">

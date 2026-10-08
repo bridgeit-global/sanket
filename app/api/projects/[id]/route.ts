@@ -118,10 +118,22 @@ export async function PUT(
       nocStatus: body.nocStatus ?? existing.nocStatus,
       remarks: body.remarks ?? existing.remarks,
       physicalStatus: body.physicalStatus ?? existing.physicalStatus,
-      bhoomiPujanDone: body.bhoomiPujanDone ?? existing.bhoomiPujanDone,
-      bhoomiPujanDate: body.bhoomiPujanDate ?? existing.bhoomiPujanDate,
-      lokarpanDone: body.lokarpanDone ?? existing.lokarpanDone,
-      lokarpanDate: body.lokarpanDate ?? existing.lokarpanDate,
+      bhoomiPujanDone:
+        typeof body.bhoomiPujanDone === 'boolean'
+          ? body.bhoomiPujanDone
+          : existing.bhoomiPujanDone,
+      bhoomiPujanDate:
+        body.bhoomiPujanDate !== undefined
+          ? body.bhoomiPujanDate
+          : existing.bhoomiPujanDate,
+      lokarpanDone:
+        typeof body.lokarpanDone === 'boolean'
+          ? body.lokarpanDone
+          : existing.lokarpanDone,
+      lokarpanDate:
+        body.lokarpanDate !== undefined
+          ? body.lokarpanDate
+          : existing.lokarpanDate,
     });
 
     if (!validation.success) {

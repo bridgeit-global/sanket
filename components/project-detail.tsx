@@ -67,6 +67,7 @@ import {
 import type {
   ProjectAttachment,
   ProjectApprovalStatus,
+  ProjectGroundMedia,
   ProjectNocStatus,
   ProjectPhysicalStatus,
 } from '@/lib/db/schema';
@@ -120,6 +121,7 @@ interface Project {
   lokarpanDate?: string | null;
   registerEntries?: RegisterEntry[];
   documents?: ProjectAttachment[];
+  groundMedia?: ProjectGroundMedia[];
 }
 
 interface ProjectDetailProps {
@@ -195,6 +197,8 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
   });
 
   const [documents, setDocuments] = useState<ProjectAttachment[]>([]);
+  const [groundMedia, setGroundMedia] = useState<ProjectGroundMedia[]>([]);
+  const [isAdmProject, setIsAdmProject] = useState(false);
 
   // Entry form
   const [entryForm, setEntryForm] = useState({
@@ -276,15 +280,19 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
     }
   };
 
-  const loadProject = async () => {
+  const loadProject = async (options?: { silent?: boolean }) => {
     try {
-      setLoading(true);
+      if (!options?.silent) setLoading(true);
       const response = await fetch(`/api/projects/${projectId}`);
       if (response.ok) {
         const data = await response.json();
         setProject(data);
         setEntries(data.registerEntries || []);
         setDocuments(data.documents || []);
+        setGroundMedia(data.groundMedia || []);
+        setIsAdmProject(
+          Array.isArray(data.fundAllocations) && data.fundAllocations.length > 0,
+        );
         setProjectForm(projectFormValues(data));
       } else if (response.status === 404) {
         toast.error('Project not found');
@@ -294,7 +302,7 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
       console.error('Error loading project:', error);
       toast.error('Failed to load project');
     } finally {
-      setLoading(false);
+      if (!options?.silent) setLoading(false);
     }
   };
 
@@ -954,7 +962,14 @@ export function ProjectDetail({ projectId }: ProjectDetailProps) {
         <ProjectDetailExtras
           projectId={projectId}
           documents={documents}
-          onRefresh={loadProject}
+          groundMedia={groundMedia}
+          physicalStatus={project.physicalStatus || 'WNS'}
+          bhoomiPujanDone={project.bhoomiPujanDone || false}
+          bhoomiPujanDate={project.bhoomiPujanDate || null}
+          lokarpanDone={project.lokarpanDone || false}
+          lokarpanDate={project.lokarpanDate || null}
+          isAdmProject={isAdmProject}
+          onRefresh={() => loadProject({ silent: true })}
         />
       </div>
 
