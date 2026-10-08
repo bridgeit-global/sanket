@@ -988,7 +988,9 @@ export function mapRegisterEntryRow(row: Row): RegisterEntry {
     id: String(row.id),
     type: row.type as RegisterEntry['type'],
     documentType: toStringOrNull(row.document_type ?? row.documentType),
-    date: String(row.date),
+    // Register dates are calendar dates, not timestamps. Normalize legacy
+    // timestamp values before they reach date-only form controls.
+    date: formatDateField(row.date),
     fromTo: String(row.from_to ?? row.fromTo),
     subject: String(row.subject),
     projectId: toStringOrNull(row.project_id ?? row.projectId),
