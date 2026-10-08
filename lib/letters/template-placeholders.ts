@@ -30,6 +30,8 @@ const KNOWN_PLACEHOLDERS_BY_FORM: Partial<
     'copyToBlock',
     'salutationBlock',
     'paragraphsBlock',
+    'letterTable',
+    'tableBlock',
     'signatureBlock',
   ],
   fees: [

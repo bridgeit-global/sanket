@@ -102,6 +102,7 @@ To,<br>
   {{sandarbhBlock}}
   {{salutationBlock}}
   {{paragraphsBlock}}
+  {{tableBlock}}
   ${CLOSING}
 </div>`,
 

@@ -108,6 +108,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   {{sandarbhBlock}}
   {{salutationBlock}}
   {{paragraphsBlock}}
+  {{tableBlock}}
   ${CLOSING}
 </div>`,
 

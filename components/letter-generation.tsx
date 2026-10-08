@@ -89,6 +89,15 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useTranslations } from '@/hooks/use-translations';
 import {
+  createEmptyGeneralLetterTable,
+  filterGeneralLetterTableText,
+  GENERAL_LETTER_TABLE_MAX_COLUMNS,
+  GENERAL_LETTER_TABLE_MAX_ROWS,
+  parseGeneralLetterTable,
+  serializeGeneralLetterTable,
+  type GeneralLetterTable,
+} from '@/lib/letters/general-letter-table';
+import {
   buildLetterBody,
   DEFAULT_BIRTH_CERTIFICATE_OFFICE_NAME,
   DEFAULT_SANJAY_GANDHI_OFFICE_NAME,
@@ -690,6 +699,7 @@ function generalDefaults(locale: LetterLocale): GeneralLetterFields {
     salutation: DEFAULT_GENERAL_SALUTATION[locale],
     paragraphs: '',
     signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(locale)),
+    letterTable: '',
   };
 }
 
@@ -1378,6 +1388,264 @@ export type GovFollowUpLetterPrefill = {
   locationName?: string;
   pendingWith?: string;
 };
+
+function GeneralLetterTableFields({
+  locale,
+  tableJson,
+  onTableJsonChange,
+  lt,
+}: {
+  locale: LetterLocale;
+  tableJson: string;
+  onTableJsonChange: (value: string) => void;
+  lt: (key: string) => string;
+}) {
+  const table = parseGeneralLetterTable(tableJson);
+
+  const commit = (next: GeneralLetterTable | null) => {
+    onTableJsonChange(serializeGeneralLetterTable(next));
+  };
+
+  if (!table) {
+    return (
+      <div className="space-y-1.5">
+        <Label className="mb-1.5 block text-sm">
+          {lt('letterGeneration.fields.table')}
+        </Label>
+        <p className="text-xs text-muted-foreground">
+          {lt('letterGeneration.fields.tableOptionalHint')}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          className="mt-2 h-10 w-full sm:w-auto"
+          onClick={() => commit(createEmptyGeneralLetterTable())}
+        >
+          <Plus className="mr-1.5 size-4 shrink-0" />
+          {lt('letterGeneration.fields.addTable')}
+        </Button>
+      </div>
+    );
+  }
+
+  const updateCell = (rowIndex: number, columnIndex: number, value: string) => {
+    commit({
+      ...table,
+      rows: table.rows.map((row, index) =>
+        index === rowIndex
+          ? row.map((cell, cellIndex) => (cellIndex === columnIndex ? value : cell))
+          : row,
+      ),
+    });
+  };
+
+  return (
+    <div className="space-y-3 rounded-md border p-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
+          <Label className="text-sm">{lt('letterGeneration.fields.table')}</Label>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {lt('letterGeneration.fields.tableOptionalHint')}
+          </p>
+        </div>
+        <Button
+          type="button"
+          variant="ghost"
+          className="h-10 w-full shrink-0 text-muted-foreground hover:text-destructive sm:w-auto"
+          onClick={() => commit(null)}
+        >
+          <Trash2 className="mr-1.5 size-4 shrink-0" />
+          {lt('letterGeneration.fields.removeTable')}
+        </Button>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label className="text-xs">{lt('letterGeneration.fields.tableCaption')}</Label>
+        <LocaleTextInput
+          locale={locale}
+          value={table.caption}
+          onValueChange={(caption) => commit({ ...table, caption })}
+          placeholder={lt('letterGeneration.placeholders.tableCaption')}
+        />
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="general-letter-table-serial"
+            checked={table.showSerial}
+            onChange={(event) =>
+              commit({ ...table, showSerial: event.target.checked })
+            }
+          />
+          <label htmlFor="general-letter-table-serial" className="text-sm">
+            {lt('letterGeneration.fields.tableSerial')}
+          </label>
+        </div>
+        <div className="flex items-center gap-2">
+          <Checkbox
+            id="general-letter-table-total"
+            checked={table.showTotal}
+            onChange={(event) =>
+              commit({ ...table, showTotal: event.target.checked })
+            }
+          />
+          <label htmlFor="general-letter-table-total" className="text-sm">
+            {lt('letterGeneration.fields.tableTotal')}
+          </label>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label className="text-xs">{lt('letterGeneration.fields.tableColumns')}</Label>
+        {table.columns.map((column, columnIndex) => (
+          <div
+            key={`table-column-${columnIndex}`}
+            className="flex flex-col gap-2 sm:flex-row sm:items-center"
+          >
+            <div className="min-w-0 flex-1">
+              <LocaleTextInput
+                locale={locale}
+                value={column}
+                onValueChange={(value) =>
+                  commit({
+                    ...table,
+                    columns: table.columns.map((heading, index) =>
+                      index === columnIndex ? value : heading,
+                    ),
+                  })
+                }
+                placeholder={lt('letterGeneration.fields.tableColumnPlaceholder')}
+                aria-label={lt('letterGeneration.fields.tableColumns')}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-10 shrink-0 text-muted-foreground hover:text-destructive"
+              disabled={table.columns.length === 1}
+              onClick={() =>
+                commit({
+                  ...table,
+                  columns: table.columns.filter((_, index) => index !== columnIndex),
+                  rows: table.rows.map((row) =>
+                    row.filter((_, index) => index !== columnIndex),
+                  ),
+                })
+              }
+              aria-label={lt('letterGeneration.fields.removeTableColumn')}
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-10 w-full sm:w-auto"
+          disabled={table.columns.length >= GENERAL_LETTER_TABLE_MAX_COLUMNS}
+          onClick={() =>
+            commit({
+              ...table,
+              columns: [...table.columns, ''],
+              rows: table.rows.map((row) => [...row, '']),
+            })
+          }
+        >
+          <Plus className="mr-1.5 size-4" />
+          {lt('letterGeneration.fields.addTableColumn')}
+        </Button>
+      </div>
+
+      <div className="min-w-0 space-y-3">
+        {table.rows.map((row, rowIndex) => (
+          <div
+            key={`table-row-${rowIndex}`}
+            className="space-y-2 rounded-md border p-3 md:border-0 md:p-0"
+          >
+            <div className="flex items-center justify-between gap-2 md:hidden">
+              <span className="text-xs font-medium text-muted-foreground">
+                {rowIndex + 1}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-10 shrink-0 text-muted-foreground hover:text-destructive"
+                disabled={table.rows.length === 1}
+                onClick={() =>
+                  commit({
+                    ...table,
+                    rows: table.rows.filter((_, index) => index !== rowIndex),
+                  })
+                }
+                aria-label={lt('letterGeneration.fields.removeTableRow')}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-1 gap-2 md:flex md:items-start">
+              {table.columns.map((column, columnIndex) => (
+                <div
+                  key={`table-cell-${rowIndex}-${columnIndex}`}
+                  className="min-w-0 flex-1 space-y-1"
+                >
+                  <Label className="text-xs md:sr-only">
+                    {column.trim() ||
+                      lt('letterGeneration.fields.tableColumnPlaceholder')}
+                  </Label>
+                  <LocaleTextInput
+                    locale={locale}
+                    value={row[columnIndex] ?? ''}
+                    onValueChange={(value) => updateCell(rowIndex, columnIndex, value)}
+                    aria-label={
+                      column.trim() ||
+                      lt('letterGeneration.fields.tableColumnPlaceholder')
+                    }
+                  />
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="hidden size-10 shrink-0 text-muted-foreground hover:text-destructive md:inline-flex"
+                disabled={table.rows.length === 1}
+                onClick={() =>
+                  commit({
+                    ...table,
+                    rows: table.rows.filter((_, index) => index !== rowIndex),
+                  })
+                }
+                aria-label={lt('letterGeneration.fields.removeTableRow')}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </div>
+          </div>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="h-10 w-full sm:w-auto"
+          disabled={table.rows.length >= GENERAL_LETTER_TABLE_MAX_ROWS}
+          onClick={() =>
+            commit({
+              ...table,
+              rows: [...table.rows, table.columns.map(() => '')],
+            })
+          }
+        >
+          <Plus className="mr-1.5 size-4" />
+          {lt('letterGeneration.fields.addTableRow')}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
 export function LetterGeneration({
   isAdmin = false,
@@ -2125,6 +2393,7 @@ export function LetterGeneration({
             : filterText(prev.salutation),
         paragraphs: formatTextRows(nextParagraphRows),
         signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(letterLocale)),
+        letterTable: filterGeneralLetterTableText(prev.letterTable ?? '', filterText),
       };
     });
 
@@ -6772,6 +7041,7 @@ export function LetterGeneration({
                             type="button"
                             variant="outline"
                             size="sm"
+                            className="h-10 w-full sm:w-auto"
                             onClick={() => {
                               updateParagraphRows([...paragraphRows, '']);
                             }}
@@ -6781,6 +7051,14 @@ export function LetterGeneration({
                           </Button>
                         </div>
                       </FieldGroup>
+                      <GeneralLetterTableFields
+                        locale={letterLocale}
+                        tableJson={generalFields.letterTable ?? ''}
+                        onTableJsonChange={(letterTable) =>
+                          setGeneralFields((prev) => ({ ...prev, letterTable }))
+                        }
+                        lt={lt}
+                      />
                     </TabsContent>
 
                     <TabsContent value="fees" className="mt-0 space-y-4">
