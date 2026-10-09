@@ -203,10 +203,20 @@ function StatCard({
 
 export function JobFairModule({
   initialCheckInCode,
+  initialView = 'registrations',
+  initialFrom = '',
+  initialTo = '',
 }: {
   initialCheckInCode?: string | null;
+  initialView?: 'registrations' | 'drafts';
+  initialFrom?: string;
+  initialTo?: string;
 }) {
-  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [filters, setFilters] = useState<Filters>({
+    ...EMPTY_FILTERS,
+    from: initialFrom,
+    to: initialTo,
+  });
   const [searchDraft, setSearchDraft] = useState('');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -219,7 +229,7 @@ export function JobFairModule({
     fileName: string;
   } | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
-  const [view, setView] = useState<'registrations' | 'drafts'>('registrations');
+  const [view, setView] = useState<'registrations' | 'drafts'>(initialView);
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -395,7 +405,13 @@ export function JobFairModule({
         </TabsList>
       </Tabs>
 
-      {view === 'drafts' ? <JobFairDraftList reloadKey={reloadKey} /> : null}
+      {view === 'drafts' ? (
+        <JobFairDraftList
+          reloadKey={reloadKey}
+          initialFrom={initialFrom}
+          initialTo={initialTo}
+        />
+      ) : null}
 
       {view === 'registrations' ? (
       <>

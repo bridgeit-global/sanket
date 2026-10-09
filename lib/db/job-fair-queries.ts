@@ -3,9 +3,12 @@ import 'server-only';
 import { throwOnSupabaseError } from '@/lib/db/errors';
 import { sql } from './postgres';
 import { supabase } from '@/lib/supabase/server';
+import { parseInstant, startOfDayIST, startOfWeekIST } from '@/lib/ist-date';
 import {
+  AREA_OPTIONS,
   JOB_FAIR_EVENT,
   JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT,
+  optionLabel,
 } from '@/lib/job-fair/options';
 import { generateJobFairRegistrationNo } from '@/lib/job-fair/registration-no';
 import {
@@ -534,6 +537,7 @@ export async function listOpenJobFairDrafts(
   search: string | undefined,
   page: number,
   limit: number,
+  range?: { from?: string; to?: string },
 ): Promise<{ items: JobFairDraftListItem[]; total: number }> {
   const registered = await registeredMobilesForEvent();
   let query = supabase
@@ -544,6 +548,12 @@ export async function listOpenJobFairDrafts(
 
   if (registered.length > 0) {
     query = query.not('mobile', 'in', `(${registered.join(',')})`);
+  }
+  if (range?.from && YMD.test(range.from)) {
+    query = query.gte('created_at', istDayStartUtc(range.from));
+  }
+  if (range?.to && YMD.test(range.to)) {
+    query = query.lt('created_at', istDayStartUtc(range.to, 1));
   }
 
   const term = search?.trim();
@@ -601,5 +611,281 @@ export async function getJobFairStats(todayYmd: string): Promise<JobFairStats> {
     withResume: Number(summary[0]?.with_resume ?? 0),
     openDrafts,
     topAreas: areas.map((r) => ({ area: String(r.area), count: Number(r.count) })),
+  };
+}
+
+export type JobFairActivityItem = {
+  registrationNo: string;
+  fullName: string;
+};
+
+export type JobFairActivityBucket = {
+  count: number;
+  /** Distinct registrations in this bucket, sorted by registration number. */
+  items: JobFairActivityItem[];
+};
+
+export type JobFairActivityGroupStat = {
+  label: string;
+  registeredToday: JobFairActivityBucket;
+  registeredWeek: JobFairActivityBucket;
+  checkedInToday: JobFairActivityBucket;
+  checkedInWeek: JobFairActivityBucket;
+};
+
+export type JobFairActivityStats = {
+  /** Every submitted registration for this event. */
+  registeredTotal: JobFairActivityBucket;
+  registeredToday: JobFairActivityBucket;
+  registeredWeek: JobFairActivityBucket;
+  checkedInToday: JobFairActivityBucket;
+  checkedInWeek: JobFairActivityBucket;
+  /** Drafts whose mobile does not already have a submitted registration. */
+  draftsTotal: JobFairActivityBucket;
+  /** Open drafts created since midnight IST. */
+  draftsToday: JobFairActivityBucket;
+  byArea: JobFairActivityGroupStat[];
+};
+
+type JobFairActivityRow = {
+  registration_no: string;
+  full_name: string;
+  area: string;
+  area_other: string | null;
+  status: string;
+  created_at: string;
+  updated_at: string;
+};
+
+type ActivitySets = {
+  registeredToday: Map<string, JobFairActivityItem>;
+  registeredWeek: Map<string, JobFairActivityItem>;
+  checkedInToday: Map<string, JobFairActivityItem>;
+  checkedInWeek: Map<string, JobFairActivityItem>;
+};
+
+const ACTIVITY_COLUMNS =
+  'registration_no, full_name, area, area_other, status, created_at, updated_at';
+
+function makeActivitySets(): ActivitySets {
+  return {
+    registeredToday: new Map(),
+    registeredWeek: new Map(),
+    checkedInToday: new Map(),
+    checkedInWeek: new Map(),
+  };
+}
+
+function toActivityBucket(ids: Map<string, JobFairActivityItem>): JobFairActivityBucket {
+  const items = Array.from(ids.values()).sort((a, b) =>
+    a.registrationNo.localeCompare(b.registrationNo, undefined, { numeric: true }),
+  );
+  return { count: items.length, items };
+}
+
+function setsToGroupStat(label: string, sets: ActivitySets): JobFairActivityGroupStat {
+  return {
+    label,
+    registeredToday: toActivityBucket(sets.registeredToday),
+    registeredWeek: toActivityBucket(sets.registeredWeek),
+    checkedInToday: toActivityBucket(sets.checkedInToday),
+    checkedInWeek: toActivityBucket(sets.checkedInWeek),
+  };
+}
+
+function areaLabel(row: JobFairActivityRow): string {
+  if (row.area === 'other') {
+    const other = row.area_other?.trim();
+    return other ? `Other: ${other}` : optionLabel(AREA_OPTIONS, 'other');
+  }
+  return optionLabel(AREA_OPTIONS, row.area);
+}
+
+const ACTIVITY_PAGE = 1000;
+
+async function fetchActivityPages<T>(
+  label: string,
+  run: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{
+    data: T[] | null;
+    error: Parameters<typeof throwOnSupabaseError>[0];
+  }>,
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += ACTIVITY_PAGE) {
+    const { data, error } = await run(from, from + ACTIVITY_PAGE - 1);
+    throwOnSupabaseError(error, label);
+    const batch = data ?? [];
+    rows.push(...batch);
+    if (batch.length < ACTIVITY_PAGE) return rows;
+  }
+}
+
+function draftDisplayName(payload: unknown): string {
+  if (!payload || typeof payload !== 'object') return '';
+  const values = (payload as { values?: { fullName?: unknown } }).values;
+  return typeof values?.fullName === 'string' ? values.fullName.trim() : '';
+}
+
+/**
+ * Job fair activity for the dashboard: all-time and today registrations and
+ * open drafts, plus distinct registrations created or checked in since Monday
+ * 00:00 IST. A check-in is any status other than `registered`; its time is
+ * `updated_at` from the check-in.
+ */
+export async function getJobFairActivityStats(): Promise<JobFairActivityStats> {
+  const weekStart = startOfWeekIST();
+  const todayStart = startOfDayIST();
+  const weekIso = weekStart.toISOString();
+  const registeredMobiles = await registeredMobilesForEvent();
+
+  const openDraftsQuery = () => {
+    let query = supabase
+      .from('JobFairRegistrationDraft')
+      .select('mobile, payload, created_at')
+      .eq('event_code', JOB_FAIR_EVENT.code)
+      .order('created_at', { ascending: false });
+    if (registeredMobiles.length > 0) {
+      query = query.not('mobile', 'in', `(${registeredMobiles.join(',')})`);
+    }
+    return query;
+  };
+
+  const [weekRegistered, checkedInRows, allRegistered, openDrafts] =
+    await Promise.all([
+      fetchActivityPages<JobFairActivityRow>(
+        'Failed to get job fair registrations',
+        (from, to) =>
+          supabase
+            .from('JobFairRegistration')
+            .select(ACTIVITY_COLUMNS)
+            .eq('event_code', JOB_FAIR_EVENT.code)
+            .gte('created_at', weekIso)
+            .order('registration_no')
+            .range(from, to),
+      ),
+      fetchActivityPages<JobFairActivityRow>(
+        'Failed to get job fair check-ins',
+        (from, to) =>
+          supabase
+            .from('JobFairRegistration')
+            .select(ACTIVITY_COLUMNS)
+            .eq('event_code', JOB_FAIR_EVENT.code)
+            .neq('status', 'registered')
+            .gte('updated_at', weekIso)
+            .order('registration_no')
+            .range(from, to),
+      ),
+      fetchActivityPages<{
+        registration_no: string;
+        full_name: string;
+        created_at: string;
+      }>('Failed to get job fair registration totals', (from, to) =>
+        supabase
+          .from('JobFairRegistration')
+          .select('registration_no, full_name, created_at')
+          .eq('event_code', JOB_FAIR_EVENT.code)
+          .order('registration_no')
+          .range(from, to),
+      ),
+      fetchActivityPages<{
+        mobile: string;
+        payload: unknown;
+        created_at: string;
+      }>('Failed to get job fair drafts', (from, to) =>
+        openDraftsQuery().range(from, to),
+      ),
+    ]);
+
+  const registeredTotal = new Map<string, JobFairActivityItem>();
+  const registeredToday = new Map<string, JobFairActivityItem>();
+  for (const row of allRegistered) {
+    const item: JobFairActivityItem = {
+      registrationNo: row.registration_no,
+      fullName: row.full_name,
+    };
+    registeredTotal.set(item.registrationNo, item);
+    if (parseInstant(row.created_at) >= todayStart) {
+      registeredToday.set(item.registrationNo, item);
+    }
+  }
+
+  const draftsTotal = new Map<string, JobFairActivityItem>();
+  const draftsToday = new Map<string, JobFairActivityItem>();
+  for (const row of openDrafts) {
+    const item: JobFairActivityItem = {
+      registrationNo: row.mobile,
+      fullName: draftDisplayName(row.payload) || row.mobile,
+    };
+    draftsTotal.set(item.registrationNo, item);
+    if (parseInstant(row.created_at) >= todayStart) {
+      draftsToday.set(item.registrationNo, item);
+    }
+  }
+
+  const byNo = new Map<string, JobFairActivityRow>();
+  for (const row of [...weekRegistered, ...checkedInRows]) {
+    byNo.set(row.registration_no, row);
+  }
+
+  const overall = makeActivitySets();
+  const perArea = new Map<string, ActivitySets>();
+
+  for (const row of byNo.values()) {
+    const item: JobFairActivityItem = {
+      registrationNo: row.registration_no,
+      fullName: row.full_name,
+    };
+    const createdAt = parseInstant(row.created_at);
+    const checkedInAt =
+      row.status !== 'registered' ? parseInstant(row.updated_at) : null;
+    const area = areaLabel(row);
+    let areaSets = perArea.get(area);
+    if (!areaSets) {
+      areaSets = makeActivitySets();
+      perArea.set(area, areaSets);
+    }
+
+    if (createdAt >= weekStart) {
+      overall.registeredWeek.set(item.registrationNo, item);
+      areaSets.registeredWeek.set(item.registrationNo, item);
+      if (createdAt >= todayStart) {
+        overall.registeredToday.set(item.registrationNo, item);
+        areaSets.registeredToday.set(item.registrationNo, item);
+      }
+    }
+    if (checkedInAt && checkedInAt >= weekStart) {
+      overall.checkedInWeek.set(item.registrationNo, item);
+      areaSets.checkedInWeek.set(item.registrationNo, item);
+      if (checkedInAt >= todayStart) {
+        overall.checkedInToday.set(item.registrationNo, item);
+        areaSets.checkedInToday.set(item.registrationNo, item);
+      }
+    }
+  }
+
+  const byArea = Array.from(perArea.entries())
+    .map(([label, sets]) => setsToGroupStat(label, sets))
+    .filter(
+      (group) =>
+        group.registeredWeek.count > 0 || group.checkedInWeek.count > 0,
+    )
+    .sort((a, b) => {
+      const byRegistered = b.registeredWeek.count - a.registeredWeek.count;
+      if (byRegistered !== 0) return byRegistered;
+      const byCheckedIn = b.checkedInWeek.count - a.checkedInWeek.count;
+      if (byCheckedIn !== 0) return byCheckedIn;
+      return a.label.localeCompare(b.label);
+    });
+
+  return {
+    ...setsToGroupStat('', overall),
+    registeredTotal: toActivityBucket(registeredTotal),
+    registeredToday: toActivityBucket(registeredToday),
+    draftsTotal: toActivityBucket(draftsTotal),
+    draftsToday: toActivityBucket(draftsToday),
+    byArea,
   };
 }

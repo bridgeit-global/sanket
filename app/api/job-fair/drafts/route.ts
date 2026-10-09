@@ -12,8 +12,10 @@ export async function GET(request: NextRequest) {
     const page = Math.max(1, Number(searchParams.get('page')) || 1);
     const limit = Math.min(100, Math.max(1, Number(searchParams.get('limit')) || 10));
     const search = searchParams.get('search')?.trim() || undefined;
+    const from = searchParams.get('from')?.trim() || undefined;
+    const to = searchParams.get('to')?.trim() || undefined;
 
-    const list = await listOpenJobFairDrafts(search, page, limit);
+    const list = await listOpenJobFairDrafts(search, page, limit, { from, to });
     return NextResponse.json({ ...list, page, limit });
   } catch (err) {
     console.error('Error listing job fair drafts:', err);

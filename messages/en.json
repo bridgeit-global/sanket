@@ -295,6 +295,31 @@
       "voterCount": "{count, plural, one {# voter} other {# voters}}"
     }
   },
+  "jobFair": {
+    "dashboard": {
+      "title": "Job Fair Activity",
+      "registeredToday": "Registered Today",
+      "totalRegistered": "Total registered",
+      "totalDrafts": "Total drafts",
+      "draftsToday": "Drafts today",
+      "registeredWeek": "Registered This Week",
+      "checkedInToday": "Check-ins Today",
+      "checkedInWeek": "Check-ins This Week",
+      "openDrafts": "Incomplete drafts",
+      "byArea": "By Area",
+      "area": "Area",
+      "registeredTodayShort": "Registered (Today)",
+      "registeredWeekShort": "Registered (Week)",
+      "checkedInTodayShort": "Check-ins (Today)",
+      "checkedInWeekShort": "Check-ins (Week)",
+      "noActivity": "No job fair activity yet",
+      "drillDownTitle": "Registration numbers",
+      "drillDownEmpty": "No registrations in this bucket",
+      "drillDownHint": "Click a count to see registration numbers",
+      "registrationCount": "{count, plural, one {# registration} other {# registrations}}",
+      "draftCount": "{count, plural, one {# draft} other {# drafts}}"
+    }
+  },
   "backOffice": {
     "title": "Back Office",
     "subtitle": "Manage voter profiles and export data",

@@ -24,6 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { TablePagination } from '@/components/table-pagination';
 import { toast } from '@/components/toast';
+import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { formatDisplayDateTimeIST } from '@/lib/ist-date';
 import type { JobFairDraftListItem } from '@/lib/db/job-fair-queries';
 import type { JobFairFormValues } from '@/lib/job-fair/schema';
@@ -76,9 +77,19 @@ function displayName(item: JobFairDraftListItem): string {
   return item.fullName.trim() || 'Name not entered';
 }
 
-export function JobFairDraftList({ reloadKey = 0 }: { reloadKey?: number }) {
+export function JobFairDraftList({
+  reloadKey = 0,
+  initialFrom = '',
+  initialTo = '',
+}: {
+  reloadKey?: number;
+  initialFrom?: string;
+  initialTo?: string;
+}) {
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
+  const [from, setFrom] = useState(initialFrom);
+  const [to, setTo] = useState(initialTo);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [data, setData] = useState<ListResponse | null>(null);
@@ -101,6 +112,8 @@ export function JobFairDraftList({ reloadKey = 0 }: { reloadKey?: number }) {
       limit: String(pageSize),
     });
     if (search) params.set('search', search);
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
     fetch(`/api/job-fair/drafts?${params.toString()}`)
       .then(async (res) => {
         if (!res.ok) throw new Error('Failed');
@@ -118,12 +131,12 @@ export function JobFairDraftList({ reloadKey = 0 }: { reloadKey?: number }) {
     return () => {
       cancelled = true;
     };
-  }, [search, page, pageSize, reloadKey]);
+  }, [search, from, to, page, pageSize, reloadKey]);
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const hasSearch = Boolean(search || searchDraft);
+  const hasSearch = Boolean(search || searchDraft || from || to);
 
   const detailFields = useMemo(() => {
     if (!selected) return [];
@@ -170,6 +183,30 @@ export function JobFairDraftList({ reloadKey = 0 }: { reloadKey?: number }) {
               className="h-10 pl-9"
             />
           </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <div className="min-w-0 space-y-1.5">
+              <div className="text-xs font-medium text-muted-foreground">Created from</div>
+              <DmyDateInput
+                value={from}
+                onValueChange={(value) => {
+                  setFrom(value);
+                  setPage(1);
+                }}
+                className="h-10 w-full"
+              />
+            </div>
+            <div className="min-w-0 space-y-1.5">
+              <div className="text-xs font-medium text-muted-foreground">Created to</div>
+              <DmyDateInput
+                value={to}
+                onValueChange={(value) => {
+                  setTo(value);
+                  setPage(1);
+                }}
+                className="h-10 w-full"
+              />
+            </div>
+          </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">
               {loading
@@ -182,12 +219,14 @@ export function JobFairDraftList({ reloadKey = 0 }: { reloadKey?: number }) {
                 onClick={() => {
                   setSearchDraft('');
                   setSearch('');
+                  setFrom('');
+                  setTo('');
                   setPage(1);
                 }}
                 className="h-10 w-full sm:w-auto"
               >
                 <X className="size-4" />
-                Clear search
+                Clear filters
               </Button>
             ) : null}
           </div>

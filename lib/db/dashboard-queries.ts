@@ -18,6 +18,10 @@ import { getPhoneUpdateStats, getBeneficiaryServiceStats, getDashboardCounts, ge
 import { getGovFollowUpSummary } from './gov-follow-up';
 import type { GovFollowUpSummary } from '@/lib/gov-follow-up/types';
 import type { SirActivityStats } from './sir-queries';
+import {
+  getJobFairActivityStats,
+  type JobFairActivityStats,
+} from './job-fair-queries';
 
 const BIRTHDAY_WINDOW_DAYS = 7;
 const BIRTHDAY_LIST_LIMIT = 15;
@@ -80,6 +84,7 @@ export interface DashboardData {
     };
   };
   sirActivity: SirActivityStats;
+  jobFairActivity: JobFairActivityStats;
   govFollowUp: GovFollowUpSummary;
   upcoming: Array<{
     id: string;
@@ -566,6 +571,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     phoneUpdateStats,
     beneficiaryServiceStats,
     sirActivity,
+    jobFairActivity,
     upcomingBirthdays,
     govFollowUp,
   ] = await Promise.all([
@@ -573,6 +579,7 @@ export async function getDashboardData(): Promise<DashboardData> {
     getPhoneUpdateStats(),
     getBeneficiaryServiceStats(),
     getSirActivityStats(),
+    getJobFairActivityStats(),
     getUpcomingCadreBirthdays(),
     getGovFollowUpSummary().catch(() => ({
       dueToday: 0,
@@ -621,6 +628,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       },
     },
     sirActivity,
+    jobFairActivity,
     govFollowUp,
     upcoming: dashboardCounts.programmeItems.slice(0, 3).map((item) => ({
       id: item.id,

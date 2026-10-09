@@ -21,10 +21,16 @@ export default async function JobFairPage({
   }
 
   const params = await searchParams;
+  const ymd = /^\d{4}-\d{2}-\d{2}$/;
 
   return (
     <div className="container mx-auto max-w-7xl px-3 py-4 sm:px-4 sm:py-8">
-      <JobFairModule initialCheckInCode={params.yuvaaz ?? null} />
+      <JobFairModule
+        initialCheckInCode={params.yuvaaz ?? null}
+        initialView={params.view === 'drafts' ? 'drafts' : 'registrations'}
+        initialFrom={params.from && ymd.test(params.from) ? params.from : ''}
+        initialTo={params.to && ymd.test(params.to) ? params.to : ''}
+      />
     </div>
   );
 }

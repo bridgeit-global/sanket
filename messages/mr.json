@@ -295,6 +295,31 @@
       "voterCount": "{count, plural, one {# मतदार} other {# मतदार}}"
     }
   },
+  "jobFair": {
+    "dashboard": {
+      "title": "जॉब फेअर क्रियाकलाप",
+      "registeredToday": "आज नोंदणी",
+      "totalRegistered": "एकूण नोंदणी",
+      "totalDrafts": "एकूण मसुदे",
+      "draftsToday": "आजचे मसुदे",
+      "registeredWeek": "या आठवड्यातील नोंदणी",
+      "checkedInToday": "आजचे चेक-इन",
+      "checkedInWeek": "या आठवड्यातील चेक-इन",
+      "openDrafts": "अपूर्ण मसुदे",
+      "byArea": "परिसरानुसार",
+      "area": "परिसर",
+      "registeredTodayShort": "नोंदणी (आज)",
+      "registeredWeekShort": "नोंदणी (आठवडा)",
+      "checkedInTodayShort": "चेक-इन (आज)",
+      "checkedInWeekShort": "चेक-इन (आठवडा)",
+      "noActivity": "अद्याप जॉब फेअर क्रियाकलाप नाही",
+      "drillDownTitle": "नोंदणी क्रमांक",
+      "drillDownEmpty": "या गटात कोणतीही नोंदणी नाही",
+      "drillDownHint": "नोंदणी क्रमांक पाहण्यासाठी संख्यावर क्लिक करा",
+      "registrationCount": "{count, plural, one {# नोंदणी} other {# नोंदण्या}}",
+      "draftCount": "{count, plural, one {# मसुदा} other {# मसुदे}}"
+    }
+  },
   "backOffice": {
     "title": "बॅक ऑफिस",
     "subtitle": "मतदार प्रोफाइल व्यवस्थापित करा आणि डेटा एक्सपोर्ट करा",
