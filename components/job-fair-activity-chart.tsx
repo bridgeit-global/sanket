@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useTranslations } from '@/hooks/use-translations';
 import { getTodayDateStringIST } from '@/lib/ist-date';
 import type {
@@ -38,7 +39,7 @@ const FALLBACKS: Record<string, string> = {
   'jobFair.dashboard.stepEducation': 'Education & Work',
   'jobFair.dashboard.stepEducationShort': 'Education',
   'jobFair.dashboard.stepPreferences': 'Job Preference',
-  'jobFair.dashboard.stepPreferencesShort': 'Preference',
+  'jobFair.dashboard.stepPreferencesShort': 'Job Preference',
   'jobFair.dashboard.stepReview': 'Review',
 };
 
@@ -93,6 +94,7 @@ function SplitCount({
 
 export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
   const router = useRouter();
+  const isMobile = useIsMobile();
   const { t: translate } = useTranslations();
 
   const t = (key: string, params?: Record<string, string | number>): string => {
@@ -143,7 +145,7 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
         <h4 className="text-sm font-semibold text-foreground">
           {t('jobFair.dashboard.draftsByStep')}
         </h4>
-        <div className="h-56 w-full min-w-0">
+        <div className={cn('w-full min-w-0', isMobile ? 'h-72' : 'h-56')}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={stats.draftsByStep.map((row) => ({
@@ -151,7 +153,7 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
                 label: t(DRAFT_STEP_AXIS_KEYS[row.step] ?? DRAFT_STEP_AXIS_KEYS[0]),
                 count: row.bucket.count,
               }))}
-              margin={{ top: 16, right: 8, left: 0, bottom: 0 }}
+              margin={{ top: 16, right: 8, left: 0, bottom: isMobile ? 8 : 0 }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
@@ -164,6 +166,10 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
                 tick={CHART_TICK}
                 stroke="hsl(var(--border))"
                 interval={0}
+                angle={isMobile ? -40 : 0}
+                textAnchor={isMobile ? 'end' : 'middle'}
+                height={isMobile ? 72 : 30}
+                tickMargin={isMobile ? 6 : 8}
               />
               <YAxis
                 type="number"
