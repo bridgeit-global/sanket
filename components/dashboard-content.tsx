@@ -329,6 +329,18 @@ export function DashboardContent({ data }: DashboardContentProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
+            <Briefcase className="h-5 w-5" />
+            {jobFairDashboardTitle}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <JobFairActivityChart stats={data.jobFairActivity} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
             <Cake className="h-5 w-5" />
             {t('dashboard.upcomingBirthdays')}
           </CardTitle>
@@ -446,18 +458,6 @@ export function DashboardContent({ data }: DashboardContentProps) {
         </CardHeader>
         <CardContent>
           <SirActivityChart stats={data.sirActivity} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Briefcase className="h-5 w-5" />
-            {jobFairDashboardTitle}
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <JobFairActivityChart stats={data.jobFairActivity} />
         </CardContent>
       </Card>
     </div>
