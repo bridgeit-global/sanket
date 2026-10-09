@@ -167,24 +167,35 @@ function StatCard({
   active?: boolean;
   onClick?: () => void;
 }) {
+  const body = (
+    <>
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+        <Icon className="size-5" />
+      </span>
+      <span className="min-w-0">
+        <span className="block text-xs text-muted-foreground">{label}</span>
+        <span className="block truncate text-xl font-semibold">{value}</span>
+        {sub ? (
+          <span className="block truncate text-xs text-muted-foreground">{sub}</span>
+        ) : null}
+      </span>
+    </>
+  );
+
   return (
     <Card className={active ? 'ring-2 ring-primary' : undefined}>
       <CardContent className="p-0">
-        <button
-          type="button"
-          onClick={onClick}
-          disabled={!onClick}
-          className="flex w-full items-center gap-3 p-4 text-left disabled:cursor-default"
-        >
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Icon className="size-5" />
-          </span>
-          <div className="min-w-0">
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="truncate text-xl font-semibold">{value}</div>
-            {sub ? <div className="truncate text-xs text-muted-foreground">{sub}</div> : null}
-          </div>
-        </button>
+        {onClick ? (
+          <button
+            type="button"
+            onClick={onClick}
+            className="flex w-full items-center gap-3 p-4 text-left"
+          >
+            {body}
+          </button>
+        ) : (
+          <div className="flex w-full items-center gap-3 p-4">{body}</div>
+        )}
       </CardContent>
     </Card>
   );
