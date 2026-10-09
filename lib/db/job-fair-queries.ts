@@ -537,7 +537,7 @@ export async function listOpenJobFairDrafts(
   search: string | undefined,
   page: number,
   limit: number,
-  range?: { from?: string; to?: string },
+  range?: { from?: string; to?: string; step?: number },
 ): Promise<{ items: JobFairDraftListItem[]; total: number }> {
   const registered = await registeredMobilesForEvent();
   let query = supabase
@@ -554,6 +554,14 @@ export async function listOpenJobFairDrafts(
   }
   if (range?.to && YMD.test(range.to)) {
     query = query.lt('created_at', istDayStartUtc(range.to, 1));
+  }
+  if (
+    range?.step !== undefined &&
+    Number.isInteger(range.step) &&
+    range.step >= 0 &&
+    range.step <= 4
+  ) {
+    query = query.eq('step', range.step);
   }
 
   const term = search?.trim();

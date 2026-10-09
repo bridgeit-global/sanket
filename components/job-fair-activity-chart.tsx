@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from '@/hooks/use-translations';
 import { getTodayDateStringIST } from '@/lib/ist-date';
 import type {
@@ -75,14 +76,6 @@ const FALLBACKS: Record<string, string> = {
   'jobFair.dashboard.stepReview': 'Review',
 };
 
-const DRAFT_STEP_LABEL_KEYS = [
-  'jobFair.dashboard.stepPersonal',
-  'jobFair.dashboard.stepAddress',
-  'jobFair.dashboard.stepEducation',
-  'jobFair.dashboard.stepPreferences',
-  'jobFair.dashboard.stepReview',
-] as const;
-
 const DRAFT_STEP_AXIS_KEYS = [
   'jobFair.dashboard.stepPersonal',
   'jobFair.dashboard.stepAddress',
@@ -90,6 +83,11 @@ const DRAFT_STEP_AXIS_KEYS = [
   'jobFair.dashboard.stepPreferencesShort',
   'jobFair.dashboard.stepReview',
 ] as const;
+
+function jobFairDraftStepHref(step: number): string {
+  const params = new URLSearchParams({ view: 'drafts', step: String(step) });
+  return `/modules/job-fair?${params.toString()}`;
+}
 
 function jobFairHref(view: 'registrations' | 'drafts', todayOnly: boolean): string {
   const params = new URLSearchParams();
@@ -153,6 +151,7 @@ function CountCell({
 }
 
 export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
+  const router = useRouter();
   const { t: translate } = useTranslations();
   const [drillDown, setDrillDown] = useState<DrillDownState>(null);
 
@@ -252,14 +251,8 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
                 onClick={(bar) => {
                   const payload = bar.payload as { step?: number } | undefined;
                   const step = Number(payload?.step);
-                  const row = stats.draftsByStep[step];
-                  if (!row) return;
-                  openBucket(
-                    t(DRAFT_STEP_LABEL_KEYS[step] ?? DRAFT_STEP_LABEL_KEYS[0]),
-                    row.bucket,
-                    t('jobFair.dashboard.draftsByStep'),
-                    'jobFair.dashboard.draftCount',
-                  );
+                  if (!Number.isInteger(step) || step < 0 || step > 4) return;
+                  router.push(jobFairDraftStepHref(step));
                 }}
               >
                 <LabelList dataKey="count" position="right" className="fill-foreground text-xs" />

@@ -206,11 +206,13 @@ export function JobFairModule({
   initialView = 'registrations',
   initialFrom = '',
   initialTo = '',
+  initialStep = null,
 }: {
   initialCheckInCode?: string | null;
   initialView?: 'registrations' | 'drafts';
   initialFrom?: string;
   initialTo?: string;
+  initialStep?: number | null;
 }) {
   const [filters, setFilters] = useState<Filters>({
     ...EMPTY_FILTERS,
@@ -410,6 +412,7 @@ export function JobFairModule({
           reloadKey={reloadKey}
           initialFrom={initialFrom}
           initialTo={initialTo}
+          initialStep={initialStep}
         />
       ) : null}
 

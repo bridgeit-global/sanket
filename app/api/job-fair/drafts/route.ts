@@ -14,8 +14,10 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')?.trim() || undefined;
     const from = searchParams.get('from')?.trim() || undefined;
     const to = searchParams.get('to')?.trim() || undefined;
+    const stepRaw = searchParams.get('step')?.trim() ?? '';
+    const step = /^[0-4]$/.test(stepRaw) ? Number(stepRaw) : undefined;
 
-    const list = await listOpenJobFairDrafts(search, page, limit, { from, to });
+    const list = await listOpenJobFairDrafts(search, page, limit, { from, to, step });
     return NextResponse.json({ ...list, page, limit });
   } catch (err) {
     console.error('Error listing job fair drafts:', err);

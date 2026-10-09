@@ -8,6 +8,13 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Table,
   TableBody,
   TableCell,
@@ -81,15 +88,20 @@ export function JobFairDraftList({
   reloadKey = 0,
   initialFrom = '',
   initialTo = '',
+  initialStep = null,
 }: {
   reloadKey?: number;
   initialFrom?: string;
   initialTo?: string;
+  initialStep?: number | null;
 }) {
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
   const [from, setFrom] = useState(initialFrom);
   const [to, setTo] = useState(initialTo);
+  const [step, setStep] = useState<number | null>(
+    initialStep !== null && initialStep >= 0 && initialStep <= 4 ? initialStep : null,
+  );
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [data, setData] = useState<ListResponse | null>(null);
@@ -114,6 +126,7 @@ export function JobFairDraftList({
     if (search) params.set('search', search);
     if (from) params.set('from', from);
     if (to) params.set('to', to);
+    if (step !== null) params.set('step', String(step));
     fetch(`/api/job-fair/drafts?${params.toString()}`)
       .then(async (res) => {
         if (!res.ok) throw new Error('Failed');
@@ -131,12 +144,12 @@ export function JobFairDraftList({
     return () => {
       cancelled = true;
     };
-  }, [search, from, to, page, pageSize, reloadKey]);
+  }, [search, from, to, step, page, pageSize, reloadKey]);
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const hasSearch = Boolean(search || searchDraft || from || to);
+  const hasSearch = Boolean(search || searchDraft || from || to || step !== null);
 
   const detailFields = useMemo(() => {
     if (!selected) return [];
@@ -183,7 +196,29 @@ export function JobFairDraftList({
               className="h-10 pl-9"
             />
           </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+            <div className="min-w-0 space-y-1.5">
+              <div className="text-xs font-medium text-muted-foreground">Stopped at</div>
+              <Select
+                value={step === null ? 'all' : String(step)}
+                onValueChange={(value) => {
+                  setStep(value === 'all' ? null : Number(value));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All steps</SelectItem>
+                  {DRAFT_STEP_LABELS.map((label, index) => (
+                    <SelectItem key={label} value={String(index)}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="min-w-0 space-y-1.5">
               <div className="text-xs font-medium text-muted-foreground">Created from</div>
               <DmyDateInput
@@ -221,6 +256,7 @@ export function JobFairDraftList({
                   setSearch('');
                   setFrom('');
                   setTo('');
+                  setStep(null);
                   setPage(1);
                 }}
                 className="h-10 w-full sm:w-auto"
