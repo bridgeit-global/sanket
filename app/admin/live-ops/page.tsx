@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
-import { requireVigilAdmin, getVigilAdminData } from '@/lib/vigil/server';
-import { VigilLiveOps } from '@/components/vigil/live-ops';
+import { requireAttendanceAdmin, getAttendanceAdminData } from '@/lib/attendance/server';
+import { AttendanceLiveOps } from '@/components/attendance/live-ops';
 
-export default async function VigilLiveOpsPage() {
-  if (!(await requireVigilAdmin())) redirect('/unauthorized');
-  return <VigilLiveOps initialData={await getVigilAdminData()} />;
+export default async function AttendanceLiveOpsPage() {
+  if (!(await requireAttendanceAdmin())) redirect('/unauthorized');
+  return <AttendanceLiveOps initialData={await getAttendanceAdminData()} />;
 }

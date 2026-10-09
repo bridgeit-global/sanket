@@ -1,4 +1,4 @@
--- Correct Vigil's real office location from the supplied Google Maps embed.
+-- Correct the real office location from the supplied Google Maps embed.
 ALTER TABLE public.offices_and_sites
   ADD COLUMN IF NOT EXISTS address text;
 

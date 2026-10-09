@@ -1,6 +1,6 @@
--- Vigil attendance foundation.
+-- Attendance foundation.
 -- This application authenticates through NextAuth and the existing public
--- "User" table, so Vigil links to "User".id instead of creating auth users.
+-- "User" table, so attendance links to "User".id instead of creating auth users.
 
 CREATE TABLE IF NOT EXISTS public.profiles (
   id uuid PRIMARY KEY REFERENCES public."User"(id) ON DELETE CASCADE,
@@ -59,9 +59,9 @@ CREATE TABLE IF NOT EXISTS public.leave_requests (
   CHECK (end_date >= start_date)
 );
 
-CREATE INDEX IF NOT EXISTS vigil_attendance_user_date_idx ON public.attendance_logs(user_id, date DESC);
-CREATE INDEX IF NOT EXISTS vigil_attendance_site_date_idx ON public.attendance_logs(site_id, date DESC);
-CREATE INDEX IF NOT EXISTS vigil_leave_user_dates_idx ON public.leave_requests(user_id, start_date DESC);
+CREATE INDEX IF NOT EXISTS attendance_user_date_idx ON public.attendance_logs(user_id, date DESC);
+CREATE INDEX IF NOT EXISTS attendance_site_date_idx ON public.attendance_logs(site_id, date DESC);
+CREATE INDEX IF NOT EXISTS attendance_leave_user_dates_idx ON public.leave_requests(user_id, start_date DESC);
 
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.offices_and_sites ENABLE ROW LEVEL SECURITY;
@@ -71,11 +71,11 @@ ALTER TABLE public.leave_requests ENABLE ROW LEVEL SECURITY;
 -- The app uses the service-role Supabase client after NextAuth authorization.
 -- These policies prevent direct anonymous/authenticated access while allowing
 -- the trusted application server to operate normally.
-DROP POLICY IF EXISTS vigil_service_profiles ON public.profiles;
-CREATE POLICY vigil_service_profiles ON public.profiles FOR ALL TO service_role USING (true) WITH CHECK (true);
-DROP POLICY IF EXISTS vigil_service_sites ON public.offices_and_sites;
-CREATE POLICY vigil_service_sites ON public.offices_and_sites FOR ALL TO service_role USING (true) WITH CHECK (true);
-DROP POLICY IF EXISTS vigil_service_attendance ON public.attendance_logs;
-CREATE POLICY vigil_service_attendance ON public.attendance_logs FOR ALL TO service_role USING (true) WITH CHECK (true);
-DROP POLICY IF EXISTS vigil_service_leave ON public.leave_requests;
-CREATE POLICY vigil_service_leave ON public.leave_requests FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS attendance_service_profile ON public.profiles;
+CREATE POLICY attendance_service_profile ON public.profiles FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS attendance_service_site ON public.offices_and_sites;
+CREATE POLICY attendance_service_site ON public.offices_and_sites FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS attendance_service_attendance ON public.attendance_logs;
+CREATE POLICY attendance_service_attendance ON public.attendance_logs FOR ALL TO service_role USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS attendance_service_leave ON public.leave_requests;
+CREATE POLICY attendance_service_leave ON public.leave_requests FOR ALL TO service_role USING (true) WITH CHECK (true);

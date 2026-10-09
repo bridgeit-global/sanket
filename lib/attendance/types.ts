@@ -1,29 +1,29 @@
-export type VigilWorkType = 'office' | 'field';
-export type VigilRole = 'admin' | 'supervisor' | 'employee';
-export type VigilSiteType = 'office' | 'field_site';
-export type VigilPunchMode = 'clock_in' | 'clock_out';
-export type VigilAttendanceStatus =
+export type AttendanceWorkType = 'office' | 'field';
+export type AttendanceRole = 'admin' | 'supervisor' | 'employee';
+export type AttendanceSiteType = 'office' | 'field_site';
+export type AttendancePunchMode = 'clock_in' | 'clock_out';
+export type AttendanceStatus =
   | 'on_time'
   | 'late'
   | 'flagged_location'
   | 'early_leave'
   | 'pending_review';
 
-export type VigilProfile = {
+export type AttendanceProfile = {
   id: string;
   full_name: string;
   email: string | null;
-  role: VigilRole;
-  work_type: VigilWorkType;
+  role: AttendanceRole;
+  work_type: AttendanceWorkType;
   avatar_url: string | null;
   department: string | null;
 };
 
-export type VigilSite = {
+export type AttendanceSite = {
   id: string;
   name: string;
   address?: string | null;
-  type: VigilSiteType;
+  type: AttendanceSiteType;
   qr_code_token: string;
   allowed_ip_address: string | null;
   latitude: number;
@@ -32,7 +32,7 @@ export type VigilSite = {
   is_active: boolean;
 };
 
-export type VigilAttendanceLog = {
+export type AttendanceLog = {
   id: string;
   user_id: string;
   site_id: string;
@@ -45,7 +45,8 @@ export type VigilAttendanceLog = {
   distance_meters: number | null;
   is_ip_valid: boolean;
   is_geofence_valid: boolean;
-  status: VigilAttendanceStatus;
+  status: AttendanceStatus;
   notes: string | null;
-  site?: Pick<VigilSite, 'name' | 'type'>;
+  site?: Pick<AttendanceSite, 'name' | 'type'>;
+  profile?: Pick<AttendanceProfile, 'full_name' | 'department' | 'work_type'> | null;
 };

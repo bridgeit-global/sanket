@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { getVigilDashboard, requireVigilUser } from '@/lib/vigil/server';
+import { getAttendanceDashboard, requireAttendanceUser } from '@/lib/attendance/server';
 
 export async function GET() {
-  const current = await requireVigilUser();
+  const current = await requireAttendanceUser();
   if (!current) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  return NextResponse.json(await getVigilDashboard(current.profile.id));
+  return NextResponse.json(await getAttendanceDashboard(current.profile.id));
 }

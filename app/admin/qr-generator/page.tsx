@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
-import { requireVigilAdmin } from '@/lib/vigil/server';
-import { VigilAdminSites } from '@/components/vigil/admin-sites';
+import { requireAttendanceAdmin } from '@/lib/attendance/server';
+import { AttendanceAdminSites } from '@/components/attendance/admin-sites';
 
-export default async function VigilQrGeneratorPage() {
-  if (!(await requireVigilAdmin())) redirect('/unauthorized');
-  return <VigilAdminSites />;
+export default async function AttendanceQrGeneratorPage() {
+  if (!(await requireAttendanceAdmin())) redirect('/unauthorized');
+  return <AttendanceAdminSites />;
 }

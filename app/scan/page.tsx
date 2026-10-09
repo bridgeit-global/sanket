@@ -1,8 +1,13 @@
 import { redirect } from 'next/navigation';
-import { requireVigilUser } from '@/lib/vigil/server';
-import { VigilScanner } from '@/components/vigil/vigil-scanner';
+import { requireAttendanceUser } from '@/lib/attendance/server';
+import { AttendanceScanner } from '@/components/attendance/attendance-scanner';
 
-export default async function VigilScanPage() {
-  if (!(await requireVigilUser())) redirect('/login');
-  return <VigilScanner />;
+export default async function AttendanceScanPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ mode?: string }>;
+}) {
+  if (!(await requireAttendanceUser())) redirect('/login');
+  const { mode } = await searchParams;
+  return <AttendanceScanner initialMode={mode === 'clock_out' ? 'clock_out' : 'clock_in'} />;
 }

@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
-import { requireVigilAdmin, getVigilAdminData } from '@/lib/vigil/server';
-import { VigilAuditLogs } from '@/components/vigil/audit-logs';
+import { requireAttendanceAdmin, getAttendanceAdminData } from '@/lib/attendance/server';
+import { AttendanceAuditLogs } from '@/components/attendance/audit-logs';
 
-export default async function VigilAuditLogsPage() {
-  if (!(await requireVigilAdmin())) redirect('/unauthorized');
-  return <VigilAuditLogs initialData={await getVigilAdminData()} />;
+export default async function AttendanceAuditLogsPage() {
+  if (!(await requireAttendanceAdmin())) redirect('/unauthorized');
+  return <AttendanceAuditLogs initialData={await getAttendanceAdminData()} />;
 }

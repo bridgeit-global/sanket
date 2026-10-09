@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
-import { getVigilAdminData, requireVigilAdmin } from '@/lib/vigil/server';
+import { getAttendanceAdminData, requireAttendanceAdmin } from '@/lib/attendance/server';
 
 export async function GET() {
-  if (!(await requireVigilAdmin())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-  return NextResponse.json(await getVigilAdminData());
+  if (!(await requireAttendanceAdmin())) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  return NextResponse.json(await getAttendanceAdminData());
 }

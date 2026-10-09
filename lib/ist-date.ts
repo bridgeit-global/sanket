@@ -238,15 +238,21 @@ export function formatShortDisplayDateIST(
   }).replace(/,/g, '');
 }
 
-/** Display date+time as `dd-mm-yyyy hh:mm am/pm` in Asia/Kolkata. */
-export function formatDisplayDateTimeIST(value: string | Date | number): string {
+/** Display time as `hh:mm am/pm` in Asia/Kolkata. */
+export function formatDisplayTimeIST(value: string | Date | number): string {
   const date = parseInstant(value);
-  const day = formatDisplayDateIST(date);
-  const time = date.toLocaleTimeString('en-IN', {
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString('en-IN', {
     timeZone: APP_TIMEZONE,
     hour: '2-digit',
     minute: '2-digit',
     hour12: true,
   });
-  return `${day} ${time}`;
+}
+
+/** Display date+time as `dd-mm-yyyy hh:mm am/pm` in Asia/Kolkata. */
+export function formatDisplayDateTimeIST(value: string | Date | number): string {
+  const date = parseInstant(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${formatDisplayDateIST(date)} ${formatDisplayTimeIST(date)}`;
 }

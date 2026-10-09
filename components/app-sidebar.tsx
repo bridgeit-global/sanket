@@ -1,7 +1,15 @@
 'use client';
 
 import type { User } from 'next-auth';
-import { Activity, ScanLine, ShieldCheck } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import {
+  Activity,
+  ClipboardList,
+  QrCode,
+  ScanLine,
+  ShieldCheck,
+  type LucideIcon,
+} from 'lucide-react';
 
 import { NotificationBell } from '@/components/notification-bell';
 import { SidebarUserNav } from '@/components/sidebar-user-nav';
@@ -20,6 +28,7 @@ import type { ModuleDefinition } from '@/lib/module-constants';
 import { ModuleNavigation, ModuleNavigationPinned } from './module-navigation';
 import { SidebarLink } from './sidebar-link';
 import { useTranslations } from '@/hooks/use-translations';
+import { cn } from '@/lib/utils';
 
 interface AppSidebarProps {
   user: User | undefined;
@@ -28,9 +37,65 @@ interface AppSidebarProps {
 
 const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || '0.0.0';
 
+const staffAttendanceLinks: Array<{
+  href: string;
+  label: string;
+  icon: LucideIcon;
+}> = [
+  { href: '/dashboard', label: 'Attendance', icon: ShieldCheck },
+  { href: '/scan', label: 'Scan Attendance', icon: ScanLine },
+];
+
+const adminAttendanceLinks: Array<{
+  href: string;
+  label: string;
+  icon: LucideIcon;
+}> = [
+  { href: '/admin/live-ops', label: 'Live Operations', icon: Activity },
+  { href: '/admin/qr-generator', label: 'QR Generator', icon: QrCode },
+  { href: '/admin/audit-logs', label: 'Audit Logs', icon: ClipboardList },
+];
+
+function AttendanceNavGroup({
+  label,
+  links,
+  pathname,
+}: {
+  label: string;
+  links: Array<{ href: string; label: string; icon: LucideIcon }>;
+  pathname: string;
+}) {
+  return (
+    <div className="mb-4 border-b pb-4">
+      <p className="px-3 pb-2 text-xs font-medium text-sidebar-foreground/70">{label}</p>
+      <SidebarMenu>
+        {links.map(({ href, label: linkLabel, icon: Icon }) => {
+          const isActive = pathname === href;
+          return (
+            <SidebarMenuItem key={href}>
+              <SidebarLink
+                href={href}
+                className={cn(
+                  'flex min-h-10 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+                  isActive ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
+                )}
+              >
+                <Icon className="size-4 shrink-0" />
+                <span className="truncate">{linkLabel}</span>
+              </SidebarLink>
+            </SidebarMenuItem>
+          );
+        })}
+      </SidebarMenu>
+    </div>
+  );
+}
+
 export function AppSidebar({ user, modules }: AppSidebarProps) {
   const { setOpenMobile } = useSidebar();
   const { t } = useTranslations();
+  const pathname = usePathname();
+  const isAdmin = user?.roleName === 'admin';
 
   return (
     <Sidebar className="group-data-[side=left]:border-r-0">
@@ -60,37 +125,20 @@ export function AppSidebar({ user, modules }: AppSidebarProps) {
       <SidebarContent className="flex flex-col">
         <div className="flex-1 px-2 py-4">
           {user ? (
-            <SidebarMenu className="mb-4 border-b pb-4">
-              <SidebarMenuItem>
-                <SidebarLink
-                  href="/dashboard"
-                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
-                >
-                  <ShieldCheck className="size-4" />
-                  Vigil Attendance
-                </SidebarLink>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarLink
-                  href="/scan"
-                  className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
-                >
-                  <ScanLine className="size-4" />
-                  Scan Attendance
-                </SidebarLink>
-              </SidebarMenuItem>
-              {user.roleName === 'admin' ? (
-                <SidebarMenuItem>
-                  <SidebarLink
-                    href="/admin/live-ops"
-                    className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
-                  >
-                    <Activity className="size-4" />
-                    Vigil Live Operations
-                  </SidebarLink>
-                </SidebarMenuItem>
+            <>
+              <AttendanceNavGroup
+                label="Attendance"
+                links={staffAttendanceLinks}
+                pathname={pathname}
+              />
+              {isAdmin ? (
+                <AttendanceNavGroup
+                  label="Admin"
+                  links={adminAttendanceLinks}
+                  pathname={pathname}
+                />
               ) : null}
-            </SidebarMenu>
+            </>
           ) : null}
           <SidebarMenu>
             <ModuleNavigation user={user} modules={modules} />

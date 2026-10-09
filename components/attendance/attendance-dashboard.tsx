@@ -2,45 +2,240 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CalendarDays, Clock3, MapPin, Plus, RefreshCw } from 'lucide-react';
+import { CalendarDays, Clock3, MapPin, Plus, RefreshCw, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { VigilShell, SectionTitle } from './vigil-shell';
-import type { VigilAttendanceLog } from '@/lib/vigil/types';
+import { TablePagination, usePagination } from '@/components/table-pagination';
+import { formatDisplayDateIST, formatDisplayTimeIST, formatYmd, getCalendarYmd, getTodayDateStringIST, parseInstant } from '@/lib/ist-date';
+import { AttendanceShell, SectionTitle } from './attendance-shell';
+import type { AttendanceLog } from '@/lib/attendance/types';
 
-export function VigilDashboard({ initialData }: { initialData: any }) {
+function shiftIstDay(offset: number) {
+  const today = getCalendarYmd();
+  const utc = new Date(Date.UTC(today.year, today.month - 1, today.day));
+  utc.setUTCDate(utc.getUTCDate() + offset);
+  return formatYmd({
+    year: utc.getUTCFullYear(),
+    month: utc.getUTCMonth() + 1,
+    day: utc.getUTCDate(),
+  });
+}
+
+export function AttendanceDashboard({ initialData }: { initialData: any }) {
   const [data, setData] = useState(initialData);
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [leave, setLeave] = useState({ start_date: '', end_date: '', reason: '' });
   const [leaveMessage, setLeaveMessage] = useState('');
   const [now, setNow] = useState(Date.now());
-  useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(id); }, []);
-  const today = new Date().toISOString().slice(0, 10);
-  const todayLog = useMemo(() => (data.logs as VigilAttendanceLog[]).find((log) => log.date === today), [data.logs, today]);
-  const elapsed = todayLog?.clock_in ? Math.max(0, now - new Date(todayLog.clock_in).getTime()) : 0;
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    const scrollToHash = () => {
+      const id = window.location.hash.replace('#', '');
+      if (!id) return;
+      document.getElementById(id)?.scrollIntoView({ block: 'start' });
+    };
+    scrollToHash();
+    window.addEventListener('hashchange', scrollToHash);
+    return () => window.removeEventListener('hashchange', scrollToHash);
+  }, []);
+
+  const today = getTodayDateStringIST(new Date(now));
+  const logs = (data.logs ?? []) as AttendanceLog[];
+  const todayLog = useMemo(() => logs.find((log) => log.date === today), [logs, today]);
+  const elapsed = todayLog?.clock_in ? Math.max(0, now - parseInstant(todayLog.clock_in).getTime()) : 0;
   const hours = Math.floor(elapsed / 3_600_000);
   const minutes = Math.floor((elapsed % 3_600_000) / 60_000);
-  const refresh = async () => { const response = await fetch('/api/vigil/dashboard'); if (response.ok) setData(await response.json()); };
+  const calendarDays = useMemo(() => Array.from({ length: 30 }, (_, index) => {
+    const key = shiftIstDay(index - 29);
+    return { key, day: Number(key.slice(-2)), log: logs.find((item) => item.date === key) };
+  }), [logs, today]);
+  const history = usePagination(logs, 10);
+
+  const refresh = async () => {
+    const response = await fetch('/api/attendance/dashboard');
+    if (response.ok) setData(await response.json());
+  };
+
   const submitLeave = async (event: React.FormEvent) => {
-    event.preventDefault(); setLeaveMessage('Submitting…');
-    const response = await fetch('/api/vigil/leave', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(leave) });
+    event.preventDefault();
+    setLeaveMessage('Submitting…');
+    const response = await fetch('/api/attendance/leave', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(leave),
+    });
     const result = await response.json();
     if (!response.ok) return setLeaveMessage(result.error || 'Could not submit leave request.');
-    setLeaveOpen(false); setLeaveMessage('Leave request submitted.'); setLeave({ start_date: '', end_date: '', reason: '' });
+    setLeaveOpen(false);
+    setLeaveMessage('Leave request submitted.');
+    setLeave({ start_date: '', end_date: '', reason: '' });
   };
-  const calendarDays = Array.from({ length: 30 }, (_, index) => {
-    const date = new Date(); date.setDate(date.getDate() - (29 - index));
-    const key = date.toISOString().slice(0, 10);
-    return { key, day: date.getDate(), log: (data.logs as VigilAttendanceLog[]).find((item) => item.date === key) };
-  });
 
-  return <VigilShell><div className="space-y-6">
-    <div className="flex items-start justify-between gap-4"><div><p className="text-sm text-muted-foreground">Good day</p><h1 className="text-2xl font-bold">{data.profile?.full_name || 'Employee'}</h1><p className="mt-1 text-sm text-muted-foreground">{data.profile?.department || 'Workforce attendance'}</p></div><Button variant="outline" size="icon" onClick={refresh} aria-label="Refresh"><RefreshCw className="size-4" /></Button></div>
-    <div className="grid gap-4 sm:grid-cols-2"><Card className="border-primary/30 bg-primary/5"><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Today&apos;s shift</CardTitle></CardHeader><CardContent><div className="flex items-end justify-between"><div><div className="text-3xl font-bold">{todayLog?.clock_in ? `${hours}h ${minutes}m` : 'Not started'}</div><p className="mt-1 text-sm text-muted-foreground">{todayLog?.clock_out ? 'Shift completed' : todayLog?.clock_in ? 'Currently active' : 'Scan to clock in'}</p></div><Clock3 className="size-8 text-primary" /></div></CardContent></Card><Card><CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Quick action</CardTitle></CardHeader><CardContent><Link href="/scan"><Button className="min-h-12 w-full"><MapPin className="mr-2 size-4" />{todayLog?.clock_in && !todayLog.clock_out ? 'Clock out' : 'Scan to clock in'}</Button></Link></CardContent></Card></div>
-    <Card><CardHeader><SectionTitle icon={Clock3}>Today&apos;s timeline</SectionTitle></CardHeader><CardContent>{todayLog ? <div className="grid gap-3 sm:grid-cols-3"><div><p className="text-xs text-muted-foreground">Clock in</p><p className="font-medium">{new Date(todayLog.clock_in!).toLocaleTimeString()}</p></div><div><p className="text-xs text-muted-foreground">Clock out</p><p className="font-medium">{todayLog.clock_out ? new Date(todayLog.clock_out).toLocaleTimeString() : 'Active'}</p></div><div><p className="text-xs text-muted-foreground">Location</p><p className="font-medium">{todayLog.site?.name || 'Verified site'}</p></div></div> : <p className="text-sm text-muted-foreground">No attendance recorded today.</p>}</CardContent></Card>
-    <Card><CardHeader><SectionTitle icon={CalendarDays}>Last 30 days</SectionTitle></CardHeader><CardContent><div className="grid grid-cols-7 gap-2">{calendarDays.map(({ key, day, log }) => <div key={key} title={`${key}: ${log?.status || 'Absent'}`} className={`flex aspect-square items-center justify-center rounded-md text-xs ${log ? log.status === 'pending_review' ? 'bg-amber-500/20 text-amber-700' : 'bg-emerald-500/20 text-emerald-700' : 'bg-muted text-muted-foreground'}`}>{day}</div>)}</div><p className="mt-3 text-xs text-muted-foreground">Green: recorded · Amber: pending review · Grey: no punch</p></CardContent></Card>
-    <Card><CardHeader><SectionTitle icon={Clock3}>Recent attendance</SectionTitle></CardHeader><CardContent><div className="space-y-3">{data.logs.slice(0, 8).map((log: VigilAttendanceLog) => <div key={log.id} className="flex items-center justify-between border-b pb-3 last:border-0"><div><p className="font-medium">{new Date(log.date).toLocaleDateString()}</p><p className="text-xs text-muted-foreground">{log.site?.name || 'Site'} · {log.status.replace('_', ' ')}</p></div><p className="text-sm text-muted-foreground">{log.clock_in ? new Date(log.clock_in).toLocaleTimeString() : '—'}</p></div>)}{data.logs.length === 0 && <p className="text-sm text-muted-foreground">Your attendance history will appear here.</p>}</div></CardContent></Card>
-    <Card id="leave"><CardHeader><SectionTitle icon={Plus}>Leave</SectionTitle></CardHeader><CardContent>{leaveOpen ? <form onSubmit={submitLeave} className="space-y-3"><div className="grid gap-3 sm:grid-cols-2"><input required type="date" value={leave.start_date} onChange={(event) => setLeave({ ...leave, start_date: event.target.value })} className="min-h-12 rounded-lg border bg-background px-3" /><input required type="date" value={leave.end_date} onChange={(event) => setLeave({ ...leave, end_date: event.target.value })} className="min-h-12 rounded-lg border bg-background px-3" /></div><textarea required value={leave.reason} onChange={(event) => setLeave({ ...leave, reason: event.target.value })} placeholder="Reason for leave" className="min-h-24 w-full rounded-lg border bg-background p-3" /><div className="flex gap-2"><Button type="submit" className="min-h-12">Submit request</Button><Button type="button" variant="outline" className="min-h-12" onClick={() => setLeaveOpen(false)}>Cancel</Button></div><p className="text-sm text-muted-foreground">{leaveMessage}</p></form> : <><Button variant="outline" className="min-h-12" onClick={() => setLeaveOpen(true)}>Apply for leave</Button>{leaveMessage && <p className="mt-3 text-sm text-muted-foreground">{leaveMessage}</p>}</>}</CardContent></Card>
-    {data.profile?.role === 'admin' ? <Card><CardHeader><SectionTitle icon={MapPin}>Administration</SectionTitle></CardHeader><CardContent className="flex flex-wrap gap-2"><Link href="/admin/qr-generator"><Button variant="outline" className="min-h-12">QR generator</Button></Link><Link href="/admin/live-ops"><Button variant="outline" className="min-h-12">Live operations</Button></Link><Link href="/admin/audit-logs"><Button variant="outline" className="min-h-12">Audit ledger</Button></Link></CardContent></Card> : null}
-  </div></VigilShell>;
+  return (
+    <AttendanceShell>
+      <div className="space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm text-muted-foreground">Good day</p>
+            <h1 className="break-words text-2xl font-bold">{data.profile?.full_name || 'Employee'}</h1>
+            <p className="mt-1 text-sm text-muted-foreground">{data.profile?.department || 'Workforce attendance'}</p>
+          </div>
+          <Button variant="outline" onClick={refresh} className="min-h-12 w-full sm:w-auto">
+            <RefreshCw className="mr-2 size-4" />Refresh
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <Card className="border-primary/30 bg-primary/5">
+            <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Today&apos;s shift</CardTitle></CardHeader>
+            <CardContent>
+              <div className="flex items-end justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-3xl font-bold">{todayLog?.clock_in ? `${hours}h ${minutes}m` : 'Not started'}</div>
+                  <p className="mt-1 text-sm text-muted-foreground">{todayLog?.clock_out ? 'Shift completed' : todayLog?.clock_in ? 'Currently active' : 'Scan to clock in'}</p>
+                </div>
+                <Clock3 className="size-8 shrink-0 text-primary" />
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Quick action</CardTitle></CardHeader>
+            <CardContent>
+              <Link href={todayLog?.clock_in && !todayLog.clock_out ? '/scan?mode=clock_out' : '/scan'} className="block">
+                <Button className="min-h-12 w-full">
+                  <MapPin className="mr-2 size-4" />
+                  {todayLog?.clock_in && !todayLog.clock_out ? 'Clock out' : 'Scan to clock in'}
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardHeader><SectionTitle icon={Clock3}>Today&apos;s timeline</SectionTitle></CardHeader>
+          <CardContent>
+            {todayLog ? (
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Clock in</p>
+                  <p className="font-medium">{todayLog.clock_in ? formatDisplayTimeIST(todayLog.clock_in) : '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Clock out</p>
+                  <p className="font-medium">{todayLog.clock_out ? formatDisplayTimeIST(todayLog.clock_out) : 'Active'}</p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs text-muted-foreground">Location</p>
+                  <p className="break-words font-medium">{todayLog.site?.name || 'Verified site'}</p>
+                </div>
+              </div>
+            ) : <p className="text-sm text-muted-foreground">No attendance recorded today.</p>}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><SectionTitle icon={CalendarDays}>Last 30 days</SectionTitle></CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
+              {calendarDays.map(({ key, day, log }) => (
+                <div
+                  key={key}
+                  title={`${formatDisplayDateIST(key)}: ${log?.status || 'Absent'}`}
+                  className={`flex aspect-square items-center justify-center rounded-md text-[11px] sm:text-xs ${log ? log.status === 'pending_review' ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300' : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' : 'bg-muted text-muted-foreground'}`}
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">Green: recorded · Amber: pending review · Grey: no punch</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><SectionTitle icon={Clock3}>Recent attendance</SectionTitle></CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {history.paginatedItems.map((log) => (
+                <div key={log.id} className="flex flex-col gap-1 border-b pb-3 last:border-0 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="font-medium">{formatDisplayDateIST(log.date)}</p>
+                    <p className="break-words text-xs text-muted-foreground">{log.site?.name || 'Site'} · {log.status.replace('_', ' ')}</p>
+                  </div>
+                  <p className="text-sm text-muted-foreground">{log.clock_in ? formatDisplayTimeIST(log.clock_in) : '—'}</p>
+                </div>
+              ))}
+              {logs.length === 0 ? <p className="text-sm text-muted-foreground">Your attendance history will appear here.</p> : null}
+            </div>
+            {history.totalItems > 0 ? (
+              <TablePagination
+                currentPage={history.currentPage}
+                totalPages={history.totalPages}
+                pageSize={history.pageSize}
+                totalItems={history.totalItems}
+                onPageChange={history.handlePageChange}
+                onPageSizeChange={history.handlePageSizeChange}
+              />
+            ) : null}
+          </CardContent>
+        </Card>
+
+        <Card id="leave" className="scroll-mt-24">
+          <CardHeader><SectionTitle icon={Plus}>Leave</SectionTitle></CardHeader>
+          <CardContent>
+            {leaveOpen ? (
+              <form onSubmit={submitLeave} className="space-y-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <label className="block text-sm">
+                    <span className="mb-1 block text-muted-foreground">Start date</span>
+                    <input required type="date" value={leave.start_date} onChange={(event) => setLeave({ ...leave, start_date: event.target.value })} className="min-h-12 w-full rounded-lg border bg-background px-3 text-base" />
+                  </label>
+                  <label className="block text-sm">
+                    <span className="mb-1 block text-muted-foreground">End date</span>
+                    <input required type="date" value={leave.end_date} onChange={(event) => setLeave({ ...leave, end_date: event.target.value })} className="min-h-12 w-full rounded-lg border bg-background px-3 text-base" />
+                  </label>
+                </div>
+                <textarea required value={leave.reason} onChange={(event) => setLeave({ ...leave, reason: event.target.value })} placeholder="Reason for leave" className="min-h-24 w-full rounded-lg border bg-background p-3 text-base" />
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <Button type="submit" className="min-h-12 w-full sm:w-auto">Submit request</Button>
+                  <Button type="button" variant="outline" className="min-h-12 w-full sm:w-auto" onClick={() => setLeaveOpen(false)}>Cancel</Button>
+                </div>
+                <p className="text-sm text-muted-foreground">{leaveMessage}</p>
+              </form>
+            ) : (
+              <>
+                <Button variant="outline" className="min-h-12 w-full sm:w-auto" onClick={() => setLeaveOpen(true)}>Apply for leave</Button>
+                {leaveMessage ? <p className="mt-3 text-sm text-muted-foreground">{leaveMessage}</p> : null}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card id="settings" className="scroll-mt-24">
+          <CardHeader><SectionTitle icon={Settings}>Settings</SectionTitle></CardHeader>
+          <CardContent className="space-y-2 text-sm text-muted-foreground">
+            <p>Camera and GPS turn on only on the Scan screen, and only while that browser tab is in front.</p>
+            <p>Switching tabs, leaving Scan, or locking the phone turns them off.</p>
+            <p className="break-words">Work type: {data.profile?.work_type || 'office'}</p>
+            <p className="break-words">Department: {data.profile?.department || 'Not set'}</p>
+          </CardContent>
+        </Card>
+
+        {data.profile?.role === 'admin' ? (
+          <Card>
+            <CardHeader><SectionTitle icon={MapPin}>Administration</SectionTitle></CardHeader>
+            <CardContent className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <Link href="/admin/qr-generator" className="block w-full sm:w-auto"><Button variant="outline" className="min-h-12 w-full">QR generator</Button></Link>
+              <Link href="/admin/live-ops" className="block w-full sm:w-auto"><Button variant="outline" className="min-h-12 w-full">Live operations</Button></Link>
+              <Link href="/admin/audit-logs" className="block w-full sm:w-auto"><Button variant="outline" className="min-h-12 w-full">Audit ledger</Button></Link>
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
+    </AttendanceShell>
+  );
 }

@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { getRequestIp, requireVigilUser } from '@/lib/vigil/server';
+import { getRequestIp, requireAttendanceUser } from '@/lib/attendance/server';
 
 export async function GET(request: NextRequest) {
-  if (!(await requireVigilUser())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!(await requireAttendanceUser())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   return NextResponse.json({ ip: getRequestIp(request) });
 }
