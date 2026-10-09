@@ -320,6 +320,8 @@
       "draftCount": "{count, plural, one {# मसुदा} other {# मसुदे}}",
       "draftsByStep": "टप्प्यानुसार मसुदे",
       "draftStepCount": "मसुदे",
+      "whatsappVerified": "WhatsApp सत्यापित",
+      "whatsappNotVerified": "WhatsApp सत्यापित नाही",
       "stepPersonal": "वैयक्तिक",
       "stepAddress": "पत्ता",
       "stepEducation": "शिक्षण आणि काम",

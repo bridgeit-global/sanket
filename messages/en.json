@@ -320,6 +320,8 @@
       "draftCount": "{count, plural, one {# draft} other {# drafts}}",
       "draftsByStep": "Drafts by step",
       "draftStepCount": "Drafts",
+      "whatsappVerified": "WhatsApp verified",
+      "whatsappNotVerified": "WhatsApp not verified",
       "stepPersonal": "Personal",
       "stepAddress": "Address",
       "stepEducation": "Education & Work",

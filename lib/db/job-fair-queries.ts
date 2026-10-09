@@ -660,6 +660,10 @@ export type JobFairActivityStats = {
 export type JobFairDraftStepStat = {
   step: number;
   bucket: JobFairActivityBucket;
+  /** Step 0 only. Drafts with `whatsapp_verified_at` set. */
+  whatsappVerified: JobFairActivityBucket;
+  /** Step 0 only. Drafts still missing WhatsApp verification. */
+  whatsappNotVerified: JobFairActivityBucket;
 };
 
 const DRAFT_STEP_COUNT = 5;
@@ -761,7 +765,7 @@ export async function getJobFairActivityStats(): Promise<JobFairActivityStats> {
   const openDraftsQuery = () => {
     let query = supabase
       .from('JobFairRegistrationDraft')
-      .select('mobile, step, payload, created_at')
+      .select('mobile, step, payload, created_at, whatsapp_verified_at')
       .eq('event_code', JOB_FAIR_EVENT.code)
       .order('created_at', { ascending: false });
     if (registeredMobiles.length > 0) {
@@ -812,6 +816,7 @@ export async function getJobFairActivityStats(): Promise<JobFairActivityStats> {
         step: number;
         payload: unknown;
         created_at: string;
+        whatsapp_verified_at: string | null;
       }>('Failed to get job fair drafts', (from, to) =>
         openDraftsQuery().range(from, to),
       ),
@@ -836,6 +841,8 @@ export async function getJobFairActivityStats(): Promise<JobFairActivityStats> {
     { length: DRAFT_STEP_COUNT },
     () => new Map<string, JobFairActivityItem>(),
   );
+  const step0WhatsappVerified = new Map<string, JobFairActivityItem>();
+  const step0WhatsappNotVerified = new Map<string, JobFairActivityItem>();
   for (const row of openDrafts) {
     const item: JobFairActivityItem = {
       registrationNo: row.mobile,
@@ -849,6 +856,13 @@ export async function getJobFairActivityStats(): Promise<JobFairActivityStats> {
       ? Math.min(Math.max(0, Math.trunc(Number(row.step))), DRAFT_STEP_COUNT - 1)
       : 0;
     draftsByStepMaps[step].set(item.registrationNo, item);
+    if (step === 0) {
+      const verified = Boolean(row.whatsapp_verified_at);
+      (verified ? step0WhatsappVerified : step0WhatsappNotVerified).set(
+        item.registrationNo,
+        item,
+      );
+    }
   }
 
   const byNo = new Map<string, JobFairActivityRow>();
@@ -915,6 +929,12 @@ export async function getJobFairActivityStats(): Promise<JobFairActivityStats> {
     draftsByStep: draftsByStepMaps.map((ids, step) => ({
       step,
       bucket: toActivityBucket(ids),
+      whatsappVerified: toActivityBucket(
+        step === 0 ? step0WhatsappVerified : new Map(),
+      ),
+      whatsappNotVerified: toActivityBucket(
+        step === 0 ? step0WhatsappNotVerified : new Map(),
+      ),
     })),
     byArea,
   };
