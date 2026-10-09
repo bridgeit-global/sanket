@@ -317,7 +317,16 @@
       "drillDownEmpty": "No registrations in this bucket",
       "drillDownHint": "Click a count to see registration numbers",
       "registrationCount": "{count, plural, one {# registration} other {# registrations}}",
-      "draftCount": "{count, plural, one {# draft} other {# drafts}}"
+      "draftCount": "{count, plural, one {# draft} other {# drafts}}",
+      "draftsByStep": "Drafts by step",
+      "draftStepCount": "Drafts",
+      "stepPersonal": "Personal",
+      "stepAddress": "Address",
+      "stepEducation": "Education & Work",
+      "stepEducationShort": "Education",
+      "stepPreferences": "Job Preference",
+      "stepPreferencesShort": "Preference",
+      "stepReview": "Review"
     }
   },
   "backOffice": {

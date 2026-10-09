@@ -17,6 +17,16 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 interface JobFairActivityChartProps {
   stats: JobFairActivityStats;
@@ -54,7 +64,32 @@ const FALLBACKS: Record<string, string> = {
   'jobFair.dashboard.drillDownHint': 'Click a count to see registration numbers',
   'jobFair.dashboard.registrationCount': '{count} registrations',
   'jobFair.dashboard.draftCount': '{count} drafts',
+  'jobFair.dashboard.draftsByStep': 'Drafts by step',
+  'jobFair.dashboard.draftStepCount': 'Drafts',
+  'jobFair.dashboard.stepPersonal': 'Personal',
+  'jobFair.dashboard.stepAddress': 'Address',
+  'jobFair.dashboard.stepEducation': 'Education & Work',
+  'jobFair.dashboard.stepEducationShort': 'Education',
+  'jobFair.dashboard.stepPreferences': 'Job Preference',
+  'jobFair.dashboard.stepPreferencesShort': 'Preference',
+  'jobFair.dashboard.stepReview': 'Review',
 };
+
+const DRAFT_STEP_LABEL_KEYS = [
+  'jobFair.dashboard.stepPersonal',
+  'jobFair.dashboard.stepAddress',
+  'jobFair.dashboard.stepEducation',
+  'jobFair.dashboard.stepPreferences',
+  'jobFair.dashboard.stepReview',
+] as const;
+
+const DRAFT_STEP_AXIS_KEYS = [
+  'jobFair.dashboard.stepPersonal',
+  'jobFair.dashboard.stepAddress',
+  'jobFair.dashboard.stepEducationShort',
+  'jobFair.dashboard.stepPreferencesShort',
+  'jobFair.dashboard.stepReview',
+] as const;
 
 function jobFairHref(view: 'registrations' | 'drafts', todayOnly: boolean): string {
   const params = new URLSearchParams();
@@ -176,6 +211,61 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
             valueClassName="text-amber-700 dark:text-amber-400"
             href={jobFairHref('drafts', true)}
           />
+        </div>
+      </div>
+
+      <div className="min-w-0 space-y-3">
+        <h4 className="text-sm font-semibold text-foreground">
+          {t('jobFair.dashboard.draftsByStep')}
+        </h4>
+        <div className="h-56 w-full min-w-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart
+              data={stats.draftsByStep.map((row) => ({
+                step: row.step,
+                label: t(DRAFT_STEP_AXIS_KEYS[row.step] ?? DRAFT_STEP_AXIS_KEYS[0]),
+                count: row.bucket.count,
+              }))}
+              layout="vertical"
+              margin={{ top: 4, right: 28, left: 4, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+              <YAxis
+                type="category"
+                dataKey="label"
+                width={96}
+                tick={{ fontSize: 12 }}
+                interval={0}
+              />
+              <Tooltip
+                formatter={(value) => [
+                  Number(value ?? 0),
+                  t('jobFair.dashboard.draftStepCount'),
+                ]}
+              />
+              <Bar
+                dataKey="count"
+                fill="#d97706"
+                radius={[0, 4, 4, 0]}
+                cursor="pointer"
+                onClick={(bar) => {
+                  const payload = bar.payload as { step?: number } | undefined;
+                  const step = Number(payload?.step);
+                  const row = stats.draftsByStep[step];
+                  if (!row) return;
+                  openBucket(
+                    t(DRAFT_STEP_LABEL_KEYS[step] ?? DRAFT_STEP_LABEL_KEYS[0]),
+                    row.bucket,
+                    t('jobFair.dashboard.draftsByStep'),
+                    'jobFair.dashboard.draftCount',
+                  );
+                }}
+              >
+                <LabelList dataKey="count" position="right" className="fill-foreground text-xs" />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
       </div>
 

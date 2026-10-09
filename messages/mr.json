@@ -317,7 +317,16 @@
       "drillDownEmpty": "या गटात कोणतीही नोंदणी नाही",
       "drillDownHint": "नोंदणी क्रमांक पाहण्यासाठी संख्यावर क्लिक करा",
       "registrationCount": "{count, plural, one {# नोंदणी} other {# नोंदण्या}}",
-      "draftCount": "{count, plural, one {# मसुदा} other {# मसुदे}}"
+      "draftCount": "{count, plural, one {# मसुदा} other {# मसुदे}}",
+      "draftsByStep": "टप्प्यानुसार मसुदे",
+      "draftStepCount": "मसुदे",
+      "stepPersonal": "वैयक्तिक",
+      "stepAddress": "पत्ता",
+      "stepEducation": "शिक्षण आणि काम",
+      "stepEducationShort": "शिक्षण",
+      "stepPreferences": "नोकरी प्राधान्य",
+      "stepPreferencesShort": "प्राधान्य",
+      "stepReview": "पुनरावलोकन"
     }
   },
   "backOffice": {

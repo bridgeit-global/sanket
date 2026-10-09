@@ -644,8 +644,17 @@ export type JobFairActivityStats = {
   draftsTotal: JobFairActivityBucket;
   /** Open drafts created since midnight IST. */
   draftsToday: JobFairActivityBucket;
+  /** Open drafts grouped by resume step (0 personal … 4 review). */
+  draftsByStep: JobFairDraftStepStat[];
   byArea: JobFairActivityGroupStat[];
 };
+
+export type JobFairDraftStepStat = {
+  step: number;
+  bucket: JobFairActivityBucket;
+};
+
+const DRAFT_STEP_COUNT = 5;
 
 type JobFairActivityRow = {
   registration_no: string;
@@ -744,7 +753,7 @@ export async function getJobFairActivityStats(): Promise<JobFairActivityStats> {
   const openDraftsQuery = () => {
     let query = supabase
       .from('JobFairRegistrationDraft')
-      .select('mobile, payload, created_at')
+      .select('mobile, step, payload, created_at')
       .eq('event_code', JOB_FAIR_EVENT.code)
       .order('created_at', { ascending: false });
     if (registeredMobiles.length > 0) {
@@ -792,6 +801,7 @@ export async function getJobFairActivityStats(): Promise<JobFairActivityStats> {
       ),
       fetchActivityPages<{
         mobile: string;
+        step: number;
         payload: unknown;
         created_at: string;
       }>('Failed to get job fair drafts', (from, to) =>
@@ -814,6 +824,10 @@ export async function getJobFairActivityStats(): Promise<JobFairActivityStats> {
 
   const draftsTotal = new Map<string, JobFairActivityItem>();
   const draftsToday = new Map<string, JobFairActivityItem>();
+  const draftsByStepMaps = Array.from(
+    { length: DRAFT_STEP_COUNT },
+    () => new Map<string, JobFairActivityItem>(),
+  );
   for (const row of openDrafts) {
     const item: JobFairActivityItem = {
       registrationNo: row.mobile,
@@ -823,6 +837,10 @@ export async function getJobFairActivityStats(): Promise<JobFairActivityStats> {
     if (parseInstant(row.created_at) >= todayStart) {
       draftsToday.set(item.registrationNo, item);
     }
+    const step = Number.isFinite(Number(row.step))
+      ? Math.min(Math.max(0, Math.trunc(Number(row.step))), DRAFT_STEP_COUNT - 1)
+      : 0;
+    draftsByStepMaps[step].set(item.registrationNo, item);
   }
 
   const byNo = new Map<string, JobFairActivityRow>();
@@ -886,6 +904,10 @@ export async function getJobFairActivityStats(): Promise<JobFairActivityStats> {
     registeredToday: toActivityBucket(registeredToday),
     draftsTotal: toActivityBucket(draftsTotal),
     draftsToday: toActivityBucket(draftsToday),
+    draftsByStep: draftsByStepMaps.map((ids, step) => ({
+      step,
+      bucket: toActivityBucket(ids),
+    })),
     byArea,
   };
 }
