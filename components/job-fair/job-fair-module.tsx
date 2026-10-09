@@ -207,12 +207,14 @@ export function JobFairModule({
   initialFrom = '',
   initialTo = '',
   initialStep = null,
+  initialWhatsapp = null,
 }: {
   initialCheckInCode?: string | null;
   initialView?: 'registrations' | 'drafts';
   initialFrom?: string;
   initialTo?: string;
   initialStep?: number | null;
+  initialWhatsapp?: 'verified' | 'unverified' | null;
 }) {
   const [filters, setFilters] = useState<Filters>({
     ...EMPTY_FILTERS,
@@ -413,6 +415,7 @@ export function JobFairModule({
           initialFrom={initialFrom}
           initialTo={initialTo}
           initialStep={initialStep}
+          initialWhatsapp={initialWhatsapp}
         />
       ) : null}
 

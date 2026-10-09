@@ -24,17 +24,24 @@ export default async function JobFairPage({
   const ymd = /^\d{4}-\d{2}-\d{2}$/;
   const step =
     params.step && /^[0-4]$/.test(params.step) ? Number(params.step) : null;
+  const whatsapp =
+    params.whatsapp === 'verified' || params.whatsapp === 'unverified'
+      ? params.whatsapp
+      : null;
 
   return (
     <div className="container mx-auto max-w-7xl px-3 py-4 sm:px-4 sm:py-8">
       <JobFairModule
         initialCheckInCode={params.yuvaaz ?? null}
         initialView={
-          params.view === 'drafts' || step !== null ? 'drafts' : 'registrations'
+          params.view === 'drafts' || step !== null || whatsapp !== null
+            ? 'drafts'
+            : 'registrations'
         }
         initialFrom={params.from && ymd.test(params.from) ? params.from : ''}
         initialTo={params.to && ymd.test(params.to) ? params.to : ''}
         initialStep={step}
+        initialWhatsapp={whatsapp}
       />
     </div>
   );

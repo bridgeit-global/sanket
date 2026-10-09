@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
-import { listOpenJobFairDrafts } from '@/lib/db/job-fair-queries';
+import {
+  type JobFairDraftWhatsappFilter,
+  listOpenJobFairDrafts,
+} from '@/lib/db/job-fair-queries';
 import { requireJobFairAccess } from '@/lib/job-fair/access';
 
 export async function GET(request: NextRequest) {
@@ -16,8 +19,18 @@ export async function GET(request: NextRequest) {
     const to = searchParams.get('to')?.trim() || undefined;
     const stepRaw = searchParams.get('step')?.trim() ?? '';
     const step = /^[0-4]$/.test(stepRaw) ? Number(stepRaw) : undefined;
+    const whatsappRaw = searchParams.get('whatsapp')?.trim() ?? '';
+    const whatsapp: JobFairDraftWhatsappFilter | undefined =
+      whatsappRaw === 'verified' || whatsappRaw === 'unverified'
+        ? whatsappRaw
+        : undefined;
 
-    const list = await listOpenJobFairDrafts(search, page, limit, { from, to, step });
+    const list = await listOpenJobFairDrafts(search, page, limit, {
+      from,
+      to,
+      step,
+      whatsapp,
+    });
     return NextResponse.json({ ...list, page, limit });
   } catch (err) {
     console.error('Error listing job fair drafts:', err);

@@ -533,11 +533,18 @@ function mapDraftListItem(row: DraftListRow): JobFairDraftListItem {
 }
 
 /** Drafts whose mobile does not already have a submitted registration. */
+export type JobFairDraftWhatsappFilter = 'verified' | 'unverified';
+
 export async function listOpenJobFairDrafts(
   search: string | undefined,
   page: number,
   limit: number,
-  range?: { from?: string; to?: string; step?: number },
+  range?: {
+    from?: string;
+    to?: string;
+    step?: number;
+    whatsapp?: JobFairDraftWhatsappFilter;
+  },
 ): Promise<{ items: JobFairDraftListItem[]; total: number }> {
   const registered = await registeredMobilesForEvent();
   let query = supabase
@@ -562,6 +569,11 @@ export async function listOpenJobFairDrafts(
     range.step <= 4
   ) {
     query = query.eq('step', range.step);
+  }
+  if (range?.whatsapp === 'verified') {
+    query = query.not('whatsapp_verified_at', 'is', null);
+  } else if (range?.whatsapp === 'unverified') {
+    query = query.is('whatsapp_verified_at', null);
   }
 
   const term = search?.trim();

@@ -89,11 +89,13 @@ export function JobFairDraftList({
   initialFrom = '',
   initialTo = '',
   initialStep = null,
+  initialWhatsapp = null,
 }: {
   reloadKey?: number;
   initialFrom?: string;
   initialTo?: string;
   initialStep?: number | null;
+  initialWhatsapp?: 'verified' | 'unverified' | null;
 }) {
   const [searchDraft, setSearchDraft] = useState('');
   const [search, setSearch] = useState('');
@@ -101,6 +103,11 @@ export function JobFairDraftList({
   const [to, setTo] = useState(initialTo);
   const [step, setStep] = useState<number | null>(
     initialStep !== null && initialStep >= 0 && initialStep <= 4 ? initialStep : null,
+  );
+  const [whatsapp, setWhatsapp] = useState<'verified' | 'unverified' | null>(
+    initialWhatsapp === 'verified' || initialWhatsapp === 'unverified'
+      ? initialWhatsapp
+      : null,
   );
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -127,6 +134,7 @@ export function JobFairDraftList({
     if (from) params.set('from', from);
     if (to) params.set('to', to);
     if (step !== null) params.set('step', String(step));
+    if (whatsapp) params.set('whatsapp', whatsapp);
     fetch(`/api/job-fair/drafts?${params.toString()}`)
       .then(async (res) => {
         if (!res.ok) throw new Error('Failed');
@@ -144,12 +152,14 @@ export function JobFairDraftList({
     return () => {
       cancelled = true;
     };
-  }, [search, from, to, step, page, pageSize, reloadKey]);
+  }, [search, from, to, step, whatsapp, page, pageSize, reloadKey]);
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const hasSearch = Boolean(search || searchDraft || from || to || step !== null);
+  const hasSearch = Boolean(
+    search || searchDraft || from || to || step !== null || whatsapp,
+  );
 
   const detailFields = useMemo(() => {
     if (!selected) return [];
@@ -220,6 +230,27 @@ export function JobFairDraftList({
               </Select>
             </div>
             <div className="min-w-0 space-y-1.5">
+              <div className="text-xs font-medium text-muted-foreground">WhatsApp</div>
+              <Select
+                value={whatsapp ?? 'all'}
+                onValueChange={(value) => {
+                  setWhatsapp(
+                    value === 'verified' || value === 'unverified' ? value : null,
+                  );
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-10 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="verified">WhatsApp verified</SelectItem>
+                  <SelectItem value="unverified">WhatsApp not verified</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="min-w-0 space-y-1.5">
               <div className="text-xs font-medium text-muted-foreground">Created from</div>
               <DmyDateInput
                 value={from}
@@ -257,6 +288,7 @@ export function JobFairDraftList({
                   setFrom('');
                   setTo('');
                   setStep(null);
+                  setWhatsapp(null);
                   setPage(1);
                 }}
                 className="h-10 w-full sm:w-auto"

@@ -48,8 +48,9 @@ const FALLBACKS: Record<string, string> = {
 
 const CHART_TICK = { fontSize: 12, fill: 'hsl(var(--foreground))' };
 
-const WHATSAPP_VERIFIED_FILL = '#059669';
-const WHATSAPP_NOT_VERIFIED_FILL = '#d97706';
+const WHATSAPP_VERIFIED_FILL = 'hsl(var(--primary))';
+const WHATSAPP_NOT_VERIFIED_FILL =
+  'color-mix(in srgb, hsl(var(--primary)) 40%, white)';
 
 type DraftStepBarKey = 'whatsappVerified' | 'whatsappNotVerified' | 'count';
 
@@ -106,8 +107,12 @@ const DRAFT_STEP_AXIS_KEYS = [
   'jobFair.dashboard.stepReview',
 ] as const;
 
-function jobFairDraftStepHref(step: number): string {
+function jobFairDraftStepHref(
+  step: number,
+  whatsapp?: 'verified' | 'unverified',
+): string {
   const params = new URLSearchParams({ view: 'drafts', step: String(step) });
+  if (whatsapp) params.set('whatsapp', whatsapp);
   return `/modules/job-fair?${params.toString()}`;
 }
 
@@ -150,10 +155,13 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
   const isMobile = useIsMobile();
   const { t: translate } = useTranslations();
 
-  const openDraftStep = (payload: unknown) => {
+  const openDraftStep = (
+    payload: unknown,
+    whatsapp?: 'verified' | 'unverified',
+  ) => {
     const step = Number((payload as { step?: number } | undefined)?.step);
     if (!Number.isInteger(step) || step < 0 || step > 4) return;
-    router.push(jobFairDraftStepHref(step));
+    router.push(jobFairDraftStepHref(step, whatsapp));
   };
 
   const t = (key: string, params?: Record<string, string | number>): string => {
@@ -206,20 +214,24 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
             {t('jobFair.dashboard.draftsByStep')}
           </h4>
           <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5">
-              <span
-                className="size-2.5 shrink-0 rounded-sm"
-                style={{ backgroundColor: WHATSAPP_VERIFIED_FILL }}
-              />
+            <Link
+              href={jobFairDraftStepHref(0, 'verified')}
+              className="inline-flex items-center gap-1.5 text-primary"
+            >
+              <span className="size-2.5 shrink-0 rounded-sm bg-primary" />
               {t('jobFair.dashboard.whatsappVerified')}
-            </span>
-            <span className="inline-flex items-center gap-1.5">
+            </Link>
+            <Link
+              href={jobFairDraftStepHref(0, 'unverified')}
+              className="inline-flex items-center gap-1.5"
+              style={{ color: WHATSAPP_NOT_VERIFIED_FILL }}
+            >
               <span
                 className="size-2.5 shrink-0 rounded-sm"
                 style={{ backgroundColor: WHATSAPP_NOT_VERIFIED_FILL }}
               />
               {t('jobFair.dashboard.whatsappNotVerified')}
-            </span>
+            </Link>
           </div>
         </div>
         <div className={cn('w-full min-w-0', isMobile ? 'h-72' : 'h-56')}>
@@ -316,7 +328,7 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
                 shape={draftStepBarShape('whatsappVerified')}
                 cursor="pointer"
                 onClick={(bar) => {
-                  openDraftStep(bar.payload);
+                  openDraftStep(bar.payload, 'verified');
                 }}
               >
                 <LabelList
@@ -337,13 +349,13 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
                 shape={draftStepBarShape('whatsappNotVerified')}
                 cursor="pointer"
                 onClick={(bar) => {
-                  openDraftStep(bar.payload);
+                  openDraftStep(bar.payload, 'unverified');
                 }}
               >
                 <LabelList
                   dataKey="whatsappNotVerified"
                   position="center"
-                  fill="#ffffff"
+                  fill="hsl(var(--primary))"
                   className="text-xs"
                   formatter={(value) =>
                     Number(value ?? 0) > 0 ? String(value) : ''
