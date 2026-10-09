@@ -1,6 +1,8 @@
 import 'server-only';
 
+import { throwOnSupabaseError } from '@/lib/db/errors';
 import { sql } from './postgres';
+import { supabase } from '@/lib/supabase/server';
 import {
   JOB_FAIR_EVENT,
   JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT,
@@ -459,11 +461,118 @@ export type JobFairStats = {
   today: number;
   checkedIn: number;
   withResume: number;
+  /** Started the form and have not submitted a registration. */
+  openDrafts: number;
   topAreas: Array<{ area: string; count: number }>;
 };
 
+export type JobFairDraftListItem = {
+  id: string;
+  mobile: string;
+  /** Step index to reopen (0–4, where 4 is review). */
+  step: number;
+  fullName: string;
+  whatsapp: string;
+  area: string;
+  areaOther: string;
+  qualification: string;
+  updatedAt: string;
+  values: JobFairFormValues;
+};
+
+type DraftListRow = {
+  id: string;
+  mobile: string;
+  step: number;
+  payload: unknown;
+  updated_at: string;
+};
+
+function ilikeOrClause(column: string, raw: string): string | null {
+  const cleaned = raw.replace(/[%_\\"]/g, '').trim();
+  if (!cleaned) return null;
+  return `${column}.ilike."%${cleaned}%"`;
+}
+
+async function registeredMobilesForEvent(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('JobFairRegistration')
+    .select('mobile')
+    .eq('event_code', JOB_FAIR_EVENT.code);
+  throwOnSupabaseError(error, 'Failed to list job fair registration mobiles');
+  return [
+    ...new Set(
+      (data ?? []).map((row: { mobile: string }) => String(row.mobile)),
+    ),
+  ];
+}
+
+function mapDraftListItem(row: DraftListRow): JobFairDraftListItem {
+  const payload =
+    row.payload && typeof row.payload === 'object'
+      ? (row.payload as { values?: unknown })
+      : {};
+  const values = sanitizeJobFairFormValues(payload.values);
+  return {
+    id: String(row.id),
+    mobile: String(row.mobile),
+    step: Number.isFinite(Number(row.step))
+      ? Math.min(Math.max(0, Math.trunc(Number(row.step))), 4)
+      : 0,
+    fullName: values.fullName,
+    whatsapp: values.whatsapp,
+    area: values.area,
+    areaOther: values.areaOther,
+    qualification: values.qualification,
+    updatedAt: String(row.updated_at ?? ''),
+    values,
+  };
+}
+
+/** Drafts whose mobile does not already have a submitted registration. */
+export async function listOpenJobFairDrafts(
+  search: string | undefined,
+  page: number,
+  limit: number,
+): Promise<{ items: JobFairDraftListItem[]; total: number }> {
+  const registered = await registeredMobilesForEvent();
+  let query = supabase
+    .from('JobFairRegistrationDraft')
+    .select('id, mobile, step, payload, updated_at', { count: 'exact' })
+    .eq('event_code', JOB_FAIR_EVENT.code)
+    .order('updated_at', { ascending: false });
+
+  if (registered.length > 0) {
+    query = query.not('mobile', 'in', `(${registered.join(',')})`);
+  }
+
+  const term = search?.trim();
+  if (term) {
+    const clauses = [
+      ilikeOrClause('mobile', term),
+      ilikeOrClause('payload->values->>fullName', term),
+      ilikeOrClause('payload->values->>whatsapp', term),
+    ].filter((clause): clause is string => Boolean(clause));
+    if (clauses.length > 0) query = query.or(clauses.join(','));
+  }
+
+  const from = (page - 1) * limit;
+  const { data, error, count } = await query.range(from, from + limit - 1);
+  throwOnSupabaseError(error, 'Failed to list job fair drafts');
+
+  return {
+    items: ((data ?? []) as DraftListRow[]).map(mapDraftListItem),
+    total: count ?? 0,
+  };
+}
+
+export async function countOpenJobFairDrafts(): Promise<number> {
+  const { total } = await listOpenJobFairDrafts(undefined, 1, 1);
+  return total;
+}
+
 export async function getJobFairStats(todayYmd: string): Promise<JobFairStats> {
-  const [summary, areas] = await Promise.all([
+  const [summary, areas, openDrafts] = await Promise.all([
     sql`
       SELECT
         count(*)::int AS total,
@@ -483,12 +592,14 @@ export async function getJobFairStats(todayYmd: string): Promise<JobFairStats> {
       ORDER BY count DESC
       LIMIT 3
     `,
+    countOpenJobFairDrafts(),
   ]);
   return {
     total: Number(summary[0]?.total ?? 0),
     today: Number(summary[0]?.today ?? 0),
     checkedIn: Number(summary[0]?.checked_in ?? 0),
     withResume: Number(summary[0]?.with_resume ?? 0),
+    openDrafts,
     topAreas: areas.map((r) => ({ area: String(r.area), count: Number(r.count) })),
   };
 }

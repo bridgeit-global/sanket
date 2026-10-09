@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   CalendarCheck,
+  ClipboardList,
   Copy,
   Download,
   ExternalLink,
@@ -17,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import { JobFairCheckIn } from '@/components/job-fair/job-fair-check-in';
+import { JobFairDraftList } from '@/components/job-fair/job-fair-draft-list';
 import { FilePreviewDialog } from '@/components/file-preview-dialog';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { Button } from '@/components/ui/button';
@@ -47,6 +49,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { TablePagination } from '@/components/table-pagination';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from '@/components/toast';
 import { formatDisplayDateTimeIST } from '@/lib/ist-date';
 import { jobFairStatusLabel } from '@/lib/job-fair/check-in';
@@ -154,23 +157,34 @@ function StatCard({
   label,
   value,
   sub,
+  active,
+  onClick,
 }: {
   icon: typeof Users;
   label: string;
   value: string | number;
   sub?: string;
+  active?: boolean;
+  onClick?: () => void;
 }) {
   return (
-    <Card>
-      <CardContent className="flex items-center gap-3 p-4">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-          <Icon className="size-5" />
-        </span>
-        <div className="min-w-0">
-          <div className="text-xs text-muted-foreground">{label}</div>
-          <div className="truncate text-xl font-semibold">{value}</div>
-          {sub ? <div className="truncate text-xs text-muted-foreground">{sub}</div> : null}
-        </div>
+    <Card className={active ? 'ring-2 ring-primary' : undefined}>
+      <CardContent className="p-0">
+        <button
+          type="button"
+          onClick={onClick}
+          disabled={!onClick}
+          className="flex w-full items-center gap-3 p-4 text-left disabled:cursor-default"
+        >
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Icon className="size-5" />
+          </span>
+          <div className="min-w-0">
+            <div className="text-xs text-muted-foreground">{label}</div>
+            <div className="truncate text-xl font-semibold">{value}</div>
+            {sub ? <div className="truncate text-xs text-muted-foreground">{sub}</div> : null}
+          </div>
+        </button>
       </CardContent>
     </Card>
   );
@@ -194,6 +208,7 @@ export function JobFairModule({
     fileName: string;
   } | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [view, setView] = useState<'registrations' | 'drafts'>('registrations');
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -319,11 +334,24 @@ export function JobFairModule({
         onCheckedIn={() => setReloadKey((key) => key + 1)}
       />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-        <StatCard icon={Users} label="Total registrations" value={stats?.total ?? '—'} />
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+        <StatCard
+          icon={Users}
+          label="Total registrations"
+          value={stats?.total ?? '—'}
+          active={view === 'registrations'}
+          onClick={() => setView('registrations')}
+        />
         <StatCard icon={CalendarCheck} label="Checked in" value={stats?.checkedIn ?? '—'} />
         <StatCard icon={UserCheck} label="Registered today" value={stats?.today ?? '—'} />
         <StatCard icon={FileText} label="With resume" value={stats?.withResume ?? '—'} />
+        <StatCard
+          icon={ClipboardList}
+          label="Incomplete drafts"
+          value={stats?.openDrafts ?? '—'}
+          active={view === 'drafts'}
+          onClick={() => setView('drafts')}
+        />
         <StatCard
           icon={MapPin}
           label="Top area"
@@ -342,6 +370,24 @@ export function JobFairModule({
         />
       </div>
 
+      <Tabs
+        value={view}
+        onValueChange={(next) => setView(next === 'drafts' ? 'drafts' : 'registrations')}
+      >
+        <TabsList className="h-10 w-full sm:w-auto">
+          <TabsTrigger value="registrations" className="flex-1 sm:flex-none">
+            Registrations
+          </TabsTrigger>
+          <TabsTrigger value="drafts" className="flex-1 sm:flex-none">
+            Drafts{stats ? ` (${stats.openDrafts})` : ''}
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {view === 'drafts' ? <JobFairDraftList reloadKey={reloadKey} /> : null}
+
+      {view === 'registrations' ? (
+      <>
       <Card>
         <CardContent className="space-y-3 p-4">
           <div className="relative">
@@ -497,6 +543,8 @@ export function JobFairModule({
           />
         ) : null}
       </Card>
+      </>
+      ) : null}
 
       <Dialog open={Boolean(selected)} onOpenChange={(open) => !open && setSelected(null)}>
         <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] overflow-y-auto sm:max-w-lg">
