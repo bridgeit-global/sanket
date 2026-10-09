@@ -76,6 +76,8 @@ const FALLBACKS: Record<string, string> = {
   'jobFair.dashboard.stepReview': 'Review',
 };
 
+const CHART_TICK = { fontSize: 12, fill: 'hsl(var(--foreground))' };
+
 const DRAFT_STEP_AXIS_KEYS = [
   'jobFair.dashboard.stepPersonal',
   'jobFair.dashboard.stepAddress',
@@ -228,13 +230,23 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
               layout="vertical"
               margin={{ top: 4, right: 28, left: 4, bottom: 0 }}
             >
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-              <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+              <CartesianGrid
+                strokeDasharray="3 3"
+                horizontal={false}
+                stroke="hsl(var(--border))"
+              />
+              <XAxis
+                type="number"
+                allowDecimals={false}
+                tick={CHART_TICK}
+                stroke="hsl(var(--border))"
+              />
               <YAxis
                 type="category"
                 dataKey="label"
                 width={96}
-                tick={{ fontSize: 12 }}
+                tick={CHART_TICK}
+                stroke="hsl(var(--border))"
                 interval={0}
               />
               <Tooltip
@@ -242,10 +254,18 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
                   Number(value ?? 0),
                   t('jobFair.dashboard.draftStepCount'),
                 ]}
+                contentStyle={{
+                  backgroundColor: 'hsl(var(--popover))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: '0.5rem',
+                  color: 'hsl(var(--popover-foreground))',
+                }}
+                labelStyle={{ color: 'hsl(var(--popover-foreground))' }}
+                itemStyle={{ color: 'hsl(var(--popover-foreground))' }}
               />
               <Bar
                 dataKey="count"
-                fill="#d97706"
+                fill="hsl(var(--primary))"
                 radius={[0, 4, 4, 0]}
                 cursor="pointer"
                 onClick={(bar) => {
@@ -255,7 +275,12 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
                   router.push(jobFairDraftStepHref(step));
                 }}
               >
-                <LabelList dataKey="count" position="right" className="fill-foreground text-xs" />
+                <LabelList
+                  dataKey="count"
+                  position="right"
+                  fill="hsl(var(--foreground))"
+                  className="text-xs"
+                />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
