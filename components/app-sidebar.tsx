@@ -125,20 +125,19 @@ export function AppSidebar({ user, modules }: AppSidebarProps) {
       <SidebarContent className="flex flex-col">
         <div className="flex-1 px-2 py-4">
           {user ? (
-            <>
+            isAdmin ? (
+              <AttendanceNavGroup
+                label="Attendance Admin"
+                links={adminAttendanceLinks}
+                pathname={pathname}
+              />
+            ) : (
               <AttendanceNavGroup
                 label="Attendance"
                 links={staffAttendanceLinks}
                 pathname={pathname}
               />
-              {isAdmin ? (
-                <AttendanceNavGroup
-                  label="Admin"
-                  links={adminAttendanceLinks}
-                  pathname={pathname}
-                />
-              ) : null}
-            </>
+            )
           ) : null}
           <SidebarMenu>
             <ModuleNavigation user={user} modules={modules} />
