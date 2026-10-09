@@ -73,17 +73,15 @@ function positiveOrNull(value: number): number | null {
 }
 
 function draftStepBarShape(key: DraftStepBarKey) {
-  return function DraftStepBarShape(
-    props: {
+  return function DraftStepBarShape(props: unknown) {
+    const { payload, height = 0, width = 0, ...rest } = props as {
       x?: number;
       y?: number;
       width?: number;
       height?: number;
       payload?: DraftStepChartRow;
-    } & Record<string, unknown>,
-  ) {
-    const { payload, height = 0, width = 0, ...rest } = props;
-    if (height <= 0 || width <= 0) return null;
+    } & Record<string, unknown>;
+    if (height <= 0 || width <= 0) return <g />;
     const topKey = [...DRAFT_STEP_STACK]
       .reverse()
       .find((stackKey) => Number(payload?.[stackKey] ?? 0) > 0);
