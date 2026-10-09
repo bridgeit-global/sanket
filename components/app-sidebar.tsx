@@ -2,14 +2,7 @@
 
 import type { User } from 'next-auth';
 import { usePathname } from 'next/navigation';
-import {
-  Activity,
-  ClipboardList,
-  QrCode,
-  ScanLine,
-  ShieldCheck,
-  type LucideIcon,
-} from 'lucide-react';
+import { ShieldCheck, type LucideIcon } from 'lucide-react';
 
 import { NotificationBell } from '@/components/notification-bell';
 import { SidebarUserNav } from '@/components/sidebar-user-nav';
@@ -37,23 +30,32 @@ interface AppSidebarProps {
 
 const appVersion = process.env.NEXT_PUBLIC_APP_VERSION || '0.0.0';
 
-const staffAttendanceLinks: Array<{
+type AttendanceNavLink = {
   href: string;
   label: string;
   icon: LucideIcon;
-}> = [
-  { href: '/dashboard', label: 'Attendance', icon: ShieldCheck },
-  { href: '/scan', label: 'Scan Attendance', icon: ScanLine },
+  isActive?: (pathname: string) => boolean;
+};
+
+const staffAttendanceLinks: AttendanceNavLink[] = [
+  {
+    href: '/dashboard',
+    label: 'Attendance',
+    icon: ShieldCheck,
+    isActive: (path) => path === '/dashboard' || path === '/scan' || path.startsWith('/scan/'),
+  },
 ];
 
-const adminAttendanceLinks: Array<{
-  href: string;
-  label: string;
-  icon: LucideIcon;
-}> = [
-  { href: '/admin/live-ops', label: 'Live Operations', icon: Activity },
-  { href: '/admin/qr-generator', label: 'QR Generator', icon: QrCode },
-  { href: '/admin/audit-logs', label: 'Audit Logs', icon: ClipboardList },
+const adminAttendanceLinks: AttendanceNavLink[] = [
+  {
+    href: '/admin/live-ops',
+    label: 'Attendance',
+    icon: ShieldCheck,
+    isActive: (path) =>
+      path.startsWith('/admin/live-ops') ||
+      path.startsWith('/admin/qr-generator') ||
+      path.startsWith('/admin/audit-logs'),
+  },
 ];
 
 function AttendanceNavGroup({
@@ -62,15 +64,15 @@ function AttendanceNavGroup({
   pathname,
 }: {
   label: string;
-  links: Array<{ href: string; label: string; icon: LucideIcon }>;
+  links: AttendanceNavLink[];
   pathname: string;
 }) {
   return (
     <div className="mb-4 border-b pb-4">
       <p className="px-3 pb-2 text-xs font-medium text-sidebar-foreground/70">{label}</p>
       <SidebarMenu>
-        {links.map(({ href, label: linkLabel, icon: Icon }) => {
-          const isActive = pathname === href;
+        {links.map(({ href, label: linkLabel, icon: Icon, isActive: matchActive }) => {
+          const isActive = matchActive ? matchActive(pathname) : pathname === href;
           return (
             <SidebarMenuItem key={href}>
               <SidebarLink
