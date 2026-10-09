@@ -151,27 +151,26 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
                 label: t(DRAFT_STEP_AXIS_KEYS[row.step] ?? DRAFT_STEP_AXIS_KEYS[0]),
                 count: row.bucket.count,
               }))}
-              layout="vertical"
-              margin={{ top: 4, right: 28, left: 4, bottom: 0 }}
+              margin={{ top: 16, right: 8, left: 0, bottom: 0 }}
             >
               <CartesianGrid
                 strokeDasharray="3 3"
-                horizontal={false}
+                vertical={false}
                 stroke="hsl(var(--border))"
               />
               <XAxis
-                type="number"
-                allowDecimals={false}
-                tick={CHART_TICK}
-                stroke="hsl(var(--border))"
-              />
-              <YAxis
                 type="category"
                 dataKey="label"
-                width={96}
                 tick={CHART_TICK}
                 stroke="hsl(var(--border))"
                 interval={0}
+              />
+              <YAxis
+                type="number"
+                allowDecimals={false}
+                width={32}
+                tick={CHART_TICK}
+                stroke="hsl(var(--border))"
               />
               <Tooltip
                 formatter={(value) => [
@@ -190,7 +189,7 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
               <Bar
                 dataKey="count"
                 fill="hsl(var(--primary))"
-                radius={[0, 4, 4, 0]}
+                radius={[4, 4, 0, 0]}
                 cursor="pointer"
                 onClick={(bar) => {
                   const payload = bar.payload as { step?: number } | undefined;
@@ -201,7 +200,7 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
               >
                 <LabelList
                   dataKey="count"
-                  position="right"
+                  position="top"
                   fill="hsl(var(--foreground))"
                   className="text-xs"
                 />
