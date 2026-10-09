@@ -15,8 +15,6 @@ import {
 } from '@/lib/ist-date';
 import { TABLES } from './schema';
 import { getPhoneUpdateStats, getBeneficiaryServiceStats, getDashboardCounts, getSirActivityStats } from './queries';
-import { getGovFollowUpSummary } from './gov-follow-up';
-import type { GovFollowUpSummary } from '@/lib/gov-follow-up/types';
 import type { SirActivityStats } from './sir-queries';
 import {
   getJobFairActivityStats,
@@ -85,7 +83,6 @@ export interface DashboardData {
   };
   sirActivity: SirActivityStats;
   jobFairActivity: JobFairActivityStats;
-  govFollowUp: GovFollowUpSummary;
   upcoming: Array<{
     id: string;
     date: string;
@@ -573,7 +570,6 @@ export async function getDashboardData(): Promise<DashboardData> {
     sirActivity,
     jobFairActivity,
     upcomingBirthdays,
-    govFollowUp,
   ] = await Promise.all([
     getDashboardCounts(todayStr),
     getPhoneUpdateStats(),
@@ -581,21 +577,6 @@ export async function getDashboardData(): Promise<DashboardData> {
     getSirActivityStats(),
     getJobFairActivityStats(),
     getUpcomingCadreBirthdays(),
-    getGovFollowUpSummary().catch(() => ({
-      dueToday: 0,
-      upcoming: 0,
-      overdue: 0,
-      visits: 0,
-      closed: 0,
-      stale7: 0,
-      mantralaya: 0,
-      bmc: 0,
-      sra: 0,
-      minister: 0,
-      deptReply: 0,
-      sanctions: 0,
-      recentlyClosed: 0,
-    })),
   ]);
 
   return {
@@ -629,7 +610,6 @@ export async function getDashboardData(): Promise<DashboardData> {
     },
     sirActivity,
     jobFairActivity,
-    govFollowUp,
     upcoming: dashboardCounts.programmeItems.slice(0, 3).map((item) => ({
       id: item.id,
       date: item.date,
