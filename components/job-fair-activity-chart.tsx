@@ -34,6 +34,7 @@ const FALLBACKS: Record<string, string> = {
   'jobFair.dashboard.draftsToday': 'Drafts today',
   'jobFair.dashboard.noActivity': 'No job fair activity yet',
   'jobFair.dashboard.draftsByStep': 'Drafts by step',
+  'jobFair.dashboard.stepAxis': 'Step {step} : {label}',
   'jobFair.dashboard.draftStepCount': 'Drafts',
   'jobFair.dashboard.whatsappVerified': 'WhatsApp verified',
   'jobFair.dashboard.whatsappNotVerified': 'WhatsApp not verified',
@@ -95,6 +96,46 @@ function draftStepBarShape(key: DraftStepBarKey) {
       />
     );
   };
+}
+
+function DraftStepAxisTick({
+  x = 0,
+  y = 0,
+  payload,
+  compact = false,
+}: {
+  x?: number;
+  y?: number;
+  payload?: { value?: string };
+  compact?: boolean;
+}) {
+  const value = String(payload?.value ?? '');
+  const separator = ' : ';
+  const splitAt = value.indexOf(separator);
+  const stepText = splitAt >= 0 ? value.slice(0, splitAt) : value;
+  const nameText = splitAt >= 0 ? value.slice(splitAt + separator.length) : '';
+  const nameLines = compact
+    ? nameText.split(/\s+/).filter(Boolean)
+    : nameText
+      ? [nameText]
+      : [];
+  const fontSize = compact ? 10 : 12;
+  const lineHeight = compact ? 12 : 14;
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text textAnchor="middle" fill="hsl(var(--foreground))" fontSize={fontSize}>
+        <tspan x={0} dy={lineHeight}>
+          {stepText}
+        </tspan>
+        {nameLines.map((line, index) => (
+          <tspan key={`${line}-${index}`} x={0} dy={lineHeight}>
+            {line}
+          </tspan>
+        ))}
+      </text>
+    </g>
+  );
 }
 
 const DRAFT_STEP_AXIS_KEYS = [
@@ -236,9 +277,13 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={stats.draftsByStep.map((row): DraftStepChartRow => {
-                const label = t(
+                const stepName = t(
                   DRAFT_STEP_AXIS_KEYS[row.step] ?? DRAFT_STEP_AXIS_KEYS[0],
                 );
+                const label = t('jobFair.dashboard.stepAxis', {
+                  step: row.step + 1,
+                  label: stepName,
+                });
                 if (row.step === 0) {
                   return {
                     step: row.step,
@@ -268,13 +313,11 @@ export function JobFairActivityChart({ stats }: JobFairActivityChartProps) {
               <XAxis
                 type="category"
                 dataKey="label"
-                tick={CHART_TICK}
+                tick={<DraftStepAxisTick compact={isMobile} />}
                 stroke="hsl(var(--border))"
                 interval={0}
-                angle={isMobile ? -40 : 0}
-                textAnchor={isMobile ? 'end' : 'middle'}
-                height={isMobile ? 72 : 30}
-                tickMargin={isMobile ? 6 : 8}
+                height={isMobile ? 64 : 48}
+                tickMargin={4}
               />
               <YAxis
                 type="number"

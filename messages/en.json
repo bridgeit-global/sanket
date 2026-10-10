@@ -319,6 +319,7 @@
       "registrationCount": "{count, plural, one {# registration} other {# registrations}}",
       "draftCount": "{count, plural, one {# draft} other {# drafts}}",
       "draftsByStep": "Drafts by step",
+      "stepAxis": "Step {step} : {label}",
       "draftStepCount": "Drafts",
       "whatsappVerified": "WhatsApp verified",
       "whatsappNotVerified": "WhatsApp not verified",

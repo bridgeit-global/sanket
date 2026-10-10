@@ -65,6 +65,10 @@ function stepLabel(step: number): string {
   return DRAFT_STEP_LABELS[step] ?? DRAFT_STEP_LABELS[0];
 }
 
+function stepOptionLabel(step: number): string {
+  return `Step ${step + 1} : ${stepLabel(step)}`;
+}
+
 function areaText(area: string, areaOther: string): string {
   if (!area) return '';
   return area === AREA_OTHER
@@ -223,7 +227,7 @@ export function JobFairDraftList({
                   <SelectItem value="all">All steps</SelectItem>
                   {DRAFT_STEP_LABELS.map((label, index) => (
                     <SelectItem key={label} value={String(index)}>
-                      {label}
+                      {stepOptionLabel(index)}
                     </SelectItem>
                   ))}
                 </SelectContent>

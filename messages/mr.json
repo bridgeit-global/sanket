@@ -319,6 +319,7 @@
       "registrationCount": "{count, plural, one {# नोंदणी} other {# नोंदण्या}}",
       "draftCount": "{count, plural, one {# मसुदा} other {# मसुदे}}",
       "draftsByStep": "टप्प्यानुसार मसुदे",
+      "stepAxis": "टप्पा {step} : {label}",
       "draftStepCount": "मसुदे",
       "whatsappVerified": "WhatsApp सत्यापित",
       "whatsappNotVerified": "WhatsApp सत्यापित नाही",
