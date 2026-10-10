@@ -6,5 +6,6 @@ export default async function AttendanceDashboardPage() {
   const current = await requireAttendanceUser();
   if (!current) redirect('/login');
   const data = await getAttendanceDashboard(current.profile.id);
-  return <AttendanceDashboard initialData={{ ...data, profile: data.profile || current.profile }} />;
+  const isAdmin = current.profile.role === 'admin' || current.session.user.roleName === 'admin';
+  return <AttendanceDashboard initialData={{ ...data, profile: data.profile || current.profile, isAdmin }} />;
 }

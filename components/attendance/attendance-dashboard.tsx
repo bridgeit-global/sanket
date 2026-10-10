@@ -6,9 +6,15 @@ import { CalendarDays, Clock3, MapPin, Plus, RefreshCw, Settings } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TablePagination, usePagination } from '@/components/table-pagination';
-import { formatDisplayDateIST, formatDisplayTimeIST, formatYmd, getCalendarYmd, getTodayDateStringIST, parseInstant } from '@/lib/ist-date';
+import { formatDisplayDateIST, formatDisplayDateTimeIST, formatDisplayTimeIST, formatYmd, getCalendarYmd, getTodayDateStringIST, parseInstant } from '@/lib/ist-date';
 import { AttendanceShell, SectionTitle } from './attendance-shell';
-import type { AttendanceLog } from '@/lib/attendance/types';
+import type { AttendanceLog, LeaveRequest, LeaveStatus } from '@/lib/attendance/types';
+
+function leaveStatusClass(status: LeaveStatus) {
+  if (status === 'approved') return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
+  if (status === 'rejected') return 'bg-red-500/10 text-red-700 dark:text-red-300';
+  return 'bg-amber-500/10 text-amber-700 dark:text-amber-300';
+}
 
 function shiftIstDay(offset: number) {
   const today = getCalendarYmd();
@@ -46,7 +52,12 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
 
   const today = getTodayDateStringIST(new Date(now));
   const logs = (data.logs ?? []) as AttendanceLog[];
-  const todayLog = useMemo(() => logs.find((log) => log.date === today), [logs, today]);
+  const todayLogs = useMemo(() => logs.filter((log) => log.date === today), [logs, today]);
+  const todayLog = todayLogs[0];
+  const officeLog = todayLogs.find((log) => log.site_id);
+  const locationLog = todayLogs.find((log) => !log.site_id);
+  const officeOpen = Boolean(officeLog?.clock_in && !officeLog.clock_out);
+  const locationOpen = Boolean(locationLog?.clock_in && !locationLog.clock_out);
   const elapsed = todayLog?.clock_in ? Math.max(0, now - parseInstant(todayLog.clock_in).getTime()) : 0;
   const hours = Math.floor(elapsed / 3_600_000);
   const minutes = Math.floor((elapsed % 3_600_000) / 60_000);
@@ -55,6 +66,8 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
     return { key, day: Number(key.slice(-2)), log: logs.find((item) => item.date === key) };
   }), [logs, today]);
   const history = usePagination(logs, 10);
+  const leaveRequests = (data.leaves ?? []) as LeaveRequest[];
+  const leaveHistory = usePagination(leaveRequests, 10);
 
   const refresh = async () => {
     const response = await fetch('/api/attendance/dashboard');
@@ -74,6 +87,7 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
     setLeaveOpen(false);
     setLeaveMessage('Leave request submitted.');
     setLeave({ start_date: '', end_date: '', reason: '' });
+    await refresh();
   };
 
   return (
@@ -106,12 +120,20 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
           <Card>
             <CardHeader className="pb-2"><CardTitle className="text-sm text-muted-foreground">Quick action</CardTitle></CardHeader>
             <CardContent>
-              <Link href={todayLog?.clock_in && !todayLog.clock_out ? '/scan?mode=clock_out' : '/scan'} className="block">
-                <Button className="min-h-12 w-full">
-                  <MapPin className="mr-2 size-4" />
-                  {todayLog?.clock_in && !todayLog.clock_out ? 'Clock out' : 'Scan to clock in'}
-                </Button>
-              </Link>
+              <div className="flex flex-col gap-3">
+                <Link href={officeOpen ? '/scan?mode=clock_out' : '/scan'} className="block">
+                  <Button className="min-h-12 w-full">
+                    <MapPin className="mr-2 size-4" />
+                    {officeOpen ? 'Clock out at office' : 'Scan office QR'}
+                  </Button>
+                </Link>
+                <Link href={locationOpen ? '/scan?method=field&mode=clock_out' : '/scan?method=field'} className="block">
+                  <Button variant="outline" className="min-h-12 w-full">
+                    <MapPin className="mr-2 size-4" />
+                    {locationOpen ? 'Check out by location' : 'Check in by location'}
+                  </Button>
+                </Link>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -131,7 +153,7 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs text-muted-foreground">Location</p>
-                  <p className="break-words font-medium">{todayLog.site?.name || 'Verified site'}</p>
+                  <p className="break-words font-medium">{todayLog.site?.name || 'Field location'}</p>
                 </div>
               </div>
             ) : <p className="text-sm text-muted-foreground">No attendance recorded today.</p>}
@@ -164,7 +186,7 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
                 <div key={log.id} className="flex flex-col gap-1 border-b pb-3 last:border-0 sm:flex-row sm:items-center sm:justify-between">
                   <div className="min-w-0">
                     <p className="font-medium">{formatDisplayDateIST(log.date)}</p>
-                    <p className="break-words text-xs text-muted-foreground">{log.site?.name || 'Site'} · {log.status.replace('_', ' ')}</p>
+                    <p className="break-words text-xs text-muted-foreground">{log.site?.name || 'Field location'} · {log.status.replace('_', ' ')}</p>
                   </div>
                   <p className="text-sm text-muted-foreground">{log.clock_in ? formatDisplayTimeIST(log.clock_in) : '—'}</p>
                 </div>
@@ -196,7 +218,7 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
                   </label>
                   <label className="block text-sm">
                     <span className="mb-1 block text-muted-foreground">End date</span>
-                    <input required type="date" value={leave.end_date} onChange={(event) => setLeave({ ...leave, end_date: event.target.value })} className="min-h-12 w-full rounded-lg border bg-background px-3 text-base" />
+                    <input required type="date" min={leave.start_date || undefined} value={leave.end_date} onChange={(event) => setLeave({ ...leave, end_date: event.target.value })} className="min-h-12 w-full rounded-lg border bg-background px-3 text-base" />
                   </label>
                 </div>
                 <textarea required value={leave.reason} onChange={(event) => setLeave({ ...leave, reason: event.target.value })} placeholder="Reason for leave" className="min-h-24 w-full rounded-lg border bg-background p-3 text-base" />
@@ -212,6 +234,34 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
                 {leaveMessage ? <p className="mt-3 text-sm text-muted-foreground">{leaveMessage}</p> : null}
               </>
             )}
+            <div className="mt-4 space-y-3">
+              {leaveHistory.paginatedItems.map((request) => (
+                <div key={request.id} className="flex flex-col gap-1 border-t pt-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <p className="font-medium">{formatDisplayDateIST(request.start_date)} – {formatDisplayDateIST(request.end_date)}</p>
+                    <p className="break-words text-sm text-muted-foreground">{request.reason}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {request.created_at ? `Submitted ${formatDisplayDateTimeIST(request.created_at)}` : ''}
+                      {request.reviewed_at ? ` · Reviewed ${formatDisplayDateTimeIST(request.reviewed_at)}` : ''}
+                    </p>
+                  </div>
+                  <span className={`w-fit shrink-0 rounded-full px-2 py-1 text-xs capitalize ${leaveStatusClass(request.status)}`}>
+                    {request.status}
+                  </span>
+                </div>
+              ))}
+              {leaveRequests.length === 0 ? <p className="text-sm text-muted-foreground">No leave requests yet.</p> : null}
+            </div>
+            {leaveHistory.totalItems > 0 ? (
+              <TablePagination
+                currentPage={leaveHistory.currentPage}
+                totalPages={leaveHistory.totalPages}
+                pageSize={leaveHistory.pageSize}
+                totalItems={leaveHistory.totalItems}
+                onPageChange={leaveHistory.handlePageChange}
+                onPageSizeChange={leaveHistory.handlePageSizeChange}
+              />
+            ) : null}
           </CardContent>
         </Card>
 
@@ -225,13 +275,14 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
           </CardContent>
         </Card>
 
-        {data.profile?.role === 'admin' ? (
+        {data.isAdmin || data.profile?.role === 'admin' ? (
           <Card>
             <CardHeader><SectionTitle icon={MapPin}>Administration</SectionTitle></CardHeader>
             <CardContent className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               <Link href="/admin/qr-generator" className="block w-full sm:w-auto"><Button variant="outline" className="min-h-12 w-full">QR generator</Button></Link>
               <Link href="/admin/live-ops" className="block w-full sm:w-auto"><Button variant="outline" className="min-h-12 w-full">Live operations</Button></Link>
               <Link href="/admin/audit-logs" className="block w-full sm:w-auto"><Button variant="outline" className="min-h-12 w-full">Audit ledger</Button></Link>
+              <Link href="/admin/leave" className="block w-full sm:w-auto"><Button variant="outline" className="min-h-12 w-full">Leave requests</Button></Link>
             </CardContent>
           </Card>
         ) : null}

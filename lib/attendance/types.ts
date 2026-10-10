@@ -32,10 +32,25 @@ export type AttendanceSite = {
   is_active: boolean;
 };
 
+export type LeaveStatus = 'pending' | 'approved' | 'rejected';
+
+export type LeaveRequest = {
+  id: string;
+  user_id: string;
+  start_date: string;
+  end_date: string;
+  reason: string;
+  status: LeaveStatus;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  profile?: Pick<AttendanceProfile, 'full_name' | 'department' | 'work_type'> | null;
+};
+
 export type AttendanceLog = {
   id: string;
   user_id: string;
-  site_id: string;
+  site_id: string | null;
   date: string;
   clock_in: string | null;
   clock_out: string | null;

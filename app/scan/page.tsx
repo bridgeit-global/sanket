@@ -5,9 +5,14 @@ import { AttendanceScanner } from '@/components/attendance/attendance-scanner';
 export default async function AttendanceScanPage({
   searchParams,
 }: {
-  searchParams: Promise<{ mode?: string }>;
+  searchParams: Promise<{ mode?: string; method?: string }>;
 }) {
   if (!(await requireAttendanceUser())) redirect('/login');
-  const { mode } = await searchParams;
-  return <AttendanceScanner initialMode={mode === 'clock_out' ? 'clock_out' : 'clock_in'} />;
+  const { mode, method } = await searchParams;
+  return (
+    <AttendanceScanner
+      initialMode={mode === 'clock_out' ? 'clock_out' : 'clock_in'}
+      initialMethod={method === 'field' ? 'field' : 'qr'}
+    />
+  );
 }

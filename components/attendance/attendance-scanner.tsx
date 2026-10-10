@@ -45,19 +45,30 @@ function releaseCamera(video: HTMLVideoElement | null, controls: ScannerControls
   }
 }
 
-export function AttendanceScanner({ initialMode = 'clock_in' }: { initialMode?: 'clock_in' | 'clock_out' }) {
+export function AttendanceScanner({
+  initialMode = 'clock_in',
+  initialMethod = 'qr',
+}: {
+  initialMode?: 'clock_in' | 'clock_out';
+  initialMethod?: 'qr' | 'field';
+}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [mode, setMode] = useState<'clock_in' | 'clock_out'>(initialMode);
+  const [method, setMethod] = useState<'qr' | 'field'>(initialMethod);
 
   useEffect(() => {
     setMode(initialMode);
   }, [initialMode]);
+
+  useEffect(() => {
+    setMethod(initialMethod);
+  }, [initialMethod]);
   const [token, setToken] = useState('');
   const [location, setLocation] = useState<GeoFix | null>(null);
   const [gpsState, setGpsState] = useState<'locating' | 'ready' | 'denied' | 'unavailable'>('locating');
   const [cameraState, setCameraState] = useState<'starting' | 'live' | 'off' | 'blocked'>('starting');
   const [ip, setIp] = useState<string | null>(null);
-  const [message, setMessage] = useState('Point your camera at the site QR code.');
+  const [message, setMessage] = useState(initialMethod === 'field' ? 'Allow location to mark your field attendance.' : 'Point your camera at the site QR code.');
   const [busy, setBusy] = useState(false);
   const [success, setSuccess] = useState<{ site?: { name?: string }; clock_in?: string; clock_out?: string } | null>(null);
 
@@ -147,7 +158,7 @@ export function AttendanceScanner({ initialMode = 'clock_in' }: { initialMode?: 
     };
 
     const startCamera = () => {
-      if (cancelled || document.hidden || !video) return;
+      if (cancelled || document.hidden || !video || method !== 'qr') return;
       runId += 1;
       const ticket = runId;
       dropCurrent();
@@ -188,7 +199,8 @@ export function AttendanceScanner({ initialMode = 'clock_in' }: { initialMode?: 
       else void startCamera();
     };
 
-    void startCamera();
+    if (method === 'qr') void startCamera();
+    else stopCamera();
     document.addEventListener('visibilitychange', onHidden);
     window.addEventListener('pagehide', stopCamera);
 
@@ -198,10 +210,10 @@ export function AttendanceScanner({ initialMode = 'clock_in' }: { initialMode?: 
       window.removeEventListener('pagehide', stopCamera);
       stopCamera();
     };
-  }, []);
+  }, [method]);
 
   const submit = async () => {
-    if (!token) return setMessage('Scan a QR code first.');
+    if (method === 'qr' && !token) return setMessage('Scan a QR code first.');
     if (!location) return setMessage(gpsState === 'denied' ? 'Allow location to verify attendance.' : 'Waiting for an accurate GPS location.');
     setBusy(true);
     setMessage('Verifying your attendance…');
@@ -209,7 +221,9 @@ export function AttendanceScanner({ initialMode = 'clock_in' }: { initialMode?: 
       const response = await fetch('/api/attendance/punch', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, mode, latitude: location.lat, longitude: location.lng }),
+        body: JSON.stringify(method === 'field'
+          ? { locationOnly: true, mode, latitude: location.lat, longitude: location.lng }
+          : { token, mode, latitude: location.lat, longitude: location.lng }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Attendance could not be recorded.');
@@ -239,8 +253,32 @@ export function AttendanceScanner({ initialMode = 'clock_in' }: { initialMode?: 
       <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
         <div className="min-w-0">
           <p className="text-sm text-muted-foreground">Secure attendance</p>
-          <h1 className="text-2xl font-bold">Scan to {mode === 'clock_in' ? 'clock in' : 'clock out'}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Camera and GPS stay on only while this screen is open.</p>
+          <h1 className="text-2xl font-bold">
+            {method === 'field'
+              ? (mode === 'clock_in' ? 'Check in by location' : 'Check out by location')
+              : `Scan to ${mode === 'clock_in' ? 'clock in' : 'clock out'}`}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {method === 'field'
+              ? 'Use this when you work in the field and do not come to the office. Your current location is saved with the attendance mark.'
+              : 'Camera and GPS stay on only while this screen is open.'}
+          </p>
+        </div>
+        <div className="grid grid-cols-2 rounded-xl bg-muted p-1">
+          {(['qr', 'field'] as const).map((value) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => {
+                setMethod(value);
+                setSuccess(null);
+                setMessage(value === 'field' ? 'Allow location to mark your field attendance.' : 'Point your camera at the site QR code.');
+              }}
+              className={`min-h-12 rounded-lg px-2 text-sm font-medium ${method === value ? 'bg-background shadow' : 'text-muted-foreground'}`}
+            >
+              {value === 'qr' ? 'Office QR' : 'Field location'}
+            </button>
+          ))}
         </div>
         <div className="grid grid-cols-2 rounded-xl bg-muted p-1">
           {(['clock_in', 'clock_out'] as const).map((value) => (
@@ -254,6 +292,18 @@ export function AttendanceScanner({ initialMode = 'clock_in' }: { initialMode?: 
             </button>
           ))}
         </div>
+        {method === 'field' ? (
+          <Card>
+            <CardContent className="flex items-start gap-3 p-4">
+              <LocateFixed className="mt-0.5 size-5 shrink-0 text-primary" />
+              <div className="min-w-0">
+                <p className="font-medium">Current location</p>
+                <p className="text-sm text-muted-foreground">{gpsLabel}. No site or QR code is required.</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : null}
+        {method === 'qr' ? (
         <Card className="overflow-hidden">
           <CardContent className="p-0">
             <div className="relative h-[min(58dvh,28rem)] w-full overflow-hidden bg-black sm:aspect-square sm:h-auto">
@@ -268,7 +318,10 @@ export function AttendanceScanner({ initialMode = 'clock_in' }: { initialMode?: 
             </div>
           </CardContent>
         </Card>
+        ) : null}
         <div className="space-y-3">
+          {method === 'qr' ? (
+          <>
           <label className="block text-sm font-medium" htmlFor="attendance-token">QR token fallback</label>
           <input
             id="attendance-token"
@@ -279,8 +332,17 @@ export function AttendanceScanner({ initialMode = 'clock_in' }: { initialMode?: 
             autoCapitalize="characters"
             className="min-h-12 w-full rounded-lg border bg-background px-3 font-mono text-base uppercase tracking-[0.3em]"
           />
+          </>
+          ) : (
+            <p className="flex items-center gap-2 text-sm text-muted-foreground">
+              <LocateFixed className="size-4 shrink-0" />
+              {gpsLabel}
+            </p>
+          )}
           <Button onClick={submit} disabled={busy} className="min-h-12 w-full">
-            {busy ? 'Verifying…' : <><Camera className="mr-2 size-4" />Verify attendance</>}
+            {busy ? 'Verifying…' : method === 'field'
+              ? (mode === 'clock_in' ? 'Check in' : 'Check out')
+              : <><Camera className="mr-2 size-4" />Verify attendance</>}
           </Button>
           <p className="text-center text-sm text-muted-foreground">{message}</p>
           {gpsState === 'denied' ? (
@@ -294,7 +356,7 @@ export function AttendanceScanner({ initialMode = 'clock_in' }: { initialMode?: 
               <div className="min-w-0">
                 <p className="font-semibold">Attendance confirmed</p>
                 <p className="break-words text-sm text-muted-foreground">
-                  {success.site?.name || 'Verified site'}
+                  {method === 'field' ? 'Field location' : (success.site?.name || 'Verified site')}
                   {confirmedAt ? ` · ${formatDisplayDateTimeIST(confirmedAt)}` : ''}
                 </p>
               </div>

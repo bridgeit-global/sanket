@@ -47,7 +47,7 @@ export function AttendanceLiveOps({ initialData }: { initialData: any }) {
                   <div className="min-w-0">
                     <p className="break-words font-medium">{log.profile?.full_name || 'Employee'}</p>
                     <p className="break-words text-xs text-muted-foreground">
-                      {log.site?.name || 'Site'} · {log.status.replace('_', ' ')}
+                      {log.site?.name || 'Field location'} · {log.status.replace('_', ' ')}
                       {log.clock_in ? ` · ${formatDisplayTimeIST(log.clock_in)}` : ''}
                     </p>
                   </div>

@@ -5,7 +5,7 @@ import { throwOnSupabaseError } from '@/lib/db/errors';
 import { supabase } from '@/lib/supabase/server';
 import { getTodayDateStringIST } from '@/lib/ist-date';
 import { normalizeAttendanceQrToken } from './qr-token';
-import type { AttendanceLog, AttendanceProfile, AttendanceSite, AttendancePunchMode } from './types';
+import type { AttendanceLog, AttendanceProfile, AttendanceSite, AttendancePunchMode, LeaveRequest, LeaveStatus } from './types';
 
 const db = supabase as any;
 
@@ -62,13 +62,27 @@ export async function requireAttendanceAdmin() {
 }
 
 export async function getAttendanceDashboard(userId: string) {
-  const [{ data: profile }, { data: logs }, { data: sites }, { data: leaves }] = await Promise.all([
+  const [
+    { data: profile, error: profileError },
+    { data: logs, error: logsError },
+    { data: sites, error: sitesError },
+    { data: leaves, error: leavesError },
+  ] = await Promise.all([
     db.from('Profile').select('*').eq('id', userId).maybeSingle(),
     db.from('AttendanceLog').select('*, site:OfficeAndSite(name,type)').eq('user_id', userId).order('date', { ascending: false }).order('created_at', { ascending: false }).limit(60),
     db.from('OfficeAndSite').select('*').eq('is_active', true).order('name'),
-    db.from('LeaveRequest').select('*').eq('user_id', userId).order('start_date', { ascending: false }).limit(20),
+    db.from('LeaveRequest').select('*').eq('user_id', userId).order('created_at', { ascending: false }).limit(50),
   ]);
-  return { profile, logs: (logs ?? []) as AttendanceLog[], sites: (sites ?? []) as AttendanceSite[], leaves: leaves ?? [] };
+  throwOnSupabaseError(profileError, 'Failed to load attendance profile');
+  throwOnSupabaseError(logsError, 'Failed to load attendance history');
+  throwOnSupabaseError(sitesError, 'Failed to load attendance sites');
+  throwOnSupabaseError(leavesError, 'Failed to load leave requests');
+  return {
+    profile,
+    logs: (logs ?? []) as AttendanceLog[],
+    sites: (sites ?? []) as AttendanceSite[],
+    leaves: (leaves ?? []) as LeaveRequest[],
+  };
 }
 
 function profileSummary(profile: AttendanceProfile | undefined) {
@@ -105,29 +119,102 @@ export async function getAttendanceAdminData() {
       profile: profileSummary(profileById.get(log.user_id)),
     })),
     sites: sites ?? [],
-    leaves: (leaves ?? []).map((leave: { user_id: string }) => ({
+    leaves: ((leaves ?? []) as LeaveRequest[]).map((leave) => ({
       ...leave,
       profile: profileSummary(profileById.get(leave.user_id)),
     })),
   };
 }
 
+export async function reviewLeaveRequest({
+  id,
+  status,
+  reviewerId,
+}: {
+  id: string;
+  status: Extract<LeaveStatus, 'approved' | 'rejected'>;
+  reviewerId: string;
+}) {
+  const { data, error } = await db
+    .from('LeaveRequest')
+    .update({
+      status,
+      reviewed_by: reviewerId,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('status', 'pending')
+    .select('*')
+    .maybeSingle();
+  throwOnSupabaseError(error, 'Failed to review leave request');
+  if (!data) throw new Error('This leave request is no longer pending.');
+  return data as LeaveRequest;
+}
+
 export async function createPunch({
   userId,
   token,
+  locationOnly,
   mode,
   latitude,
   longitude,
   ip,
 }: {
   userId: string;
-  token: string;
+  token?: string;
+  locationOnly?: boolean;
   mode: AttendancePunchMode;
   latitude: number;
   longitude: number;
   ip: string | null;
 }) {
-  const qrToken = normalizeAttendanceQrToken(token);
+  const today = getTodayDateStringIST();
+
+  if (locationOnly) {
+    const { data: existing } = await db
+      .from('AttendanceLog')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('date', today)
+      .is('site_id', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (mode === 'clock_in' && existing?.clock_in) throw new Error('You are already checked in for today.');
+    if (mode === 'clock_out' && (!existing || !existing.clock_in)) throw new Error('Check in before checking out.');
+    if (mode === 'clock_out' && existing?.clock_out) throw new Error('You are already checked out for today.');
+
+    const patch = mode === 'clock_in'
+      ? {
+          user_id: userId,
+          site_id: null,
+          date: today,
+          clock_in: new Date().toISOString(),
+          user_ip: ip,
+          user_lat: latitude,
+          user_lng: longitude,
+          distance_meters: null,
+          is_ip_valid: true,
+          is_geofence_valid: false,
+          status: 'on_time',
+          notes: 'Field location',
+        }
+      : {
+          clock_out: new Date().toISOString(),
+          user_ip: ip,
+          user_lat: latitude,
+          user_lng: longitude,
+          notes: 'Field location',
+        };
+    const query = mode === 'clock_in'
+      ? db.from('AttendanceLog').insert(patch).select('*, site:OfficeAndSite(name,type)').single()
+      : db.from('AttendanceLog').update(patch).eq('id', existing.id).select('*, site:OfficeAndSite(name,type)').single();
+    const { data, error } = await query;
+    if (error) throw new Error('Attendance could not be saved. Please try again.');
+    return data as AttendanceLog;
+  }
+
+  const qrToken = normalizeAttendanceQrToken(token || '');
   const { data: site, error: siteError } = await db.from('OfficeAndSite').select('*').eq('qr_code_token', qrToken).eq('is_active', true).maybeSingle();
   if (siteError || !site) throw new Error('This attendance QR code is invalid or inactive.');
 
@@ -139,7 +226,6 @@ export async function createPunch({
     throw new Error(`Office verification failed. Move within ${site.geofence_radius_meters}m of the entrance.`);
   }
 
-  const today = getTodayDateStringIST();
   const { data: existing } = await db.from('AttendanceLog').select('*').eq('user_id', userId).eq('site_id', site.id).eq('date', today).order('created_at', { ascending: false }).limit(1).maybeSingle();
   if (mode === 'clock_in' && existing?.clock_in) throw new Error('You are already clocked in for today.');
   if (mode === 'clock_out' && (!existing || !existing.clock_in)) throw new Error('Clock in before clocking out.');

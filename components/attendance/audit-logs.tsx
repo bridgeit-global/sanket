@@ -32,7 +32,7 @@ export function AttendanceAuditLogs({ initialData }: { initialData: any }) {
     const rows = [['Date', 'Employee', 'Site', 'Status', 'Clock in', 'Clock out', 'Distance']].concat(logs.map((log: any) => [
       log.date,
       log.profile?.full_name || '',
-      log.site?.name || '',
+      log.site?.name || 'Field location',
       log.status,
       log.clock_in || '',
       log.clock_out || '',
@@ -71,7 +71,7 @@ export function AttendanceAuditLogs({ initialData }: { initialData: any }) {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="break-words font-medium">{log.profile?.full_name || '—'}</p>
-                      <p className="break-words text-xs text-muted-foreground">{formatDisplayDateIST(log.date)} · {log.site?.name || '—'}</p>
+                      <p className="break-words text-xs text-muted-foreground">{formatDisplayDateIST(log.date)} · {log.site?.name || 'Field location'}</p>
                     </div>
                     <span className="shrink-0 text-xs capitalize">{String(log.status).replaceAll('_', ' ')}</span>
                   </div>
@@ -101,7 +101,7 @@ export function AttendanceAuditLogs({ initialData }: { initialData: any }) {
                     <tr key={log.id} className="border-b">
                       <td className="p-3">{formatDisplayDateIST(log.date)}</td>
                       <td className="p-3">{log.profile?.full_name || '—'}</td>
-                      <td className="p-3">{log.site?.name || '—'}</td>
+                      <td className="p-3">{log.site?.name || 'Field location'}</td>
                       <td className="p-3">{log.status}</td>
                       <td className="p-3">{log.clock_in ? formatDisplayTimeIST(log.clock_in) : '—'}</td>
                       <td className="p-3">{log.clock_out ? formatDisplayTimeIST(log.clock_out) : '—'}</td>
