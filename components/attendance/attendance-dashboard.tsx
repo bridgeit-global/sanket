@@ -2,29 +2,60 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CalendarDays, Clock3, MapPin, Plus, RefreshCw, Settings } from 'lucide-react';
+import { CalendarDays, ChevronLeft, ChevronRight, Clock3, MapPin, Plus, RefreshCw, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TablePagination, usePagination } from '@/components/table-pagination';
 import { formatDisplayDateIST, formatDisplayDateTimeIST, formatDisplayTimeIST, formatYmd, getCalendarYmd, getTodayDateStringIST, parseInstant } from '@/lib/ist-date';
+import { cn } from '@/lib/utils';
 import { AttendanceShell, SectionTitle } from './attendance-shell';
 import type { AttendanceLog, LeaveRequest, LeaveStatus } from '@/lib/attendance/types';
+
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+function shiftMonth(year: number, month: number, delta: number) {
+  const utc = new Date(Date.UTC(year, month - 1 + delta, 1));
+  return { year: utc.getUTCFullYear(), month: utc.getUTCMonth() + 1 };
+}
+
+function daysInMonth(year: number, month: number) {
+  return new Date(Date.UTC(year, month, 0)).getUTCDate();
+}
+
+function mondayOffset(year: number, month: number) {
+  const sundayIndex = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+  return (sundayIndex + 6) % 7;
+}
+
+function monthLabel(year: number, month: number) {
+  return new Intl.DateTimeFormat('en-IN', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(year, month - 1, 1)));
+}
+
+function leaveCoversDate(request: LeaveRequest, key: string) {
+  return request.start_date <= key && key <= request.end_date;
+}
+
+function leavesOnDate(leaves: LeaveRequest[], key: string) {
+  return leaves.filter((request) => leaveCoversDate(request, key));
+}
+
+function dayTone(dayLogs: AttendanceLog[], onLeave: boolean) {
+  if (dayLogs.some((log) => log.status === 'pending_review')) {
+    return 'bg-amber-500/20 text-amber-800 dark:text-amber-300';
+  }
+  if (dayLogs.length > 0) return 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300';
+  if (onLeave) return 'bg-sky-500/20 text-sky-800 dark:text-sky-300';
+  return 'bg-muted text-muted-foreground';
+}
 
 function leaveStatusClass(status: LeaveStatus) {
   if (status === 'approved') return 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300';
   if (status === 'rejected') return 'bg-red-500/10 text-red-700 dark:text-red-300';
   return 'bg-amber-500/10 text-amber-700 dark:text-amber-300';
-}
-
-function shiftIstDay(offset: number) {
-  const today = getCalendarYmd();
-  const utc = new Date(Date.UTC(today.year, today.month - 1, today.day));
-  utc.setUTCDate(utc.getUTCDate() + offset);
-  return formatYmd({
-    year: utc.getUTCFullYear(),
-    month: utc.getUTCMonth() + 1,
-    day: utc.getUTCDate(),
-  });
 }
 
 export function AttendanceDashboard({ initialData }: { initialData: any }) {
@@ -33,6 +64,11 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
   const [leave, setLeave] = useState({ start_date: '', end_date: '', reason: '' });
   const [leaveMessage, setLeaveMessage] = useState('');
   const [now, setNow] = useState(Date.now());
+  const [visibleMonth, setVisibleMonth] = useState(() => {
+    const todayYmd = getCalendarYmd();
+    return { year: todayYmd.year, month: todayYmd.month };
+  });
+  const [selectedDate, setSelectedDate] = useState(() => getTodayDateStringIST());
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 1000);
@@ -61,12 +97,31 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
   const elapsed = todayLog?.clock_in ? Math.max(0, now - parseInstant(todayLog.clock_in).getTime()) : 0;
   const hours = Math.floor(elapsed / 3_600_000);
   const minutes = Math.floor((elapsed % 3_600_000) / 60_000);
-  const calendarDays = useMemo(() => Array.from({ length: 30 }, (_, index) => {
-    const key = shiftIstDay(index - 29);
-    return { key, day: Number(key.slice(-2)), log: logs.find((item) => item.date === key) };
-  }), [logs, today]);
+  const logsByDate = useMemo(() => {
+    const map = new Map<string, AttendanceLog[]>();
+    for (const log of logs) {
+      const dayLogs = map.get(log.date) ?? [];
+      dayLogs.push(log);
+      map.set(log.date, dayLogs);
+    }
+    return map;
+  }, [logs]);
+  const calendarDays = useMemo(() => {
+    const count = daysInMonth(visibleMonth.year, visibleMonth.month);
+    const leading = mondayOffset(visibleMonth.year, visibleMonth.month);
+    const cells: Array<{ key: string; day: number } | null> = Array.from({ length: leading }, () => null);
+    for (let day = 1; day <= count; day += 1) {
+      cells.push({
+        key: formatYmd({ year: visibleMonth.year, month: visibleMonth.month, day }),
+        day,
+      });
+    }
+    return cells;
+  }, [visibleMonth]);
   const history = usePagination(logs, 10);
   const leaveRequests = (data.leaves ?? []) as LeaveRequest[];
+  const selectedLogs = logsByDate.get(selectedDate) ?? [];
+  const selectedLeave = leavesOnDate(leaveRequests, selectedDate);
   const leaveHistory = usePagination(leaveRequests, 10);
 
   const refresh = async () => {
@@ -161,20 +216,112 @@ export function AttendanceDashboard({ initialData }: { initialData: any }) {
         </Card>
 
         <Card>
-          <CardHeader><SectionTitle icon={CalendarDays}>Last 30 days</SectionTitle></CardHeader>
+          <CardHeader className="space-y-3">
+            <SectionTitle icon={CalendarDays}>Attendance calendar</SectionTitle>
+            <div className="flex items-center justify-between gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="size-10 shrink-0"
+                aria-label="Previous month"
+                onClick={() => setVisibleMonth((current) => shiftMonth(current.year, current.month, -1))}
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <p className="min-w-0 truncate text-center text-sm font-medium">{monthLabel(visibleMonth.year, visibleMonth.month)}</p>
+              <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-10 px-3"
+                  onClick={() => {
+                    const current = getCalendarYmd();
+                    setVisibleMonth({ year: current.year, month: current.month });
+                    setSelectedDate(getTodayDateStringIST());
+                  }}
+                >
+                  Today
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="size-10"
+                  aria-label="Next month"
+                  onClick={() => setVisibleMonth((current) => shiftMonth(current.year, current.month, 1))}
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
           <CardContent>
             <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
-              {calendarDays.map(({ key, day, log }) => (
-                <div
-                  key={key}
-                  title={`${formatDisplayDateIST(key)}: ${log?.status || 'Absent'}`}
-                  className={`flex aspect-square items-center justify-center rounded-md text-[11px] sm:text-xs ${log ? log.status === 'pending_review' ? 'bg-amber-500/20 text-amber-700 dark:text-amber-300' : 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-300' : 'bg-muted text-muted-foreground'}`}
-                >
-                  {day}
+              {WEEKDAYS.map((weekday) => (
+                <div key={weekday} className="pb-1 text-center text-[11px] font-medium text-muted-foreground sm:text-xs">
+                  <span className="sm:hidden">{weekday.slice(0, 1)}</span>
+                  <span className="hidden sm:inline">{weekday}</span>
                 </div>
               ))}
+              {calendarDays.map((cell, index) => {
+                if (!cell) return <div key={`empty-${index}`} aria-hidden className="aspect-square" />;
+                const dayLogs = logsByDate.get(cell.key) ?? [];
+                const onLeave = leavesOnDate(leaveRequests, cell.key).some((request) => request.status === 'approved');
+                const label = dayLogs[0]
+                  ? dayLogs.map((log) => log.status.replaceAll('_', ' ')).join(', ')
+                  : onLeave
+                    ? 'On leave'
+                    : 'No punch';
+                return (
+                  <button
+                    key={cell.key}
+                    type="button"
+                    title={`${formatDisplayDateIST(cell.key)}: ${label}`}
+                    aria-pressed={selectedDate === cell.key}
+                    aria-label={`${formatDisplayDateIST(cell.key)}, ${label}`}
+                    onClick={() => setSelectedDate(cell.key)}
+                    className={cn(
+                      'flex aspect-square min-h-10 items-center justify-center rounded-md text-[11px] sm:text-xs',
+                      dayTone(dayLogs, onLeave),
+                      cell.key === today && 'font-semibold ring-2 ring-primary',
+                      selectedDate === cell.key && cell.key !== today && 'ring-2 ring-foreground/40',
+                    )}
+                  >
+                    {cell.day}
+                  </button>
+                );
+              })}
             </div>
-            <p className="mt-3 text-xs text-muted-foreground">Green: recorded · Amber: pending review · Grey: no punch</p>
+            <p className="mt-3 text-xs text-muted-foreground">Green: recorded · Amber: pending review · Blue: approved leave · Grey: no punch</p>
+            <div className="mt-4 rounded-lg border p-3">
+              <p className="font-medium">{formatDisplayDateIST(selectedDate)}</p>
+              {selectedLogs.length > 0 ? (
+                <div className="mt-2 space-y-2">
+                  {selectedLogs.map((log) => (
+                    <div key={log.id} className="min-w-0 text-sm">
+                      <p className="break-words">{log.site?.name || 'Field location'} · {log.status.replaceAll('_', ' ')}</p>
+                      <p className="text-muted-foreground">
+                        {log.clock_in ? formatDisplayTimeIST(log.clock_in) : '—'}
+                        {' – '}
+                        {log.clock_out ? formatDisplayTimeIST(log.clock_out) : 'Open'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-muted-foreground">No punch on this day.</p>
+              )}
+              {selectedLeave.length > 0 ? (
+                <div className="mt-2 space-y-1">
+                  {selectedLeave.map((request) => (
+                    <p key={request.id} className="break-words text-sm text-muted-foreground">
+                      Leave {request.status}: {request.reason}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+            </div>
           </CardContent>
         </Card>
 
