@@ -1154,9 +1154,6 @@
       "saveDraft": "Save draft",
       "sendForVerification": "Send for verification",
       "draftSaved": "Draft saved",
-      "autoSaving": "Saving draft…",
-      "autoSaved": "Draft saved",
-      "autoSaveError": "Could not auto-save the draft.",
       "verificationSuccess": "Letter sent for verification",
       "verificationError": "Failed to send the letter for verification.",
       "submitSuccess": "Letter submitted",
@@ -1173,7 +1170,7 @@
         "allTypes": "All letter types",
         "dateRange": "Saved date range"
       },
-      "empty": "No saved letters yet. Edits are saved as a draft automatically.",
+      "empty": "No saved letters yet. Use Save draft to keep a letter.",
       "saveSuccess": "Letter saved",
       "saveError": "Failed to save letter. Please try again.",
       "pdfStorageError": "Letter saved, but uploading the PDF to storage failed.",
