@@ -480,6 +480,7 @@ export type JobFairDraftListItem = {
   areaOther: string;
   qualification: string;
   updatedAt: string;
+  whatsappVerifiedAt: string | null;
   values: JobFairFormValues;
 };
 
@@ -489,6 +490,7 @@ type DraftListRow = {
   step: number;
   payload: unknown;
   updated_at: string;
+  whatsapp_verified_at: string | null;
 };
 
 function ilikeOrClause(column: string, raw: string): string | null {
@@ -528,8 +530,28 @@ function mapDraftListItem(row: DraftListRow): JobFairDraftListItem {
     areaOther: values.areaOther,
     qualification: values.qualification,
     updatedAt: String(row.updated_at ?? ''),
+    whatsappVerifiedAt: row.whatsapp_verified_at
+      ? String(row.whatsapp_verified_at)
+      : null,
     values,
   };
+}
+
+/** Staff override: mark a draft's WhatsApp number as verified. */
+export async function markJobFairDraftWhatsappVerified(
+  id: string,
+): Promise<{ whatsappVerifiedAt: string } | null> {
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('JobFairRegistrationDraft')
+    .update({ whatsapp_verified_at: now })
+    .eq('id', id)
+    .eq('event_code', JOB_FAIR_EVENT.code)
+    .select('whatsapp_verified_at')
+    .maybeSingle();
+  throwOnSupabaseError(error, 'Failed to mark draft WhatsApp verified');
+  if (!data?.whatsapp_verified_at) return null;
+  return { whatsappVerifiedAt: String(data.whatsapp_verified_at) };
 }
 
 /** Drafts whose mobile does not already have a submitted registration. */
@@ -549,7 +571,9 @@ export async function listOpenJobFairDrafts(
   const registered = await registeredMobilesForEvent();
   let query = supabase
     .from('JobFairRegistrationDraft')
-    .select('id, mobile, step, payload, updated_at', { count: 'exact' })
+    .select('id, mobile, step, payload, updated_at, whatsapp_verified_at', {
+      count: 'exact',
+    })
     .eq('event_code', JOB_FAIR_EVENT.code)
     .order('updated_at', { ascending: false });
 

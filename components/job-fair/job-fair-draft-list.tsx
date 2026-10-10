@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Loader2, Search, X } from 'lucide-react';
+import { Check, Loader2, Search, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -88,6 +88,43 @@ function displayName(item: JobFairDraftListItem): string {
   return item.fullName.trim() || 'Name not entered';
 }
 
+function WhatsappVerifyControl({
+  item,
+  pending,
+  onMark,
+  wide = false,
+}: {
+  item: JobFairDraftListItem;
+  pending: boolean;
+  onMark: () => void;
+  wide?: boolean;
+}) {
+  if (item.whatsappVerifiedAt) {
+    return (
+      <Badge variant="secondary" className="h-10 gap-1 px-3">
+        <Check className="size-3.5" />
+        WhatsApp verified
+      </Badge>
+    );
+  }
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      disabled={pending}
+      onClick={(event) => {
+        event.stopPropagation();
+        onMark();
+      }}
+      className={wide ? 'h-10 w-full sm:w-auto' : 'h-10 w-full sm:w-auto'}
+    >
+      {pending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+      Mark verified
+    </Button>
+  );
+}
+
 export function JobFairDraftList({
   reloadKey = 0,
   initialFrom = '',
@@ -118,6 +155,41 @@ export function JobFairDraftList({
   const [data, setData] = useState<ListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<JobFairDraftListItem | null>(null);
+  const [markingId, setMarkingId] = useState<string | null>(null);
+
+  function applyVerified(id: string, whatsappVerifiedAt: string) {
+    setData((prev) => {
+      if (!prev) return prev;
+      const hide = whatsapp === 'unverified';
+      return {
+        items: prev.items
+          .map((item) => (item.id === id ? { ...item, whatsappVerifiedAt } : item))
+          .filter((item) => !(hide && item.id === id)),
+        total: hide ? Math.max(0, prev.total - 1) : prev.total,
+      };
+    });
+    setSelected((prev) =>
+      prev?.id === id ? { ...prev, whatsappVerifiedAt } : prev,
+    );
+  }
+
+  async function markWhatsappVerified(item: JobFairDraftListItem) {
+    if (item.whatsappVerifiedAt || markingId) return;
+    setMarkingId(item.id);
+    try {
+      const res = await fetch(`/api/job-fair/drafts/${item.id}/whatsapp`, {
+        method: 'POST',
+      });
+      if (!res.ok) throw new Error('Failed');
+      const json = (await res.json()) as { whatsappVerifiedAt?: string };
+      applyVerified(item.id, json.whatsappVerifiedAt ?? new Date().toISOString());
+      toast.success('WhatsApp number marked verified');
+    } catch {
+      toast.error('Could not mark WhatsApp verified');
+    } finally {
+      setMarkingId(null);
+    }
+  }
 
   useEffect(() => {
     const handle = setTimeout(() => {
@@ -326,6 +398,7 @@ export function JobFairDraftList({
                     <TableHead>Name</TableHead>
                     <TableHead>Mobile</TableHead>
                     <TableHead>Stopped at</TableHead>
+                    <TableHead>WhatsApp</TableHead>
                     <TableHead>Area</TableHead>
                     <TableHead className="hidden lg:table-cell">Qualification</TableHead>
                     <TableHead className="hidden lg:table-cell">Last saved</TableHead>
@@ -346,6 +419,13 @@ export function JobFairDraftList({
                         <Badge variant="secondary">
                           Step {item.step + 1} · {stepLabel(item.step)}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <WhatsappVerifyControl
+                          item={item}
+                          pending={markingId === item.id}
+                          onMark={() => markWhatsappVerified(item)}
+                        />
                       </TableCell>
                       <TableCell className="max-w-44 truncate">
                         {areaText(item.area, item.areaOther) || '—'}
@@ -388,6 +468,13 @@ export function JobFairDraftList({
                       {item.updatedAt ? formatDisplayDateTimeIST(item.updatedAt) : '—'}
                     </div>
                   </button>
+                  <div className="px-4 pb-4">
+                    <WhatsappVerifyControl
+                      item={item}
+                      pending={markingId === item.id}
+                      onMark={() => markWhatsappVerified(item)}
+                    />
+                  </div>
                 </li>
               ))}
             </ul>
@@ -444,8 +531,14 @@ export function JobFairDraftList({
                   </dd>
                 </div>
               </dl>
-              {/^[6-9]\d{9}$/.test(selected.values.whatsapp || selected.mobile) ? (
-                <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <WhatsappVerifyControl
+                  item={selected}
+                  pending={markingId === selected.id}
+                  onMark={() => markWhatsappVerified(selected)}
+                  wide
+                />
+                {/^[6-9]\d{9}$/.test(selected.values.whatsapp || selected.mobile) ? (
                   <Button variant="outline" asChild className="h-10 w-full sm:w-auto">
                     <a
                       href={`https://wa.me/91${selected.values.whatsapp || selected.mobile}`}
@@ -455,8 +548,8 @@ export function JobFairDraftList({
                       WhatsApp
                     </a>
                   </Button>
-                </div>
-              ) : null}
+                ) : null}
+              </div>
             </>
           ) : null}
         </DialogContent>
