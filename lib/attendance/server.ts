@@ -116,12 +116,12 @@ export async function getAttendanceAdminData() {
     profiles: profiles ?? [],
     logs: ((logs ?? []) as AttendanceLog[]).map((log) => ({
       ...log,
-      profile: profileSummary(profileById.get(log.user_id)),
+      profile: profileSummary(profileById.get(log.user_id) as AttendanceProfile | undefined),
     })),
     sites: sites ?? [],
     leaves: ((leaves ?? []) as LeaveRequest[]).map((leave) => ({
       ...leave,
-      profile: profileSummary(profileById.get(leave.user_id)),
+      profile: profileSummary(profileById.get(leave.user_id) as AttendanceProfile | undefined),
     })),
   };
 }
@@ -186,26 +186,26 @@ export async function createPunch({
 
     const patch = mode === 'clock_in'
       ? {
-          user_id: userId,
-          site_id: null,
-          date: today,
-          clock_in: new Date().toISOString(),
-          user_ip: ip,
-          user_lat: latitude,
-          user_lng: longitude,
-          distance_meters: null,
-          is_ip_valid: true,
-          is_geofence_valid: false,
-          status: 'on_time',
-          notes: 'Field location',
-        }
+        user_id: userId,
+        site_id: null,
+        date: today,
+        clock_in: new Date().toISOString(),
+        user_ip: ip,
+        user_lat: latitude,
+        user_lng: longitude,
+        distance_meters: null,
+        is_ip_valid: true,
+        is_geofence_valid: false,
+        status: 'on_time',
+        notes: 'Field location',
+      }
       : {
-          clock_out: new Date().toISOString(),
-          user_ip: ip,
-          user_lat: latitude,
-          user_lng: longitude,
-          notes: 'Field location',
-        };
+        clock_out: new Date().toISOString(),
+        user_ip: ip,
+        user_lat: latitude,
+        user_lng: longitude,
+        notes: 'Field location',
+      };
     const query = mode === 'clock_in'
       ? db.from('AttendanceLog').insert(patch).select('*, site:OfficeAndSite(name,type)').single()
       : db.from('AttendanceLog').update(patch).eq('id', existing.id).select('*, site:OfficeAndSite(name,type)').single();
