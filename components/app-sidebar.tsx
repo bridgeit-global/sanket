@@ -54,14 +54,9 @@ const adminAttendanceLinks: AttendanceNavLink[] = [
     isActive: (path) =>
       path.startsWith('/admin/live-ops') ||
       path.startsWith('/admin/qr-generator') ||
-      path.startsWith('/admin/audit-logs'),
-  },
-  {
-    href: '/admin/leave',
-    label: 'Leave requests',
-    icon: ShieldCheck,
-    isActive: (path) => path.startsWith('/admin/leave'),
-  },
+      path.startsWith('/admin/audit-logs') ||
+      path.startsWith('/admin/leave'),
+  }
 ];
 
 function AttendanceNavGroup({
