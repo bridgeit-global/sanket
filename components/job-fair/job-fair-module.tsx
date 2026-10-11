@@ -19,6 +19,7 @@ import {
 
 import { JobFairCheckIn } from '@/components/job-fair/job-fair-check-in';
 import { JobFairDraftList } from '@/components/job-fair/job-fair-draft-list';
+import { PhoneCallButton } from '@/components/hierarchy/contact-with-call';
 import { FilePreviewDialog } from '@/components/file-preview-dialog';
 import { ModulePageHeader } from '@/components/module-page-header';
 import { Button } from '@/components/ui/button';
@@ -497,7 +498,15 @@ export function JobFairModule({
                           {jobFairStatusLabel(r.status)}
                         </Badge>
                       </TableCell>
-                      <TableCell>{r.mobile}</TableCell>
+                      <TableCell>
+                        <div
+                          className="flex min-w-0 items-center gap-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="tabular-nums">{r.mobile}</span>
+                          <PhoneCallButton phone={`+91${r.mobile}`} />
+                        </div>
+                      </TableCell>
                       <TableCell className="max-w-44 truncate">{areaText(r)}</TableCell>
                       <TableCell>{optionLabel(QUALIFICATION_OPTIONS, r.qualification)}</TableCell>
                       <TableCell className="hidden lg:table-cell">{optionLabel(EXPERIENCE_OPTIONS, r.experience)}</TableCell>
@@ -534,11 +543,11 @@ export function JobFairModule({
 
             <ul className="divide-y md:hidden">
               {items.map((r) => (
-                <li key={r.id}>
+                <li key={r.id} className="flex items-center gap-2 p-4">
                   <button
                     type="button"
                     onClick={() => setSelected(r)}
-                    className="flex w-full flex-col gap-1 p-4 text-left"
+                    className="flex min-w-0 flex-1 flex-col gap-1 text-left"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="min-w-0 truncate font-medium">{r.fullName}</span>
@@ -557,6 +566,7 @@ export function JobFairModule({
                     </div>
                     <div className="text-xs text-muted-foreground">{formatDisplayDateTimeIST(r.createdAt)}</div>
                   </button>
+                  <PhoneCallButton phone={`+91${r.mobile}`} className="h-10" />
                 </li>
               ))}
             </ul>
@@ -622,6 +632,7 @@ export function JobFairModule({
                 </div>
               </dl>
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <PhoneCallButton phone={`+91${selected.mobile}`} className="h-10 w-full sm:w-auto" />
                 <Button variant="outline" asChild className="h-10 w-full sm:w-auto">
                   <a href={`https://wa.me/91${selected.whatsapp}`} target="_blank" rel="noopener noreferrer">
                     WhatsApp

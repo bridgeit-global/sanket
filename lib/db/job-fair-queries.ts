@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { throwOnSupabaseError } from '@/lib/db/errors';
+import { TABLES } from '@/lib/db/schema';
 import { sql } from './postgres';
 import { supabase } from '@/lib/supabase/server';
 import { parseInstant, startOfDayIST, startOfWeekIST } from '@/lib/ist-date';
@@ -481,7 +482,17 @@ export type JobFairDraftListItem = {
   qualification: string;
   updatedAt: string;
   whatsappVerifiedAt: string | null;
+  logCount: number;
   values: JobFairFormValues;
+};
+
+export type JobFairDraftLog = {
+  id: string;
+  draftId: string;
+  note: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: string;
 };
 
 type DraftListRow = {
@@ -533,7 +544,114 @@ function mapDraftListItem(row: DraftListRow): JobFairDraftListItem {
     whatsappVerifiedAt: row.whatsapp_verified_at
       ? String(row.whatsapp_verified_at)
       : null,
+    logCount: 0,
     values,
+  };
+}
+
+async function logCountsForDrafts(ids: string[]): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (ids.length === 0) return counts;
+  const { data, error } = await supabase
+    .from(TABLES.jobFairRegistrationDraftLog)
+    .select('draft_id')
+    .in('draft_id', ids);
+  throwOnSupabaseError(error, 'Failed to count job fair draft logs');
+  for (const row of data ?? []) {
+    const id = String((row as { draft_id: string }).draft_id);
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return counts;
+}
+
+async function draftExists(id: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('JobFairRegistrationDraft')
+    .select('id')
+    .eq('id', id)
+    .eq('event_code', JOB_FAIR_EVENT.code)
+    .maybeSingle();
+  throwOnSupabaseError(error, 'Failed to load job fair draft');
+  return Boolean(data?.id);
+}
+
+export async function listJobFairDraftLogs(
+  draftId: string,
+): Promise<JobFairDraftLog[] | null> {
+  if (!(await draftExists(draftId))) return null;
+  const { data, error } = await supabase
+    .from(TABLES.jobFairRegistrationDraftLog)
+    .select('id, draft_id, note, created_by, created_at')
+    .eq('draft_id', draftId)
+    .order('created_at', { ascending: false });
+  throwOnSupabaseError(error, 'Failed to list job fair draft logs');
+
+  const rows = (data ?? []) as Array<{
+    id: string;
+    draft_id: string;
+    note: string;
+    created_by: string;
+    created_at: string;
+  }>;
+  const userIds = [...new Set(rows.map((row) => row.created_by))];
+  const nameById = new Map<string, string>();
+  if (userIds.length > 0) {
+    const { data: users, error: usersError } = await supabase
+      .from(TABLES.user)
+      .select('id, user_id')
+      .in('id', userIds);
+    throwOnSupabaseError(usersError, 'Failed to load job fair draft log authors');
+    for (const user of users ?? []) {
+      nameById.set(String(user.id), String(user.user_id));
+    }
+  }
+
+  return rows.map((row) => ({
+    id: String(row.id),
+    draftId: String(row.draft_id),
+    note: String(row.note),
+    createdBy: String(row.created_by),
+    createdByName: nameById.get(String(row.created_by)) || 'Staff',
+    createdAt: String(row.created_at),
+  }));
+}
+
+export async function addJobFairDraftLog(input: {
+  draftId: string;
+  note: string;
+  createdBy: string;
+}): Promise<JobFairDraftLog | null> {
+  const note = input.note.trim();
+  if (!note || note.length > 2000) {
+    throw new Error('Follow-up note must be 1–2000 characters');
+  }
+  if (!(await draftExists(input.draftId))) return null;
+
+  const { data, error } = await supabase
+    .from(TABLES.jobFairRegistrationDraftLog)
+    .insert({
+      draft_id: input.draftId,
+      note,
+      created_by: input.createdBy,
+    })
+    .select('id, draft_id, note, created_by, created_at')
+    .single();
+  throwOnSupabaseError(error, 'Failed to add job fair draft log');
+
+  const { data: user, error: userError } = await supabase
+    .from(TABLES.user)
+    .select('user_id')
+    .eq('id', input.createdBy)
+    .maybeSingle();
+  throwOnSupabaseError(userError, 'Failed to load job fair draft log author');
+
+  return {
+    id: String(data.id),
+    draftId: String(data.draft_id),
+    note: String(data.note),
+    createdBy: String(data.created_by),
+    createdByName: user?.user_id ? String(user.user_id) : 'Staff',
+    createdAt: String(data.created_at),
   };
 }
 
@@ -614,8 +732,13 @@ export async function listOpenJobFairDrafts(
   const { data, error, count } = await query.range(from, from + limit - 1);
   throwOnSupabaseError(error, 'Failed to list job fair drafts');
 
+  const items = ((data ?? []) as DraftListRow[]).map(mapDraftListItem);
+  const counts = await logCountsForDrafts(items.map((item) => item.id));
   return {
-    items: ((data ?? []) as DraftListRow[]).map(mapDraftListItem),
+    items: items.map((item) => ({
+      ...item,
+      logCount: counts.get(item.id) ?? 0,
+    })),
     total: count ?? 0,
   };
 }

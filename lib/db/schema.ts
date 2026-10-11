@@ -75,6 +75,7 @@ export const TABLES = {
   govFollowUpMatter: 'GovFollowUpMatter',
   govFollowUpLog: 'GovFollowUpLog',
   govFollowUpAttachment: 'GovFollowUpAttachment',
+  jobFairRegistrationDraftLog: 'JobFairRegistrationDraftLog',
 } as const;
 
 export type Role = {

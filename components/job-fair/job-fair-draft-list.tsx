@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Loader2, Search, X } from 'lucide-react';
+import { Check, Loader2, ScrollText, Search, X } from 'lucide-react';
 
+import { PhoneCallButton } from '@/components/hierarchy/contact-with-call';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -32,8 +33,12 @@ import {
 import { TablePagination } from '@/components/table-pagination';
 import { toast } from '@/components/toast';
 import { DmyDateInput } from '@/components/ui/dmy-date-input';
+import { Textarea } from '@/components/ui/textarea';
 import { formatDisplayDateTimeIST } from '@/lib/ist-date';
-import type { JobFairDraftListItem } from '@/lib/db/job-fair-queries';
+import type {
+  JobFairDraftListItem,
+  JobFairDraftLog,
+} from '@/lib/db/job-fair-queries';
 import type { JobFairFormValues } from '@/lib/job-fair/schema';
 import {
   AREA_OPTIONS,
@@ -86,6 +91,166 @@ function jobTypesText(values: JobFairFormValues): string[] {
 
 function displayName(item: JobFairDraftListItem): string {
   return item.fullName.trim() || 'Name not entered';
+}
+
+function LogButton({
+  count,
+  onClick,
+  wide = false,
+}: {
+  count: number;
+  onClick: () => void;
+  wide?: boolean;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      onClick={(event) => {
+        event.stopPropagation();
+        onClick();
+      }}
+      className={wide ? 'h-10 w-full sm:w-auto' : 'h-10 w-full sm:w-auto'}
+    >
+      <ScrollText className="size-4" />
+      Log
+      {count > 0 ? (
+        <Badge variant="secondary" className="px-1.5">
+          {count}
+        </Badge>
+      ) : null}
+    </Button>
+  );
+}
+
+function DraftFollowUpDialog({
+  item,
+  onClose,
+  onLogged,
+}: {
+  item: JobFairDraftListItem | null;
+  onClose: () => void;
+  onLogged: (draftId: string) => void;
+}) {
+  const [logs, setLogs] = useState<JobFairDraftLog[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [note, setNote] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!item) {
+      setLogs([]);
+      setNote('');
+      return;
+    }
+    const draftId = item.id;
+    let cancelled = false;
+    setLoading(true);
+    setNote('');
+    fetch(`/api/job-fair/drafts/${draftId}/logs`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error('Failed');
+        return (await res.json()) as { logs: JobFairDraftLog[] };
+      })
+      .then((json) => {
+        if (!cancelled) setLogs(json.logs ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) toast.error('Could not load follow-up notes');
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [item?.id]);
+
+  async function saveNote() {
+    if (!item || saving) return;
+    const trimmed = note.trim();
+    if (!trimmed) {
+      toast.error('Enter a follow-up note');
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/job-fair/drafts/${item.id}/logs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ note: trimmed }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      const json = (await res.json()) as { log: JobFairDraftLog };
+      setLogs((prev) => [json.log, ...prev]);
+      setNote('');
+      onLogged(item.id);
+      toast.success('Follow-up note saved');
+    } catch {
+      toast.error('Could not save follow-up note');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={Boolean(item)} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[90dvh] w-[calc(100%-2rem)] overflow-y-auto sm:max-w-lg">
+        {item ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="break-words">Follow-up log</DialogTitle>
+              <DialogDescription className="break-words">
+                {displayName(item)} · {item.mobile}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Textarea
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                placeholder="Add a follow-up note…"
+                maxLength={2000}
+                rows={3}
+              />
+              <Button
+                type="button"
+                disabled={saving || !note.trim()}
+                onClick={() => void saveNote()}
+                className="h-10 w-full sm:w-auto"
+              >
+                {saving ? <Loader2 className="size-4 animate-spin" /> : null}
+                Save note
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Note history</p>
+              {loading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="size-4 animate-spin" />
+                  Loading notes…
+                </div>
+              ) : logs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No follow-up notes yet.
+                </p>
+              ) : (
+                <ul className="max-h-64 space-y-2 overflow-y-auto">
+                  {logs.map((log) => (
+                    <li key={log.id} className="rounded-md bg-muted/50 p-2 text-sm">
+                      <p className="whitespace-pre-wrap break-words">{log.note}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {formatDisplayDateTimeIST(log.createdAt)} · {log.createdByName}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </>
+        ) : null}
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 function WhatsappVerifyControl({
@@ -155,7 +320,23 @@ export function JobFairDraftList({
   const [data, setData] = useState<ListResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<JobFairDraftListItem | null>(null);
+  const [logDraft, setLogDraft] = useState<JobFairDraftListItem | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
+
+  function bumpLogCount(id: string) {
+    setData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        items: prev.items.map((item) =>
+          item.id === id ? { ...item, logCount: item.logCount + 1 } : item,
+        ),
+      };
+    });
+    setSelected((prev) =>
+      prev?.id === id ? { ...prev, logCount: prev.logCount + 1 } : prev,
+    );
+  }
 
   function applyVerified(id: string, whatsappVerifiedAt: string) {
     setData((prev) => {
@@ -399,6 +580,7 @@ export function JobFairDraftList({
                     <TableHead>Mobile</TableHead>
                     <TableHead>Stopped at</TableHead>
                     <TableHead>WhatsApp</TableHead>
+                    <TableHead>Follow-up</TableHead>
                     <TableHead>Area</TableHead>
                     <TableHead className="hidden lg:table-cell">Qualification</TableHead>
                     <TableHead className="hidden lg:table-cell">Last saved</TableHead>
@@ -414,7 +596,15 @@ export function JobFairDraftList({
                       <TableCell className="max-w-48 truncate font-medium">
                         {displayName(item)}
                       </TableCell>
-                      <TableCell>{item.mobile}</TableCell>
+                      <TableCell>
+                        <div
+                          className="flex min-w-0 items-center gap-2"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="tabular-nums">{item.mobile}</span>
+                          <PhoneCallButton phone={`+91${item.mobile}`} />
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Badge variant="secondary">
                           Step {item.step + 1} · {stepLabel(item.step)}
@@ -425,6 +615,12 @@ export function JobFairDraftList({
                           item={item}
                           pending={markingId === item.id}
                           onMark={() => markWhatsappVerified(item)}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <LogButton
+                          count={item.logCount}
+                          onClick={() => setLogDraft(item)}
                         />
                       </TableCell>
                       <TableCell className="max-w-44 truncate">
@@ -447,32 +643,39 @@ export function JobFairDraftList({
             <ul className="divide-y md:hidden">
               {items.map((item) => (
                 <li key={item.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelected(item)}
-                    className="flex w-full flex-col gap-1 p-4 text-left"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="min-w-0 truncate font-medium">{displayName(item)}</span>
-                      <span className="shrink-0 text-sm text-muted-foreground">{item.mobile}</span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                      <Badge variant="secondary">
-                        Step {item.step + 1} · {stepLabel(item.step)}
-                      </Badge>
-                      {areaText(item.area, item.areaOther) ? (
-                        <Badge variant="outline">{areaText(item.area, item.areaOther)}</Badge>
-                      ) : null}
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {item.updatedAt ? formatDisplayDateTimeIST(item.updatedAt) : '—'}
-                    </div>
-                  </button>
-                  <div className="px-4 pb-4">
+                  <div className="flex items-center gap-2 p-4 pb-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelected(item)}
+                      className="flex min-w-0 flex-1 flex-col gap-1 text-left"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="min-w-0 truncate font-medium">{displayName(item)}</span>
+                        <span className="shrink-0 text-sm text-muted-foreground">{item.mobile}</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                        <Badge variant="secondary">
+                          Step {item.step + 1} · {stepLabel(item.step)}
+                        </Badge>
+                        {areaText(item.area, item.areaOther) ? (
+                          <Badge variant="outline">{areaText(item.area, item.areaOther)}</Badge>
+                        ) : null}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {item.updatedAt ? formatDisplayDateTimeIST(item.updatedAt) : '—'}
+                      </div>
+                    </button>
+                    <PhoneCallButton phone={`+91${item.mobile}`} className="h-10" />
+                  </div>
+                  <div className="flex flex-col gap-2 px-4 pb-4 sm:flex-row">
                     <WhatsappVerifyControl
                       item={item}
                       pending={markingId === item.id}
                       onMark={() => markWhatsappVerified(item)}
+                    />
+                    <LogButton
+                      count={item.logCount}
+                      onClick={() => setLogDraft(item)}
                     />
                   </div>
                 </li>
@@ -532,12 +735,18 @@ export function JobFairDraftList({
                 </div>
               </dl>
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <LogButton
+                  count={selected.logCount}
+                  wide
+                  onClick={() => setLogDraft(selected)}
+                />
                 <WhatsappVerifyControl
                   item={selected}
                   pending={markingId === selected.id}
                   onMark={() => markWhatsappVerified(selected)}
                   wide
                 />
+                <PhoneCallButton phone={`+91${selected.mobile}`} className="h-10 w-full sm:w-auto" />
                 {/^[6-9]\d{9}$/.test(selected.values.whatsapp || selected.mobile) ? (
                   <Button variant="outline" asChild className="h-10 w-full sm:w-auto">
                     <a
@@ -554,6 +763,12 @@ export function JobFairDraftList({
           ) : null}
         </DialogContent>
       </Dialog>
+
+      <DraftFollowUpDialog
+        item={logDraft}
+        onClose={() => setLogDraft(null)}
+        onLogged={bumpLogCount}
+      />
     </div>
   );
 }
