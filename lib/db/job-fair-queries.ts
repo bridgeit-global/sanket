@@ -637,6 +637,9 @@ export async function addJobFairDraftLog(input: {
     .select('id, draft_id, note, created_by, created_at')
     .single();
   throwOnSupabaseError(error, 'Failed to add job fair draft log');
+  if (!data) {
+    throw new Error('Failed to add job fair draft log');
+  }
 
   const { data: user, error: userError } = await supabase
     .from(TABLES.user)
