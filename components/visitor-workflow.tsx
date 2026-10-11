@@ -55,7 +55,6 @@ import {
   UserRoundPlus,
   X,
 } from 'lucide-react';
-import { JobFairCheckIn } from '@/components/job-fair/job-fair-check-in';
 import { QrScannerDialog } from '@/components/qr-scanner-dialog';
 import { AadhaarQrScanButton, AadhaarQrScannerDialog } from '@/components/aadhaar-qr-scanner-dialog';
 import {
@@ -144,6 +143,8 @@ type VisitorVoterDetails = {
   success: boolean;
   hasVoter: boolean;
   voterNotFound?: boolean;
+  wardNo?: string | null;
+  boothNo?: string | null;
   visitor?: VisitorRow;
   voter: VoterMaster | null;
   voterMobileNumbers: Array<{ mobileNumber: string; sortOrder: number }>;
@@ -337,6 +338,9 @@ export function VisitorWorkflow({
     name: string;
     mobileNumber: string;
     token: string;
+    voterId: string | null;
+    wardNo: string | null;
+    boothNo: string | null;
     programmeId: string | null;
     createdAt: string | Date;
     serviceName: string | null;
@@ -1106,15 +1110,29 @@ export function VisitorWorkflow({
     serviceName: string;
     name?: string | null;
     mobile?: string | null;
+    visitorId?: string | null;
+    voterId?: string | null;
+    wardNo?: string | null;
+    boothNo?: string | null;
   }) {
     setSharingToken(params.token);
     try {
+      let wardNo = params.wardNo?.trim() || null;
+      let boothNo = params.boothNo?.trim() || null;
+      if ((!wardNo || !boothNo) && params.visitorId && params.voterId?.trim()) {
+        const details = await loadVisitorVoterDetails(params.visitorId);
+        wardNo = wardNo || details?.wardNo?.trim() || null;
+        boothNo = boothNo || details?.boothNo?.trim() || null;
+      }
+
       const receiptText = buildThermalTicketText({
         token: params.token,
         createdAt: params.createdAt,
         name: params.name?.trim() || 'Visitor',
         mobile: params.mobile,
         serviceName: params.serviceName,
+        wardNo: wardNo || '-',
+        boothNo: boothNo || '-',
         width: 32,
       });
 
@@ -1145,9 +1163,15 @@ export function VisitorWorkflow({
     }
   }
 
-  async function loadVisitorVoterDetails(visitorId: string) {
-    if (voterDetailsByVisitorId[visitorId] || loadingVoterDetailsIds.has(visitorId)) {
-      return;
+  async function loadVisitorVoterDetails(
+    visitorId: string,
+  ): Promise<VisitorVoterDetails | undefined> {
+    const cached = voterDetailsByVisitorId[visitorId];
+    if (cached && ('wardNo' in cached || 'boothNo' in cached)) {
+      return cached;
+    }
+    if (loadingVoterDetailsIds.has(visitorId)) {
+      return cached;
     }
     setLoadingVoterDetailsIds((prev) => {
       const next = new Set(prev);
@@ -1163,29 +1187,34 @@ export function VisitorWorkflow({
         throw new Error(data.error || t('visitor.manage.loadVoterDetailsFailed'));
       }
       setVoterDetailsByVisitorId((prev) => ({ ...prev, [visitorId]: data }));
+      return data;
     } catch (error) {
       console.error(error);
+      const failed: VisitorVoterDetails = {
+        success: false,
+        hasVoter: false,
+        wardNo: null,
+        boothNo: null,
+        voter: null,
+        voterMobileNumbers: [],
+        relatedVoters: [],
+        beneficiaryServices: { individual: [], community: [] },
+        dailyProgrammeEvents: [],
+        relatedVotersData: [],
+        cadreMembers: [],
+        votingHistory: [],
+        letters: [],
+        attachments: [],
+        error:
+          error instanceof Error
+            ? error.message
+            : t('visitor.manage.loadVoterDetailsFailed'),
+      };
       setVoterDetailsByVisitorId((prev) => ({
         ...prev,
-        [visitorId]: {
-          success: false,
-          hasVoter: false,
-          voter: null,
-          voterMobileNumbers: [],
-          relatedVoters: [],
-          beneficiaryServices: { individual: [], community: [] },
-          dailyProgrammeEvents: [],
-          relatedVotersData: [],
-          cadreMembers: [],
-          votingHistory: [],
-          letters: [],
-          attachments: [],
-          error:
-            error instanceof Error
-              ? error.message
-              : t('visitor.manage.loadVoterDetailsFailed'),
-        },
+        [visitorId]: failed,
       }));
+      return failed;
     } finally {
       setLoadingVoterDetailsIds((prev) => {
         const next = new Set(prev);
@@ -1342,6 +1371,10 @@ export function VisitorWorkflow({
         name: visitor.name,
         mobileNumber: visitor.mobileNumber,
         token: visitor.token,
+        voterId: effectiveVoterId,
+        wardNo: selectedVoter?.wardNo?.trim() || null,
+        boothNo:
+          selectedVoter?.boothNo?.trim() || selectedVoter?.partNo?.trim() || null,
         programmeId: visitor.programmeId ?? (programmeId || null),
         createdAt: visitor.createdAt ?? new Date().toISOString(),
         serviceName: visitor.serviceName ?? trimmedServiceName,
@@ -1506,7 +1539,6 @@ export function VisitorWorkflow({
 
       {tab === 'visitor' && (
         <>
-          <JobFairCheckIn initialCode={searchParams.get('yuvaaz')} />
           {createdVisitToken && createdVisitorSnapshot ? (
             <Card>
               <CardHeader>
@@ -1541,6 +1573,10 @@ export function VisitorWorkflow({
                           t('visitor.create.visitTokenLabel'),
                         name: createdVisitorSnapshot.name,
                         mobile: createdVisitorSnapshot.mobileNumber,
+                        visitorId: createdVisitorSnapshot.id,
+                        voterId: createdVisitorSnapshot.voterId,
+                        wardNo: createdVisitorSnapshot.wardNo,
+                        boothNo: createdVisitorSnapshot.boothNo,
                       })
                     }
                   >
@@ -1565,7 +1601,7 @@ export function VisitorWorkflow({
                         id: createdVisitorSnapshot.id,
                         name: createdVisitorSnapshot.name,
                         mobileNumber: createdVisitorSnapshot.mobileNumber,
-                        voterId: null,
+                        voterId: createdVisitorSnapshot.voterId,
                         token: createdVisitorSnapshot.token,
                         location: null,
                         programmeId: createdVisitorSnapshot.programmeId,
@@ -2153,6 +2189,8 @@ export function VisitorWorkflow({
                                           t('visitor.create.visitTokenLabel'),
                                         name: v.name,
                                         mobile: v.mobileNumber,
+                                        visitorId: v.id,
+                                        voterId: v.voterId,
                                       })
                                     }
                                   >
@@ -2207,6 +2245,16 @@ export function VisitorWorkflow({
                                   {v.serviceName ? (
                                     <p className="text-sm">
                                       {t('visitor.form.service')}: {v.serviceName}
+                                    </p>
+                                  ) : null}
+                                  {epic ? (
+                                    <p className="text-sm">
+                                      {detailsLoading && !details ? (
+                                        <Loader2 className="mr-2 inline h-3.5 w-3.5 animate-spin" />
+                                      ) : null}
+                                      {t('visitor.manage.wardNo')}: {details?.wardNo?.trim() || '—'}
+                                      {' · '}
+                                      {t('visitor.manage.boothNo')}: {details?.boothNo?.trim() || '—'}
                                     </p>
                                   ) : null}
                                   <p className="text-xs font-medium text-muted-foreground">
@@ -2891,6 +2939,8 @@ export function VisitorWorkflow({
                               t('visitor.create.visitTokenLabel'),
                             name: selectedVisitor.name,
                             mobile: selectedVisitor.mobileNumber,
+                            visitorId: selectedVisitor.id,
+                            voterId: selectedVisitor.voterId,
                           })
                         }
                       >

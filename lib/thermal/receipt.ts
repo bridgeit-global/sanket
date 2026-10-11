@@ -8,6 +8,8 @@ export type ThermalReceiptData = {
   name: string;
   mobile?: string | null;
   serviceName: string;
+  wardNo?: string | null;
+  boothNo?: string | null;
   width?: number;
 };
 
@@ -142,12 +144,25 @@ export function buildThermalTicketText(data: ThermalReceiptData): string {
     separator,
     ...formatLabelValue('Name', data.name, width),
     separator,
+  ];
+
+  const wardNo = data.wardNo?.trim() || '';
+  const boothNo = data.boothNo?.trim() || '';
+  if (wardNo || boothNo) {
+    lines.push(
+      ...formatLabelValue('Ward No', wardNo || '-', width),
+      ...formatLabelValue('Booth No', boothNo || '-', width),
+      separator,
+    );
+  }
+
+  lines.push(
     ...formatLabelValue('Service', data.serviceName, width),
     separator,
     ...formatFreeText('Please wait for your turn', width),
     separator,
     '',
-  ];
+  );
 
   return lines.map((line) => line.slice(0, width)).join('\n');
 }

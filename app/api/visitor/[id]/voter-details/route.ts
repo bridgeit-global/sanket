@@ -1,6 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { getWardForPart } from '@/lib/ai/data/booth-ward-from-election';
 import {
   getBeneficiaryServiceAttachments,
+  getCurrentElectionId,
   getLetters,
   getRelatedVoters,
   getRelatedVotersServicesAndEvents,
@@ -34,6 +36,24 @@ type AttachmentSummary = {
   createdAt: Date;
 };
 
+type BoothWard = {
+  boothNo: string | null;
+  wardNo: string | null;
+};
+
+async function boothAndWardFromHistory(
+  history: Array<{ electionId: string; boothNo: string | null }>,
+): Promise<BoothWard> {
+  const currentElectionId = await getCurrentElectionId();
+  const current =
+    history.find((row) => row.electionId === currentElectionId && row.boothNo) ??
+    history.find((row) => row.boothNo);
+  const boothNo = current?.boothNo?.trim() || null;
+  if (!boothNo) return { boothNo: null, wardNo: null };
+  const wardNo = (await getWardForPart(boothNo))?.trim() || null;
+  return { boothNo, wardNo };
+}
+
 /**
  * Expand payload for a visitor card: visit context + (when EPIC present)
  * full voter roll, voting history, cadre hierarchy, services, family, letters, attachments.
@@ -59,6 +79,8 @@ export async function GET(
       return NextResponse.json({
         success: true,
         hasVoter: false,
+        boothNo: null,
+        wardNo: null,
         visitor,
         voter: null,
         voterMobileNumbers: [],
@@ -87,10 +109,13 @@ export async function GET(
           loadAttachmentSummaries(visitBeneficiaryIds),
         ]);
 
+      const location = await boothAndWardFromHistory(votingHistory);
       return NextResponse.json({
         success: true,
         hasVoter: true,
         voterNotFound: true,
+        boothNo: location.boothNo,
+        wardNo: location.wardNo,
         visitor,
         voter: null,
         voterMobileNumbers: [],
@@ -153,10 +178,13 @@ export async function GET(
       loadAttachmentSummaries(serviceIdList),
     ]);
 
+    const location = await boothAndWardFromHistory(votingHistory);
     return NextResponse.json({
       success: true,
       hasVoter: true,
       voterNotFound: false,
+      boothNo: location.boothNo,
+      wardNo: location.wardNo,
       visitor,
       voter,
       voterMobileNumbers,

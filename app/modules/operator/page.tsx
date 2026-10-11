@@ -56,6 +56,9 @@ export default async function OperatorPage({
   }
 
   const params = await searchParams;
+  if (params.yuvaaz?.trim()) {
+    redirect(`/modules/job-fair?yuvaaz=${encodeURIComponent(params.yuvaaz.trim())}`);
+  }
   const beneficiaryTaskId = params.taskId ?? params.serviceId;
   const urlParams = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {

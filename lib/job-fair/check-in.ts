@@ -47,10 +47,9 @@ export function jobFairStatusLabel(status: string): string {
 /** Staff desk URL opened when the receipt QR is scanned. */
 export function buildJobFairCheckInPath(registrationNo: string): string {
   const params = new URLSearchParams({
-    tab: 'visitor',
     yuvaaz: registrationNo,
   });
-  return `/modules/operator?${params.toString()}`;
+  return `/modules/job-fair?${params.toString()}`;
 }
 
 /** Pull a registration number out of a raw code or a check-in URL. */

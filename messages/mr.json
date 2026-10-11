@@ -2573,6 +2573,8 @@
       "primaryPost": "प्राथमिक",
       "booth": "बूथ",
       "ward": "प्रभाग",
+      "boothNo": "बूथ क्र.",
+      "wardNo": "प्रभाग क्र.",
       "taluka": "तालुका",
       "verticals": "शाखा",
       "individualServices": "वैयक्तिक",

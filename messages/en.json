@@ -2571,6 +2571,8 @@
       "primaryPost": "Primary",
       "booth": "Booth",
       "ward": "Ward",
+      "boothNo": "Booth No",
+      "wardNo": "Ward No",
       "taluka": "Taluka",
       "verticals": "Wings",
       "individualServices": "Individual",
