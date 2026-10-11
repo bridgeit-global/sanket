@@ -7,6 +7,7 @@ import { MemberDobField } from './member-dob-field';
 import { MemberPhoneField } from './member-phone-field';
 import { MemberPositionField } from './member-position-field';
 import { MemberVoterIdField } from './member-voter-id-field';
+import { MemberWardLine } from './member-ward-line';
 import {
   getMemberDisplayName,
   getPostGeoChip,
@@ -96,6 +97,7 @@ export function CompactMemberCard({
           onEdit={!primary && onEdit ? () => onEdit(member) : undefined}
         />
         <p className="truncate text-sm font-semibold text-foreground">{name}</p>
+        <MemberWardLine member={member} compact />
 
         {showFullDetail && member.verticals.length > 0 ? (
           <div className="flex flex-wrap gap-1">

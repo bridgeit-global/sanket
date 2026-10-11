@@ -20,6 +20,7 @@ import {
   UserRound,
 } from 'lucide-react';
 import { MemberPhoneField } from './member-phone-field';
+import { MemberWardLine } from './member-ward-line';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -213,6 +214,7 @@ function OrgLeaderCard({
         </p>
       </div>
       <p className="text-sm font-semibold leading-snug">{name}</p>
+      {member ? <MemberWardLine member={member} compact /> : null}
       {member ? (
         <div className="mt-1.5" onClick={(event) => event.stopPropagation()}>
           <MemberPhoneField

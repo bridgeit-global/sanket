@@ -48,6 +48,7 @@ describe('Booth BLA Multi-Agent Support', () => {
     linkedUser: null,
     linkedVoter: null,
     whatsappPhone: null,
+    residentialWardNo: null,
   };
 
   const agent2: CadreMemberCard = {
@@ -87,6 +88,7 @@ describe('Booth BLA Multi-Agent Support', () => {
     linkedUser: null,
     linkedVoter: null,
     whatsappPhone: null,
+    residentialWardNo: null,
   };
 
   const members = [agent1, agent2];

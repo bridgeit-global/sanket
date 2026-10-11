@@ -52,6 +52,7 @@ export function buildStubMembersFromPosts(
       linkedUser: null,
       linkedVoter: null,
       whatsappPhone: null,
+      residentialWardNo: null,
     }))
     .filter((member) => member.posts.length > 0);
 }

@@ -88,6 +88,11 @@ export type CadreMemberCard = {
   } | null;
   /** WhatsApp number stored in CadreMemberWhatsApp. */
   whatsappPhone: string | null;
+  /**
+   * Municipal ward from the voter roll (linked EPIC, or a unique phone match
+   * when no voter ID is stored).
+   */
+  residentialWardNo: string | null;
 };
 
 export type WardSummary = {

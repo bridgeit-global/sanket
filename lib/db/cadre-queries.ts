@@ -6,6 +6,7 @@ import type { PostgrestError } from '@supabase/supabase-js';
 import { throwOnSupabaseError } from '@/lib/db/errors';
 import { assertOptionalEpicNumber } from '@/lib/epic/normalize-epic';
 import { getTodayDateStringIST, parseFlexibleDateToYmd } from '@/lib/ist-date';
+import { pickLatestBmcWard } from '@/lib/sir/constants';
 import { TABLES } from './schema';
 import {
   mapCadreGeographicUnitRow,
@@ -734,6 +735,118 @@ async function hydrateCanvasFromPostRows(options: {
   return hydrateCanvasData(resolved, byId);
 }
 
+function phoneLookupKeys(phone: string | null | undefined): string[] {
+  const raw = phone?.trim() ?? '';
+  if (!raw) return [];
+  const digits = raw.replace(/\D/g, '');
+  const last10 = digits.length >= 10 ? digits.slice(-10) : '';
+  return [...new Set([raw, last10].filter(Boolean))];
+}
+
+function wardFromElectionIds(electionIds: string[]): string | null {
+  return pickLatestBmcWard(electionIds);
+}
+
+/**
+ * Ward from a linked EPIC, otherwise from a phone that matches exactly one
+ * voter-roll ward.
+ */
+async function loadResidentialWardByMember(
+  members: CadreMember[],
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  if (members.length === 0) return result;
+
+  const epicNumbers = [
+    ...new Set(members.map((member) => member.epicNumber?.trim()).filter(Boolean)),
+  ] as string[];
+  const phonesWithoutEpic = [
+    ...new Set(
+      members
+        .filter((member) => !member.epicNumber?.trim())
+        .flatMap((member) => phoneLookupKeys(member.personPhone)),
+    ),
+  ];
+
+  const phoneRows =
+    phonesWithoutEpic.length > 0
+      ? await selectByIdsInChunks<{
+          epic_number: string;
+          mobile_number: string | null;
+        }>(
+          phonesWithoutEpic,
+          (chunk) =>
+            supabase
+              .from(TABLES.voterMobileNumber)
+              .select('epic_number, mobile_number')
+              .in('mobile_number', chunk),
+          'Failed to match member phones to the voter roll',
+        )
+      : [];
+
+  const epicsByPhone = new Map<string, Set<string>>();
+  for (const row of phoneRows) {
+    const epic = row.epic_number ? String(row.epic_number) : '';
+    if (!epic) continue;
+    for (const key of phoneLookupKeys(row.mobile_number)) {
+      const set = epicsByPhone.get(key) ?? new Set<string>();
+      set.add(epic);
+      epicsByPhone.set(key, set);
+    }
+  }
+
+  const phoneEpics = [...new Set(phoneRows.map((row) => String(row.epic_number)))];
+  const mappingEpics = [...new Set([...epicNumbers, ...phoneEpics])];
+  const mappingRows = await selectByIdsInChunks<{
+    epic_number: string;
+    election_id: string;
+  }>(
+    mappingEpics,
+    (chunk) =>
+      supabase
+        .from(TABLES.electionMapping)
+        .select('epic_number, election_id')
+        .in('epic_number', chunk),
+    'Failed to load voter ward mappings',
+  );
+
+  const electionsByEpic = new Map<string, string[]>();
+  for (const row of mappingRows) {
+    const epic = String(row.epic_number);
+    const list = electionsByEpic.get(epic) ?? [];
+    list.push(String(row.election_id));
+    electionsByEpic.set(epic, list);
+  }
+
+  const wardByEpic = new Map<string, string>();
+  for (const [epic, electionIds] of electionsByEpic) {
+    const ward = wardFromElectionIds(electionIds);
+    if (ward) wardByEpic.set(epic, ward);
+  }
+
+  for (const member of members) {
+    const epic = member.epicNumber?.trim();
+    if (epic) {
+      const ward = wardByEpic.get(epic);
+      if (ward) result.set(member.id, ward);
+      continue;
+    }
+
+    const wards = new Set<string>();
+    for (const key of phoneLookupKeys(member.personPhone)) {
+      for (const matchedEpic of epicsByPhone.get(key) ?? []) {
+        const ward = wardByEpic.get(matchedEpic);
+        if (ward) wards.add(ward);
+      }
+    }
+    if (wards.size === 1) {
+      result.set(member.id, [...wards][0]);
+    }
+  }
+
+  return result;
+}
+
 async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard[]> {
   if (members.length === 0) return [];
 
@@ -741,7 +854,7 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
   const userIds = [...new Set(members.map((m) => m.userId).filter(Boolean))] as string[];
   const epicNumbers = [...new Set(members.map((m) => m.epicNumber).filter(Boolean))] as string[];
 
-  const [verticalLinks, postRows, users, voters, mobiles, whatsappRows] =
+  const [verticalLinks, postRows, users, voters, mobiles, whatsappRows, wardByMember] =
     await Promise.all([
       selectByIdsInChunks<{
         member_id: string | number;
@@ -812,6 +925,7 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
             .in('member_id', chunk),
         'Failed to load member WhatsApp numbers',
       ),
+      loadResidentialWardByMember(members),
     ]);
 
   const verticalIds = [
@@ -992,6 +1106,7 @@ async function buildMemberCards(members: CadreMember[]): Promise<CadreMemberCard
     linkedUser: member.userId ? userById.get(member.userId) ?? null : null,
     linkedVoter: member.epicNumber ? voterByEpic.get(member.epicNumber) ?? null : null,
     whatsappPhone: whatsappByMember.get(member.id) ?? null,
+    residentialWardNo: wardByMember.get(member.id) ?? null,
   }));
 }
 

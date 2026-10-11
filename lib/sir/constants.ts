@@ -20,6 +20,23 @@ export function wardNoFromElectionId(electionId: string): string | null {
   return match?.[1] ?? null;
 }
 
+/** Latest BMC ward when a voter has more than one municipal election row. */
+export function pickLatestBmcWard(electionIds: Iterable<string>): string | null {
+  let bestWard: string | null = null;
+  let bestYear = -1;
+  for (const electionId of electionIds) {
+    const ward = wardNoFromElectionId(electionId);
+    if (!ward) continue;
+    const yearMatch = /(\d{4})\s*$/.exec(electionId);
+    const year = yearMatch ? Number(yearMatch[1]) : 0;
+    if (bestWard === null || year >= bestYear) {
+      bestWard = ward;
+      bestYear = year;
+    }
+  }
+  return bestWard;
+}
+
 export const SIR_STATE = 'Maharashtra';
 export const SIR_DISTRICT = 'Mumbai Suburban';
 export const SIR_ASSEMBLY_CONSTITUENCY = 'Anushakti Nagar';

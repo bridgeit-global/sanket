@@ -9,6 +9,7 @@ import { MemberDobField } from './member-dob-field';
 import { MemberPhoneField } from './member-phone-field';
 import { MemberPositionField } from './member-position-field';
 import { MemberVoterIdField } from './member-voter-id-field';
+import { MemberWardLine } from './member-ward-line';
 import {
   getMemberDisplayName,
   getPostGeoChip,
@@ -86,6 +87,7 @@ export const MemberCard = memo(function MemberCard({
               {name}
             </p>
           </div>
+          <MemberWardLine member={member} />
           {member.verticals.length > 0 && (
             <div className="mt-1 flex flex-wrap gap-1">
               {member.verticals.map((v) => (

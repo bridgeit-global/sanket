@@ -7,6 +7,7 @@ import { MemberDobField } from './member-dob-field';
 import { MemberPhoneField } from './member-phone-field';
 import { MemberPositionField } from './member-position-field';
 import { MemberVoterIdField } from './member-voter-id-field';
+import { MemberWardLine } from './member-ward-line';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { getMemberDisplayName } from '@/lib/hierarchy/geo-attribution';
@@ -297,6 +298,7 @@ export function WardPanel({
                                 >
                                   {head ? getMemberDisplayName(head) : vacantLabel}
                                 </p>
+                                {head ? <MemberWardLine member={head} compact /> : null}
                                 {head ? (
                                   <>
                                     <MemberVoterIdField

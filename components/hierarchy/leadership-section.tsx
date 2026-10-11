@@ -3,6 +3,7 @@
 import { ChevronRight } from 'lucide-react';
 import { MemberDobField } from './member-dob-field';
 import { MemberPhoneField } from './member-phone-field';
+import { MemberWardLine } from './member-ward-line';
 import { MemberPositionField } from './member-position-field';
 import { MemberVoterIdField } from './member-voter-id-field';
 import {
@@ -138,6 +139,7 @@ export function LeadershipSection({
                 >
                   {headName}
                 </p>
+                {head ? <MemberWardLine member={head} compact /> : null}
                 {head ? (
                   <>
                     <MemberVoterIdField
