@@ -1156,6 +1156,7 @@
       "draftSaved": "Draft saved",
       "verificationSuccess": "Letter sent for verification",
       "verificationError": "Failed to send the letter for verification.",
+      "submitting": "Submitting letter…",
       "submitSuccess": "Letter submitted",
       "submitError": "Failed to submit the letter.",
       "approveSuccess": "Letter approved",
@@ -1215,7 +1216,8 @@
       "status": {
         "draft": "Draft",
         "pending_verification": "Pending verification",
-        "approved": "Approved"
+        "approved": "Approved",
+        "submitted": "Submitted"
       }
     },
     "tabs": {

@@ -315,7 +315,11 @@ export type LetterAddressTypeLink = {
   updatedAt: Date;
 };
 
-export type LetterStatus = 'draft' | 'pending_verification' | 'approved';
+export type LetterStatus =
+  | 'draft'
+  | 'pending_verification'
+  | 'approved'
+  | 'submitted';
 
 export type Letter = {
   id: string;

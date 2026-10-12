@@ -15,12 +15,24 @@ const iconsByType: Record<ToastType, ReactNode> = {
   info: <InfoIcon />,
 };
 
-function toastFunction(props: Omit<ToastProps, 'id'>, id?: string | number) {
+function toastFunction(
+  props: Omit<ToastProps, 'id'> & { duration?: number },
+  id?: string | number,
+) {
+  const { duration, ...toastProps } = props;
   const render = (toastId: string | number) => (
-    <Toast id={toastId} type={props.type} description={props.description} />
+    <Toast
+      id={toastId}
+      type={toastProps.type}
+      description={toastProps.description}
+    />
   );
 
-  const options = { unstyled: true, ...(id !== undefined ? { id } : {}) };
+  const options = {
+    unstyled: true,
+    ...(duration !== undefined ? { duration } : {}),
+    ...(id !== undefined ? { id } : {}),
+  };
 
   return sonnerToast.custom(render, options);
 }

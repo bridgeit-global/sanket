@@ -247,17 +247,27 @@ function normalizeContactNo(value: string): string {
   return toWesternDigits(value).replace(/\D/g, '').slice(0, 10);
 }
 
-type LetterWorkflowStatus = 'draft' | 'pending_verification' | 'approved';
+type LetterWorkflowStatus =
+  | 'draft'
+  | 'pending_verification'
+  | 'approved'
+  | 'submitted';
 
 function letterWorkflowStatus(status: string | null | undefined): LetterWorkflowStatus {
   if (
     status === 'draft' ||
     status === 'pending_verification' ||
-    status === 'approved'
+    status === 'approved' ||
+    status === 'submitted'
   ) {
     return status;
   }
   return 'approved';
+}
+
+/** Submitted letters are final. Draft, pending verification, and approved stay editable. */
+function letterIsSubmitted(status: string | null | undefined): boolean {
+  return letterWorkflowStatus(status) === 'submitted';
 }
 
 function mergeSavedLetterFields<T extends object>(
@@ -4741,8 +4751,12 @@ export function LetterGeneration({
     }
   };
 
-  const handleSaveLetter = async (options?: { requireAllFields?: boolean }) => {
+  const handleSaveLetter = async (options?: {
+    requireAllFields?: boolean;
+    selectSaved?: boolean;
+  }) => {
     const requireAllFields = options?.requireAllFields ?? false;
+    const selectSaved = options?.selectSaved !== false;
     if (requireAllFields) {
       if (!validateActiveLetterFields()) return;
     } else if (!validateMinimalLetterFields()) {
@@ -4916,7 +4930,7 @@ export function LetterGeneration({
         }
       }
 
-      return await persistLetterDraftRef.current({ selectSaved: true });
+      return await persistLetterDraftRef.current({ selectSaved });
     } catch (error) {
       console.error('Failed to save letter', error);
       toast.error(t('letterGeneration.savedLetters.saveError'));
@@ -4970,22 +4984,62 @@ export function LetterGeneration({
     }
   };
 
+  const markLetterSubmitted = async (letterId: string) => {
+    const res = await fetch(
+      `/api/letters/${encodeURIComponent(letterId)}/verification`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'submit' }),
+      },
+    );
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json?.error || 'Failed to submit letter');
+    }
+    return (json?.letter ?? null) as SavedLetterRow | null;
+  };
+
   const handleSubmitLetter = async () => {
     draftEpochRef.current += 1;
     setIsSubmitting(true);
+    const toastId = toast({
+      type: 'loading',
+      description: t('letterGeneration.savedLetters.submitting'),
+      duration: Number.POSITIVE_INFINITY,
+    });
     try {
-      const saved = await handleSaveLetter();
-      if (!saved) return;
-      // Submit does not change letter status — only outward + clear form.
-      toast.success(t('letterGeneration.savedLetters.submitSuccess'));
+      const saved = await handleSaveLetter({ selectSaved: false });
+      if (!saved) {
+        toast.dismiss(toastId);
+        return;
+      }
+      await markLetterSubmitted(saved.id);
       await refreshSavedLetters();
       if (saved.renderedHtml) {
         await persistLetterPdf(saved, { registerOutward: true });
       }
       clearLetterForm();
+      setPreviewFullscreen(false);
+      setSelectedSavedLetterId(saved.id);
+      toast(
+        {
+          type: 'success',
+          description: t('letterGeneration.savedLetters.submitSuccess'),
+          duration: 4000,
+        },
+        toastId,
+      );
     } catch (error) {
       console.error('Failed to submit letter', error);
-      toast.error(t('letterGeneration.savedLetters.submitError'));
+      toast(
+        {
+          type: 'error',
+          description: t('letterGeneration.savedLetters.submitError'),
+          duration: 4000,
+        },
+        toastId,
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -5059,22 +5113,49 @@ export function LetterGeneration({
   };
 
   const handleSubmitSavedDraft = async (letter: SavedLetterRow) => {
-    if (letterWorkflowStatus(letter.status) !== 'draft') return;
+    if (letterIsSubmitted(letter.status)) return;
+    const reopenPreviewOnError = selectedSavedLetterId === letter.id;
     setSubmittingLetterId(letter.id);
+    setSelectedSavedLetterId(null);
+    setPreviewFullscreen(false);
+    const toastId = toast({
+      type: 'loading',
+      description: t('letterGeneration.savedLetters.submitting'),
+      duration: Number.POSITIVE_INFINITY,
+    });
     try {
-      // Submit does not change letter status — only outward + clear form.
       const wasEditingSubmitted = editingLetterId === letter.id;
-      setSelectedSavedLetterId(null);
-      toast.success(t('letterGeneration.savedLetters.submitSuccess'));
+      await markLetterSubmitted(letter.id);
       if (letter.renderedHtml) {
         await persistLetterPdf(letter, { registerOutward: true });
       }
       if (wasEditingSubmitted) {
         clearLetterForm();
       }
+      await refreshSavedLetters();
+      setPreviewFullscreen(false);
+      setSelectedSavedLetterId(letter.id);
+      toast(
+        {
+          type: 'success',
+          description: t('letterGeneration.savedLetters.submitSuccess'),
+          duration: 4000,
+        },
+        toastId,
+      );
     } catch (error) {
       console.error('Failed to submit letter', error);
-      toast.error(t('letterGeneration.savedLetters.submitError'));
+      if (reopenPreviewOnError) {
+        setSelectedSavedLetterId(letter.id);
+      }
+      toast(
+        {
+          type: 'error',
+          description: t('letterGeneration.savedLetters.submitError'),
+          duration: 4000,
+        },
+        toastId,
+      );
     } finally {
       setSubmittingLetterId(null);
     }
@@ -5084,7 +5165,7 @@ export function LetterGeneration({
     letter: SavedLetterRow,
     options?: { silent?: boolean },
   ) => {
-    if (letterWorkflowStatus(letter.status) !== 'draft') return;
+    if (letterIsSubmitted(letter.status)) return;
     const saved =
       letter.fields && typeof letter.fields === 'object'
         ? (letter.fields as Record<string, unknown>)
@@ -5207,7 +5288,7 @@ export function LetterGeneration({
     const letter = savedLetters.find((row) => row.id === initialLetterId);
     if (!letter) return;
     draftAutoOpenedRef.current = true;
-    if (letterWorkflowStatus(letter.status) === 'draft') {
+    if (!letterIsSubmitted(letter.status)) {
       handleEditDraft(letter, { silent: true });
     } else {
       setSelectedSavedLetterId(initialLetterId);
@@ -5622,6 +5703,11 @@ export function LetterGeneration({
     return savedLetters.find((letter) => letter.id === editingLetterId) ?? null;
   }, [editingLetterId, savedLetters]);
 
+  const showComposerVerification =
+    !editingSavedLetter ||
+    letterWorkflowStatus(editingSavedLetter.status) === 'draft';
+  const showComposerSubmit = !letterIsSubmitted(editingSavedLetter?.status);
+
   const renderSavedLetterActions = (
     letter: SavedLetterRow,
     layout: 'stack' | 'inline' = 'inline',
@@ -5639,54 +5725,54 @@ export function LetterGeneration({
           layout === 'stack' ? 'justify-start' : 'justify-end',
         )}
       >
+        {!letterIsSubmitted(letter.status) ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                size="icon"
+                variant="outline"
+                className={iconButtonClass}
+                onClick={() => handleEditDraft(letter)}
+                aria-label={t('letterGeneration.savedLetters.actions.edit')}
+              >
+                <Pencil className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {t('letterGeneration.savedLetters.actions.edit')}
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
         {letterWorkflowStatus(letter.status) === 'draft' ? (
-          <>
-            <Tooltip>
-              <TooltipTrigger asChild>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="inline-flex">
                 <Button
                   type="button"
                   size="icon"
                   variant="outline"
                   className={iconButtonClass}
-                  onClick={() => handleEditDraft(letter)}
-                  aria-label={t('letterGeneration.savedLetters.actions.edit')}
+                  onClick={() =>
+                    void handleSendSavedDraftForVerification(letter)
+                  }
+                  disabled={verifyDisabled}
+                  aria-label={t(
+                    'letterGeneration.savedLetters.sendForVerification',
+                  )}
                 >
-                  <Pencil className="size-4" />
+                  {verifyingLetterId === letter.id ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="size-4" />
+                  )}
                 </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {t('letterGeneration.savedLetters.actions.edit')}
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="inline-flex">
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    className={iconButtonClass}
-                    onClick={() =>
-                      void handleSendSavedDraftForVerification(letter)
-                    }
-                    disabled={verifyDisabled}
-                    aria-label={t(
-                      'letterGeneration.savedLetters.sendForVerification',
-                    )}
-                  >
-                    {verifyingLetterId === letter.id ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <ShieldCheck className="size-4" />
-                    )}
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                {t('letterGeneration.savedLetters.sendForVerification')}
-              </TooltipContent>
-            </Tooltip>
-          </>
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>
+              {t('letterGeneration.savedLetters.sendForVerification')}
+            </TooltipContent>
+          </Tooltip>
         ) : null}
         {isAdmin &&
         letterWorkflowStatus(letter.status) === 'pending_verification' ? (
@@ -5848,24 +5934,26 @@ export function LetterGeneration({
           </TooltipTrigger>
           <TooltipContent>{t('govFollowUp.startFollowUp')}</TooltipContent>
         </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              type="button"
-              size="icon"
-              variant="destructive"
-              className={iconButtonClass}
-              onClick={() => handleDeleteSavedLetter(letter.id)}
-              aria-label={t('letterGeneration.savedLetters.actions.delete')}
-            >
-              <Trash2 className="size-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            {t('letterGeneration.savedLetters.actions.delete')}
-          </TooltipContent>
-        </Tooltip>
-        {letterWorkflowStatus(letter.status) === 'draft' ? (
+        {!letterIsSubmitted(letter.status) ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                size="icon"
+                variant="destructive"
+                className={iconButtonClass}
+                onClick={() => handleDeleteSavedLetter(letter.id)}
+                aria-label={t('letterGeneration.savedLetters.actions.delete')}
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {t('letterGeneration.savedLetters.actions.delete')}
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+        {!letterIsSubmitted(letter.status) ? (
           <Button
             type="button"
             size="sm"
@@ -9311,6 +9399,7 @@ export function LetterGeneration({
                           </TooltipContent>
                         </Tooltip>
                       ) : null}
+                      {showComposerVerification ? (
                       <Tooltip>
                         <TooltipTrigger asChild>
                           <span className="inline-flex">
@@ -9343,6 +9432,8 @@ export function LetterGeneration({
                           )}
                         </TooltipContent>
                       </Tooltip>
+                      ) : null}
+                      {showComposerSubmit ? (
                       <Button
                         type="button"
                         className="h-10 w-full sm:w-auto"
@@ -9358,6 +9449,13 @@ export function LetterGeneration({
                         )}
                         {t('letterGeneration.savedLetters.actions.submit')}
                       </Button>
+                      ) : editingSavedLetter ? (
+                        <Badge variant="outline" className="h-10 px-3 font-normal">
+                          {t(
+                            `letterGeneration.savedLetters.status.${letterWorkflowStatus(editingSavedLetter.status)}`,
+                          )}
+                        </Badge>
+                      ) : null}
                     </div>
                   </div>
                   <LetterPreview
@@ -9726,8 +9824,7 @@ export function LetterGeneration({
                                   {t('govFollowUp.startFollowUp')}
                                 </TooltipContent>
                               </Tooltip>
-                              {letterWorkflowStatus(selectedSavedLetter.status) ===
-                              'draft' ? (
+                              {!letterIsSubmitted(selectedSavedLetter.status) ? (
                                 <>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
@@ -9752,6 +9849,8 @@ export function LetterGeneration({
                                       )}
                                     </TooltipContent>
                                   </Tooltip>
+                                  {letterWorkflowStatus(selectedSavedLetter.status) ===
+                                  'draft' ? (
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <span className="inline-flex">
@@ -9790,6 +9889,7 @@ export function LetterGeneration({
                                       )}
                                     </TooltipContent>
                                   </Tooltip>
+                                  ) : null}
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <span className="inline-flex">

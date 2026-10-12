@@ -278,7 +278,9 @@ function mapMatterLetterRow(row: {
     referenceNo: String(row.reference_no ?? ''),
     title: String(row.title ?? ''),
     status:
-      status === 'pending_verification' || status === 'approved'
+      status === 'pending_verification' ||
+      status === 'approved' ||
+      status === 'submitted'
         ? status
         : 'draft',
     createdAt: new Date(String(row.created_at)),

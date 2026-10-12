@@ -109,6 +109,7 @@ export {
   updateLetterPdfStoragePath,
   updateLetterDraft,
   submitLetterForVerification,
+  submitLetter,
   approveLetter,
   markLetterPrinted,
   findPrintedLetterDuplicates,

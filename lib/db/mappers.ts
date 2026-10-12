@@ -489,7 +489,8 @@ function mapLetterStatus(value: unknown): Letter['status'] {
   if (
     value === 'draft' ||
     value === 'pending_verification' ||
-    value === 'approved'
+    value === 'approved' ||
+    value === 'submitted'
   ) {
     return value;
   }

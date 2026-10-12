@@ -4,6 +4,7 @@ import { isUserAdmin } from '@/lib/db/cadre-queries';
 import {
   approveLetter,
   findMatterByLetterId,
+  submitLetter,
   submitLetterForVerification,
 } from '@/lib/db/queries';
 import type { Letter } from '@/lib/db/schema';
@@ -70,6 +71,20 @@ export async function POST(
     const body = await request.json().catch(() => ({}));
     const action = body?.action;
 
+    if (action === 'submit') {
+      const result = await submitLetter(id);
+      if ('error' in result) {
+        if (result.error === 'not_found') {
+          return NextResponse.json({ error: 'Letter not found' }, { status: 404 });
+        }
+        return NextResponse.json(
+          { error: 'Submitted letters cannot be edited' },
+          { status: 409 },
+        );
+      }
+      return NextResponse.json({ letter: result.letter });
+    }
+
     if (action === 'send_for_verification') {
       const result = await submitLetterForVerification(id);
       if ('error' in result) {
@@ -108,7 +123,7 @@ export async function POST(
     }
 
     return NextResponse.json(
-      { error: 'action must be send_for_verification or approve' },
+      { error: 'action must be submit, send_for_verification, or approve' },
       { status: 400 },
     );
   } catch (error) {

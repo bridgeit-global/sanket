@@ -4833,6 +4833,13 @@ export async function updateLetterRenderedHtml({
   letterMasterId?: string | null;
 }): Promise<Letter> {
   try {
+    const existing = await getLetterById(id);
+    if (existing?.status === 'submitted') {
+      throw new ChatSDKError(
+        'bad_request:database',
+        'Submitted letters cannot be edited',
+      );
+    }
     const now = new Date().toISOString();
     const { data, error } = await supabase
       .from(TABLES.letter)
@@ -4844,6 +4851,7 @@ export async function updateLetterRenderedHtml({
         }),
       )
       .eq('id', id)
+      .neq('status', 'submitted')
       .select('*')
       .single();
     throwOnSupabaseError(error, 'Failed to update letter rendered html');
@@ -4885,9 +4893,15 @@ export async function updateLetterPdfStoragePath({
   }
 }
 
+const EDITABLE_LETTER_STATUSES = [
+  'draft',
+  'pending_verification',
+  'approved',
+] as const;
+
 export type LetterDraftUpdateResult =
   | { letter: Letter }
-  | { error: 'not_found' | 'not_draft' };
+  | { error: 'not_found' | 'locked' };
 
 export async function updateLetterDraft({
   id,
@@ -4911,7 +4925,13 @@ export async function updateLetterDraft({
   try {
     const existing = await getLetterById(id);
     if (!existing) return { error: 'not_found' };
-    if (existing.status !== 'draft') return { error: 'not_draft' };
+    if (
+      !EDITABLE_LETTER_STATUSES.includes(
+        existing.status as (typeof EDITABLE_LETTER_STATUSES)[number],
+      )
+    ) {
+      return { error: 'locked' };
+    }
 
     const { resolveLetterPaperSize } = await import('@/lib/letters/paper-size');
     const now = new Date().toISOString();
@@ -4930,7 +4950,7 @@ export async function updateLetterDraft({
         }),
       )
       .eq('id', id)
-      .eq('status', 'draft')
+      .in('status', [...EDITABLE_LETTER_STATUSES])
       .select('*')
       .single();
     throwOnSupabaseError(error, 'Failed to update letter draft');
@@ -4943,7 +4963,36 @@ export async function updateLetterDraft({
 
 export type LetterVerificationResult =
   | { letter: Letter }
-  | { error: 'not_found' | 'not_draft' | 'not_pending' };
+  | { error: 'not_found' | 'not_draft' | 'not_pending' | 'locked' };
+
+/** Final submit. Locks the letter so it can no longer be edited or deleted. */
+export async function submitLetter(id: string): Promise<LetterVerificationResult> {
+  try {
+    const existing = await getLetterById(id);
+    if (!existing) return { error: 'not_found' };
+    if (existing.status === 'submitted') return { error: 'locked' };
+
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TABLES.letter)
+      .update(
+        toSnakeCaseKeys({
+          status: 'submitted',
+          submittedAt: now,
+          updatedAt: now,
+        }),
+      )
+      .eq('id', id)
+      .neq('status', 'submitted')
+      .select('*')
+      .single();
+    throwOnSupabaseError(error, 'Failed to submit letter');
+    return { letter: mapLetterRow(data) };
+  } catch (error) {
+    if (error instanceof ChatSDKError) throw error;
+    throw new ChatSDKError('bad_request:database', 'Failed to submit letter');
+  }
+}
 
 export async function submitLetterForVerification(
   id: string,
@@ -5138,9 +5187,13 @@ export async function findPrintedLetterDuplicates({
   }
 }
 
-export async function deleteLetter(id: string): Promise<void> {
+export async function deleteLetter(
+  id: string,
+): Promise<'deleted' | 'not_found' | 'locked'> {
   try {
     const existing = await getLetterById(id);
+    if (!existing) return 'not_found';
+    if (existing.status === 'submitted') return 'locked';
     if (existing?.pdfStoragePath) {
       const { LETTER_PDF_BUCKET } = await import('@/lib/letters/pdf-storage');
       const { error: storageError } = await supabase.storage
@@ -5167,6 +5220,7 @@ export async function deleteLetter(id: string): Promise<void> {
         `;
       }
     });
+    return 'deleted';
   } catch (error) {
     if (error instanceof ChatSDKError) throw error;
     throw new ChatSDKError('bad_request:database', 'Failed to delete letter');

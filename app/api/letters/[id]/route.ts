@@ -46,9 +46,9 @@ export async function PATCH(
     if (!existing) {
       return NextResponse.json({ error: 'Letter not found' }, { status: 404 });
     }
-    if (existing.status !== 'draft') {
+    if (existing.status === 'submitted') {
       return NextResponse.json(
-        { error: 'Only a draft letter can be edited' },
+        { error: 'Submitted letters cannot be edited' },
         { status: 409 },
       );
     }
@@ -119,7 +119,7 @@ export async function PATCH(
         return NextResponse.json({ error: 'Letter not found' }, { status: 404 });
       }
       return NextResponse.json(
-        { error: 'Only a draft letter can be edited' },
+        { error: 'Submitted letters cannot be edited' },
         { status: 409 },
       );
     }
@@ -150,7 +150,16 @@ export async function DELETE(
       return NextResponse.json({ error: 'id is required' }, { status: 400 });
     }
 
-    await deleteLetter(id);
+    const result = await deleteLetter(id);
+    if (result === 'not_found') {
+      return NextResponse.json({ error: 'Letter not found' }, { status: 404 });
+    }
+    if (result === 'locked') {
+      return NextResponse.json(
+        { error: 'Submitted letters cannot be deleted' },
+        { status: 409 },
+      );
+    }
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting letter:', error);
