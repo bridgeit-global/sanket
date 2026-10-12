@@ -26,6 +26,7 @@ export const DRAFT_SORT_COLUMNS = [
   'qualification',
   'createdAt',
   'updatedAt',
+  'assignedTo',
 ] as const;
 
 export type JobFairRegistrationSort = (typeof REGISTRATION_SORT_COLUMNS)[number];
@@ -57,6 +58,7 @@ export const DRAFT_SORT_OPTIONS: ReadonlyArray<{
   { value: 'qualification', label: 'Qualification' },
   { value: 'createdAt', label: 'Created at' },
   { value: 'updatedAt', label: 'Last saved' },
+  { value: 'assignedTo', label: 'Assign to' },
 ];
 
 export type JobFairPageQuery = {

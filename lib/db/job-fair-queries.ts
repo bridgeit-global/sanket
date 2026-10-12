@@ -5,9 +5,11 @@ import { TABLES } from '@/lib/db/schema';
 import { sql } from './postgres';
 import { supabase } from '@/lib/supabase/server';
 import { parseInstant, startOfDayIST, startOfWeekIST } from '@/lib/ist-date';
+import { hasModuleAccess } from '@/lib/db/queries';
 import {
   AREA_OPTIONS,
   JOB_FAIR_EVENT,
+  JOB_FAIR_MODULE_KEY,
   JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT,
   optionLabel,
 } from '@/lib/job-fair/options';
@@ -527,8 +529,15 @@ export type JobFairDraftListItem = {
   createdAt: string;
   updatedAt: string;
   whatsappVerifiedAt: string | null;
+  assignedTo: string | null;
+  assignedToName: string | null;
   logCount: number;
   values: JobFairFormValues;
+};
+
+export type JobFairAssignee = {
+  id: string;
+  name: string;
 };
 
 export type JobFairDraftLog = {
@@ -548,7 +557,12 @@ type DraftListRow = {
   created_at: string;
   updated_at: string;
   whatsapp_verified_at: string | null;
+  assigned_to: string | null;
+  assignee: { user_id: string } | { user_id: string }[] | null;
 };
+
+const DRAFT_LIST_COLUMNS =
+  'id, mobile, step, payload, created_at, updated_at, whatsapp_verified_at, assigned_to, assignee:User!JobFairRegistrationDraft_assigned_to_fkey(user_id)';
 
 function ilikeOrClause(column: string, raw: string): string | null {
   const cleaned = raw.replace(/[%_\\"]/g, '').trim();
@@ -575,6 +589,7 @@ function mapDraftListItem(row: DraftListRow): JobFairDraftListItem {
       ? (row.payload as { values?: unknown })
       : {};
   const values = sanitizeJobFairFormValues(payload.values);
+  const assignee = Array.isArray(row.assignee) ? row.assignee[0] : row.assignee;
   return {
     id: String(row.id),
     mobile: String(row.mobile),
@@ -591,6 +606,8 @@ function mapDraftListItem(row: DraftListRow): JobFairDraftListItem {
     whatsappVerifiedAt: row.whatsapp_verified_at
       ? String(row.whatsapp_verified_at)
       : null,
+    assignedTo: row.assigned_to ? String(row.assigned_to) : null,
+    assignedToName: assignee?.user_id ? String(assignee.user_id) : null,
     logCount: 0,
     values,
   };
@@ -722,6 +739,96 @@ export async function markJobFairDraftWhatsappVerified(
   return { whatsappVerifiedAt: String(data.whatsapp_verified_at) };
 }
 
+/** Staff who can be assigned an incomplete draft. */
+export async function listJobFairAssignees(): Promise<JobFairAssignee[]> {
+  const [
+    { data: userPerms, error: userPermError },
+    { data: rolePerms, error: rolePermError },
+  ] = await Promise.all([
+    supabase
+      .from(TABLES.userModulePermissions)
+      .select('userId')
+      .eq('module_key', JOB_FAIR_MODULE_KEY)
+      .eq('has_access', true),
+    supabase
+      .from(TABLES.roleModulePermissions)
+      .select('role_id')
+      .eq('module_key', JOB_FAIR_MODULE_KEY)
+      .eq('has_access', true),
+  ]);
+  throwOnSupabaseError(userPermError, 'Failed to list job fair user access');
+  throwOnSupabaseError(rolePermError, 'Failed to list job fair role access');
+
+  const userIds = [
+    ...new Set(
+      (userPerms ?? [])
+        .map((row) => String((row as { userId?: string }).userId ?? ''))
+        .filter(Boolean),
+    ),
+  ];
+  const roleIds = [
+    ...new Set(
+      (rolePerms ?? [])
+        .map((row) => String((row as { role_id?: string }).role_id ?? ''))
+        .filter(Boolean),
+    ),
+  ];
+  if (userIds.length === 0 && roleIds.length === 0) return [];
+
+  let query = supabase.from(TABLES.user).select('id, user_id');
+  if (userIds.length > 0 && roleIds.length > 0) {
+    query = query.or(
+      `id.in.(${userIds.join(',')}),role_id.in.(${roleIds.join(',')})`,
+    );
+  } else if (userIds.length > 0) {
+    query = query.in('id', userIds);
+  } else {
+    query = query.in('role_id', roleIds);
+  }
+
+  const { data, error } = await query.order('user_id', { ascending: true });
+  throwOnSupabaseError(error, 'Failed to list job fair assignees');
+  return (data ?? []).map((row) => ({
+    id: String((row as { id: string }).id),
+    name: String((row as { user_id: string }).user_id),
+  }));
+}
+
+export async function assignJobFairDraft(
+  id: string,
+  assignedTo: string | null,
+): Promise<{ assignedTo: string | null; assignedToName: string | null } | null> {
+  if (assignedTo) {
+    const allowed = await hasModuleAccess(assignedTo, JOB_FAIR_MODULE_KEY);
+    if (!allowed) {
+      throw new Error('Assignee does not have job fair access');
+    }
+  }
+
+  const { data, error } = await supabase
+    .from('JobFairRegistrationDraft')
+    .update({ assigned_to: assignedTo })
+    .eq('id', id)
+    .eq('event_code', JOB_FAIR_EVENT.code)
+    .select('assigned_to')
+    .maybeSingle();
+  throwOnSupabaseError(error, 'Failed to assign job fair draft');
+  if (!data) return null;
+
+  let assignedToName: string | null = null;
+  if (assignedTo) {
+    const { data: user, error: userError } = await supabase
+      .from(TABLES.user)
+      .select('user_id')
+      .eq('id', assignedTo)
+      .maybeSingle();
+    throwOnSupabaseError(userError, 'Failed to load job fair assignee');
+    assignedToName = user?.user_id ? String(user.user_id) : null;
+  }
+
+  return { assignedTo, assignedToName };
+}
+
 /** Drafts whose mobile does not already have a submitted registration. */
 export type JobFairDraftWhatsappFilter = 'verified' | 'unverified';
 
@@ -734,6 +841,7 @@ const DRAFT_SORT_COLUMNS: Record<JobFairDraftSort, string> = {
   qualification: 'payload->values->>qualification',
   createdAt: 'created_at',
   updatedAt: 'updated_at',
+  assignedTo: 'assigned_to',
 };
 
 export async function listOpenJobFairDrafts(
@@ -754,12 +862,22 @@ export async function listOpenJobFairDrafts(
   const ascending = range?.dir === 'asc';
   let query = supabase
     .from('JobFairRegistrationDraft')
-    .select('id, mobile, step, payload, created_at, updated_at, whatsapp_verified_at', {
-      count: 'exact',
-    })
-    .eq('event_code', JOB_FAIR_EVENT.code)
-    .order(DRAFT_SORT_COLUMNS[sortColumn], { ascending, nullsFirst: false })
-    .order('id', { ascending });
+    .select(DRAFT_LIST_COLUMNS, { count: 'exact' })
+    .eq('event_code', JOB_FAIR_EVENT.code);
+
+  if (sortColumn === 'assignedTo') {
+    query = query.order('user_id', {
+      foreignTable: 'assignee',
+      ascending,
+      nullsFirst: false,
+    });
+  } else {
+    query = query.order(DRAFT_SORT_COLUMNS[sortColumn], {
+      ascending,
+      nullsFirst: false,
+    });
+  }
+  query = query.order('id', { ascending: true });
 
   if (registered.length > 0) {
     query = query.not('mobile', 'in', `(${registered.join(',')})`);

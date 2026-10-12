@@ -37,6 +37,7 @@ import { DmyDateInput } from '@/components/ui/dmy-date-input';
 import { Textarea } from '@/components/ui/textarea';
 import { formatDisplayDateTimeIST } from '@/lib/ist-date';
 import type {
+  JobFairAssignee,
   JobFairDraftListItem,
   JobFairDraftLog,
 } from '@/lib/db/job-fair-queries';
@@ -57,6 +58,8 @@ import {
   DRAFT_SORT_OPTIONS,
   type JobFairSortDir,
 } from '@/lib/job-fair/page-query';
+
+const UNASSIGNED = 'none';
 
 const DRAFT_STEP_LABELS = [
   'Personal',
@@ -253,6 +256,61 @@ function DraftFollowUpDialog({
   );
 }
 
+function assigneeChoices(
+  assignees: JobFairAssignee[],
+  item: JobFairDraftListItem,
+): JobFairAssignee[] {
+  if (
+    item.assignedTo &&
+    !assignees.some((person) => person.id === item.assignedTo)
+  ) {
+    return [
+      { id: item.assignedTo, name: item.assignedToName || 'Staff' },
+      ...assignees,
+    ];
+  }
+  return assignees;
+}
+
+function AssignSelect({
+  item,
+  assignees,
+  pending,
+  onAssign,
+}: {
+  item: JobFairDraftListItem;
+  assignees: JobFairAssignee[];
+  pending: boolean;
+  onAssign: (assignedTo: string | null) => void;
+}) {
+  const choices = assigneeChoices(assignees, item);
+  return (
+    <div
+      className="w-full min-w-0"
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
+      <Select
+        value={item.assignedTo ?? UNASSIGNED}
+        disabled={pending}
+        onValueChange={(value) => onAssign(value === UNASSIGNED ? null : value)}
+      >
+        <SelectTrigger className="h-10 w-full min-w-36" aria-label="Assign to">
+          <SelectValue placeholder="Unassigned" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+          {choices.map((person) => (
+            <SelectItem key={person.id} value={person.id}>
+              {person.name}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 function WhatsappVerifyControl({
   item,
   pending,
@@ -315,6 +373,7 @@ export function JobFairDraftList({
   onPageSizeChange,
   onClear,
   onRefresh,
+  assignees,
 }: {
   items: JobFairDraftListItem[];
   total: number;
@@ -340,11 +399,16 @@ export function JobFairDraftList({
   onPageSizeChange: (size: number) => void;
   onClear: () => void;
   onRefresh: () => void;
+  assignees: JobFairAssignee[];
 }) {
   const [searchDraft, setSearchDraft] = useState(search);
   const [selected, setSelected] = useState<JobFairDraftListItem | null>(null);
   const [logDraft, setLogDraft] = useState<JobFairDraftListItem | null>(null);
   const [markingId, setMarkingId] = useState<string | null>(null);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+  const [assignment, setAssignment] = useState<
+    Record<string, { assignedTo: string | null; assignedToName: string | null }>
+  >({});
 
   useEffect(() => {
     const input = document.getElementById('job-fair-draft-search');
@@ -353,11 +417,39 @@ export function JobFairDraftList({
   }, [search]);
 
   useEffect(() => {
-    setSelected((prev) => {
-      if (!prev) return prev;
-      return items.find((item) => item.id === prev.id) ?? prev;
+    setAssignment((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const item of items) {
+        const override = next[item.id];
+        if (
+          override &&
+          override.assignedTo === item.assignedTo &&
+          override.assignedToName === item.assignedToName
+        ) {
+          delete next[item.id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
     });
   }, [items]);
+
+  const rows = useMemo(
+    () =>
+      items.map((item) => {
+        const override = assignment[item.id];
+        return override ? { ...item, ...override } : item;
+      }),
+    [assignment, items],
+  );
+
+  useEffect(() => {
+    setSelected((prev) => {
+      if (!prev) return prev;
+      return rows.find((item) => item.id === prev.id) ?? prev;
+    });
+  }, [rows]);
 
   useEffect(() => {
     const trimmed = searchDraft.trim();
@@ -367,6 +459,36 @@ export function JobFairDraftList({
     }, 300);
     return () => clearTimeout(handle);
   }, [onSearchCommit, search, searchDraft]);
+
+  async function assignDraft(item: JobFairDraftListItem, assignedTo: string | null) {
+    if (assigningId || item.assignedTo === assignedTo) return;
+    setAssigningId(item.id);
+    try {
+      const res = await fetch(`/api/job-fair/drafts/${item.id}/assign`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assignedTo }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      const json = (await res.json()) as {
+        assignedTo: string | null;
+        assignedToName: string | null;
+      };
+      setAssignment((prev) => ({
+        ...prev,
+        [item.id]: {
+          assignedTo: json.assignedTo,
+          assignedToName: json.assignedToName,
+        },
+      }));
+      toast.success(json.assignedTo ? 'Draft assigned' : 'Assignment cleared');
+      onRefresh();
+    } catch {
+      toast.error('Could not update assignment');
+    } finally {
+      setAssigningId(null);
+    }
+  }
 
   async function markWhatsappVerified(item: JobFairDraftListItem) {
     if (item.whatsappVerifiedAt || markingId) return;
@@ -531,7 +653,7 @@ export function JobFairDraftList({
           onSort={onSortColumn}
           onDir={onSortDir}
         />
-        {items.length === 0 ? (
+        {rows.length === 0 ? (
           <div className="p-10 text-center text-sm text-muted-foreground">
             {hasSearch
               ? 'No drafts match this search.'
@@ -539,7 +661,7 @@ export function JobFairDraftList({
           </div>
         ) : (
           <>
-            <div className="hidden md:block">
+            <div className="hidden min-w-0 overflow-x-auto md:block">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -548,6 +670,7 @@ export function JobFairDraftList({
                     <SortableColumnHead label="Stopped at" column="step" sort={sort} dir={dir} onSort={onToggleSort} />
                     <SortableColumnHead label="WhatsApp" column="whatsapp" sort={sort} dir={dir} onSort={onToggleSort} />
                     <TableHead>Follow-up</TableHead>
+                    <SortableColumnHead label="Assign to" column="assignedTo" sort={sort} dir={dir} onSort={onToggleSort} />
                     <SortableColumnHead label="Area" column="area" sort={sort} dir={dir} onSort={onToggleSort} />
                     <SortableColumnHead label="Qualification" column="qualification" sort={sort} dir={dir} onSort={onToggleSort} className="hidden lg:table-cell" />
                     <SortableColumnHead label="Created at" column="createdAt" sort={sort} dir={dir} onSort={onToggleSort} className="hidden lg:table-cell" />
@@ -555,7 +678,7 @@ export function JobFairDraftList({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {items.map((item) => (
+                  {rows.map((item) => (
                     <TableRow
                       key={item.id}
                       className="cursor-pointer"
@@ -591,6 +714,14 @@ export function JobFairDraftList({
                           onClick={() => setLogDraft(item)}
                         />
                       </TableCell>
+                      <TableCell className="min-w-40">
+                        <AssignSelect
+                          item={item}
+                          assignees={assignees}
+                          pending={assigningId === item.id}
+                          onAssign={(assignedTo) => assignDraft(item, assignedTo)}
+                        />
+                      </TableCell>
                       <TableCell className="max-w-44 truncate">
                         {areaText(item.area, item.areaOther) || '—'}
                       </TableCell>
@@ -612,7 +743,7 @@ export function JobFairDraftList({
             </div>
 
             <ul className="divide-y md:hidden">
-              {items.map((item) => (
+              {rows.map((item) => (
                 <li key={item.id}>
                   <div className="flex items-center gap-2 p-4 pb-2">
                     <button
@@ -652,6 +783,12 @@ export function JobFairDraftList({
                     <LogButton
                       count={item.logCount}
                       onClick={() => setLogDraft(item)}
+                    />
+                    <AssignSelect
+                      item={item}
+                      assignees={assignees}
+                      pending={assigningId === item.id}
+                      onAssign={(assignedTo) => assignDraft(item, assignedTo)}
                     />
                   </div>
                 </li>
@@ -710,6 +847,15 @@ export function JobFairDraftList({
                   </dd>
                 </div>
               </dl>
+              <div className="min-w-0 space-y-1.5">
+                <div className="text-xs text-muted-foreground">Assign to</div>
+                <AssignSelect
+                  item={selected}
+                  assignees={assignees}
+                  pending={assigningId === selected.id}
+                  onAssign={(assignedTo) => assignDraft(selected, assignedTo)}
+                />
+              </div>
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
                 <LogButton
                   count={selected.logCount}

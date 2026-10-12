@@ -3,8 +3,10 @@ import { redirect } from 'next/navigation';
 import { JobFairModule } from '@/components/job-fair/job-fair-module';
 import {
   getJobFairStats,
+  listJobFairAssignees,
   listJobFairRegistrations,
   listOpenJobFairDrafts,
+  type JobFairAssignee,
   type JobFairDraftListItem,
   type JobFairRegistration,
   type JobFairStats,
@@ -57,6 +59,7 @@ export default async function JobFairPage({
         total={list.total}
         registrations={list.registrations}
         drafts={list.drafts}
+        assignees={list.assignees}
       />
     </div>
   );
@@ -67,11 +70,12 @@ async function loadJobFairList(query: JobFairPageQuery): Promise<{
   total: number;
   registrations: JobFairRegistration[] | null;
   drafts: JobFairDraftListItem[] | null;
+  assignees: JobFairAssignee[];
 }> {
   const statsPromise = getJobFairStats(getTodayDateStringIST());
 
   if (query.view === 'drafts') {
-    const [stats, drafts] = await Promise.all([
+    const [stats, drafts, assignees] = await Promise.all([
       statsPromise,
       listOpenJobFairDrafts(query.search || undefined, query.page, query.limit, {
         from: query.from || undefined,
@@ -81,12 +85,14 @@ async function loadJobFairList(query: JobFairPageQuery): Promise<{
         sort: normalizeDraftSort(query),
         dir: query.dir,
       }),
+      listJobFairAssignees(),
     ]);
     return {
       stats,
       total: drafts.total,
       registrations: null,
       drafts: drafts.items,
+      assignees,
     };
   }
 
@@ -112,5 +118,6 @@ async function loadJobFairList(query: JobFairPageQuery): Promise<{
     total: registrations.total,
     registrations: registrations.items,
     drafts: null,
+    assignees: [],
   };
 }

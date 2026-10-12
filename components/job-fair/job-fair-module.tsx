@@ -71,6 +71,7 @@ import {
   optionLabel,
 } from '@/lib/job-fair/options';
 import type {
+  JobFairAssignee,
   JobFairDraftListItem,
   JobFairRegistration,
   JobFairStats,
@@ -191,6 +192,7 @@ export function JobFairModule({
   total,
   registrations,
   drafts,
+  assignees,
 }: {
   query: JobFairPageQuery;
   checkInCode?: string | null;
@@ -198,6 +200,7 @@ export function JobFairModule({
   total: number;
   registrations: JobFairRegistration[] | null;
   drafts: JobFairDraftListItem[] | null;
+  assignees: JobFairAssignee[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -429,6 +432,7 @@ export function JobFairModule({
           onPageSizeChange={(size) => commit({ limit: size }, true)}
           onClear={() => commit(CLEARED_JOB_FAIR_FILTERS, true)}
           onRefresh={refresh}
+          assignees={assignees}
         />
       ) : null}
 
