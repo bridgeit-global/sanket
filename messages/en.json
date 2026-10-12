@@ -1297,6 +1297,8 @@
       "removeParagraph": "Remove paragraph",
       "table": "Table",
       "tableOptionalHint": "Optional. Prints after the paragraphs.",
+      "belowSignature": "Text below signature",
+      "belowSignatureHint": "Optional. Prints under the signature.",
       "addTable": "Add table",
       "removeTable": "Remove table",
       "tableCaption": "Text above table",

@@ -104,6 +104,7 @@ To,<br>
   {{paragraphsBlock}}
   {{tableBlock}}
   ${CLOSING}
+  {{belowSignatureBlock}}
 </div>`,
 
   fees: `<div class="letter-content" style="${ROOT}">

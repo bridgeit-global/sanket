@@ -110,6 +110,7 @@ export const MR_TEMPLATE_HTML: Record<LetterType, string> = {
   {{paragraphsBlock}}
   {{tableBlock}}
   ${CLOSING}
+  {{belowSignatureBlock}}
 </div>`,
 
   fees: `<div class="letter-content" style="${ROOT}">

@@ -222,6 +222,24 @@ function ensureGeneralSandarbhPlaceholder(templateHtml: string): string {
   return `${templateHtml.slice(0, insertAt)}\n  {{sandarbhBlock}}${templateHtml.slice(insertAt)}`;
 }
 
+function formatBelowSignatureBlock(text: string | undefined): string {
+  const normalized = (text ?? '').replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n').trim();
+  if (!normalized) return '';
+  const html = normalized
+    .split('\n')
+    .map((line) => escapeHtmlText(line) || '&nbsp;')
+    .join('<br>');
+  return `<div class="below-signature" style="margin-top:16px; text-align:left; text-indent:0; font-weight:normal; max-width:100%; white-space:normal; overflow-wrap:anywhere;">${html}</div>`;
+}
+
+/** Place optional text under the signature on stored general templates. */
+function ensureGeneralBelowSignaturePlaceholder(templateHtml: string): string {
+  if (templateHtml.includes('{{belowSignatureBlock}}')) return templateHtml;
+  const close = templateHtml.lastIndexOf('</div>');
+  if (close === -1) return `${templateHtml}\n  {{belowSignatureBlock}}`;
+  return `${templateHtml.slice(0, close)}  {{belowSignatureBlock}}\n${templateHtml.slice(close)}`;
+}
+
 /** Place the optional table after the paragraphs on stored general templates. */
 function ensureGeneralTablePlaceholder(templateHtml: string): string {
   if (templateHtml.includes('{{tableBlock}}')) return templateHtml;
@@ -343,6 +361,8 @@ export function buildRenderFields(
       letterTable: '',
       tableBlock: formatGeneralLetterTableHtml(generalFields.letterTable, locale),
       signatureBlock: formatSignatureBlock(generalFields.signatureParagraphs),
+      belowSignature: generalFields.belowSignature ?? '',
+      belowSignatureBlock: formatBelowSignatureBlock(generalFields.belowSignature),
     };
   } else if (formType.startsWith('ration-')) {
     const rationFields = fields as RationLetterFields;
@@ -508,9 +528,11 @@ export function buildRenderedLetterHtml(
   const formType = resolveLetterFormBase(typeof type === 'string' ? type : 'general');
   const htmlWithToPrefix =
     formType === 'general'
-      ? ensureGeneralTablePlaceholder(
-          ensureGeneralSandarbhPlaceholder(
-            ensureGeneralRecipientToPrefix(templateHtml, locale),
+      ? ensureGeneralBelowSignaturePlaceholder(
+          ensureGeneralTablePlaceholder(
+            ensureGeneralSandarbhPlaceholder(
+              ensureGeneralRecipientToPrefix(templateHtml, locale),
+            ),
           ),
         )
       : templateHtml;

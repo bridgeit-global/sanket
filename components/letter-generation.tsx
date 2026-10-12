@@ -699,6 +699,7 @@ function generalDefaults(locale: LetterLocale): GeneralLetterFields {
     salutation: DEFAULT_GENERAL_SALUTATION[locale],
     paragraphs: '',
     signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(locale)),
+    belowSignature: '',
     letterTable: '',
   };
 }
@@ -2364,6 +2365,7 @@ export function LetterGeneration({
             : filterText(prev.salutation),
         paragraphs: formatTextRows(nextParagraphRows),
         signatureParagraphs: formatTextRows(defaultSignatureParagraphRows(letterLocale)),
+        belowSignature: filterText(prev.belowSignature ?? ''),
         letterTable: filterGeneralLetterTableText(prev.letterTable ?? '', filterText),
       };
     });
@@ -6853,6 +6855,20 @@ export function LetterGeneration({
                         }
                         lt={lt}
                       />
+                      <FieldGroup label={lt('letterGeneration.fields.belowSignature')}>
+                        <LocaleTextarea
+                          locale={letterLocale}
+                          value={generalFields.belowSignature ?? ''}
+                          onValueChange={(belowSignature) =>
+                            setGeneralFields((prev) => ({ ...prev, belowSignature }))
+                          }
+                          rows={4}
+                          aria-label={lt('letterGeneration.fields.belowSignature')}
+                        />
+                        <p className="mt-1.5 text-xs text-muted-foreground">
+                          {lt('letterGeneration.fields.belowSignatureHint')}
+                        </p>
+                      </FieldGroup>
                     </TabsContent>
 
                     <TabsContent value="fees" className="mt-0 space-y-4">

@@ -33,6 +33,8 @@ const KNOWN_PLACEHOLDERS_BY_FORM: Partial<
     'letterTable',
     'tableBlock',
     'signatureBlock',
+    'belowSignature',
+    'belowSignatureBlock',
   ],
   fees: [
     ...COMMON_PLACEHOLDER_KEYS,

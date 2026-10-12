@@ -246,6 +246,11 @@ export type GeneralLetterFields = CommonLetterFields & {
   /** One signature line per line. */
   signatureParagraphs: string;
   /**
+   * Optional free text printed under the signature.
+   * Empty string omits it from the letter.
+   */
+  belowSignature: string;
+  /**
    * Optional user-built table (JSON `GeneralLetterTable`).
    * Empty string omits the table from the letter.
    */

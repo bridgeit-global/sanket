@@ -1297,6 +1297,8 @@
       "removeParagraph": "परिच्छेद काढा",
       "table": "तक्ता",
       "tableOptionalHint": "ऐच्छिक. परिच्छेदानंतर पत्रात छापले जाते.",
+      "belowSignature": "स्वाक्षरीखालील मजकूर",
+      "belowSignatureHint": "ऐच्छिक. स्वाक्षरीखाली पत्रात छापले जाते.",
       "addTable": "तक्ता जोडा",
       "removeTable": "तक्ता काढा",
       "tableCaption": "तक्त्यावरील ओळ",
