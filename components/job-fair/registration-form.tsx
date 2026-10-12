@@ -819,7 +819,7 @@ export function JobFairRegistrationForm() {
         );
         toast.error(
           data.message ||
-            `This receipt can be downloaded only ${JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT} times.`,
+          `This receipt can be downloaded only ${JOB_FAIR_RECEIPT_DOWNLOAD_LIMIT} times.`,
         );
         return;
       }
@@ -1584,10 +1584,7 @@ function ResultCard({
   const isUpdated = result.kind === 'updated';
   const downloadsLeft = result.receiptDownloadsRemaining;
   const shareText = `I just registered for ${JOB_FAIR_EVENT.title} – ${JOB_FAIR_EVENT.subtitle} on ${JOB_FAIR_EVENT.dateLabel}, ${JOB_FAIR_EVENT.timeLabel} at ${JOB_FAIR_EVENT.venueShort}. Register free here:`;
-  const shareUrl =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}${JOB_FAIR_PUBLIC_PATH}`
-      : JOB_FAIR_PUBLIC_PATH;
+  const shareUrl = JOB_FAIR_PUBLIC_PATH;
 
   return (
     <div className="overflow-hidden rounded-2xl border bg-card text-card-foreground shadow-xl">
