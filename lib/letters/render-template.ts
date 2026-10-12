@@ -223,13 +223,14 @@ function ensureGeneralSandarbhPlaceholder(templateHtml: string): string {
 }
 
 function formatBelowSignatureBlock(text: string | undefined): string {
-  const normalized = (text ?? '').replace(/\r\n?/g, '\n').replace(/[ \t]+\n/g, '\n').trim();
+  const normalized = (text ?? '').replace(/\r\n?/g, '\n');
   if (!normalized) return '';
-  const html = normalized
-    .split('\n')
-    .map((line) => escapeHtmlText(line) || '&nbsp;')
-    .join('<br>');
-  return `<div class="below-signature" style="margin-top:16px; text-align:left; text-indent:0; font-weight:normal; max-width:100%; white-space:normal; overflow-wrap:anywhere;">${html}</div>`;
+  // Keep spaces and blank lines the user typed. HTML would otherwise collapse them.
+  const html = escapeHtmlText(normalized)
+    .replace(/ /g, '&nbsp;')
+    .replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;')
+    .replace(/\n/g, '<br>');
+  return `<div class="below-signature" style="margin-top:16px; text-align:left; text-indent:0; font-weight:normal; max-width:100%; white-space:pre-wrap; overflow-wrap:anywhere;">${html}</div>`;
 }
 
 /** Place optional text under the signature on stored general templates. */
