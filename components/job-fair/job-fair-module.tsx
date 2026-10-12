@@ -290,7 +290,7 @@ export function JobFairModule({
   };
 
   const copyPublicLink = async () => {
-    const url = `${window.location.origin}${JOB_FAIR_PUBLIC_PATH}`;
+    const url = JOB_FAIR_PUBLIC_PATH
     try {
       await navigator.clipboard.writeText(url);
       toast.success('Registration link copied');
@@ -389,8 +389,8 @@ export function JobFairModule({
           sub={
             stats?.topAreas.length
               ? stats.topAreas
-                  .map((a) => `${optionLabel(AREA_OPTIONS, a.area)} (${a.count})`)
-                  .join(', ')
+                .map((a) => `${optionLabel(AREA_OPTIONS, a.area)} (${a.count})`)
+                .join(', ')
               : undefined
           }
         />
@@ -421,172 +421,172 @@ export function JobFairModule({
       ) : null}
 
       {view === 'registrations' ? (
-      <>
-      <Card>
-        <CardContent className="space-y-3 p-4">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, mobile or registration no."
-              value={searchDraft}
-              onChange={(e) => setSearchDraft(e.target.value)}
-              className="h-10 pl-9"
-            />
-          </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
-            <FilterSelect label="Area" value={filters.area} onChange={(v) => setFilter('area', v)} options={AREA_OPTIONS} />
-            <FilterSelect label="Qualification" value={filters.qualification} onChange={(v) => setFilter('qualification', v)} options={QUALIFICATION_OPTIONS} />
-            <FilterSelect label="Experience" value={filters.experience} onChange={(v) => setFilter('experience', v)} options={EXPERIENCE_OPTIONS} />
-            <FilterSelect label="Job type" value={filters.jobType} onChange={(v) => setFilter('jobType', v)} options={JOB_TYPE_OPTIONS} />
-            <div className="min-w-0 space-y-1.5">
-              <div className="text-xs font-medium text-muted-foreground">Registered from</div>
-              <DmyDateInput value={filters.from} onValueChange={(v) => setFilter('from', v)} className="h-10 w-full" />
-            </div>
-            <div className="min-w-0 space-y-1.5">
-              <div className="text-xs font-medium text-muted-foreground">Registered to</div>
-              <DmyDateInput value={filters.to} onValueChange={(v) => setFilter('to', v)} className="h-10 w-full" />
-            </div>
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted-foreground">
-              {loading ? 'Loading…' : `${total} registration${total === 1 ? '' : 's'}`}
-            </p>
-            {hasFilters ? (
-              <Button variant="ghost" onClick={clearFilters} className="h-10 w-full sm:w-auto">
-                <X className="size-4" />
-                Clear filters
-              </Button>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
+        <>
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, mobile or registration no."
+                  value={searchDraft}
+                  onChange={(e) => setSearchDraft(e.target.value)}
+                  className="h-10 pl-9"
+                />
+              </div>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
+                <FilterSelect label="Area" value={filters.area} onChange={(v) => setFilter('area', v)} options={AREA_OPTIONS} />
+                <FilterSelect label="Qualification" value={filters.qualification} onChange={(v) => setFilter('qualification', v)} options={QUALIFICATION_OPTIONS} />
+                <FilterSelect label="Experience" value={filters.experience} onChange={(v) => setFilter('experience', v)} options={EXPERIENCE_OPTIONS} />
+                <FilterSelect label="Job type" value={filters.jobType} onChange={(v) => setFilter('jobType', v)} options={JOB_TYPE_OPTIONS} />
+                <div className="min-w-0 space-y-1.5">
+                  <div className="text-xs font-medium text-muted-foreground">Registered from</div>
+                  <DmyDateInput value={filters.from} onValueChange={(v) => setFilter('from', v)} className="h-10 w-full" />
+                </div>
+                <div className="min-w-0 space-y-1.5">
+                  <div className="text-xs font-medium text-muted-foreground">Registered to</div>
+                  <DmyDateInput value={filters.to} onValueChange={(v) => setFilter('to', v)} className="h-10 w-full" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-muted-foreground">
+                  {loading ? 'Loading…' : `${total} registration${total === 1 ? '' : 's'}`}
+                </p>
+                {hasFilters ? (
+                  <Button variant="ghost" onClick={clearFilters} className="h-10 w-full sm:w-auto">
+                    <X className="size-4" />
+                    Clear filters
+                  </Button>
+                ) : null}
+              </div>
+            </CardContent>
+          </Card>
 
-      <Card className="min-w-0">
-        {loading && !data ? (
-          <div className="flex items-center justify-center p-10 text-muted-foreground">
-            <Loader2 className="mr-2 size-4 animate-spin" />
-            Loading registrations…
-          </div>
-        ) : items.length === 0 ? (
-          <div className="p-10 text-center text-sm text-muted-foreground">
-            {hasFilters ? 'No registrations match these filters.' : 'No registrations yet. Share the public link to get started.'}
-          </div>
-        ) : (
-          <>
-            <div className="hidden md:block">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Reg. No</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Mobile</TableHead>
-                    <TableHead>Area</TableHead>
-                    <TableHead>Qualification</TableHead>
-                    <TableHead className="hidden lg:table-cell">Experience</TableHead>
-                    <TableHead className="hidden lg:table-cell">Registered</TableHead>
-                    <TableHead className="text-right">Resume</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((r) => (
-                    <TableRow key={r.id} className="cursor-pointer" onClick={() => setSelected(r)}>
-                      <TableCell className="font-mono text-xs">{r.registrationNo}</TableCell>
-                      <TableCell className="max-w-48 truncate font-medium">{r.fullName}</TableCell>
-                      <TableCell>
-                        <Badge variant={r.status === 'registered' ? 'secondary' : 'default'}>
-                          {jobFairStatusLabel(r.status)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div
-                          className="flex min-w-0 items-center gap-2"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <span className="tabular-nums">{r.mobile}</span>
-                          <PhoneCallButton phone={`+91${r.mobile}`} />
-                        </div>
-                      </TableCell>
-                      <TableCell className="max-w-44 truncate">{areaText(r)}</TableCell>
-                      <TableCell>{optionLabel(QUALIFICATION_OPTIONS, r.qualification)}</TableCell>
-                      <TableCell className="hidden lg:table-cell">{optionLabel(EXPERIENCE_OPTIONS, r.experience)}</TableCell>
-                      <TableCell className="hidden whitespace-nowrap lg:table-cell">{formatDisplayDateTimeIST(r.createdAt)}</TableCell>
-                      <TableCell className="text-right">
-                        {r.resumeStoragePath ? (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            title="Preview resume"
-                            aria-label="Preview resume"
-                            disabled={openingResume === r.id}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              void openResume(r.id, 'resume.pdf');
-                            }}
-                          >
-                            {openingResume === r.id ? (
-                              <Loader2 className="size-4 animate-spin" />
+          <Card className="min-w-0">
+            {loading && !data ? (
+              <div className="flex items-center justify-center p-10 text-muted-foreground">
+                <Loader2 className="mr-2 size-4 animate-spin" />
+                Loading registrations…
+              </div>
+            ) : items.length === 0 ? (
+              <div className="p-10 text-center text-sm text-muted-foreground">
+                {hasFilters ? 'No registrations match these filters.' : 'No registrations yet. Share the public link to get started.'}
+              </div>
+            ) : (
+              <>
+                <div className="hidden md:block">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Reg. No</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Mobile</TableHead>
+                        <TableHead>Area</TableHead>
+                        <TableHead>Qualification</TableHead>
+                        <TableHead className="hidden lg:table-cell">Experience</TableHead>
+                        <TableHead className="hidden lg:table-cell">Registered</TableHead>
+                        <TableHead className="text-right">Resume</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {items.map((r) => (
+                        <TableRow key={r.id} className="cursor-pointer" onClick={() => setSelected(r)}>
+                          <TableCell className="font-mono text-xs">{r.registrationNo}</TableCell>
+                          <TableCell className="max-w-48 truncate font-medium">{r.fullName}</TableCell>
+                          <TableCell>
+                            <Badge variant={r.status === 'registered' ? 'secondary' : 'default'}>
+                              {jobFairStatusLabel(r.status)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div
+                              className="flex min-w-0 items-center gap-2"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <span className="tabular-nums">{r.mobile}</span>
+                              <PhoneCallButton phone={`+91${r.mobile}`} />
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-44 truncate">{areaText(r)}</TableCell>
+                          <TableCell>{optionLabel(QUALIFICATION_OPTIONS, r.qualification)}</TableCell>
+                          <TableCell className="hidden lg:table-cell">{optionLabel(EXPERIENCE_OPTIONS, r.experience)}</TableCell>
+                          <TableCell className="hidden whitespace-nowrap lg:table-cell">{formatDisplayDateTimeIST(r.createdAt)}</TableCell>
+                          <TableCell className="text-right">
+                            {r.resumeStoragePath ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                title="Preview resume"
+                                aria-label="Preview resume"
+                                disabled={openingResume === r.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void openResume(r.id, 'resume.pdf');
+                                }}
+                              >
+                                {openingResume === r.id ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : (
+                                  <Eye className="size-4" />
+                                )}
+                              </Button>
                             ) : (
-                              <Eye className="size-4" />
+                              <span className="text-xs text-muted-foreground">—</span>
                             )}
-                          </Button>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
 
-            <ul className="divide-y md:hidden">
-              {items.map((r) => (
-                <li key={r.id} className="flex items-center gap-2 p-4">
-                  <button
-                    type="button"
-                    onClick={() => setSelected(r)}
-                    className="flex min-w-0 flex-1 flex-col gap-1 text-left"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="min-w-0 truncate font-medium">{r.fullName}</span>
-                      <span className="shrink-0 font-mono text-xs text-muted-foreground">{r.registrationNo}</span>
-                    </div>
-                    <div className="text-sm text-muted-foreground">
-                      {r.mobile} · {areaText(r)}
-                    </div>
-                    <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                      <Badge variant={r.status === 'registered' ? 'secondary' : 'default'}>
-                        {jobFairStatusLabel(r.status)}
-                      </Badge>
-                      <Badge variant="secondary">{optionLabel(QUALIFICATION_OPTIONS, r.qualification)}</Badge>
-                      <Badge variant="outline">{optionLabel(EXPERIENCE_OPTIONS, r.experience)}</Badge>
-                      {r.resumeStoragePath ? <Badge variant="outline">Resume</Badge> : null}
-                    </div>
-                    <div className="text-xs text-muted-foreground">{formatDisplayDateTimeIST(r.createdAt)}</div>
-                  </button>
-                  <PhoneCallButton phone={`+91${r.mobile}`} className="h-10" />
-                </li>
-              ))}
-            </ul>
-          </>
-        )}
-        {total > 0 ? (
-          <TablePagination
-            currentPage={page}
-            totalPages={totalPages}
-            pageSize={pageSize}
-            totalItems={total}
-            onPageChange={(p) => setPage(Math.max(1, Math.min(p, totalPages)))}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
-              setPage(1);
-            }}
-          />
-        ) : null}
-      </Card>
-      </>
+                <ul className="divide-y md:hidden">
+                  {items.map((r) => (
+                    <li key={r.id} className="flex items-center gap-2 p-4">
+                      <button
+                        type="button"
+                        onClick={() => setSelected(r)}
+                        className="flex min-w-0 flex-1 flex-col gap-1 text-left"
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="min-w-0 truncate font-medium">{r.fullName}</span>
+                          <span className="shrink-0 font-mono text-xs text-muted-foreground">{r.registrationNo}</span>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {r.mobile} · {areaText(r)}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                          <Badge variant={r.status === 'registered' ? 'secondary' : 'default'}>
+                            {jobFairStatusLabel(r.status)}
+                          </Badge>
+                          <Badge variant="secondary">{optionLabel(QUALIFICATION_OPTIONS, r.qualification)}</Badge>
+                          <Badge variant="outline">{optionLabel(EXPERIENCE_OPTIONS, r.experience)}</Badge>
+                          {r.resumeStoragePath ? <Badge variant="outline">Resume</Badge> : null}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{formatDisplayDateTimeIST(r.createdAt)}</div>
+                      </button>
+                      <PhoneCallButton phone={`+91${r.mobile}`} className="h-10" />
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {total > 0 ? (
+              <TablePagination
+                currentPage={page}
+                totalPages={totalPages}
+                pageSize={pageSize}
+                totalItems={total}
+                onPageChange={(p) => setPage(Math.max(1, Math.min(p, totalPages)))}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPage(1);
+                }}
+              />
+            ) : null}
+          </Card>
+        </>
       ) : null}
 
       <Dialog open={Boolean(selected)} onOpenChange={(open) => !open && setSelected(null)}>
